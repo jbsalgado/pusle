@@ -1,0 +1,62 @@
+<?php
+use yii\helpers\Url;
+
+return [
+    [
+        'class' => 'kartik\grid\CheckboxColumn',
+        'width' => '20px',
+    ],
+    [
+        'class' => 'kartik\grid\SerialColumn',
+        'width' => '30px',
+    ],
+        [
+        'class'=>'\kartik\grid\DataColumn',
+        'attribute'=>'id_opcao_desagregacao',
+    ],
+    [
+        'class'=>'\kartik\grid\DataColumn',
+        'attribute'=>'id_categoria_desagregacao',
+    ],
+    [
+        'class'=>'\kartik\grid\DataColumn',
+        'attribute'=>'valor_opcao',
+    ],
+    [
+        'class'=>'\kartik\grid\DataColumn',
+        'attribute'=>'codigo_opcao',
+    ],
+    [
+        'class'=>'\kartik\grid\DataColumn',
+        'attribute'=>'descricao_opcao',
+    ],
+    // [
+        // 'class'=>'\kartik\grid\DataColumn',
+        // 'attribute'=>'ordem_apresentacao',
+    // ],
+    // [
+        // 'class'=>'\kartik\grid\DataColumn',
+        // 'attribute'=>'data_criacao',
+    // ],
+    // [
+        // 'class'=>'\kartik\grid\DataColumn',
+        // 'attribute'=>'data_atualizacao',
+    // ],
+    [
+        'class' => 'kartik\grid\ActionColumn',
+        'dropdown' => false,
+        'vAlign'=>'middle',
+        'urlCreator' => function($action, $model, $key, $index) { 
+                return Url::to([$action,'id'=>$key]);
+        },
+        'viewOptions'=>['role'=>'modal-remote','title'=>'View','data-toggle'=>'tooltip'],
+        'updateOptions'=>['role'=>'modal-remote','title'=>'Update', 'data-toggle'=>'tooltip'],
+        'deleteOptions'=>['role'=>'modal-remote','title'=>'Delete', 
+                          'data-confirm'=>false, 'data-method'=>false,// for overide yii data api
+                          'data-request-method'=>'post',
+                          'data-toggle'=>'tooltip',
+                          'data-confirm-title'=>'Are you sure?',
+                          'data-confirm-message'=>'Are you sure want to delete this item'], 
+    ],
+
+];   
