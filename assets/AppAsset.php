@@ -20,15 +20,14 @@ class AppAsset extends AssetBundle
     public $basePath = '@webroot';
     public $baseUrl = '@web';
     public $css = [
-        //ss/tailwin34/tailwind.css', // Verifique se este caminho está correto
-        'css/site.css',
-        
+        'css/output.css', // Arquivo CSS do Tailwind gerado
+        'css/site.css',   // Manter seus estilos customizados se necessário
     ];
     public $js = [
     ];
     public $depends = [
         'yii\web\YiiAsset',
-        'yii\bootstrap\BootstrapAsset',
+        // Comentar ou remover Bootstrap se quiser usar apenas Tailwind
+        // 'yii\bootstrap\BootstrapAsset',
     ];
-   
 }

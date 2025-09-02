@@ -1,0 +1,29 @@
+{
+  "name": "basic",
+  "version": "1.0.0",
+  "description": "<p align=\"center\">     <a href=\"https://github.com/yiisoft\" target=\"_blank\">         <img src=\"https://avatars0.githubusercontent.com/u/993323\" height=\"100px\">     </a>     <h1 align=\"center\">Yii 2 Basic Project Template</h1>     <br> </p>",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "build": "tailwindcss -i ./web/css/input.css -o ./web/css/output.css",
+    "watch": "tailwindcss -i ./web/css/input.css -o ./web/css/output.css --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jbsalgado/pusle.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jbsalgado/pusle/issues"
+  },
+  "homepage": "https://github.com/jbsalgado/pusle#readme",
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}
