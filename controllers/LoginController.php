@@ -37,7 +37,7 @@ class LoginController extends Controller
                     error_log('==================');
                 }
                 
-                return $this->redirect(['/index.php/metricas']);
+                return $this->redirect(['/metricas']);
             } else {
                 // Login falhou - log do erro
                 Salg::log($model, false, "LOGIN-FALHA");

@@ -26,7 +26,8 @@
         "eddmash/yii2-clipboard": "@dev",
         "daixianceng/yii2-echarts": "*",
         "bower-asset/chart.js": "^4.4",
-        "bower-asset/bootstrap": "^3.4"
+        "bower-asset/bootstrap": "^3.4",
+        "nfephp-org/sped-nfe": "^5.1"
     },
     "require-dev": {
         "yiisoft/yii2-debug": "~2.0.14",

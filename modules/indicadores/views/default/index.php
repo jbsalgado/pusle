@@ -18,7 +18,7 @@ $this->registerJsFile('https://cdn.tailwindcss.com', ['position' => View::POS_HE
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 
-            <a href="<?= Url::to(['/index.php/metricas/ind-unidades-medida/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
+            <a href="<?= Url::to(['/metricas/ind-unidades-medida/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
                 <div class="bg-white rounded-xl shadow-md p-6 flex flex-col items-center text-center h-full">
                     <div class="bg-blue-100 text-blue-500 rounded-full p-3 mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -30,7 +30,7 @@ $this->registerJsFile('https://cdn.tailwindcss.com', ['position' => View::POS_HE
                 </div>
             </a>
 
-            <a href="<?= Url::to(['/index.php/metricas/ind-periodicidades/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
+            <a href="<?= Url::to(['/metricas/ind-periodicidades/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
                 <div class="bg-white rounded-xl shadow-md p-6 flex flex-col items-center text-center h-full">
                     <div class="bg-green-100 text-green-500 rounded-full p-3 mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -42,7 +42,7 @@ $this->registerJsFile('https://cdn.tailwindcss.com', ['position' => View::POS_HE
                 </div>
             </a>
 
-            <a href="<?= Url::to(['/index.php/metricas/ind-fontes-dados/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
+            <a href="<?= Url::to(['/metricas/ind-fontes-dados/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
                 <div class="bg-white rounded-xl shadow-md p-6 flex flex-col items-center text-center h-full">
                     <div class="bg-yellow-100 text-yellow-500 rounded-full p-3 mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -54,7 +54,7 @@ $this->registerJsFile('https://cdn.tailwindcss.com', ['position' => View::POS_HE
                 </div>
             </a>
 
-            <a href="<?= Url::to(['/index.php/metricas/ind-dimensoes-indicadores/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
+            <a href="<?= Url::to(['/metricas/ind-dimensoes-indicadores/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
                 <div class="bg-white rounded-xl shadow-md p-6 flex flex-col items-center text-center h-full">
                     <div class="bg-purple-100 text-purple-500 rounded-full p-3 mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -66,7 +66,7 @@ $this->registerJsFile('https://cdn.tailwindcss.com', ['position' => View::POS_HE
                 </div>
             </a>
             
-            <a href="<?= Url::to(['/index.php/metricas/ind-niveis-abrangencia/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
+            <a href="<?= Url::to(['/metricas/ind-niveis-abrangencia/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
                 <div class="bg-white rounded-xl shadow-md p-6 flex flex-col items-center text-center h-full">
                     <div class="bg-indigo-100 text-indigo-500 rounded-full p-3 mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -79,7 +79,7 @@ $this->registerJsFile('https://cdn.tailwindcss.com', ['position' => View::POS_HE
                 </div>
             </a>
 
-            <a href="<?= Url::to(['/index.php/metricas/ind-categorias-desagregacao/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
+            <a href="<?= Url::to(['/metricas/ind-categorias-desagregacao/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
                 <div class="bg-white rounded-xl shadow-md p-6 flex flex-col items-center text-center h-full">
                     <div class="bg-pink-100 text-pink-500 rounded-full p-3 mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -91,7 +91,7 @@ $this->registerJsFile('https://cdn.tailwindcss.com', ['position' => View::POS_HE
                 </div>
             </a>
 
-            <a href="<?= Url::to(['/index.php/metricas/ind-opcoes-desagregacao/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
+            <a href="<?= Url::to(['/metricas/ind-opcoes-desagregacao/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
                 <div class="bg-white rounded-xl shadow-md p-6 flex flex-col items-center text-center h-full">
                     <div class="bg-red-100 text-red-500 rounded-full p-3 mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -103,7 +103,7 @@ $this->registerJsFile('https://cdn.tailwindcss.com', ['position' => View::POS_HE
                 </div>
             </a>
 
-            <a href="<?= Url::to(['/index.php/metricas/ind-definicoes-indicadores/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
+            <a href="<?= Url::to(['/metricas/ind-definicoes-indicadores/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
                 <div class="bg-white rounded-xl shadow-md p-6 flex flex-col items-center text-center h-full">
                     <div class="bg-blue-100 text-blue-500 rounded-full p-3 mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -116,7 +116,7 @@ $this->registerJsFile('https://cdn.tailwindcss.com', ['position' => View::POS_HE
                 </div>
             </a>
 
-            <a href="<?= Url::to(['/index.php/metricas/ind-atributos-qualidade-desempenho/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
+            <a href="<?= Url::to(['/metricas/ind-atributos-qualidade-desempenho/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
                 <div class="bg-white rounded-xl shadow-md p-6 flex flex-col items-center text-center h-full">
                     <div class="bg-green-100 text-green-500 rounded-full p-3 mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -128,7 +128,7 @@ $this->registerJsFile('https://cdn.tailwindcss.com', ['position' => View::POS_HE
                 </div>
             </a>
             
-            <a href="<?= Url::to(['/index.php/metricas/ind-metas-indicadores/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
+            <a href="<?= Url::to(['/metricas/ind-metas-indicadores/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
                 <div class="bg-white rounded-xl shadow-md p-6 flex flex-col items-center text-center h-full">
                     <div class="bg-yellow-100 text-yellow-500 rounded-full p-3 mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -140,7 +140,7 @@ $this->registerJsFile('https://cdn.tailwindcss.com', ['position' => View::POS_HE
                 </div>
             </a>
 
-            <a href="<?= Url::to(['/index.php/metricas/ind-relacoes-indicadores/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
+            <a href="<?= Url::to(['/metricas/ind-relacoes-indicadores/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
                 <div class="bg-white rounded-xl shadow-md p-6 flex flex-col items-center text-center h-full">
                     <div class="bg-purple-100 text-purple-500 rounded-full p-3 mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -152,7 +152,7 @@ $this->registerJsFile('https://cdn.tailwindcss.com', ['position' => View::POS_HE
                 </div>
             </a>
 
-            <a href="<?= Url::to(['/index.php/metricas/ind-valores-indicadores/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
+            <a href="<?= Url::to(['/metricas/ind-valores-indicadores/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
                 <div class="bg-white rounded-xl shadow-md p-6 flex flex-col items-center text-center h-full">
                     <div class="bg-indigo-100 text-indigo-500 rounded-full p-3 mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -164,7 +164,7 @@ $this->registerJsFile('https://cdn.tailwindcss.com', ['position' => View::POS_HE
                 </div>
             </a>
             
-            <a href="<?= Url::to(['/index.php/metricas/ind-valores-indicadores-desagregacoes/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
+            <a href="<?= Url::to(['/metricas/ind-valores-indicadores-desagregacoes/index']) ?>" class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
                 <div class="bg-white rounded-xl shadow-md p-6 flex flex-col items-center text-center h-full">
                     <div class="bg-pink-100 text-pink-500 rounded-full p-3 mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -176,7 +176,7 @@ $this->registerJsFile('https://cdn.tailwindcss.com', ['position' => View::POS_HE
                 </div>
             </a>
 
-            <a href="<?= Url::to(['/index.php/metricas/permissao']) ?>"
+            <a href="<?= Url::to(['/metricas/permissao']) ?>"
                 class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
                 <div class="bg-white rounded-xl shadow-md p-6 flex flex-col items-center text-center h-full">
                     <div class="bg-pink-100 text-pink-500 rounded-full p-3 mb-4 flex items-center justify-center">
@@ -192,7 +192,7 @@ $this->registerJsFile('https://cdn.tailwindcss.com', ['position' => View::POS_HE
                 </div>
             </a>
 
-            <a href="<?= Url::to(['/index.php/metricas/sys-modulos/index']) ?>"
+            <a href="<?= Url::to(['/metricas/sys-modulos/index']) ?>"
                 class="transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg">
                 <div class="bg-white rounded-xl shadow-md p-6 flex flex-col items-center text-center h-full">
                     <div class="bg-pink-100 text-pink-500 rounded-full p-3 mb-4 flex items-center justify-center">

@@ -33,7 +33,7 @@ use yii\helpers\Html;
             <?php if(!Yii::$app->user->isGuest){
                 echo Html::a(
                                     'Sair',
-                                    ['/index.php/site/logout'],
+                                    ['/site/logout'],
                                     ['data-method' => 'post', 'class' => 'btn', 'style'=>'color:white; font-size:12pt']
                         ); 
             }?>

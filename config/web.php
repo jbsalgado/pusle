@@ -24,7 +24,7 @@ $config = [
         'urlManager' => [
             'class' => 'yii\web\UrlManager',
             'enablePrettyUrl' => true,
-            'showScriptName' => false,
+            //'showScriptName' => false,
             // Adicionamos regras para nossos controladores personalizados
             'rules' => [
                 'signup' => 'signup/index',     // Cadastro

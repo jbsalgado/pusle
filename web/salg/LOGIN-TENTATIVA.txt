@@ -1,4 +1,4 @@
-At 02-09-2025 00:51:18:
+At 04-09-2025 03:25:37:
 app\models\LoginFormNew Object
 (
     [_events:yii\base\Component:private] => Array
@@ -215,6 +215,6 @@ app\models\LoginFormNew Object
     [username] => barbosa
     [password] => 92888872jbs
     [rememberMe] => 1
-    [modulo] => 3
+    [modulo] => 4
     [_user:app\models\LoginFormNew:private] => 
 )
