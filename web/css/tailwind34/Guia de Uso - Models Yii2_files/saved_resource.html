@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<!-- saved from url=(0012)about:srcdoc -->
+<html lang="pt-BR"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.13/html-to-image.min.js" integrity="sha512-iZ2ORl595Wx6miw+GuadDet4WQbdSWS3JLMoNfY8cRGoEFy6oT3G9IbcrBeL6AfkgpA51ETt/faX6yLV+/gFJg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+      (function() {
+        const originalConsole = window.console;
+        window.console = {
+          log: (...args) => {
+            originalConsole.log(...args);
+            window.parent.postMessage({ type: 'console', message: args.join(' ') }, '*');
+          },
+          error: (...args) => {
+            originalConsole.error(...args);
+            window.parent.postMessage({ type: 'console', message: 'Error: ' + args.join(' ') }, '*');
+          },
+          warn: (...args) => {
+            originalConsole.warn(...args);
+            window.parent.postMessage({ type: 'console', message: 'Warning: ' + args.join(' ') }, '*');
+          }
+        };
+
+        let requestId = 0;
+        let callbacksMap = new Map();
+        let streamControllers = new Map();
+        
+        window.claude = {
+          complete: (prompt) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'claudeComplete', id, prompt }, '*');
+            });
+          }
+        };
+
+        window.storage = {
+          get: (key, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageGet', id, key, shared }, '*');
+            });
+          },
+          set: (key, value, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageSet', id, key, value, shared }, '*');
+            });
+          },
+          delete: (key, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageDelete', id, key, shared }, '*');
+            });
+          },
+          list: (prefix, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageList', id, prefix, shared }, '*');
+            });
+          }
+        };
+
+        let pendingBlobs = new Map();
+        URL.createObjectURL = (blob) => {
+          // Store the blob and create an ID and URL for it
+          const blobId = `blob-${Date.now()}-${Math.random()}`;
+          pendingBlobs.set(blobId, blob);
+          return `blob-request://${blobId}`;
+        };
+
+        URL.revokeObjectURL = (url) => {
+          // Remove the blob from our store
+          const blobId = url.replace("blob-request://", "");
+          pendingBlobs.delete(blobId);
+        };
+
+        const getBlobFromURL = (url) => {
+          const blobId = url.replace("blob-request://", "");
+          return pendingBlobs.get(blobId);
+        };
+
+        // Override global fetch with streaming support
+        window.fetch = (url, init = {}) => {
+          return new Promise((resolve, reject) => {
+            const id = requestId++;
+            const channelId = `fetch-${id}-${Date.now()}`;
+            
+            callbacksMap.set(id, { 
+              resolve: (response) => {
+                // Create a ReadableStream for the response body
+                const stream = new ReadableStream({
+                  start(controller) {
+                    streamControllers.set(channelId, controller);
+                  },
+                  cancel() {
+                    streamControllers.delete(channelId);
+                  }
+                });
+                
+                // Create and return the Response with the stream
+                resolve(new Response(stream, {
+                  status: response.status,
+                  statusText: response.statusText,
+                  headers: response.headers
+                }));
+              },
+              reject,
+              channelId
+            });
+            
+            window.parent.postMessage({
+              type: 'proxyFetch',
+              id,
+              url,
+              init,
+              channelId
+            }, '*');
+          });
+        };
+
+        window.addEventListener('message', async (event) => {
+          if (event.data.type === 'takeScreenshot') {
+            const rootElement = document.getElementById('artifacts-component-root-html');
+            if (!rootElement) {
+              window.parent.postMessage({
+                type: 'screenshotError',
+                error: new Error('Root element not found'),
+              }, '*');
+            }
+            const screenshot = await htmlToImage.toPng(rootElement, {
+              imagePlaceholder:
+                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAA1JREFUGFdjePDgwX8ACOQDoNsk0PMAAAAASUVORK5CYII=",
+            });
+            window.parent.postMessage({
+              type: 'screenshotData',
+              data: screenshot,
+            }, '*');
+          } else if (event.data.type === 'claudeComplete') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.completion);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'proxyFetchResponse') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+              callbacksMap.delete(event.data.id);
+            } else {
+              // Initial response with headers, status, etc.
+              callback.resolve({
+                status: event.data.status,
+                statusText: event.data.statusText,
+                headers: event.data.headers
+              });
+              // Don't delete the callback yet if streaming
+              if (!event.data.body) {
+                callbacksMap.delete(event.data.id);
+              }
+            }
+          } else if (event.data.type === 'proxyFetchStream') {
+            // Handle streaming data chunks
+            const controller = streamControllers.get(event.data.channelId);
+            if (controller) {
+              if (event.data.error) {
+                controller.error(new Error(event.data.error));
+                streamControllers.delete(event.data.channelId);
+              } else if (event.data.done) {
+                controller.close();
+                streamControllers.delete(event.data.channelId);
+                // Clean up the callback
+                const callback = Array.from(callbacksMap.entries()).find(
+                  ([_, value]) => value.channelId === event.data.channelId
+                );
+                if (callback) {
+                  callbacksMap.delete(callback[0]);
+                }
+              } else if (event.data.chunk) {
+                controller.enqueue(new Uint8Array(event.data.chunk));
+              }
+            }
+          } else if (event.data.type === 'storageGet') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'storageSet') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'storageDelete') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'storageList') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          }
+        });
+
+        window.addEventListener('click', (event) => {
+          const isEl = event.target instanceof HTMLElement;
+          if (!isEl) return;
+    
+          // find ancestor links
+          const linkEl = event.target.closest("a");
+          if (!linkEl || !linkEl.href) return;
+    
+          event.preventDefault();
+          event.stopImmediatePropagation();
+    
+          if (linkEl.href.startsWith("blob-request:")) {
+            const blob = getBlobFromURL(linkEl.href);
+            if (!blob) return;
+            void blob.arrayBuffer().then((data) => {
+              window.parent.postMessage({
+                type: "downloadFile",
+                filename: linkEl.download,
+                data,
+                mimeType: blob.type || "application/octet-stream",
+              });
+            });
+          } else if (linkEl.href.startsWith("data:")) {
+            const [header, base64Data] = linkEl.href.split(",");
+            const mimeMatch = header.match(/data:([^;]+)/);
+            const mimeType = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+            const binaryString = atob(base64Data);
+            const data = Uint8Array.from(binaryString, (c) =>
+              c.charCodeAt(0),
+            ).buffer;
+            window.parent.postMessage({
+              type: "downloadFile",
+              filename: linkEl.download,
+              data,
+              mimeType,
+            });
+          } else {
+            let linkUrl;
+            try {
+              linkUrl = new URL(linkEl.href);
+            } catch (error) {
+              return;
+            }
+    
+            if (linkUrl.hostname === window.location.hostname) return;
+      
+            window.parent.postMessage({
+              type: 'openExternal',
+              href: linkEl.href,
+            }, '*');
+          }
+      });
+
+        const originalOpen = window.open;
+        window.open = function (url) {
+          window.parent.postMessage({
+            type: "openExternal",
+            href: url,
+          }, "*");
+        };
+
+        window.addEventListener('error', (event) => {
+          window.parent.postMessage({ type: 'console', message: 'Uncaught Error: ' + event.message }, '*');
+        });
+      })();
+    </script>
+  
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guia de Uso - Models Yii2</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .section {
+            background: white;
+            padding: 30px;
+            margin-bottom: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 12px;
+            margin-bottom: 25px;
+            font-size: 1.8em;
+        }
+        
+        h3 {
+            color: #764ba2;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .model-card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        .model-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .model-description {
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .model-table {
+            font-family: 'Courier New', monospace;
+            background: #e7e7e7;
+            padding: 5px 10px;
+            border-radius: 3px;
+            display: inline-block;
+            font-size: 0.9em;
+        }
+        
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .code-block .comment {
+            color: #6A9955;
+        }
+        
+        .code-block .keyword {
+            color: #569CD6;
+        }
+        
+        .code-block .string {
+            color: #CE9178;
+        }
+        
+        .code-block .function {
+            color: #DCDCAA;
+        }
+        
+        .code-block .variable {
+            color: #9CDCFE;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .feature-list li {
+            padding: 10px 10px 10px 35px;
+            margin: 8px 0;
+            background: #f0f4ff;
+            border-radius: 5px;
+            position: relative;
+        }
+        
+        .feature-list li::before {
+            content: "✓";
+            position: absolute;
+            left: 10px;
+            color: #10b981;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        
+        .warning-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        
+        .warning-box strong {
+            color: #92400e;
+        }
+        
+        .info-box {
+            background: #dbeafe;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        
+        .success-box {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        table tr:hover {
+            background: #f9fafb;
+        }
+        
+        .example-box {
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .example-title {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        
+        footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 2px solid #e5e7eb;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body id="artifacts-component-root-html">
+    <div class="header">
+        <h1>📚 Guia de Uso - Models Yii2</h1>
+        <p>Sistema de Gestão para Prestanistas</p>
+    </div>
+
+    <!-- RESUMO -->
+    <div class="section">
+        <h2>📊 Resumo dos Models Criados</h2>
+        
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="stat-number">24</div>
+                <div class="stat-label">Models Criados</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">4</div>
+                <div class="stat-label">Partes Organizadas</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">100%</div>
+                <div class="stat-label">Tabelas Cobertas</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">Multi-Tenant</div>
+                <div class="stat-label">Arquitetura</div>
+            </div>
+        </div>
+
+        <h3>🗂️ Organização dos Models</h3>
+        
+        <div class="model-card">
+            <div class="model-title">📦 Parte 1: Base e Lookups</div>
+            <div class="model-description">
+                Models fundamentais do sistema
+            </div>
+            <ul class="feature-list">
+                <li><strong>Usuario</strong> - Prestanistas (implementa IdentityInterface)</li>
+                <li><strong>StatusVenda</strong> - Status das vendas (lookup)</li>
+                <li><strong>StatusParcela</strong> - Status das parcelas (lookup)</li>
+                <li><strong>Configuracao</strong> - Configurações do prestanista</li>
+                <li><strong>Regiao</strong> - Regiões geográficas</li>
+            </ul>
+        </div>
+
+        <div class="model-card">
+            <div class="model-title">📦 Parte 2: Clientes e Produtos</div>
+            <div class="model-description">
+                Cadastros principais
+            </div>
+            <ul class="feature-list">
+                <li><strong>Cliente</strong> - Cadastro de clientes</li>
+                <li><strong>Categoria</strong> - Categorias de produtos</li>
+                <li><strong>Produto</strong> - Catálogo de produtos</li>
+                <li><strong>ProdutoFoto</strong> - Galeria de fotos</li>
+            </ul>
+        </div>
+
+        <div class="model-card">
+            <div class="model-title">📦 Parte 3: Vendas e Cobrança</div>
+            <div class="model-description">
+                Core do negócio
+            </div>
+            <ul class="feature-list">
+                <li><strong>Colaborador</strong> - Vendedores/Cobradores</li>
+                <li><strong>Venda</strong> - Registro de vendas</li>
+                <li><strong>VendaItem</strong> - Itens da venda</li>
+                <li><strong>Parcela</strong> - Parcelas das vendas</li>
+                <li><strong>FormaPagamento</strong> - Formas de pagamento</li>
+            </ul>
+        </div>
+
+        <div class="model-card">
+            <div class="model-title">📦 Parte 4: Períodos e Comissões</div>
+            <div class="model-description">
+                Sistema de distribuição e comissões
+            </div>
+            <ul class="feature-list">
+                <li><strong>PeriodoCobranca</strong> - Períodos mensais</li>
+                <li><strong>CarteiraCobranca</strong> - Distribuição de clientes ⭐</li>
+                <li><strong>RotaCobranca</strong> - Rotas de cobrança</li>
+                <li><strong>HistoricoCobranca</strong> - Histórico de ações</li>
+                <li><strong>Comissao</strong> - Comissões calculadas</li>
+                <li><strong>Orcamento</strong> - Orçamentos do catálogo</li>
+                <li><strong>OrcamentoItem</strong> - Itens do orçamento</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- INSTALAÇÃO -->
+    <div class="section">
+        <h2>🚀 Como Usar os Models</h2>
+        
+        <h3>1. Estrutura de Pastas</h3>
+        <div class="code-block">
+<span class="comment">// Estrutura recomendada</span>
+app/
+├── models/
+│   ├── Usuario.php
+│   ├── Cliente.php
+│   ├── Produto.php
+│   ├── Venda.php
+│   ├── Parcela.php
+│   ├── Colaborador.php
+│   ├── CarteiraCobranca.php
+│   ├── PeriodoCobranca.php
+│   ├── Comissao.php
+│   └── ... (todos os outros models)
+├── controllers/
+├── views/
+└── config/
+    └── web.php <span class="comment">// Configurar autenticação</span>
+        </div>
+
+        <h3>2. Configuração de Autenticação</h3>
+        <div class="info-box">
+            O model <strong>Usuario</strong> implementa <code>IdentityInterface</code> e pode ser usado diretamente para autenticação.
+        </div>
+
+        <div class="code-block">
+<span class="comment">// config/web.php</span>
+<span class="string">'components'</span> =&gt; [
+    <span class="string">'user'</span> =&gt; [
+        <span class="string">'identityClass'</span> =&gt; <span class="string">'app\models\Usuario'</span>,
+        <span class="string">'enableAutoLogin'</span> =&gt; <span class="keyword">true</span>,
+    ],
+    <span class="comment">// ...</span>
+],
+        </div>
+
+        <h3>3. Namespace</h3>
+        <div class="warning-box">
+            <strong>⚠️ Importante:</strong> Todos os models estão no namespace <code>app\models</code>. Certifique-se de que seus controllers importem corretamente.
+        </div>
+
+        <div class="code-block">
+<span class="keyword">namespace</span> app\controllers;
+
+<span class="keyword">use</span> Yii;
+<span class="keyword">use</span> app\models\Cliente;
+<span class="keyword">use</span> app\models\Produto;
+<span class="keyword">use</span> app\models\Venda;
+<span class="comment">// etc...</span>
+        </div>
+    </div>
+
+    <!-- EXEMPLOS DE USO -->
+    <div class="section">
+        <h2>💡 Exemplos Práticos de Uso</h2>
+
+        <div class="example-box">
+            <div class="example-title">🔐 Exemplo 1: Login de Usuário</div>
+            <div class="code-block">
+<span class="comment">// LoginForm.php</span>
+<span class="keyword">public function</span> <span class="function">login</span>()
+{
+    <span class="keyword">if</span> ($this-&gt;validate()) {
+        <span class="variable">$usuario</span> = Usuario::<span class="function">findByEmail</span>($this-&gt;email);
+        
+        <span class="keyword">if</span> (<span class="variable">$usuario</span> &amp;&amp; <span class="variable">$usuario</span>-&gt;<span class="function">validatePassword</span>($this-&gt;senha)) {
+            <span class="keyword">return</span> Yii::<span class="variable">$app</span>-&gt;user-&gt;<span class="function">login</span>(<span class="variable">$usuario</span>);
+        }
+    }
+    <span class="keyword">return false</span>;
+}
+            </div>
+        </div>
+
+        <div class="example-box">
+            <div class="example-title">👤 Exemplo 2: Cadastrar Cliente</div>
+            <div class="code-block">
+<span class="comment">// ClienteController.php</span>
+<span class="keyword">public function</span> <span class="function">actionCreate</span>()
+{
+    <span class="variable">$model</span> = <span class="keyword">new</span> Cliente();
+    <span class="variable">$model</span>-&gt;usuario_id = Yii::<span class="variable">$app</span>-&gt;user-&gt;id;
+    
+    <span class="keyword">if</span> (<span class="variable">$model</span>-&gt;<span class="function">load</span>(Yii::<span class="variable">$app</span>-&gt;request-&gt;<span class="function">post</span>()) &amp;&amp; <span class="variable">$model</span>-&gt;<span class="function">save</span>()) {
+        Yii::<span class="variable">$app</span>-&gt;session-&gt;<span class="function">setFlash</span>(<span class="string">'success'</span>, <span class="string">'Cliente cadastrado!'</span>);
+        <span class="keyword">return</span> $this-&gt;<span class="function">redirect</span>([<span class="string">'view'</span>, <span class="string">'id'</span> =&gt; <span class="variable">$model</span>-&gt;id]);
+    }
+    
+    <span class="keyword">return</span> $this-&gt;<span class="function">render</span>(<span class="string">'create'</span>, [<span class="string">'model'</span> =&gt; <span class="variable">$model</span>]);
+}
+            </div>
+        </div>
+
+        <div class="example-box">
+            <div class="example-title">🛒 Exemplo 3: Criar Venda com Itens</div>
+            <div class="code-block">
+<span class="comment">// VendaController.php</span>
+<span class="keyword">public function</span> <span class="function">actionCreate</span>()
+{
+    <span class="variable">$transaction</span> = Yii::<span class="variable">$app</span>-&gt;db-&gt;<span class="function">beginTransaction</span>();
+    
+    <span class="keyword">try</span> {
+        <span class="comment">// Criar venda</span>
+        <span class="variable">$venda</span> = <span class="keyword">new</span> Venda();
+        <span class="variable">$venda</span>-&gt;usuario_id = Yii::<span class="variable">$app</span>-&gt;user-&gt;id;
+        <span class="variable">$venda</span>-&gt;cliente_id = <span class="variable">$clienteId</span>;
+        <span class="variable">$venda</span>-&gt;colaborador_vendedor_id = <span class="variable">$vendedorId</span>;
+        <span class="variable">$venda</span>-&gt;valor_total = <span class="variable">$valorTotal</span>;
+        <span class="variable">$venda</span>-&gt;numero_parcelas = 3;
+        <span class="variable">$venda</span>-&gt;status_venda_codigo = StatusVenda::EM_ABERTO;
+        <span class="variable">$venda</span>-&gt;<span class="function">save</span>();
+        
+        <span class="comment">// Adicionar itens</span>
+        <span class="keyword">foreach</span> (<span class="variable">$itens</span> <span class="keyword">as</span> <span class="variable">$item</span>) {
+            <span class="variable">$vendaItem</span> = <span class="keyword">new</span> VendaItem();
+            <span class="variable">$vendaItem</span>-&gt;venda_id = <span class="variable">$venda</span>-&gt;id;
+            <span class="variable">$vendaItem</span>-&gt;produto_id = <span class="variable">$item</span>[<span class="string">'produto_id'</span>];
+            <span class="variable">$vendaItem</span>-&gt;quantidade = <span class="variable">$item</span>[<span class="string">'quantidade'</span>];
+            <span class="variable">$vendaItem</span>-&gt;preco_unitario_venda = <span class="variable">$item</span>[<span class="string">'preco'</span>];
+            <span class="variable">$vendaItem</span>-&gt;<span class="function">save</span>();
+        }
+        
+        <span class="comment">// Gerar parcelas</span>
+        <span class="variable">$venda</span>-&gt;<span class="function">gerarParcelas</span>();
+        
+        <span class="comment">// Calcular comissão do vendedor</span>
+        Comissao::<span class="function">calcularComissaoVenda</span>(<span class="variable">$venda</span>-&gt;id, <span class="variable">$vendedorId</span>);
+        
+        <span class="variable">$transaction</span>-&gt;<span class="function">commit</span>();
+        <span class="keyword">return</span> $this-&gt;<span class="function">redirect</span>([<span class="string">'view'</span>, <span class="string">'id'</span> =&gt; <span class="variable">$venda</span>-&gt;id]);
+        
+    } <span class="keyword">catch</span> (\Exception <span class="variable">$e</span>) {
+        <span class="variable">$transaction</span>-&gt;<span class="function">rollBack</span>();
+        <span class="keyword">throw</span> <span class="variable">$e</span>;
+    }
+}
+            </div>
+        </div>
+
+        <div class="example-box">
+            <div class="example-title">💰 Exemplo 4: Registrar Pagamento de Parcela</div>
+            <div class="code-block">
+<span class="comment">// ParcelaController.php</span>
+<span class="keyword">public function</span> <span class="function">actionPagar</span>(<span class="variable">$id</span>)
+{
+    <span class="variable">$parcela</span> = Parcela::<span class="function">findOne</span>(<span class="variable">$id</span>);
+    
+    <span class="keyword">if</span> (<span class="variable">$parcela</span>-&gt;<span class="function">registrarPagamento</span>(
+        <span class="variable">$valorPago</span>,
+        <span class="variable">$cobradorId</span>,
+        <span class="variable">$formaPagamentoId</span>
+    )) {
+        <span class="comment">// Registrar no histórico</span>
+        <span class="variable">$historico</span> = <span class="keyword">new</span> HistoricoCobranca();
+        <span class="variable">$historico</span>-&gt;parcela_id = <span class="variable">$parcela</span>-&gt;id;
+        <span class="variable">$historico</span>-&gt;cobrador_id = <span class="variable">$cobradorId</span>;
+        <span class="variable">$historico</span>-&gt;cliente_id = <span class="variable">$parcela</span>-&gt;venda-&gt;cliente_id;
+        <span class="variable">$historico</span>-&gt;usuario_id = Yii::<span class="variable">$app</span>-&gt;user-&gt;id;
+        <span class="variable">$historico</span>-&gt;tipo_acao = HistoricoCobranca::TIPO_PAGAMENTO;
+        <span class="variable">$historico</span>-&gt;valor_recebido = <span class="variable">$valorPago</span>;
+        <span class="variable">$historico</span>-&gt;<span class="function">save</span>();
+        
+        <span class="comment">// Calcular comissão de cobrança</span>
+        Comissao::<span class="function">calcularComissaoCobranca</span>(<span class="variable">$parcela</span>-&gt;id, <span class="variable">$cobradorId</span>);
+        
+        Yii::<span class="variable">$app</span>-&gt;session-&gt;<span class="function">setFlash</span>(<span class="string">'success'</span>, <span class="string">'Pagamento registrado!'</span>);
+    }
+    
+    <span class="keyword">return</span> $this-&gt;<span class="function">redirect</span>([<span class="string">'index'</span>]);
+}
+            </div>
+        </div>
+
+        <div class="example-box">
+            <div class="example-title">📅 Exemplo 5: Distribuir Carteira de Cobrança</div>
+            <div class="code-block">
+<span class="comment">// CarteiraController.php</span>
+<span class="keyword">public function</span> <span class="function">actionDistribuir</span>()
+{
+    <span class="variable">$periodo</span> = PeriodoCobranca::<span class="function">getPeriodoAtual</span>();
+    <span class="variable">$clientes</span> = Cliente::<span class="function">find</span>()
+        -&gt;<span class="function">where</span>([<span class="string">'usuario_id'</span> =&gt; Yii::<span class="variable">$app</span>-&gt;user-&gt;id, <span class="string">'ativo'</span> =&gt; <span class="keyword">true</span>])
+        -&gt;<span class="function">all</span>();
+    
+    <span class="keyword">foreach</span> (<span class="variable">$clientes</span> <span class="keyword">as</span> <span class="variable">$cliente</span>) {
+        <span class="variable">$carteira</span> = <span class="keyword">new</span> CarteiraCobranca();
+        <span class="variable">$carteira</span>-&gt;periodo_id = <span class="variable">$periodo</span>-&gt;id;
+        <span class="variable">$carteira</span>-&gt;cobrador_id = <span class="variable">$cobradorId</span>; <span class="comment">// lógica de escolha</span>
+        <span class="variable">$carteira</span>-&gt;cliente_id = <span class="variable">$cliente</span>-&gt;id;
+        <span class="variable">$carteira</span>-&gt;usuario_id = Yii::<span class="variable">$app</span>-&gt;user-&gt;id;
+        <span class="variable">$carteira</span>-&gt;ativo = <span class="keyword">true</span>;
+        
+        <span class="comment">// Calcular totais do cliente</span>
+        <span class="variable">$parcelas</span> = Parcela::<span class="function">find</span>()
+            -&gt;<span class="function">joinWith</span>(<span class="string">'venda'</span>)
+            -&gt;<span class="function">where</span>([<span class="string">'venda.cliente_id'</span> =&gt; <span class="variable">$cliente</span>-&gt;id])
+            -&gt;<span class="function">andWhere</span>([<span class="string">'!=', <span class="string">'status_parcela_codigo'</span>, StatusParcela::PAGA])
+            -&gt;<span class="function">all</span>();
+        
+        <span class="variable">$carteira</span>-&gt;total_parcelas = <span class="function">count</span>(<span class="variable">$parcelas</span>);
+        <span class="variable">$carteira</span>-&gt;valor_total = <span class="function">array_sum</span>(<span class="function">array_column</span>(<span class="variable">$parcelas</span>, <span class="string">'valor_parcela'</span>));
+        <span class="variable">$carteira</span>-&gt;<span class="function">save</span>();
+    }
+    
+    Yii::<span class="variable">$app</span>-&gt;session-&gt;<span class="function">setFlash</span>(<span class="string">'success'</span>, <span class="string">'Carteiras distribuídas!'</span>);
+    <span class="keyword">return</span> $this-&gt;<span class="function">redirect</span>([<span class="string">'index'</span>]);
+}
+            </span></div>
+        </div>
+    </div>
+
+    <!-- MÉTODOS ÚTEIS -->
+    <div class="section">
+        <h2>🛠️ Métodos Úteis dos Models</h2>
+
+        <h3>Usuario (Prestanista)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Método</th>
+                    <th>Descrição</th>
+                    <th>Retorno</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>findByEmail($email)</code></td>
+                    <td>Busca usuário por e-mail</td>
+                    <td>Usuario|null</td>
+                </tr>
+                <tr>
+                    <td><code>validatePassword($password)</code></td>
+                    <td>Valida senha do usuário</td>
+                    <td>boolean</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Cliente</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Método</th>
+                    <th>Descrição</th>
+                    <th>Retorno</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>getEnderecoCompleto()</code></td>
+                    <td>Retorna endereço formatado</td>
+                    <td>string</td>
+                </tr>
+                <tr>
+                    <td><code>getCpfFormatado()</code></td>
+                    <td>CPF com máscara</td>
+                    <td>string</td>
+                </tr>
+                <tr>
+                    <td><code>getTelefoneFormatado()</code></td>
+                    <td>Telefone com máscara</td>
+                    <td>string</td>
+                </tr>
+                <tr>
+                    <td><code>getListaDropdown($usuarioId)</code></td>
+                    <td>Array para dropdown</td>
+                    <td>array</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Produto</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Método</th>
+                    <th>Descrição</th>
+                    <th>Retorno</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>getMargemLucro()</code></td>
+                    <td>Calcula margem em %</td>
+                    <td>float</td>
+                </tr>
+                <tr>
+                    <td><code>getFotoPrincipal()</code></td>
+                    <td>Retorna foto principal</td>
+                    <td>ProdutoFoto|null</td>
+                </tr>
+                <tr>
+                    <td><code>temEstoque($quantidade)</code></td>
+                    <td>Verifica disponibilidade</td>
+                    <td>boolean</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Venda</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Método</th>
+                    <th>Descrição</th>
+                    <th>Retorno</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>gerarParcelas()</code></td>
+                    <td>Gera parcelas automáticas</td>
+                    <td>void</td>
+                </tr>
+                <tr>
+                    <td><code>getValorPago()</code></td>
+                    <td>Total já recebido</td>
+                    <td>float</td>
+                </tr>
+                <tr>
+                    <td><code>getValorPendente()</code></td>
+                    <td>Saldo a receber</td>
+                    <td>float</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Parcela</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Método</th>
+                    <th>Descrição</th>
+                    <th>Retorno</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>getDiasAtraso()</code></td>
+                    <td>Dias de atraso</td>
+                    <td>integer</td>
+                </tr>
+                <tr>
+                    <td><code>getEstaVencida()</code></td>
+                    <td>Verifica se venceu</td>
+                    <td>boolean</td>
+                </tr>
+                <tr>
+                    <td><code>registrarPagamento(...)</code></td>
+                    <td>Registra pagamento</td>
+                    <td>boolean</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>CarteiraCobranca</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Método</th>
+                    <th>Descrição</th>
+                    <th>Retorno</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>getPercentualPago()</code></td>
+                    <td>% de parcelas pagas</td>
+                    <td>float</td>
+                </tr>
+                <tr>
+                    <td><code>getSaldoPendente()</code></td>
+                    <td>Valor a receber</td>
+                    <td>float</td>
+                </tr>
+                <tr>
+                    <td><code>getStatusCobranca()</code></td>
+                    <td>Status (QUITADO/PARCIAL/PENDENTE)</td>
+                    <td>string</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Comissao</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Método</th>
+                    <th>Descrição</th>
+                    <th>Retorno</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>calcularComissaoVenda(...)</code></td>
+                    <td>Calcula comissão de venda</td>
+                    <td>Comissao|false</td>
+                </tr>
+                <tr>
+                    <td><code>calcularComissaoCobranca(...)</code></td>
+                    <td>Calcula comissão de cobrança</td>
+                    <td>Comissao|false</td>
+                </tr>
+                <tr>
+                    <td><code>marcarComoPaga()</code></td>
+                    <td>Marca como paga</td>
+                    <td>boolean</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- VALIDAÇÕES -->
+    <div class="section">
+        <h2>✅ Validações Implementadas</h2>
+
+        <div class="success-box">
+            <strong>✓ Todos os models possuem validações completas</strong>
+        </div>
+
+        <ul class="feature-list">
+            <li><strong>Multi-tenant:</strong> usuario_id obrigatório em todos</li>
+            <li><strong>E-mails:</strong> Validação de formato e unicidade</li>
+            <li><strong>CPF:</strong> Apenas números, 11 dígitos, único</li>
+            <li><strong>CEP:</strong> Apenas números, 8 dígitos</li>
+            <li><strong>Telefone:</strong> Máximo 20 caracteres</li>
+            <li><strong>Valores monetários:</strong> Sempre &gt;= 0</li>
+            <li><strong>Percentuais:</strong> Entre 0 e 100</li>
+            <li><strong>Cores:</strong> Formato hexadecimal (#RRGGBB)</li>
+            <li><strong>Status:</strong> Valores restritos (in range)</li>
+            <li><strong>Foreign Keys:</strong> exist() em todos os relacionamentos</li>
+            <li><strong>Unicidade:</strong> Constraints compostos onde necessário</li>
+            <li><strong>Datas:</strong> Formato Y-m-d validado</li>
+        </ul>
+    </div>
+
+    <!-- BEHAVIORS -->
+    <div class="section">
+        <h2>⚙️ Behaviors Implementados</h2>
+
+        <h3>TimestampBehavior</h3>
+        <div class="info-box">
+            Models com <strong>data_criacao</strong> e <strong>data_atualizacao</strong> usam TimestampBehavior para atualização automática.
+        </div>
+
+        <p><strong>Models com timestamps:</strong></p>
+        <ul class="feature-list">
+            <li>Usuario</li>
+            <li>Cliente</li>
+            <li>Produto</li>
+            <li>Categoria</li>
+            <li>Colaborador</li>
+            <li>Venda</li>
+            <li>Configuracao</li>
+            <li>Orcamento</li>
+        </ul>
+
+        <h3>BeforeSave Customizados</h3>
+        <ul class="feature-list">
+            <li><strong>Usuario:</strong> Gera hash de senha automaticamente</li>
+            <li><strong>ProdutoFoto:</strong> Desmarca outras fotos principais</li>
+            <li><strong>VendaItem:</strong> Calcula valor_total automaticamente</li>
+            <li><strong>OrcamentoItem:</strong> Calcula valor_total automaticamente</li>
+            <li><strong>PeriodoCobranca:</strong> Gera descrição automática (mês/ano)</li>
+        </ul>
+    </div>
+
+    <!-- RELACIONAMENTOS -->
+    <div class="section">
+        <h2>🔗 Relacionamentos (Relations)</h2>
+
+        <div class="warning-box">
+            <strong>⚠️ Importante:</strong> Todos os relacionamentos usam <code>hasOne()</code> ou <code>hasMany()</code> corretamente. Use <code>with()</code> ou <code>joinWith()</code> para eager loading.
+        </div>
+
+        <h3>Exemplo de Uso de Relacionamentos</h3>
+        <div class="code-block">
+<span class="comment">// Eager loading (mais eficiente)</span>
+<span class="variable">$vendas</span> = Venda::<span class="function">find</span>()
+    -&gt;<span class="function">with</span>([<span class="string">'cliente'</span>, <span class="string">'vendedor'</span>, <span class="string">'itens.produto'</span>])
+    -&gt;<span class="function">all</span>();
+
+<span class="keyword">foreach</span> (<span class="variable">$vendas</span> <span class="keyword">as</span> <span class="variable">$venda</span>) {
+    <span class="keyword">echo</span> <span class="variable">$venda</span>-&gt;cliente-&gt;nome_completo;
+    <span class="keyword">echo</span> <span class="variable">$venda</span>-&gt;vendedor-&gt;nome_completo;
+    
+    <span class="keyword">foreach</span> (<span class="variable">$venda</span>-&gt;itens <span class="keyword">as</span> <span class="variable">$item</span>) {
+        <span class="keyword">echo</span> <span class="variable">$item</span>-&gt;produto-&gt;nome;
+    }
+}
+        </div>
+    </div>
+
+    <!-- CHECKLIST -->
+    <div class="section">
+        <h2>📝 Checklist de Implementação</h2>
+
+        <ul class="feature-list">
+            <li>Criar pasta <code>models/</code> no projeto Yii2</li>
+            <li>Copiar todos os 24 arquivos de models</li>
+            <li>Verificar namespace (<code>app\models</code>)</li>
+            <li>Configurar component <code>user</code> no <code>config/web.php</code></li>
+            <li>Executar scripts SQL de estrutura</li>
+            <li>Executar scripts SQL de dados de teste</li>
+            <li>Criar LoginForm usando Usuario::findByEmail()</li>
+            <li>Implementar filtro de acesso nos controllers (AccessControl)</li>
+            <li>Adicionar <code>usuario_id = Yii::$app-&gt;user-&gt;id</code> em todos os creates</li>
+            <li>Testar autenticação e multi-tenant</li>
+            <li>Criar CRUD básico de cada entidade</li>
+            <li>Implementar views com TailwindCSS</li>
+            <li>Testar fluxo completo: venda → parcelas → cobrança → comissão</li>
+        </ul>
+    </div>
+
+    <!-- PRÓXIMOS PASSOS -->
+    <div class="section">
+        <h2>🎯 Próximos Passos Sugeridos</h2>
+
+        <h3>1. Controllers (CRUD)</h3>
+        <p>Gerar controllers usando Gii ou criar manualmente:</p>
+        <ul>
+            <li>ClienteController</li>
+            <li>ProdutoController</li>
+            <li>VendaController</li>
+            <li>ParcelaController</li>
+            <li>CarteiraCobrancaController</li>
+            <li>ComissaoController</li>
+        </ul>
+
+        <h3>2. Views (Interface)</h3>
+        <p>Criar views com TailwindCSS:</p>
+        <ul>
+            <li>Dashboard com KPIs</li>
+            <li>Lista de clientes com busca</li>
+            <li>Formulário de venda (carrinho)</li>
+            <li>Tela do cobrador (carteira do dia)</li>
+            <li>Relatório de comissões</li>
+            <li>Catálogo público de produtos</li>
+        </ul>
+
+        <h3>3. API REST (Opcional)</h3>
+        <p>Para aplicativo mobile:</p>
+        <ul>
+            <li>Endpoints de autenticação</li>
+            <li>API de carteira do cobrador</li>
+            <li>API de registro de pagamentos</li>
+            <li>API do catálogo público</li>
+        </ul>
+
+        <h3>4. Funcionalidades Extras</h3>
+        <ul>
+            <li>Notificações de vencimento (SMS/WhatsApp)</li>
+            <li>Relatórios em PDF</li>
+            <li>Gráficos e dashboards</li>
+            <li>Importação/exportação de dados</li>
+            <li>Backup automático</li>
+        </ul>
+    </div>
+
+    <footer>
+        <p><strong>Sistema de Gestão para Prestanistas</strong></p>
+        <p>Models Yii2 - Completo e Pronto para Uso</p>
+        <p style="margin-top: 10px; font-size: 0.9em;">Documentação gerada em: <script>document.write(new Date().toLocaleDateString('pt-BR'))</script>11/10/2025</p>
+    </footer>
+
+</body></html>

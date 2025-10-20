@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<!-- saved from url=(0012)about:srcdoc -->
+<html lang="pt-BR"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.13/html-to-image.min.js" integrity="sha512-iZ2ORl595Wx6miw+GuadDet4WQbdSWS3JLMoNfY8cRGoEFy6oT3G9IbcrBeL6AfkgpA51ETt/faX6yLV+/gFJg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+      (function() {
+        const originalConsole = window.console;
+        window.console = {
+          log: (...args) => {
+            originalConsole.log(...args);
+            window.parent.postMessage({ type: 'console', message: args.join(' ') }, '*');
+          },
+          error: (...args) => {
+            originalConsole.error(...args);
+            window.parent.postMessage({ type: 'console', message: 'Error: ' + args.join(' ') }, '*');
+          },
+          warn: (...args) => {
+            originalConsole.warn(...args);
+            window.parent.postMessage({ type: 'console', message: 'Warning: ' + args.join(' ') }, '*');
+          }
+        };
+
+        let requestId = 0;
+        let callbacksMap = new Map();
+        let streamControllers = new Map();
+        
+        window.claude = {
+          complete: (prompt) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'claudeComplete', id, prompt }, '*');
+            });
+          }
+        };
+
+        window.storage = {
+          get: (key, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageGet', id, key, shared }, '*');
+            });
+          },
+          set: (key, value, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageSet', id, key, value, shared }, '*');
+            });
+          },
+          delete: (key, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageDelete', id, key, shared }, '*');
+            });
+          },
+          list: (prefix, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageList', id, prefix, shared }, '*');
+            });
+          }
+        };
+
+        let pendingBlobs = new Map();
+        URL.createObjectURL = (blob) => {
+          // Store the blob and create an ID and URL for it
+          const blobId = `blob-${Date.now()}-${Math.random()}`;
+          pendingBlobs.set(blobId, blob);
+          return `blob-request://${blobId}`;
+        };
+
+        URL.revokeObjectURL = (url) => {
+          // Remove the blob from our store
+          const blobId = url.replace("blob-request://", "");
+          pendingBlobs.delete(blobId);
+        };
+
+        const getBlobFromURL = (url) => {
+          const blobId = url.replace("blob-request://", "");
+          return pendingBlobs.get(blobId);
+        };
+
+        // Override global fetch with streaming support
+        window.fetch = (url, init = {}) => {
+          return new Promise((resolve, reject) => {
+            const id = requestId++;
+            const channelId = `fetch-${id}-${Date.now()}`;
+            
+            callbacksMap.set(id, { 
+              resolve: (response) => {
+                // Create a ReadableStream for the response body
+                const stream = new ReadableStream({
+                  start(controller) {
+                    streamControllers.set(channelId, controller);
+                  },
+                  cancel() {
+                    streamControllers.delete(channelId);
+                  }
+                });
+                
+                // Create and return the Response with the stream
+                resolve(new Response(stream, {
+                  status: response.status,
+                  statusText: response.statusText,
+                  headers: response.headers
+                }));
+              },
+              reject,
+              channelId
+            });
+            
+            window.parent.postMessage({
+              type: 'proxyFetch',
+              id,
+              url,
+              init,
+              channelId
+            }, '*');
+          });
+        };
+
+        window.addEventListener('message', async (event) => {
+          if (event.data.type === 'takeScreenshot') {
+            const rootElement = document.getElementById('artifacts-component-root-html');
+            if (!rootElement) {
+              window.parent.postMessage({
+                type: 'screenshotError',
+                error: new Error('Root element not found'),
+              }, '*');
+            }
+            const screenshot = await htmlToImage.toPng(rootElement, {
+              imagePlaceholder:
+                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAA1JREFUGFdjePDgwX8ACOQDoNsk0PMAAAAASUVORK5CYII=",
+            });
+            window.parent.postMessage({
+              type: 'screenshotData',
+              data: screenshot,
+            }, '*');
+          } else if (event.data.type === 'claudeComplete') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.completion);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'proxyFetchResponse') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+              callbacksMap.delete(event.data.id);
+            } else {
+              // Initial response with headers, status, etc.
+              callback.resolve({
+                status: event.data.status,
+                statusText: event.data.statusText,
+                headers: event.data.headers
+              });
+              // Don't delete the callback yet if streaming
+              if (!event.data.body) {
+                callbacksMap.delete(event.data.id);
+              }
+            }
+          } else if (event.data.type === 'proxyFetchStream') {
+            // Handle streaming data chunks
+            const controller = streamControllers.get(event.data.channelId);
+            if (controller) {
+              if (event.data.error) {
+                controller.error(new Error(event.data.error));
+                streamControllers.delete(event.data.channelId);
+              } else if (event.data.done) {
+                controller.close();
+                streamControllers.delete(event.data.channelId);
+                // Clean up the callback
+                const callback = Array.from(callbacksMap.entries()).find(
+                  ([_, value]) => value.channelId === event.data.channelId
+                );
+                if (callback) {
+                  callbacksMap.delete(callback[0]);
+                }
+              } else if (event.data.chunk) {
+                controller.enqueue(new Uint8Array(event.data.chunk));
+              }
+            }
+          } else if (event.data.type === 'storageGet') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'storageSet') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'storageDelete') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'storageList') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          }
+        });
+
+        window.addEventListener('click', (event) => {
+          const isEl = event.target instanceof HTMLElement;
+          if (!isEl) return;
+    
+          // find ancestor links
+          const linkEl = event.target.closest("a");
+          if (!linkEl || !linkEl.href) return;
+    
+          event.preventDefault();
+          event.stopImmediatePropagation();
+    
+          if (linkEl.href.startsWith("blob-request:")) {
+            const blob = getBlobFromURL(linkEl.href);
+            if (!blob) return;
+            void blob.arrayBuffer().then((data) => {
+              window.parent.postMessage({
+                type: "downloadFile",
+                filename: linkEl.download,
+                data,
+                mimeType: blob.type || "application/octet-stream",
+              });
+            });
+          } else if (linkEl.href.startsWith("data:")) {
+            const [header, base64Data] = linkEl.href.split(",");
+            const mimeMatch = header.match(/data:([^;]+)/);
+            const mimeType = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+            const binaryString = atob(base64Data);
+            const data = Uint8Array.from(binaryString, (c) =>
+              c.charCodeAt(0),
+            ).buffer;
+            window.parent.postMessage({
+              type: "downloadFile",
+              filename: linkEl.download,
+              data,
+              mimeType,
+            });
+          } else {
+            let linkUrl;
+            try {
+              linkUrl = new URL(linkEl.href);
+            } catch (error) {
+              return;
+            }
+    
+            if (linkUrl.hostname === window.location.hostname) return;
+      
+            window.parent.postMessage({
+              type: 'openExternal',
+              href: linkEl.href,
+            }, '*');
+          }
+      });
+
+        const originalOpen = window.open;
+        window.open = function (url) {
+          window.parent.postMessage({
+            type: "openExternal",
+            href: url,
+          }, "*");
+        };
+
+        window.addEventListener('error', (event) => {
+          window.parent.postMessage({ type: 'console', message: 'Uncaught Error: ' + event.message }, '*');
+        });
+      })();
+    </script>
+  
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mudanças no web.php</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        
+        .section {
+            background: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        h3 {
+            color: #764ba2;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .change-box {
+            background: #f0f4ff;
+            border-left: 5px solid #667eea;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        .before-after {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .before {
+            background: #fee;
+            border-left: 4px solid #e00;
+            padding: 12px;
+            border-radius: 5px;
+        }
+        
+        .before h4 {
+            color: #c00;
+            margin-bottom: 8px;
+        }
+        
+        .after {
+            background: #efe;
+            border-left: 4px solid #0a0;
+            padding: 12px;
+            border-radius: 5px;
+        }
+        
+        .after h4 {
+            color: #070;
+            margin-bottom: 8px;
+        }
+        
+        code {
+            background: #e7e7e7;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        pre {
+            background: #2d2d2d;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            margin: 10px 0;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        .warning-box strong {
+            color: #856404;
+        }
+        
+        .info-box {
+            background: #d1ecf1;
+            border-left: 5px solid #0dcaf0;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        .success-box {
+            background: #d1f2eb;
+            border-left: 5px solid #20c997;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        .list-check {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .list-check li {
+            padding: 8px 8px 8px 35px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 5px;
+            position: relative;
+        }
+        
+        .list-check li::before {
+            content: "✓";
+            position: absolute;
+            left: 10px;
+            color: #20c997;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        
+        @media (max-width: 768px) {
+            .before-after {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body id="artifacts-component-root-html">
+    <div class="container">
+        <div class="header">
+            <h1>📝 Ajustes no web.php</h1>
+            <p>Integração do Módulo Vendas</p>
+        </div>
+
+        <!-- RESUMO DAS MUDANÇAS -->
+        <div class="section">
+            <h2>📋 Resumo das Mudanças</h2>
+            
+            <ul class="list-check">
+                <li>Corrigido o registro do módulo vendas (de <code>Vendas</code> para <code>Module</code>)</li>
+                <li>Atualizado o component <code>user</code> para usar <code>app\modules\vendas\models\Usuario</code></li>
+                <li>Adicionadas rotas específicas do módulo vendas no <code>urlManager</code></li>
+                <li>Ajustado o <code>AccessControl</code> para permitir ações públicas do módulo</li>
+                <li>Mantidas todas as suas configurações e módulos existentes</li>
+            </ul>
+        </div>
+
+        <!-- MUDANÇA 1 -->
+        <div class="section">
+            <h2>🔧 Mudança 1: Registro do Módulo</h2>
+            
+            <div class="change-box">
+                <strong>Problema:</strong> A classe do módulo estava incorreta
+            </div>
+
+            <div class="before-after">
+                <div class="before">
+                    <h4>❌ ANTES (Incorreto)</h4>
+                    <pre>'vendas' =&gt; [
+    'class' =&gt; 'app\modules\vendas\Vendas',
+],</pre>
+                </div>
+                
+                <div class="after">
+                    <h4>✅ DEPOIS (Correto)</h4>
+                    <pre>'vendas' =&gt; [
+    'class' =&gt; 'app\modules\vendas\Module',
+],</pre>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>ℹ️ Explicação:</strong> A classe do módulo deve se chamar <code>Module</code> (padrão do Yii2), não <code>Vendas</code>.
+            </div>
+        </div>
+
+        <!-- MUDANÇA 2 -->
+        <div class="section">
+            <h2>👤 Mudança 2: Component User</h2>
+            
+            <div class="change-box">
+                <strong>Problema:</strong> O identityClass estava apontando para o model antigo
+            </div>
+
+            <div class="before-after">
+                <div class="before">
+                    <h4>❌ ANTES</h4>
+                    <pre>'user' =&gt; [
+    'identityClass' =&gt; 'app\models\Users',
+    'enableAutoLogin' =&gt; true,
+    'loginUrl' =&gt; ['login/index'],
+    'authTimeout' =&gt; 1800,
+],</pre>
+                </div>
+                
+                <div class="after">
+                    <h4>✅ DEPOIS</h4>
+                    <pre>'user' =&gt; [
+    'identityClass' =&gt; 'app\modules\vendas\models\Usuario',
+    'enableAutoLogin' =&gt; true,
+    'loginUrl' =&gt; ['login/index'],
+    'authTimeout' =&gt; 1800,
+],</pre>
+                </div>
+            </div>
+
+            <div class="warning-box">
+                <strong>⚠️ IMPORTANTE:</strong> Mantive o <code>loginUrl</code> apontando para seu controller atual (<code>login/index</code>). Se quiser usar o login do módulo vendas, altere para <code>['vendas/site/login']</code>.
+            </div>
+
+            <div class="success-box">
+                <strong>✓ O que isso faz:</strong><br>
+                • Agora o Yii2 usará o model <code>Usuario</code> do módulo vendas para autenticação<br>
+                • O model <code>Usuario</code> já implementa <code>IdentityInterface</code> corretamente<br>
+                • Suporta hash de senha com bcrypt<br>
+                • Tem métodos <code>findByEmail()</code> e <code>validatePassword()</code>
+            </div>
+        </div>
+
+        <!-- MUDANÇA 3 -->
+        <div class="section">
+            <h2>🔗 Mudança 3: Rotas do Módulo</h2>
+            
+            <div class="change-box">
+                <strong>Adicionei rotas específicas para o módulo vendas</strong>
+            </div>
+
+            <pre>'rules' =&gt; [
+    // Suas rotas originais (mantidas)
+    'signup' =&gt; 'signup/index',
+    'login' =&gt; 'login/index',
+    'logout' =&gt; 'login/logout',
+    'profile' =&gt; 'profile/index',
+    
+    // Rotas do módulo vendas (NOVAS)
+    'vendas' =&gt; 'vendas/site/index',
+    'vendas/login' =&gt; 'vendas/site/login',
+    'vendas/logout' =&gt; 'vendas/site/logout',
+    
+    // Rotas genéricas do módulo (com suporte a UUID)
+    'vendas/<controller:\w+>/<action:\w+>/<id:[0-9a-f\-]+>' =&gt; 'vendas/<controller>/<action>',
+    'vendas/<controller:\w+>/<action:\w+>' =&gt; 'vendas/<controller>/<action>',
+    'vendas/<controller:\w+>' =&gt; 'vendas/<controller>/index',
+],</controller></controller:\w+></action></controller></action:\w+></controller:\w+></action></controller></id:[0-9a-f\-]+></action:\w+></controller:\w+></pre>
+
+            <h3>URLs Disponíveis:</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                <thead style="background: #667eea; color: white;">
+                    <tr>
+                        <th style="padding: 10px; text-align: left;">Descrição</th>
+                        <th style="padding: 10px; text-align: left;">URL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="border-bottom: 1px solid #ddd;">
+                        <td style="padding: 8px;">Dashboard Vendas</td>
+                        <td style="padding: 8px;"><code>/vendas</code></td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #ddd;">
+                        <td style="padding: 8px;">Login Vendas</td>
+                        <td style="padding: 8px;"><code>/vendas/login</code></td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #ddd;">
+                        <td style="padding: 8px;">Lista Clientes</td>
+                        <td style="padding: 8px;"><code>/vendas/cliente</code></td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #ddd;">
+                        <td style="padding: 8px;">Ver Cliente</td>
+                        <td style="padding: 8px;"><code>/vendas/cliente/view/uuid-aqui</code></td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #ddd;">
+                        <td style="padding: 8px;">Criar Cliente</td>
+                        <td style="padding: 8px;"><code>/vendas/cliente/create</code></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px;">Lista Produtos</td>
+                        <td style="padding: 8px;"><code>/vendas/produto</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- MUDANÇA 4 -->
+        <div class="section">
+            <h2>🔒 Mudança 4: Access Control</h2>
+            
+            <div class="change-box">
+                <strong>Adicionei exceções para permitir acesso público ao login do módulo</strong>
+            </div>
+
+            <pre>'as beforeRequest' =&gt; [
+    'class' =&gt; 'yii\filters\AccessControl',
+    'rules' =&gt; [
+        [
+            'actions' =&gt; ['login', 'error', 'forgot', 'register', 'resend', 'signup'],
+            'allow' =&gt; true,
+        ],
+        [
+            'allow' =&gt; true,
+            'roles' =&gt; ['@'],
+        ],
+    ],
+    // Exceções para ações do módulo vendas
+    'except' =&gt; [
+        'vendas/site/login',
+        'vendas/site/error',
+    ],
+],</pre>
+
+            <div class="info-box">
+                <strong>ℹ️ O que isso faz:</strong><br>
+                • Permite acesso público ao login do módulo vendas<br>
+                • Permite acesso à página de erro do módulo<br>
+                • Mantém suas regras de acesso originais
+            </div>
+        </div>
+
+        <!-- CONSIDERAÇÕES IMPORTANTES -->
+        <div class="section">
+            <h2>⚠️ Considerações Importantes</h2>
+            
+            <div class="warning-box">
+                <h3 style="margin-top: 0;">🔴 Migração do Model Users</h3>
+                <p><strong>Você precisa decidir:</strong></p>
+                <ol style="margin-left: 20px; margin-top: 10px;">
+                    <li style="margin: 8px 0;">Manter os dois sistemas de autenticação (atual + vendas)?</li>
+                    <li style="margin: 8px 0;">Migrar completamente para o model Usuario do módulo vendas?</li>
+                    <li style="margin: 8px 0;">Criar compatibilidade entre os dois models?</li>
+                </ol>
+            </div>
+
+            <h3>Opção 1: Dois Sistemas Paralelos</h3>
+            <div class="info-box">
+                <strong>Vantagem:</strong> Não quebra nada do sistema atual<br>
+                <strong>Como usar:</strong>
+                <ul style="margin-left: 20px; margin-top: 5px;">
+                    <li>Login atual: <code>/login</code> (usa <code>app\models\Users</code>)</li>
+                    <li>Login vendas: <code>/vendas/login</code> (usa <code>app\modules\vendas\models\Usuario</code>)</li>
+                </ul>
+                <strong>⚠️ Problema:</strong> Usuários diferentes em cada sistema
+            </div>
+
+            <h3>Opção 2: Migração Completa (Recomendado)</h3>
+            <div class="success-box">
+                <strong>Vantagem:</strong> Sistema unificado<br>
+                <strong>Passos necessários:</strong>
+                <ol style="margin-left: 20px; margin-top: 5px;">
+                    <li style="margin: 5px 0;">Migrar dados da tabela <code>users</code> para <code>prest_usuarios</code></li>
+                    <li style="margin: 5px 0;">Atualizar todos os controllers que usam <code>app\models\Users</code></li>
+                    <li style="margin: 5px 0;">Testar completamente o sistema</li>
+                </ol>
+            </div>
+
+            <h3>Opção 3: Adapter (Ponte entre os dois)</h3>
+            <div class="info-box">
+                <strong>Vantagem:</strong> Compatibilidade temporária<br>
+                <strong>Como fazer:</strong> Criar um adapter que faz <code>Usuario</code> ler da tabela <code>users</code><br>
+                <strong>Quando usar:</strong> Transição gradual
+            </div>
+        </div>
+
+        <!-- PRÓXIMOS PASSOS -->
+        <div class="section">
+            <h2>🚀 Próximos Passos</h2>
+            
+            <div class="success-box">
+                <h3 style="margin-top: 0;">✅ Checklist de Implementação</h3>
+                <ol style="margin-left: 20px;">
+                    <li style="margin: 8px 0;">Substituir o <code>config/web.php</code> pelo novo arquivo ajustado</li>
+                    <li style="margin: 8px 0;">Criar o arquivo <code>app/modules/vendas/Module.php</code></li>
+                    <li style="margin: 8px 0;">Copiar os 24 models para <code>app/modules/vendas/models/</code></li>
+                    <li style="margin: 8px 0;">Ajustar namespace de todos os models</li>
+                    <li style="margin: 8px 0;">Decidir sobre migração de usuários</li>
+                    <li style="margin: 8px 0;">Testar o acesso às rotas do módulo</li>
+                    <li style="margin: 8px 0;">Implementar controllers CRUD</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- COMANDOS ÚTEIS -->
+        <div class="section">
+            <h2>💻 Comandos Úteis</h2>
+            
+            <h3>Testar se o módulo foi registrado:</h3>
+            <pre style="background: #2d2d2d; color: #00ff00;">php yii
+$module = Yii::$app-&gt;getModule('vendas');
+var_dump($module); // Deve retornar o objeto do módulo</pre>
+
+            <h3>Gerar hash de senha para teste:</h3>
+            <pre style="background: #2d2d2d; color: #00ff00;">php yii
+$hash = Yii::$app-&gt;security-&gt;generatePasswordHash('senha123');
+echo $hash;</pre>
+
+            <h3>Testar login:</h3>
+            <pre style="background: #2d2d2d; color: #00ff00;">php yii
+$user = \app\modules\vendas\models\Usuario::findByEmail('joao.silva@email.com');
+var_dump($user-&gt;validatePassword('senha123')); // true ou false</pre>
+        </div>
+
+        <div style="margin-top: 30px; padding: 20px; background: #667eea; color: white; text-align: center; border-radius: 10px;">
+            <h3 style="color: white; margin-bottom: 10px;">✅ web.php Ajustado com Sucesso!</h3>
+            <p>Agora o módulo vendas está corretamente integrado ao seu sistema.</p>
+        </div>
+    </div>
+
+</body></html>

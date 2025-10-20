@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<!-- saved from url=(0012)about:srcdoc -->
+<html lang="pt-BR"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.13/html-to-image.min.js" integrity="sha512-iZ2ORl595Wx6miw+GuadDet4WQbdSWS3JLMoNfY8cRGoEFy6oT3G9IbcrBeL6AfkgpA51ETt/faX6yLV+/gFJg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+      (function() {
+        const originalConsole = window.console;
+        window.console = {
+          log: (...args) => {
+            originalConsole.log(...args);
+            window.parent.postMessage({ type: 'console', message: args.join(' ') }, '*');
+          },
+          error: (...args) => {
+            originalConsole.error(...args);
+            window.parent.postMessage({ type: 'console', message: 'Error: ' + args.join(' ') }, '*');
+          },
+          warn: (...args) => {
+            originalConsole.warn(...args);
+            window.parent.postMessage({ type: 'console', message: 'Warning: ' + args.join(' ') }, '*');
+          }
+        };
+
+        let requestId = 0;
+        let callbacksMap = new Map();
+        let streamControllers = new Map();
+        
+        window.claude = {
+          complete: (prompt) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'claudeComplete', id, prompt }, '*');
+            });
+          }
+        };
+
+        window.storage = {
+          get: (key, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageGet', id, key, shared }, '*');
+            });
+          },
+          set: (key, value, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageSet', id, key, value, shared }, '*');
+            });
+          },
+          delete: (key, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageDelete', id, key, shared }, '*');
+            });
+          },
+          list: (prefix, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageList', id, prefix, shared }, '*');
+            });
+          }
+        };
+
+        let pendingBlobs = new Map();
+        URL.createObjectURL = (blob) => {
+          // Store the blob and create an ID and URL for it
+          const blobId = `blob-${Date.now()}-${Math.random()}`;
+          pendingBlobs.set(blobId, blob);
+          return `blob-request://${blobId}`;
+        };
+
+        URL.revokeObjectURL = (url) => {
+          // Remove the blob from our store
+          const blobId = url.replace("blob-request://", "");
+          pendingBlobs.delete(blobId);
+        };
+
+        const getBlobFromURL = (url) => {
+          const blobId = url.replace("blob-request://", "");
+          return pendingBlobs.get(blobId);
+        };
+
+        // Override global fetch with streaming support
+        window.fetch = (url, init = {}) => {
+          return new Promise((resolve, reject) => {
+            const id = requestId++;
+            const channelId = `fetch-${id}-${Date.now()}`;
+            
+            callbacksMap.set(id, { 
+              resolve: (response) => {
+                // Create a ReadableStream for the response body
+                const stream = new ReadableStream({
+                  start(controller) {
+                    streamControllers.set(channelId, controller);
+                  },
+                  cancel() {
+                    streamControllers.delete(channelId);
+                  }
+                });
+                
+                // Create and return the Response with the stream
+                resolve(new Response(stream, {
+                  status: response.status,
+                  statusText: response.statusText,
+                  headers: response.headers
+                }));
+              },
+              reject,
+              channelId
+            });
+            
+            window.parent.postMessage({
+              type: 'proxyFetch',
+              id,
+              url,
+              init,
+              channelId
+            }, '*');
+          });
+        };
+
+        window.addEventListener('message', async (event) => {
+          if (event.data.type === 'takeScreenshot') {
+            const rootElement = document.getElementById('artifacts-component-root-html');
+            if (!rootElement) {
+              window.parent.postMessage({
+                type: 'screenshotError',
+                error: new Error('Root element not found'),
+              }, '*');
+            }
+            const screenshot = await htmlToImage.toPng(rootElement, {
+              imagePlaceholder:
+                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAA1JREFUGFdjePDgwX8ACOQDoNsk0PMAAAAASUVORK5CYII=",
+            });
+            window.parent.postMessage({
+              type: 'screenshotData',
+              data: screenshot,
+            }, '*');
+          } else if (event.data.type === 'claudeComplete') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.completion);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'proxyFetchResponse') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+              callbacksMap.delete(event.data.id);
+            } else {
+              // Initial response with headers, status, etc.
+              callback.resolve({
+                status: event.data.status,
+                statusText: event.data.statusText,
+                headers: event.data.headers
+              });
+              // Don't delete the callback yet if streaming
+              if (!event.data.body) {
+                callbacksMap.delete(event.data.id);
+              }
+            }
+          } else if (event.data.type === 'proxyFetchStream') {
+            // Handle streaming data chunks
+            const controller = streamControllers.get(event.data.channelId);
+            if (controller) {
+              if (event.data.error) {
+                controller.error(new Error(event.data.error));
+                streamControllers.delete(event.data.channelId);
+              } else if (event.data.done) {
+                controller.close();
+                streamControllers.delete(event.data.channelId);
+                // Clean up the callback
+                const callback = Array.from(callbacksMap.entries()).find(
+                  ([_, value]) => value.channelId === event.data.channelId
+                );
+                if (callback) {
+                  callbacksMap.delete(callback[0]);
+                }
+              } else if (event.data.chunk) {
+                controller.enqueue(new Uint8Array(event.data.chunk));
+              }
+            }
+          } else if (event.data.type === 'storageGet') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'storageSet') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'storageDelete') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'storageList') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          }
+        });
+
+        window.addEventListener('click', (event) => {
+          const isEl = event.target instanceof HTMLElement;
+          if (!isEl) return;
+    
+          // find ancestor links
+          const linkEl = event.target.closest("a");
+          if (!linkEl || !linkEl.href) return;
+    
+          event.preventDefault();
+          event.stopImmediatePropagation();
+    
+          if (linkEl.href.startsWith("blob-request:")) {
+            const blob = getBlobFromURL(linkEl.href);
+            if (!blob) return;
+            void blob.arrayBuffer().then((data) => {
+              window.parent.postMessage({
+                type: "downloadFile",
+                filename: linkEl.download,
+                data,
+                mimeType: blob.type || "application/octet-stream",
+              });
+            });
+          } else if (linkEl.href.startsWith("data:")) {
+            const [header, base64Data] = linkEl.href.split(",");
+            const mimeMatch = header.match(/data:([^;]+)/);
+            const mimeType = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+            const binaryString = atob(base64Data);
+            const data = Uint8Array.from(binaryString, (c) =>
+              c.charCodeAt(0),
+            ).buffer;
+            window.parent.postMessage({
+              type: "downloadFile",
+              filename: linkEl.download,
+              data,
+              mimeType,
+            });
+          } else {
+            let linkUrl;
+            try {
+              linkUrl = new URL(linkEl.href);
+            } catch (error) {
+              return;
+            }
+    
+            if (linkUrl.hostname === window.location.hostname) return;
+      
+            window.parent.postMessage({
+              type: 'openExternal',
+              href: linkEl.href,
+            }, '*');
+          }
+      });
+
+        const originalOpen = window.open;
+        window.open = function (url) {
+          window.parent.postMessage({
+            type: "openExternal",
+            href: url,
+          }, "*");
+        };
+
+        window.addEventListener('error', (event) => {
+          window.parent.postMessage({ type: 'console', message: 'Uncaught Error: ' + event.message }, '*');
+        });
+      })();
+    </script>
+  
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solução - Erro UUID</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        
+        .section {
+            background: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            color: #e74c3c;
+            border-bottom: 3px solid #e74c3c;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .error-box {
+            background: #fee;
+            border-left: 5px solid #e74c3c;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .solution-box {
+            background: #d1f2eb;
+            border-left: 5px solid #20c997;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        
+        .solution-box h3 {
+            color: #20c997;
+            margin-top: 0;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        .info-box {
+            background: #d1ecf1;
+            border-left: 5px solid #0dcaf0;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        pre {
+            background: #2d2d2d;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            margin: 10px 0;
+        }
+        
+        .step {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        .step-number {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        
+        code {
+            background: #e7e7e7;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .command-box {
+            background: #2d2d2d;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+        }
+        
+        .success {
+            color: #20c997;
+            font-weight: bold;
+        }
+        
+        .danger {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body id="artifacts-component-root-html">
+    <div class="container">
+        <div class="header">
+            <h1>🔴 Erro: UUID vs Integer ID</h1>
+            <p>Solução para incompatibilidade de tipos de ID</p>
+        </div>
+
+        <!-- ENTENDENDO O ERRO -->
+        <div class="section">
+            <h2>🔍 Entendendo o Erro</h2>
+            
+            <div class="error-box">
+SQLSTATE[22P02]: Invalid text representation: 7 ERRO: sintaxe de entrada é inválida para tipo uuid: "1"
+SELECT * FROM "prest_usuarios" WHERE "id"=<span class="danger">1</span>
+            </div>
+
+            <div class="info-box">
+                <h3 style="margin-top: 0;">💡 O que está acontecendo?</h3>
+                <ol style="margin-left: 20px; margin-top: 10px;">
+                    <li style="margin: 8px 0;"><strong>Causa:</strong> Há uma sessão ativa com ID inteiro (<code>1</code>) do sistema antigo</li>
+                    <li style="margin: 8px 0;"><strong>Problema:</strong> A nova tabela <code>prest_usuarios</code> usa UUID como ID</li>
+                    <li style="margin: 8px 0;"><strong>Resultado:</strong> PostgreSQL não consegue converter "1" em UUID</li>
+                </ol>
+            </div>
+
+            <div class="warning-box">
+                <strong>⚠️ Por que isso aconteceu:</strong><br>
+                Quando você alterou o <code>identityClass</code> no <code>web.php</code> de <code>app\models\Users</code> para <code>app\modules\vendas\models\Usuario</code>, o Yii2 tentou carregar o usuário da sessão antiga usando o ID que estava salvo (que era um inteiro).
+            </div>
+        </div>
+
+        <!-- SOLUÇÃO RÁPIDA -->
+        <div class="section">
+            <h2>⚡ Solução Rápida (Recomendada)</h2>
+            
+            <div class="solution-box">
+                <h3><span class="step-number">1</span>Limpar Todas as Sessões</h3>
+                <p>A forma mais rápida é fazer logout de todos os usuários e limpar as sessões.</p>
+            </div>
+
+            <div class="step">
+                <strong>Opção A: Limpar Sessões via Banco de Dados</strong>
+                <pre>-- Se você armazena sessões no banco (tabela 'session')
+TRUNCATE TABLE session;
+
+-- Ou se usar outro nome de tabela
+TRUNCATE TABLE sessions;</pre>
+            </div>
+
+            <div class="step">
+                <strong>Opção B: Limpar Sessões via Arquivo</strong>
+                <pre>// Deletar arquivos de sessão do diretório runtime
+rm -rf runtime/session/*
+
+// No Windows (PowerShell)
+Remove-Item -Path runtime\session\* -Force</pre>
+            </div>
+
+            <div class="step">
+                <strong>Opção C: Limpar Sessões Programaticamente</strong>
+                <p>Crie um comando Yii2 temporário:</p>
+                <pre>// app/commands/ClearSessionsCommand.php
+namespace app\commands;
+
+use Yii;
+use yii\console\Controller;
+
+class ClearSessionsController extends Controller
+{
+    public function actionIndex()
+    {
+        // Limpar diretório de sessões
+        $sessionPath = Yii::getAlias('@runtime/session');
+        if (is_dir($sessionPath)) {
+            $files = glob($sessionPath . '/*');
+            foreach ($files as $file) {
+                if (is_file($file)) {
+                    unlink($file);
+                }
+            }
+            echo "Sessões limpas com sucesso!\n";
+        }
+        
+        // Se usar sessões no banco
+        if (Yii::$app-&gt;db-&gt;schema-&gt;getTableSchema('session')) {
+            Yii::$app-&gt;db-&gt;createCommand()-&gt;truncateTable('session')-&gt;execute();
+            echo "Tabela de sessões limpa!\n";
+        }
+    }
+}</pre>
+                <p>Execute:</p>
+                <div class="command-box">php yii clear-sessions</div>
+            </div>
+
+            <div class="warning-box">
+                <strong>⚠️ Atenção:</strong> Todas as sessões ativas serão perdidas. Todos os usuários precisarão fazer login novamente.
+            </div>
+        </div>
+
+        <!-- SOLUÇÃO COMPLETA -->
+        <div class="section">
+            <h2>🛠️ Solução Completa (Ajustar o Model Usuario)</h2>
+            
+            <div class="solution-box">
+                <h3><span class="step-number">2</span>Ajustar o Model Usuario para Lidar com Sessões Antigas</h3>
+                <p>Adicione validação no model para ignorar IDs inválidos.</p>
+            </div>
+
+            <p>Edite o arquivo <code>app/modules/vendas/models/Usuario.php</code>:</p>
+
+            <pre>namespace app\modules\vendas\models;
+
+use Yii;
+use yii\db\ActiveRecord;
+use yii\web\IdentityInterface;
+use yii\behaviors\TimestampBehavior;
+use yii\db\Expression;
+
+class Usuario extends ActiveRecord implements IdentityInterface
+{
+    // ... (outros métodos)
+    
+    /**
+     * Busca identidade por ID
+     * <span class="success">🔧 AJUSTADO para validar UUID</span>
+     */
+    public static function findIdentity($id)
+    {
+        <span class="success">// Validar se o ID é um UUID válido</span>
+        if (!self::isValidUuid($id)) {
+            <span class="success">// Se não for UUID válido, fazer logout e retornar null</span>
+            if (!Yii::$app-&gt;user-&gt;isGuest) {
+                Yii::$app-&gt;user-&gt;logout();
+            }
+            return null;
+        }
+        
+        return static::findOne($id);
+    }
+    
+    /**
+     * Valida se uma string é um UUID válido
+     * <span class="success">🔧 NOVO MÉTODO</span>
+     */
+    protected static function isValidUuid($uuid)
+    {
+        if (!is_string($uuid)) {
+            return false;
+        }
+        
+        <span class="success">// Padrão UUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</span>
+        $pattern = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i';
+        return preg_match($pattern, $uuid) === 1;
+    }
+    
+    // ... (resto do código)
+}</pre>
+
+            <div class="info-box">
+                <strong>✓ O que esse código faz:</strong><br>
+                • Valida se o ID é um UUID válido antes de buscar no banco<br>
+                • Se encontrar um ID inválido (como "1"), faz logout automaticamente<br>
+                • Evita o erro no PostgreSQL<br>
+                • Usuário será redirecionado para fazer login novamente
+            </div>
+        </div>
+
+        <!-- PREVENÇÃO -->
+        <div class="section">
+            <h2>🛡️ Prevenção (Middleware de Validação)</h2>
+            
+            <div class="solution-box">
+                <h3><span class="step-number">3</span>Criar Middleware para Validar Sessões</h3>
+                <p>Adicione um behavior no <code>config/web.php</code> para validar sessões automaticamente.</p>
+            </div>
+
+            <pre>// Em config/web.php, adicione dentro de 'components':
+
+'user' =&gt; [
+    'identityClass' =&gt; 'app\modules\vendas\models\Usuario',
+    'enableAutoLogin' =&gt; true,
+    'loginUrl' =&gt; ['login/index'],
+    'authTimeout' =&gt; 1800,
+    <span class="success">// 🔧 NOVO: Validação de sessão</span>
+    'on beforeLogin' =&gt; function ($event) {
+        <span class="success">// Se o ID não for UUID, cancela o login</span>
+        $pattern = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i';
+        if ($event-&gt;identity &amp;&amp; !preg_match($pattern, $event-&gt;identity-&gt;id)) {
+            $event-&gt;isValid = false;
+            Yii::$app-&gt;session-&gt;destroy();
+        }
+    },
+],</pre>
+        </div>
+
+        <!-- MIGRAÇÃO DE DADOS -->
+        <div class="section">
+            <h2>🔄 Migração de Dados (Opcional)</h2>
+            
+            <div class="warning-box">
+                <strong>⚠️ Se você quer manter os usuários existentes:</strong><br>
+                Você precisa migrar os dados da tabela antiga <code>users</code> para <code>prest_usuarios</code> convertendo IDs inteiros em UUIDs.
+            </div>
+
+            <h3>Script de Migração SQL:</h3>
+
+            <pre>-- 1. Inserir usuários antigos na nova tabela com UUIDs novos
+INSERT INTO prest_usuarios (id, nome, email, hash_senha, data_criacao, data_atualizacao)
+SELECT 
+    uuid_generate_v4() as id,  <span class="success">-- Gera UUID novo</span>
+    username as nome,           <span class="success">-- Ajuste conforme sua estrutura</span>
+    email,
+    password_hash as hash_senha, <span class="success">-- Ajuste o nome da coluna</span>
+    created_at as data_criacao,  <span class="success">-- Ajuste conforme sua estrutura</span>
+    updated_at as data_atualizacao
+FROM users
+WHERE email NOT IN (SELECT email FROM prest_usuarios); <span class="success">-- Evita duplicatas</span>
+
+-- 2. Verificar quantos foram migrados
+SELECT COUNT(*) FROM prest_usuarios;</pre>
+
+            <div class="warning-box">
+                <strong>⚠️ IMPORTANTE:</strong><br>
+                • Todos os usuários precisarão fazer login novamente<br>
+                • Os IDs serão diferentes (novos UUIDs)<br>
+                • Senhas serão mantidas se usar o mesmo algoritmo de hash
+            </div>
+        </div>
+
+        <!-- CHECKLIST -->
+        <div class="section">
+            <h2>✅ Checklist de Resolução</h2>
+            
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+                <h3 style="color: #667eea; margin-top: 0;">Escolha UMA das opções:</h3>
+                
+                <div style="margin: 20px 0; padding: 15px; background: white; border-left: 4px solid #20c997; border-radius: 5px;">
+                    <h4 style="color: #20c997; margin-top: 0;">✓ Opção 1: Solução Rápida (Recomendada)</h4>
+                    <ol style="margin-left: 20px;">
+                        <li>Limpar todas as sessões (via banco ou arquivo)</li>
+                        <li>Ajustar o model Usuario com validação UUID</li>
+                        <li>Todos fazem login novamente</li>
+                        <li><strong>Tempo:</strong> 5 minutos</li>
+                    </ol>
+                </div>
+
+                <div style="margin: 20px 0; padding: 15px; background: white; border-left: 4px solid #ffc107; border-radius: 5px;">
+                    <h4 style="color: #ffc107; margin-top: 0;">✓ Opção 2: Migração Completa</h4>
+                    <ol style="margin-left: 20px;">
+                        <li>Migrar dados de users → prest_usuarios</li>
+                        <li>Limpar sessões antigas</li>
+                        <li>Ajustar o model Usuario</li>
+                        <li>Testar login com usuários migrados</li>
+                        <li><strong>Tempo:</strong> 30 minutos</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- TESTANDO A SOLUÇÃO -->
+        <div class="section">
+            <h2>🧪 Testando a Solução</h2>
+            
+            <h3>Após implementar, teste:</h3>
+            
+            <div class="step">
+                <strong>1. Acesse a aplicação</strong>
+                <div class="command-box">http://seu-dominio.com</div>
+            </div>
+
+            <div class="step">
+                <strong>2. Você deve ser redirecionado para o login</strong>
+                <p>Se aparecer a página de login sem erros = <span class="success">✓ Sucesso!</span></p>
+            </div>
+
+            <div class="step">
+                <strong>3. Teste o login com os dados de teste</strong>
+                <pre>Email: joao.silva@email.com
+Senha: (a senha que você definiu no hash)</pre>
+            </div>
+
+            <div class="step">
+                <strong>4. Verifique o UUID na sessão</strong>
+                <pre>// No controller, adicione temporariamente:
+echo "User ID: " . Yii::$app-&gt;user-&gt;id;
+<span class="success">// Deve mostrar algo como: 11111111-1111-1111-1111-111111111111</span></pre>
+            </div>
+        </div>
+
+        <div style="margin-top: 30px; padding: 20px; background: #20c997; color: white; text-align: center; border-radius: 10px;">
+            <h3 style="color: white; margin-bottom: 10px;">✅ Problema Identificado e Soluções Apresentadas!</h3>
+            <p>Escolha a solução que melhor se adequa ao seu cenário.</p>
+            <p style="margin-top: 10px;"><strong>Recomendação:</strong> Opção 1 (Solução Rápida) para resolver imediatamente.</p>
+        </div>
+    </div>
+
+</body></html>

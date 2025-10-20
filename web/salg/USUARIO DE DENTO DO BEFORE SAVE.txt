@@ -1,0 +1,444 @@
+At 13-10-2025 21:24:21:
+app\models\Usuario Object
+(
+    [_events:yii\base\Component:private] => Array
+        (
+            [beforeInsert] => Array
+                (
+                    [0] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [0] => yii\behaviors\TimestampBehavior Object
+                                        (
+                                            [owner] => app\models\Usuario Object
+ *RECURSION*
+                                            [_attachedEvents:yii\base\Behavior:private] => Array
+                                                (
+                                                    [beforeInsert] => evaluateAttributes
+                                                    [beforeUpdate] => evaluateAttributes
+                                                )
+
+                                            [attributes] => Array
+                                                (
+                                                    [beforeInsert] => Array
+                                                        (
+                                                            [0] => data_criacao
+                                                            [1] => data_atualizacao
+                                                        )
+
+                                                    [beforeUpdate] => data_atualizacao
+                                                )
+
+                                            [value] => yii\db\Expression Object
+                                                (
+                                                    [expression] => NOW()
+                                                    [params] => Array
+                                                        (
+                                                        )
+
+                                                )
+
+                                            [skipUpdateOnClean] => 1
+                                            [preserveNonEmptyValues] => 
+                                            [createdAtAttribute] => data_criacao
+                                            [updatedAtAttribute] => data_atualizacao
+                                        )
+
+                                    [1] => evaluateAttributes
+                                )
+
+                            [1] => 
+                        )
+
+                )
+
+            [beforeUpdate] => Array
+                (
+                    [0] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [0] => yii\behaviors\TimestampBehavior Object
+                                        (
+                                            [owner] => app\models\Usuario Object
+ *RECURSION*
+                                            [_attachedEvents:yii\base\Behavior:private] => Array
+                                                (
+                                                    [beforeInsert] => evaluateAttributes
+                                                    [beforeUpdate] => evaluateAttributes
+                                                )
+
+                                            [attributes] => Array
+                                                (
+                                                    [beforeInsert] => Array
+                                                        (
+                                                            [0] => data_criacao
+                                                            [1] => data_atualizacao
+                                                        )
+
+                                                    [beforeUpdate] => data_atualizacao
+                                                )
+
+                                            [value] => yii\db\Expression Object
+                                                (
+                                                    [expression] => NOW()
+                                                    [params] => Array
+                                                        (
+                                                        )
+
+                                                )
+
+                                            [skipUpdateOnClean] => 1
+                                            [preserveNonEmptyValues] => 
+                                            [createdAtAttribute] => data_criacao
+                                            [updatedAtAttribute] => data_atualizacao
+                                        )
+
+                                    [1] => evaluateAttributes
+                                )
+
+                            [1] => 
+                        )
+
+                )
+
+        )
+
+    [_eventWildcards:yii\base\Component:private] => Array
+        (
+        )
+
+    [_behaviors:yii\base\Component:private] => Array
+        (
+            [0] => yii\behaviors\TimestampBehavior Object
+                (
+                    [owner] => app\models\Usuario Object
+ *RECURSION*
+                    [_attachedEvents:yii\base\Behavior:private] => Array
+                        (
+                            [beforeInsert] => evaluateAttributes
+                            [beforeUpdate] => evaluateAttributes
+                        )
+
+                    [attributes] => Array
+                        (
+                            [beforeInsert] => Array
+                                (
+                                    [0] => data_criacao
+                                    [1] => data_atualizacao
+                                )
+
+                            [beforeUpdate] => data_atualizacao
+                        )
+
+                    [value] => yii\db\Expression Object
+                        (
+                            [expression] => NOW()
+                            [params] => Array
+                                (
+                                )
+
+                        )
+
+                    [skipUpdateOnClean] => 1
+                    [preserveNonEmptyValues] => 
+                    [createdAtAttribute] => data_criacao
+                    [updatedAtAttribute] => data_atualizacao
+                )
+
+        )
+
+    [_errors:yii\base\Model:private] => Array
+        (
+        )
+
+    [_validators:yii\base\Model:private] => ArrayObject Object
+        (
+            [storage:ArrayObject:private] => Array
+                (
+                    [0] => yii\validators\RequiredValidator Object
+                        (
+                            [_events:yii\base\Component:private] => Array
+                                (
+                                )
+
+                            [_eventWildcards:yii\base\Component:private] => Array
+                                (
+                                )
+
+                            [_behaviors:yii\base\Component:private] => 
+                            [attributes] => Array
+                                (
+                                    [0] => nome
+                                    [1] => cpf
+                                    [2] => telefone
+                                )
+
+                            [message] => "{attribute}" não pode ficar em branco.
+                            [on] => Array
+                                (
+                                )
+
+                            [except] => Array
+                                (
+                                )
+
+                            [skipOnError] => 1
+                            [skipOnEmpty] => 
+                            [enableClientValidation] => 1
+                            [isEmpty] => 
+                            [when] => 
+                            [whenClient] => 
+                            [requiredValue] => 
+                            [strict] => 
+                        )
+
+                    [1] => yii\validators\EmailValidator Object
+                        (
+                            [_events:yii\base\Component:private] => Array
+                                (
+                                )
+
+                            [_eventWildcards:yii\base\Component:private] => Array
+                                (
+                                )
+
+                            [_behaviors:yii\base\Component:private] => 
+                            [attributes] => Array
+                                (
+                                    [0] => email
+                                )
+
+                            [message] => "{attribute}" não é um endereço de e-mail válido.
+                            [on] => Array
+                                (
+                                )
+
+                            [except] => Array
+                                (
+                                )
+
+                            [skipOnError] => 1
+                            [skipOnEmpty] => 1
+                            [enableClientValidation] => 1
+                            [isEmpty] => 
+                            [when] => 
+                            [whenClient] => 
+                            [pattern] => /^[a-zA-Z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+\/=?^_`{|}~-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$/
+                            [fullPattern] => /^[^@]*<[a-zA-Z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+\/=?^_`{|}~-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?>$/
+                            [patternASCII] => /^[a-zA-Z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+\/=?^_`{|}~-]+)*$/
+                            [fullPatternASCII] => /^[^@]*<[a-zA-Z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+\/=?^_`{|}~-]+)*$/
+                            [allowName] => 
+                            [checkDNS] => 
+                            [enableIDN] => 
+                            [enableLocalIDN] => 1
+                        )
+
+                    [2] => yii\validators\StringValidator Object
+                        (
+                            [_events:yii\base\Component:private] => Array
+                                (
+                                )
+
+                            [_eventWildcards:yii\base\Component:private] => Array
+                                (
+                                )
+
+                            [_behaviors:yii\base\Component:private] => 
+                            [attributes] => Array
+                                (
+                                    [0] => cpf
+                                )
+
+                            [message] => "{attribute}" deve ser um texto.
+                            [on] => Array
+                                (
+                                )
+
+                            [except] => Array
+                                (
+                                )
+
+                            [skipOnError] => 1
+                            [skipOnEmpty] => 1
+                            [enableClientValidation] => 1
+                            [isEmpty] => 
+                            [when] => 
+                            [whenClient] => 
+                            [length] => 11
+                            [max] => 
+                            [min] => 
+                            [tooShort] => 
+                            [tooLong] => 
+                            [notEqual] => "{attribute}" deve conter {length, number} {length, plural, one{caractere} other{caracteres}}.
+                            [encoding] => UTF-8
+                            [strict] => 1
+                        )
+
+                    [3] => yii\validators\UniqueValidator Object
+                        (
+                            [_events:yii\base\Component:private] => Array
+                                (
+                                )
+
+                            [_eventWildcards:yii\base\Component:private] => Array
+                                (
+                                )
+
+                            [_behaviors:yii\base\Component:private] => 
+                            [attributes] => Array
+                                (
+                                    [0] => cpf
+                                )
+
+                            [message] => Este CPF já está cadastrado.
+                            [on] => Array
+                                (
+                                )
+
+                            [except] => Array
+                                (
+                                )
+
+                            [skipOnError] => 1
+                            [skipOnEmpty] => 1
+                            [enableClientValidation] => 1
+                            [isEmpty] => 
+                            [when] => 
+                            [whenClient] => 
+                            [targetClass] => 
+                            [targetAttribute] => 
+                            [filter] => 
+                            [comboNotUnique] => 
+                            [targetAttributeJunction] => and
+                            [forceMasterDb] => 1
+                        )
+
+                    [4] => yii\validators\StringValidator Object
+                        (
+                            [_events:yii\base\Component:private] => Array
+                                (
+                                )
+
+                            [_eventWildcards:yii\base\Component:private] => Array
+                                (
+                                )
+
+                            [_behaviors:yii\base\Component:private] => 
+                            [attributes] => Array
+                                (
+                                    [0] => nome
+                                )
+
+                            [message] => "{attribute}" deve ser um texto.
+                            [on] => Array
+                                (
+                                )
+
+                            [except] => Array
+                                (
+                                )
+
+                            [skipOnError] => 1
+                            [skipOnEmpty] => 1
+                            [enableClientValidation] => 1
+                            [isEmpty] => 
+                            [when] => 
+                            [whenClient] => 
+                            [length] => 
+                            [max] => 100
+                            [min] => 
+                            [tooShort] => 
+                            [tooLong] => "{attribute}" deve conter no máximo {max, number} {max, plural, one{caractere} other{caracteres}}.
+                            [notEqual] => 
+                            [encoding] => UTF-8
+                            [strict] => 1
+                        )
+
+                    [5] => yii\validators\StringValidator Object
+                        (
+                            [_events:yii\base\Component:private] => Array
+                                (
+                                )
+
+                            [_eventWildcards:yii\base\Component:private] => Array
+                                (
+                                )
+
+                            [_behaviors:yii\base\Component:private] => 
+                            [attributes] => Array
+                                (
+                                    [0] => telefone
+                                )
+
+                            [message] => "{attribute}" deve ser um texto.
+                            [on] => Array
+                                (
+                                )
+
+                            [except] => Array
+                                (
+                                )
+
+                            [skipOnError] => 1
+                            [skipOnEmpty] => 1
+                            [enableClientValidation] => 1
+                            [isEmpty] => 
+                            [when] => 
+                            [whenClient] => 
+                            [length] => 
+                            [max] => 15
+                            [min] => 
+                            [tooShort] => 
+                            [tooLong] => "{attribute}" deve conter no máximo {max, number} {max, plural, one{caractere} other{caracteres}}.
+                            [notEqual] => 
+                            [encoding] => UTF-8
+                            [strict] => 1
+                        )
+
+                )
+
+        )
+
+    [_scenario:yii\base\Model:private] => create
+    [_attributes:yii\db\BaseActiveRecord:private] => Array
+        (
+            [nome] => ALEX PEDRO DA SILVA
+            [cpf] => 03658974427
+            [telefone] => 81993255874
+            [email] => 
+            [data_criacao] => yii\db\Expression Object
+                (
+                    [expression] => NOW()
+                    [params] => Array
+                        (
+                        )
+
+                )
+
+            [data_atualizacao] => yii\db\Expression Object
+                (
+                    [expression] => NOW()
+                    [params] => Array
+                        (
+                        )
+
+                )
+
+            [hash_senha] => $2y$13$8wxKzxNivAhG9rvcp1XuweTV.vtC7/cL6YCpN0yr1g21kScM1GI.m
+            [auth_key] => 4_hqi_hmTnU2S7Osi8U1AEiB1NcEjVuG
+        )
+
+    [_oldAttributes:yii\db\BaseActiveRecord:private] => 
+    [_related:yii\db\BaseActiveRecord:private] => Array
+        (
+        )
+
+    [_relationsDependencies:yii\db\BaseActiveRecord:private] => Array
+        (
+        )
+
+    [senha] => 123456
+    [senha_confirmacao] => 123456
+)

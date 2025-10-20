@@ -1,5 +1,5 @@
 <?php
-
+use app\assets\AppAsset;
 use yii\helpers\Url;
 use yii\web\View;
 
@@ -7,6 +7,8 @@ $this->title = 'Módulo Métricas';
 
 // Registra o CDN do Tailwind CSS diretamente nesta view
 $this->registerJsFile('https://cdn.tailwindcss.com', ['position' => View::POS_HEAD]);
+//$this->registerCssFile('@web/css/tailwind34/tailwind.css',['position'=>View::POS_HEAD]);
+//AppAsset::register($this);
 ?>
 
 <div class="bg-gray-100 min-h-screen p-4 sm:p-6 lg:p-8">

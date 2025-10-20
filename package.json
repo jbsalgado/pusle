@@ -8,8 +8,8 @@
     "test": "tests"
   },
   "scripts": {
-    "build": "tailwindcss -i ./web/css/input.css -o ./web/css/output.css",
-    "watch": "tailwindcss -i ./web/css/input.css -o ./web/css/output.css --watch"
+    "build": "tailwindcss -i ./assets/css/input.css -o ./web/css/output.css --minify",
+    "watch": "tailwindcss -i ./assets/css/input.css -o ./web/css/output.css --watch"
   },
   "repository": {
     "type": "git",
@@ -24,6 +24,8 @@
   },
   "homepage": "https://github.com/jbsalgado/pusle#readme",
   "devDependencies": {
-    "tailwindcss": "^3.4.17"
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.18"
   }
 }

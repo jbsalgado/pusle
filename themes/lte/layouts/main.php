@@ -1,4 +1,6 @@
 <?php
+use app\assets\AppAsset; // Garanta que esta linha exista
+use dmstr\web\AdminLteAsset; // E esta também
 use yii\helpers\Html;
 
 /* @var $this \yii\web\View */
@@ -15,14 +17,12 @@ if (Yii::$app->controller->action->id === 'login') {
         ['content' => $content]
     );
 } else {
+    // 1. Registra o Asset do tema AdminLTE PRIMEIRO.
+    AdminLteAsset::register($this);
 
-    if (class_exists('backend\assets\AppAsset')) {
-        backend\assets\AppAsset::register($this);
-    } else {
-        app\assets\AppAsset::register($this);
-    }
+    // 2. Registra o SEU AppAsset (com Tailwind) por ÚLTIMO.
+    AppAsset::register($this);
 
-    dmstr\web\AdminLteAsset::register($this);
 
     $directoryAsset = Yii::$app->assetManager->getPublishedUrl('@vendor/almasaeed2010/adminlte/dist');
     ?>

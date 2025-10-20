@@ -27,10 +27,11 @@
         "daixianceng/yii2-echarts": "*",
         "bower-asset/chart.js": "^4.4",
         "bower-asset/bootstrap": "^3.4",
-        "nfephp-org/sped-nfe": "^5.1"
+        "nfephp-org/sped-nfe": "^5.1",
+        "yiisoft/yii2-symfonymailer": "^4.0"
     },
     "require-dev": {
-        "yiisoft/yii2-debug": "~2.0.14",
+        "yiisoft/yii2-debug": "^2.1",
         "yiisoft/yii2-gii": "~2.2.0",
         "yiisoft/yii2-faker": "~2.0.0"
 

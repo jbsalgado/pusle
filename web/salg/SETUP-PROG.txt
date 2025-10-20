@@ -1,0 +1,10 @@
+At 13-10-2025 19:02:28:
+Array
+(
+    [clientes] => 0
+    [produtos] => 0
+    [categorias] => 0
+    [colaboradores] => 0
+    [formas_pagamento] => 0
+    [regioes] => 0
+)

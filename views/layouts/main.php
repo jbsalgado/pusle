@@ -1,297 +1,157 @@
 <?php
 /**
- * Adicione este código ao seu layout principal (views/layouts/main.php)
- * Antes do </head>
+ * Layout de Autenticação - Sistema Global
+ * Localização: app/views/layouts/auth.php
+ * 
+ * @var \yii\web\View $this
+ * @var string $content
  */
+
+use yii\helpers\Html;
+use yii\helpers\Url;
+
 ?>
-
-<!-- Adicione estas bibliotecas CSS no <head> do layout -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
-
-<!-- CSS Global personalizado -->
-<style>
-/* Reset e configurações globais */
-* {
-    box-sizing: border-box;
-}
-
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: #f8f9fb;
-    line-height: 1.6;
-}
-
-/* Container responsivo */
-.container-fluid {
-    max-width: 1400px;
-    margin: 0 auto;
-}
-
-/* Animações suaves */
-.animated {
-    animation-duration: 0.6s;
-    animation-fill-mode: both;
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translate3d(0, 40px, 0);
-    }
-    to {
-        opacity: 1;
-        transform: translate3d(0, 0, 0);
-    }
-}
-
-.fadeInUp {
-    animation-name: fadeInUp;
-}
-
-/* Scrollbar personalizada */
-::-webkit-scrollbar {
-    width: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: #f1f1f1;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #667eea;
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #5a6fd8;
-}
-
-/* Mobile First - Configurações gerais */
-@media (max-width: 576px) {
-    .container-fluid {
-        padding-left: 10px;
-        padding-right: 10px;
-    }
+<?php $this->beginPage() ?>
+<!DOCTYPE html>
+<html lang="<?= Yii::$app->language ?>" class="h-full">
+<head>
+    <meta charset="<?= Yii::$app->charset ?>">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <?php $this->registerCsrfMetaTags() ?>
+    <title><?= Html::encode($this->title) ?></title>
     
-    .table-responsive {
-        font-size: 0.85rem;
-    }
+    <!-- TailwindCSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
     
-    .btn {
-        font-size: 0.9rem;
-        padding: 0.5rem 1rem;
-    }
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
-    .card {
-        margin-bottom: 1rem;
-    }
-}
+    <?php $this->head() ?>
+    
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+    </style>
+</head>
+<body class="h-full bg-gray-50">
+<?php $this->beginBody() ?>
 
-/* Melhorias no Select2 */
-.select2-container {
-    width: 100% !important;
-}
-
-.select2-container--krajee .select2-selection--multiple .select2-selection__choice {
-    margin-top: 4px;
-    margin-right: 6px;
-}
-
-/* Estilos para badges */
-.badge {
-    display: inline-flex;
-    align-items: center;
-    font-size: 0.75rem;
-    font-weight: 500;
-    line-height: 1;
-    text-align: center;
-    white-space: nowrap;
-    vertical-align: baseline;
-    border-radius: 0.375rem;
-    padding: 0.375rem 0.75rem;
-}
-
-.badge-success {
-    color: #155724;
-    background-color: #d4edda;
-}
-
-.badge-danger {
-    color: #721c24;
-    background-color: #f8d7da;
-}
-
-/* Loading states */
-.loading {
-    opacity: 0.6;
-    pointer-events: none;
-}
-
-.spinner-border-sm {
-    width: 1rem;
-    height: 1rem;
-}
-
-/* Configurações do Toastr */
-.toast-top-right {
-    top: 20px;
-    right: 20px;
-}
-
-.toast-success {
-    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-}
-
-.toast-error {
-    background: linear-gradient(135deg, #fc466b 0%, #3f5efb 100%);
-}
-
-.toast-info {
-    background: linear-gradient(135deg, #36d1dc 0%, #5b86e5 100%);
-}
-
-.toast-warning {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-}
-
-/* Responsive tables */
-@media (max-width: 768px) {
-    .table-responsive table,
-    .table-responsive thead,
-    .table-responsive tbody,
-    .table-responsive th,
-    .table-responsive td,
-    .table-responsive tr {
-        display: block;
-    }
-
-    .table-responsive thead tr {
-        position: absolute;
-        top: -9999px;
-        left: -9999px;
-    }
-
-    .table-responsive tr {
-        border: 1px solid #ccc;
-        margin-bottom: 10px;
-        padding: 10px;
-        border-radius: 8px;
-        background: white;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-
-    .table-responsive td {
-        border: none;
-        position: relative;
-        padding: 8px 8px 8px 25%;
-        white-space: normal;
-        text-align: left;
-    }
-
-    .table-responsive td:before {
-        content: attr(data-label) ": ";
-        position: absolute;
-        left: 6px;
-        width: 20%;
-        padding-right: 10px;
-        white-space: nowrap;
-        text-align: left;
-        font-weight: bold;
-        color: #333;
-    }
-}
-</style>
-
-<!-- Adicione estes scripts antes do </body> -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
-
-<script>
-// Configurações globais do Toastr
-toastr.options = {
-    "closeButton": true,
-    "debug": false,
-    "newestOnTop": true,
-    "progressBar": true,
-    "positionClass": "toast-top-right",
-    "preventDuplicates": false,
-    "onclick": null,
-    "showDuration": "300",
-    "hideDuration": "1000",
-    "timeOut": "5000",
-    "extendedTimeOut": "1000",
-    "showEasing": "swing",
-    "hideEasing": "linear",
-    "showMethod": "fadeIn",
-    "hideMethod": "fadeOut"
-};
-
-// Função global para mostrar mensagens flash do Yii2
+<!-- Flash Messages -->
 <?php if (Yii::$app->session->hasFlash('success')): ?>
-    toastr.success('<?= Yii::$app->session->getFlash('success') ?>');
+    <div id="flash-success" class="fixed top-4 right-4 z-50 max-w-md animate-slide-in-right">
+        <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded-lg shadow-lg">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="ml-3 flex-1">
+                    <p class="text-sm font-medium text-green-800">
+                        <?= Yii::$app->session->getFlash('success') ?>
+                    </p>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-4 flex-shrink-0">
+                    <svg class="h-4 w-4 text-green-500 hover:text-green-700" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
 <?php endif; ?>
 
 <?php if (Yii::$app->session->hasFlash('error')): ?>
-    toastr.error('<?= Yii::$app->session->getFlash('error') ?>');
+    <div id="flash-error" class="fixed top-4 right-4 z-50 max-w-md animate-slide-in-right">
+        <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg shadow-lg">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="ml-3 flex-1">
+                    <p class="text-sm font-medium text-red-800">
+                        <?= Yii::$app->session->getFlash('error') ?>
+                    </p>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-4 flex-shrink-0">
+                    <svg class="h-4 w-4 text-red-500 hover:text-red-700" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
 <?php endif; ?>
 
 <?php if (Yii::$app->session->hasFlash('info')): ?>
-    toastr.info('<?= Yii::$app->session->getFlash('info') ?>');
+    <div id="flash-info" class="fixed top-4 right-4 z-50 max-w-md animate-slide-in-right">
+        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg shadow-lg">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="ml-3 flex-1">
+                    <p class="text-sm font-medium text-blue-800">
+                        <?= Yii::$app->session->getFlash('info') ?>
+                    </p>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-4 flex-shrink-0">
+                    <svg class="h-4 w-4 text-blue-500 hover:text-blue-700" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
 <?php endif; ?>
 
-<?php if (Yii::$app->session->hasFlash('warning')): ?>
-    toastr.warning('<?= Yii::$app->session->getFlash('warning') ?>');
-<?php endif; ?>
+<!-- Conteúdo Principal -->
+<?= $content ?>
 
-// Função para adicionar labels responsivos nas tabelas
-$(document).ready(function() {
-    // Adiciona labels para tabelas responsivas
-    $('.table-responsive table').each(function() {
-        var $table = $(this);
-        var $headers = $table.find('thead th');
-        
-        $table.find('tbody tr').each(function() {
-            var $row = $(this);
-            $row.find('td').each(function(index) {
-                var $cell = $(this);
-                var headerText = $headers.eq(index).text().trim();
-                $cell.attr('data-label', headerText);
-            });
+<?php $this->endBody() ?>
+
+<!-- Script para auto-fechar flash messages -->
+<script>
+    // Auto-fechar flash messages após 5 segundos
+    setTimeout(function() {
+        const flashMessages = document.querySelectorAll('[id^="flash-"]');
+        flashMessages.forEach(function(flash) {
+            flash.style.transition = 'opacity 0.5s, transform 0.5s';
+            flash.style.opacity = '0';
+            flash.style.transform = 'translateX(100%)';
+            setTimeout(function() {
+                flash.remove();
+            }, 500);
         });
-    });
-
-    // Smooth scrolling para âncoras
-    $('a[href*="#"]').on('click', function(e) {
-        var target = $(this.getAttribute('href'));
-        if(target.length) {
-            e.preventDefault();
-            $('html, body').stop().animate({
-                scrollTop: target.offset().top - 80
-            }, 1000);
-        }
-    });
-
-    // Loading states para formulários
-    $('form').on('submit', function() {
-        var $form = $(this);
-        var $submitBtn = $form.find('button[type="submit"], input[type="submit"]');
-        
-        $submitBtn.addClass('loading').prop('disabled', true);
-        
-        // Restaura o estado após 5 segundos (timeout de segurança)
-        setTimeout(function() {
-            $submitBtn.removeClass('loading').prop('disabled', false);
-        }, 5000);
-    });
-
-    // Confirmação melhorada para exclusões
-    $('a[data-confirm]').on('click', function(e) {
-        var message = $(this).data('confirm');
-        if (!confirm(message)) {
-            e.preventDefault();
-            return false;
-        }
-    });
-});
+    }, 5000);
 </script>
+
+<style>
+    @keyframes slide-in-right {
+        from {
+            opacity: 0;
+            transform: translateX(100%);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    .animate-slide-in-right {
+        animation: slide-in-right 0.5s ease-out;
+    }
+</style>
+
+</body>
+</html>
+<?php $this->endPage() ?>

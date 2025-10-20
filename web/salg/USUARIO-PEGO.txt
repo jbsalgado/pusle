@@ -1,0 +1,174 @@
+At 13-10-2025 21:24:20:
+app\models\Usuario Object
+(
+    [_events:yii\base\Component:private] => Array
+        (
+            [beforeInsert] => Array
+                (
+                    [0] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [0] => yii\behaviors\TimestampBehavior Object
+                                        (
+                                            [owner] => app\models\Usuario Object
+ *RECURSION*
+                                            [_attachedEvents:yii\base\Behavior:private] => Array
+                                                (
+                                                    [beforeInsert] => evaluateAttributes
+                                                    [beforeUpdate] => evaluateAttributes
+                                                )
+
+                                            [attributes] => Array
+                                                (
+                                                    [beforeInsert] => Array
+                                                        (
+                                                            [0] => data_criacao
+                                                            [1] => data_atualizacao
+                                                        )
+
+                                                    [beforeUpdate] => data_atualizacao
+                                                )
+
+                                            [value] => yii\db\Expression Object
+                                                (
+                                                    [expression] => NOW()
+                                                    [params] => Array
+                                                        (
+                                                        )
+
+                                                )
+
+                                            [skipUpdateOnClean] => 1
+                                            [preserveNonEmptyValues] => 
+                                            [createdAtAttribute] => data_criacao
+                                            [updatedAtAttribute] => data_atualizacao
+                                        )
+
+                                    [1] => evaluateAttributes
+                                )
+
+                            [1] => 
+                        )
+
+                )
+
+            [beforeUpdate] => Array
+                (
+                    [0] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [0] => yii\behaviors\TimestampBehavior Object
+                                        (
+                                            [owner] => app\models\Usuario Object
+ *RECURSION*
+                                            [_attachedEvents:yii\base\Behavior:private] => Array
+                                                (
+                                                    [beforeInsert] => evaluateAttributes
+                                                    [beforeUpdate] => evaluateAttributes
+                                                )
+
+                                            [attributes] => Array
+                                                (
+                                                    [beforeInsert] => Array
+                                                        (
+                                                            [0] => data_criacao
+                                                            [1] => data_atualizacao
+                                                        )
+
+                                                    [beforeUpdate] => data_atualizacao
+                                                )
+
+                                            [value] => yii\db\Expression Object
+                                                (
+                                                    [expression] => NOW()
+                                                    [params] => Array
+                                                        (
+                                                        )
+
+                                                )
+
+                                            [skipUpdateOnClean] => 1
+                                            [preserveNonEmptyValues] => 
+                                            [createdAtAttribute] => data_criacao
+                                            [updatedAtAttribute] => data_atualizacao
+                                        )
+
+                                    [1] => evaluateAttributes
+                                )
+
+                            [1] => 
+                        )
+
+                )
+
+        )
+
+    [_eventWildcards:yii\base\Component:private] => Array
+        (
+        )
+
+    [_behaviors:yii\base\Component:private] => Array
+        (
+            [0] => yii\behaviors\TimestampBehavior Object
+                (
+                    [owner] => app\models\Usuario Object
+ *RECURSION*
+                    [_attachedEvents:yii\base\Behavior:private] => Array
+                        (
+                            [beforeInsert] => evaluateAttributes
+                            [beforeUpdate] => evaluateAttributes
+                        )
+
+                    [attributes] => Array
+                        (
+                            [beforeInsert] => Array
+                                (
+                                    [0] => data_criacao
+                                    [1] => data_atualizacao
+                                )
+
+                            [beforeUpdate] => data_atualizacao
+                        )
+
+                    [value] => yii\db\Expression Object
+                        (
+                            [expression] => NOW()
+                            [params] => Array
+                                (
+                                )
+
+                        )
+
+                    [skipUpdateOnClean] => 1
+                    [preserveNonEmptyValues] => 
+                    [createdAtAttribute] => data_criacao
+                    [updatedAtAttribute] => data_atualizacao
+                )
+
+        )
+
+    [_errors:yii\base\Model:private] => 
+    [_validators:yii\base\Model:private] => 
+    [_scenario:yii\base\Model:private] => create
+    [_attributes:yii\db\BaseActiveRecord:private] => Array
+        (
+            [nome] => ALEX PEDRO DA SILVA
+            [cpf] => 03658974427
+            [telefone] => 81993255874
+            [email] => 
+        )
+
+    [_oldAttributes:yii\db\BaseActiveRecord:private] => 
+    [_related:yii\db\BaseActiveRecord:private] => Array
+        (
+        )
+
+    [_relationsDependencies:yii\db\BaseActiveRecord:private] => Array
+        (
+        )
+
+    [senha] => 123456
+    [senha_confirmacao] => 123456
+)
