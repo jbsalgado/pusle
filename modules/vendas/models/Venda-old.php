@@ -12,25 +12,25 @@ use app\modules\vendas\models\Colaborador;
 use app\modules\vendas\models\StatusVenda;
 use app\modules\vendas\models\StatusParcela;
 use app\modules\vendas\models\Parcela;
-use app\modules\vendas\models\RegraParcelamento; // <<<=== ADICIONE ESTE 'use' (ajuste o namespace se necessário)
-
 /**
  * ============================================================================================================
  * Model: Venda
  * ============================================================================================================
  * Tabela: prest_vendas
- * * @property string $id
+ * 
+ * @property string $id
  * @property string $usuario_id
  * @property string $cliente_id
  * @property string $colaborador_vendedor_id
  * @property string $data_venda
- * @property float $valor_total // Este é o VALOR BASE (soma dos itens)
+ * @property float $valor_total
  * @property integer $numero_parcelas
  * @property string $status_venda_codigo
  * @property string $observacoes
  * @property string $data_criacao
  * @property string $data_atualizacao
- * * @property Usuario $usuario
+ * 
+ * @property Usuario $usuario
  * @property Cliente $cliente
  * @property Colaborador $vendedor
  * @property StatusVenda $statusVenda
@@ -93,7 +93,7 @@ class Venda extends ActiveRecord
             'cliente_id' => 'Cliente',
             'colaborador_vendedor_id' => 'Vendedor',
             'data_venda' => 'Data da Venda',
-            'valor_total' => 'Valor Total (Base)', // Ajustado label
+            'valor_total' => 'Valor Total',
             'numero_parcelas' => 'Número de Parcelas',
             'status_venda_codigo' => 'Status',
             'observacoes' => 'Observações',
@@ -103,88 +103,48 @@ class Venda extends ActiveRecord
     }
 
     // /**
-    //  * Gera parcelas da venda (VERSÃO ANTIGA COMENTADA)
+    //  * Gera parcelas da venda
     //  */
-    // public function gerarParcelas($formaPagamentoId = null)
+    // public function gerarParcelas()
     // {
-    //     Parcela::deleteAll(['venda_id' => $this->id]);
-    //     if ($this->numero_parcelas <= 0) {
-    //         $this->numero_parcelas = 1;
-    //     }
-    //     $valorParcelaBase = $this->valor_total / $this->numero_parcelas;
-    //     $valorParcelaArredondado = round($valorParcelaBase, 2);
-    //     $dataVencimento = new \DateTime($this->data_venda ?: 'now');
-    //     $valorTotalGerado = 0;
+    //     $valorParcela = $this->valor_total / $this->numero_parcelas;
+    //     $dataVencimento = new \DateTime($this->data_venda);
+        
     //     for ($i = 1; $i <= $this->numero_parcelas; $i++) {
     //         $parcela = new Parcela();
     //         $parcela->venda_id = $this->id;
     //         $parcela->usuario_id = $this->usuario_id;
     //         $parcela->numero_parcela = $i;
+            
+    //         // Ajuste para a última parcela (arredondamento)
     //         if ($i == $this->numero_parcelas) {
-    //             $parcela->valor_parcela = $this->valor_total - $valorTotalGerado;
+    //             $totalParcelas = Parcela::find()
+    //                 ->where(['venda_id' => $this->id])
+    //                 ->sum('valor_parcela');
+    //             $parcela->valor_parcela = $this->valor_total - $totalParcelas;
     //         } else {
-    //             $parcela->valor_parcela = $valorParcelaArredondado;
-    //             $valorTotalGerado += $valorParcelaArredondado;
+    //             $parcela->valor_parcela = round($valorParcela, 2);
     //         }
-    //         if ($i > 1) {
-    //             $dataVencimento->modify('+30 days');
-    //         } else if ($this->numero_parcelas > 1) {
-    //              $dataVencimento->modify('+30 days');
-    //         }
+            
+    //         // Vencimento: +30 dias por parcela
+    //         $dataVencimento->modify('+30 days');
     //         $parcela->data_vencimento = $dataVencimento->format('Y-m-d');
     //         $parcela->status_parcela_codigo = StatusParcela::PENDENTE;
-    //         $parcela->forma_pagamento_id = $formaPagamentoId;
-    //         if (!$parcela->save()) {
-    //              Yii::error("Erro ao salvar parcela {$i} para venda {$this->id}: " . print_r($parcela->errors, true));
-    //              throw new \yii\db\Exception("Não foi possível salvar a parcela {$i}.");
-    //         }
+            
+    //         $parcela->save();
     //     }
     // }
 
-    // =========================================================================
-    // === FUNÇÃO GERAR PARCELAS ATUALIZADA COM LÓGICA DE ACRÉSCIMO ==========
-    // =========================================================================
-    public function gerarParcelas($formaPagamentoId = null)
+    public function gerarParcelas($formaPagamentoId = null) // Adiciona parâmetro opcional
     {
-        // Deleta parcelas existentes para esta venda
+        // Deleta parcelas existentes para esta venda, caso existam (para evitar duplicatas se chamado mais de uma vez)
         Parcela::deleteAll(['venda_id' => $this->id]);
 
         if ($this->numero_parcelas <= 0) {
             $this->numero_parcelas = 1; // Garante pelo menos uma parcela
         }
 
-        // --- INÍCIO DA LÓGICA DE ACRÉSCIMO ---
-        $valorBaseTotal = (float)$this->valor_total; // Valor original sem acréscimo
-        $valorTotalAPrazo = $valorBaseTotal;        // Assume 0% acréscimo por padrão (para 1x)
-        $percentualAcrescimo = 0;
-
-        // Se for mais de 1 parcela, busca a regra de acréscimo na nova tabela
-        if ($this->numero_parcelas > 1) {
-            $regra = RegraParcelamento::find()
-                ->where(['usuario_id' => $this->usuario_id])
-                ->andWhere(['<=', 'min_parcelas', $this->numero_parcelas])
-                ->andWhere(['>=', 'max_parcelas', $this->numero_parcelas])
-                ->one();
-
-            if ($regra) {
-                $percentualAcrescimo = (float)$regra->percentual_acrescimo;
-                if ($percentualAcrescimo > 0) {
-                    // Calcula o valor total com o acréscimo
-                    $valorTotalAPrazo = $valorBaseTotal * (1 + ($percentualAcrescimo / 100));
-                }
-                Yii::info("Regra de parcelamento encontrada para {$this->numero_parcelas}x: {$percentualAcrescimo}%. Valor base: {$valorBaseTotal}, Valor a prazo: {$valorTotalAPrazo}", 'Venda');
-            } else {
-                 Yii::warning("Nenhuma regra de parcelamento encontrada para Venda ID {$this->id}, Usuario ID {$this->usuario_id} e {$this->numero_parcelas} parcelas. Usando valor base.", 'Venda');
-                 // Mantém $valorTotalAPrazo = $valorBaseTotal
-            }
-        } else {
-             Yii::info("Venda ID {$this->id} em 1 parcela. Sem acréscimo.", 'Venda');
-        }
-
-        // Calcula valor da parcela COM BASE NO VALOR TOTAL A PRAZO (que pode ter acréscimo)
-        $valorParcelaBase = ($this->numero_parcelas > 0) ? ($valorTotalAPrazo / $this->numero_parcelas) : $valorTotalAPrazo;
-        // --- FIM DA LÓGICA DE ACRÉSCIMO ---
-
+        $valorParcelaBase = $this->valor_total / $this->numero_parcelas;
         $valorParcelaArredondado = round($valorParcelaBase, 2);
         $dataVencimento = new \DateTime($this->data_venda ?: 'now'); // Usa data da venda ou data atual
         $valorTotalGerado = 0;
@@ -192,44 +152,36 @@ class Venda extends ActiveRecord
         for ($i = 1; $i <= $this->numero_parcelas; $i++) {
             $parcela = new Parcela();
             $parcela->venda_id = $this->id;
-            $parcela->usuario_id = $this->usuario_id; // Garante que usuario_id está na parcela
+            $parcela->usuario_id = $this->usuario_id;
             $parcela->numero_parcela = $i;
 
             // Ajuste para a última parcela (evita problemas de arredondamento)
-            // Usa o VALOR TOTAL A PRAZO para o cálculo final
             if ($i == $this->numero_parcelas) {
-                $parcela->valor_parcela = $valorTotalAPrazo - $valorTotalGerado;
+                $parcela->valor_parcela = $this->valor_total - $valorTotalGerado;
             } else {
                 $parcela->valor_parcela = $valorParcelaArredondado;
                 $valorTotalGerado += $valorParcelaArredondado;
             }
 
-            // --- Lógica de Vencimento (Intervalo fixo de 30 dias) ---
-            // A primeira parcela vence 30 dias após a data da venda (se houver mais de 1 parcela)
-            // As demais vencem 30 dias após a anterior
-            if ($i == 1 && $this->numero_parcelas > 1) {
-                $dataVencimento->modify('+30 days'); // Primeira parcela vence em 30 dias
-            } elseif ($i > 1) {
-                $dataVencimento->modify('+30 days'); // Demais parcelas vencem +30 dias
-            }
-            // Se for parcela única, a data de vencimento será a data da venda (ou hoje)
+            // Vencimento: Primeira parcela +30 dias, as seguintes +30 dias da anterior
+            if ($i > 1) { // Só incrementa a partir da segunda parcela
+                $dataVencimento->modify('+30 days');
+            } else if ($this->numero_parcelas > 1) { // Se for a primeira de várias, vence em 30 dias
+                 $dataVencimento->modify('+30 days');
+            } // Se for parcela única (à vista), o vencimento pode ser a data da venda ou hoje
+
 
             $parcela->data_vencimento = $dataVencimento->format('Y-m-d');
-            $parcela->status_parcela_codigo = StatusParcela::PENDENTE;
-            $parcela->forma_pagamento_id = $formaPagamentoId; // Define a forma de pagamento
+            $parcela->status_parcela_codigo = StatusParcela::PENDENTE; //
+            $parcela->forma_pagamento_id = $formaPagamentoId; // ✅ Define a forma de pagamento
 
             if (!$parcela->save()) {
+                 // Lançar uma exceção ou logar o erro é melhor que falhar silenciosamente
                  Yii::error("Erro ao salvar parcela {$i} para venda {$this->id}: " . print_r($parcela->errors, true));
                  throw new \yii\db\Exception("Não foi possível salvar a parcela {$i}.");
             }
         }
-         // IMPORTANTE: Não alteramos $this->valor_total aqui. Ele permanece o valor base.
-         // A soma das $parcela->valor_parcela refletirá o valor total a prazo.
     }
-    // =========================================================================
-    // === FIM DA FUNÇÃO GERAR PARCELAS ATUALIZADA ============================
-    // =========================================================================
-
 
     /**
      * Calcula valor já pago
@@ -242,35 +194,12 @@ class Venda extends ActiveRecord
     }
 
     /**
-     * Calcula o valor total pendente SOMANDO as parcelas pendentes
-     * É mais preciso que (Valor Total Base - Valor Pago) quando há juros.
+     * Calcula valor pendente
      */
     public function getValorPendente()
     {
-        return $this->getParcelas()
-            ->where(['status_parcela_codigo' => StatusParcela::PENDENTE])
-            ->sum('valor_parcela') ?: 0;
+        return $this->valor_total - $this->getValorPago();
     }
-    
-    /**
-     * Retorna o valor total real da venda (soma das parcelas),
-     * que pode incluir acréscimos.
-     */
-    public function getValorTotalAPrazo()
-    {
-        // Se já tiver carregado as parcelas, soma elas para evitar nova query
-        if ($this->isRelationPopulated('parcelas')) {
-            $total = 0;
-            foreach ($this->parcelas as $parcela) {
-                $total += $parcela->valor_parcela;
-            }
-            return $total;
-        } else {
-            // Senão, faz a query para somar
-            return $this->getParcelas()->sum('valor_parcela') ?: $this->valor_total; // Fallback para valor_total se não houver parcelas
-        }
-    }
-
 
     public function getUsuario()
     {

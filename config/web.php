@@ -90,7 +90,8 @@ $config = [
                         'api/produto', // Mapeia para app/modules/api/controllers/ProdutoController
                         'api/pedido',   // Mapeia para app/modules/api/controllers/PedidoController
                         'api/forma-pagamento', // <-- ADICIONAR (singular, Yii pluraliza se 'pluralize'=true)
-                        'api/cliente'       // <-- ADICIONAR (singular, Yii pluraliza se 'pluralize'=true)
+                        'api/cliente',
+                        'api/colaborador',
                     ],
                     'pluralize' => false, // Isso garante que 'api/produto' responda em 'api/produtos'
                                          // e 'api/pedido' responda em 'api/pedidos'
