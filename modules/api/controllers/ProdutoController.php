@@ -5,6 +5,7 @@ use yii\rest\Controller;
 use yii\data\ActiveDataProvider;
 use app\modules\vendas\models\Produto;
 use yii\web\Response;
+use yii\web\BadRequestHttpException;
 
 class ProdutoController extends Controller
 {
@@ -28,29 +29,44 @@ class ProdutoController extends Controller
                 'application/json' => Response::FORMAT_JSON,
             ],
         ];
-        // O Serializer padrão do yii\rest\Controller será usado automaticamente
-        // e agora deve respeitar o fields() do modelo Produto.php
         return $behaviors;
     }
 
     /**
      * Lista todos os produtos ativos para o catálogo.
-     * GET /api/produto (ou /api/produtos se pluralize=true)
+     * GET /api/produto?usuario_id=xxx
+     * 
+     * REQUER usuario_id obrigatório para multi-tenancy
      */
     public function actionIndex()
     {
+        // Pega o usuario_id da query string
+        $usuarioId = \Yii::$app->request->get('usuario_id');
+        
+        // Se não informar usuario_id, retorna vazio (segurança multi-tenancy)
+        if (!$usuarioId) {
+            \Yii::warning("Tentativa de acessar produtos sem usuario_id - bloqueado", 'api');
+            
+            // Retorna ActiveDataProvider vazio
+            return new ActiveDataProvider([
+                'query' => Produto::find()->where('1=0'), // Query que nunca retorna resultados
+                'pagination' => false,
+            ]);
+            
+            // OU pode retornar erro 400:
+            // throw new BadRequestHttpException('O parâmetro usuario_id é obrigatório');
+        }
+        
+        \Yii::info("Filtrando produtos por usuario_id: {$usuarioId}", 'api');
+        
         $query = Produto::find()
-            ->where(['ativo' => true])
-            // Carrega a relação 'fotos'. O método fields() no Produto.php
-            // garantirá que ela seja incluída no JSON final.
-            ->with(['fotos', 'categoria']); // Pode incluir 'categoria' se o frontend precisar
+            ->where(['ativo' => true, 'usuario_id' => $usuarioId])
+            ->with(['fotos', 'categoria']);
 
-        // Retorna o ActiveDataProvider. O Controller REST e o método fields() do modelo
-        // devem lidar corretamente com a serialização agora.
         return new ActiveDataProvider([
             'query' => $query,
             'pagination' => [
-                'pageSize' => 20, // Ajuste conforme necessário
+                'pageSize' => 20,
             ],
             'sort' => [
                 'defaultOrder' => ['nome' => SORT_ASC]
@@ -60,19 +76,19 @@ class ProdutoController extends Controller
 
     /**
      * Vê um produto específico.
-     * GET /api/produto/123 (ou /api/produtos/123 se pluralize=true)
+     * GET /api/produto/123
      */
     public function actionView($id)
     {
         $model = Produto::find()
             ->where(['id' => $id, 'ativo' => true])
-            ->with(['fotos', 'categoria']) // Garante que as relações sejam carregadas
+            ->with(['fotos', 'categoria'])
             ->one();
 
         if ($model === null) {
             throw new \yii\web\NotFoundHttpException("Produto não encontrado.");
         }
-        // Retornar o modelo diretamente deve funcionar, pois respeita fields()
+        
         return $model;
     }
 }

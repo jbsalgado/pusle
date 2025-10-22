@@ -29,6 +29,7 @@ class ProdutoController extends Controller
             ],
         ];
         // O Serializer padrão do yii\rest\Controller será usado automaticamente
+        // e agora deve respeitar o fields() do modelo Produto.php
         return $behaviors;
     }
 
@@ -36,70 +37,25 @@ class ProdutoController extends Controller
      * Lista todos os produtos ativos para o catálogo.
      * GET /api/produto (ou /api/produtos se pluralize=true)
      */
-    // public function actionIndex()
-    // {
-    //     $query = Produto::find()
-    //         ->where(['ativo' => true])
-    //         ->with(['categoria', 'fotos']); // Carrega as relações
-
-    //     // Retorna o ActiveDataProvider diretamente. O Controller cuidará da serialização.
-    //     return new ActiveDataProvider([
-    //         'query' => $query,
-    //         'pagination' => [
-    //             'pageSize' => 20,
-    //         ],
-    //         'sort' => [
-    //             'defaultOrder' => ['nome' => SORT_ASC]
-    //         ],
-    //         // REMOVIDO: A configuração 'serializer' estava incorreta aqui.
-    //     ]);
-    // }
-
-    /**
-     * Lista todos os produtos ativos para o catálogo.
-     * GET /api/produto (ou /api/produtos se pluralize=true)
-     * ***** VERSÃO DE TESTE PARA DEPURAÇÃO *****
-     */
     public function actionIndex()
     {
-        // 1. Busca os modelos diretamente, carregando a relação 'fotos'
-        $models = Produto::find()
-            ->where(['ativo' => true])
-            ->with(['fotos']) // Tenta carregar as fotos
-            ->orderBy(['nome' => SORT_ASC])
-            ->all();
-
-        // 2. Converte manualmente para array, FORÇANDO a inclusão de 'fotos'
-        // Usamos toArray() que respeita os métodos fields() e extraFields() do modelo
-        $data = [];
-        foreach ($models as $model) {
-             // O segundo parâmetro ['fotos'] diz para expandir essa relação
-             // se ela estiver definida em fields() ou extraFields()
-            $data[] = $model->toArray([], ['fotos']);
-        }
-
-        // 3. Retorna o array diretamente (O Yii cuidará de converter para JSON)
-        // Se 'fotos' aparecer no console com este código, o problema está na
-        // serialização do ActiveDataProvider. Se NÃO aparecer, o problema
-        // está no modelo Produto.php, na relação getFotos() ou no banco de dados.
-        return $data;
-
-
-        /* // Código original com ActiveDataProvider comentado para o teste
         $query = Produto::find()
             ->where(['ativo' => true])
-            ->with(['categoria', 'fotos']);
+            // Carrega a relação 'fotos'. O método fields() no Produto.php
+            // garantirá que ela seja incluída no JSON final.
+            ->with(['fotos', 'categoria']); // Pode incluir 'categoria' se o frontend precisar
 
+        // Retorna o ActiveDataProvider. O Controller REST e o método fields() do modelo
+        // devem lidar corretamente com a serialização agora.
         return new ActiveDataProvider([
             'query' => $query,
             'pagination' => [
-                'pageSize' => 20,
+                'pageSize' => 20, // Ajuste conforme necessário
             ],
             'sort' => [
                 'defaultOrder' => ['nome' => SORT_ASC]
-            ]
+            ],
         ]);
-        */
     }
 
     /**
@@ -110,14 +66,13 @@ class ProdutoController extends Controller
     {
         $model = Produto::find()
             ->where(['id' => $id, 'ativo' => true])
-            ->with(['categoria', 'fotos'])
+            ->with(['fotos', 'categoria']) // Garante que as relações sejam carregadas
             ->one();
 
         if ($model === null) {
             throw new \yii\web\NotFoundHttpException("Produto não encontrado.");
         }
-        // Retornar o modelo diretamente é o padrão e deve funcionar
-        // para incluir as relações carregadas via ->with().
+        // Retornar o modelo diretamente deve funcionar, pois respeita fields()
         return $model;
     }
 }
