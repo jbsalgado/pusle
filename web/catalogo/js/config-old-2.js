@@ -3,39 +3,12 @@
 // Detecta automaticamente o ambiente
 const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
 
-// Função para pegar o ID da loja baseado no path
-const getLojaId = () => {
-    const pathname = window.location.pathname;
-    const segments = pathname.split('/').filter(p => p); // Remove vazios
-    
-    // Pega o ÚLTIMO segmento do path (nome da loja)
-    const lojaPath = segments[segments.length - 1];
-    
-    // Mapa de paths para IDs de loja
-    const lojaMap = {
-        'catalogo': 'a99a38a9-e368-4a47-a4bd-02ba3bacaa76', // Loja padrão
-        'alexbird': '79d5ab11-dea5-460c-bf5e-2cdd492293a7', // Exemplo: Alex Bird
-        'nike': '87654321-4321-4321-4321-210987654321',     // Exemplo: Nike
-        // Adicione mais lojas aqui conforme necessário
-    };
-    
-    const lojaId = lojaMap[lojaPath];
-    
-    if (!lojaId) {
-        console.warn(`⚠️ Loja não encontrada para path: "${lojaPath}". Usando loja padrão.`);
-        return lojaMap['catalogo']; // Fallback para loja padrão
-    }
-    
-    console.log(`🏪 Loja detectada: ${lojaPath} (ID: ${lojaId})`);
-    return lojaId;
-};
-
 export const CONFIG = {
     URL_API: isProduction ? '/pulse/web/index.php' : '/pulse/basic/web/index.php',
     URL_BASE_WEB: isProduction ? '/pulse/web' : '/pulse/basic/web',
     CACHE_NAME: 'catalogo-cache-v4',
     SYNC_TAG: 'sync-novo-pedido',
-    ID_USUARIO_LOJA: getLojaId() // Agora detecta corretamente!
+    ID_USUARIO_LOJA: 'a99a38a9-e368-4a47-a4bd-02ba3bacaa76' // ID da loja/usuário principal (CONFIRME ESTE VALOR)
 };
 
 export const API_ENDPOINTS = {

@@ -1,0 +1,10 @@
+# Desabilita rewrite do Yii2 dentro da pasta catalogo
+RewriteEngine Off
+
+# Permite acesso direto aos arquivos
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+</IfModule>
+
+# Define index padrão
+DirectoryIndex index.html
