@@ -155,7 +155,7 @@ class SignupForm extends Model
 
         $transaction = Yii::$app->db->beginTransaction();
         
-        try {
+        //try {
             // Criar novo usuário
             $usuario = new Usuario();
 
@@ -173,42 +173,42 @@ class SignupForm extends Model
             $usuario->senha_confirmacao = $this->senha_confirmacao;
             Salg::log($usuario,false,"USUARIO-PEGO");
              // ======================= DEBUG PARTE 2 =======================
-        // Agora vamos verificar o estado ANTES de salvar
-        \Yii::debug('isNewRecord ANTES de save(): ' . ($usuario->isNewRecord ? 'true' : 'false'));
-        // =============================================================
+            // Agora vamos verificar o estado ANTES de salvar
+            \Yii::debug('isNewRecord ANTES de save(): ' . ($usuario->isNewRecord ? 'true' : 'false'));
+            // =============================================================
 
-            if (!$usuario->save()) {
-                Yii::error('Erro ao salvar usuário: ' . json_encode($usuario->errors), __METHOD__);
-                
-                // Adiciona erros do model ao form
-                foreach ($usuario->errors as $field => $errors) {
-                    foreach ($errors as $error) {
-                        $this->addError($field, $error);
+                if (!$usuario->save()) {
+                    Yii::error('Erro ao salvar usuário: ' . json_encode($usuario->errors), __METHOD__);
+                    
+                    // Adiciona erros do model ao form
+                    foreach ($usuario->errors as $field => $errors) {
+                        foreach ($errors as $error) {
+                            $this->addError($field, $error);
+                        }
                     }
+                    
+                    throw new \Exception('Erro ao cadastrar usuário. Verifique os dados e tente novamente.');
                 }
-                
-                throw new \Exception('Erro ao cadastrar usuário. Verifique os dados e tente novamente.');
-            }
 
-            $transaction->commit();
-            
-            Yii::info("Novo usuário cadastrado: {$usuario->email} (ID: {$usuario->id})", __METHOD__);
-            
-            // Envia email de boas-vindas (opcional)
-            //$this->sendWelcomeEmail($usuario);
-            
-            return $usuario;
-            
-        } catch (\Exception $e) {
-            $transaction->rollBack();
-            Yii::error("Erro no cadastro: {$e->getMessage()}", __METHOD__);
-            
-            if (!$this->hasErrors()) {
-                $this->addError('email', 'Erro ao cadastrar usuário. Tente novamente.');
-            }
-            
-            return null;
-        }
+                $transaction->commit();
+                
+                Yii::info("Novo usuário cadastrado: {$usuario->email} (ID: {$usuario->id})", __METHOD__);
+                
+                // Envia email de boas-vindas (opcional)
+                //$this->sendWelcomeEmail($usuario);
+                
+                return $usuario;
+                
+            // } catch (\Exception $e) {
+            //     $transaction->rollBack();
+            //     Yii::error("Erro no cadastro: {$e->getMessage()}", __METHOD__);
+                
+            //     if (!$this->hasErrors()) {
+            //         $this->addError('email', 'Erro ao cadastrar usuário. Tente novamente.');
+            //     }
+                
+            //     return null;
+            // }
     }
 
     /**

@@ -1,4 +1,4 @@
-At 13-10-2025 21:24:20:
+At 22-10-2025 15:43:13:
 app\models\Usuario Object
 (
     [_events:yii\base\Component:private] => Array
@@ -156,8 +156,8 @@ app\models\Usuario Object
         (
             [nome] => ALEX PEDRO DA SILVA
             [cpf] => 03658974427
-            [telefone] => 81993255874
-            [email] => 
+            [telefone] => 81993861026
+            [email] => alex.ps0606@gmail.com
         )
 
     [_oldAttributes:yii\db\BaseActiveRecord:private] => 
@@ -169,6 +169,6 @@ app\models\Usuario Object
         (
         )
 
-    [senha] => 123456
-    [senha_confirmacao] => 123456
+    [senha] => @Alex7#
+    [senha_confirmacao] => @Alex7#
 )

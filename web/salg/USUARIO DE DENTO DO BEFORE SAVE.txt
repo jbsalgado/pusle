@@ -1,4 +1,4 @@
-At 13-10-2025 21:24:21:
+At 22-10-2025 15:43:14:
 app\models\Usuario Object
 (
     [_events:yii\base\Component:private] => Array
@@ -406,8 +406,8 @@ app\models\Usuario Object
         (
             [nome] => ALEX PEDRO DA SILVA
             [cpf] => 03658974427
-            [telefone] => 81993255874
-            [email] => 
+            [telefone] => 81993861026
+            [email] => alex.ps0606@gmail.com
             [data_criacao] => yii\db\Expression Object
                 (
                     [expression] => NOW()
@@ -426,8 +426,8 @@ app\models\Usuario Object
 
                 )
 
-            [hash_senha] => $2y$13$8wxKzxNivAhG9rvcp1XuweTV.vtC7/cL6YCpN0yr1g21kScM1GI.m
-            [auth_key] => 4_hqi_hmTnU2S7Osi8U1AEiB1NcEjVuG
+            [hash_senha] => $2y$13$RUcqlC4BXeuVmDJmGPcOM.mEbLGVoYH1TtA4fAXbD6ZcEyxoGglZO
+            [auth_key] => c6LVgOPhGtioR7THZ-UsEsN1E7UYzomJ
         )
 
     [_oldAttributes:yii\db\BaseActiveRecord:private] => 
@@ -439,6 +439,6 @@ app\models\Usuario Object
         (
         )
 
-    [senha] => 123456
-    [senha_confirmacao] => 123456
+    [senha] => @Alex7#
+    [senha_confirmacao] => @Alex7#
 )
