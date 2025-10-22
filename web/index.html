@@ -40,7 +40,7 @@
                     <a href="#services" class="text-gray-700 hover:text-primary transition-colors">Serviços</a>
                     <a href="#products" class="text-gray-700 hover:text-primary transition-colors">Produtos</a>
                     <a href="#about" class="text-gray-700 hover:text-primary transition-colors">Sobre</a>
-                    <a href="http://localhost/pulse/basic/web/index.php/login/login" 
+                    <a href="basic/web/index.php/login/login" 
                        class="bg-primary hover:bg-primary-dark text-white px-6 py-2 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
                         Entrar
                     </a>
@@ -59,7 +59,7 @@
                 <a href="#services" class="block px-3 py-2 text-gray-700 hover:text-primary">Serviços</a>
                 <a href="#products" class="block px-3 py-2 text-gray-700 hover:text-primary">Produtos</a>
                 <a href="#about" class="block px-3 py-2 text-gray-700 hover:text-primary">Sobre</a>
-                <a href="http://localhost/pulse/basic/web/index.php/login/login" 
+                <a href="basic/web/index.php/login/login" 
                    class="block mx-3 mt-3 bg-primary hover:bg-primary-dark text-white px-6 py-2 rounded-lg font-semibold text-center transition-all duration-300">
                     Entrar
                 </a>
@@ -80,7 +80,7 @@
                         Desenvolvemos sistemas personalizados, oferecemos consultoria especializada e soluções SaaS que impulsionam o crescimento da sua empresa.
                     </p>
                     <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                        <a href="http://localhost/pulse/basic/web/index.php/login/login" 
+                        <a href="basic/web/index.php/login/login" 
                            class="bg-white text-primary px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center">
                             <i class="fas fa-rocket mr-2"></i>
                             Começar Agora
@@ -166,276 +166,208 @@
     </section>
 
     <!-- Services Section -->
-    <section id="services" class="py-16 bg-gray-100">
+    <section id="services" class="py-20 bg-gray-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center mb-12">
-                <h2 class="text-3xl lg:text-4xl font-bold text-gray-800 mb-4">Nossos Serviços</h2>
-                <p class="text-xl text-gray-600">Soluções completas para o seu negócio digital</p>
+            <div class="text-center mb-16">
+                <h2 class="text-4xl lg:text-5xl font-bold text-gray-800 mb-4">Nossos Serviços</h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">Soluções completas para transformar sua visão em realidade digital</p>
             </div>
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <div class="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2">
-                    <div class="w-16 h-16 bg-primary bg-opacity-10 rounded-xl flex items-center justify-center mb-6">
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+                    <div class="bg-primary bg-opacity-10 w-16 h-16 rounded-full flex items-center justify-center mb-6">
                         <i class="fas fa-code text-primary text-2xl"></i>
                     </div>
-                    <h3 class="text-xl font-bold text-gray-800 mb-4">Desenvolvimento Web</h3>
-                    <p class="text-gray-600 mb-6">Criamos aplicações web modernas, responsivas e otimizadas para performance usando as melhores tecnologias do mercado.</p>
-                    <ul class="text-sm text-gray-500 space-y-2">
-                        <li><i class="fas fa-check text-green-500 mr-2"></i>PHP/Yii2</li>
-                        <li><i class="fas fa-check text-green-500 mr-2"></i>VueJS</li>
-                        <li><i class="fas fa-check text-green-500 mr-2"></i>APIs RESTful</li>
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4">Desenvolvimento Personalizado</h3>
+                    <p class="text-gray-600 mb-6">Criamos sistemas sob medida que se adaptam perfeitamente às necessidades específicas do seu negócio.</p>
+                    <ul class="space-y-2 text-gray-600">
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-primary mr-2 mt-1"></i>
+                            <span>Aplicações Web Robustas</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-primary mr-2 mt-1"></i>
+                            <span>Sistemas de Gestão</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-primary mr-2 mt-1"></i>
+                            <span>APIs e Integrações</span>
+                        </li>
                     </ul>
                 </div>
-                <div class="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2">
-                    <div class="w-16 h-16 bg-primary bg-opacity-10 rounded-xl flex items-center justify-center mb-6">
+
+                <div class="bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+                    <div class="bg-primary bg-opacity-10 w-16 h-16 rounded-full flex items-center justify-center mb-6">
                         <i class="fas fa-chart-line text-primary text-2xl"></i>
                     </div>
-                    <h3 class="text-xl font-bold text-gray-800 mb-4">Consultoria Digital</h3>
-                    <p class="text-gray-600 mb-6">Orientamos sua empresa na transformação digital com estratégias personalizadas e implementação de melhores práticas.</p>
-                    <ul class="text-sm text-gray-500 space-y-2">
-                        <li><i class="fas fa-check text-green-500 mr-2"></i>Análise de Processos</li>
-                        <li><i class="fas fa-check text-green-500 mr-2"></i>Arquitetura de Sistemas</li>
-                        <li><i class="fas fa-check text-green-500 mr-2"></i>Otimização</li>
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4">Consultoria Especializada</h3>
+                    <p class="text-gray-600 mb-6">Orientamos sua empresa na jornada digital com estratégias comprovadas e expertise técnica.</p>
+                    <ul class="space-y-2 text-gray-600">
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-primary mr-2 mt-1"></i>
+                            <span>Análise de Processos</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-primary mr-2 mt-1"></i>
+                            <span>Arquitetura de Soluções</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-primary mr-2 mt-1"></i>
+                            <span>Otimização de Performance</span>
+                        </li>
                     </ul>
                 </div>
-                <div class="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2">
-                    <div class="w-16 h-16 bg-primary bg-opacity-10 rounded-xl flex items-center justify-center mb-6">
-                        <i class="fas fa-mobile-alt text-primary text-2xl"></i>
+
+                <div class="bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+                    <div class="bg-primary bg-opacity-10 w-16 h-16 rounded-full flex items-center justify-center mb-6">
+                        <i class="fas fa-cloud text-primary text-2xl"></i>
                     </div>
-                    <h3 class="text-xl font-bold text-gray-800 mb-4">Aplicativos Mobile</h3>
-                    <p class="text-gray-600 mb-6">Desenvolvemos aplicativos nativos e híbridos para iOS e Android com foco na experiência do usuário.</p>
-                    <ul class="text-sm text-gray-500 space-y-2">
-                        <li><i class="fas fa-check text-green-500 mr-2"></i>React Native</li>
-                        <li><i class="fas fa-check text-green-500 mr-2"></i>Flutter</li>
-                        <li><i class="fas fa-check text-green-500 mr-2"></i>PWAs</li>
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4">Soluções SaaS</h3>
+                    <p class="text-gray-600 mb-6">Produtos prontos e escaláveis que aceleram a transformação digital da sua empresa.</p>
+                    <ul class="space-y-2 text-gray-600">
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-primary mr-2 mt-1"></i>
+                            <span>Infraestrutura em Nuvem</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-primary mr-2 mt-1"></i>
+                            <span>Atualizações Automáticas</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check text-primary mr-2 mt-1"></i>
+                            <span>Suporte Dedicado</span>
+                        </li>
                     </ul>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Products/SaaS Section -->
-    <section id="products" class="py-16 bg-white">
+    <!-- Products Section -->
+    <section id="products" class="py-20 bg-white">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center mb-12">
-                <h2 class="text-3xl lg:text-4xl font-bold text-gray-800 mb-4">Produtos SaaS</h2>
-                <p class="text-xl text-gray-600">Soluções prontas para acelerar o seu negócio</p>
+            <div class="text-center mb-16">
+                <h2 class="text-4xl lg:text-5xl font-bold text-gray-800 mb-4">Nossos Produtos</h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">Ferramentas poderosas para impulsionar seu negócio</p>
             </div>
-            <div class="grid lg:grid-cols-4 gap-2">
-                <div class="bg-gradient-to-br from-primary to-primary-light p-1 rounded-2xl">
-                    <div class="bg-white p-8 rounded-2xl h-full">
-                        <div class="text-center mb-6">
-                            <div class="w-20 h-20 bg-primary bg-opacity-10 rounded-xl flex items-center justify-center mx-auto mb-4">
-                                <i class="fas fa-users text-primary text-3xl"></i>
-                            </div>
-                            <h3 class="text-1xl font-bold text-gray-800">PULSE CONFECÇÃO</h3>
-                            <p class="text-primary font-semibold">Gestão de Confeções</p>
-                        </div>
-                        <ul class="space-y-3 mb-8">
-                            <li class="flex items-center text-gray-600">
-                                <i class="fas fa-check text-green-500 mr-3"></i>
-                                Gestão de Produção
-                            </li>
-                            <li class="flex items-center text-gray-600">
-                                <i class="fas fa-check text-green-500 mr-3"></i>
-                                Gestão de Terceiros 
-                            </li>
-                            <li class="flex items-center text-gray-600">
-                                <i class="fas fa-check text-green-500 mr-3"></i>
-                                Gestão de Vendas
-                            </li>
-                            <li class="flex items-center text-gray-600">
-                                <i class="fas fa-check text-green-500 mr-3"></i>
-                                Catálogo Digital
-                            </li>
-                        </ul>
-                        <div class="text-center">
-                            <div class="text-3xl font-bold text-gray-800 mb-2">R$ 99<span class="text-lg text-gray-500">/mês</span></div>
-                            <button class="w-full bg-primary hover:bg-primary-dark text-white py-3 px-6 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105">
-                                Começar Teste Grátis
-                            </button>
-                        </div>
-                    </div>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+                    <i class="fas fa-tasks text-4xl mb-4"></i>
+                    <h3 class="text-2xl font-bold mb-3">TaskMaster Pro</h3>
+                    <p class="mb-4 opacity-90">Sistema completo de gestão de projetos e tarefas com dashboards intuitivos.</p>
+                    <button class="bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                        Saiba Mais
+                    </button>
                 </div>
-                <div class="bg-gradient-to-br from-green-500 to-teal-600 p-1 rounded-2xl">
-                    <div class="bg-white p-8 rounded-2xl h-full">
-                        <div class="text-center mb-6">
-                            <div class="w-20 h-20 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                                <i class="fas fa-chart-bar text-green-600 text-3xl"></i>
-                            </div>
-                            <h3 class="text-1xl font-bold text-gray-800">PULSE ANALYTICS PLUS</h3>
-                            <p class="text-green-600 font-semibold">Business Intelligence</p>
-                        </div>
-                        <ul class="space-y-3 mb-8">
-                            <li class="flex items-center text-gray-600">
-                                <i class="fas fa-check text-green-500 mr-3"></i>
-                                Dashboards interativos
-                            </li>
-                            <li class="flex items-center text-gray-600">
-                                <i class="fas fa-check text-green-500 mr-3"></i>
-                                Análise preditiva
-                            </li>
-                            <li class="flex items-center text-gray-600">
-                                <i class="fas fa-check text-green-500 mr-3"></i>
-                                KPIs personalizados
-                            </li>
-                            <li class="flex items-center text-gray-600">
-                                <i class="fas fa-check text-green-500 mr-3"></i>
-                                Integração de dados
-                            </li>
-                        </ul>
-                        <div class="text-center">
-                            <div class="text-3xl font-bold text-gray-800 mb-2">R$ 149<span class="text-lg text-gray-500">/mês</span></div>
-                            <button class="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105">
-                                Começar Teste Grátis
-                            </button>
-                        </div>
-                    </div>
+
+                <div class="bg-gradient-to-br from-green-500 to-green-600 text-white p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+                    <i class="fas fa-chart-pie text-4xl mb-4"></i>
+                    <h3 class="text-2xl font-bold mb-3">Analytics Plus</h3>
+                    <p class="mb-4 opacity-90">Análise avançada de dados com visualizações em tempo real e relatórios personalizados.</p>
+                    <button class="bg-white text-green-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                        Saiba Mais
+                    </button>
                 </div>
-                <div class="bg-gradient-to-br from-orange-500 to-red-600 p-1 rounded-2xl">
-                    <div class="bg-white p-8 rounded-2xl h-full">
-                        <div class="text-center mb-6">
-                            <div class="w-20 h-20 bg-orange-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                                <i class="fas fa-address-card text-orange-600 text-3xl"></i>
-                            </div>
-                            <h3 class="text-1xl font-bold text-gray-800">PULSE PRESTANISTAS</h3>
-                            <p class="text-orange-600 font-semibold">Vendas a Prazo</p>
-                        </div>
-                        <ul class="space-y-3 mb-8">
-                            <li class="flex items-center text-gray-600">
-                                <i class="fas fa-check text-green-500 mr-3"></i>
-                                Gestão de Clientes
-                            </li>
-                            <li class="flex items-center text-gray-600">
-                                <i class="fas fa-check text-green-500 mr-3"></i>
-                                Gestão de Vendas
-                            </li>
-                            <li class="flex items-center text-gray-600">
-                                <i class="fas fa-check text-green-500 mr-3"></i>
-                                Gestão de Comissões 
-                            </li>
-                            <li class="flex items-center text-gray-600">
-                                <i class="fas fa-check text-green-500 mr-3"></i>
-                                Catalogo Digital
-                            </li>
-                        </ul>
-                        <div class="text-center">
-                            <div class="text-3xl font-bold text-gray-800 mb-2">R$ 199<span class="text-lg text-gray-500">/mês</span></div>
-                            <button class="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 px-6 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105">
-                                Começar Teste Grátis
-                            </button>
-                        </div>
-                    </div>
+
+                <div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+                    <i class="fas fa-shopping-cart text-4xl mb-4"></i>
+                    <h3 class="text-2xl font-bold mb-3">E-shop</h3>
+                    <p class="mb-4 opacity-90">Plataforma de e-commerce completa com pagamentos integrados e gestão de estoque.</p>
+                    <button class="bg-white text-purple-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                        Saiba Mais
+                    </button>
                 </div>
-                <div class="bg-gradient-to-br from-yellow-500 to-red-600 p-1 rounded-2xl">
-                    <div class="bg-white p-8 rounded-2xl h-full">
-                        <div class="text-center mb-6">
-                            <div class="w-20 h-20 bg-yellow-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                                <i class="fas fa-bread-slice text-yellow-600 text-3xl"></i>
-                            </div>
-                            <h3 class="text-1xl font-bold text-gray-800">PULSE FOOD</h3>
-                            <p class="text-yellow-600 font-semibold">Bares & Restaurantes</p>
-                        </div>
-                        <ul class="space-y-3 mb-8">
-                            <li class="flex items-center text-gray-600">
-                                <i class="fas fa-check text-green-500 mr-3"></i>
-                                Gestão de Clientes
-                            </li>
-                            <li class="flex items-center text-gray-600">
-                                <i class="fas fa-check text-green-500 mr-3"></i>
-                                Gestão de Vendas
-                            </li>
-                            <li class="flex items-center text-gray-600">
-                                <i class="fas fa-check text-green-500 mr-3"></i>
-                                Gestão de Comissões 
-                            </li>
-                            <li class="flex items-center text-gray-600">
-                                <i class="fas fa-check text-green-500 mr-3"></i>
-                                Cardápio Digital
-                            </li>
-                        </ul>
-                        <div class="text-center">
-                            <div class="text-3xl font-bold text-gray-800 mb-2">R$ 199<span class="text-lg text-gray-500">/mês</span></div>
-                            <button class="w-full bg-yellow-600 hover:bg-orange-700 text-white py-3 px-6 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105">
-                                Começar Teste Grátis
-                            </button>
-                        </div>
-                    </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="py-20 bg-gradient-to-r from-primary to-primary-dark text-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-4 gap-8 text-center">
+                <div class="transform hover:scale-110 transition-transform duration-300">
+                    <div class="text-5xl font-bold mb-2">150+</div>
+                    <div class="text-xl opacity-90">Projetos Entregues</div>
+                </div>
+                <div class="transform hover:scale-110 transition-transform duration-300">
+                    <div class="text-5xl font-bold mb-2">98%</div>
+                    <div class="text-xl opacity-90">Clientes Satisfeitos</div>
+                </div>
+                <div class="transform hover:scale-110 transition-transform duration-300">
+                    <div class="text-5xl font-bold mb-2">24/7</div>
+                    <div class="text-xl opacity-90">Suporte Disponível</div>
+                </div>
+                <div class="transform hover:scale-110 transition-transform duration-300">
+                    <div class="text-5xl font-bold mb-2">5+</div>
+                    <div class="text-xl opacity-90">Anos de Experiência</div>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- About Section -->
-    <section id="about" class="py-16 bg-gray-100">
+    <section id="about" class="py-20 bg-gray-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid lg:grid-cols-2 gap-12 items-center">
                 <div>
-                    <h2 class="text-3xl lg:text-4xl font-bold text-gray-800 mb-6">Por que escolher a Pulse?</h2>
-                    <p class="text-xl text-gray-600 mb-8 leading-relaxed">
-                        Somos uma empresa especializada em transformação digital, com mais de 5 anos de experiência em desenvolvimento de sistemas e consultoria tecnológica.
+                    <h2 class="text-4xl lg:text-5xl font-bold text-gray-800 mb-6">Sobre a Pulse</h2>
+                    <p class="text-xl text-gray-600 mb-6 leading-relaxed">
+                        Somos uma empresa de tecnologia focada em transformar desafios empresariais em soluções digitais inovadoras. Nossa missão é capacitar empresas de todos os tamanhos a alcançar seu máximo potencial através da tecnologia.
                     </p>
-                    <div class="grid sm:grid-cols-2 gap-6 mb-8">
+                    <p class="text-lg text-gray-600 mb-8 leading-relaxed">
+                        Com uma equipe de especialistas apaixonados por tecnologia, desenvolvemos soluções que não apenas atendem às necessidades atuais, mas também preparam nossos clientes para o futuro digital.
+                    </p>
+                    <div class="grid md:grid-cols-2 gap-4">
                         <div class="flex items-start">
-                            <div class="w-12 h-12 bg-primary bg-opacity-10 rounded-lg flex items-center justify-center mr-4 flex-shrink-0">
-                                <i class="fas fa-award text-primary"></i>
+                            <i class="fas fa-check-circle text-primary text-2xl mr-3 mt-1"></i>
+                            <div>
+                                <h4 class="font-bold text-gray-800 mb-1">Inovação Constante</h4>
+                                <p class="text-gray-600 text-sm">Sempre atualizados com as últimas tecnologias</p>
                             </div>
+                        </div>
+                        <div class="flex items-start">
+                            <i class="fas fa-check-circle text-primary text-2xl mr-3 mt-1"></i>
                             <div>
                                 <h4 class="font-bold text-gray-800 mb-1">Qualidade Garantida</h4>
-                                <p class="text-gray-600 text-sm">Código limpo, documentado e testado</p>
+                                <p class="text-gray-600 text-sm">Código limpo e bem documentado</p>
                             </div>
                         </div>
                         <div class="flex items-start">
-                            <div class="w-12 h-12 bg-primary bg-opacity-10 rounded-lg flex items-center justify-center mr-4 flex-shrink-0">
-                                <i class="fas fa-clock text-primary"></i>
-                            </div>
+                            <i class="fas fa-check-circle text-primary text-2xl mr-3 mt-1"></i>
                             <div>
-                                <h4 class="font-bold text-gray-800 mb-1">Entrega Rápida</h4>
-                                <p class="text-gray-600 text-sm">Metodologias ágeis e entregas frequentes</p>
+                                <h4 class="font-bold text-gray-800 mb-1">Suporte Dedicado</h4>
+                                <p class="text-gray-600 text-sm">Equipe disponível quando você precisar</p>
                             </div>
                         </div>
                         <div class="flex items-start">
-                            <div class="w-12 h-12 bg-primary bg-opacity-10 rounded-lg flex items-center justify-center mr-4 flex-shrink-0">
-                                <i class="fas fa-headset text-primary"></i>
-                            </div>
+                            <i class="fas fa-check-circle text-primary text-2xl mr-3 mt-1"></i>
                             <div>
-                                <h4 class="font-bold text-gray-800 mb-1">Suporte 24/7</h4>
-                                <p class="text-gray-600 text-sm">Atendimento especializado sempre que precisar</p>
-                            </div>
-                        </div>
-                        <div class="flex items-start">
-                            <div class="w-12 h-12 bg-primary bg-opacity-10 rounded-lg flex items-center justify-center mr-4 flex-shrink-0">
-                                <i class="fas fa-shield-alt text-primary"></i>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-gray-800 mb-1">Segurança Total</h4>
-                                <p class="text-gray-600 text-sm">Suas informações protegidas com criptografia</p>
+                                <h4 class="font-bold text-gray-800 mb-1">Escalabilidade</h4>
+                                <p class="text-gray-600 text-sm">Soluções que crescem com seu negócio</p>
                             </div>
                         </div>
                     </div>
-                    <a href="http://localhost/pulse/basic/web/index.php/login/login" 
-                       class="inline-flex items-center bg-primary hover:bg-primary-dark text-white px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
-                        <i class="fas fa-rocket mr-2"></i>
-                        Vamos Começar!
-                    </a>
                 </div>
                 <div class="relative">
-                    <div class="bg-white p-8 rounded-2xl shadow-2xl">
-                        <div class="grid grid-cols-2 gap-6">
-                            <div class="text-center">
-                                <div class="text-4xl font-bold text-primary mb-2">500+</div>
-                                <p class="text-gray-600">Projetos Entregues</p>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-4xl font-bold text-primary mb-2">98%</div>
-                                <p class="text-gray-600">Clientes Satisfeitos</p>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-4xl font-bold text-primary mb-2">5+</div>
-                                <p class="text-gray-600">Anos de Experiência</p>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-4xl font-bold text-primary mb-2">24/7</div>
-                                <p class="text-gray-600">Suporte Disponível</p>
+                    <div class="bg-gradient-to-br from-primary to-primary-dark p-8 rounded-2xl shadow-2xl">
+                        <div class="bg-white bg-opacity-10 p-6 rounded-xl backdrop-blur-sm">
+                            <h3 class="text-2xl font-bold text-white mb-4">Nossos Valores</h3>
+                            <div class="space-y-4">
+                                <div class="flex items-center text-white">
+                                    <i class="fas fa-lightbulb text-2xl mr-4"></i>
+                                    <span class="text-lg">Inovação</span>
+                                </div>
+                                <div class="flex items-center text-white">
+                                    <i class="fas fa-handshake text-2xl mr-4"></i>
+                                    <span class="text-lg">Transparência</span>
+                                </div>
+                                <div class="flex items-center text-white">
+                                    <i class="fas fa-trophy text-2xl mr-4"></i>
+                                    <span class="text-lg">Excelência</span>
+                                </div>
+                                <div class="flex items-center text-white">
+                                    <i class="fas fa-users text-2xl mr-4"></i>
+                                    <span class="text-lg">Colaboração</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -445,54 +377,44 @@
     </section>
 
     <!-- CTA Section -->
-    <section class="py-16 bg-gradient-to-r from-primary to-primary-light text-white">
+    <section class="py-20 bg-gradient-to-r from-primary via-primary-dark to-purple-600 text-white">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 class="text-3xl lg:text-4xl font-bold mb-6">Pronto para transformar seu negócio?</h2>
-            <p class="text-xl mb-8 opacity-90">
-                Entre em contato conosco e descubra como podemos ajudar sua empresa a crescer no mundo digital.
-            </p>
+            <h2 class="text-4xl lg:text-5xl font-bold mb-6">Pronto para Transformar seu Negócio?</h2>
+            <p class="text-xl mb-8 opacity-90">Entre em contato conosco e descubra como podemos ajudar sua empresa a alcançar novos patamares.</p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="http://localhost/pulse/basic/web/index.php/login/login" 
-                   class="bg-white text-primary px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl inline-flex items-center justify-center">
-                    <i class="fas fa-sign-in-alt mr-2"></i>
-                    Acessar Sistema
-                </a>
-                <button class="border-2 border-white text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white hover:text-primary transition-all duration-300 transform hover:scale-105 inline-flex items-center justify-center">
+                <button class="bg-white text-primary px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-lg">
                     <i class="fas fa-phone mr-2"></i>
-                    Falar Conosco
+                    Agendar Consulta
+                </button>
+                <button class="border-2 border-white text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white hover:text-primary transition-all duration-300 transform hover:scale-105">
+                    <i class="fas fa-envelope mr-2"></i>
+                    Enviar Mensagem
                 </button>
             </div>
         </div>
     </section>
 
     <!-- Footer -->
-    <footer class="bg-gray-800 text-white py-12">
+    <footer class="bg-gray-900 text-white py-12">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid md:grid-cols-4 gap-8">
                 <div>
-                    <div class="flex items-center mb-4">
-                        <div class="w-10 h-10 bg-gradient-to-br from-primary to-primary-light rounded-lg flex items-center justify-center">
-                            <i class="fas fa-bolt text-white text-xl"></i>
-                        </div>
-                        <span class="ml-3 text-2xl font-bold">Pulse</span>
-                    </div>
-                    <p class="text-gray-300 leading-relaxed">
-                        Transformando ideias em soluções digitais inovadoras que impulsionam o sucesso do seu negócio.
-                    </p>
+                    <h3 class="text-2xl font-bold mb-4">Pulse</h3>
+                    <p class="text-gray-300 mb-4">Transformando ideias em soluções digitais inovadoras.</p>
                 </div>
                 <div>
-                    <h4 class="font-bold mb-4">Serviços</h4>
+                    <h4 class="font-bold mb-4">Links Rápidos</h4>
                     <ul class="space-y-2 text-gray-300">
-                        <li><a href="#" class="hover:text-white transition-colors">Desenvolvimento Web</a></li>
-                        <li><a href="#" class="hover:text-white transition-colors">Aplicativos Mobile</a></li>
-                        <li><a href="#" class="hover:text-white transition-colors">Consultoria Digital</a></li>
-                        <li><a href="#" class="hover:text-white transition-colors">Soluções SaaS</a></li>
+                        <li><a href="#home" class="hover:text-white transition-colors">Início</a></li>
+                        <li><a href="#services" class="hover:text-white transition-colors">Serviços</a></li>
+                        <li><a href="#products" class="hover:text-white transition-colors">Produtos</a></li>
+                        <li><a href="#about" class="hover:text-white transition-colors">Sobre</a></li>
                     </ul>
                 </div>
                 <div>
                     <h4 class="font-bold mb-4">Produtos</h4>
                     <ul class="space-y-2 text-gray-300">
-                        <li><a href="#" class="hover:text-white transition-colors">CRM Pro</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">TaskMaster Pro</a></li>
                         <li><a href="#" class="hover:text-white transition-colors">Analytics Plus</a></li>
                         <li><a href="#" class="hover:text-white transition-colors">E-shop</a></li>
                         <li><a href="#" class="hover:text-white transition-colors">Suporte Técnico</a></li>
