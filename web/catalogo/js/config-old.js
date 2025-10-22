@@ -1,14 +1,12 @@
 // config.js - Configurações centralizadas da aplicação
 
-// Detecta automaticamente o ambiente
-const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-
 export const CONFIG = {
-    URL_API: isProduction ? '/pulse/web/index.php' : '/pulse/basic/web/index.php',
-    URL_BASE_WEB: isProduction ? '/pulse/web' : '/pulse/basic/web',
+    URL_API: '/pulse/basic/web/index.php',
+    URL_BASE_WEB: '/pulse/basic/web',
     CACHE_NAME: 'catalogo-cache-v4',
     SYNC_TAG: 'sync-novo-pedido',
     ID_USUARIO_LOJA: 'a99a38a9-e368-4a47-a4bd-02ba3bacaa76' // ID da loja/usuário principal (CONFIRME ESTE VALOR)
+   
 };
 
 export const API_ENDPOINTS = {
