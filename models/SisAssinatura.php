@@ -23,7 +23,7 @@ class SignupForm extends Model
     public function rules()
     {
         return [
-            [['nome', 'email', 'password', 'password_repeat'], 'required'],
+            [['nome', 'password', 'password_repeat'], 'required'],
             ['nome', 'string', 'min' => 3, 'max' => 255],
             
             ['email', 'trim'],
