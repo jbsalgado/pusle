@@ -38,6 +38,7 @@ import {
     popularFormasPagamento,
     atualizarInfoParcelas
 } from './ui.js';
+import { inicializarGaleria } from './gallery.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('[App] DOM Carregado. Iniciando...');
@@ -45,6 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     verificarElementosCriticos(ELEMENTOS_CRITICOS);
     inicializarServiceWorker();
     inicializarMonitoramentoRede();
+    inicializarGaleria(); // Inicializar galeria de fotos
 
     const elementos = obterElementosDOM();
     configurarEventListeners(elementos);

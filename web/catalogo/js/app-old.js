@@ -1,6 +1,7 @@
 // app.js - Arquivo principal que orquestra todos os módulos
 
-import { ELEMENTOS_CRITICOS } from './config.js';
+// --- MODIFICADO: Importar CONFIG junto com ELEMENTOS_CRITICOS ---
+import { ELEMENTOS_CRITICOS, CONFIG } from './config.js';
 import { verificarElementosCriticos, maskCPF, maskPhone, validarCPF } from './utils.js';
 import { inicializarServiceWorker, adicionarListenerMensagensSW } from './serviceWorkerManager.js';
 import { inicializarMonitoramentoRede, estaOnline } from './network.js';
@@ -16,10 +17,10 @@ import {
     atualizarIndicadoresCarrinho,
     atualizarBadgeProduto
 } from './cart.js';
-import { carregarProdutos, getIdUsuarioLoja } from './products.js';
+// --- MODIFICADO: Remover a importação de getIdUsuarioLoja ---
+import { carregarProdutos } from './products.js';
 import { 
     buscarClientePorCpf, 
-    fazerLogin, 
     cadastrarCliente,
     getClienteAtual,
     setClienteAtual 
@@ -29,8 +30,6 @@ import { carregarFormasPagamento, calcularParcelas, formatarInfoParcelas } from 
 import { finalizarPedido } from './order.js';
 import { 
     atualizarModalCarrinho,
-    mostrarErroLogin,
-    esconderErroLogin,
     mostrarErroCadastro,
     esconderErroCadastro,
     limparFormularioCadastro,
@@ -43,50 +42,32 @@ import {
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('[App] DOM Carregado. Iniciando...');
 
-    // Verifica elementos críticos
     verificarElementosCriticos(ELEMENTOS_CRITICOS);
-
-    // Inicializa Service Worker
     inicializarServiceWorker();
-
-    // Inicializa monitoramento de rede
     inicializarMonitoramentoRede();
 
-    // Obtém referências dos elementos
     const elementos = obterElementosDOM();
-
-    // Configura event listeners
     configurarEventListeners(elementos);
 
-    // Adiciona listener para mensagens do Service Worker
     adicionarListenerMensagensSW(async (data) => {
         if (data.type === 'SYNC_SUCCESS') {
             await processarSincronizacao(elementos.catalogoContainer);
         }
     });
 
-    // Inicialização da aplicação
     await inicializarAplicacao(elementos.catalogoContainer);
 
     console.log('[App] Aplicação iniciada com sucesso!');
 });
 
-/**
- * Obtém referências de elementos do DOM
- */
 function obterElementosDOM() {
     return {
-        // Catálogo
         catalogoContainer: document.getElementById('catalogo-produtos'),
-        
-        // Carrinho
         btnAbrirCarrinho: document.getElementById('btn-abrir-carrinho'),
         modalCarrinho: document.getElementById('modal-carrinho'),
         btnFecharCarrinho: document.getElementById('btn-fechar-carrinho'),
         btnFinalizarPedido: document.getElementById('btn-finalizar-pedido'),
         itensCarrinhoContainer: document.getElementById('itens-carrinho'),
-        
-        // Modal Cliente/Pedido
         modalClientePedido: document.getElementById('modal-cliente-pedido'),
         btnFecharModalCliente: document.getElementById('btn-fechar-modal-cliente'),
         btnBuscarCliente: document.getElementById('btn-buscar-cliente'),
@@ -95,28 +76,16 @@ function obterElementosDOM() {
         btnConfirmarPedido: document.getElementById('btn-confirmar-pedido'),
         inputObservacoes: document.getElementById('observacoes'),
         inputParcelas: document.getElementById('numero_parcelas'),
-        
-        // === NOVO: Campo de data do primeiro pagamento ===
         campoDataPrimeiroPagamento: document.getElementById('campo-data-primeiro-pagamento'),
         inputDataPrimeiroPagamento: document.getElementById('data_primeiro_pagamento'),
-        
-        // Vendedor
+        campoIntervaloParcelas: document.getElementById('campo-intervalo-parcelas'),
+        inputIntervaloParcelas: document.getElementById('intervalo_dias_parcelas'),
         radioTipoVendaCliente: document.getElementById('tipo_venda_cliente'),
         radioTipoVendaVendedor: document.getElementById('tipo_venda_vendedor'),
         campoVendedorCpf: document.getElementById('campo-vendedor-cpf'),
         inputVendedorCpfBusca: document.getElementById('vendedor_cpf_busca'),
         btnBuscarVendedor: document.getElementById('btn-buscar-vendedor'),
         inputColaboradorVendedorId: document.getElementById('colaborador_vendedor_id'),
-        
-        // Modal Login
-        modalLoginCliente: document.getElementById('modal-login-cliente'),
-        btnFecharModalLogin: document.getElementById('btn-fechar-modal-login'),
-        btnCancelarLogin: document.getElementById('btn-cancelar-login'),
-        btnFazerLogin: document.getElementById('btn-fazer-login'),
-        inputLoginSenha: document.getElementById('login-senha'),
-        loginClienteNome: document.getElementById('login-cliente-nome'),
-        
-        // Modal Cadastro
         modalCadastroCliente: document.getElementById('modal-cadastro-cliente'),
         btnFecharModalCadastro: document.getElementById('btn-fechar-modal-cadastro'),
         btnCancelarCadastro: document.getElementById('btn-cancelar-cadastro'),
@@ -136,35 +105,15 @@ function obterElementosDOM() {
     };
 }
 
-/**
- * Configura todos os event listeners
- */
 function configurarEventListeners(el) {
-    // Listeners do catálogo
     configurarListenersCatalogo(el);
-    
-    // Listeners do carrinho
     configurarListenersCarrinho(el);
-    
-    // Listeners do modal de pedido
     configurarListenersModalPedido(el);
-    
-    // Listeners de cliente
     configurarListenersCliente(el);
-    
-    // Listeners de vendedor
     configurarListenersVendedor(el);
-    
-    // Listeners de login
-    configurarListenersLogin(el);
-    
-    // Listeners de cadastro
     configurarListenersCadastro(el);
 }
 
-/**
- * Listeners do catálogo de produtos
- */
 function configurarListenersCatalogo(el) {
     if (!el.catalogoContainer) return;
     
@@ -209,31 +158,26 @@ function configurarListenersCatalogo(el) {
     });
 }
 
-/**
- * Listeners do carrinho
- */
 function configurarListenersCarrinho(el) {
-    // Abrir carrinho
     if (el.btnAbrirCarrinho) {
         el.btnAbrirCarrinho.addEventListener('click', () => {
             el.modalCarrinho?.classList.remove('hidden');
         });
     }
     
-    // Fechar carrinho
     if (el.btnFecharCarrinho) {
         el.btnFecharCarrinho.addEventListener('click', () => {
             el.modalCarrinho?.classList.add('hidden');
         });
     }
     
-    // Finalizar pedido
     if (el.btnFinalizarPedido) {
         el.btnFinalizarPedido.addEventListener('click', async () => {
             el.modalCarrinho?.classList.add('hidden');
             el.modalClientePedido?.classList.remove('hidden');
             
-            await carregarFormasPagamento(getIdUsuarioLoja())
+            // --- MODIFICADO: Usar CONFIG.ID_USUARIO_LOJA ---
+            await carregarFormasPagamento(CONFIG.ID_USUARIO_LOJA)
                 .then(formas => popularFormasPagamento(formas))
                 .catch(error => console.error('[App] Erro ao carregar formas:', error));
             
@@ -241,7 +185,6 @@ function configurarListenersCarrinho(el) {
         });
     }
     
-    // Controles do carrinho (remover, aumentar, diminuir)
     if (el.itensCarrinhoContainer) {
         el.itensCarrinhoContainer.addEventListener('click', event => {
             const botaoRemover = event.target.closest('.remover-item-carrinho');
@@ -270,9 +213,6 @@ function configurarListenersCarrinho(el) {
     }
 }
 
-/**
- * Listeners do modal de pedido
- */
 function configurarListenersModalPedido(el) {
     if (el.btnFecharModalCliente) {
         el.btnFecharModalCliente.addEventListener('click', () => {
@@ -280,11 +220,10 @@ function configurarListenersModalPedido(el) {
         });
     }
     
-    // === ATUALIZADO: Listener para mudança no número de parcelas ===
     if (el.inputParcelas) {
         el.inputParcelas.addEventListener('change', async () => {
             await calcularEAtualizarParcelas(el);
-            alternarCampoDataPrimeiroPagamento(el); // Nova função
+            alternarCampoDataPrimeiroPagamento(el);
         });
     }
     
@@ -295,11 +234,7 @@ function configurarListenersModalPedido(el) {
     }
 }
 
-/**
- * Listeners de cliente
- */
 function configurarListenersCliente(el) {
-    // Buscar cliente
     if (el.btnBuscarCliente) {
         el.btnBuscarCliente.addEventListener('click', async (e) => {
             e.preventDefault();
@@ -307,7 +242,6 @@ function configurarListenersCliente(el) {
         });
     }
     
-    // Máscara e enter no CPF
     if (el.inputClienteCpfBusca) {
         el.inputClienteCpfBusca.addEventListener('input', () => {
             maskCPF(el.inputClienteCpfBusca);
@@ -322,11 +256,7 @@ function configurarListenersCliente(el) {
     }
 }
 
-/**
- * Listeners de vendedor
- */
 function configurarListenersVendedor(el) {
-    // Alternar tipo de venda
     if (el.radioTipoVendaCliente) {
         el.radioTipoVendaCliente.addEventListener('change', () => {
             alternarCampoVendedor(el);
@@ -339,7 +269,6 @@ function configurarListenersVendedor(el) {
         });
     }
     
-    // Buscar vendedor
     if (el.btnBuscarVendedor) {
         el.btnBuscarVendedor.addEventListener('click', async (e) => {
             e.preventDefault();
@@ -347,7 +276,6 @@ function configurarListenersVendedor(el) {
         });
     }
     
-    // Máscara e enter no CPF do vendedor
     if (el.inputVendedorCpfBusca) {
         el.inputVendedorCpfBusca.addEventListener('input', () => {
             maskCPF(el.inputVendedorCpfBusca);
@@ -362,43 +290,6 @@ function configurarListenersVendedor(el) {
     }
 }
 
-/**
- * Listeners de login
- */
-function configurarListenersLogin(el) {
-    if (el.btnFecharModalLogin) {
-        el.btnFecharModalLogin.addEventListener('click', () => {
-            el.modalLoginCliente?.classList.add('hidden');
-            el.modalClientePedido?.classList.remove('hidden');
-        });
-    }
-    
-    if (el.btnCancelarLogin) {
-        el.btnCancelarLogin.addEventListener('click', () => {
-            el.modalLoginCliente?.classList.add('hidden');
-            el.modalClientePedido?.classList.remove('hidden');
-        });
-    }
-    
-    if (el.btnFazerLogin) {
-        el.btnFazerLogin.addEventListener('click', async () => {
-            await processarLogin(el);
-        });
-    }
-    
-    if (el.inputLoginSenha) {
-        el.inputLoginSenha.addEventListener('keypress', async (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                await processarLogin(el);
-            }
-        });
-    }
-}
-
-/**
- * Listeners de cadastro
- */
 function configurarListenersCadastro(el) {
     if (el.btnFecharModalCadastro) {
         el.btnFecharModalCadastro.addEventListener('click', () => {
@@ -427,8 +318,6 @@ function configurarListenersCadastro(el) {
     }
 }
 
-// === FUNÇÕES DE PROCESSAMENTO ===
-
 async function processarBuscaCliente(el) {
     const cpf = el.inputClienteCpfBusca?.value.trim().replace(/[^\d]/g, '');
     
@@ -447,19 +336,23 @@ async function processarBuscaCliente(el) {
     el.btnBuscarCliente.textContent = 'Buscando...';
     
     try {
-        const resultado = await buscarClientePorCpf(cpf, getIdUsuarioLoja());
+        // --- MODIFICADO: Usar CONFIG.ID_USUARIO_LOJA ---
+        const resultado = await buscarClientePorCpf(cpf, CONFIG.ID_USUARIO_LOJA);
         
         if (resultado.existe) {
+            // Cliente encontrado - preenche dados automaticamente (SEM login)
             setClienteAtual(resultado.cliente);
-            el.loginClienteNome.textContent = resultado.cliente.nome_completo;
-            el.modalClientePedido?.classList.add('hidden');
-            el.modalLoginCliente?.classList.remove('hidden');
-            if (el.inputLoginSenha) {
-                el.inputLoginSenha.value = '';
-                el.inputLoginSenha.focus();
-            }
-            esconderErroLogin();
+            el.inputClienteId.value = resultado.cliente.id;
+            atualizarInfoCliente(resultado.cliente);
+            
+            if (el.btnConfirmarPedido) el.btnConfirmarPedido.disabled = false;
+            
+            await calcularEAtualizarParcelas(el);
+            alternarCampoDataPrimeiroPagamento(el);
+            
+            alert(`Cliente ${resultado.cliente.nome_completo} identificado com sucesso!`);
         } else {
+            // Cliente não existe - abre modal de cadastro
             setClienteAtual(null);
             if (el.inputCadastroCpf) {
                 el.inputCadastroCpf.value = cpf;
@@ -479,45 +372,10 @@ async function processarBuscaCliente(el) {
     }
 }
 
-async function processarLogin(el) {
-    const senha = el.inputLoginSenha?.value.trim();
-    
-    if (!senha) {
-        mostrarErroLogin('Digite a senha.');
-        return;
-    }
-    
-    el.btnFazerLogin.disabled = true;
-    el.btnFazerLogin.textContent = 'Entrando...';
-    esconderErroLogin();
-    
-    try {
-        const clienteAtual = getClienteAtual();
-        const cliente = await fazerLogin(clienteAtual.cpf, senha, getIdUsuarioLoja());
-        
-        el.inputClienteId.value = cliente.id;
-        atualizarInfoCliente(cliente);
-        
-        if (el.btnConfirmarPedido) el.btnConfirmarPedido.disabled = false;
-        
-        el.modalLoginCliente?.classList.add('hidden');
-        el.modalClientePedido?.classList.remove('hidden');
-        
-        await calcularEAtualizarParcelas(el);
-        alternarCampoDataPrimeiroPagamento(el); // Nova função
-        
-    } catch (error) {
-        console.error('[App] Erro no login:', error);
-        mostrarErroLogin(error.message || 'Não foi possível fazer login. Tente novamente.');
-    } finally {
-        el.btnFazerLogin.disabled = false;
-        el.btnFazerLogin.textContent = 'Entrar';
-    }
-}
-
 async function processarCadastro(el) {
     const dadosCliente = {
-        usuario_id: getIdUsuarioLoja(),
+        // --- MODIFICADO: Usar CONFIG.ID_USUARIO_LOJA ---
+        usuario_id: CONFIG.ID_USUARIO_LOJA,
         nome_completo: el.inputCadastroNome?.value.trim().toUpperCase() || '',
         cpf: el.inputCadastroCpf?.value.trim().replace(/[^\d]/g, '') || null,
         telefone: el.inputCadastroTelefone?.value.trim().replace(/[^\d]/g, '') || '',
@@ -548,7 +406,7 @@ async function processarCadastro(el) {
         if (el.btnConfirmarPedido) el.btnConfirmarPedido.disabled = false;
         
         await calcularEAtualizarParcelas(el);
-        alternarCampoDataPrimeiroPagamento(el); // Nova função
+        alternarCampoDataPrimeiroPagamento(el);
         
     } catch (error) {
         console.error('[App] Erro ao cadastrar:', error);
@@ -577,7 +435,8 @@ async function processarBuscaVendedor(el) {
     el.btnBuscarVendedor.textContent = 'Buscando...';
     
     try {
-        const resultado = await buscarVendedorPorCpf(cpf, getIdUsuarioLoja());
+        // --- MODIFICADO: Usar CONFIG.ID_USUARIO_LOJA ---
+        const resultado = await buscarVendedorPorCpf(cpf, CONFIG.ID_USUARIO_LOJA);
         
         if (resultado.existe) {
             el.inputColaboradorVendedorId.value = resultado.colaborador.id;
@@ -615,7 +474,8 @@ async function calcularEAtualizarParcelas(el) {
     atualizarInfoParcelas('Calculando...');
     
     try {
-        const dadosParcela = await calcularParcelas(valorBase, numeroParcelas, getIdUsuarioLoja());
+        // --- MODIFICADO: Usar CONFIG.ID_USUARIO_LOJA ---
+        const dadosParcela = await calcularParcelas(valorBase, numeroParcelas, CONFIG.ID_USUARIO_LOJA);
         const htmlParcelas = formatarInfoParcelas(dadosParcela);
         atualizarInfoParcelas(htmlParcelas);
     } catch (error) {
@@ -624,31 +484,41 @@ async function calcularEAtualizarParcelas(el) {
     }
 }
 
-// === NOVA FUNÇÃO: Alternar visibilidade do campo de data ===
 function alternarCampoDataPrimeiroPagamento(el) {
     if (!el.campoDataPrimeiroPagamento || !el.inputParcelas) return;
     
     const numeroParcelas = parseInt(el.inputParcelas.value, 10);
     
     if (numeroParcelas > 1) {
-        // Mostra o campo e define data mínima como hoje
         el.campoDataPrimeiroPagamento.classList.remove('hidden');
+        if (el.campoIntervaloParcelas) {
+            el.campoIntervaloParcelas.classList.remove('hidden');
+        }
         
         if (el.inputDataPrimeiroPagamento) {
-            // Define data mínima como hoje
-            const hoje = new Date().toISOString().split('T')[0];
-            el.inputDataPrimeiroPagamento.setAttribute('min', hoje);
+            const hoje = new Date();
+            const dataHoje = hoje.toISOString().split('T')[0];
+            el.inputDataPrimeiroPagamento.setAttribute('min', dataHoje);
             
-            // Se ainda não tem valor, define como hoje
             if (!el.inputDataPrimeiroPagamento.value) {
-                el.inputDataPrimeiroPagamento.value = hoje;
+                el.inputDataPrimeiroPagamento.value = dataHoje;
             }
         }
+        
+        if (el.inputIntervaloParcelas && !el.inputIntervaloParcelas.value) {
+            el.inputIntervaloParcelas.value = '30';
+        }
     } else {
-        // Esconde o campo e limpa o valor
         el.campoDataPrimeiroPagamento.classList.add('hidden');
+        if (el.campoIntervaloParcelas) {
+            el.campoIntervaloParcelas.classList.add('hidden');
+        }
+        
         if (el.inputDataPrimeiroPagamento) {
             el.inputDataPrimeiroPagamento.value = '';
+        }
+        if (el.inputIntervaloParcelas) {
+            el.inputIntervaloParcelas.value = '';
         }
     }
 }
@@ -658,7 +528,7 @@ async function confirmarPedido(el) {
     const selectFormaPagamento = document.getElementById('forma_pagamento');
     
     if (!clienteId) {
-        alert('Erro: Você precisa buscar o CPF e fazer login/cadastro antes de confirmar o pedido.');
+        alert('Erro: Você precisa buscar o CPF do cliente antes de confirmar o pedido.');
         el.inputClienteCpfBusca?.focus();
         return;
     }
@@ -671,34 +541,40 @@ async function confirmarPedido(el) {
     
     const numeroParcelas = parseInt(el.inputParcelas?.value, 10) || 1;
     
-    // === DEBUG: Verificar estado do campo de data ===
-    console.log('🔍 DEBUG - Número de parcelas:', numeroParcelas);
-    console.log('🔍 DEBUG - Elemento campo data:', el.campoDataPrimeiroPagamento);
-    console.log('🔍 DEBUG - Elemento input data:', el.inputDataPrimeiroPagamento);
-    console.log('🔍 DEBUG - Campo está oculto?:', el.campoDataPrimeiroPagamento?.classList.contains('hidden'));
-    console.log('🔍 DEBUG - Valor do input data:', el.inputDataPrimeiroPagamento?.value);
-    
-    // === VALIDAÇÃO: Verifica data do primeiro pagamento para vendas parceladas ===
     if (numeroParcelas > 1) {
         const dataInput = el.inputDataPrimeiroPagamento?.value;
-        console.log('🔍 DEBUG - Data capturada:', dataInput);
         
         if (!dataInput) {
             alert('⚠️ Por favor, informe a data do primeiro pagamento para vendas parceladas.');
             el.inputDataPrimeiroPagamento?.focus();
-            // Força mostrar o campo se estiver oculto
             el.campoDataPrimeiroPagamento?.classList.remove('hidden');
             return;
         }
         
-        // Valida se a data não é anterior a hoje
-        const dataInformada = new Date(dataInput);
+        const partesData = dataInput.split('-');
+        const dataInformada = new Date(partesData[0], partesData[1] - 1, partesData[2]);
         const hoje = new Date();
         hoje.setHours(0, 0, 0, 0);
+        dataInformada.setHours(0, 0, 0, 0);
         
         if (dataInformada < hoje) {
             alert('⚠️ A data do primeiro pagamento não pode ser anterior à data de hoje.');
             el.inputDataPrimeiroPagamento?.focus();
+            return;
+        }
+        
+        const intervaloDias = parseInt(el.inputIntervaloParcelas?.value, 10);
+        
+        if (!intervaloDias || intervaloDias < 1) {
+            alert('⚠️ Por favor, informe um intervalo válido entre as parcelas (mínimo 1 dia).');
+            el.inputIntervaloParcelas?.focus();
+            el.campoIntervaloParcelas?.classList.remove('hidden');
+            return;
+        }
+        
+        if (intervaloDias > 365) {
+            alert('⚠️ O intervalo entre parcelas não pode ser maior que 365 dias.');
+            el.inputIntervaloParcelas?.focus();
             return;
         }
     }
@@ -710,20 +586,19 @@ async function confirmarPedido(el) {
         forma_pagamento_id: selectFormaPagamento.value
     };
     
-    // === ADICIONA: Data do primeiro pagamento se houver parcelas ===
-    if (numeroParcelas > 1 && el.inputDataPrimeiroPagamento?.value) {
-        dadosPedido.data_primeiro_pagamento = el.inputDataPrimeiroPagamento.value;
-        console.log('✅ DEBUG - Campo data_primeiro_pagamento adicionado:', dadosPedido.data_primeiro_pagamento);
-    } else if (numeroParcelas > 1) {
-        console.error('❌ DEBUG - Parcelas > 1 mas sem data!');
+    if (numeroParcelas > 1) {
+        if (el.inputDataPrimeiroPagamento?.value) {
+            dadosPedido.data_primeiro_pagamento = el.inputDataPrimeiroPagamento.value;
+        }
+        
+        if (el.inputIntervaloParcelas?.value) {
+            dadosPedido.intervalo_dias_parcelas = parseInt(el.inputIntervaloParcelas.value, 10);
+        }
     }
     
-    // Adiciona vendedor se selecionado
     if (el.radioTipoVendaVendedor?.checked && el.inputColaboradorVendedorId?.value) {
         dadosPedido.colaborador_vendedor_id = el.inputColaboradorVendedorId.value;
     }
-    
-    console.log('📤 DEBUG - Dados do pedido que serão enviados:', JSON.stringify(dadosPedido, null, 2));
     
     try {
         const resultado = await finalizarPedido(dadosPedido, getCarrinho());
@@ -749,7 +624,6 @@ function alternarCampoVendedor(el) {
     }
 }
 
-// === ATUALIZADA: Reset do formulário incluindo campo de data ===
 function resetarFormularioPedido(el) {
     if (el.inputClienteCpfBusca) el.inputClienteCpfBusca.value = '';
     if (el.inputClienteId) el.inputClienteId.value = '';
@@ -767,11 +641,12 @@ function resetarFormularioPedido(el) {
     if (el.inputParcelas) el.inputParcelas.value = '1';
     atualizarInfoParcelas(null);
     
-    // === NOVO: Reset do campo de data ===
     if (el.inputDataPrimeiroPagamento) el.inputDataPrimeiroPagamento.value = '';
     if (el.campoDataPrimeiroPagamento) el.campoDataPrimeiroPagamento.classList.add('hidden');
     
-    // Reset vendedor
+    if (el.inputIntervaloParcelas) el.inputIntervaloParcelas.value = '';
+    if (el.campoIntervaloParcelas) el.campoIntervaloParcelas.classList.add('hidden');
+    
     if (el.radioTipoVendaCliente) el.radioTipoVendaCliente.checked = true;
     if (el.radioTipoVendaVendedor) el.radioTipoVendaVendedor.checked = false;
     if (el.inputVendedorCpfBusca) el.inputVendedorCpfBusca.value = '';

@@ -29,23 +29,26 @@ export async function carregarProdutos(catalogoContainer) {
     }
 
     try {
-        const response = await fetch(API_ENDPOINTS.PRODUTO, { cache: 'no-cache' });
+        // Usar ID da loja do CONFIG (detectado pelo path)
+        idUsuarioLoja = CONFIG.ID_USUARIO_LOJA;
+        console.log('[Products] Carregando produtos para loja:', idUsuarioLoja);
+        
+        // Filtrar produtos por usuario_id
+        const url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${idUsuarioLoja}`;
+        const response = await fetch(url, { cache: 'no-cache' });
+        
         if (!response.ok) throw new Error(`Erro: ${response.statusText}`);
 
         const data = await response.json();
         const produtos = data.items || data;
 
         if (!produtos || produtos.length === 0) {
-            catalogoContainer.innerHTML = '<p class="col-span-full text-center text-gray-500">Nenhum produto disponível.</p>';
+            catalogoContainer.innerHTML = '<p class="col-span-full text-center text-gray-500">Nenhum produto disponível para esta loja.</p>';
+            console.log('[Products] Nenhum produto encontrado para esta loja');
             return;
         }
 
-        // Captura ID da loja do primeiro produto
-        if (produtos[0] && produtos[0].usuario_id) {
-            idUsuarioLoja = produtos[0].usuario_id;
-            console.log('[Products] ID da loja:', idUsuarioLoja);
-        }
-
+        console.log(`[Products] ${produtos.length} produto(s) carregado(s) com sucesso`);
         renderizarProdutos(produtos, catalogoContainer);
     } catch (error) {
         console.error('[Products] Erro ao carregar produtos:', error);
