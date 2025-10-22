@@ -8,7 +8,7 @@ namespace app\models;
 
 use Yii;
 use yii\base\Model;
-use app\modules\vendas\models\Usuario;
+
 
 class SignupForm extends Model
 {
