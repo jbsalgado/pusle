@@ -1,0 +1,14 @@
+RewriteEngine On
+
+# --- ADICIONE ESTAS DUAS LINHAS ---
+# Passa o cabeçalho de autorização para o PHP/Yii2
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+# ---------------------------------
+
+# Se o diretório ou arquivo existir, acesse-o diretamente
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Senão, redirecione a requisição para index.php
+RewriteRule . index.php

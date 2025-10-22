@@ -12,14 +12,14 @@ use app\modules\vendas\models\Colaborador;
 use app\modules\vendas\models\StatusVenda;
 use app\modules\vendas\models\StatusParcela;
 use app\modules\vendas\models\Parcela;
-use app\modules\vendas\models\RegraParcelamento; // <<<=== ADICIONE ESTE 'use' (ajuste o namespace se necessário)
+use app\modules\vendas\models\RegraParcelamento;
 
 /**
  * ============================================================================================================
  * Model: Venda
  * ============================================================================================================
  * Tabela: prest_vendas
- * * @property string $id
+ * @property string $id
  * @property string $usuario_id
  * @property string $cliente_id
  * @property string $colaborador_vendedor_id
@@ -28,9 +28,11 @@ use app\modules\vendas\models\RegraParcelamento; // <<<=== ADICIONE ESTE 'use' (
  * @property integer $numero_parcelas
  * @property string $status_venda_codigo
  * @property string $observacoes
+ * @property string $data_primeiro_vencimento
  * @property string $data_criacao
  * @property string $data_atualizacao
- * * @property Usuario $usuario
+ * 
+ * @property Usuario $usuario
  * @property Cliente $cliente
  * @property Colaborador $vendedor
  * @property StatusVenda $statusVenda
@@ -73,7 +75,8 @@ class Venda extends ActiveRecord
             [['valor_total'], 'number', 'min' => 0],
             [['numero_parcelas'], 'integer', 'min' => 1],
             [['numero_parcelas'], 'default', 'value' => 1],
-            [['data_venda'], 'safe'],
+            [['data_venda','data_primeiro_vencimento'], 'safe'],
+            [['data_primeiro_vencimento'], 'date', 'format' => 'php:Y-m-d'],
             [['observacoes'], 'string'],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
             [['cliente_id'], 'exist', 'skipOnError' => true, 'targetClass' => Cliente::class, 'targetAttribute' => ['cliente_id' => 'id']],
@@ -93,59 +96,37 @@ class Venda extends ActiveRecord
             'cliente_id' => 'Cliente',
             'colaborador_vendedor_id' => 'Vendedor',
             'data_venda' => 'Data da Venda',
-            'valor_total' => 'Valor Total (Base)', // Ajustado label
+            'valor_total' => 'Valor Total (Base)',
             'numero_parcelas' => 'Número de Parcelas',
             'status_venda_codigo' => 'Status',
             'observacoes' => 'Observações',
             'data_criacao' => 'Data de Criação',
             'data_atualizacao' => 'Última Atualização',
+            'data_primeiro_vencimento' => 'Data 1º Venc.',
         ];
     }
 
-    // /**
-    //  * Gera parcelas da venda (VERSÃO ANTIGA COMENTADA)
-    //  */
-    // public function gerarParcelas($formaPagamentoId = null)
-    // {
-    //     Parcela::deleteAll(['venda_id' => $this->id]);
-    //     if ($this->numero_parcelas <= 0) {
-    //         $this->numero_parcelas = 1;
-    //     }
-    //     $valorParcelaBase = $this->valor_total / $this->numero_parcelas;
-    //     $valorParcelaArredondado = round($valorParcelaBase, 2);
-    //     $dataVencimento = new \DateTime($this->data_venda ?: 'now');
-    //     $valorTotalGerado = 0;
-    //     for ($i = 1; $i <= $this->numero_parcelas; $i++) {
-    //         $parcela = new Parcela();
-    //         $parcela->venda_id = $this->id;
-    //         $parcela->usuario_id = $this->usuario_id;
-    //         $parcela->numero_parcela = $i;
-    //         if ($i == $this->numero_parcelas) {
-    //             $parcela->valor_parcela = $this->valor_total - $valorTotalGerado;
-    //         } else {
-    //             $parcela->valor_parcela = $valorParcelaArredondado;
-    //             $valorTotalGerado += $valorParcelaArredondado;
-    //         }
-    //         if ($i > 1) {
-    //             $dataVencimento->modify('+30 days');
-    //         } else if ($this->numero_parcelas > 1) {
-    //              $dataVencimento->modify('+30 days');
-    //         }
-    //         $parcela->data_vencimento = $dataVencimento->format('Y-m-d');
-    //         $parcela->status_parcela_codigo = StatusParcela::PENDENTE;
-    //         $parcela->forma_pagamento_id = $formaPagamentoId;
-    //         if (!$parcela->save()) {
-    //              Yii::error("Erro ao salvar parcela {$i} para venda {$this->id}: " . print_r($parcela->errors, true));
-    //              throw new \yii\db\Exception("Não foi possível salvar a parcela {$i}.");
-    //         }
-    //     }
-    // }
-
     // =========================================================================
-    // === FUNÇÃO GERAR PARCELAS ATUALIZADA COM LÓGICA DE ACRÉSCIMO ==========
+    // === FUNÇÃO GERAR PARCELAS ATUALIZADA ====================================
     // =========================================================================
-    public function gerarParcelas($formaPagamentoId = null)
+    /**
+     * Gera parcelas da venda com lógica de acréscimo, data e intervalo personalizáveis
+     * 
+     * @param int|null $formaPagamentoId ID da forma de pagamento
+     * @param string|null $dataPrimeiroPagamento Data do primeiro vencimento (formato Y-m-d)
+     *                                           Se null, usa data_primeiro_vencimento do modelo
+     *                                           ou calcula +30 dias da data da venda
+     * @param int $intervaloDiasParcelas Intervalo em dias entre cada parcela (padrão: 30)
+     * @return bool
+     * @throws \yii\db\Exception
+     */
+    public function gerarParcelas($formaPagamentoId = null, $dataPrimeiroPagamento = null, $intervaloDiasParcelas = 30)
     {
+        // Valida o intervalo de dias
+        $intervaloDiasParcelas = max(1, min(365, (int)$intervaloDiasParcelas));
+        
+        Yii::info("Gerando parcelas com intervalo de {$intervaloDiasParcelas} dias entre parcelas", 'Venda');
+        
         // Deleta parcelas existentes para esta venda
         Parcela::deleteAll(['venda_id' => $this->id]);
 
@@ -186,7 +167,35 @@ class Venda extends ActiveRecord
         // --- FIM DA LÓGICA DE ACRÉSCIMO ---
 
         $valorParcelaArredondado = round($valorParcelaBase, 2);
-        $dataVencimento = new \DateTime($this->data_venda ?: 'now'); // Usa data da venda ou data atual
+        
+        // --- LÓGICA ATUALIZADA DE DATA DO PRIMEIRO VENCIMENTO ---
+        // Prioridade:
+        // 1. Parâmetro $dataPrimeiroPagamento passado para o método
+        // 2. Campo data_primeiro_vencimento do modelo (se preenchido)
+        // 3. Data da venda + intervalo (para parcelas > 1) ou data da venda (para parcela única)
+        
+        if ($dataPrimeiroPagamento !== null) {
+            // Se foi passado como parâmetro, usa essa data
+            $dataVencimento = new \DateTime($dataPrimeiroPagamento);
+            Yii::info("Usando data do primeiro pagamento informada: {$dataPrimeiroPagamento}", 'Venda');
+        } elseif (!empty($this->data_primeiro_vencimento)) {
+            // Se tem no modelo, usa essa
+            $dataVencimento = new \DateTime($this->data_primeiro_vencimento);
+            Yii::info("Usando data_primeiro_vencimento do modelo: {$this->data_primeiro_vencimento}", 'Venda');
+        } else {
+            // Senão, usa a data da venda
+            $dataVencimento = new \DateTime($this->data_venda ?: 'now');
+            
+            // Se tiver mais de 1 parcela, a primeira vence em +intervalo dias
+            if ($this->numero_parcelas > 1) {
+                $dataVencimento->modify("+{$intervaloDiasParcelas} days");
+                Yii::info("Usando data da venda + {$intervaloDiasParcelas} dias para primeira parcela", 'Venda');
+            } else {
+                Yii::info("Venda à vista - usando data da venda como vencimento", 'Venda');
+            }
+        }
+        // --- FIM DA LÓGICA DE DATA ---
+        
         $valorTotalGerado = 0;
 
         for ($i = 1; $i <= $this->numero_parcelas; $i++) {
@@ -204,30 +213,33 @@ class Venda extends ActiveRecord
                 $valorTotalGerado += $valorParcelaArredondado;
             }
 
-            // --- Lógica de Vencimento (Intervalo fixo de 30 dias) ---
-            // A primeira parcela vence 30 dias após a data da venda (se houver mais de 1 parcela)
-            // As demais vencem 30 dias após a anterior
-            if ($i == 1 && $this->numero_parcelas > 1) {
-                $dataVencimento->modify('+30 days'); // Primeira parcela vence em 30 dias
-            } elseif ($i > 1) {
-                $dataVencimento->modify('+30 days'); // Demais parcelas vencem +30 dias
+            // --- Lógica de Vencimento das Parcelas Subsequentes ---
+            // A primeira parcela já tem a data definida acima
+            // As demais vencem +intervalo dias após a anterior
+            if ($i > 1) {
+                $dataVencimento->modify("+{$intervaloDiasParcelas} days");
             }
-            // Se for parcela única, a data de vencimento será a data da venda (ou hoje)
 
             $parcela->data_vencimento = $dataVencimento->format('Y-m-d');
             $parcela->status_parcela_codigo = StatusParcela::PENDENTE;
             $parcela->forma_pagamento_id = $formaPagamentoId; // Define a forma de pagamento
 
             if (!$parcela->save()) {
-                 Yii::error("Erro ao salvar parcela {$i} para venda {$this->id}: " . print_r($parcela->errors, true));
+                 Yii::error("Erro ao salvar parcela {$i} para venda {$this->id}: " . print_r($parcela->errors, true), 'Venda');
                  throw new \yii\db\Exception("Não foi possível salvar a parcela {$i}.");
             }
+            
+            Yii::info("Parcela {$i}/{$this->numero_parcelas} gerada: R$ {$parcela->valor_parcela}, vencimento: {$parcela->data_vencimento}", 'Venda');
         }
-         // IMPORTANTE: Não alteramos $this->valor_total aqui. Ele permanece o valor base.
-         // A soma das $parcela->valor_parcela refletirá o valor total a prazo.
+        
+        // IMPORTANTE: Não alteramos $this->valor_total aqui. Ele permanece o valor base.
+        // A soma das $parcela->valor_parcela refletirá o valor total a prazo.
+        
+        Yii::info("Geração de parcelas concluída para Venda ID {$this->id}. Total de parcelas: {$this->numero_parcelas} com intervalo de {$intervaloDiasParcelas} dias", 'Venda');
+        return true;
     }
     // =========================================================================
-    // === FIM DA FUNÇÃO GERAR PARCELAS ATUALIZADA ============================
+    // === FIM DA FUNÇÃO GERAR PARCELAS ATUALIZADA =============================
     // =========================================================================
 
 
@@ -271,6 +283,14 @@ class Venda extends ActiveRecord
         }
     }
 
+    // Venda.php - ADICIONADO:
+    public function fields() {
+        $fields = parent::fields();
+        $fields['itens'] = 'itens';
+        $fields['parcelas'] = 'parcelas';
+        $fields['statusVenda'] = 'statusVenda';
+        return $fields;
+    }
 
     public function getUsuario()
     {

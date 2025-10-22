@@ -1,99 +1,179 @@
-// AJUSTE 1: Mantido seu import local
+// Importa a biblioteca idb-keyval
 importScripts('js/idb-keyval.js');
 
-// CAMINHOS COMPLETOS PARA SEU AMBIENTE
+// Configuração de Caminhos e Cache
 const URL_BASE = '/pulse/basic/web';
-const API_URL = `${URL_BASE}/index.php/api/produto`;
+const API_PRODUTO_URL = `${URL_BASE}/index.php/api/produto`;
 const API_PEDIDO_URL = `${URL_BASE}/index.php/api/pedido`;
+const CACHE_NAME = 'catalogo-cache-v5'; // INCREMENTADO - IMPORTANTE!
 
-// AJUSTE 2: Nova versão do Cache
-const CACHE_NAME = 'catalogo-cache-v3';
-
-// AJUSTE 3: Adicionado seu script local ao cache
 const APP_SHELL_FILES = [
     `${URL_BASE}/catalogo/index.html`,
     `${URL_BASE}/catalogo/app.js`,
     `${URL_BASE}/catalogo/style.css`,
     `${URL_BASE}/catalogo/manifest.json`,
-    `${URL_BASE}/catalogo/js/idb-keyval.js` // <-- ADICIONADO
+    `${URL_BASE}/catalogo/js/idb-keyval.js`,
 ];
 
-// 1. Evento de Instalação
+// Arquivos críticos que SEMPRE devem buscar na rede primeiro
+const CRITICAL_FILES = [
+    `${URL_BASE}/catalogo/index.html`,
+    `${URL_BASE}/catalogo/app.js`
+];
+
+// Evento de Instalação
 self.addEventListener('install', event => {
-    console.log('[SW] Instalando...');
+    console.log('[SW] Instalando versão:', CACHE_NAME);
     event.waitUntil(
-        caches.open(CACHE_NAME).then(cache => {
-            console.log('[SW] Cacheando App Shell e API...');
-            // Cacheia a casca do app
-            cache.addAll(APP_SHELL_FILES);
-            
-            // Cacheia os dados da API (para catálogo offline)
-            return cache.add(API_URL);
+        caches.open(CACHE_NAME).then(async (cache) => {
+            console.log('[SW] Cacheando App Shell...');
+            await cache.addAll(APP_SHELL_FILES).catch(err => 
+                console.error('[SW] Falha ao cachear App Shell:', err)
+            );
+
+            console.log('[SW] Tentando cachear API de produtos...');
+            try {
+                await cache.add(API_PRODUTO_URL);
+                console.log('[SW] API de produtos cacheada.');
+            } catch (err) {
+                console.warn('[SW] Falha ao cachear API:', err);
+            }
+        }).then(() => {
+            console.log('[SW] skipWaiting chamado');
+            return self.skipWaiting();
         })
     );
 });
 
-//
-// AJUSTE 4: Evento 'fetch' com lógica para imagens
-//
+// Evento Fetch - ESTRATÉGIAS MELHORADAS
 self.addEventListener('fetch', event => {
-    const url = event.request.url;
+    const url = new URL(event.request.url);
 
-    // 1. API (Stale-While-Revalidate)
-    if (url.includes(API_URL)) {
+    // Ignora requisições não-GET
+    if (event.request.method !== 'GET') {
+        return;
+    }
+
+    // 1. API de Produtos (Stale-While-Revalidate)
+    if (event.request.url === API_PRODUTO_URL) {
         event.respondWith(
             caches.open(CACHE_NAME).then(cache => {
                 return cache.match(event.request).then(cachedResponse => {
-                    const fetchedResponsePromise = fetch(event.request).then(networkResponse => {
-                        cache.put(event.request, networkResponse.clone());
+                    const fetchPromise = fetch(event.request).then(networkResponse => {
+                        if (networkResponse.ok) {
+                            cache.put(event.request, networkResponse.clone());
+                        }
                         return networkResponse;
+                    }).catch(err => {
+                        console.error('[SW] Fetch da API falhou:', err);
+                        if (!cachedResponse) {
+                            return new Response('Erro de rede ao buscar produtos.', {
+                                status: 408,
+                                headers: { 'Content-Type': 'text/plain' }
+                            });
+                        }
                     });
-                    return cachedResponse || fetchedResponsePromise;
+                    return cachedResponse || fetchPromise;
                 });
             })
         );
         return;
     }
 
-    // 2. IMAGENS (Network-Only)
-    // Se for uma imagem do produto, busque direto da rede.
-    // Isso atende ao requisito de "online-only" e "não salvar no dispositivo".
-    if (url.includes('/uploads/produtos/')) {
+    // 2. Imagens (Network-First com fallback)
+    if (url.hostname === 'via.placeholder.com' || event.request.destination === 'image') {
         event.respondWith(
-            fetch(event.request)
-            .catch(() => {
-                // Se falhar (offline), retorna um erro 404
-                return new Response('', { status: 404, statusText: 'Offline' });
+            caches.open(CACHE_NAME).then(cache => {
+                return fetch(event.request)
+                    .then(networkResponse => {
+                        if (networkResponse.ok) {
+                            cache.put(event.request, networkResponse.clone());
+                        }
+                        return networkResponse;
+                    })
+                    .catch(() => cache.match(event.request) || 
+                        new Response('', { status: 404 })
+                    );
             })
         );
         return;
     }
+
+    // 3. ARQUIVOS CRÍTICOS (HTML, JS) - NETWORK-FIRST
+    const isCriticalFile = CRITICAL_FILES.some(file => 
+        event.request.url.includes(file)
+    );
     
-    // 3. APP SHELL (Cache-First)
-    // Para todos os outros arquivos (HTML, CSS, JS local)
+    if (isCriticalFile) {
+        console.log('[SW] Arquivo crítico detectado, usando Network-First:', event.request.url);
+        event.respondWith(
+            fetch(event.request)
+                .then(networkResponse => {
+                    // Clone ANTES de fazer qualquer operação
+                    if (networkResponse.ok) {
+                        const responseToCache = networkResponse.clone();
+                        caches.open(CACHE_NAME).then(cache => {
+                            cache.put(event.request, responseToCache);
+                        });
+                    }
+                    return networkResponse;
+                })
+                .catch(err => {
+                    console.warn('[SW] Network falhou para arquivo crítico, usando cache:', err);
+                    // Fallback para cache apenas se a rede falhar
+                    return caches.match(event.request).then(cachedResponse => {
+                        if (cachedResponse) {
+                            return cachedResponse;
+                        }
+                        return new Response('Offline - arquivo não disponível', {
+                            status: 503,
+                            statusText: 'Service Unavailable'
+                        });
+                    });
+                })
+        );
+        return;
+    }
+
+    // 4. Outros arquivos (Cache-First)
     event.respondWith(
         caches.match(event.request).then(response => {
-            return response || fetch(event.request);
+            return response || fetch(event.request).then(networkResponse => {
+                if (networkResponse.ok) {
+                    return caches.open(CACHE_NAME).then(cache => {
+                        cache.put(event.request, networkResponse.clone());
+                        return networkResponse;
+                    });
+                }
+                return networkResponse;
+            });
+        }).catch(err => {
+            console.error('[SW] Erro no fetch:', err);
+            return new Response('Erro ao carregar recurso', { status: 500 });
         })
     );
 });
 
-
-// 3. Evento Sync: Envia pedidos pendentes (Sem mudança, já estava correto)
+// Evento Sync
 self.addEventListener('sync', event => {
     if (event.tag === 'sync-novo-pedido') {
-        console.log('[SW] Sincronizando novos pedidos...');
+        console.log('[SW] Evento Sync recebido: sync-novo-pedido');
         event.waitUntil(enviarPedidosPendentes());
     }
 });
 
-// (Sem mudança, já estava correto)
+// Função para enviar pedidos
 async function enviarPedidosPendentes() {
-    const pedidoPendente = await idbKeyval.get('pedido_pendente');
+    let pedidoPendente;
+    try {
+        pedidoPendente = await idbKeyval.get('pedido_pendente');
+    } catch (err) {
+        console.error('[SW] Erro ao ler pedido do IndexedDB:', err);
+        return;
+    }
 
     if (pedidoPendente) {
         console.log('[SW] Enviando pedido pendente:', pedidoPendente);
-        
         try {
             const response = await fetch(API_PEDIDO_URL, {
                 method: 'POST',
@@ -103,35 +183,60 @@ async function enviarPedidosPendentes() {
                 },
                 body: JSON.stringify(pedidoPendente)
             });
-            
+
             if (response.ok) {
                 console.log('[SW] Pedido enviado com sucesso!');
                 await idbKeyval.del('pedido_pendente');
+                console.log('[SW] Pedido removido do IndexedDB.');
+
+                const clients = await self.clients.matchAll({ 
+                    type: 'window', 
+                    includeUncontrolled: true 
+                });
+                
+                clients.forEach(client => {
+                    client.postMessage({ type: 'SYNC_SUCCESS' });
+                });
+                console.log(`[SW] SYNC_SUCCESS enviado para ${clients.length} cliente(s).`);
             } else {
-                console.error('[SW] Falha ao enviar pedido:', response.statusText);
-                throw new Error('Falha no servidor');
+                console.error('[SW] Falha ao enviar pedido:', response.status);
+                const responseBody = await response.text();
+                console.error('[SW] Corpo da resposta:', responseBody);
+                throw new Error(`Falha no servidor: ${response.status}`);
             }
         } catch (error) {
-            console.error('[SW] Erro de rede ao enviar pedido:', error);
+            console.error('[SW] Erro durante envio:', error);
             throw error;
         }
+    } else {
+        console.log('[SW] Nenhum pedido pendente encontrado.');
     }
 }
 
-// 4. Evento Activate: Limpa caches antigos (Sem mudança)
+// Evento Message - Permite skip waiting sob demanda
+self.addEventListener('message', event => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        console.log('[SW] SKIP_WAITING recebido da página');
+        self.skipWaiting();
+    }
+});
+
+// Evento Activate - LIMPA CACHES ANTIGOS
 self.addEventListener('activate', event => {
-    console.log('[SW] Ativando...');
+    console.log('[SW] Ativando versão:', CACHE_NAME);
     event.waitUntil(
         caches.keys().then(cacheNames => {
             return Promise.all(
                 cacheNames.map(cacheName => {
-                    // Atualizado para checar a nova versão do cache
                     if (cacheName !== CACHE_NAME) {
-                        console.log('[SW] Limpando cache antigo:', cacheName);
+                        console.log('[SW] Deletando cache antigo:', cacheName);
                         return caches.delete(cacheName);
                     }
                 })
             );
+        }).then(() => {
+            console.log('[SW] clients.claim() chamado');
+            return self.clients.claim();
         })
     );
 });

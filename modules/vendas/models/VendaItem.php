@@ -86,4 +86,11 @@ class VendaItem extends ActiveRecord
     {
         return $this->hasOne(Produto::class, ['id' => 'produto_id']);
     }
+
+    // VendaItem.php - ADICIONADO:
+    public function fields() {
+        $fields = parent::fields();
+        $fields['produto'] = 'produto';
+        return $fields;
+    }
 }

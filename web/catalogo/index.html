@@ -145,9 +145,10 @@
                 </div>
 
                 <div>
-            <label for="observacoes" class="block text-sm font-medium text-gray-700 mb-1">Observacoes</label>
+                    <label for="observacoes" class="block text-sm font-medium text-gray-700 mb-1">Observacoes</label>
                     <textarea id="observacoes" rows="2" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="Alguma informacao adicional sobre o pedido?"></textarea>
                 </div>
+                
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label for="numero_parcelas" class="block text-sm font-medium text-gray-700 mb-1">Parcelas</label>
@@ -159,6 +160,7 @@
                             <option value="17">17x</option> <option value="18">18x</option> <option value="19">19x</option> <option value="20">20x</option> <option value="21">21x</option>
                             <option value="22">22x</option> <option value="23">23x</option> <option value="24">24x</option>
                         </select>
+                        <div id="info-parcelas" class="mt-2 text-sm"></div>
                     </div>
                     <div>
                         <label for="forma_pagamento" class="block text-sm font-medium text-gray-700 mb-1">Pagamento *</label>
@@ -167,8 +169,46 @@
                         </select>
                     </div>
                 </div>
+
+                <!-- ============ CAMPO DATA PRIMEIRO PAGAMENTO ============ -->
+                <div id="campo-data-primeiro-pagamento" class="hidden">
+                    <label for="data_primeiro_pagamento" class="block text-sm font-medium text-gray-700 mb-1">
+                        📅 Data do Primeiro Pagamento *
+                    </label>
+                    <input 
+                        type="date" 
+                        id="data_primeiro_pagamento" 
+                        name="data_primeiro_pagamento"
+                        class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-base"
+                    >
+                    <p class="mt-1 text-xs text-gray-500">
+                        ℹ️ Informe a data do vencimento da primeira parcela
+                    </p>
+                </div>
+
+                <!-- ============ NOVO: CAMPO INTERVALO ENTRE PARCELAS ============ -->
+                <div id="campo-intervalo-parcelas" class="hidden">
+                    <label for="intervalo_dias_parcelas" class="block text-sm font-medium text-gray-700 mb-1">
+                        📊 Intervalo entre Parcelas (dias) *
+                    </label>
+                    <input 
+                        type="number" 
+                        id="intervalo_dias_parcelas" 
+                        name="intervalo_dias_parcelas"
+                        min="1"
+                        max="365"
+                        value="30"
+                        class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-base"
+                        placeholder="Ex: 30 dias"
+                    >
+                    <p class="mt-1 text-xs text-gray-500">
+                        ⏱️ Informe quantos dias entre cada parcela (padrão: 30 dias)
+                    </p>
+                </div>
+                
                 <div id="parcela-info-resultado" class="text-sm text-center text-gray-700 mt-2 p-3 bg-gray-50 rounded-md border border-gray-200" style="display: none;"></div>
             </div>
+
             <div class="border-t p-4 bg-gray-50 rounded-b-lg">
                 <button id="btn-confirmar-pedido" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity" disabled>Confirmar e Salvar Pedido</button>
                 <p class="mt-2 text-xs text-center text-gray-500">Busque o cliente (e vendedor, se aplicável) para habilitar</p>
@@ -180,6 +220,6 @@
     <div id="modal-cadastro-cliente" class="fixed inset-0 bg-black bg-opacity-70 z-40 flex justify-center items-center p-4 hidden"> <div class="bg-white rounded-lg shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto"> <div class="flex justify-between items-center border-b p-4 sticky top-0 bg-white z-10"> <h2 class="text-lg font-semibold">Cadastrar Novo Cliente</h2> <button id="btn-fechar-modal-cadastro" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button> </div> <div class="p-4 space-y-3"> <div id="cadastro-cliente-erros" class="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded relative hidden" role="alert"> <strong class="font-bold">Erro!</strong> <span class="block sm:inline" id="cadastro-cliente-erro-msg"></span> </div> <p class="text-xs text-gray-600 bg-blue-50 p-2 rounded border border-blue-200"> <strong>Atencao:</strong> Campos com * sao obrigatorios. </p> <div> <label for="cadastro-nome" class="block text-sm font-medium text-gray-700">Nome Completo *</label> <input type="text" id="cadastro-nome" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"> </div> <div> <label for="cadastro-cpf" class="block text-sm font-medium text-gray-700">CPF</label> <input type="text" id="cadastro-cpf" maxlength="14" placeholder="Somente numeros" readonly class="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-100"> </div> <div> <label for="cadastro-telefone" class="block text-sm font-medium text-gray-700">Telefone *</label> <input type="tel" id="cadastro-telefone" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="(81) 99999-9999" maxlength="15"> </div> <div> <label for="cadastro-email" class="block text-sm font-medium text-gray-700">E-mail</label> <input type="email" id="cadastro-email" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"> </div> <div> <label for="cadastro-senha" class="block text-sm font-medium text-gray-700">Senha *</label> <input type="password" id="cadastro-senha" required minlength="4" placeholder="Minimo 4 caracteres" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"> <p class="text-xs text-gray-500 mt-1">Para acessar pedidos futuros</p> </div> <div class="border-t pt-3 mt-3"> <h3 class="text-sm font-semibold text-gray-700 mb-2">Endereco de Entrega</h3> <div class="space-y-2"> <div> <label for="cadastro-logradouro" class="block text-xs font-medium text-gray-700">Logradouro *</label> <input type="text" id="cadastro-logradouro" required placeholder="Rua, Av..." class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"> </div> <div class="grid grid-cols-2 gap-2"> <div> <label for="cadastro-numero" class="block text-xs font-medium text-gray-700">Numero *</label> <input type="text" id="cadastro-numero" required placeholder="123" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"> </div> <div> <label for="cadastro-complemento" class="block text-xs font-medium text-gray-700">Complemento</label> <input type="text" id="cadastro-complemento" placeholder="Apto" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"> </div> </div> <div> <label for="cadastro-bairro" class="block text-xs font-medium text-gray-700">Bairro *</label> <input type="text" id="cadastro-bairro" required placeholder="Bairro" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"> </div> <div class="grid grid-cols-2 gap-2"> <div> <label for="cadastro-cidade" class="block text-xs font-medium text-gray-700">Cidade *</label> <input type="text" id="cadastro-cidade" required placeholder="Cidade" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"> </div> <div> <label for="cadastro-estado" class="block text-xs font-medium text-gray-700">UF</label> <input type="text" id="cadastro-estado" maxlength="2" placeholder="PE" class="block w-full p-2 border border-gray-300 rounded-md text-sm uppercase focus:ring-blue-500 focus:border-blue-500"> </div> </div> <div> <label for="cadastro-cep" class="block text-xs font-medium text-gray-700">CEP</label> <input type="text" id="cadastro-cep" maxlength="8" placeholder="12345678" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"> </div> </div> </div> </div> <div class="border-t p-4 bg-gray-50 flex justify-end gap-3 sticky bottom-0 bg-white"> <button type="button" id="btn-cancelar-cadastro" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">Cancelar</button> <button type="button" id="btn-salvar-cliente" class="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700">Salvar e Continuar</button> </div> </div> </div>
 
     <script src="js/idb-keyval.js"></script>
-    <script src="app.js"></script>
+    <script type="module" src="js/app.js"></script>
 </body>
 </html>

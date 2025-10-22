@@ -58,7 +58,7 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
                 </div>
             </div>
             <div class="mt-4">
-                <?= Html::a('Ver todos →', ['/vendas/cliente/index'], ['class' => 'text-sm text-blue-100 hover:text-white']) ?>
+                <?= Html::a('Ver todos →', ['/vendas/clientes/index'], ['class' => 'text-sm text-blue-100 hover:text-white']) ?>
             </div>
         </div>
 

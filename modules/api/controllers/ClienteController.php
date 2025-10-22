@@ -161,11 +161,12 @@ class ClienteController extends Controller
         // Gera token JWT simples (você pode melhorar isso)
         $token = $this->gerarTokenJWT($cliente);
         
-        // Retorna dados completos do cliente
+       // Retorna dados completos do cliente, INCLUINDO usuario_id
         return [
             'token' => $token,
             'cliente' => [
                 'id' => $cliente->id,
+                'usuario_id' => $cliente->usuario_id, 
                 'nome_completo' => $cliente->nome_completo,
                 'cpf' => $cliente->cpf,
                 'telefone' => $cliente->telefone,
@@ -177,6 +178,7 @@ class ClienteController extends Controller
                 'endereco_cidade' => $cliente->endereco_cidade,
                 'endereco_estado' => $cliente->endereco_estado,
                 'endereco_cep' => $cliente->endereco_cep,
+                // Adicione outros campos se necessário
             ]
         ];
     }

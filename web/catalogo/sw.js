@@ -5,7 +5,7 @@ importScripts('js/idb-keyval.js');
 const URL_BASE = '/pulse/basic/web';
 const API_PRODUTO_URL = `${URL_BASE}/index.php/api/produto`;
 const API_PEDIDO_URL = `${URL_BASE}/index.php/api/pedido`;
-const CACHE_NAME = 'catalogo-cache-v4'; // INCREMENTADO - IMPORTANTE!
+const CACHE_NAME = 'catalogo-cache-v5'; // INCREMENTADO - IMPORTANTE!
 
 const APP_SHELL_FILES = [
     `${URL_BASE}/catalogo/index.html`,

@@ -39,6 +39,10 @@ class PedidoController extends Controller
         ];
     }
 
+    /**
+     * Lista os pedidos do cliente
+     * GET /api/pedido?cliente_id=XXX
+     */
     public function actionIndex()
     {
         $clienteId = Yii::$app->request->get('cliente_id');
@@ -47,19 +51,35 @@ class PedidoController extends Controller
             throw new BadRequestHttpException('Parâmetro cliente_id é obrigatório.');
         }
         
+        // ========================================
+        // 🔧 CORREÇÃO: Remover serializer inválido e adicionar relacionamentos
+        // ========================================
+        
         $query = Venda::find()
             ->where(['cliente_id' => $clienteId])
-            ->with(['itens.produto'])
+            ->with([
+                'itens.produto',      // Itens com produtos
+                'parcelas',           // Parcelas da venda
+                'statusVenda'         // Status da venda
+            ])
             ->orderBy(['data_venda' => SORT_DESC]);
         
-        return new ActiveDataProvider([
+        // OPÇÃO 1: Retornar ActiveDataProvider (paginado)
+        // ❌ REMOVIDO: serializer não é propriedade de ActiveDataProvider
+        $dataProvider = new ActiveDataProvider([
             'query' => $query,
-            'pagination' => ['pageSize' => 10],
-            'serializer' => [
-                'class' => 'yii\rest\Serializer',
-                'collectionEnvelope' => 'items'
+            'pagination' => [
+                'pageSize' => 50,  // Aumentado para 50 registros por página
+                'page' => Yii::$app->request->get('page', 0),
             ],
         ]);
+        
+        // Retornar apenas os models (sem metadados de paginação)
+        // Isso facilita o consumo no JavaScript
+        return $dataProvider->getModels();
+        
+        // OPÇÃO 2: Retornar todos os registros sem paginação (se preferir)
+        // return $query->all();
     }
 
     /**
@@ -68,9 +88,6 @@ class PedidoController extends Controller
      */
     public function actionCreate()
     {
-        Yii::$app->request->enableCsrfValidation = false;
-
-        // Ler e decodificar JSON
         $rawBody = Yii::$app->request->getRawBody();
         Yii::error('Corpo Cru Recebido (Pedido): ' . $rawBody, 'api');
         
@@ -104,21 +121,47 @@ class PedidoController extends Controller
 
         $formaPagamentoId = $data['forma_pagamento_id'];
         $clienteId = $data['cliente_id'];
+        $numeroParcelas = max(1, (int)($data['numero_parcelas'] ?? 1));
+
+        // === NOVA VALIDAÇÃO: Data do primeiro pagamento ===
+        $dataPrimeiroPagamento = null;
+        if ($numeroParcelas > 1) {
+            if (empty($data['data_primeiro_pagamento'])) {
+                throw new BadRequestHttpException('Data do primeiro pagamento é obrigatória para vendas parceladas.');
+            }
+            
+            $dataPrimeiroPagamento = $data['data_primeiro_pagamento'];
+            
+            // Valida formato da data
+            $dataObj = \DateTime::createFromFormat('Y-m-d', $dataPrimeiroPagamento);
+            if (!$dataObj || $dataObj->format('Y-m-d') !== $dataPrimeiroPagamento) {
+                throw new BadRequestHttpException('Formato de data inválido. Use YYYY-MM-DD.');
+            }
+            
+            // Valida se a data não é anterior a hoje
+            $hoje = new \DateTime();
+            $hoje->setTime(0, 0, 0);
+            
+            if ($dataObj < $hoje) {
+                throw new BadRequestHttpException('A data do primeiro pagamento não pode ser anterior à data de hoje.');
+            }
+            
+            Yii::info("Data do primeiro pagamento: {$dataPrimeiroPagamento}", 'api');
+        }
 
         // Identificar usuário da loja
         $primeiroProdutoId = $data['itens'][0]['produto_id'] ?? null;
-        
         if (!$primeiroProdutoId) {
             throw new BadRequestHttpException('ID do primeiro produto inválido.');
         }
-        
         $primeiroProduto = Produto::findOne($primeiroProdutoId);
-        
         if (!$primeiroProduto) {
             throw new BadRequestHttpException('Produto não encontrado.');
         }
-        
         $usuarioId = $primeiroProduto->usuario_id;
+        if (!$usuarioId) {
+             throw new ServerErrorHttpException('Não foi possível identificar o usuário da loja.');
+        }
 
         $transaction = Yii::$app->db->beginTransaction();
         $valorTotalVenda = 0;
@@ -126,46 +169,36 @@ class PedidoController extends Controller
         try {
             // ===== LOOP 1: PRÉ-CÁLCULO E VALIDAÇÃO =====
             Yii::error("Iniciando pré-cálculo e validação...", 'api');
-            
             foreach ($data['itens'] as $index => $itemData) {
-                if (empty($itemData['produto_id']) || 
-                    empty($itemData['quantidade']) || 
-                    !isset($itemData['preco_unitario'])) {
-                    throw new Exception("Item #{$index} tem dados incompletos.");
-                }
-                
-                $produtoId = $itemData['produto_id'];
-                $quantidadePedida = (int)$itemData['quantidade'];
-                $precoUnitario = (float)$itemData['preco_unitario'];
-                
-                if ($quantidadePedida <= 0) {
-                    throw new Exception("Item #{$index}: quantidade deve ser maior que zero.");
-                }
-                
-                if ($precoUnitario < 0) {
-                    throw new Exception("Item #{$index}: preço não pode ser negativo.");
-                }
-                
-                $produto = Produto::findOne($produtoId);
-                
-                if (!$produto || $produto->usuario_id !== $usuarioId) {
-                    throw new Exception("Item #{$index}: produto inválido ou não pertence à loja.");
-                }
-                
-                if (!$produto->temEstoque($quantidadePedida)) {
-                    throw new Exception("Produto '{$produto->nome}' sem estoque suficiente.");
-                }
-                
-                $valorTotalVenda += $quantidadePedida * $precoUnitario;
-                
-                Yii::error("Item #{$index} ({$produto->nome}): Qtd={$quantidadePedida}, " .
-                          "Preço={$precoUnitario}. Total parcial={$valorTotalVenda}", 'api');
+                 if (empty($itemData['produto_id']) || empty($itemData['quantidade']) || !isset($itemData['preco_unitario'])) { 
+                     throw new Exception("Item #{$index} tem dados incompletos."); 
+                 }
+                 $produtoId = $itemData['produto_id']; 
+                 $quantidadePedida = (int)$itemData['quantidade']; 
+                 $precoUnitario = (float)$itemData['preco_unitario'];
+                 
+                 if ($quantidadePedida <= 0) { 
+                     throw new Exception("Item #{$index}: quantidade deve ser maior que zero."); 
+                 }
+                 if ($precoUnitario < 0) { 
+                     throw new Exception("Item #{$index}: preço não pode ser negativo."); 
+                 }
+                 
+                 $produto = Produto::findOne($produtoId);
+                 if (!$produto || $produto->usuario_id !== $usuarioId) { 
+                     throw new Exception("Item #{$index}: produto inválido ou não pertence à loja."); 
+                 }
+                 if (!$produto->temEstoque($quantidadePedida)) { 
+                     throw new Exception("Produto '{$produto->nome}' sem estoque suficiente."); 
+                 }
+                 
+                 $valorTotalVenda += $quantidadePedida * $precoUnitario;
+                 Yii::error("Item #{$index} ({$produto->nome}): Qtd={$quantidadePedida}, Preço={$precoUnitario}. Total parcial={$valorTotalVenda}", 'api');
             }
             
             Yii::error("Pré-cálculo concluído. Valor Total = {$valorTotalVenda}", 'api');
-            
-            if ($valorTotalVenda <= 0 && count($data['itens']) > 0) {
-                throw new Exception('Valor total do pedido não pode ser zero.');
+            if ($valorTotalVenda <= 0 && count($data['itens']) > 0) { 
+                throw new Exception('Valor total do pedido não pode ser zero.'); 
             }
 
             // ===== CRIAR E SALVAR VENDA =====
@@ -174,9 +207,25 @@ class PedidoController extends Controller
             $venda->cliente_id = $clienteId;
             $venda->data_venda = date('Y-m-d H:i:s');
             $venda->observacoes = $data['observacoes'] ?? 'Pedido PWA';
-            $venda->numero_parcelas = max(1, (int)($data['numero_parcelas'] ?? 1));
+            $venda->numero_parcelas = $numeroParcelas;
             $venda->status_venda_codigo = \app\modules\vendas\models\StatusVenda::EM_ABERTO;
             $venda->valor_total = $valorTotalVenda;
+
+            // Adiciona o ID do vendedor, se foi enviado
+            $colaboradorId = $data['colaborador_vendedor_id'] ?? null;
+            if (!empty($colaboradorId)) {
+                $venda->colaborador_vendedor_id = $colaboradorId;
+            } else {
+                $venda->colaborador_vendedor_id = null;
+            }
+            
+            // === NOVO: Adiciona data do primeiro pagamento ===
+            if ($dataPrimeiroPagamento) {
+                $venda->data_primeiro_vencimento = $dataPrimeiroPagamento;
+            }
+            
+            Yii::info("ID Colaborador Vendedor: " . ($venda->colaborador_vendedor_id ?? 'Nenhum'), 'api');
+            Yii::info("Data Primeiro Pagamento: " . ($venda->data_primeiro_vencimento ?? 'Não informada'), 'api');
 
             Yii::error("Atributos VENDA antes de save(): " . print_r($venda->attributes, true), 'api');
             
@@ -185,53 +234,39 @@ class PedidoController extends Controller
                 Yii::error("❌ FALHA ao salvar Venda: " . print_r($venda->errors, true), 'api');
                 throw new Exception('Erro ao salvar venda: ' . implode(', ', $erros));
             }
-            
             Yii::error("✅ Venda ID {$venda->id} salva com valor R$ {$venda->valor_total}", 'api');
 
             // ===== LOOP 2: CRIAR ITENS E ATUALIZAR ESTOQUE =====
             Yii::error("Iniciando criação de itens...", 'api');
-            
             foreach ($data['itens'] as $index => $itemData) {
                 $produto = Produto::findOne($itemData['produto_id']);
-                
                 $item = new VendaItem();
                 $item->venda_id = $venda->id;
                 $item->produto_id = $produto->id;
                 $item->quantidade = (int)$itemData['quantidade'];
                 $item->preco_unitario_venda = (float)$itemData['preco_unitario'];
-                
-                // AJUSTE: A linha abaixo foi removida.
-                // O cálculo agora é feito exclusivamente pelo VendaItem::beforeSave()
-                // $item->valor_total_item = $item->quantidade * $item->preco_unitario_venda;
 
                 Yii::error("Tentando salvar item #{$index}: " . print_r($item->attributes, true), 'api');
-                
-                // ✅ TRATAMENTO DE ERRO ADEQUADO
                 if (!$item->save()) {
                     $errosItem = $item->getFirstErrors();
-                    Yii::error("❌ FALHA ao salvar VendaItem #{$index}: " . 
-                              print_r($item->errors, true), 'api');
-                    throw new Exception("Erro ao salvar item #{$index}: " . 
-                                      implode(', ', $errosItem));
+                    Yii::error("❌ FALHA ao salvar VendaItem #{$index}: " . print_r($item->errors, true), 'api');
+                    throw new Exception("Erro ao salvar item #{$index}: " . implode(', ', $errosItem));
                 }
-                
                 Yii::error("✅ Item ID {$item->id} salvo com sucesso", 'api');
 
                 // Atualizar estoque
                 $produto->estoque_atual -= $item->quantidade;
-                
                 if (!$produto->save(false, ['estoque_atual'])) {
                     Yii::error("❌ FALHA ao atualizar estoque do produto {$produto->id}", 'api');
                     throw new Exception("Erro ao atualizar estoque do produto '{$produto->nome}'.");
                 }
-                
                 Yii::error("✅ Estoque de '{$produto->nome}' atualizado para {$produto->estoque_atual}", 'api');
             }
-            
             Yii::error("Criação de itens concluída.", 'api');
 
             // ===== GERAR PARCELAS =====
-            $venda->gerarParcelas($formaPagamentoId);
+            // === ATUALIZAÇÃO: Passa a data do primeiro pagamento ===
+            $venda->gerarParcelas($formaPagamentoId, $dataPrimeiroPagamento);
             Yii::error("Parcelas geradas para Venda ID {$venda->id}", 'api');
 
             // ===== COMMIT =====
@@ -241,7 +276,7 @@ class PedidoController extends Controller
             Yii::$app->response->statusCode = 201;
             $venda->refresh();
             
-            return $venda->toArray([], ['itens', 'parcelas', 'cliente']);
+            return $venda->toArray([], ['itens.produto', 'parcelas', 'cliente', 'vendedor']);
 
         } catch (BadRequestHttpException $e) {
             $transaction->rollBack();
@@ -256,7 +291,7 @@ class PedidoController extends Controller
         } catch (\Throwable $t) {
             $transaction->rollBack();
             Yii::error("Rollback: Throwable - " . $t->getMessage(), 'api');
-            throw new ServerErrorHttpException('Erro crítico: ' . $t->getMessage());
+            throw new ServerErrorHttpException('Erro crítico ao processar pedido: ' . $t->getMessage());
         }
     }
 }

@@ -13,49 +13,12 @@
         #status-online { display: none; }
         html.online #status-online { display: flex; }
         html.offline #status-offline { display: flex; }
-        
-        /* Grade responsiva para itens do carrinho */
-        #itens-carrinho {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 1rem;
-            align-items: start;
-            align-content: start;
-        }
-        
-        /* Em mobile, uma coluna */
-        @media (max-width: 640px) {
-            #itens-carrinho {
-                grid-template-columns: 1fr;
-            }
-        }
-        
-        /* Limitar linhas de texto */
-        .line-clamp-2 {
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        
-        /* Ajuste de altura dinamica do modal */
-        #modal-carrinho .bg-white.rounded-t-3xl {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        /* Garantir que com 1 item nao tenha scroll desnecessario */
-        @media (min-height: 600px) {
-            #itens-carrinho {
-                max-height: calc(90vh - 320px);
-            }
-        }
-        
-        @media (max-height: 599px) {
-            #itens-carrinho {
-                max-height: 400px;
-            }
-        }
+        #itens-carrinho { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; align-items: start; align-content: start; }
+        @media (max-width: 640px) { #itens-carrinho { grid-template-columns: 1fr; } }
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        #modal-carrinho .bg-white.rounded-t-3xl { display: flex; flex-direction: column; }
+        @media (min-height: 600px) { #itens-carrinho { max-height: calc(90vh - 320px); } }
+        @media (max-height: 599px) { #itens-carrinho { max-height: 400px; } }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -73,14 +36,10 @@
                     <span class="text-xs font-medium hidden sm:inline">Offline</span>
                 </div>
                 <a href="meus-pedidos.html" id="btn-meus-pedidos" class="relative text-gray-600 p-2 rounded-full hover:bg-gray-100" title="Meus Pedidos">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
                 </a>
                 <button id="btn-abrir-carrinho" class="relative bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                     <span id="contador-carrinho" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
                 </button>
             </div>
@@ -93,281 +52,174 @@
     <div id="modal-carrinho" class="fixed inset-0 bg-black bg-opacity-50 z-20 hidden">
         <div class="h-full flex flex-col justify-end sm:justify-center sm:items-center sm:p-4">
             <div class="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[90vh] sm:max-h-[85vh] flex flex-col">
-                
                 <div class="flex justify-between items-center border-b p-4 sm:p-5 flex-shrink-0">
-                    <div>
-                        <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Meu Carrinho</h2>
-                        <p class="text-xs sm:text-sm text-gray-500 mt-1">Revise seus itens</p>
-                    </div>
-                    <button id="btn-fechar-carrinho" class="text-gray-400 hover:text-gray-600 transition-colors p-2 -mr-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
+                    <div><h2 class="text-xl sm:text-2xl font-bold text-gray-800">Meu Carrinho</h2><p class="text-xs sm:text-sm text-gray-500 mt-1">Revise seus itens</p></div>
+                    <button id="btn-fechar-carrinho" class="text-gray-400 hover:text-gray-600 transition-colors p-2 -mr-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
                 </div>
-                
                 <div id="itens-carrinho" class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
-                    <p id="carrinho-vazio-msg" class="text-center text-gray-500 py-8">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                        </svg>
-                        Seu carrinho esta vazio
-                    </p>
+                    <p id="carrinho-vazio-msg" class="text-center text-gray-500 py-8"><svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>Seu carrinho esta vazio</p>
                 </div>
-                
                 <div class="border-t bg-gray-50 p-4 sm:p-5 flex-shrink-0 rounded-b-3xl sm:rounded-b-2xl">
                     <div class="flex justify-between items-center mb-4">
-                        <div>
-                            <p class="text-sm text-gray-600">Valor Total</p>
-                            <p id="valor-total-carrinho" class="text-2xl sm:text-3xl font-bold text-blue-600">R$ 0,00</p>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-xs text-gray-500">Itens</p>
-                            <p class="text-lg font-semibold text-gray-700" id="total-itens-footer">0</p>
-                        </div>
+                        <div><p class="text-sm text-gray-600">Valor Total</p><p id="valor-total-carrinho" class="text-2xl sm:text-3xl font-bold text-blue-600">R$ 0,00</p></div>
+                        <div class="text-right"><p class="text-xs text-gray-500">Itens</p><p class="text-lg font-semibold text-gray-700" id="total-itens-footer">0</p></div>
                     </div>
-                    
-                    <button 
-                        id="btn-finalizar-pedido" 
-                        class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-xl font-bold text-lg shadow-lg hover:from-green-600 hover:to-green-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all transform active:scale-95" 
-                        disabled
-                    >
-                        Ir para Pagamento
-                    </button>
+                    <button id="btn-finalizar-pedido" class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-xl font-bold text-lg shadow-lg hover:from-green-600 hover:to-green-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all transform active:scale-95" disabled>Ir para Pagamento</button>
                 </div>
             </div>
         </div>
     </div>
 
     <div id="modal-cliente-pedido" class="fixed inset-0 bg-black bg-opacity-50 z-30 flex justify-center items-center p-4 hidden">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div class="flex justify-between items-center border-b p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b p-4 sticky top-0 bg-white z-10">
                 <h2 class="text-lg font-semibold">Detalhes do Pedido</h2>
                 <button id="btn-fechar-modal-cliente" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
             </div>
 
             <div class="p-4 space-y-4">
-                <div>
-                    <label for="cliente-cpf-busca" class="block text-sm font-medium text-gray-700 mb-1">
-                        Buscar Cliente (CPF/Nome) *
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Venda:</label>
+                    <div class="flex items-center space-x-4">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="radio" name="tipo_venda" id="tipo_venda_cliente" value="cliente" class="form-radio h-4 w-4 text-blue-600" checked>
+                            <span class="ml-2 text-sm text-gray-700">Cliente Padrão</span>
+                        </label>
+                        <label class="flex items-center cursor-pointer">
+                            <input type="radio" name="tipo_venda" id="tipo_venda_vendedor" value="vendedor" class="form-radio h-4 w-4 text-blue-600">
+                            <span class="ml-2 text-sm text-gray-700">Vendedor (Comissão)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="campo-vendedor-cpf" class="hidden mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <label for="vendedor_cpf_busca" class="block text-sm font-medium text-blue-700 mb-1">
+                        Buscar Vendedor (CPF) *
                     </label>
                     <div class="flex rounded-md shadow-sm">
-                        <input 
-                            type="text" 
-                            id="cliente-cpf-busca" 
-                            maxlength="14" class="flex-1 block w-full p-2 border border-gray-300 rounded-none rounded-l-md focus:ring-blue-500 focus:border-blue-500" 
-                            placeholder="Digite 11 dÃ­gitos do CPF"
+                        <input
+                            type="text"
+                            id="vendedor_cpf_busca"
+                            maxlength="14"
+                            class="flex-1 block w-full p-2 border border-gray-300 rounded-none rounded-l-md focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Digite o CPF do vendedor"
+                        >
+                        <button
+                            id="btn-buscar-vendedor"
+                            type="button"
+                            class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            Buscar
+                        </button>
+                    </div>
+                    <div id="vendedor-info-resultado" class="mt-2 text-xs"></div>
+                    <input type="hidden" id="colaborador_vendedor_id" value="">
+                </div>
+
+                <div>
+                    <label for="cliente-cpf-busca" class="block text-sm font-medium text-gray-700 mb-1">
+                        Buscar Cliente (CPF) *
+                    </label>
+                    <div class="flex rounded-md shadow-sm">
+                        <input
+                            type="text"
+                            id="cliente-cpf-busca"
+                            maxlength="14" class="flex-1 block w-full p-2 border border-gray-300 rounded-none rounded-l-md focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Digite 11 dígitos do CPF"
                             required
                         >
-                        <button 
-                            id="btn-buscar-cliente" 
+                        <button
+                            id="btn-buscar-cliente"
                             class="inline-flex items-center px-4 rounded-r-md border border-l-0 border-gray-300 bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                             Buscar
                         </button>
                     </div>
-                    
                     <p class="mt-1 text-xs text-gray-500">
                         Digite o CPF (somente numeros) e clique em Buscar
                     </p>
-                    
-                    <div id="cliente-info-resultado" class="mt-3 p-3 rounded-md hidden">
-                        </div>
-                    
+                    <div id="cliente-info-resultado" class="mt-3 p-3 rounded-md hidden"></div>
                     <input type="hidden" id="cliente_id" value="">
                 </div>
 
                 <div>
-                    <label for="observacoes" class="block text-sm font-medium text-gray-700 mb-1">
-                        Observacoes
-                    </label>
-                    <textarea 
-                        id="observacoes" 
-                        rows="2" 
-                        class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" 
-                        placeholder="Alguma informacao adicional sobre o pedido?"
-                    ></textarea>
+                    <label for="observacoes" class="block text-sm font-medium text-gray-700 mb-1">Observacoes</label>
+                    <textarea id="observacoes" rows="2" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="Alguma informacao adicional sobre o pedido?"></textarea>
                 </div>
-
+                
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label for="numero_parcelas" class="block text-sm font-medium text-gray-700 mb-1">
-                            Parcelas
-                        </label>
-                        <select 
-                            id="numero_parcelas" 
-                            class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                        >
+                        <label for="numero_parcelas" class="block text-sm font-medium text-gray-700 mb-1">Parcelas</label>
+                        <select id="numero_parcelas" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
                             <option value="1">1x (A vista)</option>
-                            <option value="2">2x</option>
-                            <option value="3">3x</option>
-                            <option value="4">4x</option>
-                            <option value="5">5x</option>
-                            <option value="6">6x</option>
-                            <option value="7">7x</option>
-                            <option value="8">8x</option>
-                            <option value="9">9x</option>
-                            <option value="10">10x</option>
-                            <option value="11">11x</option>
-                            <option value="12">12x</option>
-                            <option value="13">13x</option>
-                            <option value="14">14x</option>
-                            <option value="15">15x</option>
-                            <option value="16">16x</option>
-                            <option value="17">17x</option>
-                            <option value="18">18x</option>
-                            <option value="19">19x</option>
-                            <option value="20">20x</option>
-                            <option value="21">21x</option>
-                            <option value="22">22x</option>
-                            <option value="23">23x</option>
-                            <option value="24">24x</option>
+                            <option value="2">2x</option> <option value="3">3x</option> <option value="4">4x</option> <option value="5">5x</option> <option value="6">6x</option>
+                            <option value="7">7x</option> <option value="8">8x</option> <option value="9">9x</option> <option value="10">10x</option> <option value="11">11x</option>
+                            <option value="12">12x</option> <option value="13">13x</option> <option value="14">14x</option> <option value="15">15x</option> <option value="16">16x</option>
+                            <option value="17">17x</option> <option value="18">18x</option> <option value="19">19x</option> <option value="20">20x</option> <option value="21">21x</option>
+                            <option value="22">22x</option> <option value="23">23x</option> <option value="24">24x</option>
                         </select>
-                        </div>
+                        <div id="info-parcelas" class="mt-2 text-sm"></div>
+                    </div>
                     <div>
-                        <label for="forma_pagamento" class="block text-sm font-medium text-gray-700 mb-1">
-                            Pagamento *
-                        </label>
-                        <select 
-                            id="forma_pagamento" 
-                            name="forma_pagamento" 
-                            class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" 
-                            required
-                        >
+                        <label for="forma_pagamento" class="block text-sm font-medium text-gray-700 mb-1">Pagamento *</label>
+                        <select id="forma_pagamento" name="forma_pagamento" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
                             <option value="">Carregando...</option>
                         </select>
                     </div>
                 </div>
 
-                <div id="parcela-info-resultado" 
-                     class="text-sm text-center text-gray-700 mt-2 p-3 bg-gray-50 rounded-md border border-gray-200"
-                     style="display: none;">
-                    </div>
+                <!-- ============ CAMPO DATA PRIMEIRO PAGAMENTO ============ -->
+                <div id="campo-data-primeiro-pagamento" class="hidden">
+                    <label for="data_primeiro_pagamento" class="block text-sm font-medium text-gray-700 mb-1">
+                        📅 Data do Primeiro Pagamento *
+                    </label>
+                    <input 
+                        type="date" 
+                        id="data_primeiro_pagamento" 
+                        name="data_primeiro_pagamento"
+                        class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-base"
+                    >
+                    <p class="mt-1 text-xs text-gray-500">
+                        ℹ️ Informe a data do vencimento da primeira parcela
+                    </p>
                 </div>
 
-            <div class="border-t p-4 bg-gray-50 rounded-b-lg">
-                <button 
-                    id="btn-confirmar-pedido" 
-                    class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity" 
-                    disabled
-                >
-                    Confirmar e Salvar Pedido
-                </button>
-                <p class="mt-2 text-xs text-center text-gray-500">
-                    Busque o cliente primeiro para habilitar este botao
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-login-cliente" class="fixed inset-0 bg-black bg-opacity-70 z-40 flex justify-center items-center p-4 hidden">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-sm">
-            <div class="flex justify-between items-center border-b p-4">
-                <h2 class="text-lg font-semibold">Login do Cliente</h2>
-                <button id="btn-fechar-modal-login" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
-            </div>
-            <div class="p-4 space-y-3">
-                <div id="login-cliente-erros" class="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded relative hidden" role="alert">
-                    <strong class="font-bold">Erro!</strong>
-                    <span class="block sm:inline" id="login-cliente-erro-msg"></span>
-                </div>
-                <p class="text-sm text-gray-600">Cliente encontrado: <strong id="login-cliente-nome"></strong></p>
-                <div>
-                    <label for="login-senha" class="block text-sm font-medium text-gray-700">Senha *</label>
-                    <input type="password" id="login-senha" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
-                </div>
-            </div>
-            <div class="border-t p-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">
-                <button type="button" id="btn-cancelar-login" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">Cancelar</button>
-                <button type="button" id="btn-fazer-login" class="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700">Entrar</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-cadastro-cliente" class="fixed inset-0 bg-black bg-opacity-70 z-40 flex justify-center items-center p-4 hidden">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center border-b p-4 sticky top-0 bg-white z-10">
-                <h2 class="text-lg font-semibold">Cadastrar Novo Cliente</h2>
-                <button id="btn-fechar-modal-cadastro" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
-            </div>
-
-            <div class="p-4 space-y-3">
-                <div id="cadastro-cliente-erros" class="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded relative hidden" role="alert">
-                    <strong class="font-bold">Erro!</strong>
-                    <span class="block sm:inline" id="cadastro-cliente-erro-msg"></span>
-                </div>
-
-                <p class="text-xs text-gray-600 bg-blue-50 p-2 rounded border border-blue-200">
-                    <strong>Atencao:</strong> Campos com * sao obrigatorios.
-                </p>
-
-                <div>
-                    <label for="cadastro-nome" class="block text-sm font-medium text-gray-700">Nome Completo *</label>
-                    <input type="text" id="cadastro-nome" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div>
-                    <label for="cadastro-cpf" class="block text-sm font-medium text-gray-700">CPF</label>
-                    <input type="text" id="cadastro-cpf" maxlength="14" placeholder="Somente numeros" readonly class="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-100"> </div>
-                <div>
-                    <label for="cadastro-telefone" class="block text-sm font-medium text-gray-700">Telefone *</label>
-                    <input type="tel" id="cadastro-telefone" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="(81) 99999-9999" maxlength="15"> </div>
-                <div>
-                    <label for="cadastro-email" class="block text-sm font-medium text-gray-700">E-mail</label>
-                    <input type="email" id="cadastro-email" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div>
-                    <label for="cadastro-senha" class="block text-sm font-medium text-gray-700">Senha *</label>
-                    <input type="password" id="cadastro-senha" required minlength="4" placeholder="Minimo 4 caracteres" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
-                    <p class="text-xs text-gray-500 mt-1">Para acessar pedidos futuros</p>
+                <!-- ============ NOVO: CAMPO INTERVALO ENTRE PARCELAS ============ -->
+                <div id="campo-intervalo-parcelas" class="hidden">
+                    <label for="intervalo_dias_parcelas" class="block text-sm font-medium text-gray-700 mb-1">
+                        📊 Intervalo entre Parcelas (dias) *
+                    </label>
+                    <input 
+                        type="number" 
+                        id="intervalo_dias_parcelas" 
+                        name="intervalo_dias_parcelas"
+                        min="1"
+                        max="365"
+                        value="30"
+                        class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-base"
+                        placeholder="Ex: 30 dias"
+                    >
+                    <p class="mt-1 text-xs text-gray-500">
+                        ⏱️ Informe quantos dias entre cada parcela (padrão: 30 dias)
+                    </p>
                 </div>
                 
-                <div class="border-t pt-3 mt-3">
-                    <h3 class="text-sm font-semibold text-gray-700 mb-2">Endereco de Entrega</h3>
-                    <div class="space-y-2">
-                        <div>
-                            <label for="cadastro-logradouro" class="block text-xs font-medium text-gray-700">Logradouro *</label>
-                            <input type="text" id="cadastro-logradouro" required placeholder="Rua, Av..." class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label for="cadastro-numero" class="block text-xs font-medium text-gray-700">Numero *</label>
-                                <input type="text" id="cadastro-numero" required placeholder="123" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
-                            </div>
-                            <div>
-                                <label for="cadastro-complemento" class="block text-xs font-medium text-gray-700">Complemento</label>
-                                <input type="text" id="cadastro-complemento" placeholder="Apto" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
-                            </div>
-                        </div>
-                        <div>
-                            <label for="cadastro-bairro" class="block text-xs font-medium text-gray-700">Bairro *</label>
-                            <input type="text" id="cadastro-bairro" required placeholder="Bairro" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label for="cadastro-cidade" class="block text-xs font-medium text-gray-700">Cidade *</label>
-                                <input type="text" id="cadastro-cidade" required placeholder="Cidade" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
-                            </div>
-                            <div>
-                                <label for="cadastro-estado" class="block text-xs font-medium text-gray-700">UF</label>
-                                <input type="text" id="cadastro-estado" maxlength="2" placeholder="PE" class="block w-full p-2 border border-gray-300 rounded-md text-sm uppercase focus:ring-blue-500 focus:border-blue-500">
-                            </div>
-                        </div>
-                        <div>
-                            <label for="cadastro-cep" class="block text-xs font-medium text-gray-700">CEP</label>
-                            <input type="text" id="cadastro-cep" maxlength="8" placeholder="12345678" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                    </div>
-                </div>
+                <div id="parcela-info-resultado" class="text-sm text-center text-gray-700 mt-2 p-3 bg-gray-50 rounded-md border border-gray-200" style="display: none;"></div>
             </div>
 
-            <div class="border-t p-4 bg-gray-50 flex justify-end gap-3 sticky bottom-0 bg-white">
-                <button type="button" id="btn-cancelar-cadastro" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">Cancelar</button>
-                <button type="button" id="btn-salvar-cliente" class="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700">Salvar e Continuar</button>
+            <div class="border-t p-4 bg-gray-50 rounded-b-lg">
+                <button id="btn-confirmar-pedido" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity" disabled>Confirmar e Salvar Pedido</button>
+                <p class="mt-2 text-xs text-center text-gray-500">Busque o cliente (e vendedor, se aplicável) para habilitar</p>
             </div>
         </div>
     </div>
 
+    <div id="modal-login-cliente" class="fixed inset-0 bg-black bg-opacity-70 z-40 flex justify-center items-center p-4 hidden"> <div class="bg-white rounded-lg shadow-xl w-full max-w-sm"> <div class="flex justify-between items-center border-b p-4"> <h2 class="text-lg font-semibold">Login do Cliente</h2> <button id="btn-fechar-modal-login" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button> </div> <div class="p-4 space-y-3"> <div id="login-cliente-erros" class="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded relative hidden" role="alert"> <strong class="font-bold">Erro!</strong> <span class="block sm:inline" id="login-cliente-erro-msg"></span> </div> <p class="text-sm text-gray-600">Cliente encontrado: <strong id="login-cliente-nome"></strong></p> <div> <label for="login-senha" class="block text-sm font-medium text-gray-700">Senha *</label> <input type="password" id="login-senha" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required> </div> </div> <div class="border-t p-4 bg-gray-50 rounded-b-lg flex justify-end gap-3"> <button type="button" id="btn-cancelar-login" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">Cancelar</button> <button type="button" id="btn-fazer-login" class="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700">Entrar</button> </div> </div> </div>
+    <div id="modal-cadastro-cliente" class="fixed inset-0 bg-black bg-opacity-70 z-40 flex justify-center items-center p-4 hidden"> <div class="bg-white rounded-lg shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto"> <div class="flex justify-between items-center border-b p-4 sticky top-0 bg-white z-10"> <h2 class="text-lg font-semibold">Cadastrar Novo Cliente</h2> <button id="btn-fechar-modal-cadastro" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button> </div> <div class="p-4 space-y-3"> <div id="cadastro-cliente-erros" class="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded relative hidden" role="alert"> <strong class="font-bold">Erro!</strong> <span class="block sm:inline" id="cadastro-cliente-erro-msg"></span> </div> <p class="text-xs text-gray-600 bg-blue-50 p-2 rounded border border-blue-200"> <strong>Atencao:</strong> Campos com * sao obrigatorios. </p> <div> <label for="cadastro-nome" class="block text-sm font-medium text-gray-700">Nome Completo *</label> <input type="text" id="cadastro-nome" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"> </div> <div> <label for="cadastro-cpf" class="block text-sm font-medium text-gray-700">CPF</label> <input type="text" id="cadastro-cpf" maxlength="14" placeholder="Somente numeros" readonly class="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-100"> </div> <div> <label for="cadastro-telefone" class="block text-sm font-medium text-gray-700">Telefone *</label> <input type="tel" id="cadastro-telefone" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="(81) 99999-9999" maxlength="15"> </div> <div> <label for="cadastro-email" class="block text-sm font-medium text-gray-700">E-mail</label> <input type="email" id="cadastro-email" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"> </div> <div> <label for="cadastro-senha" class="block text-sm font-medium text-gray-700">Senha *</label> <input type="password" id="cadastro-senha" required minlength="4" placeholder="Minimo 4 caracteres" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"> <p class="text-xs text-gray-500 mt-1">Para acessar pedidos futuros</p> </div> <div class="border-t pt-3 mt-3"> <h3 class="text-sm font-semibold text-gray-700 mb-2">Endereco de Entrega</h3> <div class="space-y-2"> <div> <label for="cadastro-logradouro" class="block text-xs font-medium text-gray-700">Logradouro *</label> <input type="text" id="cadastro-logradouro" required placeholder="Rua, Av..." class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"> </div> <div class="grid grid-cols-2 gap-2"> <div> <label for="cadastro-numero" class="block text-xs font-medium text-gray-700">Numero *</label> <input type="text" id="cadastro-numero" required placeholder="123" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"> </div> <div> <label for="cadastro-complemento" class="block text-xs font-medium text-gray-700">Complemento</label> <input type="text" id="cadastro-complemento" placeholder="Apto" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"> </div> </div> <div> <label for="cadastro-bairro" class="block text-xs font-medium text-gray-700">Bairro *</label> <input type="text" id="cadastro-bairro" required placeholder="Bairro" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"> </div> <div class="grid grid-cols-2 gap-2"> <div> <label for="cadastro-cidade" class="block text-xs font-medium text-gray-700">Cidade *</label> <input type="text" id="cadastro-cidade" required placeholder="Cidade" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"> </div> <div> <label for="cadastro-estado" class="block text-xs font-medium text-gray-700">UF</label> <input type="text" id="cadastro-estado" maxlength="2" placeholder="PE" class="block w-full p-2 border border-gray-300 rounded-md text-sm uppercase focus:ring-blue-500 focus:border-blue-500"> </div> </div> <div> <label for="cadastro-cep" class="block text-xs font-medium text-gray-700">CEP</label> <input type="text" id="cadastro-cep" maxlength="8" placeholder="12345678" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"> </div> </div> </div> </div> <div class="border-t p-4 bg-gray-50 flex justify-end gap-3 sticky bottom-0 bg-white"> <button type="button" id="btn-cancelar-cadastro" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">Cancelar</button> <button type="button" id="btn-salvar-cliente" class="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700">Salvar e Continuar</button> </div> </div> </div>
+
     <script src="js/idb-keyval.js"></script>
-    <script src="app.js"></script>
+    <script type="module" src="js/app.js"></script>
 </body>
 </html>

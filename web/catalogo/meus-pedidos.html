@@ -5,166 +5,91 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meus Pedidos</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Estilos personalizados para os botões de visualização */
-        .btn-view.active {
-            background-color: #2563eb; /* bg-blue-600 */
+    <link rel="stylesheet" href="style.css"> <style>
+        /* Estilos adicionais, se necessário */
+        .active-view {
+            background-color: #3b82f6; /* bg-blue-600 */
             color: white;
         }
     </style>
 </head>
 <body class="bg-gray-100">
 
-    <header class="bg-white shadow-md sticky top-0 z-10">
-        <nav class="container mx-auto px-4 py-4 flex justify-between items-center">
-            <a href="index.html" class="text-blue-600 hover:text-blue-800">
-                &larr; Voltar ao Catálogo
-            </a>
-            <h1 class="text-xl font-bold text-gray-800">Meus Pedidos</h1>
-        </nav>
-    </header>
+    <div id="login-section" class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+            <h2 class="text-2xl font-bold mb-4 text-center text-gray-800">Acessar Meus Pedidos</h2>
+            <p class="text-sm text-gray-600 mb-5 text-center">Digite seu CPF e senha cadastrados.</p>
 
-    <main class="container mx-auto p-4">
-
-        <div class="flex justify-end gap-2 mb-4">
-            <button id="btn-view-list" class="btn-view active p-2 rounded-lg border bg-white" title="Visualização em Lista">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
-                </svg>
-            </button>
-            <button id="btn-view-grid" class="btn-view p-2 rounded-lg border bg-white" title="Visualização em Grade">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-            </button>
-        </div>
-
-        <div id="pedidos-container" class="grid grid-cols-1 gap-4">
+            <div id="login-error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4 hidden" role="alert">
+                <strong class="font-bold">Erro:</strong>
+                <span class="block sm:inline" id="login-error-msg"></span>
             </div>
-    </main>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const container = document.getElementById('pedidos-container');
-            const btnList = document.getElementById('btn-view-list');
-            const btnGrid = document.getElementById('btn-view-grid');
+            <form id="login-form">
+                <div class="mb-4">
+                    <label for="login-cpf" class="block text-sm font-medium text-gray-700 mb-1">CPF</label>
+                    <input
+                        type="text"
+                        id="login-cpf"
+                        placeholder="Digite seu CPF (somente números)"
+                        required
+                        maxlength="14"
+                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                </div>
+                <div class="mb-6">
+                    <label for="login-senha" class="block text-sm font-medium text-gray-700 mb-1">Senha</label>
+                    <input
+                        type="password"
+                        id="login-senha"
+                        placeholder="Digite sua senha"
+                        required
+                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3">
+                     <a href="index.html" class="w-full sm:w-auto flex-1 text-center bg-gray-200 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-300 transition duration-150">Voltar</a>
+                    <button type="submit" id="btn-login" class="w-full sm:w-auto flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 transition duration-150 disabled:opacity-50">
+                        Entrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-            // ID do cliente (simulado, como no app.js)
-            const CLIENTE_ID = 'cliente-simulado-uuid'; //
-            const API_URL = `/pulse/basic/web/index.php/api/pedido?cliente_id=${CLIENTE_ID}`;
+    <div id="main-content" class="hidden">
+        <header class="bg-white shadow-md sticky top-0 z-10" id="header-main">
+            <nav class="container mx-auto px-4 py-4 flex justify-between items-center">
+                <a href="index.html" class="text-blue-600 hover:text-blue-800 text-sm sm:text-base">&larr; Voltar ao Catálogo</a>
+                <h1 class="text-lg sm:text-xl font-bold text-gray-800">Meus Pedidos</h1>
+                <button id="btn-logout" class="text-sm bg-red-500 text-white py-1 px-3 rounded-md hover:bg-red-600 transition duration-150">Sair</button>
+            </nav>
+        </header>
 
-            /**
-             * Formata a data para (DD/MM/AAAA HH:mm)
-             */
-            function formatarData(dataISO) {
-                const data = new Date(dataISO);
-                const dia = String(data.getDate()).padStart(2, '0');
-                const mes = String(data.getMonth() + 1).padStart(2, '0');
-                const ano = data.getFullYear();
-                const horas = String(data.getHours()).padStart(2, '0');
-                const minutos = String(data.getMinutes()).padStart(2, '0');
-                return `${dia}/${mes}/${ano} às ${horas}:${minutos}`;
-            }
-            
-             /**
-             * Formata o status
-             */
-            function formatarStatus(status) {
-                // Tailwind classes para os status
-                const classes = {
-                    'PENDENTE': 'bg-yellow-100 text-yellow-800',
-                    'PAGO': 'bg-green-100 text-green-800',
-                    'CANCELADO': 'bg-red-100 text-red-800',
-                };
-                return classes[status] || 'bg-gray-100 text-gray-800';
-            }
+        <main class="container mx-auto p-4">
+             <div class="mb-4 text-center">
+                 <p class="text-gray-700">Bem-vindo(a), <strong id="cliente-nome"></strong>!</p>
+             </div>
+            <div class="flex justify-end gap-2 mb-4">
+                <button id="btn-view-list" class="btn-view active-view p-2 rounded-lg border bg-white focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+                <button id="btn-view-grid" class="btn-view p-2 rounded-lg border bg-white focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                </button>
+            </div>
+            <div id="pedidos-container" class="grid grid-cols-1 gap-4">
+                 <p id="loading-msg" class="text-center text-gray-500 py-10">Carregando seus pedidos...</p>
+                 <p id="no-orders-msg" class="text-center text-gray-500 py-10 hidden">Nenhum pedido encontrado.</p>
+                 <p id="error-loading-msg" class="text-center text-red-500 py-10 hidden">Erro ao carregar pedidos. Tente novamente mais tarde.</p>
+            </div>
+        </main>
+    </div>
 
-            /**
-             * Renderiza um card de pedido
-             */
-            function renderizarPedido(pedido) {
-                const card = document.createElement('div');
-                card.className = 'bg-white rounded-lg shadow-md overflow-hidden p-4 flex flex-col gap-3';
-
-                const statusClass = formatarStatus(pedido.status_venda_codigo);
-
-                // 1. Cabeçalho do Card
-                const header = `
-                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b pb-3">
-                        <div>
-                            <p class="text-sm text-gray-500">Pedido Realizado</p>
-                            <p class="text-lg font-semibold text-gray-800">${formatarData(pedido.data_venda)}</p>
-                        </div>
-                        <span class="text-sm font-medium px-3 py-1 rounded-full ${statusClass} self-start sm:self-center">
-                            ${pedido.status_venda_codigo}
-                        </span>
-                    </div>`;
-
-                // 2. Itens do Pedido
-                const itensHtml = pedido.itens.map(item => `
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-700">${item.quantidade}x ${item.produto.nome}</span>
-                        <span class="text-gray-600">R$ ${parseFloat(item.valor_total_item).toFixed(2)}</span>
-                    </div>
-                `).join('');
-
-                // 3. Rodapé do Card
-                const footer = `
-                    <div class="border-t pt-3 mt-auto flex justify-between items-center">
-                        <span class="text-base font-medium text-gray-600">Valor Total:</span>
-                        <span class="text-xl font-bold text-blue-600">R$ ${parseFloat(pedido.valor_total).toFixed(2)}</span>
-                    </div>`;
-                
-                card.innerHTML = header + '<div class="flex flex-col gap-1">' + itensHtml + '</div>' + footer;
-                return card;
-            }
-
-            /**
-             * Busca e exibe os pedidos
-             */
-            async function carregarPedidos() {
-                try {
-                    container.innerHTML = '<p>Carregando pedidos...</p>';
-                    const response = await fetch(API_URL);
-                    if (!response.ok) throw new Error(`Erro de rede: ${response.statusText}`);
-                    
-                    const data = await response.json(); // O ActiveDataProvider retorna um objeto
-                    
-                    if (data.items && data.items.length > 0) {
-                        container.innerHTML = '';
-                        data.items.forEach(pedido => {
-                            const pedidoCard = renderizarPedido(pedido);
-                            container.appendChild(pedidoCard);
-                        });
-                    } else {
-                        container.innerHTML = '<p>Nenhum pedido encontrado.</p>';
-                    }
-
-                } catch (error) {
-                    console.error('Falha ao carregar pedidos:', error);
-                    container.innerHTML = '<p class="text-red-500">Erro ao carregar pedidos.</p>';
-                }
-            }
-
-            // --- Event Listeners para Mudar Visualização ---
-            
-            btnList.addEventListener('click', () => {
-                // Mobile-first já é 1 coluna, então só removemos as classes de grid
-                container.classList.remove('md:grid-cols-2', 'lg:grid-cols-3');
-                btnList.classList.add('active');
-                btnGrid.classList.remove('active');
-            });
-
-            btnGrid.addEventListener('click', () => {
-                // Adiciona classes responsivas para grid
-                container.classList.add('md:grid-cols-2', 'lg:grid-cols-3');
-                btnGrid.classList.add('active');
-                btnList.classList.remove('active');
-            });
-
-            // Carga inicial
-            carregarPedidos();
-        });
-    </script>
+    <script type="module" src="js/utils.js"></script> <script type="module" src="js/meus-pedidos.js"></script>
 </body>
 </html>
