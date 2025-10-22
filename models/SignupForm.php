@@ -155,7 +155,7 @@ class SignupForm extends Model
 
         $transaction = Yii::$app->db->beginTransaction();
         
-        //try {
+        try {
             // Criar novo usuário
             $usuario = new Usuario();
 
@@ -199,16 +199,16 @@ class SignupForm extends Model
                 
                 return $usuario;
                 
-            // } catch (\Exception $e) {
-            //     $transaction->rollBack();
-            //     Yii::error("Erro no cadastro: {$e->getMessage()}", __METHOD__);
+            } catch (\Exception $e) {
+                $transaction->rollBack();
+                Yii::error("Erro no cadastro: {$e->getMessage()}", __METHOD__);
                 
-            //     if (!$this->hasErrors()) {
-            //         $this->addError('email', 'Erro ao cadastrar usuário. Tente novamente.');
-            //     }
+                if (!$this->hasErrors()) {
+                    $this->addError('email', 'Erro ao cadastrar usuário. Tente novamente.');
+                }
                 
-            //     return null;
-            // }
+                return null;
+            }
     }
 
     /**
