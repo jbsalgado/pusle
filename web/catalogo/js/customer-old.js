@@ -33,26 +33,11 @@ export async function buscarClientePorCpf(cpf, idUsuarioLoja) {
 
     const cpfLimpo = cpf.replace(/[^\d]/g, '');
     
-    console.log('[Customer] Buscando cliente com CPF:', cpfLimpo);
-    
     const response = await fetch(`${API_ENDPOINTS.CLIENTE_BUSCA_CPF}?cpf=${cpfLimpo}&usuario_id=${idUsuarioLoja}`);
-    
-    if (response.status === 404) {
-        console.log('[Customer] Cliente não encontrado');
-        return {
-            existe: false,
-            cliente: null
-        };
-    }
-    
     const data = await response.json();
 
     if (!response.ok) {
         throw new Error('Erro ao buscar cliente');
-    }
-
-    if (data.existe && data.cliente) {
-        console.log('[Customer] Cliente encontrado:', data.cliente.nome_completo);
     }
 
     return {
@@ -65,13 +50,11 @@ export async function buscarClientePorCpf(cpf, idUsuarioLoja) {
  * Faz login do cliente
  */
 export async function fazerLogin(cpf, senha, idUsuarioLoja) {
-    const cpfLimpo = String(cpf).replace(/[^\d]/g, '');
-    
     const response = await fetch(API_ENDPOINTS.CLIENTE_LOGIN, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            cpf: cpfLimpo,
+            cpf: cpf,
             senha: senha,
             usuario_id: idUsuarioLoja
         })
@@ -127,19 +110,10 @@ export async function cadastrarCliente(dadosCliente) {
         throw new Error('Cidade é obrigatória');
     }
 
-    // Limpar CPF e telefone antes de enviar para API
-    const dadosLimpos = {
-        ...dadosCliente,
-        cpf: dadosCliente.cpf ? String(dadosCliente.cpf).replace(/[^\d]/g, '') : null,
-        telefone: dadosCliente.telefone ? String(dadosCliente.telefone).replace(/[^\d]/g, '') : ''
-    };
-
-    console.log('[Customer] Cadastrando cliente com CPF:', dadosLimpos.cpf);
-
     const response = await fetch(API_ENDPOINTS.CLIENTE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dadosLimpos)
+        body: JSON.stringify(dadosCliente)
     });
 
     const data = await response.json();
