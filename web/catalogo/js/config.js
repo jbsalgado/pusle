@@ -14,7 +14,7 @@ const getLojaId = () => {
     // Mapa de paths para IDs de loja
     const lojaMap = {
         'catalogo': 'a99a38a9-e368-4a47-a4bd-02ba3bacaa76', // Loja padrão
-        'alexbird': '79d5ab11-dea5-460c-bf5e-2cdd492293a7', // Exemplo: Alex Bird
+        'alexbird': '5eb98116-77c2-4a01-bd60-50db21eaa206', // Exemplo: Alex Bird
         'nike': '87654321-4321-4321-4321-210987654321',     // Exemplo: Nike
         // Adicione mais lojas aqui conforme necessário
     };
