@@ -23,42 +23,55 @@ export function setClienteAtual(cliente) {
  * Busca cliente por CPF
  */
 export async function buscarClientePorCpf(cpf, idUsuarioLoja) {
-    if (!validarCPF(cpf)) {
-        throw new Error('CPF inválido');
-    }
+    try {
+        if (!validarCPF(cpf)) {
+            throw new Error('CPF inválido');
+        }
 
-    if (!idUsuarioLoja) {
-        throw new Error('ID da loja não identificado');
-    }
+        if (!idUsuarioLoja) {
+            throw new Error('ID da loja não identificado');
+        }
 
-    const cpfLimpo = cpf.replace(/[^\d]/g, '');
-    
-    console.log('[Customer] Buscando cliente com CPF:', cpfLimpo);
-    
-    const response = await fetch(`${API_ENDPOINTS.CLIENTE_BUSCA_CPF}?cpf=${cpfLimpo}&usuario_id=${idUsuarioLoja}`);
-    
-    if (response.status === 404) {
-        console.log('[Customer] Cliente não encontrado');
+        const cpfLimpo = cpf.replace(/[^\d]/g, '');
+        
+        const url = `${API_ENDPOINTS.CLIENTE_BUSCA_CPF}?cpf=${cpfLimpo}&usuario_id=${idUsuarioLoja}`;
+        console.log('[Customer] Buscando cliente com CPF:', cpfLimpo);
+        console.log('[Customer] URL da requisição:', url);
+        
+        const response = await fetch(url);
+        
+        console.log('[Customer] Status da resposta:', response.status);
+        
+        if (response.status === 404) {
+            console.log('[Customer] Cliente não encontrado (404)');
+            return {
+                existe: false,
+                cliente: null
+            };
+        }
+        
+        if (!response.ok) {
+            console.error('[Customer] Erro na resposta:', response.status, response.statusText);
+            throw new Error(`Erro ao buscar cliente: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('[Customer] Resposta da API:', data);
+
+        if (data.existe && data.cliente) {
+            console.log('[Customer] Cliente encontrado:', data.cliente.nome_completo);
+        } else {
+            console.log('[Customer] Cliente não encontrado na resposta');
+        }
+
         return {
-            existe: false,
-            cliente: null
+            existe: data.existe,
+            cliente: data.cliente || null
         };
+    } catch (error) {
+        console.error('[Customer] ERRO na busca de cliente:', error);
+        throw error;
     }
-    
-    const data = await response.json();
-
-    if (!response.ok) {
-        throw new Error('Erro ao buscar cliente');
-    }
-
-    if (data.existe && data.cliente) {
-        console.log('[Customer] Cliente encontrado:', data.cliente.nome_completo);
-    }
-
-    return {
-        existe: data.existe,
-        cliente: data.cliente || null
-    };
 }
 
 /**
