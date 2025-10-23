@@ -1,9 +1,8 @@
-// order.js - Gerenciamento de pedidos (COM SUPORTE OFFLINE COMPLETO)
+// order.js - Gerenciamento de pedidos
 
 import { CONFIG, API_ENDPOINTS } from './config.js';
 import { salvarPedidoPendente } from './storage.js';
 import { validarUUID } from './utils.js';
-import { estaOnline } from './network.js';
 
 function validarDadosPedido(dadosPedido, carrinho) {
     if (carrinho.length === 0) {
@@ -42,7 +41,7 @@ function validarDadosPedido(dadosPedido, carrinho) {
 
 function prepararObjetoPedido(dadosPedido, carrinho) {
     const pedido = {
-        usuario_id: CONFIG.ID_USUARIO_LOJA, // ✅ ID da loja (catalogo, alexbird, etc.)
+        usuario_id: CONFIG.ID_USUARIO_LOJA, // ✅ CORREÇÃO: ID da loja (catalogo, alexbird, etc.)
         cliente_id: dadosPedido.cliente_id,
         observacoes: dadosPedido.observacoes || null,
         numero_parcelas: parseInt(dadosPedido.numero_parcelas, 10) || 1,
@@ -85,9 +84,7 @@ async function tentarEnvioDireto(pedido) {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify(pedido),
-            // ✅ Timeout de 10 segundos para não travar muito se offline
-            signal: AbortSignal.timeout(10000)
+            body: JSON.stringify(pedido)
         });
 
         console.log('[Order] 📡 Status:', response.status, response.statusText);
@@ -115,86 +112,24 @@ async function tentarEnvioDireto(pedido) {
         
         return {
             sucesso: false,
-            erro: error.message,
-            offline: error.name === 'TypeError' || error.name === 'TimeoutError'
+            erro: error.message
         };
     }
 }
 
-/**
- * Tenta registrar Background Sync (se disponível)
- */
 async function registrarSyncPedido() {
     if ('serviceWorker' in navigator && 'SyncManager' in window) {
         try {
             const swReg = await navigator.serviceWorker.ready;
             await swReg.sync.register(CONFIG.SYNC_TAG);
-            console.log('[Order] 🔄 Background Sync registrado');
             return true;
         } catch (err) {
-            console.error('[Order] ⚠️ Falha ao registrar sync:', err);
+            console.error('[Order] Falha ao registrar sync:', err);
             return false;
         }
     }
-    console.log('[Order] ℹ️ Background Sync não disponível');
     return false;
 }
-
-/**
- * Configura sincronização manual quando voltar online
- * (Funciona independente do Service Worker scope)
- */
-function configurarSincronizacaoManual() {
-    // ✅ Listener de conexão - funciona em qualquer path
-    window.addEventListener('online', async () => {
-        console.log('[Order] 🌐 Conexão restaurada! Verificando pedidos pendentes...');
-        
-        // Importar dinamicamente para evitar dependência circular
-        const { idbKeyval } = await import('./utils.js');
-        const { STORAGE_KEYS } = await import('./config.js');
-        
-        try {
-            const pedidoPendente = await idbKeyval.get(STORAGE_KEYS.PEDIDO_PENDENTE);
-            
-            if (pedidoPendente) {
-                console.log('[Order] 📦 Pedido pendente encontrado, tentando reenviar...');
-                
-                const resultado = await tentarEnvioDireto(pedidoPendente);
-                
-                if (resultado.sucesso) {
-                    console.log('[Order] ✅ Pedido pendente enviado com sucesso!');
-                    
-                    // Remover pedido pendente
-                    await idbKeyval.del(STORAGE_KEYS.PEDIDO_PENDENTE);
-                    
-                    // Notificar usuário
-                    if ('Notification' in window && Notification.permission === 'granted') {
-                        new Notification('Pedido Enviado', {
-                            body: 'Seu pedido offline foi enviado com sucesso!',
-                            icon: '/favicon.ico'
-                        });
-                    } else {
-                        alert('Pedido offline enviado com sucesso!');
-                    }
-                    
-                    // Recarregar para limpar carrinho e atualizar UI
-                    setTimeout(() => window.location.reload(), 2000);
-                } else {
-                    console.error('[Order] ❌ Falha ao reenviar pedido pendente:', resultado.erro);
-                }
-            } else {
-                console.log('[Order] ℹ️ Nenhum pedido pendente para sincronizar');
-            }
-        } catch (error) {
-            console.error('[Order] ❌ Erro ao verificar pedidos pendentes:', error);
-        }
-    });
-    
-    console.log('[Order] 👂 Listener de reconexão configurado');
-}
-
-// ✅ Configurar listener automaticamente quando o módulo for carregado
-configurarSincronizacaoManual();
 
 export async function finalizarPedido(dadosPedido, carrinho) {
     try {
@@ -203,32 +138,12 @@ export async function finalizarPedido(dadosPedido, carrinho) {
         
         console.log('[Order] 🚀 Iniciando finalização do pedido...');
         console.log('[Order] 🏪 Loja (usuario_id):', pedido.usuario_id);
-        console.log('[Order] 📶 Status da conexão:', estaOnline() ? 'ONLINE' : 'OFFLINE');
         
-        // ESTRATÉGIA 1: Se claramente offline, pular tentativa de envio
-        if (!estaOnline()) {
-            console.log('[Order] 📴 Offline detectado, salvando localmente...');
-            
-            const salvou = await salvarPedidoPendente(pedido);
-            if (!salvou) {
-                throw new Error('Erro ao salvar pedido localmente');
-            }
-            
-            // Tentar registrar Background Sync (pode funcionar em /catalogo/)
-            await registrarSyncPedido();
-            
-            return {
-                sucesso: true,
-                offline: true,
-                mensagem: 'Você está offline. O pedido foi salvo localmente e será enviado automaticamente quando a conexão for restaurada.'
-            };
-        }
-        
-        // ESTRATÉGIA 2: Tentar envio direto (funciona em qualquer path)
+        // ESTRATÉGIA 1: Tentar envio direto primeiro (funciona independente do SW scope)
         const resultadoDireto = await tentarEnvioDireto(pedido);
         
         if (resultadoDireto.sucesso) {
-            // ✅ Enviado com sucesso!
+            // ✅ Enviado com sucesso diretamente!
             console.log('[Order] 🎉 Pedido finalizado com sucesso via envio direto');
             
             return {
@@ -237,7 +152,7 @@ export async function finalizarPedido(dadosPedido, carrinho) {
             };
         }
         
-        // ESTRATÉGIA 3: Envio falhou - salvar localmente
+        // ESTRATÉGIA 2: Se falhou, salvar localmente e tentar Background Sync
         console.warn('[Order] ⚠️ Envio direto falhou, salvando para sincronização...');
         console.warn('[Order] Motivo:', resultadoDireto.erro);
         
@@ -248,20 +163,17 @@ export async function finalizarPedido(dadosPedido, carrinho) {
         
         console.log('[Order] 💾 Pedido salvo localmente');
         
-        // Tentar Background Sync (funciona em /catalogo/)
         const syncRegistrado = await registrarSyncPedido();
         
         if (syncRegistrado) {
             return {
                 sucesso: true,
-                offline: true,
-                mensagem: 'Conexão instável. Pedido salvo localmente e será enviado automaticamente assim que a conexão melhorar.'
+                mensagem: 'Conexão instável. Pedido salvo localmente e será enviado automaticamente assim que houver conexão.'
             };
         } else {
             return {
                 sucesso: true,
-                offline: true,
-                mensagem: 'Pedido salvo localmente. Será enviado automaticamente quando a conexão for restaurada. Mantenha esta aba aberta.'
+                mensagem: 'Pedido salvo localmente. Por favor, recarregue a página quando estiver online para sincronizar.'
             };
         }
         

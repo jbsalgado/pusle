@@ -516,6 +516,7 @@ async function confirmarPedido(el) {
     }
     
     const dadosPedido = {
+        usuario_id: CONFIG.ID_USUARIO_LOJA, // ✅ ID correto da loja (catalogo, alexbird, etc.)
         cliente_id: el.inputClienteId?.value || null,
         forma_pagamento_id: document.getElementById('forma_pagamento')?.value || null,
         numero_parcelas: el.inputParcelas?.value || 1,
@@ -535,9 +536,33 @@ async function confirmarPedido(el) {
             el.modalClientePedido?.classList.add('hidden');
             alert(resultado.mensagem);
             
-            // A LIMPEZA E ATUALIZAÇÃO SÃO ESPERADAS NO PROCESSO DE SINCRONIZAÇÃO
-            // Como a sincronização pode demorar, mantemos o estado até a notificação.
-            // Se a sincronização falhar, o pedido pendente é mantido.
+            // ✅ CORREÇÃO: Limpar carrinho se foi enviado diretamente (online)
+            if (!resultado.offline) {
+                console.log('[App] Pedido enviado com sucesso! Limpando carrinho...');
+                
+                // Limpar dados locais
+                await limparDadosLocaisPosSinc();
+                
+                // Recarregar carrinho vazio
+                const carrinhoSalvo = await carregarCarrinhoStorage();
+                setCarrinho(carrinhoSalvo);
+                
+                // Atualizar UI
+                atualizarModalCarrinho();
+                atualizarIndicadoresCarrinho();
+                
+                // Recarregar produtos
+                if (estaOnline()) {
+                    const catalogoContainer = document.getElementById('catalogo-produtos');
+                    if (catalogoContainer) {
+                        console.log('[App] Recarregando produtos...');
+                        await carregarProdutos(catalogoContainer);
+                    }
+                }
+                
+                console.log('[App] ✅ Carrinho limpo e aplicação atualizada');
+            }
+            // Se offline, aguarda sincronização posterior (processarSincronizacao será chamado)
         }
     } catch (error) {
         console.error('[App] Erro ao finalizar pedido:', error);
