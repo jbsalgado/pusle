@@ -54,6 +54,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     adicionarListenerMensagensSW(async (data) => {
         if (data.type === 'SYNC_SUCCESS') {
             await processarSincronizacao(elementos.catalogoContainer);
+        } else if (data.type === 'SYNC_ERROR') {
+            console.error('[App] ❌ Erro na sincronização:', data.error);
+            alert(`Erro ao enviar pedido ao servidor:\n${data.error}\n\nO pedido foi salvo localmente e será enviado automaticamente quando possível.`);
         }
     });
 

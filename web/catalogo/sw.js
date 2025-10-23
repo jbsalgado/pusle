@@ -1,24 +1,28 @@
 // Importa a biblioteca idb-keyval
 importScripts('js/idb-keyval.js');
 
+// ✅ CORREÇÃO: Detectar ambiente automaticamente (igual ao config.js)
+const isProduction = self.location.hostname !== 'localhost' && self.location.hostname !== '127.0.0.1';
+const URL_API = isProduction ? '/pulse/web/index.php' : '/pulse/basic/web/index.php';
+const URL_BASE_WEB = isProduction ? '/pulse/web' : '/pulse/basic/web';
+
 // Configuração de Caminhos e Cache
-const URL_BASE = '/pulse/basic/web';
-const API_PRODUTO_URL = `${URL_BASE}/index.php/api/produto`;
-const API_PEDIDO_URL = `${URL_BASE}/index.php/api/pedido`;
-const CACHE_NAME = 'catalogo-cache-v6'; // INCREMENTADO - IMPORTANTE!
+const API_PRODUTO_URL = `${URL_API}/api/produto`;
+const API_PEDIDO_URL = `${URL_API}/api/pedido`;
+const CACHE_NAME = 'catalogo-cache-v7'; // ✅ INCREMENTADO para forçar atualização
 
 const APP_SHELL_FILES = [
-    `${URL_BASE}/catalogo/index.html`,
-    `${URL_BASE}/catalogo/app.js`,
-    `${URL_BASE}/catalogo/style.css`,
-    `${URL_BASE}/catalogo/manifest.json`,
-    `${URL_BASE}/catalogo/js/idb-keyval.js`,
+    `${URL_BASE_WEB}/catalogo/index.html`,
+    `${URL_BASE_WEB}/catalogo/app.js`,
+    `${URL_BASE_WEB}/catalogo/style.css`,
+    `${URL_BASE_WEB}/catalogo/manifest.json`,
+    `${URL_BASE_WEB}/catalogo/js/idb-keyval.js`,
 ];
 
 // Arquivos críticos que SEMPRE devem buscar na rede primeiro
 const CRITICAL_FILES = [
-    `${URL_BASE}/catalogo/index.html`,
-    `${URL_BASE}/catalogo/app.js`
+    `${URL_BASE_WEB}/catalogo/index.html`,
+    `${URL_BASE_WEB}/catalogo/app.js`
 ];
 
 // Evento de Instalação
@@ -173,7 +177,9 @@ async function enviarPedidosPendentes() {
     }
 
     if (pedidoPendente) {
-        console.log('[SW] Enviando pedido pendente:', pedidoPendente);
+        console.log('[SW] ✅ Pedido pendente encontrado:', pedidoPendente);
+        console.log('[SW] 🌐 Enviando para URL:', API_PEDIDO_URL);
+        
         try {
             const response = await fetch(API_PEDIDO_URL, {
                 method: 'POST',
@@ -184,10 +190,14 @@ async function enviarPedidosPendentes() {
                 body: JSON.stringify(pedidoPendente)
             });
 
+            console.log('[SW] 📡 Status da resposta:', response.status, response.statusText);
+
             if (response.ok) {
-                console.log('[SW] Pedido enviado com sucesso!');
+                const responseData = await response.json();
+                console.log('[SW] ✅ Pedido enviado com sucesso! Resposta:', responseData);
+                
                 await idbKeyval.del('pedido_pendente');
-                console.log('[SW] Pedido removido do IndexedDB.');
+                console.log('[SW] 🗑️ Pedido removido do IndexedDB.');
 
                 const clients = await self.clients.matchAll({ 
                     type: 'window', 
@@ -195,21 +205,53 @@ async function enviarPedidosPendentes() {
                 });
                 
                 clients.forEach(client => {
-                    client.postMessage({ type: 'SYNC_SUCCESS' });
+                    client.postMessage({ 
+                        type: 'SYNC_SUCCESS',
+                        pedido: responseData
+                    });
                 });
-                console.log(`[SW] SYNC_SUCCESS enviado para ${clients.length} cliente(s).`);
+                console.log(`[SW] 📨 SYNC_SUCCESS enviado para ${clients.length} cliente(s).`);
             } else {
-                console.error('[SW] Falha ao enviar pedido:', response.status);
                 const responseBody = await response.text();
-                console.error('[SW] Corpo da resposta:', responseBody);
-                throw new Error(`Falha no servidor: ${response.status}`);
+                console.error('[SW] ❌ Falha ao enviar pedido. Status:', response.status);
+                console.error('[SW] 📄 Corpo da resposta:', responseBody);
+                
+                // Notificar o frontend sobre o erro
+                const clients = await self.clients.matchAll({ 
+                    type: 'window', 
+                    includeUncontrolled: true 
+                });
+                
+                clients.forEach(client => {
+                    client.postMessage({ 
+                        type: 'SYNC_ERROR',
+                        error: `Erro ${response.status}: ${responseBody}`
+                    });
+                });
+                
+                throw new Error(`Falha no servidor: ${response.status} - ${responseBody}`);
             }
         } catch (error) {
-            console.error('[SW] Erro durante envio:', error);
+            console.error('[SW] ❌ Erro durante envio:', error);
+            console.error('[SW] 📍 URL tentada:', API_PEDIDO_URL);
+            
+            // Notificar o frontend sobre o erro
+            const clients = await self.clients.matchAll({ 
+                type: 'window', 
+                includeUncontrolled: true 
+            });
+            
+            clients.forEach(client => {
+                client.postMessage({ 
+                    type: 'SYNC_ERROR',
+                    error: error.message
+                });
+            });
+            
             throw error;
         }
     } else {
-        console.log('[SW] Nenhum pedido pendente encontrado.');
+        console.log('[SW] ℹ️ Nenhum pedido pendente encontrado.');
     }
 }
 
