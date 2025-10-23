@@ -1,7 +1,85 @@
-// Importa a biblioteca idb-keyval
-importScripts('js/idb-keyval.js');
+// REMOVIDO: importScripts('js/idb-keyval.js');
+// A lógica do idbKeyval de utils.js foi incorporada abaixo e corrigida para o escopo do Service Worker.
 
-// ✅ CORREÇÃO: Detectar ambiente automaticamente (igual ao config.js)
+// === LÓGICA DO idbKeyval PORTADA DE utils.js (CORRIGIDA PARA SW) ===
+// Garante que o Service Worker use o mesmo DB name que a página principal
+const DB_NAME = 'catalogo-db';
+const STORE_NAME = 'keyval-store';
+
+function openDb() {
+    return new Promise((resolve, reject) => {
+        // ✅ CORREÇÃO CRÍTICA: Verifica o suporte a IndexedDB no escopo 'self' (Service Worker)
+        if (!('indexedDB' in self)) { 
+            reject(new Error("IndexedDB not supported in this context (Service Worker)."));
+            return;
+        }
+
+        // ✅ CORREÇÃO CRÍTICA: Usa self.indexedDB para garantir o acesso correto no Service Worker
+        const request = self.indexedDB.open(DB_NAME, 1);
+
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                // Cria o Object Store para armazenar as chaves (carrinho, pedido pendente, etc.)
+                db.createObjectStore(STORE_NAME);
+            }
+        };
+
+        request.onsuccess = (event) => {
+            resolve(event.target.result);
+        };
+
+        request.onerror = (event) => {
+            reject(event.target.error);
+        };
+    });
+}
+
+const idbKeyval = {
+    async get(key) {
+        const db = await openDb();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+            const request = store.get(key);
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    },
+    async set(key, val) {
+        const db = await openDb();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            const request = store.put(val, key);
+
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+            request.onerror = () => reject(request.error);
+        });
+    },
+    async del(key) {
+        const db = await openDb();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            const request = store.delete(key);
+
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+            request.onerror = () => reject(request.error);
+        });
+    },
+    // Chaves desnecessárias para o Service Worker, removidas para simplificação
+};
+// === FIM DA LÓGICA DO idbKeyval ===
+
+
+// ✅ CHAVE DE ARMAZENAMENTO CORRETA (Baseada em config.js)
+const PEDIDO_PENDENTE_KEY = 'pedido_pendente_pwa';
+
+// Detectar ambiente automaticamente
 const isProduction = self.location.hostname !== 'localhost' && self.location.hostname !== '127.0.0.1';
 const URL_API = isProduction ? '/pulse/web/index.php' : '/pulse/basic/web/index.php';
 const URL_BASE_WEB = isProduction ? '/pulse/web' : '/pulse/basic/web';
@@ -9,7 +87,8 @@ const URL_BASE_WEB = isProduction ? '/pulse/web' : '/pulse/basic/web';
 // Configuração de Caminhos e Cache
 const API_PRODUTO_URL = `${URL_API}/api/produto`;
 const API_PEDIDO_URL = `${URL_API}/api/pedido`;
-const CACHE_NAME = 'catalogo-cache-v7'; // ✅ INCREMENTADO para forçar atualização
+// Incrementado para forçar a atualização de cache
+const CACHE_NAME = 'catalogo-cache-v9'; 
 
 const APP_SHELL_FILES = [
     `${URL_BASE_WEB}/catalogo/index.html`,
@@ -170,7 +249,8 @@ self.addEventListener('sync', event => {
 async function enviarPedidosPendentes() {
     let pedidoPendente;
     try {
-        pedidoPendente = await idbKeyval.get('pedido_pendente');
+        // Agora idbKeyval usa o DB correto ('catalogo-db') e o escopo correto ('self')
+        pedidoPendente = await idbKeyval.get(PEDIDO_PENDENTE_KEY);
     } catch (err) {
         console.error('[SW] Erro ao ler pedido do IndexedDB:', err);
         return;
@@ -196,7 +276,8 @@ async function enviarPedidosPendentes() {
                 const responseData = await response.json();
                 console.log('[SW] ✅ Pedido enviado com sucesso! Resposta:', responseData);
                 
-                await idbKeyval.del('pedido_pendente');
+                // Usando a chave correta para remover
+                await idbKeyval.del(PEDIDO_PENDENTE_KEY);
                 console.log('[SW] 🗑️ Pedido removido do IndexedDB.');
 
                 const clients = await self.clients.matchAll({ 

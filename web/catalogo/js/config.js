@@ -50,8 +50,8 @@ export const API_ENDPOINTS = {
 };
 
 export const STORAGE_KEYS = {
-    CARRINHO: 'carrinho_atual',
-    PEDIDO_PENDENTE: 'pedido_pendente'
+    CARRINHO: 'carrinho_pwa',
+    PEDIDO_PENDENTE: 'pedido_pendente_pwa' // ✅ CHAVE CORRETA E CONSISTENTE
 };
 
 export const ELEMENTOS_CRITICOS = [
