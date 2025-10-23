@@ -77,10 +77,10 @@ export const idbKeyval = {
 export function validarCPF(cpf) {
     if (!cpf) return false;
     
-    cpf = String(cpf).replace(/[^\\d]/g, '');
+    cpf = String(cpf).replace(/[^\d]/g, '');
 
     if (cpf.length !== 11) return false;
-    if (/^(\\d)\\1{10}$/.test(cpf)) return false;
+    if (/^(\d)\1{10}$/.test(cpf)) return false;
 
     let soma = 0;
     let resto;
@@ -109,8 +109,8 @@ export function validarCPF(cpf) {
  */
 export function formatarCPF(cpf) {
     if (!cpf) return '';
-    cpf = String(cpf).replace(/[^\\d]/g, '');
-    cpf = cpf.replace(/^(\\d{3})(\\d{3})(\\d{3})(\\d{2})$/, '$1.$2.$3-$4');
+    cpf = String(cpf).replace(/[^\d]/g, '');
+    cpf = cpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
     return cpf;
 }
 
@@ -118,14 +118,14 @@ export function formatarCPF(cpf) {
  * Aplica máscara de CPF no input
  */
 export function maskCPF(input) {
-    let value = input.value.replace(/[^\\d]/g, '');
+    let value = input.value.replace(/[^\d]/g, '');
     value = value.slice(0, 11); // Limita a 11 dígitos
     if (value.length > 9) {
-        value = value.replace(/^(\\d{3})(\\d{3})(\\d{3})(\\d{2})$/, '$1.$2.$3-$4');
+        value = value.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
     } else if (value.length > 6) {
-        value = value.replace(/^(\\d{3})(\\d{3})(\\d{3})$/, '$1.$2.$3');
+        value = value.replace(/^(\d{3})(\d{3})(\d{3})$/, '$1.$2.$3');
     } else if (value.length > 3) {
-        value = value.replace(/^(\\d{3})(\\d{3})$/, '$1.$2');
+        value = value.replace(/^(\d{3})(\d{3})$/, '$1.$2');
     }
     input.value = value;
 }
@@ -134,18 +134,18 @@ export function maskCPF(input) {
  * Aplica máscara de telefone no input
  */
 export function maskPhone(input) {
-    let value = input.value.replace(/[^\\d]/g, '');
+    let value = input.value.replace(/[^\d]/g, '');
     value = value.slice(0, 11); // Limita a 11 dígitos
     
     // 11 dígitos: (XX) 9XXXX-XXXX
     if (value.length === 11) {
-        value = value.replace(/^(\\d{2})(\\d{5})(\\d{4})$/, '($1) $2-$3');
+        value = value.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
     // 10 dígitos: (XX) XXXX-XXXX
     } else if (value.length === 10) {
-        value = value.replace(/^(\\d{2})(\\d{4})(\\d{4})$/, '($1) $2-$3');
+        value = value.replace(/^(\d{2})(\d{4})(\d{4})$/, '($1) $2-$3');
     // 9 dígitos: (XX) XXXX-XXXX (máscara incompleta)
     } else if (value.length > 2) {
-        value = value.replace(/^(\\d{2})(\\d+)/, '($1) $2');
+        value = value.replace(/^(\d{2})(\d+)/, '($1) $2');
     }
 
     input.value = value;
