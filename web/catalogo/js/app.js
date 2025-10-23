@@ -8,7 +8,7 @@ import { inicializarMonitoramentoRede, estaOnline } from './network.js';
 import { carregarCarrinho as carregarCarrinhoStorage, limparDadosLocaisPosSinc } from './storage.js';
 import { 
     getCarrinho, 
-    setCarrinho, 
+    setCarrinho, // ESSENCIAL: Permite atualizar o estado em memória após a sincronização
     adicionarAoCarrinho, 
     removerDoCarrinho, 
     aumentarQuantidadeItem, 
@@ -322,36 +322,32 @@ function configurarListenersCadastro(el) {
 
 async function processarBuscaCliente(el) {
     const cpf = el.inputClienteCpfBusca?.value.trim().replace(/[^\d]/g, '');
-    
     if (!cpf) {
         alert('Digite o CPF para buscar.');
         return;
     }
-    
+
     if (!validarCPF(cpf)) {
         alert('CPF inválido. Verifique os dígitos e tente novamente.');
         el.inputClienteCpfBusca?.focus();
         return;
     }
-    
+
     el.btnBuscarCliente.disabled = true;
     el.btnBuscarCliente.textContent = 'Buscando...';
-    
+
     try {
         // --- MODIFICADO: Usar CONFIG.ID_USUARIO_LOJA ---
         const resultado = await buscarClientePorCpf(cpf, CONFIG.ID_USUARIO_LOJA);
-        
+
         if (resultado.existe) {
             // Cliente encontrado - preenche dados automaticamente (SEM login)
             setClienteAtual(resultado.cliente);
             el.inputClienteId.value = resultado.cliente.id;
             atualizarInfoCliente(resultado.cliente);
-            
             if (el.btnConfirmarPedido) el.btnConfirmarPedido.disabled = false;
-            
             await calcularEAtualizarParcelas(el);
             alternarCampoDataPrimeiroPagamento(el);
-            
             alert(`Cliente ${resultado.cliente.nome_completo} identificado com sucesso!`);
         } else {
             // Cliente não existe - abre modal de cadastro
@@ -383,75 +379,87 @@ async function processarCadastro(el) {
         telefone: el.inputCadastroTelefone?.value.trim().replace(/[^\d]/g, '') || '',
         email: el.inputCadastroEmail?.value.trim().toUpperCase() || null,
         senha: el.inputCadastroSenha?.value.trim() || '',
-        endereco_logradouro: el.inputCadastroLogradouro?.value.trim().toUpperCase() || '',
-        endereco_numero: el.inputCadastroNumero?.value.trim().toUpperCase() || '',
+        endereco_logradouro: el.inputCadastroLogradouro?.value.trim().toUpperCase() || null,
+        endereco_numero: el.inputCadastroNumero?.value.trim().toUpperCase() || null,
         endereco_complemento: el.inputCadastroComplemento?.value.trim().toUpperCase() || null,
-        endereco_bairro: el.inputCadastroBairro?.value.trim().toUpperCase() || '',
-        endereco_cidade: el.inputCadastroCidade?.value.trim().toUpperCase() || '',
+        endereco_bairro: el.inputCadastroBairro?.value.trim().toUpperCase() || null,
+        endereco_cidade: el.inputCadastroCidade?.value.trim().toUpperCase() || null,
         endereco_estado: el.inputCadastroEstado?.value.trim().toUpperCase() || null,
         endereco_cep: el.inputCadastroCep?.value.trim().replace(/[^\d]/g, '') || null
     };
+
+    if (!dadosCliente.nome_completo || !dadosCliente.cpf || !dadosCliente.telefone) {
+        mostrarErroCadastro(el, 'Nome, CPF e Telefone são obrigatórios.');
+        return;
+    }
     
+    if (dadosCliente.cpf && !validarCPF(dadosCliente.cpf)) {
+        mostrarErroCadastro(el, 'CPF inválido.');
+        return;
+    }
+
     el.btnSalvarCliente.disabled = true;
     el.btnSalvarCliente.textContent = 'Salvando...';
-    esconderErroCadastro();
-    
+    esconderErroCadastro(el);
+
     try {
-        const cliente = await cadastrarCliente(dadosCliente);
+        const novoCliente = await cadastrarCliente(dadosCliente);
         
-        el.inputClienteId.value = cliente.id;
-        atualizarInfoCliente(cliente);
-        
-        el.modalCadastroCliente?.classList.add('hidden');
-        el.modalClientePedido?.classList.remove('hidden');
-        
+        setClienteAtual(novoCliente);
+        el.inputClienteId.value = novoCliente.id;
+        atualizarInfoCliente(novoCliente);
         if (el.btnConfirmarPedido) el.btnConfirmarPedido.disabled = false;
         
         await calcularEAtualizarParcelas(el);
         alternarCampoDataPrimeiroPagamento(el);
+
+        el.modalCadastroCliente?.classList.add('hidden');
+        el.modalClientePedido?.classList.remove('hidden');
         
+        alert(`Cliente ${novoCliente.nome_completo} cadastrado e selecionado com sucesso!`);
+        limparFormularioCadastro();
     } catch (error) {
-        console.error('[App] Erro ao cadastrar:', error);
-        mostrarErroCadastro(error.message || 'Não foi possível cadastrar o cliente.');
+        const mensagemErro = error.message || 'Erro desconhecido ao cadastrar cliente.';
+        console.error('[App] Erro no cadastro:', error);
+        mostrarErroCadastro(el, mensagemErro);
     } finally {
         el.btnSalvarCliente.disabled = false;
-        el.btnSalvarCliente.textContent = 'Salvar e Continuar';
+        el.btnSalvarCliente.textContent = 'Salvar Cliente';
     }
 }
 
 async function processarBuscaVendedor(el) {
     const cpf = el.inputVendedorCpfBusca?.value.trim().replace(/[^\d]/g, '');
-    
     if (!cpf) {
         alert('Digite o CPF do vendedor para buscar.');
         return;
     }
-    
+
     if (!validarCPF(cpf)) {
-        alert('CPF inválido. Verifique os dígitos e tente novamente.');
+        alert('CPF inválido para vendedor. Verifique e tente novamente.');
         el.inputVendedorCpfBusca?.focus();
         return;
     }
-    
+
     el.btnBuscarVendedor.disabled = true;
     el.btnBuscarVendedor.textContent = 'Buscando...';
-    
+
     try {
-        // --- MODIFICADO: Usar CONFIG.ID_USUARIO_LOJA ---
         const resultado = await buscarVendedorPorCpf(cpf, CONFIG.ID_USUARIO_LOJA);
-        
+
         if (resultado.existe) {
-            el.inputColaboradorVendedorId.value = resultado.colaborador.id;
-            atualizarInfoVendedor(resultado.colaborador, true);
+            const vendedor = resultado.colaborador;
+            el.inputColaboradorVendedorId.value = vendedor.id;
+            atualizarInfoVendedor(vendedor);
+            alert(`Vendedor ${vendedor.nome_completo} identificado.`);
         } else {
             el.inputColaboradorVendedorId.value = '';
-            atualizarInfoVendedor(null, false);
-            alert('Vendedor não encontrado. Verifique o CPF ou cadastre-o no sistema.');
+            atualizarInfoVendedor(null);
+            alert('Vendedor não encontrado. Verifique o CPF.');
         }
     } catch (error) {
         console.error('[App] Erro na busca do vendedor:', error);
         alert('Não foi possível buscar o vendedor. Verifique sua conexão.');
-        atualizarInfoVendedor(null, false);
     } finally {
         el.btnBuscarVendedor.disabled = false;
         el.btnBuscarVendedor.textContent = 'Buscar';
@@ -459,158 +467,31 @@ async function processarBuscaVendedor(el) {
 }
 
 async function calcularEAtualizarParcelas(el) {
-    const numeroParcelas = parseInt(el.inputParcelas?.value, 10);
-    
-    if (numeroParcelas <= 1) {
-        atualizarInfoParcelas(null);
-        return;
-    }
-    
-    const valorBase = calcularTotalCarrinho();
-    
-    if (valorBase <= 0) {
-        atualizarInfoParcelas(null);
-        return;
-    }
-    
-    atualizarInfoParcelas('Calculando...');
+    const totalCarrinho = calcularTotalCarrinho();
+    const numeroParcelas = parseInt(el.inputParcelas?.value || 1, 10);
+    const idUsuarioLoja = CONFIG.ID_USUARIO_LOJA;
     
     try {
-        // --- MODIFICADO: Usar CONFIG.ID_USUARIO_LOJA ---
-        const dadosParcela = await calcularParcelas(valorBase, numeroParcelas, CONFIG.ID_USUARIO_LOJA);
-        const htmlParcelas = formatarInfoParcelas(dadosParcela);
-        atualizarInfoParcelas(htmlParcelas);
+        const dadosParcela = await calcularParcelas(totalCarrinho, numeroParcelas, idUsuarioLoja);
+        const infoHtml = formatarInfoParcelas(dadosParcela);
+        atualizarInfoParcelas(infoHtml, totalCarrinho);
     } catch (error) {
         console.error('[App] Erro ao calcular parcelas:', error);
-        atualizarInfoParcelas('<span class="text-red-500 text-xs">Não foi possível calcular o valor da parcela.</span>');
+        atualizarInfoParcelas('', totalCarrinho);
     }
 }
 
 function alternarCampoDataPrimeiroPagamento(el) {
-    if (!el.campoDataPrimeiroPagamento || !el.inputParcelas) return;
-    
-    const numeroParcelas = parseInt(el.inputParcelas.value, 10);
+    const numeroParcelas = parseInt(el.inputParcelas?.value || 1, 10);
     
     if (numeroParcelas > 1) {
-        el.campoDataPrimeiroPagamento.classList.remove('hidden');
-        if (el.campoIntervaloParcelas) {
-            el.campoIntervaloParcelas.classList.remove('hidden');
-        }
-        
-        if (el.inputDataPrimeiroPagamento) {
-            const hoje = new Date();
-            const dataHoje = hoje.toISOString().split('T')[0];
-            el.inputDataPrimeiroPagamento.setAttribute('min', dataHoje);
-            
-            if (!el.inputDataPrimeiroPagamento.value) {
-                el.inputDataPrimeiroPagamento.value = dataHoje;
-            }
-        }
-        
-        if (el.inputIntervaloParcelas && !el.inputIntervaloParcelas.value) {
-            el.inputIntervaloParcelas.value = '30';
-        }
+        el.campoDataPrimeiroPagamento?.classList.remove('hidden');
+        el.campoIntervaloParcelas?.classList.remove('hidden');
     } else {
-        el.campoDataPrimeiroPagamento.classList.add('hidden');
-        if (el.campoIntervaloParcelas) {
-            el.campoIntervaloParcelas.classList.add('hidden');
-        }
-        
-        if (el.inputDataPrimeiroPagamento) {
-            el.inputDataPrimeiroPagamento.value = '';
-        }
-        if (el.inputIntervaloParcelas) {
-            el.inputIntervaloParcelas.value = '';
-        }
-    }
-}
-
-async function confirmarPedido(el) {
-    const clienteId = el.inputClienteId?.value;
-    const selectFormaPagamento = document.getElementById('forma_pagamento');
-    
-    if (!clienteId) {
-        alert('Erro: Você precisa buscar o CPF do cliente antes de confirmar o pedido.');
-        el.inputClienteCpfBusca?.focus();
-        return;
-    }
-    
-    if (!selectFormaPagamento?.value) {
-        alert('Por favor, selecione a forma de pagamento.');
-        selectFormaPagamento?.focus();
-        return;
-    }
-    
-    const numeroParcelas = parseInt(el.inputParcelas?.value, 10) || 1;
-    
-    if (numeroParcelas > 1) {
-        const dataInput = el.inputDataPrimeiroPagamento?.value;
-        
-        if (!dataInput) {
-            alert('⚠️ Por favor, informe a data do primeiro pagamento para vendas parceladas.');
-            el.inputDataPrimeiroPagamento?.focus();
-            el.campoDataPrimeiroPagamento?.classList.remove('hidden');
-            return;
-        }
-        
-        const partesData = dataInput.split('-');
-        const dataInformada = new Date(partesData[0], partesData[1] - 1, partesData[2]);
-        const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
-        dataInformada.setHours(0, 0, 0, 0);
-        
-        if (dataInformada < hoje) {
-            alert('⚠️ A data do primeiro pagamento não pode ser anterior à data de hoje.');
-            el.inputDataPrimeiroPagamento?.focus();
-            return;
-        }
-        
-        const intervaloDias = parseInt(el.inputIntervaloParcelas?.value, 10);
-        
-        if (!intervaloDias || intervaloDias < 1) {
-            alert('⚠️ Por favor, informe um intervalo válido entre as parcelas (mínimo 1 dia).');
-            el.inputIntervaloParcelas?.focus();
-            el.campoIntervaloParcelas?.classList.remove('hidden');
-            return;
-        }
-        
-        if (intervaloDias > 365) {
-            alert('⚠️ O intervalo entre parcelas não pode ser maior que 365 dias.');
-            el.inputIntervaloParcelas?.focus();
-            return;
-        }
-    }
-    
-    const dadosPedido = {
-        cliente_id: clienteId,
-        observacoes: el.inputObservacoes?.value.trim().toUpperCase() || null,
-        numero_parcelas: numeroParcelas,
-        forma_pagamento_id: selectFormaPagamento.value
-    };
-    
-    if (numeroParcelas > 1) {
-        if (el.inputDataPrimeiroPagamento?.value) {
-            dadosPedido.data_primeiro_pagamento = el.inputDataPrimeiroPagamento.value;
-        }
-        
-        if (el.inputIntervaloParcelas?.value) {
-            dadosPedido.intervalo_dias_parcelas = parseInt(el.inputIntervaloParcelas.value, 10);
-        }
-    }
-    
-    if (el.radioTipoVendaVendedor?.checked && el.inputColaboradorVendedorId?.value) {
-        dadosPedido.colaborador_vendedor_id = el.inputColaboradorVendedorId.value;
-    }
-    
-    try {
-        const resultado = await finalizarPedido(dadosPedido, getCarrinho());
-        alert(resultado.mensagem);
-        
-        el.modalCarrinho?.classList.add('hidden');
-        el.modalClientePedido?.classList.add('hidden');
-    } catch (error) {
-        console.error('[App] Erro ao finalizar pedido:', error);
-        alert(error.message || 'Erro ao salvar pedido.');
+        el.campoDataPrimeiroPagamento?.classList.add('hidden');
+        el.campoIntervaloParcelas?.classList.add('hidden');
+        el.inputDataPrimeiroPagamento.value = '';
+        el.inputIntervaloParcelas.value = '';
     }
 }
 
@@ -619,34 +500,63 @@ function alternarCampoVendedor(el) {
         el.campoVendedorCpf?.classList.remove('hidden');
     } else {
         el.campoVendedorCpf?.classList.add('hidden');
-        if (el.inputVendedorCpfBusca) el.inputVendedorCpfBusca.value = '';
-        if (el.inputColaboradorVendedorId) el.inputColaboradorVendedorId.value = '';
-        const vendedorInfoResultado = document.getElementById('vendedor-info-resultado');
-        if (vendedorInfoResultado) vendedorInfoResultado.innerHTML = '';
+        el.inputVendedorCpfBusca.value = '';
+        el.inputColaboradorVendedorId.value = '';
+        atualizarInfoVendedor(null);
+    }
+}
+
+async function confirmarPedido(el) {
+    if (getCarrinho().length === 0) {
+        alert('O carrinho está vazio.');
+        return;
+    }
+    
+    const dadosPedido = {
+        cliente_id: el.inputClienteId?.value || null,
+        forma_pagamento_id: document.querySelector('input[name="forma_pagamento"]:checked')?.value || null,
+        numero_parcelas: el.inputParcelas?.value || 1,
+        observacoes: el.inputObservacoes?.value || null,
+        data_primeiro_pagamento: el.inputDataPrimeiroPagamento?.value || null,
+        intervalo_dias_parcelas: el.inputIntervaloParcelas?.value || null,
+        colaborador_vendedor_id: el.inputColaboradorVendedorId?.value || null
+    };
+
+    el.btnConfirmarPedido.disabled = true;
+    el.btnConfirmarPedido.textContent = 'Processando...';
+
+    try {
+        const resultado = await finalizarPedido(dadosPedido, getCarrinho());
+        
+        if (resultado.sucesso) {
+            el.modalClientePedido?.classList.add('hidden');
+            alert(resultado.mensagem);
+            
+            // A LIMPEZA E ATUALIZAÇÃO SÃO ESPERADAS NO PROCESSO DE SINCRONIZAÇÃO
+            // Como a sincronização pode demorar, mantemos o estado até a notificação.
+            // Se a sincronização falhar, o pedido pendente é mantido.
+        }
+    } catch (error) {
+        console.error('[App] Erro ao finalizar pedido:', error);
+        alert(`Erro ao finalizar pedido: ${error.message}`);
+    } finally {
+        el.btnConfirmarPedido.disabled = false;
+        el.btnConfirmarPedido.textContent = 'Confirmar Pedido';
     }
 }
 
 function resetarFormularioPedido(el) {
-    if (el.inputClienteCpfBusca) el.inputClienteCpfBusca.value = '';
-    if (el.inputClienteId) el.inputClienteId.value = '';
-    
-    const clienteInfoResultado = document.getElementById('cliente-info-resultado');
-    if (clienteInfoResultado) {
-        clienteInfoResultado.innerHTML = '';
-        clienteInfoResultado.classList.add('hidden');
-    }
-    
-    if (el.btnConfirmarPedido) el.btnConfirmarPedido.disabled = true;
+    // Reseta cliente, vendedor, pagamento, etc.
     setClienteAtual(null);
-    
-    if (el.inputObservacoes) el.inputObservacoes.value = '';
-    if (el.inputParcelas) el.inputParcelas.value = '1';
-    atualizarInfoParcelas(null);
-    
-    if (el.inputDataPrimeiroPagamento) el.inputDataPrimeiroPagamento.value = '';
-    if (el.campoDataPrimeiroPagamento) el.campoDataPrimeiroPagamento.classList.add('hidden');
-    
-    if (el.inputIntervaloParcelas) el.inputIntervaloParcelas.value = '';
+    el.inputClienteId.value = '';
+    el.inputClienteCpfBusca.value = '';
+    atualizarInfoCliente(null);
+    if (el.btnConfirmarPedido) el.btnConfirmarPedido.disabled = true;
+
+    document.querySelectorAll('input[name="forma_pagamento"]').forEach(radio => radio.checked = false);
+    el.inputObservacoes.value = '';
+    el.inputParcelas.value = '1';
+    el.inputDataPrimeiroPagamento.value = '';
     if (el.campoIntervaloParcelas) el.campoIntervaloParcelas.classList.add('hidden');
     
     if (el.radioTipoVendaCliente) el.radioTipoVendaCliente.checked = true;
@@ -658,10 +568,24 @@ function resetarFormularioPedido(el) {
     if (el.campoVendedorCpf) el.campoVendedorCpf.classList.add('hidden');
 }
 
+/**
+ * Processa a sincronização bem-sucedida do Service Worker
+ */
 async function processarSincronizacao(catalogoContainer) {
     console.log('[App] Processando sincronização bem-sucedida...');
-    await limparDadosLocaisPosSinc();
+    
+    // 1. Limpa IndexedDB (agora inclui o carrinho, o pedido pendente e o cache)
+    await limparDadosLocaisPosSinc(); 
+    
+    // 2. CORREÇÃO CRÍTICA: Força o recarregamento do carrinho na memória.
+    // carregarCarrinhoStorage retornará um array vazio ([]) e setCarrinho atualiza o estado em memória.
+    const carrinhoSalvo = await carregarCarrinhoStorage();
+    setCarrinho(carrinhoSalvo); 
+    
+    // 3. Atualiza a interface
     atualizarModalCarrinho();
+    atualizarIndicadoresCarrinho(); // Garante que a badge do carrinho no header zere
+    
     alert('Pedido sincronizado com sucesso!');
     
     if (estaOnline()) {

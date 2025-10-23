@@ -1,0 +1,512 @@
+  110  cd plena_erp/
+  111  git status
+  112  git pull origin bruno/ajustes
+  113  git status
+  114  composer update
+  115  git status
+  116  git add .
+  117  git commit -m "ajustes"
+  118  git pull origin main
+  119  ls *.tar
+  120  ls
+  121  sudo rm -rf vendor/
+  122  ls *tar
+  123  ls *.tar
+  124  ls vend*
+  125  ls -a *vendor
+  126  sudo thunar
+  127  git status
+  128  git add .
+  129  git commit -m "ajustes"
+  130  git pull origin bruno/ajustes
+  131  git status
+  132  git status
+  133  git add .
+  134  git commit -m "atualizaçoes Regulaçao"
+  135  git push origin main
+  136  cd /srv/http/plena_pep_demo/
+  137  git status
+  138  cd /srv/http/plena_pep_demo/
+  139  git pull origin bruno/new
+  140  git push origin main
+  141  ./ssh_plena.sh 
+  142  cd /srv/http/pulse/basic/
+  143  code. 
+  144  code .
+  145  ls
+  146  cd /srv/http/
+  147  ls
+  148  cd salus-pet/
+  149  code .
+  150  ls
+  151  ls
+  152  cd ..
+  153  ls
+  154  cd pulse/
+  155  ls
+  156  cd basic/
+  157  ls
+  158  code .
+  159  npm
+  160  ls
+  161  ls package.json 
+  162  npm install -D tailwindcss postcss autoprefixer
+  163  npm install =g npm@11.6.2
+  164  npm install -g npm@11.6.2
+  165  sudo npm install -g npm@11.6.2
+  166  npm install -D tailwindcss postcss autoprefixer
+  167  npx tailwindcss init -p
+  168  npm run build
+  169  npm run watch
+  170  npm run watch
+  171  npm run watch
+  172  npm run watch
+  173  cd ..
+  174  cd ..
+  175  composer create-project --prefer-dist --stability=dev dominus77/yii2-basic-start pulse-t
+  176  cd pulse-t/
+  177  code .
+  178  cd ..
+  179  sudo rm -rf pulse-t/
+  180  ls
+  181  cd pulse/
+  182  exit
+  183  cd /srv/http/
+  184  ls
+  185  cd pulse/
+  186  ls
+  187  cd basic/
+  188  ls
+  189  code .
+  190  npm run build
+  191  sudo chmod -R 777 /srv/http/pulse/basic/
+  192  sudo chmod -R 777 /srv/http/pulse/basic/
+  193  sudo chmod -R 777 /srv/http/pulse/basic/
+  194  php yii migrate
+  195  clear
+  196  ls
+  197  cd ..
+  198  cd ..
+  199  ./backup_fontes_all.sh 
+  200  ls
+  201  ls *sh
+  202  ./bk-bancos.sh 
+  203  ./bk-bancos.sh -h localhos -u postgres -p postgres -P 5432 -d salus_pet,salus_pep_local
+  204  ./bk-bancos.sh -h localhost -u postgres -p postgres -P 5432 -d salus_pet,salus_pep_local
+  205  clear
+  206  cd /srv/http/plena_erp/
+  207  git status
+  208  git pull origin bruno/ajustes
+  209  cd ..
+  210  cd pulse/basic/
+  211  code .
+  212  composer dump-autoload
+  213  composer dump-autoload
+  214  rm -rf runtime/cache/*
+  215  sudo rm -rf runtime/cache/*
+  216  sudo rm -rf runtime/debug/*
+  217  composer require bower-asset/chart.js
+  218  sudo systemctl restart apache2
+  219  sudo systemctl restart httpd
+  220  composer dump-autoload -o
+  221  composer update yiisoft/yii2-debug
+  222  composer show yiisoft/yii2
+  223  composer self-update
+  224  sudo composer self-update
+  225  sudo composer update yiisoft/yii2
+  226  sudo composer update yiisoft/yii2-debug
+  227  sudo composer update yiisoft/yii2-gii
+  228  composer update
+  229  sudo rm -rf runtime/cache/*
+  230  rm -rf runtime/debug/*
+  231  rm -rf runtime/logs/*
+  232  rm -rf web/assets/*
+  233  mkdir -p runtime/cache runtime/debug runtime/logs
+  234  chmod -R 777 runtime web/assets
+  235  sudo chmod -R 777 runtime web/assets
+  236  composer update
+  237  grep -r "2amigos" --include="*.php" /srv/http/pulse/basic/
+  238  composer remove 2amigos/yii2-arrayquery-component
+  239  composer remove swiftmailer/swiftmailer
+  240  sudo composer remove swiftmailer/swiftmailer
+  241  composer audit
+  242  composer require yiisoft/yii2-symfonymailer
+  243  grep -r "mailer->compose" --include="*.php" /srv/http/pulse/basic/
+  244  composer update
+  245  composer require "yiisoft/yii2-debug:^2.1" --update-with-dependencies
+  246  composer require "yiisoft/yii2-debug:^2.1" --dev --update-with-dependencies
+  247  cd /srv/http/plena_pep_demo/
+  248  git pull origin bruno/new
+  249  git push origin main
+  250  ./ssh_plena.sh 
+  251  cd ..
+  252  cd salus-pet/
+  253  code .
+  254  git status
+  255  git add .
+  256  git commit -m "ajustes"
+  257  git push origin main
+  258  ./remoto.sh 
+  259  cd ..
+  260  ./backup_fontes_all.sh 
+  261  cd /srv/http/plena_erp/
+  262  git status
+  263  git status
+  264  ./ssh_plena.sh 
+  265  code .
+  266  git status
+  267  git add .
+  268  git commit -m "ajustes"
+  269  git push origin main
+  270  ./ssh_plena.sh 
+  271  git status
+  272  git add .
+  273  git commit -m "ajustes"
+  274  git push origin main
+  275  ./ssh_plena.sh 
+  276  cd ..
+  277  ./backup_fontes_all.sh 
+  278  cd salus-pet/
+  279  ls *.sh
+  280  chmod +x setup-pwa.sh 
+  281  ls *.sh
+  282  ./setup-pwa.sh 
+  283  ./setup-pwa.sh 
+  284  ./setup-pwa.sh 
+  285  ls
+  286  ls *censo
+  287  sudo ./setup-pwa.sh 
+  288  ls *.js
+  289  cls
+  290  sudo mkdir censo-animais-pwa
+  291  cd censo-animais-pwa/
+  292  chmod -R 777 /srv/http/salus-pet/censo-animais-pwa/
+  293  sudo chmod -R 777 /srv/http/salus-pet/censo-animais-pwa/
+  294  ls
+  295  ls
+  296  ls
+  297  sudo chmod +x setup-pwa.sh 
+  298  sudo ./setup-pwa.sh 
+  299  ls
+  300  npm start
+  301  ls
+  302  cd public/
+  303  ls
+  304  cd icons
+  305  ls
+  306  cd ..
+  307  ls
+  308  cd ..
+  309  ls
+  310  cd public/
+  311  ls
+  312  cd ..
+  313  ls
+  314  ls $js
+  315  ls
+  316  cat package.json
+  317  npm install
+  318  sudo npm install
+  319  ls
+  320  ls
+  321  ls *.env
+  322  ls
+  323  ls
+  324  code .
+  325  ls -la
+  326  npm install
+  327  sudo npm install
+  328  npm start
+  329  npm start
+  330  sudo chmod -R 777 /srv/http/salus-pet/censo-animais-pwa/
+  331  cd /srv/http/plena_erp/
+  332  code .
+  333  cd ..
+  334  cd salus-pet/
+  335  ls
+  336  cd censo-animais-pwa/
+  337  code .
+  338  npm start
+  339  npm install
+  340  npm start
+  341  npm install
+  342  npm start
+  343  npm install
+  344  npm install
+  345  npm start
+  346  npm start
+  347  npm start
+  348  cd /srv/http/salus-pet/censo-animais-pwa/
+  349  cd ..
+  350  ls
+  351  git status
+  352  code .
+  353  git status
+  354  code .
+  355  code .
+  356  git status
+  357  git add .
+  358  git commit -m "ajustes"
+  359  git commit -m "ajustes"
+  360  git push origin main
+  361  ./remoto.sh 
+  362  code .
+  363  git status
+  364  git add .
+  365  git commit -m "ajustes"
+  366  git push origin main
+  367  ./remoto.sh 
+  368  cd /srv/http/salus_pep_local/
+  369  git status
+  370  git remote -v
+  371  cd /srv/http/salus-pet/
+  372  cd ..
+  373  ./backup_fontes_all.sh 
+  374  ./backup_fontes_all.sh 
+  375  cd salus-pet/
+  376  ls
+  377  cd censo-animais-pwa/
+  378  ls
+  379  npm install jsonwebtoken bcryptjs
+  380  chmod -R 777 /srv/http/salus-pet/censo-animais-pwa-jwt/
+  381  cd ..
+  382  cd censo-animais-pwa-jwt/
+  383  npm install jsonwebtoken bcryptjs axios
+  384  code .
+  385  npm install
+  386  npm start
+  387  npm start
+  388  npm start
+  389  npm start
+  390  npm start
+  391  cd ..
+  392  cd censo-animais-pwa
+  393  ls
+  394  cd ..
+  395  git status
+  396  code .
+  397  git add .
+  398  git commit -m ajustes
+  399  git push origin main
+  400  ./remoto.sh 
+  401  cd ..
+  402  ./backup_fontes_all.sh 
+  403  ls
+  404  cd salus-pet/
+  405  ./remoto.sh 
+  406  python --version
+  407  sudo pacman -S python
+  408  cd ..
+  409  cd plena_erp/
+  410  git status
+  411  git add .
+  412  git commit -m "ajustes"
+  413  git push origin main
+  414  cd ..
+  415  cd pulse/basic/
+  416  code .
+  417  ls -A
+  418  ls -a
+  419  ls -l
+  420  ls -la
+  421  ls -lap
+  422  ls -la -p
+  423  ls -l
+  424  sudo chmod -R 777 modules/api/
+  425  sudo chmod -R 777 /srv/http/pulse/basic/
+  426  cd /srv/http/pulse/basic/
+  427  code .
+  428  code .
+  429  cd ..
+  430  cd ..
+  431  salus-pet
+  432  cd salu-pet
+  433  ls
+  434  exit
+  435  cd /srv/http/pulse/basic/
+  436  code .
+  437  git remote -v
+  438  git add .
+  439  git commit -m "ajuste"
+  440  git push origin main 
+  441  git status
+  442  git add .
+  443  git commit -m "ajustes"
+  444  git push origin main
+  445  ls -a
+  446  ls -la
+  447  clear
+  448  cd /srv/http/salus-pet/
+  449  ./remoto.sh 
+  450  code .
+  451  cd ..
+  452  ls
+  453  ls
+  454  cd salus-pet/
+  455  ./remoto.sh 
+  456  sudo pamac build teamviewer
+  457  sudo teamviewer --daemon enable
+  458  sudo teamviewer --daemon enable
+  459  sudo systemctl enable teamviewerd.service
+  460  sudo systemctl start teamviewerd
+  461  ./remoto.sh 
+  462  cd ..
+  463  ./backup_fontes_all.sh 
+  464  ./backup_fontes_all.sh 
+  465  ./backup_fontes_all.sh 
+  466  ./backup_fontes_all.sh 
+  467  ./backup_fontes_all.sh 
+  468  cd /srv/http/plena_erp/
+  469  git status
+  470  git pull origin bruno/ajustes
+  471  git push origin main
+  472  ./ssh_plena.sh 
+  473  exi
+  474  exit
+  475  cd /srv/http/pulse/basic/
+  476  code .
+  477  sudo systemctl restart httpd
+  478  kate /etc/httpd/conf/httpd.conf
+  479  sudo systemctl restart httpd
+  480  sudo nano /etc/httpd/conf/httpd.conf
+  481  sudo systemctl restart httpd
+  482  sudo nano /etc/httpd/conf/httpd.conf
+  483  sudo nano /etc/httpd/conf/httpd.conf
+  484  sudo systemctl restart httpd
+  485  sudo systemctl restart httpd
+  486  git status
+  487  git add .
+  488  git commit -m "ajustes"
+  489  git push origin main
+  490  cd ..
+  491  cd .
+  492  cd ..
+  493  ./backup_fontes_all.sh 
+  494  ./backup_fontes_all.sh 
+  495  ssh-keygen -t ed25519 -C "jbsalgado2@gmail.com"
+  496  cd ~/.ssh
+  497  ls
+  498  nao id_ed25519.pub 
+  499  nano id_ed25519.pub 
+  500  kate id_ed25519.pub 
+  501  scp
+  502  scp root@31.97.244.169//etc/httpd/conf/httpd.conf ~/Downloads/
+  503  scp root@31.97.244.169/etc/httpd/conf/httpd.conf ~/Downloads/
+  504  scp root@31.97.244.169/etc/httpd/conf/httpd.conf ~/Downloads/
+  505  scp root@31.97.244.169:/etc/httpd/conf/httpd.conf ~/Downloads/
+  506  ls
+  507  cd /srv/http/pulse/
+  508  ls
+  509  celar
+  510  ls
+  511  ls
+  512  *.html
+  513  *html
+  514  ls
+  515  ls
+  516  ls -la
+  517  code .
+  518  git status
+  519  cd basic/
+  520  git status
+  521  git  add .
+  522  git commit -m "ajustes"
+  523  git push origin main
+  524  git status
+  525  git add .
+  526  git commit -m "ajustes"
+  527  git push origin main
+  528  git add .
+  529  git commit -m "ajustes"
+  530  git push origin main
+  531  git add .
+  532  git commit -m "ajustes"
+  533  git push origin main
+  534  git add .
+  535  git commit -m "ajustes"
+  536  git push origin main
+  537  git .
+  538  git add .
+  539  git commit -m "ajustes"
+  540  git push origin main
+  541  grep -r "pulse/basic/web" . --include="*.js" --include="*.php"
+  542  git status
+  543  git add .
+  544  git commit -m "ajustes"
+  545  git push origin main
+  546  sudo nano /etc/httpd/conf/extra/httpd-vhosts.conf 
+  547  sudo kate /etc/httpd/conf/extra/httpd-vhosts.conf 
+  548  kate /etc/httpd/conf/extra/httpd-vhosts.conf 
+  549  sudo apachectl configtest
+  550  sudo apachectl configtest
+  551  systemctl restart httpd
+  552  systemctl status httpd
+  553  curl -I https://localhost/catalogo
+  554  curl -I http://localhost/catalogo
+  555  curl -I http://localhost/alexbird
+  556  kate /etc/httpd/conf/extra/httpd-vhosts.conf 
+  557  sudo apachectl configtest
+  558  sudo systemctl restart httpd
+  559  curl -I http://localhost/pulse/basic/web/catalogo
+  560  curl -I http://localhost/pulse/basic/web/alexbird
+  561  sudo tail -50 /var/log/httpd/localhost-error.log
+  562  sudo tail -50 /var/log/httpd/error_log
+  563  cat > /srv/http/pulse/basic/web/catalogo/.htaccess << 'EOF'
+# Desabilita rewrite do Yii2 dentro da pasta catalogo
+RewriteEngine Off
+
+# Permite acesso direto aos arquivos
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+</IfModule>
+
+# Define index padrão
+DirectoryIndex index.html
+EOF
+
+  564  curl -I http://localhost/pulse/basic/web/catalogo
+  565  curl -I http://localhost/pulse/basic/web/alexbird
+  566  cd /srv/http/pulse/basic/web
+  567  ln -s catalogo alexbird
+  568  ln -s catalogo nike
+  569  ls -la
+  570  sudo nano /etc/httpd/conf/extra/httpd-vhosts.conf
+  571  sudo systemctl restart httpd
+  572  curl -I http://localhost/pulse/basic/web/catalogo
+  573  curl -I http://localhost/pulse/basic/web/alexbird
+  574  curl -I http://localhost/pulse/basic/web/nike
+  575  curl -I http://localhost/pulse/basic/web/catalogo/
+  576  curl -I http://localhost/pulse/basic/web/alexbird/
+  577  curl -I http://localhost/pulse/basic/web/nike/
+  578  udo ln -s catalogo alexbird
+  579  sudo ln -s catalogo alexbird
+  580  git add .
+  581  git commit -m "ajustes"
+  582  git push origin main
+  583  git status
+  584  git add .
+  585  git commit -m "ajustes"
+  586  git commit -m "ajustes"
+  587  git status
+  588  git add .
+  589  git commit -m "ajustes"
+  590  git status
+  591  cd ..
+  592  git status
+  593  git add .
+  594  git status
+  595  git commit -m "ajustes"
+  596  git push origin main
+  597  git status
+  598  git add .
+  599  git commit -m "ajustes"
+  600  git push origin main
+  601  git status
+  602  git add .
+  603  git commit -m "ajustes"
+  604  git push origin main
+  605  cd web/imagens/
+  606  ls
+  607  ls
+  608  cd ..
+  609  history >> txt

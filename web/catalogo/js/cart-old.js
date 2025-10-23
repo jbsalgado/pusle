@@ -62,12 +62,11 @@ export function removerDoCarrinho(index) {
 }
 
 /**
- * Aumenta a quantidade de um item
+ * Aumenta quantidade de um item
  */
-export function aumentarQuantidadeItem(produtoId) {
-    const item = carrinho.find(i => i.produto_id === produtoId);
-    if (item) {
-        item.quantidade += 1;
+export function aumentarQuantidadeItem(index) {
+    if (index >= 0 && index < carrinho.length) {
+        carrinho[index].quantidade++;
         salvarCarrinho(carrinho);
         return true;
     }
@@ -75,14 +74,15 @@ export function aumentarQuantidadeItem(produtoId) {
 }
 
 /**
- * Diminui a quantidade de um item
+ * Diminui quantidade de um item
  */
-export function diminuirQuantidadeItem(produtoId) {
-    const item = carrinho.find(i => i.produto_id === produtoId);
-    if (item && item.quantidade > 1) {
-        item.quantidade -= 1;
-        salvarCarrinho(carrinho);
-        return true;
+export function diminuirQuantidadeItem(index) {
+    if (index >= 0 && index < carrinho.length) {
+        if (carrinho[index].quantidade > 1) {
+            carrinho[index].quantidade--;
+            salvarCarrinho(carrinho);
+            return true;
+        }
     }
     return false;
 }
@@ -110,26 +110,13 @@ export function calcularTotalItens() {
  */
 export function limparCarrinho() {
     carrinho = [];
-    salvarCarrinho(carrinho); // Salva o array vazio no IndexedDB
-    
-    // NOVO: Atualiza visualmente todos os cards para remover o indicador 'no carrinho'
-    const todosCards = document.querySelectorAll(`[data-produto-card]`);
-    todosCards.forEach(card => {
-        const badge = card.querySelector('.badge-no-carrinho');
-        if (badge) {
-            badge.classList.add('hidden');
-        }
-    });
+    salvarCarrinho(carrinho);
 }
 
 /**
  * Atualiza indicadores visuais dos cards de produtos
  */
 export function atualizarIndicadoresCarrinho() {
-    // Esconde todos os badges primeiro
-    document.querySelectorAll('.badge-no-carrinho').forEach(badge => badge.classList.add('hidden'));
-
-    // Mostra apenas para itens que estão no carrinho
     carrinho.forEach(item => {
         const card = document.querySelector(`[data-produto-card="${item.produto_id}"]`);
         if (card) {

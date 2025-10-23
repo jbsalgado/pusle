@@ -1,6 +1,5 @@
 // storage.js - Gerenciamento de IndexedDB e cache
 
-import { idbKeyval } from './utils.js'; // Assumindo que idbKeyval está sendo importado de utils
 import { STORAGE_KEYS, CONFIG } from './config.js';
 
 /**
@@ -23,8 +22,7 @@ export async function salvarCarrinho(carrinho) {
 export async function carregarCarrinho() {
     try {
         const carrinho = await idbKeyval.get(STORAGE_KEYS.CARRINHO);
-        // Garante que retorne um array vazio se a chave não existir
-        return Array.isArray(carrinho) ? carrinho : []; 
+        return Array.isArray(carrinho) ? carrinho : [];
     } catch (err) {
         console.error('[Storage] Erro ao carregar carrinho:', err);
         return [];
@@ -32,7 +30,7 @@ export async function carregarCarrinho() {
 }
 
 /**
- * Remove carrinho do IndexedDB (usando del)
+ * Remove carrinho do IndexedDB
  */
 export async function limparCarrinho() {
     try {
@@ -47,16 +45,9 @@ export async function limparCarrinho() {
 
 /**
  * Salva pedido pendente no IndexedDB
- * Se 'pedido' for null, remove a chave.
  */
 export async function salvarPedidoPendente(pedido) {
     try {
-        if (pedido === null) {
-            // CORREÇÃO: Usar del para remover a chave
-            await idbKeyval.del(STORAGE_KEYS.PEDIDO_PENDENTE); 
-            console.log('[Storage] Pedido pendente removido');
-            return true;
-        }
         await idbKeyval.set(STORAGE_KEYS.PEDIDO_PENDENTE, pedido);
         console.log('[Storage] Pedido pendente salvo');
         return true;
@@ -89,16 +80,10 @@ export async function limparCacheProdutos() {
  * Limpa todos os dados locais após sincronização
  */
 export async function limparDadosLocaisPosSinc() {
-    console.log('[Storage] Limpando dados locais pós-sincronização...');
+    console.log('[Storage] Limpando dados locais após sincronização...');
     
-    // 1. Limpa o pedido pendente
-    await salvarPedidoPendente(null);
-    
-    // 2. Limpa o cache de produtos
+    await limparCarrinho();
     await limparCacheProdutos();
     
-    // 3. Remove o carrinho do IndexedDB
-    await limparCarrinho(); 
-    
-    console.log('[Storage] Limpeza de dados locais concluída.');
+    return true;
 }
