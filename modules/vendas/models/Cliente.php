@@ -78,7 +78,9 @@ class Cliente extends ActiveRecord
             // CPF - ÚNICO e 11 dígitos
             [['cpf'], 'string', 'max' => 11],
             [['cpf'], 'match', 'pattern' => '/^[0-9]{11}$/'],
-            [['cpf'], 'unique'],
+                        [['cpf'], 'unique', 
+                'targetAttribute' => ['cpf', 'usuario_id']  // CPF único POR LOJA
+            ],
             
             // Telefone
             [['telefone'], 'string', 'max' => 20],
