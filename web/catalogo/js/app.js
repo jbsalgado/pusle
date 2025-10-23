@@ -514,7 +514,7 @@ async function confirmarPedido(el) {
     
     const dadosPedido = {
         cliente_id: el.inputClienteId?.value || null,
-        forma_pagamento_id: document.querySelector('input[name="forma_pagamento"]:checked')?.value || null,
+        forma_pagamento_id: document.getElementById('forma_pagamento')?.value || null,
         numero_parcelas: el.inputParcelas?.value || 1,
         observacoes: el.inputObservacoes?.value || null,
         data_primeiro_pagamento: el.inputDataPrimeiroPagamento?.value || null,
@@ -553,7 +553,8 @@ function resetarFormularioPedido(el) {
     atualizarInfoCliente(null);
     if (el.btnConfirmarPedido) el.btnConfirmarPedido.disabled = true;
 
-    document.querySelectorAll('input[name="forma_pagamento"]').forEach(radio => radio.checked = false);
+    const selectFormaPagamento = document.getElementById('forma_pagamento');
+    if (selectFormaPagamento) selectFormaPagamento.value = '';
     el.inputObservacoes.value = '';
     el.inputParcelas.value = '1';
     el.inputDataPrimeiroPagamento.value = '';
