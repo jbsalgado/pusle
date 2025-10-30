@@ -29,6 +29,10 @@ use app\modules\vendas\models\ProdutoFoto;
  * @property boolean $ativo
  * @property string $data_criacao
  * @property string $data_atualizacao
+ * @property boolean $permite_parcelamento
+ * @property float $preco_promocional
+ * @property string $data_inicio_promocao
+ * @property string $data_fim_promocao
  *
  * @property Usuario $usuario
  * @property Categoria $categoria
@@ -69,17 +73,38 @@ class Produto extends ActiveRecord
             [['usuario_id', 'nome', 'preco_venda_sugerido'], 'required'],
             [['usuario_id', 'categoria_id'], 'string'],
             [['descricao'], 'string'],
-            [['preco_custo', 'preco_venda_sugerido'], 'number', 'min' => 0],
+            [['preco_custo', 'preco_venda_sugerido', 'preco_promocional'], 'number', 'min' => 0],
             [['estoque_atual'], 'integer', 'min' => 0],
             [['estoque_atual'], 'default', 'value' => 0],
-            [['ativo'], 'boolean'],
+            [['ativo', 'permite_parcelamento'], 'boolean'],
+            [['ativo'], 'default', 'value' => true],
+            [['permite_parcelamento'], 'default', 'value' => false],
+            [['data_inicio_promocao', 'data_fim_promocao'], 'safe'],
             [['nome'], 'string', 'max' => 150],
             [['codigo_referencia'], 'string', 'max' => 50],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
             [['categoria_id'], 'exist', 'skipOnError' => true, 'targetClass' => Categoria::class, 'targetAttribute' => ['categoria_id' => 'id']],
             // Código de referência único por usuário
             [['codigo_referencia'], 'unique', 'targetAttribute' => ['usuario_id', 'codigo_referencia']],
+            // Validação de promoção: se tem preço promocional, deve ter datas
+            ['preco_promocional', 'validatePromocao'],
         ];
+    }
+
+    /**
+     * Validação customizada para campos de promoção
+     */
+    public function validatePromocao($attribute, $params)
+    {
+        if (!empty($this->preco_promocional)) {
+            if (empty($this->data_inicio_promocao) || empty($this->data_fim_promocao)) {
+                $this->addError($attribute, 'Quando há preço promocional, as datas de início e fim são obrigatórias.');
+            }
+            
+            if ($this->preco_promocional >= $this->preco_venda_sugerido) {
+                $this->addError($attribute, 'O preço promocional deve ser menor que o preço de venda sugerido.');
+            }
+        }
     }
 
     /**
@@ -100,6 +125,10 @@ class Produto extends ActiveRecord
             'ativo' => 'Ativo',
             'data_criacao' => 'Data de Cadastro',
             'data_atualizacao' => 'Última Atualização',
+            'permite_parcelamento' => 'Permite Parcelamento',
+            'preco_promocional' => 'Preço Promocional',
+            'data_inicio_promocao' => 'Início da Promoção',
+            'data_fim_promocao' => 'Fim da Promoção',
         ];
     }
 
@@ -114,6 +143,10 @@ class Produto extends ActiveRecord
         // Adiciona a relação 'fotos' aos campos padrão
         // Isso garante que a relação seja incluída no JSON se carregada com ->with('fotos')
         $fields['fotos'] = 'fotos';
+
+        // Adiciona campos calculados
+        $fields['em_promocao'] = 'emPromocao';
+        $fields['preco_final'] = 'precoFinal';
 
         // Descomente a linha abaixo se quiser incluir a categoria por padrão também
         // $fields['categoria'] = 'categoria';
@@ -144,6 +177,46 @@ class Produto extends ActiveRecord
     {
         if ($this->preco_custo == 0) return 0;
         return (($this->preco_venda_sugerido - $this->preco_custo) / $this->preco_custo) * 100;
+    }
+
+    /**
+     * ✅ NOVO: Verifica se o produto está em promoção ativa
+     */
+    public function getEmPromocao()
+    {
+        if (empty($this->preco_promocional)) {
+            return false;
+        }
+        
+        $agora = new \DateTime();
+        $inicio = $this->data_inicio_promocao ? new \DateTime($this->data_inicio_promocao) : null;
+        $fim = $this->data_fim_promocao ? new \DateTime($this->data_fim_promocao) : null;
+        
+        if ($inicio && $fim) {
+            return $agora >= $inicio && $agora <= $fim;
+        }
+        
+        return false;
+    }
+
+    /**
+     * ✅ NOVO: Retorna o preço final (promocional se estiver em promoção, ou normal)
+     */
+    public function getPrecoFinal()
+    {
+        return $this->emPromocao ? $this->preco_promocional : $this->preco_venda_sugerido;
+    }
+
+    /**
+     * ✅ NOVO: Retorna desconto em porcentagem
+     */
+    public function getDescontoPromocional()
+    {
+        if (!$this->emPromocao || $this->preco_venda_sugerido == 0) {
+            return 0;
+        }
+        
+        return (($this->preco_venda_sugerido - $this->preco_promocional) / $this->preco_venda_sugerido) * 100;
     }
 
     /**

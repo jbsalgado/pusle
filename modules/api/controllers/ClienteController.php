@@ -8,6 +8,7 @@ use app\modules\vendas\models\Cliente;
 use yii\web\BadRequestHttpException;
 use yii\web\UnauthorizedHttpException;
 use yii\web\NotFoundHttpException;
+use yii\web\ServerErrorHttpException;
 
 class ClienteController extends Controller
 {
@@ -18,8 +19,21 @@ class ClienteController extends Controller
         $behaviors['contentNegotiator']['formats']['text/html'] = Response::FORMAT_JSON;
         $behaviors['authenticator'] = [
             'class' => \yii\filters\auth\HttpBearerAuth::class,
-            'optional' => ['index', 'create', 'buscar-cpf', 'login'],
+            'optional' => ['index', 'create', 'buscar-cpf', 'login', 'view'],
         ];
+        
+        // Adicionar CORS para desenvolvimento
+        $behaviors['corsFilter'] = [
+            'class' => \yii\filters\Cors::class,
+            'cors' => [
+                'Origin' => ['http://localhost', 'http://localhost:*'],
+                'Access-Control-Request-Method' => ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+                'Access-Control-Request-Headers' => ['*'],
+                'Access-Control-Allow-Credentials' => true,
+                'Access-Control-Max-Age' => 86400,
+            ],
+        ];
+        
         return $behaviors;
     }
 
@@ -27,6 +41,7 @@ class ClienteController extends Controller
     {
         return [
             'index' => ['GET', 'HEAD'],
+            'view' => ['GET', 'HEAD'],
             'create' => ['POST'],
             'buscar-cpf' => ['GET'],
             'login' => ['POST'],
@@ -39,29 +54,119 @@ class ClienteController extends Controller
      */
     public function actionIndex()
     {
-        $termo = Yii::$app->request->get('termo');
-        $usuarioId = Yii::$app->request->get('usuario_id');
-        
-        if (empty($usuarioId)) {
-            throw new BadRequestHttpException('Parâmetro usuario_id é obrigatório.');
+        try {
+            $termo = Yii::$app->request->get('termo');
+            $usuarioId = Yii::$app->request->get('usuario_id');
+            
+            if (empty($usuarioId)) {
+                throw new BadRequestHttpException('Parâmetro usuario_id é obrigatório.');
+            }
+            
+            if (empty($termo)) {
+                return [];
+            }
+            
+            $cpfLimpo = preg_replace('/[^0-9]/', '', $termo);
+            
+            $query = Cliente::find()
+                ->where(['usuario_id' => $usuarioId, 'ativo' => true])
+                ->andWhere(['or', 
+                    ['ilike', 'nome_completo', $termo], 
+                    ['=', 'cpf', $cpfLimpo]
+                ])
+                ->select(['id', 'nome_completo', 'cpf'])
+                ->limit(10);
+            
+            return $query->asArray()->all();
+            
+        } catch (\Exception $e) {
+            Yii::error('Erro em actionIndex: ' . $e->getMessage(), 'api');
+            throw new ServerErrorHttpException('Erro ao buscar clientes: ' . $e->getMessage());
         }
-        
-        if (empty($termo)) {
-            return [];
+    }
+
+    /**
+     * Retorna dados de um cliente específico por ID
+     * GET /api/cliente/<id>
+     * 
+     * CORREÇÃO APLICADA: Melhor tratamento de erros e validação
+     */
+    public function actionView($id)
+    {
+        try {
+            // Validar UUID
+            if (!$this->isValidUuid($id)) {
+                Yii::error("ID inválido recebido: $id", 'api');
+                throw new BadRequestHttpException('ID do cliente inválido.');
+            }
+            
+            // Log para debug
+            Yii::info("Buscando cliente com ID: $id", 'api');
+            
+            // Verificar conexão com banco
+            try {
+                $connection = Yii::$app->db;
+                $connection->open();
+                Yii::info("Conexão com banco OK", 'api');
+            } catch (\Exception $dbError) {
+                Yii::error("Erro de conexão com banco: " . $dbError->getMessage(), 'api');
+                throw new ServerErrorHttpException('Erro de conexão com o banco de dados.');
+            }
+            
+            // Buscar cliente
+            $cliente = Cliente::find()
+                ->where(['id' => $id, 'ativo' => true])
+                ->one();
+            
+            if (!$cliente) {
+                Yii::warning("Cliente não encontrado: $id", 'api');
+                throw new NotFoundHttpException('Cliente não encontrado.');
+            }
+            
+            // Log dos dados do cliente para debug
+            Yii::info("Cliente encontrado: " . $cliente->nome_completo, 'api');
+            
+            // Retornar dados com todos os campos necessários
+            $dadosCliente = [
+                'id' => $cliente->id,
+                'usuario_id' => $cliente->usuario_id,
+                'nome' => $cliente->nome_completo,
+                'nome_completo' => $cliente->nome_completo,
+                'cpf' => $cliente->cpf,
+                'cpf_cnpj' => $cliente->cpf,
+                'telefone' => $cliente->telefone ?? '',
+                'email' => $cliente->email ?? '',
+                
+                // Campos de endereço com aliases
+                'logradouro' => $cliente->endereco_logradouro ?? '',
+                'endereco_logradouro' => $cliente->endereco_logradouro ?? '',
+                'numero' => $cliente->endereco_numero ?? '',
+                'endereco_numero' => $cliente->endereco_numero ?? '',
+                'complemento' => $cliente->endereco_complemento ?? '',
+                'endereco_complemento' => $cliente->endereco_complemento ?? '',
+                'bairro' => $cliente->endereco_bairro ?? '',
+                'endereco_bairro' => $cliente->endereco_bairro ?? '',
+                'cidade' => $cliente->endereco_cidade ?? '',
+                'endereco_cidade' => $cliente->endereco_cidade ?? '',
+                'estado' => $cliente->endereco_estado ?? '',
+                'endereco_estado' => $cliente->endereco_estado ?? '',
+                'cep' => $cliente->endereco_cep ?? '',
+                'endereco_cep' => $cliente->endereco_cep ?? '',
+            ];
+            
+            Yii::info("Retornando dados do cliente", 'api');
+            return $dadosCliente;
+            
+        } catch (BadRequestHttpException $e) {
+            throw $e;
+        } catch (NotFoundHttpException $e) {
+            throw $e;
+        } catch (ServerErrorHttpException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Yii::error('Erro não tratado em actionView: ' . $e->getMessage() . "\nStack: " . $e->getTraceAsString(), 'api');
+            throw new ServerErrorHttpException('Erro interno ao buscar dados do cliente: ' . $e->getMessage());
         }
-        
-        $cpfLimpo = preg_replace('/[^0-9]/', '', $termo);
-        
-        $query = Cliente::find()
-            ->where(['usuario_id' => $usuarioId, 'ativo' => true])
-            ->andWhere(['or', 
-                ['ilike', 'nome_completo', $termo], 
-                ['=', 'cpf', $cpfLimpo]
-            ])
-            ->select(['id', 'nome_completo', 'cpf'])
-            ->limit(10);
-        
-        return $query->asArray()->all();
     }
 
     /**
@@ -70,117 +175,127 @@ class ClienteController extends Controller
      */
     public function actionBuscarCpf()
     {
-        $cpf = Yii::$app->request->get('cpf');
-        $usuarioId = Yii::$app->request->get('usuario_id');
-        
-        if (empty($cpf)) {
-            throw new BadRequestHttpException('CPF é obrigatório.');
-        }
-        
-        if (empty($usuarioId)) {
-            throw new BadRequestHttpException('Parâmetro usuario_id é obrigatório.');
-        }
-        
-        // Remove formatação do CPF
-        $cpfLimpo = preg_replace('/[^0-9]/', '', $cpf);
-        
-        if (strlen($cpfLimpo) !== 11) {
-            throw new BadRequestHttpException('CPF inválido. Deve conter 11 dígitos.');
-        }
-        
-        // Busca cliente
-        $cliente = Cliente::find()
-            ->where([
-                'cpf' => $cpfLimpo,
-                'usuario_id' => $usuarioId,
-                'ativo' => true
-            ])
-            ->one();
-        
-        if ($cliente) {
-            // Cliente existe - retorna dados básicos
-            return [
-                'existe' => true,
-                'cliente' => [
-                    'id' => $cliente->id,
-                    'nome_completo' => $cliente->nome_completo,
-                    'cpf' => $cliente->cpf,
-                    'telefone' => $cliente->telefone,
-                    'email' => $cliente->email,
-                ]
-            ];
-        } else {
-            // Cliente não existe
-            return [
-                'existe' => false,
-                'cpf' => $cpfLimpo
-            ];
+        try {
+            $cpf = Yii::$app->request->get('cpf');
+            $usuarioId = Yii::$app->request->get('usuario_id');
+            
+            if (empty($cpf)) {
+                throw new BadRequestHttpException('CPF é obrigatório.');
+            }
+            
+            if (empty($usuarioId)) {
+                throw new BadRequestHttpException('Parâmetro usuario_id é obrigatório.');
+            }
+            
+            // Remove formatação do CPF
+            $cpfLimpo = preg_replace('/[^0-9]/', '', $cpf);
+            
+            if (strlen($cpfLimpo) !== 11) {
+                throw new BadRequestHttpException('CPF inválido. Deve conter 11 dígitos.');
+            }
+            
+            // Busca cliente
+            $cliente = Cliente::find()
+                ->where([
+                    'cpf' => $cpfLimpo,
+                    'usuario_id' => $usuarioId,
+                    'ativo' => true
+                ])
+                ->one();
+            
+            if ($cliente) {
+                // Cliente existe - retorna dados básicos
+                return [
+                    'existe' => true,
+                    'cliente' => [
+                        'id' => $cliente->id,
+                        'nome_completo' => $cliente->nome_completo,
+                        'cpf' => $cliente->cpf,
+                        'telefone' => $cliente->telefone ?? '',
+                        'email' => $cliente->email ?? '',
+                    ]
+                ];
+            } else {
+                // Cliente não existe
+                return [
+                    'existe' => false,
+                    'cpf' => $cpfLimpo
+                ];
+            }
+            
+        } catch (\Exception $e) {
+            Yii::error('Erro em actionBuscarCpf: ' . $e->getMessage(), 'api');
+            throw new ServerErrorHttpException('Erro ao buscar cliente por CPF.');
         }
     }
 
     /**
      * Login do cliente (autenticação para buscar dados completos)
      * POST /api/cliente/login
-     * Body: {"cpf": "12345678900", "senha": "1234", "usuario_id": "xxx"}
      */
     public function actionLogin()
     {
-        Yii::$app->request->enableCsrfValidation = false;
-        
-        $rawBody = Yii::$app->request->getRawBody();
-        $data = json_decode($rawBody, true);
-        
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new BadRequestHttpException('JSON inválido: ' . json_last_error_msg());
+        try {
+            Yii::$app->request->enableCsrfValidation = false;
+            
+            $rawBody = Yii::$app->request->getRawBody();
+            $data = json_decode($rawBody, true);
+            
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new BadRequestHttpException('JSON inválido: ' . json_last_error_msg());
+            }
+            
+            if (!isset($data['cpf']) || !isset($data['senha']) || !isset($data['usuario_id'])) {
+                throw new BadRequestHttpException('CPF, senha e usuario_id são obrigatórios.');
+            }
+            
+            $cpfLimpo = preg_replace('/[^0-9]/', '', $data['cpf']);
+            
+            // Busca cliente
+            $cliente = Cliente::find()
+                ->where([
+                    'cpf' => $cpfLimpo,
+                    'usuario_id' => $data['usuario_id'],
+                    'ativo' => true
+                ])
+                ->one();
+            
+            if (!$cliente) {
+                throw new NotFoundHttpException('Cliente não encontrado.');
+            }
+            
+            // Valida senha
+            if (!$cliente->validarSenha($data['senha'])) {
+                throw new UnauthorizedHttpException('Senha incorreta.');
+            }
+            
+            // Gera token JWT simples
+            $token = $this->gerarTokenJWT($cliente);
+            
+            // Retorna dados completos do cliente
+            return [
+                'token' => $token,
+                'cliente' => [
+                    'id' => $cliente->id,
+                    'usuario_id' => $cliente->usuario_id, 
+                    'nome_completo' => $cliente->nome_completo,
+                    'cpf' => $cliente->cpf,
+                    'telefone' => $cliente->telefone ?? '',
+                    'email' => $cliente->email ?? '',
+                    'endereco_logradouro' => $cliente->endereco_logradouro ?? '',
+                    'endereco_numero' => $cliente->endereco_numero ?? '',
+                    'endereco_complemento' => $cliente->endereco_complemento ?? '',
+                    'endereco_bairro' => $cliente->endereco_bairro ?? '',
+                    'endereco_cidade' => $cliente->endereco_cidade ?? '',
+                    'endereco_estado' => $cliente->endereco_estado ?? '',
+                    'endereco_cep' => $cliente->endereco_cep ?? '',
+                ]
+            ];
+            
+        } catch (\Exception $e) {
+            Yii::error('Erro em actionLogin: ' . $e->getMessage(), 'api');
+            throw new ServerErrorHttpException('Erro ao fazer login.');
         }
-        
-        if (!isset($data['cpf']) || !isset($data['senha']) || !isset($data['usuario_id'])) {
-            throw new BadRequestHttpException('CPF, senha e usuario_id são obrigatórios.');
-        }
-        
-        $cpfLimpo = preg_replace('/[^0-9]/', '', $data['cpf']);
-        
-        // Busca cliente
-        $cliente = Cliente::find()
-            ->where([
-                'cpf' => $cpfLimpo,
-                'usuario_id' => $data['usuario_id'],
-                'ativo' => true
-            ])
-            ->one();
-        
-        if (!$cliente) {
-            throw new NotFoundHttpException('Cliente não encontrado.');
-        }
-        
-        // Valida senha
-        if (!$cliente->validarSenha($data['senha'])) {
-            throw new UnauthorizedHttpException('Senha incorreta.');
-        }
-        
-        // Gera token JWT simples (você pode melhorar isso)
-        $token = $this->gerarTokenJWT($cliente);
-        
-       // Retorna dados completos do cliente, INCLUINDO usuario_id
-        return [
-            'token' => $token,
-            'cliente' => [
-                'id' => $cliente->id,
-                'usuario_id' => $cliente->usuario_id, 
-                'nome_completo' => $cliente->nome_completo,
-                'cpf' => $cliente->cpf,
-                'telefone' => $cliente->telefone,
-                'email' => $cliente->email,
-                'endereco_logradouro' => $cliente->endereco_logradouro,
-                'endereco_numero' => $cliente->endereco_numero,
-                'endereco_complemento' => $cliente->endereco_complemento,
-                'endereco_bairro' => $cliente->endereco_bairro,
-                'endereco_cidade' => $cliente->endereco_cidade,
-                'endereco_estado' => $cliente->endereco_estado,
-                'endereco_cep' => $cliente->endereco_cep,
-                // Adicione outros campos se necessário
-            ]
-        ];
     }
 
     /**
@@ -189,65 +304,79 @@ class ClienteController extends Controller
      */
     public function actionCreate()
     {
-        Yii::$app->request->enableCsrfValidation = false;
+        try {
+            Yii::$app->request->enableCsrfValidation = false;
 
-        $rawBody = Yii::$app->request->getRawBody();
-        Yii::error('Corpo Cru Recebido (Cliente): ' . $rawBody, 'api');
-        $data = json_decode($rawBody, true);
+            $rawBody = Yii::$app->request->getRawBody();
+            Yii::info('Corpo Cru Recebido (Cliente): ' . $rawBody, 'api');
+            $data = json_decode($rawBody, true);
 
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            Yii::error('Falha ao decodificar JSON (Cliente): ' . json_last_error_msg(), 'api');
-            throw new BadRequestHttpException('JSON inválido recebido: ' . json_last_error_msg());
-        }
-        
-        if (!is_array($data)) {
-            Yii::error('json_decode não retornou array. RawBody: '. $rawBody, 'api');
-            throw new BadRequestHttpException('Dados recebidos em formato inesperado.');
-        }
-        
-        Yii::error('Dados Decodificados ($data Cliente): ' . print_r($data, true), 'api');
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                Yii::error('Falha ao decodificar JSON (Cliente): ' . json_last_error_msg(), 'api');
+                throw new BadRequestHttpException('JSON inválido recebido: ' . json_last_error_msg());
+            }
+            
+            if (!is_array($data)) {
+                Yii::error('json_decode não retornou array. RawBody: '. $rawBody, 'api');
+                throw new BadRequestHttpException('Dados recebidos em formato inesperado.');
+            }
+            
+            Yii::info('Dados Decodificados ($data Cliente): ' . print_r($data, true), 'api');
 
-        $cliente = new Cliente();
+            $cliente = new Cliente();
 
-        if ($cliente->load($data, '')) {
-            Yii::error('Dados carregados via load() (Cliente): ' . print_r($cliente->attributes, true), 'api');
+            if ($cliente->load($data, '')) {
+                Yii::info('Dados carregados via load() (Cliente): ' . print_r($cliente->attributes, true), 'api');
 
-            // Limpa CPF
-            $cliente->cpf = isset($cliente->cpf) ? preg_replace('/[^0-9]/', '', $cliente->cpf) : null;
-            $cliente->ativo = true;
+                // Limpa CPF
+                $cliente->cpf = isset($cliente->cpf) ? preg_replace('/[^0-9]/', '', $cliente->cpf) : null;
+                $cliente->ativo = true;
 
-            // Validação de usuario_id
-            if (empty($cliente->usuario_id) || $cliente->usuario_id !== ($data['usuario_id'] ?? null)) {
-                Yii::error('Discrepância/falta de usuario_id. Forçando. Recebido: ' . ($data['usuario_id'] ?? 'N/A'), 'api');
-                $cliente->usuario_id = $data['usuario_id'] ?? null;
+                // Validação de usuario_id
+                if (empty($cliente->usuario_id)) {
+                    $cliente->usuario_id = $data['usuario_id'] ?? null;
+                }
                 
                 if (empty($cliente->usuario_id)) {
-                    $cliente->addError('usuario_id', '"Usuário" não pode ficar em branco.');
+                    $cliente->addError('usuario_id', 'Usuário não pode ficar em branco.');
                     Yii::$app->response->statusCode = 422;
                     Yii::error("Erro: usuario_id vazio: " . print_r($cliente->errors, true), 'api');
                     return ['errors' => $cliente->errors];
                 }
+                
+                Yii::info('Atributos ANTES de save() (Cliente): ' . print_r($cliente->attributes, true), 'api');
+
+                if ($cliente->save()) {
+                    Yii::$app->response->statusCode = 201;
+                    Yii::info("Cliente ID {$cliente->id} criado com sucesso.", 'api');
+                    return $cliente->toArray([
+                        'id', 'nome_completo', 'cpf', 'telefone', 'email',
+                        'endereco_logradouro', 'endereco_numero', 'endereco_complemento',
+                        'endereco_bairro', 'endereco_cidade', 'endereco_estado', 'endereco_cep'
+                    ]);
+                } else {
+                    Yii::$app->response->statusCode = 422;
+                    Yii::error("Erro de validação ao criar cliente: " . print_r($cliente->errors, true), 'api');
+                    return ['errors' => $cliente->errors];
+                }
+            } else {
+                Yii::error('Falha em $cliente->load(). Dados: ' . print_r($data, true), 'api');
+                throw new BadRequestHttpException('Não foi possível carregar os dados do cliente.');
             }
             
-            Yii::error('Atributos ANTES de save() (Cliente): ' . print_r($cliente->attributes, true), 'api');
-
-            if ($cliente->save()) {
-                Yii::$app->response->statusCode = 201;
-                Yii::error("Cliente ID {$cliente->id} criado com sucesso.", 'api');
-                return $cliente->toArray([
-                    'id', 'nome_completo', 'cpf', 'telefone', 'email',
-                    'endereco_logradouro', 'endereco_numero', 'endereco_complemento',
-                    'endereco_bairro', 'endereco_cidade', 'endereco_estado', 'endereco_cep'
-                ]);
-            } else {
-                Yii::$app->response->statusCode = 422;
-                Yii::error("Erro de validação ao criar cliente: " . print_r($cliente->errors, true), 'api');
-                return ['errors' => $cliente->errors];
-            }
-        } else {
-            Yii::error('Falha em $cliente->load(). Dados: ' . print_r($data, true), 'api');
-            throw new BadRequestHttpException('Não foi possível carregar os dados do cliente.');
+        } catch (\Exception $e) {
+            Yii::error('Erro em actionCreate: ' . $e->getMessage(), 'api');
+            throw new ServerErrorHttpException('Erro ao criar cliente.');
         }
+    }
+
+    /**
+     * Valida se uma string é um UUID válido
+     */
+    private function isValidUuid($uuid)
+    {
+        $pattern = '/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i';
+        return preg_match($pattern, $uuid) === 1;
     }
 
     /**

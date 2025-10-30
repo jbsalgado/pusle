@@ -19,6 +19,22 @@
         #modal-carrinho .bg-white.rounded-t-3xl { display: flex; flex-direction: column; }
         @media (min-height: 600px) { #itens-carrinho { max-height: calc(90vh - 320px); } }
         @media (max-height: 599px) { #itens-carrinho { max-height: 400px; } }
+        
+        /* ✨ CSS para imagens com placeholder */
+        img.img-placeholder {
+            background: #f5f5f5;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        
+        /* Suavizar transição quando imagem carrega */
+        img {
+            transition: opacity 0.3s ease-in-out;
+        }
+        
+        img[src*="data:image/svg"] {
+            object-fit: contain;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -47,14 +63,16 @@
     </header>
 
     <main id="catalogo-produtos" class="container mx-auto p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <!-- Products will be loaded here by app.js -->
     </main>
 
+    <!-- Modal Carrinho -->
     <div id="modal-carrinho" class="fixed inset-0 bg-black bg-opacity-50 z-20 hidden">
         <div class="h-full flex flex-col justify-end sm:justify-center sm:items-center sm:p-4">
             <div class="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[90vh] sm:max-h-[85vh] flex flex-col">
                 <div class="flex justify-between items-center border-b p-4 sm:p-5 flex-shrink-0">
                     <div><h2 class="text-xl sm:text-2xl font-bold text-gray-800">Meu Carrinho</h2><p class="text-xs sm:text-sm text-gray-500 mt-1">Revise seus itens</p></div>
-                    <button id="btn-fechar-carrinho" class="text-gray-400 hover:text-gray-600 transition-colors p-2 -mr-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                    <button onclick="fecharModal('modal-carrinho')" class="text-gray-400 hover:text-gray-600 transition-colors p-2 -mr-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
                 </div>
                 <div id="itens-carrinho" class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
                     <p id="carrinho-vazio-msg" class="text-center text-gray-500 py-8"><svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>Seu carrinho esta vazio</p>
@@ -70,217 +88,146 @@
         </div>
     </div>
 
+    <!-- Modal Finalizar Pedido (Cliente) -->
     <div id="modal-cliente-pedido" class="fixed inset-0 bg-black bg-opacity-50 z-30 flex justify-center items-center p-4 hidden">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b p-4 sticky top-0 bg-white z-10">
                 <h2 class="text-xl font-bold text-gray-800">Finalizar Pedido</h2>
-                <button id="btn-fechar-modal-cliente" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+                <button onclick="fecharModal('modal-cliente-pedido')" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
             </div>
             
-            <div class="p-4 space-y-4">
-                <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                    <p class="text-sm text-gray-700"><strong>Atenção:</strong> Preencha os dados do cliente para finalizar o pedido.</p>
-                </div>
-
-                <div>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-3">Tipo de Venda</h3>
-                    <div class="flex gap-4">
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="tipo_venda" id="tipo_venda_cliente" value="cliente" checked class="w-4 h-4 text-blue-600">
-                            <span class="text-sm font-medium text-gray-700">Venda Direta (Cliente)</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="tipo_venda" id="tipo_venda_vendedor" value="vendedor" class="w-4 h-4 text-blue-600">
-                            <span class="text-sm font-medium text-gray-700">Via Vendedor</span>
-                        </label>
+            <form id="form-cliente-pedido"> <!-- Adicionado form para agrupar -->
+                <div class="p-4 space-y-4">
+                    <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                        <p class="text-sm text-gray-700"><strong>Atenção:</strong> Preencha os dados do cliente para finalizar o pedido.</p>
                     </div>
-                </div>
 
-                <div>
-                    <label for="cliente-cpf-busca" class="block text-sm font-medium text-gray-700 mb-1">CPF do Cliente *</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="cliente-cpf-busca" placeholder="000.000.000-00" maxlength="14" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
-                        <button id="btn-buscar-cliente" class="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700">Buscar</button>
-                    </div>
-                    <input type="hidden" id="cliente_id" name="cliente_id">
-                    <div id="cliente-info-resultado" class="mt-2 text-sm hidden"></div>
-                </div>
-
-                <div id="campo-vendedor-cpf" class="hidden">
-                    <label for="vendedor_cpf_busca" class="block text-sm font-medium text-gray-700 mb-1">CPF do Vendedor *</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="vendedor_cpf_busca" placeholder="000.000.000-00" maxlength="14" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
-                        <button id="btn-buscar-vendedor" class="px-4 py-2 bg-green-600 text-white rounded-md font-semibold hover:bg-green-700">Buscar</button>
-                    </div>
-                    <input type="hidden" id="colaborador_vendedor_id" name="colaborador_vendedor_id">
-                    <div id="vendedor-info-resultado" class="mt-2 text-sm"></div>
-                </div>
-
-                <div>
-                    <label for="observacoes" class="block text-sm font-medium text-gray-700 mb-1">Observações</label>
-                    <textarea id="observacoes" name="observacoes" rows="3" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="Observações adicionais (opcional)"></textarea>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label for="numero_parcelas" class="block text-sm font-medium text-gray-700 mb-1">Parcelas *</label>
-                        <select id="numero_parcelas" name="numero_parcelas" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
-                            <option value="1">À vista</option>
-                            <option value="2">2x</option> <option value="3">3x</option> <option value="4">4x</option> <option value="5">5x</option> <option value="6">6x</option>
-                            <option value="7">7x</option> <option value="8">8x</option> <option value="9">9x</option> <option value="10">10x</option> <option value="11">11x</option> <option value="12">12x</option>
-                            <option value="13">13x</option> <option value="14">14x</option> <option value="15">15x</option> <option value="16">16x</option>
-                            <option value="17">17x</option> <option value="18">18x</option> <option value="19">19x</option> <option value="20">20x</option> <option value="21">21x</option>
-                            <option value="22">22x</option> <option value="23">23x</option> <option value="24">24x</option>
-                        </select>
-                        <div id="info-parcelas" class="mt-2 text-sm"></div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3">Tipo de Venda</h3>
+                        <div class="flex gap-4">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="tipo_venda" id="tipo_venda_cliente" value="cliente" checked class="w-4 h-4 text-blue-600">
+                                <span class="text-sm font-medium text-gray-700">Venda Direta (Cliente)</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="tipo_venda" id="tipo_venda_vendedor" value="vendedor" class="w-4 h-4 text-blue-600">
+                                <span class="text-sm font-medium text-gray-700">Via Vendedor</span>
+                            </label>
+                        </div>
                     </div>
+
                     <div>
-                        <label for="forma_pagamento" class="block text-sm font-medium text-gray-700 mb-1">Pagamento *</label>
-                        <select id="forma_pagamento" name="forma_pagamento" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
-                            <option value="">Carregando...</option>
-                        </select>
+                        <label for="cliente-cpf-busca" class="block text-sm font-medium text-gray-700 mb-1">CPF do Cliente *</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="cliente-cpf-busca" placeholder="000.000.000-00" maxlength="14" data-mask="cpf" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                            <button type="button" onclick="window.buscarCliente()" class="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700">Buscar</button>
+                        </div>
+                        <input type="hidden" id="cliente_id" name="cliente_id">
+                        <div id="info-cliente" class="mt-2 text-sm text-green-700 bg-green-50 p-2 rounded border border-green-200 hidden">
+                           Cliente: <strong id="nome-cliente-info"></strong>
+                        </div>
+                    </div>
+
+                    <div id="campo-vendedor-cpf" class="hidden">
+                        <label for="vendedor_cpf_busca" class="block text-sm font-medium text-gray-700 mb-1">CPF do Vendedor *</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="vendedor_cpf_busca" placeholder="000.000.000-00" maxlength="14" data-mask="cpf" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                            <button type="button" onclick="window.buscarVendedor()" class="px-4 py-2 bg-green-600 text-white rounded-md font-semibold hover:bg-green-700">Buscar</button>
+                        </div>
+                        <input type="hidden" id="colaborador_vendedor_id" name="colaborador_vendedor_id">
+                        <div id="info-vendedor" class="mt-2 text-sm text-green-700 bg-green-50 p-2 rounded border border-green-200 hidden">
+                           Vendedor: <strong id="nome-vendedor-info"></strong>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="observacoes-pedido" class="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                        <textarea id="observacoes-pedido" name="observacoes" rows="3" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="Observações adicionais (opcional)"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="numero-parcelas" class="block text-sm font-medium text-gray-700 mb-1">Parcelas *</label>
+                            <select id="numero-parcelas" name="numero_parcelas" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
+                                <option value="1">À vista</option>
+                                <!-- Outras opções de parcelas -->
+                                <script> for(let i=2; i<=24; i++) document.write(`<option value="${i}">${i}x</option>`); </script>
+                            </select>
+                            <div id="info-parcelas" class="mt-2 text-sm"></div>
+                        </div>
+                        <div>
+                            <label for="forma-pagamento" class="block text-sm font-medium text-gray-700 mb-1">Pagamento *</label>
+                            <select id="forma-pagamento" name="forma_pagamento" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
+                                <option value="">Carregando...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="campo-data-primeiro-pagamento" class="hidden">
+                        <label for="data-primeiro-pagamento" class="block text-sm font-medium text-gray-700 mb-1">
+                            📅 Data do Primeiro Pagamento *
+                        </label>
+                        <input type="date" id="data-primeiro-pagamento" name="data_primeiro_pagamento" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-base">
+                        <p class="mt-1 text-xs text-gray-500">ℹ️ Informe a data do vencimento da primeira parcela</p>
+                    </div>
+
+                    <div id="campo-intervalo-parcelas" class="hidden">
+                        <label for="intervalo-dias" class="block text-sm font-medium text-gray-700 mb-1">
+                            📊 Intervalo entre Parcelas (dias) *
+                        </label>
+                        <input type="number" id="intervalo-dias" name="intervalo_dias_parcelas" min="1" max="365" value="30" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-base" placeholder="Ex: 30 dias">
+                        <p class="mt-1 text-xs text-gray-500">⏱️ Informe quantos dias entre cada parcela (padrão: 30 dias)</p>
                     </div>
                 </div>
 
-                <div id="campo-data-primeiro-pagamento" class="hidden">
-                    <label for="data_primeiro_pagamento" class="block text-sm font-medium text-gray-700 mb-1">
-                        📅 Data do Primeiro Pagamento *
-                    </label>
-                    <input 
-                        type="date" 
-                        id="data_primeiro_pagamento" 
-                        name="data_primeiro_pagamento"
-                        class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-base"
-                    >
-                    <p class="mt-1 text-xs text-gray-500">
-                        ℹ️ Informe a data do vencimento da primeira parcela
-                    </p>
+                <div class="border-t p-4 bg-gray-50 rounded-b-lg">
+                    <button type="button" id="btn-confirmar-pedido" onclick="window.confirmarPedido()" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity" disabled>✅ Confirmar Pedido</button>
+                    <p id="msg-habilitar-botao" class="mt-2 text-xs text-center text-gray-500">Busque o cliente para habilitar</p>
                 </div>
+            </form>
+        </div>
+    </div>
 
-                <div id="campo-intervalo-parcelas" class="hidden">
-                    <label for="intervalo_dias_parcelas" class="block text-sm font-medium text-gray-700 mb-1">
-                        📊 Intervalo entre Parcelas (dias) *
-                    </label>
-                    <input 
-                        type="number" 
-                        id="intervalo_dias_parcelas" 
-                        name="intervalo_dias_parcelas"
-                        min="1"
-                        max="365"
-                        value="30"
-                        class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-base"
-                        placeholder="Ex: 30 dias"
-                    >
-                    <p class="mt-1 text-xs text-gray-500">
-                        ⏱️ Informe quantos dias entre cada parcela (padrão: 30 dias)
-                    </p>
-                </div>
-                
-                <div id="parcela-info-resultado" class="text-sm text-center text-gray-700 mt-2 p-3 bg-gray-50 rounded-md border border-gray-200" style="display: none;"></div>
+    <!-- ✅ MODAL QUANTIDADE (ADICIONADO) -->
+    <div id="modal-quantidade" class="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-xs">
+            <div class="flex justify-between items-center border-b p-4">
+                <h2 class="text-lg font-semibold">Adicionar ao Carrinho</h2>
+                <button onclick="fecharModal('modal-quantidade')" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
             </div>
-
+            <div class="p-4 space-y-3">
+                <p class="text-center font-medium" id="nome-produto-modal">[Nome do Produto]</p> <!-- ID CORRETO -->
+                <p class="text-center text-xl font-bold text-blue-600" id="preco-produto-modal">[Preço]</p> <!-- ID CORRETO -->
+                <div>
+                    <label for="input-quantidade" class="block text-sm font-medium text-gray-700 mb-1">Quantidade</label>
+                    <input type="number" id="input-quantidade" value="1" min="1" class="w-full p-2 border border-gray-300 rounded-md text-center">
+                </div>
+            </div>
             <div class="border-t p-4 bg-gray-50 rounded-b-lg">
-                <button id="btn-confirmar-pedido" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity" disabled>Confirmar e Salvar Pedido</button>
-                <p class="mt-2 text-xs text-center text-gray-500">Busque o cliente (e vendedor, se aplicável) para habilitar</p>
+                <button id="btn-confirmar-adicionar" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700">Confirmar</button>
             </div>
         </div>
     </div>
 
-    <div id="modal-login-cliente" class="fixed inset-0 bg-black bg-opacity-70 z-40 flex justify-center items-center p-4 hidden"> <div class="bg-white rounded-lg shadow-xl w-full max-w-sm"> <div class="flex justify-between items-center border-b p-4"> <h2 class="text-lg font-semibold">Login do Cliente</h2> <button id="btn-fechar-modal-login" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button> </div> <div class="p-4 space-y-3"> <div id="login-cliente-erros" class="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded relative hidden" role="alert"> <strong class="font-bold">Erro!</strong> <span class="block sm:inline" id="login-cliente-erro-msg"></span> </div> <p class="text-sm text-gray-600">Cliente encontrado: <strong id="login-cliente-nome"></strong></p> <div> <label for="login-senha" class="block text-sm font-medium text-gray-700">Senha *</label> <input type="password" id="login-senha" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required> </div> </div> <div class="border-t p-4 bg-gray-50 rounded-b-lg flex justify-end gap-3"> <button type="button" id="btn-cancelar-login" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">Cancelar</button> <button type="button" id="btn-fazer-login" class="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700">Entrar</button> </div> </div> </div>
-    <div id="modal-cadastro-cliente" class="fixed inset-0 bg-black bg-opacity-70 z-40 flex justify-center items-center p-4 hidden"> <div class="bg-white rounded-lg shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto"> <div class="flex justify-between items-center border-b p-4 sticky top-0 bg-white z-10"> <h2 class="text-lg font-semibold">Cadastrar Novo Cliente</h2> <button id="btn-fechar-modal-cadastro" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button> </div> <div class="p-4 space-y-3"> <div id="cadastro-cliente-erros" class="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded relative hidden" role="alert"> <strong class="font-bold">Erro!</strong> <span class="block sm:inline" id="cadastro-cliente-erro-msg"></span> </div> <p class="text-xs text-gray-600 bg-blue-50 p-2 rounded border border-blue-200"> <strong>Atencao:</strong> Campos com * sao obrigatorios. </p> <div> <label for="cadastro-nome" class="block text-sm font-medium text-gray-700">Nome Completo *</label> <input type="text" id="cadastro-nome" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"> </div> <div> <label for="cadastro-cpf" class="block text-sm font-medium text-gray-700">CPF</label> <input type="text" id="cadastro-cpf" maxlength="14" placeholder="Somente numeros" readonly class="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-100"> </div> <div> <label for="cadastro-telefone" class="block text-sm font-medium text-gray-700">Telefone *</label> <input type="tel" id="cadastro-telefone" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="(81) 99999-9999" maxlength="15"> </div> <div> <label for="cadastro-email" class="block text-sm font-medium text-gray-700">E-mail</label> <input type="email" id="cadastro-email" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"> </div> <div> <label for="cadastro-senha" class="block text-sm font-medium text-gray-700">Senha *</label> <input type="password" id="cadastro-senha" required minlength="4" placeholder="Minimo 4 caracteres" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"> <p class="text-xs text-gray-500 mt-1">Para acessar pedidos futuros</p> </div> <div class="border-t pt-3 mt-3"> <h3 class="text-sm font-semibold text-gray-700 mb-2">Endereco de Entrega</h3> <div class="space-y-2"> <div> <label for="cadastro-logradouro" class="block text-xs font-medium text-gray-700">Logradouro *</label> <input type="text" id="cadastro-logradouro" required placeholder="Rua, Av..." class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"> </div> <div class="grid grid-cols-2 gap-2"> <div> <label for="cadastro-numero" class="block text-xs font-medium text-gray-700">Numero *</label> <input type="text" id="cadastro-numero" required placeholder="123" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"> </div> <div> <label for="cadastro-complemento" class="block text-xs font-medium text-gray-700">Complemento</label> <input type="text" id="cadastro-complemento" placeholder="Apto" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"> </div> </div> <div> <label for="cadastro-bairro" class="block text-xs font-medium text-gray-700">Bairro *</label> <input type="text" id="cadastro-bairro" required placeholder="Bairro" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"> </div> <div class="grid grid-cols-2 gap-2"> <div> <label for="cadastro-cidade" class="block text-xs font-medium text-gray-700">Cidade *</label> <input type="text" id="cadastro-cidade" required placeholder="Cidade" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"> </div> <div> <label for="cadastro-estado" class="block text-xs font-medium text-gray-700">UF</label> <input type="text" id="cadastro-estado" maxlength="2" placeholder="PE" class="block w-full p-2 border border-gray-300 rounded-md text-sm uppercase focus:ring-blue-500 focus:border-blue-500"> </div> </div> <div> <label for="cadastro-cep" class="block text-xs font-medium text-gray-700">CEP</label> <input type="text" id="cadastro-cep" maxlength="8" placeholder="12345678" class="block w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"> </div> </div> </div> </div> <div class="border-t p-4 bg-gray-50 flex justify-end gap-3 sticky bottom-0 bg-white"> <button type="button" id="btn-cancelar-cadastro" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">Cancelar</button> <button type="button" id="btn-salvar-cliente" class="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700">Salvar e Continuar</button> </div> </div> </div>
+    <!-- Modal Login Cliente -->
+    <div id="modal-login-cliente" class="fixed inset-0 bg-black bg-opacity-70 z-40 flex justify-center items-center p-4 hidden">
+        <!-- Conteúdo do Modal Login -->
+    </div>
+    
+    <!-- Modal Cadastro Cliente -->
+    <div id="modal-cadastro-cliente" class="fixed inset-0 bg-black bg-opacity-70 z-40 flex justify-center items-center p-4 hidden">
+        <!-- Conteúdo do Modal Cadastro -->
+    </div>
 
-    <!-- Modal Galeria de Fotos - VERSÃO CORRIGIDA PARA MOBILE -->
+    <!-- Modal Galeria de Fotos -->
     <div id="modal-galeria" class="fixed inset-0 bg-black bg-opacity-95 z-50 hidden">
-        <div class="relative w-full h-full flex flex-col">
-            
-            <!-- Barra Superior Fixa com Título e Botão Fechar -->
-            <div class="flex-shrink-0 w-full bg-black bg-opacity-50 backdrop-blur-sm">
-                <div class="container mx-auto px-4 py-3 flex items-center justify-between">
-                    <!-- Título e Contador -->
-                    <div class="flex-1 min-w-0 pr-4">
-                        <h2 id="galeria-titulo-produto" class="text-white text-sm sm:text-lg font-semibold truncate"></h2>
-                        <p id="galeria-contador" class="text-gray-300 text-xs sm:text-sm mt-0.5"></p>
-                    </div>
-                    
-                    <!-- Botão Fechar - SEMPRE VISÍVEL -->
-                    <button 
-                        id="btn-fechar-galeria" 
-                        class="flex-shrink-0 bg-white hover:bg-gray-100 text-gray-900 p-2 sm:p-2.5 rounded-full shadow-lg transition-all"
-                        aria-label="Fechar galeria"
-                        title="Fechar (ESC)"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 sm:h-7 sm:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Área da Imagem Principal -->
-            <div class="flex-1 flex items-center justify-center relative px-4 py-4 overflow-hidden">
-                <!-- Botão Anterior -->
-                <button 
-                    id="btn-foto-anterior" 
-                    class="absolute left-2 sm:left-4 z-10 bg-white bg-opacity-80 hover:bg-opacity-100 text-gray-900 p-2 sm:p-3 rounded-full transition-all shadow-lg"
-                    aria-label="Foto anterior"
-                    title="Anterior (←)"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-7 sm:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-                    </svg>
-                </button>
-
-                <!-- Imagem -->
-                <div class="max-w-full max-h-full flex items-center justify-center">
-                    <img 
-                        id="galeria-imagem" 
-                        src="" 
-                        alt="Foto do produto" 
-                        class="max-w-full max-h-[60vh] sm:max-h-[70vh] object-contain rounded-lg shadow-2xl"
-                    >
-                </div>
-
-                <!-- Botão Próxima -->
-                <button 
-                    id="btn-foto-proxima" 
-                    class="absolute right-2 sm:right-4 z-10 bg-white bg-opacity-80 hover:bg-opacity-100 text-gray-900 p-2 sm:p-3 rounded-full transition-all shadow-lg"
-                    aria-label="Próxima foto"
-                    title="Próxima (→)"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-7 sm:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                </button>
-            </div>
-
-            <!-- Rodapé com Miniaturas e Botão Fechar Mobile -->
-            <div class="flex-shrink-0 w-full bg-black bg-opacity-50 backdrop-blur-sm pb-safe">
-                <!-- Miniaturas -->
-                <div id="galeria-miniaturas" class="flex justify-center gap-2 overflow-x-auto px-4 py-3 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent"></div>
-                
-                <!-- Instruções Desktop -->
-                <div class="hidden sm:block text-center text-gray-400 text-xs pb-3">
-                    <p>Use as setas do teclado (← →) para navegar • ESC para fechar</p>
-                </div>
-                
-                <!-- Botão Fechar Extra Mobile -->
-                <div class="sm:hidden flex justify-center px-4 pb-4 pt-2">
-                    <button 
-                        id="btn-fechar-galeria-mobile" 
-                        class="w-full max-w-xs bg-white hover:bg-gray-100 text-gray-900 font-semibold px-6 py-3 rounded-full shadow-lg transition-all flex items-center justify-center gap-2"
-                        aria-label="Fechar galeria"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                        Fechar Galeria
-                    </button>
-                </div>
-            </div>
-        </div>
+        <!-- Conteúdo do Modal Galeria -->
     </div>
 
-    <script src="js/idb-keyval.js"></script>
+    <!-- Scripts -->
+    <script src="js/idb-keyval.js"></script> <!-- Verifique se este caminho está correto -->
+    <script type="module" src="js/imagePlaceholder.js"></script>
     <script type="module" src="js/app.js"></script>
+    <script src="https://sdk.mercadopago.com/js/v2"></script> <!-- SDK Mercado Pago -->
 </body>
 </html>

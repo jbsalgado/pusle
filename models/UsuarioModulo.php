@@ -28,7 +28,7 @@ use yii\db\Expression;
  * @property Usuario $usuario
  * @property Modulo $modulo
  */
-class SisUsuarioModulo extends ActiveRecord
+class UsuarioModulo extends ActiveRecord
 {
     /**
      * {@inheritdoc}

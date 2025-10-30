@@ -26,7 +26,7 @@ use yii\db\Expression;
  * @property string $data_criacao
  * @property string $data_atualizacao
  */
-class SisModulo extends ActiveRecord
+class Modulo extends ActiveRecord
 {
     /**
      * {@inheritdoc}

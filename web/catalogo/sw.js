@@ -1,5 +1,5 @@
-// REMOVIDO: importScripts('js/idb-keyval.js');
-// A lógica do idbKeyval de utils.js foi incorporada abaixo e corrigida para o escopo do Service Worker.
+// pulse/basic/web/catalogo/sw.js
+// ✅ ARQUIVO COMPLETO E AJUSTADO
 
 // === LÓGICA DO idbKeyval PORTADA DE utils.js (CORRIGIDA PARA SW) ===
 // Garante que o Service Worker use o mesmo DB name que a página principal
@@ -84,11 +84,39 @@ const isProduction = self.location.hostname !== 'localhost' && self.location.hos
 const URL_API = isProduction ? '/pulse/web/index.php' : '/pulse/basic/web/index.php';
 const URL_BASE_WEB = isProduction ? '/pulse/web' : '/pulse/basic/web';
 
+// ==================================================================
+// ✅ AJUSTE: LÓGICA PARA OBTER O ID DA LOJA (COPIADO DO config.js)
+// ==================================================================
+const getLojaId = () => {
+    // self.location.pathname aqui é /pulse/basic/web/catalogo/sw.js
+    const pathname = self.location.pathname;
+    const segments = pathname.split('/').filter(p => p);
+    // segments = ['pulse', 'basic', 'web', 'catalogo', 'sw.js']
+    const lojaPath = segments[segments.length - 2]; // Pega 'catalogo'
+    
+    const lojaMap = {
+        'catalogo': 'a99a38a9-e368-4a47-a4bd-02ba3bacaa76',
+        'alexbird': '5eb98116-77c2-4a01-bd60-50db21eaa206',
+        'victor':'0b633731-25a1-4991-b1c4-c46acc6bce06',
+    };
+    
+    return lojaMap[lojaPath] || lojaMap['catalogo']; // Retorna o ID
+};
+
+// Define o ID da Loja que será usado pelo SW
+const ID_USUARIO_LOJA = getLojaId();
+// ==================================================================
+// FIM DO AJUSTE
+// ==================================================================
+
+
 // Configuração de Caminhos e Cache
-const API_PRODUTO_URL = `${URL_API}/api/produto`;
+// ✅ AJUSTE: A URL da API de produtos AGORA INCLUI o ID da loja
+const API_PRODUTO_URL = `${URL_API}/api/produto?usuario_id=${ID_USUARIO_LOJA}`;
 const API_PEDIDO_URL = `${URL_API}/api/pedido`;
-// Incrementado para forçar a atualização de cache
-const CACHE_NAME = 'catalogo-cache-v9'; 
+
+// ✅ AJUSTE: Incrementado para v11 (para forçar atualização)
+const CACHE_NAME = 'catalogo-cache-v11'; 
 
 const APP_SHELL_FILES = [
     `${URL_BASE_WEB}/catalogo/index.html`,
@@ -114,12 +142,15 @@ self.addEventListener('install', event => {
                 console.error('[SW] Falha ao cachear App Shell:', err)
             );
 
-            console.log('[SW] Tentando cachear API de produtos...');
+            // ✅ AJUSTE: Log mais claro
+            console.log(`[SW] Tentando cachear API de produtos (Loja: ${ID_USUARIO_LOJA})...`);
             try {
+                // ✅ AJUSTE: Tenta cachear a URL correta (com ID)
                 await cache.add(API_PRODUTO_URL);
                 console.log('[SW] API de produtos cacheada.');
             } catch (err) {
-                console.warn('[SW] Falha ao cachear API:', err);
+                // Se falhar (ex: offline na primeira instalação), o fetch lidará com isso depois
+                console.warn(`[SW] Falha ao cachear API (${API_PRODUTO_URL}):`, err);
             }
         }).then(() => {
             console.log('[SW] skipWaiting chamado');
@@ -138,30 +169,67 @@ self.addEventListener('fetch', event => {
     }
 
     // 1. API de Produtos (Stale-While-Revalidate)
+    // ✅ AJUSTE: Agora compara a URL exata (com ID) que vem do app.js
     if (event.request.url === API_PRODUTO_URL) {
         event.respondWith(
             caches.open(CACHE_NAME).then(cache => {
                 return cache.match(event.request).then(cachedResponse => {
+                    // Tenta buscar na rede em paralelo
                     const fetchPromise = fetch(event.request).then(networkResponse => {
                         if (networkResponse.ok) {
+                            // Se a rede responder, atualiza o cache
                             cache.put(event.request, networkResponse.clone());
                         }
                         return networkResponse;
                     }).catch(err => {
+                        // Se a rede falhar
                         console.error('[SW] Fetch da API falhou:', err);
                         if (!cachedResponse) {
+                            // E não tiver nada no cache, retorna erro
                             return new Response('Erro de rede ao buscar produtos.', {
                                 status: 408,
                                 headers: { 'Content-Type': 'text/plain' }
                             });
                         }
+                        // Se a rede falhar MAS tiver cache, não faz nada (retorna o cache)
                     });
+                    
+                    // Retorna o cache imediatamente (se houver), ou aguarda a rede
                     return cachedResponse || fetchPromise;
                 });
             })
         );
         return;
     }
+
+    // ========================================================================
+    // ✅✅✅ INÍCIO DA CORREÇÃO ✅✅✅
+    // ========================================================================
+    // 1.5. API Calls (NETWORK-ONLY)
+    // Força todas as outras chamadas de /api/ (como /api/asaas/consultar-status)
+    // a irem DIRETAMENTE para a rede, ignorando o cache do SW.
+    if (url.pathname.includes('/api/')) {
+        console.log('[SW] API call detectada (Network-Only):', event.request.url);
+        event.respondWith(
+            fetch(event.request).catch(err => {
+                console.error('[SW] Falha no fetch (Network-Only) da API:', err);
+                // Retorna uma resposta de erro padronizada em JSON
+                return new Response(JSON.stringify({
+                    sucesso: false,
+                    erro: 'Erro de rede no Service Worker',
+                    details: err.message
+                }), {
+                    status: 503, // Service Unavailable
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            })
+        );
+        return; // Importante para parar a execução
+    }
+    // ========================================================================
+    // ✅✅✅ FIM DA CORREÇÃO ✅✅✅
+    // ========================================================================
+
 
     // 2. Imagens (Network-First com fallback)
     if (url.hostname === 'via.placeholder.com' || event.request.destination === 'image') {
@@ -219,6 +287,7 @@ self.addEventListener('fetch', event => {
     }
 
     // 4. Outros arquivos (Cache-First)
+    // ESTA REGRA NÃO VAI MAIS PEGAR AS CHAMADAS DE API
     event.respondWith(
         caches.match(event.request).then(response => {
             return response || fetch(event.request).then(networkResponse => {

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico - API Asaas (via Proxy PHP)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-6xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h1 class="text-3xl font-bold mb-6">🔍 Diagnóstico da API Asaas (via Proxy PHP)</h1>
+
+            <div class="mb-6 p-4 bg-blue-50 rounded">
+                <h2 class="text-xl font-semibold mb-3">⚙️ Configurações</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Ambiente Asaas:</label>
+                        <select id="asaasEnv" class="w-full px-3 py-2 border rounded">
+                            <option value="sandbox" selected>Sandbox (Testes)</option>
+                            <option value="production">Produção</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1 text-gray-400">(API Key Fixa no Código)</label>
+                         <input type="text" value="*** CHAVE SANDBOX FIXA ***" disabled class="w-full px-3 py-2 border rounded bg-gray-100 text-gray-500">
+                         <p class="text-xs text-gray-500 mt-1">A chave Sandbox está definida no script.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">ID da Loja (usuario_id local):</label>
+                        <input type="text" id="usuarioIdLocal"
+                               value="a99a38a9-e368-4a47-a4bd-02ba3bacaa76"
+                               class="w-full px-3 py-2 border rounded">
+                    </div>
+                     <div>
+                        <label class="block text-sm font-medium mb-1">CPF para Criar/Buscar Cliente:</label>
+                        <input type="text" id="cpfTeste"
+                               value="99988877700" placeholder="Apenas números"
+                               class="w-full px-3 py-2 border rounded">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">ID Cliente Asaas (p/ Teste Get):</label>
+                        <input type="text" id="customerIdAsaas"
+                               placeholder="cus_xxxxxx"
+                               class="w-full px-3 py-2 border rounded">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">ID Cobrança (p/ Teste Get/QR):</label>
+                        <input type="text" id="paymentIdAsaas"
+                               placeholder="pay_xxxxxx"
+                               class="w-full px-3 py-2 border rounded">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">URL do Proxy PHP:</label>
+                        <input type="text" id="proxyUrl" value="proxy-asaas.php" class="w-full px-3 py-2 border rounded bg-gray-100">
+                        <p class="text-xs text-gray-500 mt-1">Script PHP que fará a chamada cURL.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <h2 class="text-xl font-semibold mb-3">🧪 Testes Disponíveis (via Proxy PHP)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <button onclick="testarListarClientesAsaas()"
+                            class="bg-blue-500 text-white px-4 py-3 rounded hover:bg-blue-600 transition">
+                        📜 Listar Clientes
+                    </button>
+                    <button onclick="testarBuscarClienteAsaasPorCPF()"
+                            class="bg-blue-600 text-white px-4 py-3 rounded hover:bg-blue-700 transition">
+                        🔍 Buscar Cliente (CPF)
+                    </button>
+                     <button onclick="testarGetClienteAsaas()"
+                            class="bg-blue-700 text-white px-4 py-3 rounded hover:bg-blue-800 transition">
+                        👤 Obter Cliente (ID)
+                    </button>
+                     <button onclick="testarCriarClienteAsaas()"
+                            class="bg-green-500 text-white px-4 py-3 rounded hover:bg-green-600 transition">
+                        ➕ Criar Cliente
+                    </button>
+                    <button onclick="testarListarCobrancasAsaas()"
+                            class="bg-purple-500 text-white px-4 py-3 rounded hover:bg-purple-600 transition">
+                        💳 Listar Cobranças
+                    </button>
+                    <button onclick="testarGetCobrancaAsaas()"
+                            class="bg-purple-600 text-white px-4 py-3 rounded hover:bg-purple-700 transition">
+                        📄 Obter Cobrança (ID)
+                    </button>
+                    <button onclick="testarCriarCobrancaPixAsaas()"
+                            class="bg-teal-500 text-white px-4 py-3 rounded hover:bg-teal-600 transition">
+                        💸 Criar Cobrança PIX
+                    </button>
+                     <button onclick="testarGetQrCodePixAsaas()"
+                            class="bg-teal-600 text-white px-4 py-3 rounded hover:bg-teal-700 transition">
+                        🇶🇷 Obter QR Code PIX
+                    </button>
+                     <button onclick="limparResultados()"
+                            class="bg-gray-500 text-white px-4 py-3 rounded hover:bg-gray-600 transition">
+                        🧹 Limpar Resultados
+                    </button>
+                </div>
+                 <p class="text-xs text-gray-500 mt-2">*Estes testes enviam dados para o Proxy PHP, que chama a API Asaas.</p>
+            </div>
+
+            <div class="mb-6">
+                <h2 class="text-xl font-semibold mb-3">📊 Console de Debug</h2>
+                <div id="console" class="bg-black text-green-400 font-mono text-sm p-4 rounded h-96 overflow-y-auto">
+                    <div class="text-yellow-300">Sistema de diagnóstico Asaas (via Proxy PHP) iniciado...</div>
+                </div>
+            </div>
+
+            <div id="resultados" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configurações globais
+        let testeAtual = 1;
+        const ASAAS_URLS = { sandbox: 'https://sandbox.asaas.com/api/v3', production: 'https://api.asaas.com/v3' };
+        const FIXED_SANDBOX_API_KEY = "$aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjYxMzM5MDA0LTM3MTYtNDhiZi1hNTQxLTFhNWVkZmI2Y2YxZjo6JGFhY2hfMDQ4NmI3MmQtYjkwZi00ODZjLTg4NGItNDUyOWVhZDJhYWYw";
+
+
+        // --- FUNÇÕES GLOBAIS ---
+
+        function log(mensagem, tipo = 'info') {
+            const consoleEl = document.getElementById('console');
+            if (!consoleEl) { console.error("Elemento 'console' não encontrado."); return; }
+            const timestamp = new Date().toLocaleTimeString();
+            const cores = { info: 'text-white', success: 'text-green-400', error: 'text-red-400', warning: 'text-yellow-400', debug: 'text-gray-400' };
+            const linha = document.createElement('div');
+            linha.className = cores[tipo] || 'text-white';
+             if (tipo === 'data') {
+                try {
+                    const dataObj = typeof mensagem === 'string' ? JSON.parse(mensagem) : mensagem;
+                    linha.innerHTML = `[${timestamp}] <pre class="inline whitespace-pre-wrap">${JSON.stringify(dataObj, null, 2)}</pre>`;
+                    linha.className = 'text-cyan-300';
+                } catch(e) { linha.innerHTML = `[${timestamp}] ${mensagem}`; linha.className = 'text-cyan-300'; }
+             } else { linha.innerHTML = `[${timestamp}] ${mensagem}`; }
+            consoleEl.appendChild(linha);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        // ***** FUNÇÃO ADICIONAR RESULTADO MODIFICADA *****
+        function adicionarResultado(titulo, dados, sucesso = true) {
+            const resultados = document.getElementById('resultados');
+            if (!resultados) { console.error("Elemento 'resultados' não encontrado."); return; } // Retorna undefined se falhar
+            const card = document.createElement('div');
+            const cardId = `resultado-${testeAtual}-${Date.now()}`; // ID único ainda útil para debug se necessário
+            card.id = cardId;
+            card.className = `p-4 rounded ${sucesso ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'} border`;
+
+            let dadosString = JSON.stringify(dados, null, 2);
+            if (dadosString.length > 5000) { dadosString = JSON.stringify({ _INFO:"Resposta longa...", /*...*/ }, null, 2); }
+
+            let imageHtml = '';
+            // Verifica se 'dados' é um objeto e contém a imagem codificada
+            if (sucesso && typeof dados === 'object' && dados !== null && dados.encodedImage && typeof dados.encodedImage === 'string' && dados.encodedImage.length > 10) {
+                 log('🖼️ Encontrado encodedImage, adicionando tag <img> ao resultado.', 'debug');
+                 imageHtml = `
+                    <div class="mt-4 text-center">
+                         <img src="data:image/png;base64,${dados.encodedImage}"
+                              alt="QR Code PIX"
+                              class="border max-w-xs mx-auto block"
+                              onerror="log('⚠️ Erro ao renderizar imagem Base64 no card ${cardId}', 'warning')">
+                    </div>
+                 `;
+            }
+
+            card.innerHTML = `
+                <div class="flex items-center mb-2">
+                    <span class="text-2xl mr-2">${sucesso ? '✅' : '❌'}</span>
+                    <h3 class="font-semibold">${titulo}</h3>
+                </div>
+                <pre class="bg-white p-3 rounded text-xs overflow-x-auto">${dadosString}</pre>
+                ${imageHtml} {/* Insere a imagem aqui se existir */}
+            `;
+            resultados.insertBefore(card, resultados.firstChild);
+            // return cardId; // Não precisamos mais retornar o ID
+        }
+        // ***** FIM DA MODIFICAÇÃO *****
+
+
+        async function fazerRequisicaoAsaas(endpoint, options = {}) {
+            const envSelect = document.getElementById('asaasEnv');
+            const env = envSelect ? envSelect.value : 'sandbox';
+            const proxyUrlInput = document.getElementById('proxyUrl');
+            const proxyUrl = proxyUrlInput ? proxyUrlInput.value : 'proxy-asaas.php';
+            const apiKey = FIXED_SANDBOX_API_KEY;
+
+             if (!proxyUrl) { /* ... */ throw new Error('URL do Proxy PHP não informada'); }
+             if (!apiKey) { /* ... */ throw new Error('API Key fixa não definida no script!'); }
+
+            log(`📡 Enviando via Proxy: ${proxyUrl} para Asaas: ${endpoint}`, 'debug');
+            const proxyPayload = { apiKey: apiKey, environment: env, method: options.method || 'GET', endpoint: endpoint, bodyData: options.body ? JSON.parse(options.body) : null };
+
+            try {
+                const response = await fetch(proxyUrl, { method: 'POST', headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(proxyPayload) });
+                log(`📊 Proxy Status: ${response.status} ${response.statusText}`, response.ok ? 'success' : 'warning');
+                const text = await response.text();
+                log(`📄 Proxy Resp Size: ${text.length} bytes`, 'debug');
+
+                let proxyResponseData;
+                try { proxyResponseData = JSON.parse(text); } catch (e) { log(`⚠️ Proxy Resp not JSON: ${text.substring(0,200)}...`, 'warning'); throw new Error('Resposta inválida do proxy'); }
+
+                if (!proxyResponseData.success) { log(`❌ Proxy Error: ${proxyResponseData.error}`, 'error'); throw new Error(proxyResponseData.error || 'Erro no Proxy'); }
+
+                const asaasStatus = proxyResponseData.asaas_status;
+                const asaasBody = proxyResponseData.asaas_body;
+                const isAsaasOk = asaasStatus >= 200 && asaasStatus < 300;
+                log(`📈 Asaas Status (Proxy): ${asaasStatus}`, isAsaasOk ? 'success' : 'warning');
+                log('Respuesta Asaas:', 'debug');
+                log(asaasBody, 'data');
+
+                if (typeof asaasBody === 'string' && asaasBody.includes('<title>Login</title>')) { log('❌ ERRO: Asaas retornou Login!', 'error'); throw new Error('Autenticação Asaas falhou'); }
+                if (typeof asaasBody === 'string' && !isAsaasOk) { log(`❌ Asaas ${asaasStatus} não-JSON`, 'error'); throw new Error(`Asaas erro ${asaasStatus} não JSON`); }
+
+                return { ok: isAsaasOk, status: asaasStatus, statusText: '', data: asaasBody };
+
+            } catch (error) {
+                 log(`💥 Erro comunicação Proxy: ${error.message}`, 'error');
+                 if (!error.message.includes('Proxy') && !error.message.includes('Autenticação')) {
+                     adicionarResultado(`Erro Chamar Proxy (${options.method||'GET'} ${endpoint})`, { erro: error.message, url: proxyUrl }, false);
+                 }
+                 throw error;
+            }
+        }
+
+        // --- FUNÇÕES DE TESTE ---
+        // (As definições das funções testar... permanecem as mesmas da resposta anterior)
+         async function testarListarClientesAsaas() {
+            log(`\n📜 TESTE ${testeAtual++}: Listar Clientes Asaas`, 'info');
+            try { const result = await fazerRequisicaoAsaas('/customers?limit=5'); adicionarResultado('Listar Clientes Asaas', result.data, result.ok); if(result.ok) log(`✅ ${result.data?.data?.length ?? 0} clientes listados. Total: ${result.data?.totalCount ?? 'N/A'}`, 'success'); else log(`Listar Clientes falhou status ${result.status}`, 'warning'); }
+            catch (error) { log(`❌ Falha ao listar clientes: ${error.message}`, 'error'); }
+        }
+        async function testarBuscarClienteAsaasPorCPF() {
+            const cpfInput = document.getElementById('cpfTeste'); const cpf = cpfInput ? cpfInput.value.replace(/\D/g,'') : ''; log(`\n🔍 TESTE ${testeAtual++}: Buscar Cliente por CPF (${cpf})`, 'info'); if (!cpf) { log('⚠️ CPF não informado', 'warning'); return; }
+            try { const result = await fazerRequisicaoAsaas(`/customers?cpfCnpj=${cpf}`); adicionarResultado('Buscar Cliente (CPF)', result.data, result.ok); if(result.ok) { if (result.data?.data?.length > 0) { log(`✅ Cliente encontrado: ID ${result.data.data[0].id}`, 'success'); const cIdInput=document.getElementById('customerIdAsaas'); if(cIdInput) cIdInput.value = result.data.data[0].id; } else { log(`ℹ️ Cliente não encontrado.`, 'info'); } } else { log(`Buscar Cliente falhou status ${result.status}`, 'warning'); } }
+            catch (error) { log(`❌ Falha ao buscar cliente: ${error.message}`, 'error'); }
+        }
+        async function testarGetClienteAsaas() {
+            const customerIdInput = document.getElementById('customerIdAsaas'); const customerId = customerIdInput ? customerIdInput.value : ''; log(`\n👤 TESTE ${testeAtual++}: Obter Cliente por ID (${customerId})`, 'info'); if (!customerId) { log('⚠️ ID Cliente não informado', 'warning'); return; }
+            try { const result = await fazerRequisicaoAsaas(`/customers/${customerId}`); adicionarResultado('Obter Cliente (ID)', result.data, result.ok); if(result.ok){ log(`✅ Cliente ${result.data.id} obtido.`, 'success'); } else { log(`Obter Cliente falhou status ${result.status}`, 'warning'); } }
+            catch (error) { log(`❌ Falha ao obter cliente: ${error.message}`, 'error'); }
+        }
+        async function testarCriarClienteAsaas() {
+             const cpfInput = document.getElementById('cpfTeste'); const cpf = cpfInput ? cpfInput.value.replace(/\D/g,'') : ''; const t = new Date().getTime(); const nome = `Cliente Proxy ${t}`; const email = `teste.proxy+${t}@example.com`; log(`\n➕ TESTE ${testeAtual++}: Criar Cliente`, 'info'); if (!cpf) { log('⚠️ CPF não informado', 'warning'); return; }
+             const payload = { name: nome, cpfCnpj: cpf, email: email, mobilePhone: "47999998888" }; log(`Payload: ${JSON.stringify(payload)}`, 'debug');
+            try { const result = await fazerRequisicaoAsaas('/customers', { method: 'POST', body: JSON.stringify(payload) }); adicionarResultado('Criar Cliente', result.data, result.ok); if (result.ok) { log(`✅ Cliente criado: ID ${result.data.id}`, 'success'); const cIdInput=document.getElementById('customerIdAsaas'); if(cIdInput) cIdInput.value = result.data.id; } else { log(`❌ Erro criar cliente (status ${result.status}): ${JSON.stringify(result.data.errors || result.data)}`, 'error'); } }
+            catch (error) { log(`❌ Falha ao criar cliente: ${error.message}`, 'error'); }
+        }
+        async function testarListarCobrancasAsaas() {
+            log(`\n💳 TESTE ${testeAtual++}: Listar Cobranças`, 'info');
+            try { const result = await fazerRequisicaoAsaas('/payments?limit=5'); adicionarResultado('Listar Cobranças', result.data, result.ok); if(result.ok){ log(`✅ ${result.data?.data?.length ?? 0} cobranças listadas. Total: ${result.data?.totalCount ?? 'N/A'}`, 'success'); } else { log(`Listar Cobranças falhou status ${result.status}`, 'warning'); } }
+            catch (error) { log(`❌ Falha ao listar cobranças: ${error.message}`, 'error'); }
+        }
+        async function testarGetCobrancaAsaas() {
+            const paymentIdInput = document.getElementById('paymentIdAsaas'); const paymentId = paymentIdInput ? paymentIdInput.value : ''; log(`\n📄 TESTE ${testeAtual++}: Obter Cobrança por ID (${paymentId})`, 'info'); if (!paymentId) { log('⚠️ ID Cobrança não informado', 'warning'); return; }
+            try { const result = await fazerRequisicaoAsaas(`/payments/${paymentId}`); adicionarResultado('Obter Cobrança (ID)', result.data, result.ok); if(result.ok){ log(`✅ Cobrança ${result.data.id} (Status: ${result.data.status}) obtida.`, 'success'); } else { log(`Obter Cobrança falhou status ${result.status}`, 'warning'); } }
+            catch (error) { log(`❌ Falha ao obter cobrança: ${error.message}`, 'error'); }
+        }
+        async function testarCriarCobrancaPixAsaas() {
+            const customerIdInput = document.getElementById('customerIdAsaas'); const customerId = customerIdInput ? customerIdInput.value : ''; log(`\n💸 TESTE ${testeAtual++}: Criar Cobrança PIX`, 'info'); if (!customerId) { log('⚠️ ID Cliente não informado!', 'warning'); return; }
+             const payload = { customer: customerId, billingType: "PIX", value: 5.00, dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], description: "Teste PIX via Proxy", externalReference: `diag_proxy_${new Date().getTime()}` }; log(`Payload: ${JSON.stringify(payload)}`, 'debug');
+            try { const result = await fazerRequisicaoAsaas('/payments', { method: 'POST', body: JSON.stringify(payload) }); adicionarResultado('Criar Cobrança PIX', result.data, result.ok); if (result.ok) { log(`✅ Cobrança PIX criada: ID ${result.data.id}`, 'success'); const pIdInput=document.getElementById('paymentIdAsaas'); if(pIdInput) pIdInput.value = result.data.id; } else { log(`❌ Erro criar PIX (status ${result.status}): ${JSON.stringify(result.data.errors || result.data)}`, 'error'); } }
+            catch (error) { log(`❌ Falha ao criar cobrança PIX: ${error.message}`, 'error'); }
+        }
+         async function testarGetQrCodePixAsaas() {
+            const paymentIdInput = document.getElementById('paymentIdAsaas'); const paymentId = paymentIdInput ? paymentIdInput.value : ''; log(`\n🇶🇷 TESTE ${testeAtual++}: Obter QR Code PIX (${paymentId})`, 'info'); if (!paymentId) { log('⚠️ ID Cobrança não informado', 'warning'); return; }
+            try {
+                const result = await fazerRequisicaoAsaas(`/payments/${paymentId}/pixQrCode`);
+                // A função adicionarResultado agora lida com a imagem
+                adicionarResultado('Obter QR Code PIX', result.data, result.ok);
+                if(result.ok){
+                     log(`✅ QR Code PIX obtido.`, 'success');
+                 } else {
+                    log(`Obter QR Code PIX falhou status ${result.status}`, 'warning');
+                 }
+            }
+            catch (error) { log(`❌ Falha ao obter QR Code PIX: ${error.message}`, 'error'); }
+        }
+        function limparResultados() {
+            const resultados = document.getElementById('resultados'); const consoleEl = document.getElementById('console'); if (resultados) resultados.innerHTML = ''; if (consoleEl) consoleEl.innerHTML = '<div class="text-yellow-300">Console limpo...</div>'; testeAtual = 1; log('Sistema reiniciado', 'info');
+         }
+
+        // --- INICIALIZAÇÃO ---
+        window.addEventListener('DOMContentLoaded', () => {
+            if (document.getElementById('console')) {
+                log('✅ Sistema (Proxy PHP) carregado', 'success');
+                log('Selecione o ambiente e clique nos botões.', 'info');
+            } else { console.error("Elemento 'console' não encontrado."); }
+        });
+    </script>
+
+    </body>
+</html>

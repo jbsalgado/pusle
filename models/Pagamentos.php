@@ -24,7 +24,7 @@ use yii\db\Expression;
  * @property SisAssinaturas $assinatura
  * @property PrestUsuarios $usuario
  */
-class SisPagamentos extends ActiveRecord
+class Pagamentos extends ActiveRecord
 {
     const STATUS_PENDENTE = 'pendente';
     const STATUS_APROVADO = 'aprovado';
@@ -92,8 +92,8 @@ class SisPagamentos extends ActiveRecord
             ]],
             [['status'], 'default', 'value' => self::STATUS_PENDENTE],
             [['comprovante_file'], 'file', 'extensions' => 'png, jpg, jpeg, pdf', 'maxSize' => 1024 * 1024 * 5],
-            [['assinatura_id'], 'exist', 'skipOnError' => true, 'targetClass' => SisAssinaturas::class, 'targetAttribute' => ['assinatura_id' => 'id']],
-            [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => PrestUsuarios::class, 'targetAttribute' => ['usuario_id' => 'id']],
+            [['assinatura_id'], 'exist', 'skipOnError' => true, 'targetClass' => Assinaturas::class, 'targetAttribute' => ['assinatura_id' => 'id']],
+            [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
         ];
     }
 
@@ -124,7 +124,7 @@ class SisPagamentos extends ActiveRecord
      */
     public function getAssinatura()
     {
-        return $this->hasOne(SisAssinaturas::class, ['id' => 'assinatura_id']);
+        return $this->hasOne(Assinaturas::class, ['id' => 'assinatura_id']);
     }
 
     /**
@@ -134,7 +134,7 @@ class SisPagamentos extends ActiveRecord
      */
     public function getUsuario()
     {
-        return $this->hasOne(PrestUsuarios::class, ['id' => 'usuario_id']);
+        return $this->hasOne(Usuario::class, ['id' => 'usuario_id']);
     }
 
     /**

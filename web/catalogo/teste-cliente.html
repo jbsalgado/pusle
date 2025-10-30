@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico - API Cliente</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-6xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h1 class="text-3xl font-bold mb-6">🔍 Diagnóstico da API de Cliente</h1>
+            
+            <!-- Configurações -->
+            <div class="mb-6 p-4 bg-blue-50 rounded">
+                <h2 class="text-xl font-semibold mb-3">⚙️ Configurações</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">URL Base da API:</label>
+                        <input type="text" id="urlBase" 
+                               value="/pulse/basic/web/index.php/api" 
+                               class="w-full px-3 py-2 border rounded">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">ID do Cliente para Teste:</label>
+                        <input type="text" id="clienteId" 
+                               value="b3ef303e-5db3-4648-9f31-cfab0c4cc477" 
+                               class="w-full px-3 py-2 border rounded">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">ID da Loja (usuario_id):</label>
+                        <input type="text" id="usuarioId" 
+                               value="a99a38a9-e368-4a47-a4bd-02ba3bacaa76" 
+                               class="w-full px-3 py-2 border rounded">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">CPF para Teste:</label>
+                        <input type="text" id="cpfTeste" 
+                               value="12345678900" 
+                               placeholder="Apenas números"
+                               class="w-full px-3 py-2 border rounded">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Botões de Teste -->
+            <div class="mb-6">
+                <h2 class="text-xl font-semibold mb-3">🧪 Testes Disponíveis</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <button onclick="testarBuscarCliente()" 
+                            class="bg-blue-500 text-white px-4 py-3 rounded hover:bg-blue-600 transition">
+                        📋 Buscar Cliente por ID
+                    </button>
+                    <button onclick="testarBuscarCPF()" 
+                            class="bg-green-500 text-white px-4 py-3 rounded hover:bg-green-600 transition">
+                        🔍 Buscar por CPF
+                    </button>
+                    <button onclick="testarListarClientes()" 
+                            class="bg-purple-500 text-white px-4 py-3 rounded hover:bg-purple-600 transition">
+                        📜 Listar Clientes
+                    </button>
+                    <button onclick="testarConexao()" 
+                            class="bg-yellow-500 text-white px-4 py-3 rounded hover:bg-yellow-600 transition">
+                        🌐 Testar Conexão
+                    </button>
+                    <button onclick="executarTodosTestes()" 
+                            class="bg-red-500 text-white px-4 py-3 rounded hover:bg-red-600 transition">
+                        ⚡ Executar Todos
+                    </button>
+                    <button onclick="limparResultados()" 
+                            class="bg-gray-500 text-white px-4 py-3 rounded hover:bg-gray-600 transition">
+                        🧹 Limpar Resultados
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Console de Debug -->
+            <div class="mb-6">
+                <h2 class="text-xl font-semibold mb-3">📊 Console de Debug</h2>
+                <div id="console" class="bg-black text-green-400 font-mono text-sm p-4 rounded h-96 overflow-y-auto">
+                    <div class="text-yellow-300">Sistema de diagnóstico iniciado...</div>
+                </div>
+            </div>
+            
+            <!-- Resultado dos Testes -->
+            <div id="resultados" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configurações globais
+        let testeAtual = 1;
+        
+        // Função para adicionar log ao console
+        function log(mensagem, tipo = 'info') {
+            const console = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString();
+            const cores = {
+                'info': 'text-white',
+                'success': 'text-green-400',
+                'error': 'text-red-400',
+                'warning': 'text-yellow-400',
+                'debug': 'text-gray-400'
+            };
+            
+            const linha = document.createElement('div');
+            linha.className = cores[tipo] || 'text-white';
+            linha.innerHTML = `[${timestamp}] ${mensagem}`;
+            console.appendChild(linha);
+            console.scrollTop = console.scrollHeight;
+        }
+        
+        // Função para adicionar resultado visual
+        function adicionarResultado(titulo, dados, sucesso = true) {
+            const resultados = document.getElementById('resultados');
+            const card = document.createElement('div');
+            card.className = `p-4 rounded ${sucesso ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'} border`;
+            
+            card.innerHTML = `
+                <div class="flex items-center mb-2">
+                    <span class="text-2xl mr-2">${sucesso ? '✅' : '❌'}</span>
+                    <h3 class="font-semibold">${titulo}</h3>
+                </div>
+                <pre class="bg-white p-3 rounded text-xs overflow-x-auto">${JSON.stringify(dados, null, 2)}</pre>
+            `;
+            
+            resultados.insertBefore(card, resultados.firstChild);
+        }
+        
+        // Função para fazer requisições
+        async function fazerRequisicao(url, options = {}) {
+            log(`📡 Fazendo requisição para: ${url}`, 'debug');
+            
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+                
+                log(`📊 Status da resposta: ${response.status} ${response.statusText}`, 
+                    response.ok ? 'success' : 'warning');
+                
+                const text = await response.text();
+                log(`📄 Tamanho da resposta: ${text.length} bytes`, 'debug');
+                
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    log(`⚠️ Resposta não é JSON válido: ${text.substring(0, 200)}...`, 'warning');
+                    data = { rawResponse: text };
+                }
+                
+                return {
+                    ok: response.ok,
+                    status: response.status,
+                    statusText: response.statusText,
+                    data: data
+                };
+                
+            } catch (error) {
+                log(`❌ Erro na requisição: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+        
+        // Teste: Buscar Cliente por ID
+        async function testarBuscarCliente() {
+            const urlBase = document.getElementById('urlBase').value;
+            const clienteId = document.getElementById('clienteId').value;
+            const url = `${urlBase}/cliente/${clienteId}`;
+            
+            log(`\n🔍 TESTE ${testeAtual++}: Buscar Cliente por ID`, 'info');
+            log(`Cliente ID: ${clienteId}`, 'debug');
+            
+            try {
+                const result = await fazerRequisicao(url);
+                
+                if (result.ok) {
+                    log(`✅ Cliente encontrado: ${result.data.nome_completo || result.data.nome}`, 'success');
+                    adicionarResultado('Buscar Cliente por ID', result.data, true);
+                } else {
+                    log(`❌ Erro ao buscar cliente: ${JSON.stringify(result.data)}`, 'error');
+                    adicionarResultado('Buscar Cliente por ID - ERRO', result.data, false);
+                }
+            } catch (error) {
+                log(`💥 Exceção capturada: ${error.message}`, 'error');
+                adicionarResultado('Buscar Cliente por ID - EXCEÇÃO', {error: error.message}, false);
+            }
+        }
+        
+        // Teste: Buscar por CPF
+        async function testarBuscarCPF() {
+            const urlBase = document.getElementById('urlBase').value;
+            const cpf = document.getElementById('cpfTeste').value;
+            const usuarioId = document.getElementById('usuarioId').value;
+            const url = `${urlBase}/cliente/buscar-cpf?cpf=${cpf}&usuario_id=${usuarioId}`;
+            
+            log(`\n🔍 TESTE ${testeAtual++}: Buscar Cliente por CPF`, 'info');
+            log(`CPF: ${cpf}, Usuario ID: ${usuarioId}`, 'debug');
+            
+            try {
+                const result = await fazerRequisicao(url);
+                
+                if (result.ok) {
+                    if (result.data.existe) {
+                        log(`✅ Cliente encontrado: ${result.data.cliente.nome_completo}`, 'success');
+                    } else {
+                        log(`ℹ️ Cliente não existe com este CPF`, 'warning');
+                    }
+                    adicionarResultado('Buscar por CPF', result.data, true);
+                } else {
+                    log(`❌ Erro ao buscar por CPF: ${JSON.stringify(result.data)}`, 'error');
+                    adicionarResultado('Buscar por CPF - ERRO', result.data, false);
+                }
+            } catch (error) {
+                log(`💥 Exceção capturada: ${error.message}`, 'error');
+                adicionarResultado('Buscar por CPF - EXCEÇÃO', {error: error.message}, false);
+            }
+        }
+        
+        // Teste: Listar Clientes
+        async function testarListarClientes() {
+            const urlBase = document.getElementById('urlBase').value;
+            const usuarioId = document.getElementById('usuarioId').value;
+            const url = `${urlBase}/cliente?termo=teste&usuario_id=${usuarioId}`;
+            
+            log(`\n📜 TESTE ${testeAtual++}: Listar Clientes`, 'info');
+            log(`Termo de busca: "teste", Usuario ID: ${usuarioId}`, 'debug');
+            
+            try {
+                const result = await fazerRequisicao(url);
+                
+                if (result.ok) {
+                    log(`✅ ${result.data.length} clientes encontrados`, 'success');
+                    adicionarResultado('Listar Clientes', result.data, true);
+                } else {
+                    log(`❌ Erro ao listar clientes: ${JSON.stringify(result.data)}`, 'error');
+                    adicionarResultado('Listar Clientes - ERRO', result.data, false);
+                }
+            } catch (error) {
+                log(`💥 Exceção capturada: ${error.message}`, 'error');
+                adicionarResultado('Listar Clientes - EXCEÇÃO', {error: error.message}, false);
+            }
+        }
+        
+        // Teste: Verificar Conexão
+        async function testarConexao() {
+            const urlBase = document.getElementById('urlBase').value;
+            
+            log(`\n🌐 TESTE ${testeAtual++}: Verificar Conexão com API`, 'info');
+            
+            // Teste 1: Verificar se a URL base responde
+            try {
+                const baseUrl = urlBase.replace('/api', '');
+                log(`Testando URL base: ${baseUrl}`, 'debug');
+                
+                const response = await fetch(baseUrl, { method: 'HEAD' });
+                
+                if (response.ok || response.status === 404 || response.status === 405) {
+                    log(`✅ Servidor respondendo`, 'success');
+                } else {
+                    log(`⚠️ Servidor retornou status: ${response.status}`, 'warning');
+                }
+                
+                adicionarResultado('Teste de Conexão', {
+                    servidor: 'respondendo',
+                    status: response.status,
+                    urlBase: baseUrl
+                }, true);
+                
+            } catch (error) {
+                log(`❌ Servidor não acessível: ${error.message}`, 'error');
+                adicionarResultado('Teste de Conexão - ERRO', {
+                    erro: error.message,
+                    urlBase: urlBase
+                }, false);
+            }
+            
+            // Teste 2: Verificar CORS
+            log(`Verificando headers CORS...`, 'debug');
+            try {
+                const response = await fetch(`${urlBase}/cliente`, {
+                    method: 'OPTIONS'
+                });
+                
+                const corsHeaders = {
+                    'access-control-allow-origin': response.headers.get('access-control-allow-origin'),
+                    'access-control-allow-methods': response.headers.get('access-control-allow-methods'),
+                    'access-control-allow-headers': response.headers.get('access-control-allow-headers')
+                };
+                
+                log(`Headers CORS: ${JSON.stringify(corsHeaders)}`, 'debug');
+                
+                if (corsHeaders['access-control-allow-origin']) {
+                    log(`✅ CORS configurado corretamente`, 'success');
+                } else {
+                    log(`⚠️ CORS pode não estar configurado`, 'warning');
+                }
+                
+            } catch (error) {
+                log(`⚠️ Não foi possível verificar CORS: ${error.message}`, 'warning');
+            }
+        }
+        
+        // Executar todos os testes
+        async function executarTodosTestes() {
+            log(`\n⚡ EXECUTANDO TODOS OS TESTES...`, 'warning');
+            
+            await testarConexao();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testarBuscarCliente();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testarBuscarCPF();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testarListarClientes();
+            
+            log(`\n✅ TODOS OS TESTES CONCLUÍDOS!`, 'success');
+        }
+        
+        // Limpar resultados
+        function limparResultados() {
+            document.getElementById('resultados').innerHTML = '';
+            document.getElementById('console').innerHTML = '<div class="text-yellow-300">Console limpo. Sistema pronto para novos testes...</div>';
+            testeAtual = 1;
+            log('Sistema de diagnóstico reiniciado', 'info');
+        }
+        
+        // Inicialização
+        window.addEventListener('DOMContentLoaded', () => {
+            log('✅ Sistema de diagnóstico carregado e pronto', 'success');
+            log('Clique nos botões acima para executar os testes', 'info');
+        });
+    </script>
+</body>
+</html>

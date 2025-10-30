@@ -1,38 +1,43 @@
 <?php
-/**
- * Model: Usuario
- * Localização: app/modules/vendas/models/Usuario.php
- * * Tabela: prest_usuarios
- */
 
 namespace app\models;
 
-use app\helpers\Salg;
+use app\models\Assinaturas;
+use app\models\Modulo;
+use app\models\Pagamentos;
+use app\models\UsuarioModulo;
+use app\modules\vendas\models\CarteiraCobranca;
+use app\modules\vendas\models\Categoria;
+use app\modules\vendas\models\Clientes;
+use app\modules\vendas\models\Colaborador;
+use app\modules\vendas\models\Comissao;
+use app\modules\vendas\models\Configuracao;
+use app\modules\vendas\models\EstoqueMovimentacoes;
+use app\modules\vendas\models\FormaPagamento;
+use app\modules\vendas\models\HistoricoCobranca;
+use app\modules\vendas\models\Orcamento;
+use app\modules\vendas\models\Parcela;
+use app\modules\vendas\models\PeriodosCobranca;
+use app\modules\vendas\models\Produto;
+use app\modules\vendas\models\Regioes;
+use app\modules\vendas\models\RegraParcelamento;
+use app\modules\vendas\models\RotaCobranca;
+use app\modules\vendas\models\Venda;
+use app\modules\vendas\models\Vendedor;
 use Yii;
-use yii\db\Expression;
-use yii\db\ActiveRecord;
+// ✅ IMPORTAÇÕES ADICIONADAS
 use yii\web\IdentityInterface;
-use yii\behaviors\TimestampBehavior;
+use yii\base\NotSupportedException;
 
 /**
- * Usuario model
+ * Model class for table "prest_usuarios".
  *
- * @property string $id UUID
- * @property string $nome
- * @property string $email
- * @property string $hash_senha
- * @property string $auth_key       // Chave para "Lembrar-me"
- * @property string $cpf
- * @property string $telefone
- * @property string $data_criacao
- * @property string $data_atualizacao
+ * (Propriedades @property... omitidas por brevidade)
+ *
  */
-class Usuario extends ActiveRecord implements IdentityInterface
+// ✅ CLASSE AGORA IMPLEMENTA A INTERFACE
+class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
 {
-    // Campos virtuais usados em formulários, não existem na tabela do banco
-    public $senha;
-    public $senha_confirmacao;
-
     /**
      * {@inheritdoc}
      */
@@ -41,59 +46,67 @@ class Usuario extends ActiveRecord implements IdentityInterface
         return 'prest_usuarios';
     }
 
-    public function scenarios()
-    {
-        $scenarios = parent::scenarios();
-        $scenarios['create'] = ['nome', 'cpf', 'telefone', 'email', 'senha', 'senha_confirmacao'];
-        return $scenarios;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function behaviors()
-    {
-        return [
-            [
-                'class' => TimestampBehavior::class,
-                'createdAtAttribute' => 'data_criacao',
-                'updatedAtAttribute' => 'data_atualizacao',
-                'value' => new Expression('NOW()'),
-            ],
-        ];
-    }
-
     /**
      * {@inheritdoc}
      */
     public function rules()
     {
         return [
-            // Campos obrigatórios básicos
-            [['nome', 'cpf', 'telefone'], 'required'],
-            
-                    
-            // Email
-            [['email'], 'email'],
-            //[['email'], 'unique', 'message' => 'Este e-mail já está em uso.'],
-            
-            // CPF
-            [['cpf'], 'string', 'length' => 11],
-            [['cpf'], 'unique', 'message' => 'Este CPF já está cadastrado.'],
-            
-            // Outros
-            [['nome'], 'string', 'max' => 100],
-            [['telefone'], 'string', 'max' => 15],
+            [['email', 'auth_key', 'mercadopago_public_key', 'mercadopago_access_token', 'asaas_api_key'], 'default', 'value' => null],
+            [['id', 'nome', 'hash_senha', 'cpf', 'telefone'], 'required'],
+            [['id'], 'string'],
+            [['data_criacao', 'data_atualizacao'], 'safe'],
+            [['api_de_pagamento', 'mercadopago_sandbox', 'asaas_sandbox'], 'boolean'],
+            [['api_de_pagamento'], 'default', 'value' => false],
+            [['mercadopago_sandbox'], 'default', 'value' => true],
+            [['asaas_sandbox'], 'default', 'value' => true],
+            [['nome', 'email', 'catalogo_path'], 'string', 'max' => 100],
+            [['hash_senha', 'mercadopago_public_key', 'mercadopago_access_token', 'asaas_api_key'], 'string', 'max' => 255],
+            [['cpf'], 'string', 'max' => 20],
+            [['telefone'], 'string', 'max' => 30],
+            [['auth_key'], 'string', 'max' => 32],
+            [['gateway_pagamento'], 'string', 'max' => 50],
+            [['gateway_pagamento'], 'default', 'value' => 'nenhum'],
+            [['gateway_pagamento'], 'in', 'range' => ['nenhum', 'mercadopago', 'asaas']],
+            [['catalogo_path'], 'default', 'value' => 'catalogo'],
+            [['cpf'], 'unique'],
+            [['id'], 'unique'],
         ];
     }
-    
-    //======================================================================
-    // MÉTODOS DA IdentityInterface (NECESSÁRIOS PARA LOGIN)
-    //======================================================================
 
     /**
      * {@inheritdoc}
-     * Encontra uma identidade pelo seu ID (chave primária)
+     */
+    public function attributeLabels()
+    {
+        // ... (attributeLabels originais)
+        return [
+            'id' => 'ID',
+            'nome' => 'Nome',
+            'email' => 'Email',
+            'hash_senha' => 'Hash Senha',
+            'data_criacao' => 'Data Criacao',
+            'data_atualizacao' => 'Data Atualizacao',
+            'cpf' => 'Cpf',
+            'telefone' => 'Telefone',
+            'auth_key' => 'Auth Key',
+            'api_de_pagamento' => 'API de Pagamento',
+            'mercadopago_public_key' => 'Mercado Pago - Public Key',
+            'mercadopago_access_token' => 'Mercado Pago - Access Token',
+            'mercadopago_sandbox' => 'Mercado Pago - Modo Sandbox',
+            'asaas_api_key' => 'Asaas - API Key',
+            'asaas_sandbox' => 'Asaas - Modo Sandbox',
+            'gateway_pagamento' => 'Gateway de Pagamento',
+            'catalogo_path' => 'Caminho do Catálogo',
+        ];
+    }
+
+    // ===================================================================
+    // ✅ INÍCIO: MÉTODOS DA IDENTITYINTERFACE
+    // ===================================================================
+
+    /**
+     * {@inheritdoc}
      */
     public static function findIdentity($id)
     {
@@ -102,16 +115,15 @@ class Usuario extends ActiveRecord implements IdentityInterface
 
     /**
      * {@inheritdoc}
-     * Encontra uma identidade pelo token de acesso. Não usaremos neste projeto.
      */
     public static function findIdentityByAccessToken($token, $type = null)
     {
-        return null; // Não implementado
+        // Não usado neste projeto, mas obrigatório pela interface
+        throw new NotSupportedException('"findIdentityByAccessToken" não foi implementado.');
     }
 
     /**
      * {@inheritdoc}
-     * Retorna o ID do usuário
      */
     public function getId()
     {
@@ -120,7 +132,6 @@ class Usuario extends ActiveRecord implements IdentityInterface
 
     /**
      * {@inheritdoc}
-     * Retorna a chave de autenticação do usuário (usada para "Lembrar-me")
      */
     public function getAuthKey()
     {
@@ -129,38 +140,42 @@ class Usuario extends ActiveRecord implements IdentityInterface
 
     /**
      * {@inheritdoc}
-     * Valida a chave de autenticação
      */
     public function validateAuthKey($authKey)
     {
         return $this->getAuthKey() === $authKey;
     }
 
-    //======================================================================
-    // MÉTODOS DE AJUDA PARA AUTENTICAÇÃO
-    //======================================================================
+    // ===================================================================
+    // ✅ FIM: MÉTODOS DA IDENTITYINTERFACE
+    // ===================================================================
+
+
+    // ===================================================================
+    // ✅ INÍCIO: HELPERS DE SENHA E AUTH_KEY
+    // ===================================================================
 
     /**
-     * Encontra um usuário pelo seu login (pode ser CPF ou Email)
-     * Usado pelo LoginForm.
-     * @param string $login
-     * @return static|null
+     * Gera hash da senha e armazena em 'hash_senha'
+     * @param string $senha
      */
-    public static function findByLogin($login)
+    public function setPassword($senha)
     {
-        return static::find()->where(['cpf' => $login])->orWhere(['email' => $login])->one();
+        $this->hash_senha = Yii::$app->security->generatePasswordHash($senha);
     }
 
     /**
-     * Gera uma nova "auth key" para o usuário.
-     * Deve ser chamado antes de salvar um novo usuário no SignupForm.
+     * Gera um novo "auth key" para o login "lembrar-me"
      */
     public function generateAuthKey()
     {
         $this->auth_key = Yii::$app->security->generateRandomString();
     }
     
-   
+    // ===================================================================
+    // ✅ FIM: HELPERS DE SENHA E AUTH_KEY
+    // ===================================================================
+
 
     /**
      * Valida a senha fornecida contra o hash armazenado
@@ -172,11 +187,54 @@ class Usuario extends ActiveRecord implements IdentityInterface
         return Yii::$app->security->validatePassword($senha, $this->hash_senha);
     }
     
-    //======================================================================
-    // MÉTODOS GETTERS (PARA FORMATAÇÃO E FACILIDADE)
-    //======================================================================
+     public static function findByLogin($login)
+    {
+        return static::find()->where(['cpf' => $login])->orWhere(['email' => $login])->one();
+    }
+    
+    // ... (Restante do código original de Usuario.php)
 
     /**
+     * ✅ Verifica se o usuário tem API de pagamento habilitada
+     */
+    public function temApiPagamento()
+    {
+        return $this->api_de_pagamento === true;
+    }
+
+    /**
+     * ✅ Verifica se o Mercado Pago está configurado
+     */
+    public function temMercadoPagoConfigurado()
+    {
+        return !empty($this->mercadopago_access_token);
+    }
+    
+    /**
+     * ✅ Verifica se o Asaas está configurado
+     */
+    public function temAsaasConfigurado()
+    {
+        return !empty($this->asaas_api_key);
+    }
+    
+    /**
+     * ✅ Retorna o gateway ativo
+     */
+    public function getGatewayAtivo()
+    {
+        if ($this->gateway_pagamento === 'mercadopago' && $this->temMercadoPagoConfigurado()) {
+            return 'mercadopago';
+        }
+        
+        if ($this->gateway_pagamento === 'asaas' && $this->temAsaasConfigurado()) {
+            return 'asaas';
+        }
+        
+        return 'nenhum';
+    }
+
+     /**
      * Retorna primeiro nome
      * @return string
      */
@@ -184,55 +242,6 @@ class Usuario extends ActiveRecord implements IdentityInterface
     {
         $palavras = explode(' ', trim($this->nome));
         return $palavras[0] ?? '';
-    }
-
-    /**
-     * Retorna CPF formatado (XXX.XXX.XXX-XX)
-     * @return string
-     */
-    public function getCpfFormatado()
-    {
-        $cpf = preg_replace('/[^0-9]/', '', $this->cpf);
-        if (strlen($cpf) == 11) {
-            return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
-        }
-        return $this->cpf;
-    }
-
-    /**
-     * Retorna Telefone formatado
-     * @return string
-     */
-    public function getTelefoneFormatado()
-    {
-        $telefone = preg_replace('/[^0-9]/', '', $this->telefone);
-        
-        if (strlen($telefone) == 11) {
-            return preg_replace('/(\d{2})(\d{5})(\d{4})/', '($1) $2-$3', $telefone);
-        } elseif (strlen($telefone) == 10) {
-            return preg_replace('/(\d{2})(\d{4})(\d{4})/', '($1) $2-$3', $telefone);
-        }
-        
-        return $this->telefone;
-    }
-
-    public function beforeSave($insert)
-    {
-        if (parent::beforeSave($insert)) {
-            // Se for um novo registo (inserção), a senha deve ser processada.
-            if ($this->isNewRecord) {
-                
-                // Gera o hash da senha
-                $this->hash_senha = Yii::$app->security->generatePasswordHash($this->senha);
-                
-                // Gera a chave de autenticação para "Lembrar-me"
-                $this->generateAuthKey();
-
-            }
-            Salg::log($this,false,"USUARIO DE DENTO DO BEFORE SAVE");
-            return true;
-        }
-        return false;
     }
 
     public function getIniciais()
@@ -250,5 +259,125 @@ class Usuario extends ActiveRecord implements IdentityInterface
 
         return strtoupper($iniciais);
     }
+    /**
+     * Gets query for [[Modulos]].
+     */
+    public function getModulos()
+    {
+        return $this->hasMany(Modulo::class, ['id' => 'modulo_id'])->viaTable('sis_usuario_modulos', ['usuario_id' => 'id']);
+    }
 
+    // ... (Restante das relações ...Query(get_called_class());
+    public function getPrestCarteiraCobrancas()
+    {
+        return $this->hasMany(CarteiraCobranca::class, ['usuario_id' => 'id']);
+    }
+
+    public function getPrestCategorias()
+    {
+        return $this->hasMany(Categoria::class, ['usuario_id' => 'id']);
+    }
+
+    public function getPrestClientes()
+    {
+        return $this->hasMany(Clientes::class, ['usuario_id' => 'id']);
+    }
+
+    public function getPrestColaboradores()
+    {
+        return $this->hasMany(Colaborador::class, ['usuario_id' => 'id']);
+    }
+
+    public function getPrestComissoes()
+    {
+        return $this->hasMany(Comissao::class, ['usuario_id' => 'id']);
+    }
+
+    public function getPrestConfiguracoes()
+    {
+        return $this->hasOne(Configuracao::class, ['usuario_id' => 'id']);
+    }
+
+    public function getPrestEstoqueMovimentacoes()
+    {
+        return $this->hasMany(EstoqueMovimentacoes::class, ['usuario_id' => 'id']);
+    }
+
+    public function getPrestFormasPagamentos()
+    {
+        return $this->hasMany(FormaPagamento::class, ['usuario_id' => 'id']);
+    }
+
+    public function getPrestHistoricoCobrancas()
+    {
+        return $this->hasMany(HistoricoCobranca::class, ['usuario_id' => 'id']);
+    }
+
+    public function getPrestOrcamentos()
+    {
+        return $this->hasMany(Orcamento::class, ['usuario_id' => 'id']);
+    }
+
+    public function getPrestParcelas()
+    {
+        return $this->hasMany(Parcela::class, ['usuario_id' => 'id']);
+    }
+
+    public function getPrestPeriodosCobrancas()
+    {
+        return $this->hasMany(PeriodosCobranca::class, ['usuario_id' => 'id']);
+    }
+
+    public function getPrestProdutos()
+    {
+        return $this->hasMany(Produto::class, ['usuario_id' => 'id']);
+    }
+
+    public function getPrestRegioes()
+    {
+        return $this->hasMany(Regioes::class, ['usuario_id' => 'id']);
+    }
+
+    public function getPrestRegrasParcelamentos()
+    {
+        return $this->hasMany(RegraParcelamento::class, ['usuario_id' => 'id']);
+    }
+
+    public function getPrestRotasCobrancas()
+    {
+        return $this->hasMany(RotaCobranca::class, ['usuario_id' => 'id']);
+    }
+
+    public function getPrestVendas()
+    {
+        return $this->hasMany(Venda::class, ['usuario_id' => 'id']);
+    }
+
+    public function getPrestVendedores()
+    {
+        return $this->hasMany(Vendedor::class, ['usuario_id' => 'id']);
+    }
+
+    public function getSisAssinaturas()
+    {
+        return $this->hasMany(Assinaturas::class, ['usuario_id' => 'id']);
+    }
+
+    public function getSisPagamentos()
+    {
+        return $this->hasMany(Pagamentos::class, ['usuario_id' => 'id']);
+    }
+
+    public function getSisUsuarioModulos()
+    {
+        return $this->hasMany(UsuarioModulo::class, ['usuario_id' => 'id']);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public static function find()
+    {
+        return new \app\modules\vendas\query\UsuariosQuery(get_called_class());
+    }
 }

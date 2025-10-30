@@ -1,58 +1,99 @@
-// config.js - Configurações centralizadas da aplicação
+// config.js - VERSÃO ATUALIZADA
 
-// Detecta automaticamente o ambiente
 const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
 
-// Função para pegar o ID da loja baseado no path
 const getLojaId = () => {
     const pathname = window.location.pathname;
-    const segments = pathname.split('/').filter(p => p); // Remove vazios
-    
-    // Pega o ÚLTIMO segmento do path (nome da loja)
+    const segments = pathname.split('/').filter(p => p);
     const lojaPath = segments[segments.length - 1];
     
-    // Mapa de paths para IDs de loja
     const lojaMap = {
-        'catalogo': 'a99a38a9-e368-4a47-a4bd-02ba3bacaa76', // Loja padrão
-        'alexbird': '5eb98116-77c2-4a01-bd60-50db21eaa206', // Exemplo: Alex Bird
-        'nike': '87654321-4321-4321-4321-210987654321',     // Exemplo: Nike
-        // Adicione mais lojas aqui conforme necessário
+        'catalogo': 'a99a38a9-e368-4a47-a4bd-02ba3bacaa76',
+        'alexbird': '5eb98116-77c2-4a01-bd60-50db21eaa206',
+        'victor':'0b633731-25a1-4991-b1c4-c46acc6bce06',
     };
     
-    const lojaId = lojaMap[lojaPath];
-    
-    if (!lojaId) {
-        console.warn(`⚠️ Loja não encontrada para path: "${lojaPath}". Usando loja padrão.`);
-        return lojaMap['catalogo']; // Fallback para loja padrão
-    }
-    
-    console.log(`🏪 Loja detectada: ${lojaPath} (ID: ${lojaId})`);
-    return lojaId;
+    return lojaMap[lojaPath] || lojaMap['catalogo'];
 };
 
 export const CONFIG = {
     URL_API: isProduction ? '/pulse/web/index.php' : '/pulse/basic/web/index.php',
     URL_BASE_WEB: isProduction ? '/pulse/web' : '/pulse/basic/web',
-    CACHE_NAME: 'catalogo-cache-v4',
+    CACHE_NAME: 'catalogo-cache-v10',
     SYNC_TAG: 'sync-novo-pedido',
-    ID_USUARIO_LOJA: getLojaId() // Agora detecta corretamente!
+    ID_USUARIO_LOJA: getLojaId()
 };
 
 export const API_ENDPOINTS = {
     PRODUTO: `${CONFIG.URL_API}/api/produto`,
     CLIENTE: `${CONFIG.URL_API}/api/cliente`,
     CLIENTE_BUSCA_CPF: `${CONFIG.URL_API}/api/cliente/buscar-cpf`,
-    CLIENTE_LOGIN: `${CONFIG.URL_API}/api/cliente/login`,
     COLABORADOR_BUSCA_CPF: `${CONFIG.URL_API}/api/colaborador/buscar-cpf`,
+    PEDIDO: `${CONFIG.URL_API}/api/pedido`,
+    
+    // ✅ NOVOS ENDPOINTS
+    USUARIO_CONFIG: `${CONFIG.URL_API}/api/usuario/config`,
+    
+    // =======================================================
+    // ✅ CORREÇÃO: ENDPOINTS ADICIONADOS DO BACKUP
+    // =======================================================
+    CLIENTE_LOGIN: `${CONFIG.URL_API}/api/cliente/login`,
     FORMA_PAGAMENTO: `${CONFIG.URL_API}/api/forma-pagamento`,
     CALCULO_PARCELA: `${CONFIG.URL_API}/api/calculo/calcular-parcelas`,
-    PEDIDO: `${CONFIG.URL_API}/api/pedido`
+    // =======================================================
+    
+    // Mercado Pago
+    MERCADOPAGO_CRIAR_PREFERENCIA: `${CONFIG.URL_API}/api/mercado-pago/criar-preferencia`,
+    
+    // Asaas
+    ASAAS_CRIAR_COBRANCA: `${CONFIG.URL_API}/api/asaas/criar-cobranca`,
+    ASAAS_GERAR_QR_PIX: `${CONFIG.URL_API}/api/asaas/gerar-qrcode-pix`,
+
+    // ✅ NOVO ENDPOINT DE CONSULTA PARA POLLING (ADICIONADO)
+    ASAAS_CONSULTAR_STATUS: `${CONFIG.URL_API}/api/asaas/consultar-status`, 
 };
 
 export const STORAGE_KEYS = {
     CARRINHO: 'carrinho_pwa',
-    PEDIDO_PENDENTE: 'pedido_pendente_pwa' // ✅ CHAVE CORRETA E CONSISTENTE
+    PEDIDO_PENDENTE: 'pedido_pendente_pwa'
 };
+
+// ✅ NOVA: Configuração de gateway (carregada dinamicamente)
+export let GATEWAY_CONFIG = {
+    habilitado: false,
+    gateway: 'nenhum', // 'mercadopago' | 'asaas' | 'nenhum'
+    mercadopago_public_key: null,
+    asaas_sandbox: false
+};
+
+// ✅ NOVA: Função para carregar config da loja
+export async function carregarConfigLoja() {
+    try {
+        const response = await fetch(
+            `${API_ENDPOINTS.USUARIO_CONFIG}?usuario_id=${CONFIG.ID_USUARIO_LOJA}`
+        );
+        
+        if (!response.ok) {
+            throw new Error('Erro ao carregar configuração');
+        }
+        
+        const config = await response.json();
+        
+        GATEWAY_CONFIG.habilitado = config.api_de_pagamento || false;
+        GATEWAY_CONFIG.gateway = config.gateway_pagamento || 'nenhum';
+        GATEWAY_CONFIG.mercadopago_public_key = config.mercadopago_public_key;
+        GATEWAY_CONFIG.asaas_sandbox = config.asaas_sandbox || false;
+        
+        console.log('[Config] Gateway:', GATEWAY_CONFIG.gateway, 
+                    GATEWAY_CONFIG.habilitado ? '✅ HABILITADO' : '❌ DESABILITADO');
+        
+        return GATEWAY_CONFIG;
+        
+    } catch (error) {
+        console.error('[Config] Erro ao carregar:', error);
+        return GATEWAY_CONFIG;
+    }
+}
 
 export const ELEMENTOS_CRITICOS = [
     'catalogo-produtos',

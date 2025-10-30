@@ -12,7 +12,7 @@ use yii\db\Expression;
 class StatusVenda extends ActiveRecord
 {
     const EM_ABERTO = 'EM_ABERTO';
-    const PAGA = 'PAGA';
+    const QUITADA = 'QUITADA';
     const CANCELADA = 'CANCELADA';
     const PARCIALMENTE_PAGA = 'PARCIALMENTE_PAGA';
 

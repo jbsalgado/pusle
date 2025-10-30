@@ -2,8 +2,7 @@
 /**
  * View: Dashboard Principal
  * Localização: app/modules/vendas/views/dashboard/index.php
- * 
- * @var yii\web\View $this
+ * * @var yii\web\View $this
  * @var app\modules\vendas\models\Usuario $usuario
  * @var array $stats
  * @var float $totalVendasMes
@@ -16,12 +15,12 @@
 use yii\helpers\Html;
 use yii\helpers\Url;
 
-$this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
+// ✅ CORREÇÃO: O método getPrimeiroNome() está correto e existe no Usuario.php
+$this->title = 'Dashboard - ' . $usuario->getPrimeiroNome(); 
 ?>
 
 <div class="space-y-6">
     
-    <!-- Header -->
     <div class="bg-white rounded-lg shadow-sm p-6">
         <div class="flex items-center justify-between">
             <div>
@@ -41,10 +40,8 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
         </div>
     </div>
 
-    <!-- Cards de Estatísticas -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
-        <!-- Total de Clientes -->
         <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
             <div class="flex items-center justify-between">
                 <div>
@@ -62,7 +59,6 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
             </div>
         </div>
 
-        <!-- Total de Produtos -->
         <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg p-6 text-white">
             <div class="flex items-center justify-between">
                 <div>
@@ -80,7 +76,6 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
             </div>
         </div>
 
-        <!-- Total de Vendas -->
         <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg p-6 text-white">
             <div class="flex items-center justify-between">
                 <div>
@@ -98,7 +93,6 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
             </div>
         </div>
 
-        <!-- Vendas do Mês -->
         <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-lg p-6 text-white">
             <div class="flex items-center justify-between">
                 <div>
@@ -118,10 +112,8 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
         </div>
     </div>
 
-    <!-- Grid com 2 colunas -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        <!-- Clientes Recentes -->
         <div class="bg-white rounded-lg shadow-sm">
             <div class="p-6 border-b border-gray-200">
                 <div class="flex items-center justify-between">
@@ -144,10 +136,10 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
                             <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
                                 <div class="flex items-center space-x-3">
                                     <div class="bg-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-semibold">
-                                        <?= strtoupper(substr($cliente->nome, 0, 2)) ?>
+                                        <?= strtoupper(substr($cliente->nome_completo, 0, 2)) ?>
                                     </div>
                                     <div>
-                                        <p class="font-medium text-gray-900"><?= Html::encode($cliente->nome) ?></p>
+                                        <p class="font-medium text-gray-900"><?= Html::encode($cliente->nome_completo) ?></p>
                                         <p class="text-sm text-gray-500"><?= Html::encode($cliente->telefone) ?></p>
                                     </div>
                                 </div>
@@ -159,7 +151,6 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
             </div>
         </div>
 
-        <!-- Produtos Mais Vendidos -->
         <div class="bg-white rounded-lg shadow-sm">
             <div class="p-6 border-b border-gray-200">
                 <div class="flex items-center justify-between">
@@ -183,7 +174,7 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
                                 <div class="flex-1">
                                     <p class="font-medium text-gray-900"><?= Html::encode($produto['nome']) ?></p>
                                     <p class="text-sm text-gray-500">
-                                        R$ <?= number_format($produto['preco'], 2, ',', '.') ?>
+                                        R$ <?= number_format($produto['preco_venda_sugerido'], 2, ',', '.') ?>
                                     </p>
                                 </div>
                                 <div class="text-right">
@@ -198,7 +189,6 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
         </div>
     </div>
 
-    <!-- Vendas Recentes -->
     <div class="bg-white rounded-lg shadow-sm">
         <div class="p-6 border-b border-gray-200">
             <div class="flex items-center justify-between">
@@ -234,7 +224,7 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm font-medium text-gray-900">
-                                        <?= Html::encode($venda->cliente->nome ?? 'N/A') ?>
+                                        <?= Html::encode($venda->cliente->nome_completo ?? 'N/A') ?>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
@@ -244,10 +234,11 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
                                         'pago' => 'bg-green-100 text-green-800',
                                         'cancelado' => 'bg-red-100 text-red-800',
                                     ];
-                                    $class = $statusClass[$venda->status] ?? 'bg-gray-100 text-gray-800';
+                                    // ✅ CORREÇÃO: Model Venda usa 'status_venda_codigo'
+                                    $class = $statusClass[$venda->status_venda_codigo] ?? 'bg-gray-100 text-gray-800';
                                     ?>
                                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full <?= $class ?>">
-                                        <?= ucfirst($venda->status) ?>
+                                        <?= ucfirst($venda->status_venda_codigo) ?>
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">
@@ -264,7 +255,6 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
         </div>
     </div>
 
-    <!-- Ações Rápidas -->
     <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg p-6 text-white">
         <h2 class="text-2xl font-bold mb-4">Ações Rápidas</h2>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -287,7 +277,7 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
             ) ?>
             
             <?= Html::a(
-                '<svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg><span>Configurações</span>',
+                '<svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826 3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg><span>Configurações</span>',
                 ['/vendas/configuracao/index'],
                 ['class' => 'bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg p-4 text-center transition flex flex-col items-center justify-center']
             ) ?>

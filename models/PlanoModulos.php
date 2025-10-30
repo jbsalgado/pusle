@@ -2,6 +2,8 @@
 
 namespace common\models;
 
+use app\models\Modulo;
+use app\models\Plano;
 use Yii;
 use yii\db\ActiveRecord;
 use yii\behaviors\TimestampBehavior;
@@ -20,7 +22,7 @@ use yii\db\Expression;
  * @property SisPlanos $plano
  * @property SisModulos $modulo
  */
-class SisPlanoModulos extends ActiveRecord
+class PlanoModulos extends ActiveRecord
 {
     /**
      * {@inheritdoc}
@@ -60,11 +62,11 @@ class SisPlanoModulos extends ActiveRecord
                 'message' => 'Este módulo já está associado a este plano.'
             ],
             [['plano_id'], 'exist', 'skipOnError' => true, 
-                'targetClass' => SisPlanos::class, 
+                'targetClass' => Plano::class, 
                 'targetAttribute' => ['plano_id' => 'id']
             ],
             [['modulo_id'], 'exist', 'skipOnError' => true, 
-                'targetClass' => SisModulos::class, 
+                'targetClass' => Modulo::class, 
                 'targetAttribute' => ['modulo_id' => 'id']
             ],
         ];
@@ -90,7 +92,7 @@ class SisPlanoModulos extends ActiveRecord
      */
     public function getPlano()
     {
-        return $this->hasOne(SisPlanos::class, ['id' => 'plano_id']);
+        return $this->hasOne(Plano::class, ['id' => 'plano_id']);
     }
 
     /**
@@ -100,7 +102,7 @@ class SisPlanoModulos extends ActiveRecord
      */
     public function getModulo()
     {
-        return $this->hasOne(SisModulos::class, ['id' => 'modulo_id']);
+        return $this->hasOne(Modulo::class, ['id' => 'modulo_id']);
     }
 
     /**
@@ -230,7 +232,7 @@ class SisPlanoModulos extends ActiveRecord
      */
     public static function getModulosPorPlano($planoId)
     {
-        return SisModulos::find()
+        return Modulo::find()
             ->innerJoin('sis_plano_modulos', 'sis_plano_modulos.modulo_id = sis_modulos.id')
             ->where(['sis_plano_modulos.plano_id' => $planoId])
             ->orderBy(['sis_modulos.nome' => SORT_ASC])
@@ -245,7 +247,7 @@ class SisPlanoModulos extends ActiveRecord
      */
     public static function getPlanosPorModulo($moduloId)
     {
-        return SisPlanos::find()
+        return Plano::find()
             ->innerJoin('sis_plano_modulos', 'sis_plano_modulos.plano_id = sis_planos.id')
             ->where(['sis_plano_modulos.modulo_id' => $moduloId])
             ->orderBy(['sis_planos.nome' => SORT_ASC])

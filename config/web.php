@@ -4,12 +4,12 @@ $params = require __DIR__ . '/params.php';
 $db = require __DIR__ . '/db.php';
 
 $config = [
-    'id' => 'pulse-gestao', // Um ID único para a aplicação
+    'id' => 'pulse-gestao',
     'name' => 'THAUSZ-PULSE GESTÃO',
     'basePath' => dirname(__DIR__),
     'sourceLanguage' => 'pt-BR',
     'language' => 'pt-BR',
-    'timeZone' => 'America/Sao_Paulo', // Recomendado: definir o fuso horário
+    'timeZone' => 'America/Sao_Paulo',
     'charset' => 'UTF-8',
     'bootstrap' => ['log'],
     'aliases' => [
@@ -17,51 +17,38 @@ $config = [
         '@npm'   => '@vendor/npm-asset',
     ],
 
-    // Rota padrão do sistema (para onde vai após o login)
     'defaultRoute' => 'dashboard/index',
 
     'components' => [
         'request' => [
-            'cookieValidationKey' => '4b0ff248a157546be93bf1b3ff881897', // <-- IMPORTANTE: Coloque uma chave secreta aqui!
+            'cookieValidationKey' => '4b0ff248a157546be93bf1b3ff881897',
+            'parsers' => [
+                'application/json' => 'yii\web\JsonParser',
+            ],
         ],
         'cache' => [
             'class' => 'yii\caching\FileCache',
         ],
-        
-        // ===================================================================
-        // ✅ CONFIGURAÇÃO DO USUÁRIO (A PARTE MAIS IMPORTANTE)
-        // ===================================================================
+
         'user' => [
-            // Aponta para o seu model de Usuário, que implementa IdentityInterface
-            'identityClass' => 'app\models\Usuario', 
-            
-            // Habilita o login automático (funcionalidade "Lembrar-me")
-            'enableAutoLogin' => true, 
-            
-            // Para onde redirecionar se o usuário tentar acessar uma página restrita sem estar logado
-            'loginUrl' => ['auth/login'], 
-            
-            // Tempo da sessão em segundos (30 minutos)
+            'identityClass' => 'app\models\Usuario',
+            'enableAutoLogin' => true,
+            'loginUrl' => ['auth/login'],
             'authTimeout' => 1800,
         ],
-        
+
         'errorHandler' => [
-            'errorAction' => 'site/error',
+            'errorAction' => 'dashboard/error',
         ],
         'mailer' => [
             'class' => \yii\symfonymailer\Mailer::class,
             'viewPath' => '@app/mail',
-            
-            // Para desenvolvimento (emails salvos em arquivos)
-            'useFileTransport' => true,
-            
-            // Para produção (descomente e configure):
-            'useFileTransport' => false,
+            'useFileTransport' => false, // Defina como false para enviar emails reais
             'transport' => [
                 'scheme' => 'smtp',
-                'host' => 'smtp.gmail.com',
-                'username' => 'seu-email@gmail.com',
-                'password' => 'sua-senha-app',
+                'host' => 'smtp.gmail.com', // Exemplo para Gmail
+                'username' => 'seu-email@gmail.com', // Substitua pelo seu email
+                'password' => 'sua-senha-app', // Substitua pela sua senha de app do Gmail
                 'port' => 587,
                 'encryption' => 'tls',
             ],
@@ -72,60 +59,123 @@ $config = [
                 [
                     'class' => 'yii\log\FileTarget',
                     'levels' => ['error', 'warning'],
+                     // Adicione 'info' se quiser logs mais detalhados
+                    // 'levels' => ['error', 'warning', 'info'],
+                    // 'logVars' => [], // Descomente para não logar $_SERVER, $_GET, etc.
+                ],
+                [
+                    'class' => 'yii\log\FileTarget',
+                    'levels' => ['info', 'error', 'warning'],
+                    'categories' => ['mercadopago', 'asaas'], // Logs específicos
+                    'logFile' => '@runtime/logs/pagamentos.log',
+                    'maxFileSize' => 10240, // 10MB
+                    // 'logVars' => [], // Descomente para não logar $_SERVER, $_GET, etc.
+                ],
+                 // ✅ Log específico para API
+                [
+                    'class' => 'yii\log\FileTarget',
+                    'levels' => ['info', 'error', 'warning'], // Adicione 'trace' para debug extremo
+                    'categories' => ['api'], // Categoria 'api' usada nos logs do ClienteController
+                    'logFile' => '@runtime/logs/api.log',
+                    'maxFileSize' => 10240, // 10MB
+                    'logVars' => [], // Descomente para não logar $_SERVER, $_GET, etc. em logs da API
                 ],
             ],
         ],
         'db' => $db,
         'urlManager' => [
             'enablePrettyUrl' => true,
-            'showScriptName' => true,
-            'enableStrictParsing' => false,
+            'showScriptName' => true, 
+            'enableStrictParsing' => true, 
             'rules' => [
+                
+                // ✅ REGRA DO WEBHOOK (MOVIDA PARA CIMA E REFORÇADA)
+                // Usando a sintaxe de array para garantir que o verbo POST seja forçado
+                [
+                    'pattern' => 'api/asaas/webhook',
+                    'route' => 'api/asaas/webhook',
+                    'verb' => ['POST'],
+                ],
+                
+                // ROTAS CUSTOMIZADAS (Abaixo do webhook)
+                'POST api/mercado-pago/criar-preferencia' => 'api/mercado-pago/criar-preferencia',
+                'POST api/asaas/criar-cobranca' => 'api/asaas/criar-cobranca',
+                
                 // ==========================================================
-                // ✅ ADICIONE ESTAS REGRAS PARA A API
+                // ✅ AJUSTE: REGRA PARA O POLLING (VERIFICADOR) DE STATUS
                 // ==========================================================
+                'GET api/asaas/consultar-status' => 'api/asaas/consultar-status',
+
+                // ROTAS CUSTOMIZADAS - USUÁRIO/LOJA/COLABORADOR/CALCULO
+                'GET api/usuario/config' => 'api/usuario/config',
+                'GET api/colaborador/buscar-cpf' => 'api/colaborador/buscar-cpf',
+                'GET api/calculo/calcular-parcelas' => 'api/calculo/calcular-parcelas',
+
+                // REGRA ESPECÍFICA PARA CLIENTE
+                [
+                    'class' => 'yii\rest\UrlRule',
+                    'controller' => 'api/cliente',
+                    'pluralize' => false,
+                    'patterns' => [
+                        'GET <id>' => 'view',    
+                        'GET'      => 'index',   
+                        'POST'     => 'create',  
+                    ],
+                    'extraPatterns' => [
+                        'GET buscar-cpf' => 'buscar-cpf',
+                        'POST login'     => 'login',
+                    ],
+                ],
+
+                // ROTAS DA API REST (Padrão Yii2) - SEM 'api/cliente'
                 [
                     'class' => 'yii\rest\UrlRule',
                     'controller' => [
-                        'api/produto', // Mapeia para app/modules/api/controllers/ProdutoController
-                        'api/pedido',   // Mapeia para app/modules/api/controllers/PedidoController
-                        'api/forma-pagamento', // <-- ADICIONAR (singular, Yii pluraliza se 'pluralize'=true)
-                        'api/cliente',
+                        'api/produto',
+                        'api/pedido',
+                        'api/forma-pagamento',
                         'api/colaborador',
                     ],
-                    'pluralize' => false, // Isso garante que 'api/produto' responda em 'api/produtos'
-                                         // e 'api/pedido' responda em 'api/pedidos'
+                    'pluralize' => false,
                 ],
-                
-                // ... Adicione outras regras de URL personalizadas aqui, se necessário
+                // Adicione outras regras específicas aqui, se necessário
+                '<controller:\w+>/<action:\w+>/<id:\d+>' => '<controller>/<action>',
+                '<controller:\w+>/<action:\w+>' => '<controller>/<action>',
+                '<module:\w+>/<controller:\w+>/<action:\w+>' => '<module>/<controller>/<action>',
             ],
         ],
-    ],
+        // ... (outros componentes)
+    ], // Fim do array 'components'
 
     // ===================================================================
-    // ✅ MÓDULOS DA APLICAÇÃO
+    // MÓDULOS DA APLICAÇÃO
     // ===================================================================
     'modules' => [
         'vendas' => [
             'class' => 'app\modules\vendas\Module',
         ],
         'porrinha' => [
-            'class' => 'app\modules\porrinha\Porrinha', // Verifique se o namespace está correto
+            'class' => 'app\modules\porrinha\Porrinha',
         ],
         'metricas' => [
-            'class' => 'app\modules\indicadores\Metricas', // Verifique se o namespace está correto
+            'class' => 'app\modules\indicadores\Metricas',
         ],
         'saas' => [
-            'class' => 'app\modules\servicos\Saas', // Verifique se o namespace está correto
+            'class' => 'app\modules\servicos\Saas',
         ],
-        'api' => [ 'class' => 'app\modules\api\Module', ],
-    ],
+        'api' => [
+            'class' => 'app\modules\api\Module',
+        ],
+        // Gii e Debug serão adicionados abaixo se YII_ENV_DEV for true
+    ], // Fim do array 'modules'
 
     'params' => $params,
-];
+
+]; 
 
 // Configurações para o ambiente de desenvolvimento (DEV)
 if (YII_ENV_DEV) {
+    // configuration adjustments for 'dev' environment
     $config['bootstrap'][] = 'debug';
     $config['modules']['debug'] = [
         'class' => 'yii\debug\Module',

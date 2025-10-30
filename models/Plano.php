@@ -29,7 +29,7 @@ use yii\db\Expression;
  * @property Assinatura[] $assinaturas
  * @property Modulo[] $modulos
  */
-class SisPlano extends ActiveRecord
+class Plano extends ActiveRecord
 {
     const TIPO_MENSAL = 'mensal';
     const TIPO_ANUAL = 'anual';
@@ -108,7 +108,7 @@ class SisPlano extends ActiveRecord
      */
     public function getAssinaturas()
     {
-        return $this->hasMany(Assinatura::class, ['plano_id' => 'id']);
+        return $this->hasMany(Assinaturas::class, ['plano_id' => 'id']);
     }
 
     /**
@@ -117,7 +117,7 @@ class SisPlano extends ActiveRecord
     public function getModulos()
     {
         return $this->hasMany(Modulo::class, ['id' => 'modulo_id'])
-            ->viaTable('sys_plano_modulos', ['plano_id' => 'id']);
+            ->viaTable('sis_plano_modulos', ['plano_id' => 'id']);
     }
 
     /**

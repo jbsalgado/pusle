@@ -16,7 +16,7 @@ use app\modules\vendas\models\ProdutoFoto;
  * Model: Produto
  * ============================================================================================================
  * Tabela: prest_produtos
- * 
+ *
  * @property string $id
  * @property string $usuario_id
  * @property string $categoria_id
@@ -29,7 +29,7 @@ use app\modules\vendas\models\ProdutoFoto;
  * @property boolean $ativo
  * @property string $data_criacao
  * @property string $data_atualizacao
- * 
+ *
  * @property Usuario $usuario
  * @property Categoria $categoria
  * @property ProdutoFoto[] $fotos
@@ -104,6 +104,40 @@ class Produto extends ActiveRecord
     }
 
     /**
+     * ✅ MÉTODO fields() MODIFICADO/ADICIONADO
+     * Controla quais campos são retornados por padrão na API.
+     */
+    public function fields()
+    {
+        $fields = parent::fields(); // Pega os campos padrão (colunas da tabela)
+
+        // Adiciona a relação 'fotos' aos campos padrão
+        // Isso garante que a relação seja incluída no JSON se carregada com ->with('fotos')
+        $fields['fotos'] = 'fotos';
+
+        // Descomente a linha abaixo se quiser incluir a categoria por padrão também
+        // $fields['categoria'] = 'categoria';
+
+        return $fields;
+    }
+
+
+    /**
+     * Define quais campos e relações extras podem ser incluídos na resposta da API
+     * usando o parâmetro ?expand=... na URL.
+     * Como 'fotos' agora está em fields(), só precisamos de 'categoria' aqui se quisermos
+     * que ela seja opcional (carregada apenas com ?expand=categoria).
+     * Se 'categoria' também foi movida para fields(), este método pode ser removido
+     * ou retornar um array vazio.
+     */
+    public function extraFields()
+    {
+        // 'fotos' foi movido para fields(), então só deixamos 'categoria' aqui
+        return ['categoria'];
+    }
+
+
+    /**
      * Retorna margem de lucro em porcentagem
      */
     public function getMargemLucro()
@@ -142,6 +176,7 @@ class Produto extends ActiveRecord
 
     public function getFotos()
     {
+        // Certifique-se de que a relação está correta e ordenada
         return $this->hasMany(ProdutoFoto::class, ['produto_id' => 'id'])
             ->orderBy(['eh_principal' => SORT_DESC, 'ordem' => SORT_ASC]);
     }
@@ -157,14 +192,14 @@ class Produto extends ActiveRecord
     public static function getListaDropdown($usuarioId = null, $apenasComEstoque = false)
     {
         $usuarioId = $usuarioId ?: Yii::$app->user->id;
-        
+
         $query = self::find()
             ->where(['usuario_id' => $usuarioId, 'ativo' => true]);
-        
+
         if ($apenasComEstoque) {
             $query->andWhere(['>', 'estoque_atual', 0]);
         }
-        
+
         return $query->select(['nome', 'id'])
             ->indexBy('id')
             ->orderBy(['nome' => SORT_ASC])

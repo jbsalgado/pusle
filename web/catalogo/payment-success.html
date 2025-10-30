@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pagamento Aprovado ✅</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-green-100 min-h-screen">
+    <div class="container mx-auto px-4 py-16">
+        <div class="max-w-md mx-auto bg-white rounded-2xl shadow-2xl p-8 text-center">
+            <!-- Ícone de Sucesso -->
+            <div class="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg class="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            
+            <h1 class="text-3xl font-bold text-green-600 mb-2">Pagamento Aprovado!</h1>
+            <p class="text-gray-600 mb-6">Seu pedido foi confirmado com sucesso.</p>
+            
+            <!-- Detalhes -->
+            <div id="detalhes" class="bg-gray-50 rounded-lg p-4 mb-6 text-left">
+                <div class="animate-pulse">
+                    <div class="h-4 bg-gray-300 rounded mb-2"></div>
+                    <div class="h-4 bg-gray-300 rounded w-2/3"></div>
+                </div>
+            </div>
+            
+            <!-- Botões -->
+            <button onclick="voltarCatalogo()" 
+                    class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 mb-3">
+                🏠 Voltar ao Catálogo
+            </button>
+            
+            <button onclick="verPedidos()" 
+                    class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 px-6 rounded-lg transition duration-200">
+                📋 Ver Meus Pedidos
+            </button>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { idbKeyval } from './utils.js';
+        import { STORAGE_KEYS } from './config.js';
+        
+        async function processar() {
+            const params = new URLSearchParams(window.location.search);
+            
+            // Dados que podem vir (Mercado Pago ou Asaas)
+            const paymentId = params.get('payment_id') || params.get('collection_id');
+            const status = params.get('status') || params.get('collection_status');
+            const externalRef = params.get('external_reference');
+            
+            const detalhesDiv = document.getElementById('detalhes');
+            
+            if (paymentId) {
+                detalhesDiv.innerHTML = `
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">ID do Pagamento:</span>
+                            <span class="font-semibold">${paymentId}</span>
+                        </div>
+                        ${status ? `
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Status:</span>
+                            <span class="font-semibold text-green-600">${status}</span>
+                        </div>
+                        ` : ''}
+                        ${externalRef ? `
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Referência:</span>
+                            <span class="font-mono text-xs">${externalRef}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+            
+            // Limpar dados locais
+            await idbKeyval.del(STORAGE_KEYS.CARRINHO);
+            await idbKeyval.del(STORAGE_KEYS.PEDIDO_PENDENTE);
+            localStorage.removeItem('mp_preference_id');
+            localStorage.removeItem('asaas_payment_id');
+            
+            console.log('✅ Carrinho limpo após pagamento aprovado');
+        }
+        
+        window.voltarCatalogo = () => {
+            window.location.href = './index.html';
+        };
+        
+        window.verPedidos = () => {
+            window.location.href = './pedidos.html'; // criar se necessário
+        };
+        
+        processar();
+    </script>
+</body>
+</html>

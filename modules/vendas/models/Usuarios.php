@@ -2,6 +2,10 @@
 
 namespace app\modules\vendas\models;
 
+use app\models\Assinaturas;
+use app\models\Modulo;
+use app\models\Pagamentos;
+use app\models\UsuarioModulo;
 use Yii;
 
 /**
@@ -16,6 +20,7 @@ use Yii;
  * @property string $cpf
  * @property string $telefone
  * @property string|null $auth_key
+ * @property boolean $api_de_pagamento
  *
  * @property SisModulos[] $modulos
  * @property PrestCarteiraCobranca[] $prestCarteiraCobrancas
@@ -62,6 +67,8 @@ class Usuarios extends \yii\db\ActiveRecord
             [['id', 'nome', 'hash_senha', 'cpf', 'telefone'], 'required'],
             [['id'], 'string'],
             [['data_criacao', 'data_atualizacao'], 'safe'],
+            [['api_de_pagamento'], 'boolean'],
+            [['api_de_pagamento'], 'default', 'value' => false],
             [['nome', 'email'], 'string', 'max' => 100],
             [['hash_senha'], 'string', 'max' => 255],
             [['cpf'], 'string', 'max' => 20],
@@ -87,7 +94,16 @@ class Usuarios extends \yii\db\ActiveRecord
             'cpf' => 'Cpf',
             'telefone' => 'Telefone',
             'auth_key' => 'Auth Key',
+            'api_de_pagamento' => 'API de Pagamento',
         ];
+    }
+
+    /**
+     * ✅ NOVO: Verifica se o usuário tem API de pagamento habilitada
+     */
+    public function temApiPagamento()
+    {
+        return $this->api_de_pagamento === true;
     }
 
     /**
@@ -97,7 +113,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getModulos()
     {
-        return $this->hasMany(SisModulos::class, ['id' => 'modulo_id'])->viaTable('sis_usuario_modulos', ['usuario_id' => 'id']);
+        return $this->hasMany(Modulo::class, ['id' => 'modulo_id'])->viaTable('sis_usuario_modulos', ['usuario_id' => 'id']);
     }
 
     /**
@@ -107,7 +123,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getPrestCarteiraCobrancas()
     {
-        return $this->hasMany(PrestCarteiraCobranca::class, ['usuario_id' => 'id']);
+        return $this->hasMany(CarteiraCobranca::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -117,7 +133,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getPrestCategorias()
     {
-        return $this->hasMany(PrestCategorias::class, ['usuario_id' => 'id']);
+        return $this->hasMany(Categoria::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -127,7 +143,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getPrestClientes()
     {
-        return $this->hasMany(PrestClientes::class, ['usuario_id' => 'id']);
+        return $this->hasMany(Clientes::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -137,7 +153,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getPrestColaboradores()
     {
-        return $this->hasMany(PrestColaboradores::class, ['usuario_id' => 'id']);
+        return $this->hasMany(Colaborador::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -147,7 +163,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getPrestComissoes()
     {
-        return $this->hasMany(PrestComissoes::class, ['usuario_id' => 'id']);
+        return $this->hasMany(Comissao::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -157,7 +173,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getPrestConfiguracoes()
     {
-        return $this->hasOne(PrestConfiguracoes::class, ['usuario_id' => 'id']);
+        return $this->hasOne(Configuracao::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -167,7 +183,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getPrestEstoqueMovimentacoes()
     {
-        return $this->hasMany(PrestEstoqueMovimentacoes::class, ['usuario_id' => 'id']);
+        return $this->hasMany(EstoqueMovimentacoes::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -177,7 +193,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getPrestFormasPagamentos()
     {
-        return $this->hasMany(PrestFormasPagamento::class, ['usuario_id' => 'id']);
+        return $this->hasMany(FormaPagamento::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -187,7 +203,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getPrestHistoricoCobrancas()
     {
-        return $this->hasMany(PrestHistoricoCobranca::class, ['usuario_id' => 'id']);
+        return $this->hasMany(HistoricoCobranca::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -197,7 +213,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getPrestOrcamentos()
     {
-        return $this->hasMany(PrestOrcamentos::class, ['usuario_id' => 'id']);
+        return $this->hasMany(Orcamento::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -207,7 +223,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getPrestParcelas()
     {
-        return $this->hasMany(PrestParcelas::class, ['usuario_id' => 'id']);
+        return $this->hasMany(Parcela::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -217,7 +233,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getPrestPeriodosCobrancas()
     {
-        return $this->hasMany(PrestPeriodosCobranca::class, ['usuario_id' => 'id']);
+        return $this->hasMany(PeriodosCobranca::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -227,7 +243,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getPrestProdutos()
     {
-        return $this->hasMany(PrestProdutos::class, ['usuario_id' => 'id']);
+        return $this->hasMany(Produto::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -237,7 +253,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getPrestRegioes()
     {
-        return $this->hasMany(PrestRegioes::class, ['usuario_id' => 'id']);
+        return $this->hasMany(Regioes::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -247,7 +263,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getPrestRegrasParcelamentos()
     {
-        return $this->hasMany(PrestRegrasParcelamento::class, ['usuario_id' => 'id']);
+        return $this->hasMany(RegraParcelamento::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -257,7 +273,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getPrestRotasCobrancas()
     {
-        return $this->hasMany(PrestRotasCobranca::class, ['usuario_id' => 'id']);
+        return $this->hasMany(RotaCobranca::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -267,7 +283,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getPrestVendas()
     {
-        return $this->hasMany(PrestVendas::class, ['usuario_id' => 'id']);
+        return $this->hasMany(Venda::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -277,7 +293,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getPrestVendedores()
     {
-        return $this->hasMany(PrestVendedores::class, ['usuario_id' => 'id']);
+        return $this->hasMany(Vendedor::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -287,7 +303,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getSisAssinaturas()
     {
-        return $this->hasMany(SisAssinaturas::class, ['usuario_id' => 'id']);
+        return $this->hasMany(Assinaturas::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -297,7 +313,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getSisPagamentos()
     {
-        return $this->hasMany(SisPagamentos::class, ['usuario_id' => 'id']);
+        return $this->hasMany(Pagamentos::class, ['usuario_id' => 'id']);
     }
 
     /**
@@ -307,7 +323,7 @@ class Usuarios extends \yii\db\ActiveRecord
      */
     public function getSisUsuarioModulos()
     {
-        return $this->hasMany(SisUsuarioModulos::class, ['usuario_id' => 'id']);
+        return $this->hasMany(UsuarioModulo::class, ['usuario_id' => 'id']);
     }
 
     /**

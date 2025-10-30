@@ -101,8 +101,7 @@ class DashboardController extends Controller
 
     /**
      * Busca produtos mais vendidos
-     * 
-     * @param string $usuarioId
+     * * @param string $usuarioId
      * @param int $limit
      * @return array
      */
@@ -110,18 +109,19 @@ class DashboardController extends Controller
     {
         try {
             // Query SQL para buscar produtos mais vendidos
+            // ✅ AJUSTE: Adicionada a coluna p.preco_venda_sugerido
             $sql = "
                 SELECT 
                     p.id,
                     p.nome,
-                    p.preco,
+                    p.preco_venda_sugerido, -- ✅ CAMPO ADICIONADO
                     COUNT(vi.id) as total_vendas,
                     SUM(vi.quantidade) as quantidade_total
                 FROM prest_produtos p
                 INNER JOIN prest_venda_itens vi ON vi.produto_id = p.id
                 INNER JOIN prest_vendas v ON v.id = vi.venda_id
                 WHERE p.usuario_id = :usuario_id
-                GROUP BY p.id, p.nome, p.preco
+                GROUP BY p.id, p.nome, p.preco_venda_sugerido -- ✅ CAMPO ADICIONADO
                 ORDER BY quantidade_total DESC
                 LIMIT :limit
             ";

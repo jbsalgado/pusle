@@ -28,7 +28,9 @@
         "bower-asset/chart.js": "^4.4",
         "bower-asset/bootstrap": "^3.4",
         "nfephp-org/sped-nfe": "^5.1",
-        "yiisoft/yii2-symfonymailer": "^4.0"
+        "yiisoft/yii2-symfonymailer": "^4.0",
+        "mercadopago/dx-php": "^3.7",
+        "guzzlehttp/guzzle": "^7.0"
     },
     "require-dev": {
         "yiisoft/yii2-debug": "^2.1",
