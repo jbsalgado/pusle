@@ -1,4 +1,5 @@
 // app.js - Aplicação principal do catálogo PWA
+// ✅ VERSÃO COMPLETA E CORRIGIDA (Baseado no app-old.js)
 
 import { CONFIG, API_ENDPOINTS, carregarConfigLoja } from './config.js';
 import { 
@@ -182,11 +183,9 @@ function atualizarBadgeCarrinho() {
 
 function renderizarCarrinho() {
     const container = document.getElementById('itens-carrinho');
-    const totalElement = document.getElementById('valor-total-carrinho'); // CORRIGIDO: ID correto do HTML
-    const totalItensFooter = document.getElementById('total-itens-footer'); // ADICIONAR: contador de itens no footer
+    const totalElement = document.getElementById('valor-total-carrinho');
+    const totalItensFooter = document.getElementById('total-itens-footer');
     const btnFinalizar = document.getElementById('btn-finalizar-pedido');
-    const carrinhoVazio = document.getElementById('carrinho-vazio-msg'); // CORRIGIDO: ID correto
-    const carrinhoConteudo = document.getElementById('carrinho-conteudo');
     
     const carrinho = getCarrinho();
     
@@ -200,51 +199,49 @@ function renderizarCarrinho() {
     
     if (btnFinalizar) btnFinalizar.disabled = false;
     
-    // Renderizar itens
+    // Renderizar itens com novo layout mobile-first
     container.innerHTML = carrinho.map((item, index) => {
-        // Construir URL da imagem baseado no caminho do arquivo ou usar placeholder
-        let urlImagem = 'https://dummyimage.com/80x80/cccccc/ffffff.png&text=Sem+Imagem';
+        let urlImagem = 'https://dummyimage.com/100x100/cccccc/ffffff.png&text=Sem+Imagem';
         if (item.fotos && item.fotos.length > 0 && item.fotos[0].arquivo_path) {
             urlImagem = `${CONFIG.URL_BASE_WEB}/${item.fotos[0].arquivo_path}`;
         } else if (item.imagem) {
             urlImagem = item.imagem;
         }
         
+        const subtotal = item.preco_venda_sugerido * item.quantidade;
+        
         return `
-        <div class="bg-white rounded-lg shadow p-4 flex items-center gap-4">
-            <img src="${urlImagem}" 
-                 alt="${item.nome}"
-                 class="w-20 h-20 object-cover rounded"
-                 onerror="this.src='https://dummyimage.com/80x80/cccccc/ffffff.png&text=Erro'">
+        <div class="cart-item">
+            <button onclick="removerItem(${index})" class="cart-item-remove" title="Remover item">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </button>
             
-            <div class="flex-1">
-                <h3 class="font-semibold text-gray-800">${item.nome}</h3>
-                <p class="text-sm text-gray-600">${formatarMoeda(item.preco_venda_sugerido)}</p>
+            <div class="cart-item-container">
+                <img src="${urlImagem}" 
+                     alt="${item.nome}"
+                     class="cart-item-image"
+                     onerror="this.src='https://dummyimage.com/100x100/cccccc/ffffff.png&text=Erro'">
                 
-                <div class="flex items-center gap-2 mt-2">
-                    <button onclick="diminuirQtd('${item.id}')" 
-                            class="bg-gray-200 hover:bg-gray-300 w-8 h-8 rounded flex items-center justify-center">
-                        −
-                    </button>
-                    <span class="font-semibold w-8 text-center">${item.quantidade}</span>
-                    <button onclick="aumentarQtd('${item.id}')" 
-                            class="bg-gray-200 hover:bg-gray-300 w-8 h-8 rounded flex items-center justify-center">
-                        +
-                    </button>
+                <div class="cart-item-info">
+                    <h3 class="cart-item-name">${item.nome}</h3>
+                    <p class="cart-item-price">${formatarMoeda(item.preco_venda_sugerido)} un.</p>
+                    
+                    <div class="cart-item-controls">
+                        <button onclick="diminuirQtd('${item.id}')" class="qty-btn">−</button>
+                        <span class="qty-value">${item.quantidade}</span>
+                        <button onclick="aumentarQtd('${item.id}')" class="qty-btn">+</button>
+                    </div>
+                    
+                    <div class="cart-item-total">
+                        <p class="cart-item-subtotal">Subtotal</p>
+                        <p class="cart-item-total-price">${formatarMoeda(subtotal)}</p>
+                    </div>
                 </div>
             </div>
-            
-            <div class="text-right">
-                <p class="font-bold text-lg text-blue-600">
-                    ${formatarMoeda(item.preco_venda_sugerido * item.quantidade)}
-                </p>
-                <button onclick="removerItem(${index})" 
-                        class="text-red-500 hover:text-red-700 text-sm mt-2">
-                    🗑️ Remover
-                </button>
-            </div>
         </div>
-    `;
+        `;
     }).join('');
     
     // Atualizar total
@@ -517,7 +514,7 @@ window.abrirModalPedido = async function() {
     // CORREÇÃO: Carregar formas de pagamento
     try {
         console.log('[App] 💳 Carregando formas de pagamento...');
-        // Seta "Carregando..." manualmente caso o HTML mude
+        // Seta "Carregando..." manually caso o HTML mude
         const selectPgto = document.getElementById('forma-pagamento');
         if (selectPgto) {
             selectPgto.innerHTML = '<option value="">Carregando...</option>';
@@ -736,13 +733,26 @@ window.confirmarPedido = async function() {
         console.log('[App] 📥 Resultado:', resultado);
         
         if (resultado.sucesso) {
+            
+            // ===============================================
+            // ✅ AJUSTE PARA POLLING DO PIX (da etapa anterior)
+            // ===============================================
             if (resultado.redirecionado) {
-                // Redirecionamento para gateway (MP/Asaas)
-                // A página já foi redirecionada pelo gateway-pagamento.js
-                return;
+                // Se foi redirecionado (ex: MercadoPago), não faz mais nada aqui
+                return; 
             }
             
-            alert(resultado.mensagem);
+            // Se o modal PIX foi exibido, o gateway-pagamento.js cuida do resto.
+            // O app.js só precisa esperar pelo evento 'pagamentoConfirmado'.
+            if (resultado.mensagem === 'Modal PIX exibido. Aguardando pagamento.') {
+                 console.log('[App] Modal PIX exibido. Aguardando confirmação...');
+                 // Não faz mais nada aqui, o polling está ativo
+                 return; // Sai da função, mas o botão continua "Processando..."
+            }
+            // ===============================================
+
+            // Para fluxos normais (offline, boleto, interno)
+            alert(resultado.mensagem || 'Pedido realizado com sucesso!');
             
             if (!resultado.offline) {
                 // Limpar carrinho apenas se não for offline
@@ -752,16 +762,24 @@ window.confirmarPedido = async function() {
             }
             
             fecharModal('modal-cliente-pedido');
+
         } else {
-            alert(`Erro: ${resultado.mensagem || 'Erro desconhecido'}`);
+            // Se finalizarPedido falhou
+            alert(`Erro: ${resultado.mensagem || 'Erro desconhecido ao processar pedido.'}`);
         }
         
     } catch (error) {
+        // Se ocorreu um erro inesperado
         console.error('[App] Erro ao finalizar pedido:', error);
         alert(`Erro ao finalizar pedido: ${error.message}`);
     } finally {
-        btnConfirmar.disabled = false;
-        btnConfirmar.textContent = '✅ Confirmar Pedido';
+        // ✅ AJUSTE PARA POLLING DO PIX
+        // Só re-habilita o botão se NÃO for um PIX aguardando
+        const modalPix = document.getElementById('modal-pix-asaas');
+        if (!modalPix) { 
+            btnConfirmar.disabled = false;
+            btnConfirmar.textContent = '✅ Confirmar Pedido';
+        }
     }
 };
 
@@ -833,11 +851,40 @@ function inicializarEventListeners() {
     // Fechar modais ao clicar fora
     document.querySelectorAll('.modal-overlay').forEach(modal => {
         modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
+             // ✅ AJUSTE: Não fecha o modal PIX ao clicar fora
+            if (e.target === modal && modal.id !== 'modal-pix-asaas') {
                 fecharModal(modal.id);
             }
         });
     });
+
+    // ==================================================================
+    // ✅ AJUSTE: OUVIR A CONFIRMAÇÃO DE PAGAMENTO DO GATEWAY
+    // (Este foi o listener que adicionei na etapa anterior)
+    // ==================================================================
+    window.addEventListener('pagamentoConfirmado', (event) => {
+        console.log('[App] 💳 Pagamento confirmado recebido!', event.detail);
+        
+        // Exibe alerta de sucesso
+        alert(`Pagamento confirmado com sucesso!\nPedido ID: ${event.detail.pedidoId || 'N/A'}`);
+        
+        // Limpa o carrinho
+        limparCarrinho();
+        atualizarBadgeCarrinho();
+        
+        // Fecha o modal de pedido (onde o cliente inseriu o CPF)
+        fecharModal('modal-cliente-pedido');
+
+        // Re-habilita o botão de confirmar, caso o usuário abra de novo
+        const btnConfirmar = document.getElementById('btn-confirmar-pedido');
+        if (btnConfirmar) {
+            btnConfirmar.disabled = false;
+            btnConfirmar.textContent = '✅ Confirmar Pedido';
+        }
+    });
+    // ==================================================================
+    // FIM DO AJUSTE
+    // ==================================================================
     
     console.log('[App] ✅ Event listeners inicializados');
 }
