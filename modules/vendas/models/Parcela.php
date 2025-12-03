@@ -68,6 +68,8 @@ class Parcela extends ActiveRecord
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
             [['status_parcela_codigo'], 'exist', 'skipOnError' => true, 'targetClass' => StatusParcela::class, 'targetAttribute' => ['status_parcela_codigo' => 'codigo']],
             [['cobrador_id'], 'exist', 'skipOnError' => true, 'targetClass' => Colaborador::class, 'targetAttribute' => ['cobrador_id' => 'id']],
+            // Validação opcional de forma_pagamento_id (pode ser null, mas se preenchido deve existir)
+            [['forma_pagamento_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => FormaPagamento::class, 'targetAttribute' => ['forma_pagamento_id' => 'id']],
         ];
     }
 

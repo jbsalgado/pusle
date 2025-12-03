@@ -108,20 +108,39 @@ class PedidoController extends Controller
 
         // Validação inicial
         $itensVazios = !isset($data['itens']) || empty($data['itens']) || !is_array($data['itens']);
-        $clienteIdVazio = !isset($data['cliente_id']) || empty($data['cliente_id']);
+        
+        // VENDA DIRETA: cliente_id pode ser null (opcional)
+        // Se não for null, deve ser uma string não vazia
+        $clienteIdVazio = false;
+        if (isset($data['cliente_id'])) {
+            // Se foi enviado, não pode ser string vazia (mas pode ser null)
+            if ($data['cliente_id'] === '') {
+                $clienteIdVazio = true;
+            }
+        }
+        // Se não foi enviado, também é válido (será null)
+        
         $formaPgtoVazia = !isset($data['forma_pagamento_id']) || empty($data['forma_pagamento_id']);
         
         Yii::error("Verificação inicial: itens=" . ($itensVazios ? 'VAZIO' : 'OK') . 
-                   ", cliente_id=" . ($clienteIdVazio ? 'VAZIO' : 'OK') . 
+                   ", cliente_id=" . (isset($data['cliente_id']) ? ($data['cliente_id'] === null ? 'NULL (OK)' : ($clienteIdVazio ? 'VAZIO' : 'OK')) : 'NÃO ENVIADO (OK)') . 
                    ", forma_pgto=" . ($formaPgtoVazia ? 'VAZIO' : 'OK'), 'api');
 
         if ($itensVazios || $clienteIdVazio || $formaPgtoVazia) {
             Yii::error('Validação inicial falhou.', 'api');
-            throw new BadRequestHttpException('Dados incompletos: itens, cliente_id ou forma_pagamento_id faltando.');
+            throw new BadRequestHttpException('Dados incompletos: itens, cliente_id (não pode ser string vazia) ou forma_pagamento_id faltando.');
         }
 
         $formaPagamentoId = $data['forma_pagamento_id'];
-        $clienteId = $data['cliente_id'];
+        // Garante que não seja string vazia
+        if ($formaPagamentoId === '') {
+            $formaPagamentoId = null;
+        }
+        Yii::error("Forma de Pagamento ID recebida: " . var_export($formaPagamentoId, true), 'api');
+        Yii::error("Tipo do Forma de Pagamento ID: " . gettype($formaPagamentoId), 'api');
+        
+        // VENDA DIRETA: cliente_id pode ser null
+        $clienteId = $data['cliente_id'] ?? null;
         $numeroParcelas = max(1, (int)($data['numero_parcelas'] ?? 1));
 
         // === NOVA VALIDAÇÃO: Data do primeiro pagamento ===
@@ -203,14 +222,27 @@ class PedidoController extends Controller
             }
 
             // ===== CRIAR E SALVAR VENDA =====
+            // VENDA DIRETA: Detecta se é venda direta (cliente_id null)
+            $isVendaDireta = ($clienteId === null);
+            
             $venda = new Venda();
             $venda->usuario_id = $usuarioId;
             $venda->cliente_id = $clienteId;
             $venda->data_venda = date('Y-m-d H:i:s');
-            $venda->observacoes = $data['observacoes'] ?? 'Pedido PWA';
+            $venda->observacoes = $data['observacoes'] ?? ($isVendaDireta ? 'Venda Direta' : 'Pedido PWA');
             $venda->numero_parcelas = $numeroParcelas;
-            $venda->status_venda_codigo = \app\modules\vendas\models\StatusVenda::EM_ABERTO;
+            
+            // VENDA DIRETA: Status QUITADA (pagamento na hora)
+            // VENDA NORMAL: Status EM_ABERTO (aguardando pagamento)
+            $venda->status_venda_codigo = $isVendaDireta 
+                ? \app\modules\vendas\models\StatusVenda::QUITADA 
+                : \app\modules\vendas\models\StatusVenda::EM_ABERTO;
+            
             $venda->valor_total = $valorTotalVenda;
+            
+            // Adiciona a forma de pagamento
+            $venda->forma_pagamento_id = $formaPagamentoId;
+            Yii::info("Forma de Pagamento ID atribuída à venda: " . ($formaPagamentoId ?? 'NULL'), 'api');
 
             // Adiciona o ID do vendedor, se foi enviado
             $colaboradorId = $data['colaborador_vendedor_id'] ?? null;
@@ -220,13 +252,21 @@ class PedidoController extends Controller
                 $venda->colaborador_vendedor_id = null;
             }
             
-            // === NOVO: Adiciona data do primeiro pagamento ===
-            if ($dataPrimeiroPagamento) {
+            // === VENDA DIRETA: Data do primeiro vencimento = data da venda ===
+            // === VENDA NORMAL: Usa data informada ou calcula ===
+            if ($isVendaDireta) {
+                // Venda direta: data do primeiro vencimento = data da venda (hoje)
+                $venda->data_primeiro_vencimento = date('Y-m-d');
+                Yii::info("Venda Direta detectada - data_primeiro_vencimento = data da venda", 'api');
+            } elseif ($dataPrimeiroPagamento) {
+                // Venda normal: usa data informada
                 $venda->data_primeiro_vencimento = $dataPrimeiroPagamento;
             }
             
             Yii::info("ID Colaborador Vendedor: " . ($venda->colaborador_vendedor_id ?? 'Nenhum'), 'api');
             Yii::info("Data Primeiro Pagamento: " . ($venda->data_primeiro_vencimento ?? 'Não informada'), 'api');
+            Yii::info("Tipo de Venda: " . ($isVendaDireta ? 'VENDA DIRETA (QUITADA)' : 'VENDA NORMAL (EM_ABERTO)'), 'api');
+            Yii::info("Forma de Pagamento ID: " . ($formaPagamentoId ?? 'Não informada'), 'api');
 
             Yii::error("Atributos VENDA antes de save(): " . print_r($venda->attributes, true), 'api');
             
@@ -235,7 +275,11 @@ class PedidoController extends Controller
                 Yii::error("❌ FALHA ao salvar Venda: " . print_r($venda->errors, true), 'api');
                 throw new Exception('Erro ao salvar venda: ' . implode(', ', $erros));
             }
+            
+            // Recarrega a venda do banco para verificar se forma_pagamento_id foi salvo
+            $venda->refresh();
             Yii::error("✅ Venda ID {$venda->id} salva com valor R$ {$venda->valor_total}", 'api');
+            Yii::error("✅ Venda forma_pagamento_id após save: " . ($venda->forma_pagamento_id ?? 'NULL'), 'api');
 
             // ===== LOOP 2: CRIAR ITENS E ATUALIZAR ESTOQUE =====
             Yii::error("Iniciando criação de itens...", 'api');
@@ -266,7 +310,18 @@ class PedidoController extends Controller
             Yii::error("Criação de itens concluída.", 'api');
 
             // ===== GERAR PARCELAS =====
-            $venda->gerarParcelas($formaPagamentoId, $dataPrimeiroPagamento);
+            $intervaloDiasParcelas = isset($data['intervalo_dias_parcelas']) 
+                ? (int)$data['intervalo_dias_parcelas'] 
+                : 30;
+            
+            Yii::error("Chamando gerarParcelas com: formaPagamentoId={$formaPagamentoId}, isVendaDireta=" . ($isVendaDireta ? 'true' : 'false'), 'api');
+            
+            $venda->gerarParcelas(
+                $formaPagamentoId, 
+                $isVendaDireta ? date('Y-m-d') : $dataPrimeiroPagamento, 
+                $intervaloDiasParcelas,
+                $isVendaDireta // Indica se é venda direta (para marcar como PAGA)
+            );
             Yii::error("Parcelas geradas para Venda ID {$venda->id}", 'api');
 
             // ===== COMMIT =====

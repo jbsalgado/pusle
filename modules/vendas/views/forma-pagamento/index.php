@@ -11,14 +11,26 @@ $tipoIcons = [
     'DINHEIRO' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>',
     'PIX' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>',
     'CARTAO' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>',
+    'CARTAO_CREDITO' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>',
+    'CARTAO_DEBITO' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>',
     'BOLETO' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>',
+    'TRANSFERENCIA' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>',
+    'CHEQUE' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>',
+    'OUTRO' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>',
+    'OUTROS' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>',
 ];
 
 $tipoBadges = [
     'DINHEIRO' => 'bg-green-100 text-green-800',
     'PIX' => 'bg-blue-100 text-blue-800',
     'CARTAO' => 'bg-purple-100 text-purple-800',
+    'CARTAO_CREDITO' => 'bg-purple-100 text-purple-800',
+    'CARTAO_DEBITO' => 'bg-purple-100 text-purple-800',
     'BOLETO' => 'bg-orange-100 text-orange-800',
+    'TRANSFERENCIA' => 'bg-indigo-100 text-indigo-800',
+    'CHEQUE' => 'bg-yellow-100 text-yellow-800',
+    'OUTRO' => 'bg-gray-100 text-gray-800',
+    'OUTROS' => 'bg-gray-100 text-gray-800',
 ];
 ?>
 
@@ -32,6 +44,11 @@ $tipoBadges = [
             </div>
             
             <div class="flex flex-col sm:flex-row gap-3">
+                <?= Html::a(
+                    '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>Voltar',
+                    ['/vendas/inicio/index'],
+                    ['class' => 'inline-flex items-center justify-center px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-lg shadow-md transition duration-300']
+                ) ?>
                 <!-- Toggle View -->
                 <div class="inline-flex rounded-lg border border-gray-300 bg-white p-1" role="group">
                     <a href="<?= Url::to(['index', 'view' => 'cards']) ?>" 
@@ -92,7 +109,7 @@ $tipoBadges = [
                             <div class="flex items-start justify-between mb-3">
                                 <div class="flex items-center">
                                     <div class="flex-shrink-0 w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-600">
-                                        <?= $tipoIcons[$model->tipo] ?>
+                                        <?= $tipoIcons[$model->tipo] ?? $tipoIcons['OUTRO'] ?>
                                     </div>
                                     <div class="ml-3">
                                         <h3 class="text-lg font-semibold text-gray-900 truncate">
@@ -105,7 +122,7 @@ $tipoBadges = [
                             <div class="space-y-2 mb-4">
                                 <div class="flex items-center justify-between">
                                     <span class="text-sm text-gray-600">Tipo:</span>
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <?= $tipoBadges[$model->tipo] ?>">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <?= $tipoBadges[$model->tipo] ?? $tipoBadges['OUTRO'] ?>">
                                         <?= Html::encode($model->tipo) ?>
                                     </span>
                                 </div>
@@ -177,7 +194,7 @@ $tipoBadges = [
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="flex items-center">
                                             <div class="flex-shrink-0 w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-600">
-                                                <?= $tipoIcons[$model->tipo] ?>
+                                                <?= $tipoIcons[$model->tipo] ?? $tipoIcons['OUTRO'] ?>
                                             </div>
                                             <div class="ml-4">
                                                 <div class="text-sm font-medium text-gray-900">
@@ -190,7 +207,7 @@ $tipoBadges = [
                                         </div>
                                     </td>
                                     <td class="hidden sm:table-cell px-6 py-4 whitespace-nowrap">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <?= $tipoBadges[$model->tipo] ?>">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <?= $tipoBadges[$model->tipo] ?? $tipoBadges['OUTRO'] ?>">
                                             <?= Html::encode($model->tipo) ?>
                                         </span>
                                     </td>

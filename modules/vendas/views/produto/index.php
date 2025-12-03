@@ -16,11 +16,18 @@ $viewMode = Yii::$app->request->get('view', 'cards');
     <div class="max-w-7xl mx-auto mb-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h1 class="text-3xl font-bold text-gray-900"><?= Html::encode($this->title) ?></h1>
-            <?= Html::a(
-                '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Novo Produto',
-                ['create'],
-                ['class' => 'inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-300']
-            ) ?>
+            <div class="flex flex-wrap gap-2">
+                <?= Html::a(
+                    '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>Voltar',
+                    ['/vendas/inicio/index'],
+                    ['class' => 'inline-flex items-center px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-lg shadow-md transition duration-300']
+                ) ?>
+                <?= Html::a(
+                    '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Novo Produto',
+                    ['create'],
+                    ['class' => 'inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-300']
+                ) ?>
+            </div>
         </div>
     </div>
 
@@ -172,6 +179,12 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                                     <span class="text-sm text-gray-600">Margem:</span>
                                     <span class="text-sm font-semibold text-blue-600">
                                         <?= Yii::$app->formatter->asDecimal($model->margemLucro, 2) ?>%
+                                    </span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Markup:</span>
+                                    <span class="text-sm font-semibold text-green-600">
+                                        <?= Yii::$app->formatter->asDecimal($model->markup, 2) ?>%
                                     </span>
                                 </div>
                             </div>

@@ -37,6 +37,11 @@ $this->params['breadcrumbs'][] = $this->title;
                     ['index'],
                     ['class' => 'inline-flex items-center px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-lg transition duration-300']
                 ) ?>
+                <?= Html::a(
+                    '<svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>Produtos',
+                    ['/vendas/produto/index'],
+                    ['class' => 'inline-flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition duration-300']
+                ) ?>
             </div>
         </div>
 

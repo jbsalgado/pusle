@@ -1,6 +1,7 @@
 <?php
 
 use yii\helpers\Html;
+use yii\helpers\Url;
 use yii\widgets\DetailView;
 
 $this->title = $model->nome;
@@ -96,16 +97,36 @@ $this->params['breadcrumbs'][] = $this->title;
                                 R$ <?= Yii::$app->formatter->asDecimal($model->preco_custo, 2) ?>
                             </span>
                         </div>
+                        <?php if ($model->valor_frete > 0): ?>
+                        <div class="flex justify-between items-center pb-2 border-b">
+                            <span class="text-sm text-gray-600">Valor do Frete:</span>
+                            <span class="text-base font-semibold text-gray-700">
+                                R$ <?= Yii::$app->formatter->asDecimal($model->valor_frete, 2) ?>
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center pb-2 border-b">
+                            <span class="text-sm text-gray-600">Custo Total:</span>
+                            <span class="text-base font-semibold text-gray-900">
+                                R$ <?= Yii::$app->formatter->asDecimal($model->custoTotal, 2) ?>
+                            </span>
+                        </div>
+                        <?php endif; ?>
                         <div class="flex justify-between items-center pb-2 border-b">
                             <span class="text-sm text-gray-600">Preço de Venda:</span>
                             <span class="text-xl font-bold text-green-600">
                                 R$ <?= Yii::$app->formatter->asDecimal($model->preco_venda_sugerido, 2) ?>
                             </span>
                         </div>
-                        <div class="flex justify-between items-center">
+                        <div class="flex justify-between items-center pb-2 border-b">
                             <span class="text-sm text-gray-600">Margem de Lucro:</span>
                             <span class="text-base font-semibold text-blue-600">
                                 <?= Yii::$app->formatter->asDecimal($model->margemLucro, 2) ?>%
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600">Markup:</span>
+                            <span class="text-base font-semibold text-green-600">
+                                <?= Yii::$app->formatter->asDecimal($model->markup, 2) ?>%
                             </span>
                         </div>
                     </div>
@@ -164,12 +185,25 @@ $this->params['breadcrumbs'][] = $this->title;
                                     'value' => 'R$ ' . Yii::$app->formatter->asDecimal($model->preco_custo, 2),
                                 ],
                                 [
+                                    'attribute' => 'valor_frete',
+                                    'value' => $model->valor_frete > 0 ? 'R$ ' . Yii::$app->formatter->asDecimal($model->valor_frete, 2) : '-',
+                                    'label' => 'Valor do Frete',
+                                ],
+                                [
+                                    'label' => 'Custo Total',
+                                    'value' => 'R$ ' . Yii::$app->formatter->asDecimal($model->custoTotal, 2),
+                                ],
+                                [
                                     'attribute' => 'preco_venda_sugerido',
                                     'value' => 'R$ ' . Yii::$app->formatter->asDecimal($model->preco_venda_sugerido, 2),
                                 ],
                                 [
                                     'label' => 'Margem de Lucro',
                                     'value' => Yii::$app->formatter->asDecimal($model->margemLucro, 2) . '%',
+                                ],
+                                [
+                                    'label' => 'Markup',
+                                    'value' => Yii::$app->formatter->asDecimal($model->markup, 2) . '%',
                                 ],
                                 'estoque_atual:integer',
                                 'data_criacao:datetime',
@@ -201,15 +235,21 @@ $this->params['breadcrumbs'][] = $this->title;
                                         
                                         <div class="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center gap-2">
                                             <?php if (!$foto->eh_principal): ?>
-                                                <?= Html::a('Principal', ['set-foto-principal', 'id' => $foto->id], [
+                                                <?php
+                                                    $setPrincipalUrl = Url::to(['set-foto-principal', 'id' => $foto->id, 'redirect' => 'view']);
+                                                ?>
+                                                <?= Html::a('Principal', $setPrincipalUrl, [
                                                     'class' => 'px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded',
                                                     'data-method' => 'post'
                                                 ]) ?>
                                             <?php endif; ?>
-                                            <?= Html::a('Excluir', ['delete-foto', 'id' => $foto->id], [
+                                            <?php
+                                                $deleteUrl = Url::to(['delete-foto', 'id' => $foto->id, 'redirect' => 'view']);
+                                            ?>
+                                            <?= Html::a('Excluir', $deleteUrl, [
                                                 'class' => 'px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded',
                                                 'data' => [
-                                                    'confirm' => 'Tem certeza que deseja excluir esta foto?',
+                                                    'confirm' => $foto->eh_principal ? 'Esta é a foto principal. Ao excluir, outra foto será definida como principal automaticamente. Deseja continuar?' : 'Tem certeza que deseja excluir esta foto?',
                                                     'method' => 'post',
                                                 ],
                                             ]) ?>

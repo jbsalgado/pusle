@@ -10,6 +10,7 @@ use app\models\Usuario;
 use app\modules\vendas\models\Categoria;
 use app\modules\vendas\models\VendaItem;
 use app\modules\vendas\models\ProdutoFoto;
+use app\modules\vendas\helpers\PricingHelper;
 
 /**
  * ============================================================================================================
@@ -24,7 +25,10 @@ use app\modules\vendas\models\ProdutoFoto;
  * @property string $descricao
  * @property string $codigo_referencia
  * @property float $preco_custo
+ * @property float $valor_frete
  * @property float $preco_venda_sugerido
+ * @property float $margem_lucro_percentual
+ * @property float $markup_percentual
  * @property integer $estoque_atual
  * @property boolean $ativo
  * @property string $data_criacao
@@ -73,9 +77,11 @@ class Produto extends ActiveRecord
             [['usuario_id', 'nome', 'preco_venda_sugerido'], 'required'],
             [['usuario_id', 'categoria_id'], 'string'],
             [['descricao'], 'string'],
-            [['preco_custo', 'preco_venda_sugerido', 'preco_promocional'], 'number', 'min' => 0],
+            [['preco_custo', 'valor_frete', 'preco_venda_sugerido', 'preco_promocional'], 'number', 'min' => 0],
+            [['margem_lucro_percentual', 'markup_percentual'], 'number', 'min' => 0, 'max' => 99.99],
             [['estoque_atual'], 'integer', 'min' => 0],
             [['estoque_atual'], 'default', 'value' => 0],
+            [['valor_frete'], 'default', 'value' => 0],
             [['ativo', 'permite_parcelamento'], 'boolean'],
             [['ativo'], 'default', 'value' => true],
             [['permite_parcelamento'], 'default', 'value' => false],
@@ -108,6 +114,34 @@ class Produto extends ActiveRecord
     }
 
     /**
+     * Calcula e atualiza margem de lucro e markup automaticamente
+     */
+    public function calculateMargemMarkup($attribute, $params)
+    {
+        $custoTotal = PricingHelper::calcularCustoTotal($this->preco_custo, $this->valor_frete);
+        
+        if ($custoTotal > 0 && $this->preco_venda_sugerido > 0) {
+            $this->margem_lucro_percentual = PricingHelper::calcularMargemLucro($custoTotal, $this->preco_venda_sugerido);
+            $this->markup_percentual = PricingHelper::calcularMarkup($custoTotal, $this->preco_venda_sugerido);
+        } else {
+            $this->margem_lucro_percentual = null;
+            $this->markup_percentual = null;
+        }
+    }
+
+    /**
+     * Hook antes de salvar para calcular margem e markup
+     */
+    public function beforeSave($insert)
+    {
+        if (parent::beforeSave($insert)) {
+            $this->calculateMargemMarkup(null, null);
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function attributeLabels()
@@ -120,7 +154,10 @@ class Produto extends ActiveRecord
             'descricao' => 'Descrição',
             'codigo_referencia' => 'Código de Referência',
             'preco_custo' => 'Preço de Custo',
+            'valor_frete' => 'Valor do Frete',
             'preco_venda_sugerido' => 'Preço de Venda',
+            'margem_lucro_percentual' => 'Margem de Lucro (%)',
+            'markup_percentual' => 'Markup (%)',
             'estoque_atual' => 'Estoque Atual',
             'ativo' => 'Ativo',
             'data_criacao' => 'Data de Cadastro',
@@ -171,12 +208,37 @@ class Produto extends ActiveRecord
 
 
     /**
-     * Retorna margem de lucro em porcentagem
+     * Retorna margem de lucro em porcentagem (CORRIGIDO)
+     * Margem = (Preço de Venda - Custo) / Preço de Venda * 100
+     * 
+     * @return float Margem de lucro em percentual
      */
     public function getMargemLucro()
     {
-        if ($this->preco_custo == 0) return 0;
-        return (($this->preco_venda_sugerido - $this->preco_custo) / $this->preco_custo) * 100;
+        $custoTotal = PricingHelper::calcularCustoTotal($this->preco_custo, $this->valor_frete);
+        return PricingHelper::calcularMargemLucro($custoTotal, $this->preco_venda_sugerido);
+    }
+
+    /**
+     * Retorna o markup em porcentagem
+     * Markup = (Preço de Venda - Custo) / Custo * 100
+     * 
+     * @return float Markup em percentual
+     */
+    public function getMarkup()
+    {
+        $custoTotal = PricingHelper::calcularCustoTotal($this->preco_custo, $this->valor_frete);
+        return PricingHelper::calcularMarkup($custoTotal, $this->preco_venda_sugerido);
+    }
+
+    /**
+     * Retorna o custo total (custo + frete)
+     * 
+     * @return float Custo total
+     */
+    public function getCustoTotal()
+    {
+        return PricingHelper::calcularCustoTotal($this->preco_custo, $this->valor_frete);
     }
 
     /**

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Venda Direta</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#007BFF"/>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        #status-online { display: none; }
+        html.online #status-online { display: flex; }
+        html.offline #status-offline { display: flex; }
+        #itens-carrinho { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; align-items: start; align-content: start; }
+        @media (max-width: 640px) { #itens-carrinho { grid-template-columns: 1fr; } }
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        #modal-carrinho .bg-white.rounded-t-3xl { display: flex; flex-direction: column; }
+        @media (min-height: 600px) { #itens-carrinho { max-height: calc(90vh - 320px); } }
+        @media (max-height: 599px) { #itens-carrinho { max-height: 400px; } }
+        
+        /* ✨ CSS para imagens com placeholder */
+        img.img-placeholder {
+            background: #f5f5f5;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        
+        /* Suavizar transição quando imagem carrega */
+        img {
+            transition: opacity 0.3s ease-in-out;
+        }
+        
+        img[src*="data:image/svg"] {
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <header class="bg-white shadow-md sticky top-0 z-10">
+        <nav class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-blue-600">Venda Direta</h1>
+            <div class="flex items-center gap-3">
+                <div id="status-online" class="items-center gap-1 text-green-600">
+                    <span class="h-3 w-3 bg-green-500 rounded-full"></span>
+                    <span class="text-xs font-medium hidden sm:inline">Online</span>
+                </div>
+                <div id="status-offline" class="items-center gap-1 text-gray-500">
+                    <span class="h-3 w-3 bg-gray-400 rounded-full"></span>
+                    <span class="text-xs font-medium hidden sm:inline">Offline</span>
+                </div>
+                <button id="btn-abrir-carrinho" class="relative bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                    <span id="contador-carrinho" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <main id="catalogo-produtos" class="container mx-auto p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <!-- Products will be loaded here by app.js -->
+    </main>
+
+    <!-- Modal Carrinho -->
+    <div id="modal-carrinho" class="fixed inset-0 bg-black bg-opacity-50 z-20 hidden">
+        <div class="h-full flex flex-col justify-end sm:justify-center sm:items-center sm:p-4">
+            <div class="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[90vh] sm:max-h-[85vh] flex flex-col">
+                <div class="flex justify-between items-center border-b p-4 sm:p-5 flex-shrink-0">
+                    <div><h2 class="text-xl sm:text-2xl font-bold text-gray-800">Meu Carrinho</h2><p class="text-xs sm:text-sm text-gray-500 mt-1">Revise seus itens</p></div>
+                    <button onclick="fecharModal('modal-carrinho')" class="text-gray-400 hover:text-gray-600 transition-colors p-2 -mr-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                </div>
+                <div id="itens-carrinho" class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
+                    <p id="carrinho-vazio-msg" class="text-center text-gray-500 py-8"><svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>Seu carrinho está vazio</p>
+                </div>
+                <div class="border-t bg-gray-50 p-4 sm:p-5 flex-shrink-0 rounded-b-3xl sm:rounded-b-2xl">
+                    <div class="flex justify-between items-center mb-4">
+                        <div><p class="text-sm text-gray-600">Valor Total</p><p id="valor-total-carrinho" class="text-2xl sm:text-3xl font-bold text-blue-600">R$ 0,00</p></div>
+                        <div class="text-right"><p class="text-xs text-gray-500">Itens</p><p class="text-lg font-semibold text-gray-700" id="total-itens-footer">0</p></div>
+                    </div>
+                    <button id="btn-finalizar-pedido" class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white p-3 sm:p-4 rounded-xl font-bold text-base sm:text-lg shadow-lg hover:from-blue-600 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed" disabled>Finalizar Venda</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Finalizar Pedido (Venda Direta) -->
+    <div id="modal-cliente-pedido" class="fixed inset-0 bg-black bg-opacity-50 z-30 flex justify-center items-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b p-4 sticky top-0 bg-white z-10">
+                <h2 class="text-xl font-bold text-gray-800">Finalizar Venda</h2>
+                <button onclick="fecharModal('modal-cliente-pedido')" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            
+            <form id="form-cliente-pedido">
+                <div class="p-4 space-y-4">
+                    <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                        <p class="text-sm text-gray-700"><strong>Venda Direta:</strong> O cliente escolhe a forma de pagamento, paga e leva o produto. Informe o CPF do vendedor apenas se desejar contabilizar comissão.</p>
+                    </div>
+
+                    <div>
+                        <label for="vendedor_cpf_busca" class="block text-sm font-medium text-gray-700 mb-1">CPF do Vendedor (Opcional)</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="vendedor_cpf_busca" placeholder="000.000.000-00" maxlength="14" data-mask="cpf" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                            <button type="button" onclick="window.buscarVendedor()" class="px-4 py-2 bg-green-600 text-white rounded-md font-semibold hover:bg-green-700">Buscar</button>
+                        </div>
+                        <input type="hidden" id="colaborador_vendedor_id" name="colaborador_vendedor_id">
+                        <div id="info-vendedor" class="mt-2 text-sm text-green-700 bg-green-50 p-2 rounded border border-green-200 hidden">
+                           Vendedor: <strong id="nome-vendedor-info"></strong>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500">ℹ️ Se não informar o CPF, a venda será registrada sem comissão.</p>
+                    </div>
+
+                    <div>
+                        <label for="observacoes-pedido" class="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                        <textarea id="observacoes-pedido" name="observacoes" rows="3" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="Observações adicionais (opcional)"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="numero-parcelas" class="block text-sm font-medium text-gray-700 mb-1">Parcelas *</label>
+                            <select id="numero-parcelas" name="numero_parcelas" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
+                                <option value="1">À vista</option>
+                            </select>
+                            <div id="info-parcelas" class="mt-2 text-sm"></div>
+                        </div>
+                        <div>
+                            <label for="forma-pagamento" class="block text-sm font-medium text-gray-700 mb-1">Pagamento *</label>
+                            <select id="forma-pagamento" name="forma_pagamento" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
+                                <option value="">Carregando...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="campo-data-primeiro-pagamento" class="hidden">
+                        <label for="data-primeiro-pagamento" class="block text-sm font-medium text-gray-700 mb-1">
+                            📅 Data do Primeiro Pagamento *
+                        </label>
+                        <input type="date" id="data-primeiro-pagamento" name="data_primeiro_pagamento" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-base">
+                        <p class="mt-1 text-xs text-gray-500">ℹ️ Informe a data do vencimento da primeira parcela</p>
+                    </div>
+
+                    <div id="campo-intervalo-parcelas" class="hidden">
+                        <label for="intervalo-dias" class="block text-sm font-medium text-gray-700 mb-1">
+                            📊 Intervalo entre Parcelas (dias) *
+                        </label>
+                        <input type="number" id="intervalo-dias" name="intervalo_dias_parcelas" min="1" max="365" value="30" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-base" placeholder="Ex: 30 dias">
+                        <p class="mt-1 text-xs text-gray-500">⏱️ Informe quantos dias entre cada parcela (padrão: 30 dias)</p>
+                    </div>
+                </div>
+
+                <div class="border-t p-4 bg-gray-50 rounded-b-lg">
+                    <button type="button" id="btn-confirmar-pedido" onclick="window.confirmarPedido()" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 transition-opacity">✅ Confirmar Venda</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ✅ MODAL QUANTIDADE (ADICIONADO) -->
+    <div id="modal-quantidade" class="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-xs">
+            <div class="flex justify-between items-center border-b p-4">
+                <h2 class="text-lg font-semibold">Adicionar ao Carrinho</h2>
+                <button onclick="fecharModal('modal-quantidade')" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <div class="p-4 space-y-3">
+                <p class="text-center font-medium" id="nome-produto-modal">[Nome do Produto]</p>
+                <p class="text-center text-xl font-bold text-blue-600" id="preco-produto-modal">[Preço]</p>
+                <div>
+                    <label for="input-quantidade" class="block text-sm font-medium text-gray-700 mb-1">Quantidade</label>
+                    <input type="number" id="input-quantidade" value="1" min="1" class="w-full p-2 border border-gray-300 rounded-md text-center">
+                </div>
+            </div>
+            <div class="border-t p-4 bg-gray-50 rounded-b-lg">
+                <button id="btn-confirmar-adicionar" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Galeria de Fotos -->
+    <div id="modal-galeria" class="fixed inset-0 bg-black bg-opacity-95 z-50 hidden">
+        <!-- Conteúdo do Modal Galeria -->
+    </div>
+
+    <!-- Modal PIX Estático -->
+    <div id="modal-pix-estatico" class="fixed inset-0 bg-black bg-opacity-70 z-50 flex justify-center items-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="flex justify-between items-center border-b p-4">
+                <h2 class="text-xl font-bold text-gray-800">Pagamento via PIX</h2>
+                <button onclick="window.fecharModalPixEstatico()" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <div class="p-6">
+                <div class="text-center mb-4">
+                    <p class="text-lg font-semibold text-gray-700 mb-2">Valor: <span id="pix-valor" class="text-blue-600"></span></p>
+                    <p class="text-sm text-gray-600">Escaneie o QR Code ou copie o código PIX</p>
+                </div>
+                
+                <div id="pix-qrcode-container" class="flex justify-center mb-4">
+                    <!-- QR Code será gerado aqui -->
+                </div>
+                
+                <div class="bg-gray-100 p-3 rounded-lg mb-4">
+                    <p class="text-xs text-gray-600 mb-2 font-semibold">Código PIX Copia e Cola:</p>
+                    <p id="pix-codigo-copia-cola" class="text-xs font-mono break-all bg-white p-2 rounded border border-gray-300"></p>
+                </div>
+                
+                <button onclick="copiarCodigoPix()" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 mb-3">
+                    📋 Copiar Código PIX
+                </button>
+                
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p class="text-xs text-blue-800">
+                        <strong>Instruções:</strong> Após o pagamento, confirme manualmente o recebimento no sistema.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <!-- QRCode library - usando API online como fallback -->
+    <script src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=test" style="display:none"></script>
+    <script src="js/idb-keyval.js"></script>
+    <script type="module" src="js/imagePlaceholder.js"></script>
+    <script type="module" src="js/pix.js"></script>
+    <script type="module" src="js/app.js"></script>
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
+</body>
+</html>
+

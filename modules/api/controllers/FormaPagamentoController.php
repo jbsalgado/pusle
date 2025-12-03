@@ -51,11 +51,17 @@ class FormaPagamentoController extends Controller
              $formas = [];
         }
 
-        // Formata o resultado
+        // Formata o resultado incluindo tipo
         $resultado = [];
         foreach ($formas as $id => $nome) {
             if (!empty($id) && !empty($nome)) {
-                $resultado[] = ['id' => $id, 'nome' => $nome];
+                // Busca a forma de pagamento completa para pegar o tipo
+                $formaPagamento = FormaPagamento::findOne($id);
+                $resultado[] = [
+                    'id' => $id, 
+                    'nome' => $nome,
+                    'tipo' => $formaPagamento ? $formaPagamento->tipo : null
+                ];
             }
         }
 

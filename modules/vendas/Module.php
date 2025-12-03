@@ -25,5 +25,13 @@ class Module extends \yii\base\Module
 
         // Layout padrão do módulo
         $this->layout = 'main';
+        
+        // Mapeamento de controllers com hífen para garantir que funcionem corretamente
+        $this->controllerMap = [
+            'forma-pagamento' => 'app\modules\vendas\controllers\FormaPagamentoController',
+            'carteira-cobranca' => 'app\modules\vendas\controllers\CarteiraCobrancaController',
+            'rota-cobranca' => 'app\modules\vendas\controllers\RotaCobrancaController',
+            'historico-cobranca' => 'app\modules\vendas\controllers\HistoricoCobrancaController',
+        ];
     }
 }

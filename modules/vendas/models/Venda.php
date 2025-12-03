@@ -13,6 +13,7 @@ use app\modules\vendas\models\StatusVenda;
 use app\modules\vendas\models\StatusParcela;
 use app\modules\vendas\models\Parcela;
 use app\modules\vendas\models\RegraParcelamento;
+use app\modules\vendas\models\FormaPagamento;
 
 /**
  * ============================================================================================================
@@ -29,6 +30,7 @@ use app\modules\vendas\models\RegraParcelamento;
  * @property string $status_venda_codigo
  * @property string $observacoes
  * @property string $data_primeiro_vencimento
+ * @property string $forma_pagamento_id
  * @property string $data_criacao
  * @property string $data_atualizacao
  * 
@@ -36,6 +38,7 @@ use app\modules\vendas\models\RegraParcelamento;
  * @property Cliente $cliente
  * @property Colaborador $vendedor
  * @property StatusVenda $statusVenda
+ * @property FormaPagamento $formaPagamento
  * @property VendaItem[] $itens
  * @property Parcela[] $parcelas
  */
@@ -70,8 +73,9 @@ class Venda extends ActiveRecord
     public function rules()
     {
         return [
-            [['usuario_id', 'cliente_id', 'valor_total'], 'required'],
-            [['usuario_id', 'cliente_id', 'colaborador_vendedor_id', 'status_venda_codigo'], 'string'],
+            // VENDA DIRETA: cliente_id é opcional (pode ser null)
+            [['usuario_id', 'valor_total'], 'required'],
+            [['usuario_id', 'cliente_id', 'colaborador_vendedor_id', 'status_venda_codigo', 'forma_pagamento_id'], 'string'],
             [['valor_total'], 'number', 'min' => 0],
             [['numero_parcelas'], 'integer', 'min' => 1],
             [['numero_parcelas'], 'default', 'value' => 1],
@@ -79,9 +83,12 @@ class Venda extends ActiveRecord
             [['data_primeiro_vencimento'], 'date', 'format' => 'php:Y-m-d'],
             [['observacoes'], 'string'],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
-            [['cliente_id'], 'exist', 'skipOnError' => true, 'targetClass' => Cliente::class, 'targetAttribute' => ['cliente_id' => 'id']],
+            // VENDA DIRETA: cliente_id pode ser null, então só valida existência se não for null
+            [['cliente_id'], 'exist', 'skipOnError' => true, 'targetClass' => Cliente::class, 'targetAttribute' => ['cliente_id' => 'id'], 'skipOnEmpty' => true],
             [['colaborador_vendedor_id'], 'exist', 'skipOnError' => true, 'targetClass' => Colaborador::class, 'targetAttribute' => ['colaborador_vendedor_id' => 'id']],
             [['status_venda_codigo'], 'exist', 'skipOnError' => true, 'targetClass' => StatusVenda::class, 'targetAttribute' => ['status_venda_codigo' => 'codigo']],
+            // Validação opcional de forma_pagamento_id (pode ser null, mas se preenchido deve existir)
+            [['forma_pagamento_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => FormaPagamento::class, 'targetAttribute' => ['forma_pagamento_id' => 'id']],
         ];
     }
 
@@ -103,6 +110,7 @@ class Venda extends ActiveRecord
             'data_criacao' => 'Data de Criação',
             'data_atualizacao' => 'Última Atualização',
             'data_primeiro_vencimento' => 'Data 1º Venc.',
+            'forma_pagamento_id' => 'Forma de Pagamento',
         ];
     }
 
@@ -120,7 +128,7 @@ class Venda extends ActiveRecord
      * @return bool
      * @throws \yii\db\Exception
      */
-    public function gerarParcelas($formaPagamentoId = null, $dataPrimeiroPagamento = null, $intervaloDiasParcelas = 30)
+    public function gerarParcelas($formaPagamentoId = null, $dataPrimeiroPagamento = null, $intervaloDiasParcelas = 30, $isVendaDireta = false)
     {
         // Valida o intervalo de dias
         $intervaloDiasParcelas = max(1, min(365, (int)$intervaloDiasParcelas));
@@ -221,13 +229,36 @@ class Venda extends ActiveRecord
             }
 
             $parcela->data_vencimento = $dataVencimento->format('Y-m-d');
+            
+            // VENDA DIRETA: Marca como PAGA (pagamento na hora)
+            // VENDA NORMAL: Marca como PENDENTE (aguardando pagamento)
+            if ($isVendaDireta) {
+                $parcela->status_parcela_codigo = StatusParcela::PAGA;
+                $parcela->data_pagamento = date('Y-m-d');
+                $parcela->valor_pago = (float)$parcela->valor_parcela; // Garante que é float
+                Yii::info("Venda Direta: Parcela {$i} marcada como PAGA - Valor: R$ {$parcela->valor_pago}, Data: {$parcela->data_pagamento}", 'Venda');
+            } else {
             $parcela->status_parcela_codigo = StatusParcela::PENDENTE;
-            $parcela->forma_pagamento_id = $formaPagamentoId; // Define a forma de pagamento
+                // Para vendas normais, data_pagamento e valor_pago ficam null até o pagamento
+            }
+            
+            // Define a forma de pagamento
+            // Converte string vazia para null (Yii2 pode não salvar string vazia corretamente)
+            $parcela->forma_pagamento_id = (!empty($formaPagamentoId) && $formaPagamentoId !== '') 
+                ? $formaPagamentoId 
+                : null;
+            
+            // Log para debug
+            Yii::info("Parcela {$i}: forma_pagamento_id recebido = " . var_export($formaPagamentoId, true), 'Venda');
+            Yii::info("Parcela {$i}: forma_pagamento_id atribuído = " . var_export($parcela->forma_pagamento_id, true), 'Venda');
 
             if (!$parcela->save()) {
                  Yii::error("Erro ao salvar parcela {$i} para venda {$this->id}: " . print_r($parcela->errors, true), 'Venda');
+                 Yii::error("Atributos da parcela que falhou: " . print_r($parcela->attributes, true), 'Venda');
                  throw new \yii\db\Exception("Não foi possível salvar a parcela {$i}.");
             }
+            
+            Yii::info("Parcela {$i} salva com sucesso. forma_pagamento_id = " . ($parcela->forma_pagamento_id ?? 'NULL'), 'Venda');
             
             Yii::info("Parcela {$i}/{$this->numero_parcelas} gerada: R$ {$parcela->valor_parcela}, vencimento: {$parcela->data_vencimento}", 'Venda');
         }
@@ -310,6 +341,11 @@ class Venda extends ActiveRecord
     public function getStatusVenda()
     {
         return $this->hasOne(StatusVenda::class, ['codigo' => 'status_venda_codigo']);
+    }
+
+    public function getFormaPagamento()
+    {
+        return $this->hasOne(FormaPagamento::class, ['id' => 'forma_pagamento_id']);
     }
 
     public function getItens()

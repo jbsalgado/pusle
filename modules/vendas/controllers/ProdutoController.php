@@ -8,6 +8,7 @@ use app\modules\vendas\models\Categoria;
 use app\modules\vendas\models\ProdutoFoto;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
+use yii\helpers\Url;
 use yii\filters\VerbFilter;
 use yii\filters\AccessControl;
 use yii\data\ActiveDataProvider;
@@ -155,24 +156,110 @@ class ProdutoController extends Controller
 
     public function actionDeleteFoto($id)
     {
-        $foto = ProdutoFoto::findOne($id);
+        $produtoId = null;
         
-        if (!$foto) {
-            throw new NotFoundHttpException('Foto não encontrada.');
-        }
+        try {
+            $foto = ProdutoFoto::findOne($id);
+            
+            if (!$foto) {
+                throw new NotFoundHttpException('Foto não encontrada.');
+            }
 
-        $produto = $foto->produto;
+            $produto = $foto->produto;
+            
+            if (!$produto) {
+                throw new NotFoundHttpException('Produto não encontrado para esta foto.');
+            }
+            
+            // Verificar se o produto pertence ao usuário
+            if ($produto->usuario_id !== Yii::$app->user->id) {
+                throw new NotFoundHttpException('Acesso negado.');
+            }
+
+            // Guardar informações antes de excluir
+            $ehPrincipal = $foto->eh_principal;
+            $produtoId = $produto->id;
+
+            // Verificar se é a única foto do produto
+            $totalFotos = ProdutoFoto::find()->where(['produto_id' => $produto->id])->count();
+            if ($totalFotos <= 1) {
+                Yii::$app->session->setFlash('error', 'Não é possível excluir a única foto do produto. Adicione outra foto antes de excluir esta.');
+                
+                // Redirecionar de volta para a página de origem (update ou view)
+                $redirectTo = Yii::$app->request->get('redirect') ?: Yii::$app->request->post('redirect', 'update');
+                if (!in_array($redirectTo, ['update', 'view'])) {
+                    $redirectTo = 'update';
+                }
+                return $this->redirect([$redirectTo, 'id' => $produtoId]);
+            }
+
+            // Excluir o arquivo físico primeiro
+            $this->deleteFotoFile($foto);
+            
+            // Excluir o registro do banco
+            $fotoId = $foto->id;
+            $deleteResult = $foto->delete();
+            
+            if (!$deleteResult) {
+                $errors = $foto->getFirstErrors();
+                $errorMsg = !empty($errors) ? implode(', ', $errors) : 'Erro desconhecido ao excluir a foto.';
+                Yii::$app->session->setFlash('error', 'Erro ao excluir a foto: ' . $errorMsg);
+                $redirectTo = Yii::$app->request->get('redirect') ?: Yii::$app->request->post('redirect', 'update');
+                if (!in_array($redirectTo, ['update', 'view'])) {
+                    $redirectTo = 'update';
+                }
+                return $this->redirect([$redirectTo, 'id' => $produtoId]);
+            }
+
+            // Se a foto excluída era principal, definir outra como principal
+            if ($ehPrincipal) {
+                $outraFoto = ProdutoFoto::find()
+                    ->where(['produto_id' => $produtoId])
+                    ->orderBy(['ordem' => SORT_ASC])
+                    ->one();
+                
+                if ($outraFoto) {
+                    $outraFoto->eh_principal = true;
+                    $outraFoto->save(false);
+                }
+            }
+
+            Yii::$app->session->setFlash('success', 'Foto excluída com sucesso!');
+            
+        } catch (\Exception $e) {
+            Yii::$app->session->setFlash('error', 'Erro ao excluir foto: ' . $e->getMessage());
+            
+            // Se conseguirmos o produto, redirecionar para ele
+            if (isset($produto) && $produto) {
+                $redirectTo = Yii::$app->request->get('redirect') ?: Yii::$app->request->post('redirect', 'update');
+                if (!in_array($redirectTo, ['update', 'view'])) {
+                    $redirectTo = 'update';
+                }
+                return $this->redirect([$redirectTo, 'id' => $produto->id]);
+            }
+            
+            // Caso contrário, redirecionar para a lista
+            return $this->redirect(['index']);
+        }
         
-        // Verificar se o produto pertence ao usuário
-        if ($produto->usuario_id !== Yii::$app->user->id) {
-            throw new NotFoundHttpException('Acesso negado.');
+        // Verificar se temos o produtoId antes de redirecionar
+        if (!$produtoId) {
+            Yii::$app->session->setFlash('error', 'Erro ao identificar o produto. Redirecionando para a lista.');
+            return $this->redirect(['index']);
         }
-
-        $this->deleteFotoFile($foto);
-        $foto->delete();
-
-        Yii::$app->session->setFlash('success', 'Foto excluída com sucesso!');
-        return $this->redirect(['view', 'id' => $produto->id]);
+        
+        // Redirecionar de volta para a página de origem (update ou view)
+        // Tentar pegar o parâmetro redirect do GET ou POST, padrão é 'update'
+        $redirectTo = Yii::$app->request->get('redirect');
+        if (!$redirectTo) {
+            $redirectTo = Yii::$app->request->post('redirect');
+        }
+        if (!$redirectTo || !in_array($redirectTo, ['update', 'view'])) {
+            $redirectTo = 'update'; // Padrão sempre é update
+        }
+        
+        // Redirecionar usando array direto (funciona dentro do mesmo controller)
+        return $this->redirect([$redirectTo, 'id' => $produtoId]);
     }
 
     public function actionSetFotoPrincipal($id)
@@ -200,7 +287,10 @@ class ProdutoController extends Controller
         $foto->save(false);
 
         Yii::$app->session->setFlash('success', 'Foto principal definida!');
-        return $this->redirect(['view', 'id' => $produto->id]);
+        
+        // Redirecionar de volta para a página de origem (update ou view)
+        $redirectTo = Yii::$app->request->get('redirect', 'view');
+        return $this->redirect([$redirectTo, 'id' => $produto->id]);
     }
 
     protected function processUploadFotos($model)

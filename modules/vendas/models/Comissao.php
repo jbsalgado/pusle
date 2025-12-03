@@ -11,6 +11,7 @@ use app\modules\vendas\models\Parcela;
 use app\models\Usuario;
 use app\modules\vendas\models\Colaborador;
 use app\modules\vendas\models\StatusParcela;
+use app\modules\vendas\models\ComissaoConfig;
 
 /**
  * ============================================================================================================
@@ -32,10 +33,13 @@ use app\modules\vendas\models\StatusParcela;
  * @property string $observacoes
  * @property string $data_criacao
  * 
+ * @property string|null $comissao_config_id
+ * 
  * @property Colaborador $colaborador
  * @property Venda $venda
  * @property Parcela $parcela
  * @property Usuario $usuario
+ * @property ComissaoConfig|null $comissaoConfig
  */
 class Comissao extends ActiveRecord
 {
@@ -61,7 +65,7 @@ class Comissao extends ActiveRecord
     {
         return [
             [['colaborador_id', 'usuario_id', 'percentual_aplicado', 'valor_base', 'valor_comissao'], 'required'],
-            [['colaborador_id', 'venda_id', 'parcela_id', 'usuario_id'], 'string'],
+            [['colaborador_id', 'venda_id', 'parcela_id', 'usuario_id', 'comissao_config_id'], 'string'],
             [['percentual_aplicado'], 'number', 'min' => 0, 'max' => 100],
             [['valor_base', 'valor_comissao'], 'number', 'min' => 0],
             [['tipo_comissao', 'status'], 'string', 'max' => 20],
@@ -75,6 +79,7 @@ class Comissao extends ActiveRecord
             [['venda_id'], 'exist', 'skipOnError' => true, 'targetClass' => Venda::class, 'targetAttribute' => ['venda_id' => 'id']],
             [['parcela_id'], 'exist', 'skipOnError' => true, 'targetClass' => Parcela::class, 'targetAttribute' => ['parcela_id' => 'id']],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
+            [['comissao_config_id'], 'exist', 'skipOnError' => true, 'targetClass' => ComissaoConfig::class, 'targetAttribute' => ['comissao_config_id' => 'id']],
         ];
     }
 
@@ -97,6 +102,7 @@ class Comissao extends ActiveRecord
             'data_pagamento' => 'Data de Pagamento',
             'observacoes' => 'Observações',
             'data_criacao' => 'Data de Criação',
+            'comissao_config_id' => 'Configuração de Comissão',
         ];
     }
 
@@ -128,6 +134,14 @@ class Comissao extends ActiveRecord
     public function getUsuario()
     {
         return $this->hasOne(Usuario::class, ['id' => 'usuario_id']);
+    }
+
+    /**
+     * Retorna relação com ComissaoConfig
+     */
+    public function getComissaoConfig()
+    {
+        return $this->hasOne(ComissaoConfig::class, ['id' => 'comissao_config_id']);
     }
 
     /**

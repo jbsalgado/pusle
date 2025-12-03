@@ -63,6 +63,8 @@ use yii\widgets\ActiveForm;
             ) ?>
             <?= Html::a('Cancelar', ['index'], 
                 ['class' => 'flex-1 text-center px-6 py-3 bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold rounded-lg transition duration-300']) ?>
+            <?= Html::a('Produtos', ['/vendas/produto/index'], 
+                ['class' => 'flex-1 text-center px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition duration-300']) ?>
         </div>
 
     </div>

@@ -83,6 +83,17 @@ $config = [
             ],
         ],
         'db' => $db,
+        'formatter' => [
+            'class' => 'yii\i18n\Formatter',
+            'locale' => 'pt-BR',
+            'defaultTimeZone' => 'America/Sao_Paulo',
+            'currencyCode' => 'BRL',
+            'dateFormat' => 'php:d/m/Y',
+            'datetimeFormat' => 'php:d/m/Y H:i:s',
+            'timeFormat' => 'php:H:i:s',
+            'decimalSeparator' => ',',
+            'thousandSeparator' => '.',
+        ],
         'urlManager' => [
             'enablePrettyUrl' => true,
             'showScriptName' => true, 
@@ -139,9 +150,14 @@ $config = [
                     'pluralize' => false,
                 ],
                 // Adicione outras regras específicas aqui, se necessário
+                // Regras específicas para módulo vendas com controllers e actions que podem ter hífens (devem vir antes das genéricas)
+                // Permite controllers como forma-pagamento, carteira-cobranca, etc.
+                'vendas/<controller:[\w-]+>/<action:[\w-]+>/<id:[0-9a-f\-]+>' => 'vendas/<controller>/<action>',
+                'vendas/<controller:[\w-]+>/<action:[\w-]+>' => 'vendas/<controller>/<action>',
                 '<controller:\w+>/<action:\w+>/<id:\d+>' => '<controller>/<action>',
                 '<controller:\w+>/<action:\w+>' => '<controller>/<action>',
-                '<module:\w+>/<controller:\w+>/<action:\w+>' => '<module>/<controller>/<action>',
+                // Regra genérica para módulos (permite hífens nos controllers e actions)
+                '<module:\w+>/<controller:[\w-]+>/<action:[\w-]+>' => '<module>/<controller>/<action>',
             ],
         ],
         // ... (outros componentes)

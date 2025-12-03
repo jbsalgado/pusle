@@ -1,6 +1,7 @@
 <?php
 
 use yii\helpers\Html;
+use yii\helpers\Url;
 use yii\widgets\ActiveForm;
 use app\modules\vendas\models\Categoria;
 
@@ -55,7 +56,7 @@ use app\modules\vendas\models\Categoria;
             ])->label(false) ?>
         </div>
 
-        <!-- Preços e Estoque -->
+        <!-- Preços, Frete e Estoque -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Preço de Custo (R$)</label>
@@ -70,6 +71,18 @@ use app\modules\vendas\models\Categoria;
             </div>
 
             <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Valor do Frete (R$)</label>
+                <?= $form->field($model, 'valor_frete')->textInput([
+                    'type' => 'number',
+                    'step' => '0.01',
+                    'min' => '0',
+                    'class' => 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                    'placeholder' => '0.00',
+                    'id' => 'valor-frete'
+                ])->label(false) ?>
+            </div>
+
+            <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Preço de Venda (R$) *</label>
                 <?= $form->field($model, 'preco_venda_sugerido')->textInput([
                     'type' => 'number',
@@ -80,7 +93,38 @@ use app\modules\vendas\models\Categoria;
                     'id' => 'preco-venda'
                 ])->label(false) ?>
             </div>
+        </div>
 
+        <!-- Margem e Markup (calculados automaticamente) -->
+        <div id="margem-markup-container" class="hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <span class="text-sm font-medium text-gray-700 block">Margem de Lucro</span>
+                            <span class="text-xs text-gray-500">(sobre o preço de venda)</span>
+                        </div>
+                        <span id="margem-valor" class="text-lg font-bold text-blue-600">0.00%</span>
+                    </div>
+                </div>
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <span class="text-sm font-medium text-gray-700 block">Markup</span>
+                            <span class="text-xs text-gray-500">(sobre o custo)</span>
+                        </div>
+                        <span id="markup-valor" class="text-lg font-bold text-green-600">0.00%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Campos ocultos para salvar margem e markup calculados -->
+        <?= $form->field($model, 'margem_lucro_percentual')->hiddenInput(['id' => 'margem-lucro-percentual'])->label(false) ?>
+        <?= $form->field($model, 'markup_percentual')->hiddenInput(['id' => 'markup-percentual'])->label(false) ?>
+
+        <!-- Estoque -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Estoque Atual (un)</label>
                 <?= $form->field($model, 'estoque_atual')->textInput([
@@ -92,12 +136,33 @@ use app\modules\vendas\models\Categoria;
             </div>
         </div>
 
-        <!-- Margem de Lucro (calculada) -->
-        <div id="margem-container" class="hidden">
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div class="flex justify-between items-center">
-                    <span class="text-sm font-medium text-gray-700">Margem de Lucro:</span>
-                    <span id="margem-valor" class="text-lg font-bold text-blue-600">0.00%</span>
+        <!-- Opção: Calcular preço por margem desejada -->
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <div class="flex items-center mb-3">
+                <input type="checkbox" id="calcular-por-margem" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                <label for="calcular-por-margem" class="ml-2 text-sm font-medium text-gray-700">
+                    Calcular preço de venda pela margem desejada
+                </label>
+            </div>
+            <div id="margem-desejada-container" class="hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Margem Desejada (%)</label>
+                        <input type="number" 
+                               id="margem-desejada" 
+                               step="0.01" 
+                               min="0" 
+                               max="99.99"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="Ex: 30 para 30%">
+                    </div>
+                    <div class="flex items-end">
+                        <button type="button" 
+                                id="btn-calcular-preco" 
+                                class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition duration-300">
+                            Calcular Preço
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -138,16 +203,24 @@ use app\modules\vendas\models\Categoria;
                                     Principal
                                 </span>
                             <?php else: ?>
-                                <?= Html::a('Definir Principal', ['set-foto-principal', 'id' => $foto->id], [
+                                <?php
+                                    $redirectTo = !$model->isNewRecord ? 'update' : 'view';
+                                    $setPrincipalUrl = Url::to(['set-foto-principal', 'id' => $foto->id, 'redirect' => $redirectTo]);
+                                ?>
+                                <?= Html::a('Definir Principal', $setPrincipalUrl, [
                                     'class' => 'absolute top-2 left-2 px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300',
                                     'data-method' => 'post'
                                 ]) ?>
                             <?php endif; ?>
 
-                            <?= Html::a('✕', ['delete-foto', 'id' => $foto->id], [
+                            <?php
+                                $redirectTo = !$model->isNewRecord ? 'update' : 'view';
+                                $deleteUrl = Url::to(['delete-foto', 'id' => $foto->id, 'redirect' => $redirectTo]);
+                            ?>
+                            <?= Html::a('✕', $deleteUrl, [
                                 'class' => 'absolute top-2 right-2 w-6 h-6 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300',
                                 'data' => [
-                                    'confirm' => 'Tem certeza que deseja excluir esta foto?',
+                                    'confirm' => $foto->eh_principal ? 'Esta é a foto principal. Ao excluir, outra foto será definida como principal automaticamente. Deseja continuar?' : 'Tem certeza que deseja excluir esta foto?',
                                     'method' => 'post',
                                 ],
                             ]) ?>
@@ -187,30 +260,118 @@ use app\modules\vendas\models\Categoria;
 </div>
 
 <script>
-// Calcular margem em tempo real
+// Calcular margem e markup em tempo real
 document.addEventListener('DOMContentLoaded', function() {
     const custoInput = document.getElementById('preco-custo');
+    const freteInput = document.getElementById('valor-frete');
     const vendaInput = document.getElementById('preco-venda');
-    const margemContainer = document.getElementById('margem-container');
+    const margemMarkupContainer = document.getElementById('margem-markup-container');
     const margemValor = document.getElementById('margem-valor');
+    const markupValor = document.getElementById('markup-valor');
+    const margemLucroPercentualInput = document.getElementById('margem-lucro-percentual');
+    const markupPercentualInput = document.getElementById('markup-percentual');
+    const calcularPorMargemCheckbox = document.getElementById('calcular-por-margem');
+    const margemDesejadaContainer = document.getElementById('margem-desejada-container');
+    const margemDesejadaInput = document.getElementById('margem-desejada');
+    const btnCalcularPreco = document.getElementById('btn-calcular-preco');
     
-    function calcularMargem() {
+    /**
+     * Calcula margem de lucro: (Preço Venda - Custo Total) / Preço Venda * 100
+     */
+    function calcularMargemLucro(custoTotal, precoVenda) {
+        if (precoVenda <= 0) return 0;
+        const margem = ((precoVenda - custoTotal) / precoVenda) * 100;
+        return Math.max(0, Math.min(99.99, parseFloat(margem.toFixed(2))));
+    }
+    
+    /**
+     * Calcula markup: (Preço Venda - Custo Total) / Custo Total * 100
+     */
+    function calcularMarkup(custoTotal, precoVenda) {
+        if (custoTotal <= 0) return 0;
+        const markup = ((precoVenda - custoTotal) / custoTotal) * 100;
+        return Math.max(0, parseFloat(markup.toFixed(2)));
+    }
+    
+    /**
+     * Calcula preço de venda pela margem desejada: Custo / (1 - (Margem / 100))
+     */
+    function calcularPrecoPorMargem(custoTotal, margemPercentual) {
+        if (margemPercentual >= 100 || margemPercentual < 0) return 0;
+        if (custoTotal <= 0) return 0;
+        const preco = custoTotal / (1 - (margemPercentual / 100));
+        return parseFloat(preco.toFixed(2));
+    }
+    
+    /**
+     * Atualiza os cálculos de margem e markup
+     */
+    function atualizarCalculos() {
         const custo = parseFloat(custoInput.value) || 0;
+        const frete = parseFloat(freteInput.value) || 0;
         const venda = parseFloat(vendaInput.value) || 0;
+        const custoTotal = custo + frete;
         
-        if (custo > 0 && venda > 0) {
-            const margem = ((venda - custo) / custo * 100).toFixed(2);
-            margemValor.textContent = margem + '%';
-            margemContainer.classList.remove('hidden');
+        if (custoTotal > 0 && venda > 0) {
+            const margem = calcularMargemLucro(custoTotal, venda);
+            const markup = calcularMarkup(custoTotal, venda);
+            
+            margemValor.textContent = margem.toFixed(2) + '%';
+            markupValor.textContent = markup.toFixed(2) + '%';
+            
+            // Atualizar campos ocultos
+            if (margemLucroPercentualInput) margemLucroPercentualInput.value = margem;
+            if (markupPercentualInput) markupPercentualInput.value = markup;
+            
+            margemMarkupContainer.classList.remove('hidden');
         } else {
-            margemContainer.classList.add('hidden');
+            margemMarkupContainer.classList.add('hidden');
+            if (margemLucroPercentualInput) margemLucroPercentualInput.value = '';
+            if (markupPercentualInput) markupPercentualInput.value = '';
         }
     }
     
-    if (custoInput && vendaInput) {
-        custoInput.addEventListener('input', calcularMargem);
-        vendaInput.addEventListener('input', calcularMargem);
-        calcularMargem(); // Calcular ao carregar se houver valores
+    // Event listeners para calcular automaticamente
+    if (custoInput && freteInput && vendaInput) {
+        custoInput.addEventListener('input', atualizarCalculos);
+        freteInput.addEventListener('input', atualizarCalculos);
+        vendaInput.addEventListener('input', atualizarCalculos);
+        atualizarCalculos(); // Calcular ao carregar se houver valores
+    }
+    
+    // Toggle para calcular por margem desejada
+    if (calcularPorMargemCheckbox) {
+        calcularPorMargemCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                margemDesejadaContainer.classList.remove('hidden');
+            } else {
+                margemDesejadaContainer.classList.add('hidden');
+            }
+        });
+    }
+    
+    // Botão para calcular preço pela margem desejada
+    if (btnCalcularPreco) {
+        btnCalcularPreco.addEventListener('click', function() {
+            const custo = parseFloat(custoInput.value) || 0;
+            const frete = parseFloat(freteInput.value) || 0;
+            const margemDesejada = parseFloat(margemDesejadaInput.value) || 0;
+            const custoTotal = custo + frete;
+            
+            if (custoTotal > 0 && margemDesejada > 0 && margemDesejada < 100) {
+                const precoCalculado = calcularPrecoPorMargem(custoTotal, margemDesejada);
+                vendaInput.value = precoCalculado.toFixed(2);
+                atualizarCalculos();
+                
+                // Feedback visual
+                vendaInput.classList.add('bg-green-50', 'border-green-500');
+                setTimeout(() => {
+                    vendaInput.classList.remove('bg-green-50', 'border-green-500');
+                }, 2000);
+            } else {
+                alert('Por favor, informe o custo e uma margem válida (entre 0 e 99.99%).');
+            }
+        });
     }
 
     // Preview de fotos
