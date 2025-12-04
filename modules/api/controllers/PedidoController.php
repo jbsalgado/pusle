@@ -143,6 +143,17 @@ class PedidoController extends Controller
         $clienteId = $data['cliente_id'] ?? null;
         $numeroParcelas = max(1, (int)($data['numero_parcelas'] ?? 1));
 
+        // === VALIDAÇÃO: DINHEIRO e PIX não permitem parcelamento ===
+        if ($numeroParcelas > 1 && $formaPagamentoId) {
+            $formaPagamento = \app\modules\vendas\models\FormaPagamento::findOne($formaPagamentoId);
+            if ($formaPagamento) {
+                $tipo = $formaPagamento->tipo;
+                if ($tipo === 'DINHEIRO' || $tipo === 'PIX') {
+                    throw new BadRequestHttpException('Forma de pagamento ' . $tipo . ' não permite parcelamento. Apenas pagamento à vista é permitido.');
+                }
+            }
+        }
+
         // === NOVA VALIDAÇÃO: Data do primeiro pagamento ===
         $dataPrimeiroPagamento = null;
         if ($numeroParcelas > 1) {

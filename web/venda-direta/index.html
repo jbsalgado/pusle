@@ -10,9 +10,13 @@
     <meta name="theme-color" content="#007BFF"/>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* Status online/offline - por padrão mostra offline até ser atualizado */
         #status-online { display: none; }
+        #status-offline { display: none; }
         html.online #status-online { display: flex; }
+        html.online #status-offline { display: none; }
         html.offline #status-offline { display: flex; }
+        html.offline #status-online { display: none; }
         #itens-carrinho { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; align-items: start; align-content: start; }
         @media (max-width: 640px) { #itens-carrinho { grid-template-columns: 1fr; } }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -38,6 +42,19 @@
     </style>
 </head>
 <body class="bg-gray-100">
+<script>
+// Inicialização imediata do status online (antes do carregamento completo)
+(function() {
+    const htmlTag = document.documentElement;
+    if (navigator.onLine) {
+        htmlTag.classList.add('online');
+        htmlTag.classList.remove('offline');
+    } else {
+        htmlTag.classList.add('offline');
+        htmlTag.classList.remove('online');
+    }
+})();
+</script>
 
     <header class="bg-white shadow-md sticky top-0 z-10">
         <nav class="container mx-auto px-4 py-4 flex justify-between items-center">

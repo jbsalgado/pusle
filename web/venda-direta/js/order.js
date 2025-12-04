@@ -24,7 +24,27 @@ function validarDadosPedido(dadosPedido, carrinho) {
             throw new Error('Por favor, selecione a forma de pagamento.');
         }
 
-        const numeroParcelas = parseInt(dadosPedido.numero_parcelas, 10) || 1;
+        let numeroParcelas = parseInt(dadosPedido.numero_parcelas, 10) || 1;
+        
+        // ✅ VALIDAÇÃO: DINHEIRO e PIX não permitem parcelamento
+        // Busca a forma de pagamento para verificar o tipo
+        if (dadosPedido.forma_pagamento_id) {
+            // Tenta buscar a forma de pagamento do array global (se disponível)
+            const formasPagamento = window.formasPagamento || [];
+            const formaSelecionada = formasPagamento.find(f => f.id === dadosPedido.forma_pagamento_id);
+            
+            if (formaSelecionada) {
+                const tipo = formaSelecionada.tipo || '';
+                if (tipo === 'DINHEIRO' || tipo === 'PIX') {
+                    // Força para 1 parcela (à vista) se tentar parcelar
+                    if (numeroParcelas > 1) {
+                        console.warn('[Order] ⚠️ Tentativa de parcelar com', tipo, '- forçando para à vista');
+                        numeroParcelas = 1;
+                        dadosPedido.numero_parcelas = 1;
+                    }
+                }
+            }
+        }
         
         // Validar parcelas apenas quando número de parcelas > 1
         if (numeroParcelas > 1) {

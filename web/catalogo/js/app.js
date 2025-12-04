@@ -31,6 +31,7 @@ import {
     verificarElementosCriticos
 } from './utils.js';
 import { ELEMENTOS_CRITICOS } from './config.js';
+import { inicializarMonitoramentoRede } from './network.js';
 
 // ==========================================================================
 // VARIÁVEIS GLOBAIS
@@ -74,6 +75,9 @@ async function init() {
         
         // 8️⃣ Atualizar badge do carrinho
         atualizarBadgeCarrinho();
+        
+        // 9️⃣ Inicializar monitoramento de rede (status online/offline)
+        inicializarMonitoramentoRede();
         
         console.log('[App] ✅ Aplicação inicializada com sucesso!');
         
@@ -475,9 +479,93 @@ function popularFormasPagamento(formas) {
     
     formas.forEach(forma => {
         if (forma.id && forma.nome) {
-            select.options[select.options.length] = new Option(forma.nome, forma.id);
+            const option = new Option(forma.nome, forma.id);
+            // Armazena o tipo no atributo data-tipo para facilitar acesso
+            option.setAttribute('data-tipo', forma.tipo || '');
+            select.options[select.options.length] = option;
         }
     });
+    
+    // Armazena formas de pagamento globalmente
+    formasPagamento = formas;
+    // Disponibiliza globalmente para validação em order.js
+    window.formasPagamento = formas;
+    
+    // Adiciona listener para controlar parcelas baseado na forma de pagamento
+    // Remove listener anterior se existir para evitar duplicatas
+    const oldSelect = select;
+    const novoSelect = oldSelect.cloneNode(true);
+    oldSelect.parentNode.replaceChild(novoSelect, oldSelect);
+    novoSelect.addEventListener('change', controlarParcelasPorFormaPagamento);
+}
+
+/**
+ * Controla o campo de parcelas baseado na forma de pagamento selecionada
+ * Se for DINHEIRO ou PIX, desabilita parcelamento e força "À vista"
+ */
+function controlarParcelasPorFormaPagamento() {
+    const selectFormaPagamento = document.getElementById('forma-pagamento');
+    const selectParcelas = document.getElementById('numero-parcelas');
+    const campoDataPrimeiroPagamento = document.getElementById('campo-data-primeiro-pagamento');
+    const campoIntervaloParcelas = document.getElementById('campo-intervalo-parcelas');
+    
+    if (!selectFormaPagamento || !selectParcelas) return;
+    
+    const formaPagamentoId = selectFormaPagamento.value;
+    if (!formaPagamentoId) {
+        // Se nenhuma forma foi selecionada, habilita parcelas normalmente
+        selectParcelas.disabled = false;
+        return;
+    }
+    
+    // Busca a forma de pagamento selecionada
+    const formaSelecionada = formasPagamento.find(f => f.id === formaPagamentoId);
+    if (!formaSelecionada) return;
+    
+    const tipo = formaSelecionada.tipo || '';
+    
+    // Se for DINHEIRO ou PIX, desabilita parcelamento
+    if (tipo === 'DINHEIRO' || tipo === 'PIX') {
+        // SEMPRE força para "À vista" - IMPORTANTE: fazer ANTES de desabilitar
+        selectParcelas.value = '1';
+        // Dispara evento change para atualizar campos relacionados
+        selectParcelas.dispatchEvent(new Event('change', { bubbles: true }));
+        selectParcelas.disabled = true;
+        
+        // Oculta campos de parcelamento e limpa valores
+        if (campoDataPrimeiroPagamento) {
+            campoDataPrimeiroPagamento.classList.add('hidden');
+            campoDataPrimeiroPagamento.value = '';
+        }
+        if (campoIntervaloParcelas) {
+            campoIntervaloParcelas.classList.add('hidden');
+        }
+        
+        console.log('[App] 🔒 Parcelamento desabilitado para forma de pagamento:', tipo);
+    } else {
+        // Habilita parcelamento para outras formas
+        selectParcelas.disabled = false;
+        
+        // Mostra/oculta campos de parcelamento baseado no número de parcelas
+        const numeroParcelas = parseInt(selectParcelas.value, 10) || 1;
+        if (numeroParcelas > 1) {
+            if (campoDataPrimeiroPagamento) {
+                campoDataPrimeiroPagamento.classList.remove('hidden');
+            }
+            if (campoIntervaloParcelas) {
+                campoIntervaloParcelas.classList.remove('hidden');
+            }
+        } else {
+            if (campoDataPrimeiroPagamento) {
+                campoDataPrimeiroPagamento.classList.add('hidden');
+            }
+            if (campoIntervaloParcelas) {
+                campoIntervaloParcelas.classList.add('hidden');
+            }
+        }
+        
+        console.log('[App] ✅ Parcelamento habilitado para forma de pagamento:', tipo);
+    }
 }
 
 // ==========================================================================
@@ -524,6 +612,13 @@ window.abrirModalPedido = async function() {
         const formas = await carregarFormasPagamento(CONFIG.ID_USUARIO_LOJA);
         popularFormasPagamento(formas);
         console.log('[App] ✅ Formas de pagamento carregadas:', formas.length);
+        // Verifica se já há uma forma selecionada (após popular)
+        // Usa setTimeout para garantir que o DOM foi atualizado
+        setTimeout(() => {
+            controlarParcelasPorFormaPagamento();
+            // Força novamente após um pequeno delay para garantir
+            setTimeout(() => controlarParcelasPorFormaPagamento(), 50);
+        }, 100);
     } catch (error) {
         console.error('[App] ❌ Erro ao carregar formas de pagamento:', error);
         popularFormasPagamento([]); // Popula com erro
@@ -707,6 +802,21 @@ window.confirmarPedido = async function() {
         alert('Por favor, selecione uma forma de pagamento.');
         return;
     }
+    
+    // Verifica se a forma de pagamento permite parcelamento antes de pegar o valor
+    const formaPagamentoSelecionada = formasPagamento.find(fp => fp.id === formaPagamentoId);
+    const tipoFormaPagamento = formaPagamentoSelecionada?.tipo || '';
+    const permiteParcelamento = tipoFormaPagamento !== 'DINHEIRO' && tipoFormaPagamento !== 'PIX';
+    
+    // Se não permite parcelamento, força para 1 parcela
+    const selectParcelas = document.getElementById('numero-parcelas');
+    let numeroParcelas = parseInt(selectParcelas?.value || 1, 10);
+    if (!permiteParcelamento && numeroParcelas > 1) {
+        numeroParcelas = 1;
+        if (selectParcelas) {
+            selectParcelas.value = '1';
+        }
+    }
     // ===============================================
     
     const btnConfirmar = document.getElementById('btn-confirmar-pedido');
@@ -719,9 +829,9 @@ window.confirmarPedido = async function() {
             observacoes: document.getElementById('observacoes-pedido').value || null,
             colaborador_vendedor_id: colaboradorAtual?.id || null, // Pega o ID do objeto colaborador
             forma_pagamento_id: formaPagamentoId, // Usar a variável validada
-            numero_parcelas: parseInt(document.getElementById('numero-parcelas')?.value || 1, 10),
-            data_primeiro_pagamento: document.getElementById('data-primeiro-pagamento')?.value || null,
-            intervalo_dias_parcelas: parseInt(document.getElementById('intervalo-dias')?.value || 30, 10)
+            numero_parcelas: numeroParcelas,
+            data_primeiro_pagamento: permiteParcelamento && numeroParcelas > 1 ? document.getElementById('data-primeiro-pagamento')?.value || null : null,
+            intervalo_dias_parcelas: permiteParcelamento && numeroParcelas > 1 ? parseInt(document.getElementById('intervalo-dias')?.value || 30, 10) : null
         };
         
         const carrinho = getCarrinho();
@@ -847,6 +957,32 @@ function inicializarEventListeners() {
     inputsTel.forEach(input => {
         input.addEventListener('input', (e) => maskPhone(e.target));
     });
+    
+    // Listener para mudança no número de parcelas
+    const selectParcelas = document.getElementById('numero-parcelas');
+    if (selectParcelas) {
+        selectParcelas.addEventListener('change', function() {
+            const numeroParcelas = parseInt(this.value, 10) || 1;
+            const campoDataPrimeiroPagamento = document.getElementById('campo-data-primeiro-pagamento');
+            const campoIntervaloParcelas = document.getElementById('campo-intervalo-parcelas');
+            
+            if (numeroParcelas > 1) {
+                if (campoDataPrimeiroPagamento) {
+                    campoDataPrimeiroPagamento.classList.remove('hidden');
+                }
+                if (campoIntervaloParcelas) {
+                    campoIntervaloParcelas.classList.remove('hidden');
+                }
+            } else {
+                if (campoDataPrimeiroPagamento) {
+                    campoDataPrimeiroPagamento.classList.add('hidden');
+                }
+                if (campoIntervaloParcelas) {
+                    campoIntervaloParcelas.classList.add('hidden');
+                }
+            }
+        });
+    }
     
     // Fechar modais ao clicar fora
     document.querySelectorAll('.modal-overlay').forEach(modal => {

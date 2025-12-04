@@ -97,6 +97,13 @@ class VendaDiretaController extends Controller
             'type="module" src="js/app.js"' => 'type="module" src="' . $basePath . '/js/app.js"',
         ];
         
+        // Corrige CSS do status online/offline
+        $html = preg_replace(
+            '/#status-online \{ display: none; \}\s*html\.online #status-online \{ display: flex; \}\s*html\.offline #status-offline \{ display: flex; \}/',
+            '#status-online { display: none; } #status-offline { display: none; } html.online #status-online { display: flex; } html.online #status-offline { display: none; } html.offline #status-offline { display: flex; } html.offline #status-online { display: none; }',
+            $html
+        );
+        
         foreach ($substituicoes as $busca => $substitui) {
             $html = str_replace($busca, $substitui, $html);
         }

@@ -7,14 +7,15 @@ export function atualizarStatusOnline() {
     const htmlTag = document.documentElement;
     const isOnline = navigator.onLine;
     
+    // Remove ambas as classes primeiro
+    htmlTag.classList.remove('online', 'offline');
+    
     if (isOnline) {
-        htmlTag.classList.remove('offline');
         htmlTag.classList.add('online');
-        console.log('[Network] Status: ONLINE');
+        console.log('[Network] ✅ Status: ONLINE');
     } else {
-        htmlTag.classList.remove('online');
         htmlTag.classList.add('offline');
-        console.log('[Network] Status: OFFLINE');
+        console.log('[Network] ⚠️ Status: OFFLINE');
     }
     
     return isOnline;
@@ -24,22 +25,28 @@ export function atualizarStatusOnline() {
  * Inicializa listeners de rede
  */
 export function inicializarMonitoramentoRede() {
+    // Verifica status inicial imediatamente
+    atualizarStatusOnline();
+    
     window.addEventListener('online', () => {
         atualizarStatusOnline();
-        console.log('[Network] Conexão restaurada');
+        console.log('[Network] 🌐 Conexão restaurada');
         // Dispara evento customizado que pode ser ouvido por outros módulos
         window.dispatchEvent(new CustomEvent('app:online'));
     });
     
     window.addEventListener('offline', () => {
         atualizarStatusOnline();
-        console.log('[Network] Conexão perdida');
+        console.log('[Network] 📴 Conexão perdida');
         // Dispara evento customizado que pode ser ouvido por outros módulos
         window.dispatchEvent(new CustomEvent('app:offline'));
     });
     
-    // Verifica status inicial
-    atualizarStatusOnline();
+    // Verificação adicional: atualiza periodicamente (a cada 5 segundos) para garantir
+    // Isso ajuda em casos onde navigator.onLine pode estar desatualizado
+    setInterval(() => {
+        atualizarStatusOnline();
+    }, 5000);
 }
 
 /**
