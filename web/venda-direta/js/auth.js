@@ -32,14 +32,16 @@ export async function verificarAutenticacao() {
             }
         });
 
-        if (response.status === 401) {
+        if (response.status === 401 || response.status === 403) {
             // Usuário não autenticado - redireciona para login
-            console.warn('[Auth] ❌ Usuário não autenticado, redirecionando...');
+            console.warn('[Auth] ❌ Usuário não autenticado (status:', response.status, '), redirecionando...');
             window.location.href = `${CONFIG.URL_API}/auth/login`;
             return null;
         }
 
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[Auth] ❌ Erro na resposta:', response.status, errorText);
             throw new Error(`Erro ao buscar dados do usuário: ${response.status}`);
         }
 

@@ -26,6 +26,12 @@ class SignupForm extends Model
     public $senha;
     public $senha_confirmacao;
     public $termos_aceitos;
+    // Campos de endereço
+    public $endereco;
+    public $bairro;
+    public $cidade;
+    public $estado;
+    public $logo_path;
 
     /**
      * {@inheritdoc}
@@ -79,6 +85,13 @@ class SignupForm extends Model
             [['termos_aceitos'], 'compare', 'compareValue' => 1, 
                 'message' => 'Você deve aceitar os termos de uso para continuar.'
             ],
+            
+            // Campos de endereço (opcionais)
+            [['endereco'], 'string', 'max' => 255],
+            [['bairro', 'cidade'], 'string', 'max' => 100],
+            [['estado'], 'string', 'max' => 2],
+            [['estado'], 'match', 'pattern' => '/^[A-Z]{2}$/', 'message' => 'Estado deve ter 2 letras maiúsculas (ex: MG, SP).'],
+            [['logo_path'], 'string', 'max' => 500],
         ];
     }
 
@@ -95,6 +108,11 @@ class SignupForm extends Model
             'senha' => 'Senha',
             'senha_confirmacao' => 'Confirmar Senha',
             'termos_aceitos' => 'Aceito os Termos de Uso',
+            'endereco' => 'Endereço da Empresa',
+            'bairro' => 'Bairro',
+            'cidade' => 'Cidade',
+            'estado' => 'Estado (UF)',
+            'logo_path' => 'URL/Caminho da Logo da Empresa',
         ];
     }
 
@@ -236,6 +254,13 @@ class SignupForm extends Model
             $usuario->cpf = preg_replace('/[^0-9]/', '', $this->cpf);
             $usuario->telefone = preg_replace('/[^0-9]/', '', $this->telefone);
             $usuario->email = trim(strtolower($this->email));
+            
+            // Campos de endereço (opcionais)
+            $usuario->endereco = !empty($this->endereco) ? trim($this->endereco) : null;
+            $usuario->bairro = !empty($this->bairro) ? trim($this->bairro) : null;
+            $usuario->cidade = !empty($this->cidade) ? trim($this->cidade) : null;
+            $usuario->estado = !empty($this->estado) ? strtoupper(trim($this->estado)) : null;
+            $usuario->logo_path = !empty($this->logo_path) ? trim($this->logo_path) : null;
             
             // 3. Gera o HASH da senha usando o helper (NÃO SALVE SENHA EM TEXTO PLANO)
             $usuario->setPassword($this->senha);

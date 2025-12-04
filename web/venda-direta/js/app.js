@@ -9,16 +9,18 @@ import {
 import { carregarCarrinho, limparDadosLocaisPosSinc } from './storage.js';
 import { finalizarPedido } from './order.js';
 import { carregarFormasPagamento } from './payment.js';
-import { validarCPF, maskCPF, maskPhone, formatarMoeda, verificarElementosCriticos } from './utils.js';
+import { validarCPF, maskCPF, maskPhone, maskCEP, formatarMoeda, formatarCPF, verificarElementosCriticos } from './utils.js';
 import { ELEMENTOS_CRITICOS } from './config.js';
 import { mostrarModalPixEstatico } from './pix.js'; // Importação do novo módulo
 import { verificarAutenticacao, getColaboradorData } from './auth.js'; // Importação do módulo de autenticação
+import { buscarClientePorCpf, cadastrarCliente, getClienteAtual, setClienteAtual } from './customer.js'; // Importação do módulo de cliente
 
 // Variáveis Globais
 let produtos = [];
 let colaboradorAtual = null;
 let formasPagamento = [];
 let usuarioData = null;
+let clienteAtual = null; // Cliente para vendas parceladas
 
 // Inicialização
 async function init() {
@@ -295,6 +297,9 @@ function controlarParcelasPorFormaPagamento() {
     
     const tipo = formaSelecionada.tipo || '';
     
+    // Campo de cliente (apenas para vendas parceladas)
+    const campoCliente = document.getElementById('campo-cliente-parcelado');
+    
     // Se for DINHEIRO ou PIX, desabilita parcelamento
     if (tipo === 'DINHEIRO' || tipo === 'PIX') {
         // SEMPRE força para "À vista" - IMPORTANTE: fazer ANTES de desabilitar
@@ -303,14 +308,22 @@ function controlarParcelasPorFormaPagamento() {
         selectParcelas.dispatchEvent(new Event('change', { bubbles: true }));
         selectParcelas.disabled = true;
         
-        // Oculta campos de parcelamento
+        // Oculta campos de parcelamento e cliente
         if (campoDataPrimeiroPagamento) {
             campoDataPrimeiroPagamento.classList.add('hidden');
-            // Limpa o valor também
             campoDataPrimeiroPagamento.value = '';
         }
         if (campoIntervaloParcelas) {
             campoIntervaloParcelas.classList.add('hidden');
+        }
+        if (campoCliente) {
+            campoCliente.classList.add('hidden');
+            // Limpa dados do cliente
+            clienteAtual = null;
+            setClienteAtual(null);
+            document.getElementById('cliente_id').value = '';
+            document.getElementById('info-cliente').classList.add('hidden');
+            document.getElementById('msg-cadastrar-cliente').classList.add('hidden');
         }
         
         console.log('[App] 🔒 Parcelamento desabilitado para forma de pagamento:', tipo);
@@ -327,12 +340,25 @@ function controlarParcelasPorFormaPagamento() {
             if (campoIntervaloParcelas) {
                 campoIntervaloParcelas.classList.remove('hidden');
             }
+            // Mostra campo de cliente para vendas parceladas
+            if (campoCliente) {
+                campoCliente.classList.remove('hidden');
+            }
         } else {
             if (campoDataPrimeiroPagamento) {
                 campoDataPrimeiroPagamento.classList.add('hidden');
             }
             if (campoIntervaloParcelas) {
                 campoIntervaloParcelas.classList.add('hidden');
+            }
+            // Oculta campo de cliente para vendas à vista
+            if (campoCliente) {
+                campoCliente.classList.add('hidden');
+                clienteAtual = null;
+                setClienteAtual(null);
+                document.getElementById('cliente_id').value = '';
+                document.getElementById('info-cliente').classList.add('hidden');
+                document.getElementById('msg-cadastrar-cliente').classList.add('hidden');
             }
         }
         
@@ -344,7 +370,12 @@ window.abrirModalPedido = async function() {
     fecharModal('modal-carrinho');
     document.getElementById('form-cliente-pedido').reset();
     colaboradorAtual = null;
+    clienteAtual = null;
+    setClienteAtual(null);
     document.getElementById('info-vendedor').classList.add('hidden');
+    document.getElementById('info-cliente').classList.add('hidden');
+    document.getElementById('msg-cadastrar-cliente').classList.add('hidden');
+    document.getElementById('campo-cliente-parcelado').classList.add('hidden');
     popularOpcoesParcelas();
     abrirModal('modal-cliente-pedido');
     
@@ -456,8 +487,19 @@ window.confirmarPedido = async function() {
             }
         }
         
+        // Para vendas parceladas, cliente é obrigatório
+        let clienteId = null;
+        if (numeroParcelas > 1) {
+            clienteId = clienteAtual?.id || document.getElementById('cliente_id')?.value || null;
+            if (!clienteId) {
+                alert('Para vendas parceladas, é necessário buscar e cadastrar o cliente.');
+                document.getElementById('campo-cliente-parcelado').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+        }
+        
         const dadosPedido = {
-            cliente_id: null,
+            cliente_id: clienteId,
             observacoes: document.getElementById('observacoes-pedido').value || null,
             colaborador_vendedor_id: colaboradorAtual?.id || null,
             forma_pagamento_id: formaPagamentoId,
@@ -468,6 +510,18 @@ window.confirmarPedido = async function() {
         
         const carrinho = getCarrinho();
         const resultado = await finalizarPedido(dadosPedido, carrinho);
+        
+        console.log('[App] 🔍 DEBUG - Resultado completo do finalizarPedido:', {
+            sucesso: resultado.sucesso,
+            tem_dados: !!resultado.dados,
+            tipo_dados: typeof resultado.dados,
+            chaves_dados: resultado.dados ? Object.keys(resultado.dados) : [],
+            tem_parcelas: !!resultado.dados?.parcelas,
+            parcelas_tipo: typeof resultado.dados?.parcelas,
+            parcelas_length: resultado.dados?.parcelas?.length || 0,
+            dados_raw: resultado.dados,
+            resultado_completo: resultado  // Adiciona o resultado completo para debug
+        });
         
         if (resultado.sucesso) {
             // Verifica se é PIX À VISTA para mostrar o modal estático
@@ -490,8 +544,12 @@ window.confirmarPedido = async function() {
                 // Formato: VendaDireta + DDMMYYYY + HHMM (ex: VendaDireta031220251430)
                 const txId = `VendaDireta${dia}${mes}${ano}${hora}${minuto}`;
 
-                // Abre o Modal PIX
-                mostrarModalPixEstatico(valorTotal, txId);
+                // Abre o Modal PIX com dados do pedido para gerar comprovante depois
+                mostrarModalPixEstatico(valorTotal, txId, {
+                    ...dadosPedido,
+                    itens: carrinho,
+                    valorTotal: valorTotal
+                });
                 
                 // Limpa carrinho pois a venda foi registrada
                 limparCarrinho();
@@ -505,7 +563,165 @@ window.confirmarPedido = async function() {
                 return; // Encerra aqui para manter o modal PIX aberto
             }
 
-            // Fluxo normal (dinheiro, cartão, boleto, offline)
+            // Fluxo normal (dinheiro, cartão, boleto, offline) - Gera comprovante
+            if (!resultado.offline) {
+                console.log('[App] 🧾 Gerando comprovante de venda...');
+                
+                // Importa função de comprovante
+                const { gerarComprovanteVenda } = await import('./pix.js');
+                
+                // ✅ CORREÇÃO: As parcelas já vêm na resposta da API!
+                // Primeiro tenta usar as parcelas que já vêm na resposta
+                let parcelas = null;
+                
+                // 🔍 DEBUG: Verifica todas as estruturas possíveis
+                console.log('[App] 🔍 DEBUG - Estrutura completa do resultado:', {
+                    resultado_keys: Object.keys(resultado),
+                    resultado_dados: resultado.dados,
+                    resultado_dados_keys: resultado.dados ? Object.keys(resultado.dados) : [],
+                    resultado_dados_parcelas: resultado.dados?.parcelas,
+                    resultado_parcelas: resultado.parcelas
+                });
+                
+                // Tenta encontrar o ID da venda em múltiplas estruturas
+                const vendaId = resultado.dados?.id || resultado.dados?.venda?.id || resultado.id;
+                
+                // Verifica múltiplas possíveis estruturas de dados
+                const parcelasPossiveis = [
+                    resultado.dados?.parcelas,           // Estrutura: {dados: {parcelas: [...]}}
+                    resultado.dados?.venda?.parcelas,    // Estrutura aninhada
+                    resultado.parcelas,                   // Estrutura: {parcelas: [...]}
+                    resultado.dados                       // Se dados já é o array de parcelas (improvável)
+                ];
+                
+                console.log('[App] 🔍 Verificando estruturas de parcelas:', {
+                    estrutura_1: !!parcelasPossiveis[0] && Array.isArray(parcelasPossiveis[0]) ? parcelasPossiveis[0].length : 'não é array',
+                    estrutura_2: !!parcelasPossiveis[1] && Array.isArray(parcelasPossiveis[1]) ? parcelasPossiveis[1].length : 'não é array',
+                    estrutura_3: !!parcelasPossiveis[2] && Array.isArray(parcelasPossiveis[2]) ? parcelasPossiveis[2].length : 'não é array',
+                    estrutura_4: !!parcelasPossiveis[3] && Array.isArray(parcelasPossiveis[3]) ? parcelasPossiveis[3].length : 'não é array'
+                });
+                
+                for (let i = 0; i < parcelasPossiveis.length; i++) {
+                    const parcelaArray = parcelasPossiveis[i];
+                    if (parcelaArray && Array.isArray(parcelaArray) && parcelaArray.length > 0) {
+                        parcelas = parcelaArray;
+                        console.log(`[App] ✅ Parcelas encontradas na estrutura ${i + 1}:`, parcelas.length, 'parcelas');
+                        console.log('[App] 📋 Primeira parcela (exemplo):', parcelas[0]);
+                        break;
+                    }
+                }
+                
+                // Se não encontrou nas estruturas possíveis, busca via API
+                if (!parcelas && dadosPedido.numero_parcelas > 1 && vendaId) {
+                    try {
+                        console.log('[App] 🔍 Parcelas não encontradas na resposta. Buscando via API para venda:', vendaId);
+                        const response = await fetch(`${API_ENDPOINTS.PEDIDO_PARCELAS}?venda_id=${vendaId}`);
+                        if (response.ok) {
+                            const dadosParcelas = await response.json();
+                            parcelas = dadosParcelas.parcelas || null;
+                            console.log('[App] ✅ Parcelas encontradas via API:', parcelas?.length || 0, 'parcelas');
+                        } else {
+                            console.warn('[App] ⚠️ Erro ao buscar parcelas. Status:', response.status);
+                        }
+                    } catch (error) {
+                        console.error('[App] ❌ Erro ao buscar parcelas:', error);
+                    }
+                }
+                
+                if (!parcelas && dadosPedido.numero_parcelas > 1) {
+                    console.warn('[App] ⚠️ ATENÇÃO: Venda parcelada mas parcelas não encontradas!', {
+                        numero_parcelas: dadosPedido.numero_parcelas,
+                        venda_id: vendaId,
+                        estrutura_dados: {
+                            tem_dados: !!resultado.dados,
+                            chaves_dados: resultado.dados ? Object.keys(resultado.dados) : [],
+                            tem_parcelas_direto: !!resultado.dados?.parcelas,
+                            tem_parcelas_venda: !!resultado.dados?.venda?.parcelas,
+                            tem_parcelas_raiz: !!resultado.parcelas,
+                            resultado_completo: resultado
+                        }
+                    });
+                }
+                
+                // Busca dados do cliente se houver (para vendas parceladas)
+                let dadosCliente = null;
+                if (dadosPedido.cliente_id) {
+                    // Se já temos clienteAtual, usa ele
+                    if (clienteAtual) {
+                        dadosCliente = {
+                            nome: clienteAtual.nome_completo || clienteAtual.nome || '',
+                            cpf: clienteAtual.cpf || '',
+                            telefone: clienteAtual.telefone || '',
+                            endereco: clienteAtual.endereco_logradouro || '',
+                            numero: clienteAtual.endereco_numero || '',
+                            complemento: clienteAtual.endereco_complemento || '',
+                            bairro: clienteAtual.endereco_bairro || '',
+                            cidade: clienteAtual.endereco_cidade || '',
+                            estado: clienteAtual.endereco_estado || '',
+                            cep: clienteAtual.endereco_cep || ''
+                        };
+                    } else {
+                        // Se não temos em memória, busca da API
+                        try {
+                            const { API_ENDPOINTS } = await import('./config.js');
+                            const response = await fetch(`${API_ENDPOINTS.CLIENTE}/${dadosPedido.cliente_id}`);
+                            if (response.ok) {
+                                const cliente = await response.json();
+                                dadosCliente = {
+                                    nome: cliente.nome_completo || cliente.nome || '',
+                                    cpf: cliente.cpf || '',
+                                    telefone: cliente.telefone || '',
+                                    endereco: cliente.endereco_logradouro || cliente.logradouro || '',
+                                    numero: cliente.endereco_numero || cliente.numero || '',
+                                    complemento: cliente.endereco_complemento || cliente.complemento || '',
+                                    bairro: cliente.endereco_bairro || cliente.bairro || '',
+                                    cidade: cliente.endereco_cidade || cliente.cidade || '',
+                                    estado: cliente.endereco_estado || cliente.estado || '',
+                                    cep: cliente.endereco_cep || cliente.cep || ''
+                                };
+                            }
+                        } catch (error) {
+                            console.warn('[App] Erro ao buscar dados do cliente:', error);
+                        }
+                    }
+                }
+                
+                console.log('[App] 📋 Dados para comprovante:', {
+                    numero_parcelas: dadosPedido.numero_parcelas,
+                    parcelas_encontradas: parcelas?.length || 0,
+                    tem_cliente: !!dadosCliente,
+                    parcelas_detalhes: parcelas ? parcelas.map(p => ({
+                        numero: p.numero_parcela,
+                        vencimento: p.data_vencimento,
+                        valor: p.valor_parcela
+                    })) : null
+                });
+                
+                // Se não encontrou parcelas mas a venda é parcelada, tenta buscar novamente
+                if (dadosPedido.numero_parcelas > 1 && (!parcelas || parcelas.length === 0) && vendaId) {
+                    console.warn('[App] ⚠️ Parcelas não encontradas na primeira tentativa. Tentando novamente...');
+                    try {
+                        const response = await fetch(`${API_ENDPOINTS.PEDIDO_PARCELAS}?venda_id=${vendaId}`);
+                        if (response.ok) {
+                            const dadosParcelas = await response.json();
+                            parcelas = dadosParcelas.parcelas || null;
+                            console.log('[App] ✅ Parcelas encontradas na segunda tentativa:', parcelas?.length || 0);
+                        }
+                    } catch (error) {
+                        console.error('[App] ❌ Erro na segunda tentativa:', error);
+                    }
+                }
+                
+                await gerarComprovanteVenda(carrinho, {
+                    ...dadosPedido,
+                    itens: carrinho,
+                    valorTotal: calcularTotalCarrinho(),
+                    forma_pagamento: formaPagamentoSelecionada?.nome || 'Não informado',
+                    parcelas: parcelas,
+                    cliente: dadosCliente
+                });
+            }
+            
             alert(resultado.mensagem || 'Venda realizada com sucesso!');
             if (!resultado.offline) {
                 limparCarrinho();
@@ -538,6 +754,8 @@ function inicializarEventListeners() {
     document.getElementById('btn-abrir-carrinho')?.addEventListener('click', window.abrirCarrinho);
     document.getElementById('btn-finalizar-pedido')?.addEventListener('click', window.abrirModalPedido);
     document.querySelectorAll('[data-mask="cpf"]').forEach(i => i.addEventListener('input', e => maskCPF(e.target)));
+    document.querySelectorAll('[data-mask="phone"]').forEach(i => i.addEventListener('input', e => maskPhone(e.target)));
+    document.querySelectorAll('[data-mask="cep"]').forEach(i => i.addEventListener('input', e => maskCEP(e.target)));
     document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('click', e => { if (e.target === m) fecharModal(m.id); }));
     
     // Listener para mudança no número de parcelas
@@ -548,12 +766,18 @@ function inicializarEventListeners() {
             const campoDataPrimeiroPagamento = document.getElementById('campo-data-primeiro-pagamento');
             const campoIntervaloParcelas = document.getElementById('campo-intervalo-parcelas');
             
+            const campoCliente = document.getElementById('campo-cliente-parcelado');
+            
             if (numeroParcelas > 1) {
                 if (campoDataPrimeiroPagamento) {
                     campoDataPrimeiroPagamento.classList.remove('hidden');
                 }
                 if (campoIntervaloParcelas) {
                     campoIntervaloParcelas.classList.remove('hidden');
+                }
+                // Mostra campo de cliente para vendas parceladas
+                if (campoCliente) {
+                    campoCliente.classList.remove('hidden');
                 }
             } else {
                 if (campoDataPrimeiroPagamento) {
@@ -562,10 +786,155 @@ function inicializarEventListeners() {
                 if (campoIntervaloParcelas) {
                     campoIntervaloParcelas.classList.add('hidden');
                 }
+                // Oculta campo de cliente para vendas à vista
+                if (campoCliente) {
+                    campoCliente.classList.add('hidden');
+                    clienteAtual = null;
+                    setClienteAtual(null);
+                    document.getElementById('cliente_id').value = '';
+                    document.getElementById('info-cliente').classList.add('hidden');
+                    document.getElementById('msg-cadastrar-cliente').classList.add('hidden');
+                }
             }
         });
     }
 }
+
+// ==========================================================================
+// BUSCA E CADASTRO DE CLIENTE (para vendas parceladas)
+// ==========================================================================
+
+window.buscarClienteVendaDireta = async function() {
+    const cpfInput = document.getElementById('cliente-cpf-busca');
+    if (!cpfInput) {
+        alert('Campo de CPF do cliente não encontrado');
+        return;
+    }
+    const cpf = cpfInput.value.replace(/[^\d]/g, '');
+    
+    if (!validarCPF(cpf)) {
+        alert('CPF inválido');
+        return;
+    }
+    
+    try {
+        const resultado = await buscarClientePorCpf(cpf, CONFIG.ID_USUARIO_LOJA);
+        
+        if (resultado.existe && resultado.cliente) {
+            clienteAtual = resultado.cliente;
+            setClienteAtual(resultado.cliente);
+            
+            const nomeCliente = clienteAtual.nome_completo || clienteAtual.nome || 'Cliente encontrado';
+            document.getElementById('nome-cliente-info').textContent = nomeCliente;
+            document.getElementById('info-cliente').classList.remove('hidden');
+            document.getElementById('msg-cadastrar-cliente').classList.add('hidden');
+            
+            const clienteId = clienteAtual.id || clienteAtual.cliente?.id;
+            const inputClienteId = document.getElementById('cliente_id');
+            if (inputClienteId && clienteId) {
+                inputClienteId.value = clienteId;
+            }
+            
+            console.log('[App] ✅ Cliente encontrado:', clienteAtual);
+        } else {
+            // Cliente não encontrado - mostra opção de cadastro
+            clienteAtual = null;
+            setClienteAtual(null);
+            document.getElementById('info-cliente').classList.add('hidden');
+            document.getElementById('msg-cadastrar-cliente').classList.remove('hidden');
+            
+            // Preenche CPF no modal de cadastro
+            const cadastroCpf = document.getElementById('cadastro-cpf');
+            if (cadastroCpf) {
+                cadastroCpf.value = cpfInput.value;
+            }
+            
+            console.log('[App] ⚠️ Cliente não encontrado');
+        }
+    } catch (error) {
+        console.error('[App] Erro ao buscar cliente:', error);
+        alert('Erro ao buscar cliente: ' + error.message);
+    }
+};
+
+window.abrirModalCadastroCliente = function() {
+    const cpfInput = document.getElementById('cliente-cpf-busca');
+    const cadastroCpf = document.getElementById('cadastro-cpf');
+    
+    // Preenche CPF se já foi buscado
+    if (cpfInput && cadastroCpf) {
+        cadastroCpf.value = cpfInput.value;
+    }
+    
+    fecharModal('modal-cliente-pedido');
+    abrirModal('modal-cadastro-cliente');
+};
+
+window.salvarClienteVendaDireta = async function() {
+    const form = document.getElementById('form-cadastro-cliente');
+    if (!form) return;
+    
+    const btnSalvar = document.getElementById('btn-salvar-cliente');
+    btnSalvar.disabled = true;
+    btnSalvar.textContent = 'Salvando...';
+    
+    try {
+        const formData = new FormData(form);
+        const dadosCliente = {
+            nome_completo: formData.get('nome_completo'),
+            cpf: formData.get('cpf'),
+            telefone: formData.get('telefone'),
+            email: formData.get('email') || null,
+            senha: formData.get('senha'),
+            endereco_logradouro: formData.get('endereco_logradouro'),
+            endereco_numero: formData.get('endereco_numero'),
+            endereco_complemento: formData.get('endereco_complemento') || null,
+            endereco_bairro: formData.get('endereco_bairro'),
+            endereco_cidade: formData.get('endereco_cidade'),
+            endereco_estado: formData.get('endereco_estado')?.toUpperCase() || null,
+            endereco_cep: formData.get('endereco_cep') || null,
+        };
+        
+        const cliente = await cadastrarCliente(dadosCliente);
+        
+        clienteAtual = cliente;
+        setClienteAtual(cliente);
+        
+        // Preenche campos no modal de pedido
+        const inputClienteId = document.getElementById('cliente_id');
+        if (inputClienteId) {
+            inputClienteId.value = cliente.id;
+        }
+        
+        const nomeClienteInfo = document.getElementById('nome-cliente-info');
+        if (nomeClienteInfo) {
+            nomeClienteInfo.textContent = cliente.nome_completo;
+        }
+        
+        document.getElementById('info-cliente').classList.remove('hidden');
+        document.getElementById('msg-cadastrar-cliente').classList.add('hidden');
+        
+        // Preenche CPF no campo de busca
+        const cpfBusca = document.getElementById('cliente-cpf-busca');
+        if (cpfBusca) {
+            const cpfFormatado = formatarCPF(cliente.cpf);
+            cpfBusca.value = cpfFormatado;
+        }
+        
+        // Fecha modal de cadastro e volta para o modal de pedido
+        fecharModal('modal-cadastro-cliente');
+        abrirModal('modal-cliente-pedido');
+        
+        alert('Cliente cadastrado com sucesso!');
+        
+    } catch (error) {
+        console.error('[App] Erro ao cadastrar cliente:', error);
+        alert('Erro ao cadastrar cliente: ' + error.message);
+    } finally {
+        btnSalvar.disabled = false;
+        btnSalvar.textContent = 'Salvar Cliente';
+    }
+};
 
 /**
  * Inicializa monitoramento de status online/offline

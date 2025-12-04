@@ -861,7 +861,38 @@ window.confirmarPedido = async function() {
             }
             // ===============================================
 
-            // Para fluxos normais (offline, boleto, interno)
+            // Para fluxos normais (offline, boleto, interno) - Gera comprovante
+            if (!resultado.offline && !resultado.redirecionado) {
+                console.log('[App] 🧾 Gerando comprovante de venda...');
+                
+                // Importa função de comprovante e funções do carrinho
+                const { gerarComprovanteVenda } = await import('./receipt.js');
+                const { calcularTotalCarrinho } = await import('./cart.js');
+                
+                // Busca parcelas se houver
+                let parcelas = null;
+                if (dadosPedido.numero_parcelas > 1 && resultado.dados?.venda?.id) {
+                    try {
+                        const { API_ENDPOINTS } = await import('./config.js');
+                        const response = await fetch(`${API_ENDPOINTS.PEDIDO_PARCELAS}?venda_id=${resultado.dados.venda.id}`);
+                        if (response.ok) {
+                            const dadosParcelas = await response.json();
+                            parcelas = dadosParcelas.parcelas || null;
+                        }
+                    } catch (error) {
+                        console.warn('[App] Erro ao buscar parcelas:', error);
+                    }
+                }
+                
+                await gerarComprovanteVenda(carrinho, {
+                    ...dadosPedido,
+                    itens: carrinho,
+                    valorTotal: calcularTotalCarrinho(),
+                    forma_pagamento: formaPagamentoSelecionada?.nome || 'Não informado',
+                    parcelas: parcelas
+                });
+            }
+            
             alert(resultado.mensagem || 'Pedido realizado com sucesso!');
             
             if (!resultado.offline) {

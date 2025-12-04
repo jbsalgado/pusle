@@ -86,6 +86,55 @@ $this->title = 'Cadastro';
             </div>
         </div>
 
+        <!-- Separador: Dados da Empresa -->
+        <div style="margin: 30px 0 20px 0; padding: 15px; background: #f0f4ff; border-radius: 8px; border-left: 4px solid #667eea;">
+            <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #667eea; font-weight: 600;">
+                📍 Dados da Empresa (Opcional)
+            </h3>
+            <p style="margin: 0; color: #666; font-size: 13px;">
+                Esses dados serão usados em comprovantes e documentos fiscais
+            </p>
+        </div>
+
+        <!-- Endereço -->
+        <div style="margin-bottom: 18px;">
+            <?= $form->field($model, 'endereco')->textInput([
+                'placeholder' => 'Ex: Rua das Flores, 123',
+                'maxlength' => 255,
+            ]) ?>
+        </div>
+
+        <!-- Bairro, Cidade e Estado (Grid) -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 80px; gap: 15px; margin-bottom: 18px;">
+            <div>
+                <?= $form->field($model, 'bairro')->textInput([
+                    'placeholder' => 'Bairro',
+                    'maxlength' => 100,
+                ]) ?>
+            </div>
+            <div>
+                <?= $form->field($model, 'cidade')->textInput([
+                    'placeholder' => 'Cidade',
+                    'maxlength' => 100,
+                ]) ?>
+            </div>
+            <div>
+                <?= $form->field($model, 'estado')->textInput([
+                    'placeholder' => 'UF',
+                    'maxlength' => 2,
+                    'style' => 'text-transform: uppercase;',
+                ]) ?>
+            </div>
+        </div>
+
+        <!-- Logo da Empresa -->
+        <div style="margin-bottom: 18px;">
+            <?= $form->field($model, 'logo_path')->textInput([
+                'placeholder' => 'Ex: https://exemplo.com/logo.png ou /uploads/logo.png',
+                'maxlength' => 500,
+            ])->hint('URL ou caminho da logo da empresa (opcional)', ['style' => 'font-size: 12px; color: #666; margin-top: 5px;']) ?>
+        </div>
+
         <!-- Termos -->
         <div style="margin-bottom: 25px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
             <?= $form->field($model, 'termos_aceitos')->checkbox([

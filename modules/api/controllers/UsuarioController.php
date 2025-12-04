@@ -16,7 +16,21 @@ class UsuarioController extends Controller
         $behaviors = parent::behaviors();
         $behaviors['contentNegotiator']['formats']['application/json'] = Response::FORMAT_JSON;
         
+        // CORS para permitir cookies de sessão
+        $behaviors['corsFilter'] = [
+            'class' => \yii\filters\Cors::class,
+            'cors' => [
+                'Origin' => ['http://localhost', 'http://localhost:*', '*'],
+                'Access-Control-Request-Method' => ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+                'Access-Control-Request-Headers' => ['*'],
+                'Access-Control-Allow-Credentials' => true,
+                'Access-Control-Max-Age' => 86400,
+            ],
+        ];
+        
         // Adiciona controle de acesso para actionMe
+        // Usa 'denyCallback' para retornar 401 em vez de 403
+        // actionDadosLoja e actionConfig são públicos (não requerem autenticação)
         $behaviors['access'] = [
             'class' => AccessControl::class,
             'rules' => [
@@ -25,7 +39,16 @@ class UsuarioController extends Controller
                     'allow' => true,
                     'roles' => ['@'], // Apenas usuários autenticados
                 ],
+                [
+                    'actions' => ['dados-loja', 'config'],
+                    'allow' => true, // Público - não requer autenticação
+                ],
             ],
+            'denyCallback' => function ($rule, $action) {
+                Yii::$app->response->statusCode = 401;
+                Yii::$app->response->format = Response::FORMAT_JSON;
+                return ['erro' => 'Usuário não autenticado'];
+            },
         ];
         
         return $behaviors;
@@ -77,16 +100,89 @@ class UsuarioController extends Controller
     }
 
     /**
+     * GET /api/usuario/dados-loja?usuario_id=uuid
+     * Retorna dados completos da loja para comprovantes
+     */
+    public function actionDadosLoja($usuario_id)
+    {
+        try {
+            $sql = "
+                SELECT 
+                    id,
+                    nome,
+                    cpf,
+                    telefone,
+                    email,
+                    endereco,
+                    bairro,
+                    cidade,
+                    estado,
+                    logo_path
+                FROM prest_usuarios
+                WHERE id = :id::uuid
+                LIMIT 1
+            ";
+            
+            $usuario = Yii::$app->db->createCommand($sql, [
+                ':id' => $usuario_id
+            ])->queryOne();
+            
+            if (!$usuario) {
+                Yii::$app->response->statusCode = 404;
+                return ['erro' => 'Usuário não encontrado'];
+            }
+            
+            // Busca configuração da loja (se existir)
+            $config = \app\modules\vendas\models\Configuracao::findOne(['usuario_id' => $usuario_id]);
+            
+            // Monta endereço completo a partir dos campos individuais
+            $enderecoPartes = array_filter([
+                $usuario['endereco'] ?? '',
+                $usuario['bairro'] ?? '',
+                $usuario['cidade'] ?? '',
+                $usuario['estado'] ?? ''
+            ]);
+            $enderecoCompleto = !empty($enderecoPartes) ? implode(', ', $enderecoPartes) : ($config->endereco_completo ?? '');
+            
+            return [
+                'nome' => $usuario['nome'] ?? 'Loja',
+                'cpf_cnpj' => $usuario['cpf'] ?? '',
+                'telefone' => $usuario['telefone'] ?? '',
+                'email' => $usuario['email'] ?? '',
+                'endereco' => $usuario['endereco'] ?? '',
+                'bairro' => $usuario['bairro'] ?? '',
+                'cidade' => $usuario['cidade'] ?? '',
+                'estado' => $usuario['estado'] ?? '',
+                'endereco_completo' => $enderecoCompleto,
+                'logo_path' => $usuario['logo_path'] ?? '',
+                'nome_loja' => $config->nome_loja ?? $usuario['nome'] ?? 'Loja',
+            ];
+            
+        } catch (\Exception $e) {
+            Yii::$app->response->statusCode = 500;
+            return ['erro' => $e->getMessage()];
+        }
+    }
+
+    /**
      * GET /api/usuario/me
      * Retorna dados do usuário logado e do colaborador (se for vendedor)
      */
     public function actionMe()
     {
         try {
+            // Verifica se o usuário está autenticado
+            if (Yii::$app->user->isGuest) {
+                Yii::$app->response->statusCode = 401;
+                Yii::$app->response->format = Response::FORMAT_JSON;
+                return ['erro' => 'Usuário não autenticado'];
+            }
+            
             $usuario = Yii::$app->user->identity;
             
             if (!$usuario) {
                 Yii::$app->response->statusCode = 401;
+                Yii::$app->response->format = Response::FORMAT_JSON;
                 return ['erro' => 'Usuário não autenticado'];
             }
 
@@ -123,6 +219,7 @@ class UsuarioController extends Controller
             
         } catch (\Exception $e) {
             Yii::$app->response->statusCode = 500;
+            Yii::$app->response->format = Response::FORMAT_JSON;
             return ['erro' => $e->getMessage()];
         }
     }

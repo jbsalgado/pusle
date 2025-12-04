@@ -33,6 +33,7 @@ export const API_ENDPOINTS = {
     
     // ✅ NOVOS ENDPOINTS
     USUARIO_CONFIG: `${CONFIG.URL_API}/api/usuario/config`,
+    USUARIO_DADOS_LOJA: `${CONFIG.URL_API}/api/usuario/dados-loja`, // Endpoint para dados da loja (comprovantes)
     
     // =======================================================
     // ✅ CORREÇÃO: ENDPOINTS ADICIONADOS DO BACKUP
@@ -50,7 +51,10 @@ export const API_ENDPOINTS = {
     ASAAS_GERAR_QR_PIX: `${CONFIG.URL_API}/api/asaas/gerar-qrcode-pix`,
 
     // ✅ NOVO ENDPOINT DE CONSULTA PARA POLLING (ADICIONADO)
-    ASAAS_CONSULTAR_STATUS: `${CONFIG.URL_API}/api/asaas/consultar-status`, 
+    ASAAS_CONSULTAR_STATUS: `${CONFIG.URL_API}/api/asaas/consultar-status`,
+    
+    // ✅ NOVO: Endpoint para buscar parcelas de uma venda
+    PEDIDO_PARCELAS: `${CONFIG.URL_API}/api/pedido/parcelas`,
 };
 
 export const STORAGE_KEYS = {

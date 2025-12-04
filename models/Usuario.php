@@ -69,6 +69,11 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
             [['gateway_pagamento'], 'default', 'value' => 'nenhum'],
             [['gateway_pagamento'], 'in', 'range' => ['nenhum', 'mercadopago', 'asaas']],
             [['catalogo_path'], 'default', 'value' => 'catalogo'],
+            // Campos de endereço
+            [['endereco'], 'string', 'max' => 255],
+            [['bairro', 'cidade'], 'string', 'max' => 100],
+            [['estado'], 'string', 'max' => 2],
+            [['logo_path'], 'string', 'max' => 500],
             [['cpf'], 'unique'],
             [['id'], 'unique'],
         ];

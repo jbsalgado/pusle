@@ -116,6 +116,24 @@
                         <p class="text-sm text-gray-700"><strong>Venda Direta:</strong> O cliente escolhe a forma de pagamento, paga e leva o produto. Informe o CPF do vendedor apenas se desejar contabilizar comissão.</p>
                     </div>
 
+                    <!-- Campo de Cliente (apenas para vendas parceladas) -->
+                    <div id="campo-cliente-parcelado" class="hidden">
+                        <label for="cliente-cpf-busca" class="block text-sm font-medium text-gray-700 mb-1">CPF do Cliente *</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="cliente-cpf-busca" placeholder="000.000.000-00" maxlength="14" data-mask="cpf" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                            <button type="button" onclick="window.buscarClienteVendaDireta()" class="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700">Buscar</button>
+                        </div>
+                        <input type="hidden" id="cliente_id" name="cliente_id">
+                        <div id="info-cliente" class="mt-2 text-sm text-green-700 bg-green-50 p-2 rounded border border-green-200 hidden">
+                           Cliente: <strong id="nome-cliente-info"></strong>
+                        </div>
+                        <div id="msg-cadastrar-cliente" class="mt-2 text-sm text-blue-700 bg-blue-50 p-2 rounded border border-blue-200 hidden">
+                           <p class="mb-2">Cliente não encontrado. Deseja cadastrar?</p>
+                           <button type="button" onclick="window.abrirModalCadastroCliente()" class="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 text-sm">Cadastrar Cliente</button>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500">ℹ️ Para vendas parceladas (boleto/carnê), é necessário cadastrar o cliente.</p>
+                    </div>
+
                     <div>
                         <label for="vendedor_cpf_busca" class="block text-sm font-medium text-gray-700 mb-1">CPF do Vendedor (Opcional)</label>
                         <div class="flex gap-2">
@@ -226,12 +244,89 @@
                     📋 Copiar Código PIX
                 </button>
                 
+                <button onclick="window.confirmarRecebimentoPix()" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 mb-3">
+                    ✅ Confirmar Recebimento
+                </button>
+                
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
                     <p class="text-xs text-blue-800">
-                        <strong>Instruções:</strong> Após o pagamento, confirme manualmente o recebimento no sistema.
+                        <strong>Instruções:</strong> Após o pagamento, clique em "Confirmar Recebimento" para gerar o comprovante.
                     </p>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal Cadastro Cliente -->
+    <div id="modal-cadastro-cliente" class="fixed inset-0 bg-black bg-opacity-70 z-40 flex justify-center items-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b p-4 sticky top-0 bg-white z-10">
+                <h2 class="text-xl font-bold text-gray-800">Cadastrar Cliente</h2>
+                <button onclick="fecharModal('modal-cadastro-cliente')" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <form id="form-cadastro-cliente" class="p-4 space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="cadastro-nome" class="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
+                        <input type="text" id="cadastro-nome" name="nome_completo" required class="w-full p-2 border border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                        <label for="cadastro-cpf" class="block text-sm font-medium text-gray-700 mb-1">CPF *</label>
+                        <input type="text" id="cadastro-cpf" name="cpf" maxlength="14" data-mask="cpf" required class="w-full p-2 border border-gray-300 rounded-md">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="cadastro-telefone" class="block text-sm font-medium text-gray-700 mb-1">Telefone *</label>
+                        <input type="text" id="cadastro-telefone" name="telefone" data-mask="phone" required class="w-full p-2 border border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                        <label for="cadastro-email" class="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+                        <input type="email" id="cadastro-email" name="email" class="w-full p-2 border border-gray-300 rounded-md">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="cadastro-senha" class="block text-sm font-medium text-gray-700 mb-1">Senha * (mín. 4 caracteres)</label>
+                        <input type="password" id="cadastro-senha" name="senha" minlength="4" required autocomplete="new-password" class="w-full p-2 border border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                        <label for="cadastro-cep" class="block text-sm font-medium text-gray-700 mb-1">CEP</label>
+                        <input type="text" id="cadastro-cep" name="endereco_cep" data-mask="cep" class="w-full p-2 border border-gray-300 rounded-md">
+                    </div>
+                </div>
+                <div>
+                    <label for="cadastro-logradouro" class="block text-sm font-medium text-gray-700 mb-1">Logradouro *</label>
+                    <input type="text" id="cadastro-logradouro" name="endereco_logradouro" required class="w-full p-2 border border-gray-300 rounded-md">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label for="cadastro-numero" class="block text-sm font-medium text-gray-700 mb-1">Número *</label>
+                        <input type="text" id="cadastro-numero" name="endereco_numero" required class="w-full p-2 border border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                        <label for="cadastro-complemento" class="block text-sm font-medium text-gray-700 mb-1">Complemento</label>
+                        <input type="text" id="cadastro-complemento" name="endereco_complemento" class="w-full p-2 border border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                        <label for="cadastro-bairro" class="block text-sm font-medium text-gray-700 mb-1">Bairro *</label>
+                        <input type="text" id="cadastro-bairro" name="endereco_bairro" required class="w-full p-2 border border-gray-300 rounded-md">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="cadastro-cidade" class="block text-sm font-medium text-gray-700 mb-1">Cidade *</label>
+                        <input type="text" id="cadastro-cidade" name="endereco_cidade" required class="w-full p-2 border border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                        <label for="cadastro-estado" class="block text-sm font-medium text-gray-700 mb-1">Estado (UF) *</label>
+                        <input type="text" id="cadastro-estado" name="endereco_estado" maxlength="2" required class="w-full p-2 border border-gray-300 rounded-md" style="text-transform: uppercase;">
+                    </div>
+                </div>
+                <div class="border-t p-4 bg-gray-50 rounded-b-lg">
+                    <button type="button" id="btn-salvar-cliente" onclick="window.salvarClienteVendaDireta()" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700">Salvar Cliente</button>
+                </div>
+            </form>
         </div>
     </div>
 

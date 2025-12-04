@@ -26,7 +26,7 @@ class PedidoController extends Controller
         ];
         $behaviors['authenticator'] = [
             'class' => \yii\filters\auth\HttpBearerAuth::class,
-            'optional' => ['index', 'create'],
+            'optional' => ['index', 'create', 'parcelas'],
         ];
         return $behaviors;
     }
@@ -36,6 +36,7 @@ class PedidoController extends Controller
         return [
             'index' => ['GET', 'HEAD'],
             'create' => ['POST'],
+            'parcelas' => ['GET', 'HEAD'],
         ];
     }
 
@@ -358,6 +359,43 @@ class PedidoController extends Controller
             $transaction->rollBack();
             Yii::error("Rollback: Throwable - " . $t->getMessage(), 'api');
             throw new ServerErrorHttpException('Erro crítico ao processar pedido: ' . $t->getMessage());
+        }
+    }
+
+    /**
+     * Busca parcelas de uma venda
+     * GET /api/pedido/parcelas?venda_id=XXX
+     */
+    public function actionParcelas()
+    {
+        try {
+            $vendaId = Yii::$app->request->get('venda_id');
+            
+            if (empty($vendaId)) {
+                throw new BadRequestHttpException('Parâmetro venda_id é obrigatório.');
+            }
+            
+            $venda = Venda::findOne($vendaId);
+            if (!$venda) {
+                throw new BadRequestHttpException('Venda não encontrada.');
+            }
+            
+            $parcelas = \app\modules\vendas\models\Parcela::find()
+                ->where(['venda_id' => $vendaId])
+                ->orderBy(['numero_parcela' => SORT_ASC])
+                ->asArray()
+                ->all();
+            
+            return [
+                'venda_id' => $vendaId,
+                'numero_parcelas' => $venda->numero_parcelas,
+                'valor_total' => $venda->valor_total,
+                'parcelas' => $parcelas
+            ];
+            
+        } catch (\Exception $e) {
+            Yii::error('Erro ao buscar parcelas: ' . $e->getMessage(), 'api');
+            throw new ServerErrorHttpException('Erro ao buscar parcelas: ' . $e->getMessage());
         }
     }
 }

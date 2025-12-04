@@ -288,7 +288,8 @@ export async function finalizarPedido(dadosPedido, carrinho) {
             
             return {
                 sucesso: true,
-                mensagem: `Venda realizada com sucesso!\n\nNúmero: ${resultadoDireto.dados.venda?.id || 'N/A'}\nValor Total: R$ ${resultadoDireto.dados.venda?.valor_total || '0.00'}`
+                dados: resultadoDireto.dados, // ✅ CORREÇÃO: Retorna os dados completos incluindo parcelas
+                mensagem: `Venda realizada com sucesso!\n\nNúmero: ${resultadoDireto.dados?.id || resultadoDireto.dados?.venda?.id || 'N/A'}\nValor Total: R$ ${resultadoDireto.dados?.valor_total || resultadoDireto.dados?.venda?.valor_total || '0.00'}`
             };
         }
         

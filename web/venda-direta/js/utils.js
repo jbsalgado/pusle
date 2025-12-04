@@ -152,6 +152,19 @@ export function maskPhone(input) {
 }
 
 /**
+ * Aplica máscara de CEP no input
+ */
+export function maskCEP(input) {
+    if (!input) return;
+    let value = input.value.replace(/[^\d]/g, '');
+    value = value.slice(0, 8); // Limita a 8 dígitos
+    if (value.length > 5) {
+        value = value.replace(/^(\d{5})(\d{3})$/, '$1-$2');
+    }
+    input.value = value;
+}
+
+/**
  * Valida UUID
  */
 export function validarUUID(uuid) {
