@@ -34,6 +34,7 @@ export const API_ENDPOINTS = {
     
     // ✅ NOVOS ENDPOINTS
     USUARIO_CONFIG: `${CONFIG.URL_API}/api/usuario/config`,
+    USUARIO_ME: `${CONFIG.URL_API}/api/usuario/me`, // Endpoint para dados do usuário logado
     
     // =======================================================
     // ✅ CORREÇÃO: ENDPOINTS ADICIONADOS DO BACKUP

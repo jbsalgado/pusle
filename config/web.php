@@ -149,6 +149,9 @@ $config = [
                     ],
                     'pluralize' => false,
                 ],
+                // Rota específica para Venda Direta (protegida por autenticação)
+                'venda-direta' => 'venda-direta/index',
+                
                 // Adicione outras regras específicas aqui, se necessário
                 // Regras específicas para módulo vendas com controllers e actions que podem ter hífens (devem vir antes das genéricas)
                 // Permite controllers como forma-pagamento, carteira-cobranca, etc.

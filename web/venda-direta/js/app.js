@@ -12,16 +12,26 @@ import { carregarFormasPagamento } from './payment.js';
 import { validarCPF, maskCPF, maskPhone, formatarMoeda, verificarElementosCriticos } from './utils.js';
 import { ELEMENTOS_CRITICOS } from './config.js';
 import { mostrarModalPixEstatico } from './pix.js'; // Importação do novo módulo
+import { verificarAutenticacao, getColaboradorData } from './auth.js'; // Importação do módulo de autenticação
 
 // Variáveis Globais
 let produtos = [];
 let colaboradorAtual = null;
 let formasPagamento = [];
+let usuarioData = null;
 
 // Inicialização
 async function init() {
     try {
         console.log('[App] 🚀 Iniciando aplicação VENDA DIRETA...');
+        
+        // Verificar autenticação primeiro
+        usuarioData = await verificarAutenticacao();
+        if (!usuarioData) {
+            console.error('[App] ❌ Falha na autenticação');
+            return;
+        }
+        
         verificarElementosCriticos(ELEMENTOS_CRITICOS);
         popularOpcoesParcelas();
         await carregarConfigLoja();
@@ -31,6 +41,7 @@ async function init() {
         inicializarEventListeners();
         configurarListenerServiceWorker();
         atualizarBadgeCarrinho();
+        
         console.log('[App] ✅ Aplicação inicializada!');
     } catch (error) {
         console.error('[App] ❌ Erro na inicialização:', error);
@@ -255,6 +266,10 @@ window.abrirModalPedido = async function() {
     document.getElementById('info-vendedor').classList.add('hidden');
     popularOpcoesParcelas();
     abrirModal('modal-cliente-pedido');
+    
+    // Preencher automaticamente CPF do vendedor se o usuário logado for vendedor
+    preencherDadosVendedor();
+    
     try {
         const formas = await carregarFormasPagamento(CONFIG.ID_USUARIO_LOJA);
         popularFormasPagamento(formas);
@@ -262,6 +277,41 @@ window.abrirModalPedido = async function() {
         popularFormasPagamento([]);
     }
 };
+
+/**
+ * Preenche automaticamente os dados do vendedor se o usuário logado for colaborador/vendedor
+ */
+function preencherDadosVendedor() {
+    const colaborador = getColaboradorData();
+    if (colaborador && colaborador.cpf) {
+        const cpfInput = document.getElementById('vendedor_cpf_busca');
+        if (cpfInput) {
+            // Formata o CPF com máscara (formato: 000.000.000-00)
+            const cpfLimpo = colaborador.cpf.replace(/[^\d]/g, '');
+            const cpfFormatado = cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+            cpfInput.value = cpfFormatado;
+            
+            // Define o colaborador atual
+            colaboradorAtual = colaborador;
+            const colaboradorIdInput = document.getElementById('colaborador_vendedor_id');
+            if (colaboradorIdInput) {
+                colaboradorIdInput.value = colaborador.id;
+            }
+            
+            // Mostra informações do vendedor
+            const nomeVendedorInfo = document.getElementById('nome-vendedor-info');
+            const infoVendedor = document.getElementById('info-vendedor');
+            if (nomeVendedorInfo) {
+                nomeVendedorInfo.textContent = colaborador.nome_completo;
+            }
+            if (infoVendedor) {
+                infoVendedor.classList.remove('hidden');
+            }
+            
+            console.log('[App] ✅ CPF do vendedor preenchido automaticamente:', cpfFormatado);
+        }
+    }
+}
 
 function popularOpcoesParcelas() {
     const selectParcelas = document.getElementById('numero-parcelas');

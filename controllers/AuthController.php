@@ -32,17 +32,17 @@ class AuthController extends Controller
      */
     public function actionLogin()
     {
-        // Se já estiver logado, redireciona para o Dashboard Global
+        // Se já estiver logado, redireciona para o Dashboard de Vendas
         if (!Yii::$app->user->isGuest) {
-            // ✅ AJUSTADO: Redireciona para o dashboard global
-            return $this->goHome(); 
+            // ✅ AJUSTADO: Redireciona para o dashboard de vendas
+            return $this->redirect(['/vendas/dashboard']);
         }
 
         $model = new LoginForm();
         
         if ($model->load(Yii::$app->request->post()) && $model->login()) {
-            // ✅ AJUSTADO: Redireciona para o dashboard global após login
-            return $this->goBack();
+            // ✅ AJUSTADO: Redireciona para o dashboard de vendas após login bem-sucedido
+            return $this->redirect(['/vendas/dashboard']);
         }
 
         $model->senha = '';
@@ -65,10 +65,10 @@ class AuthController extends Controller
      */
     public function actionSignup()
     {
-        // Se já estiver logado, redireciona para o Dashboard Global
+        // Se já estiver logado, redireciona para o Dashboard de Vendas
         if (!Yii::$app->user->isGuest) {
-            // ✅ AJUSTADO: Redireciona para o dashboard global
-            return $this->goHome();
+            // ✅ AJUSTADO: Redireciona para o dashboard de vendas
+            return $this->redirect(['/vendas/dashboard']);
         }
 
         $model = new SignupForm();
@@ -78,8 +78,8 @@ class AuthController extends Controller
                 // Faz login automaticamente
                 if (Yii::$app->user->login($usuario)) {
                     Yii::$app->session->setFlash('success', 'Cadastro realizado com sucesso! Bem-vindo!');
-                    // ✅ AJUSTADO: Redireciona para o dashboard global após cadastro
-                    return $this->goHome();
+                    // ✅ AJUSTADO: Redireciona para o dashboard de vendas após cadastro
+                    return $this->redirect(['/vendas/dashboard']);
                 }
             }
         }
