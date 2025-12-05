@@ -57,20 +57,43 @@
 </script>
 
     <header class="bg-white shadow-md sticky top-0 z-10">
-        <nav class="container mx-auto px-4 py-4 flex justify-between items-center">
-            <h1 class="text-xl font-bold text-blue-600">Venda Direta</h1>
-            <div class="flex items-center gap-3">
-                <div id="status-online" class="items-center gap-1 text-green-600">
-                    <span class="h-3 w-3 bg-green-500 rounded-full"></span>
-                    <span class="text-xs font-medium hidden sm:inline">Online</span>
+        <nav class="container mx-auto px-4 py-3">
+            <div class="flex justify-between items-center mb-3">
+                <h1 class="text-xl font-bold text-blue-600">Venda Direta</h1>
+                <div class="flex items-center gap-3">
+                    <div id="status-online" class="items-center gap-1 text-green-600">
+                        <span class="h-3 w-3 bg-green-500 rounded-full"></span>
+                        <span class="text-xs font-medium hidden sm:inline">Online</span>
+                    </div>
+                    <div id="status-offline" class="items-center gap-1 text-gray-500">
+                        <span class="h-3 w-3 bg-gray-400 rounded-full"></span>
+                        <span class="text-xs font-medium hidden sm:inline">Offline</span>
+                    </div>
+                    <button id="btn-abrir-carrinho" class="relative bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                        <span id="contador-carrinho" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                    </button>
                 </div>
-                <div id="status-offline" class="items-center gap-1 text-gray-500">
-                    <span class="h-3 w-3 bg-gray-400 rounded-full"></span>
-                    <span class="text-xs font-medium hidden sm:inline">Offline</span>
-                </div>
-                <button id="btn-abrir-carrinho" class="relative bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                    <span id="contador-carrinho" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+            </div>
+            <!-- Campo de Busca -->
+            <div class="relative">
+                <input 
+                    type="text" 
+                    id="busca-produto" 
+                    placeholder="🔍 Buscar produto por nome..." 
+                    class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm text-gray-900 bg-white placeholder-gray-400"
+                >
+                <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                <button 
+                    id="btn-limpar-busca" 
+                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hidden"
+                    onclick="limparBusca()"
+                >
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
                 </button>
             </div>
         </nav>
@@ -82,8 +105,8 @@
 
     <!-- Modal Carrinho -->
     <div id="modal-carrinho" class="fixed inset-0 bg-black bg-opacity-50 z-20 hidden">
-        <div class="h-full flex flex-col justify-end sm:justify-center sm:items-center sm:p-4">
-            <div class="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[90vh] sm:max-h-[85vh] flex flex-col">
+        <div class="h-full flex justify-center items-center p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
                 <div class="flex justify-between items-center border-b p-4 sm:p-5 flex-shrink-0">
                     <div><h2 class="text-xl sm:text-2xl font-bold text-gray-800">Meu Carrinho</h2><p class="text-xs sm:text-sm text-gray-500 mt-1">Revise seus itens</p></div>
                     <button onclick="fecharModal('modal-carrinho')" class="text-gray-400 hover:text-gray-600 transition-colors p-2 -mr-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
@@ -91,7 +114,7 @@
                 <div id="itens-carrinho" class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
                     <p id="carrinho-vazio-msg" class="text-center text-gray-500 py-8"><svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>Seu carrinho está vazio</p>
                 </div>
-                <div class="border-t bg-gray-50 p-4 sm:p-5 flex-shrink-0 rounded-b-3xl sm:rounded-b-2xl">
+                <div class="border-t bg-gray-50 p-4 sm:p-5 flex-shrink-0 rounded-b-2xl">
                     <div class="flex justify-between items-center mb-4">
                         <div><p class="text-sm text-gray-600">Valor Total</p><p id="valor-total-carrinho" class="text-2xl sm:text-3xl font-bold text-blue-600">R$ 0,00</p></div>
                         <div class="text-right"><p class="text-xs text-gray-500">Itens</p><p class="text-lg font-semibold text-gray-700" id="total-itens-footer">0</p></div>

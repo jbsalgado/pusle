@@ -506,6 +506,25 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
         console.warn('[PIX] Erro ao buscar dados da loja, usando valores padrão:', error);
     }
     
+    // Constrói URL da logo se houver
+    let logoUrl = '';
+    if (dadosEmpresa.logo_path) {
+        if (dadosEmpresa.logo_path.match(/^(https?:\/\/|\/)/)) {
+            // URL completa ou caminho absoluto
+            logoUrl = dadosEmpresa.logo_path;
+        } else {
+            // Caminho relativo - precisa da URL base
+            try {
+                const { CONFIG } = await import('./config.js');
+                logoUrl = CONFIG.URL_BASE_WEB + '/' + dadosEmpresa.logo_path.replace(/^\//, '');
+            } catch (e) {
+                // Fallback: usa window.location se não conseguir importar CONFIG
+                const baseUrl = window.location.origin + window.location.pathname.split('/').slice(0, -2).join('/');
+                logoUrl = baseUrl + '/' + dadosEmpresa.logo_path.replace(/^\//, '');
+            }
+        }
+    }
+    
     // Formata CPF/CNPJ
     const cpfCnpjLimpo = dadosEmpresa.cpf_cnpj ? dadosEmpresa.cpf_cnpj.replace(/[^\d]/g, '') : '';
     const cpfCnpjFormatado = formatarCpfCnpj(dadosEmpresa.cpf_cnpj);
@@ -579,6 +598,16 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
             border-bottom: 1px dashed #000;
             padding-bottom: 5px;
             margin-bottom: 5px;
+        }
+        .logo-container {
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        .logo-container img {
+            max-width: 60mm;
+            max-height: 30mm;
+            height: auto;
+            object-fit: contain;
         }
         .empresa-nome {
             font-weight: bold;
@@ -685,6 +714,11 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
 </head>
 <body>
     <div class="header">
+        ${logoUrl ? `
+        <div class="logo-container">
+            <img src="${logoUrl}" alt="Logo" onerror="this.style.display='none';">
+        </div>
+        ` : ''}
         <div class="empresa-nome">${dadosEmpresa.nome_loja || dadosEmpresa.nome}</div>
         ${cpfCnpjFormatado ? `<div class="empresa-dados">${isCNPJ ? 'CNPJ' : 'CPF'}: ${cpfCnpjFormatado}</div>` : ''}
         ${endereco ? `<div class="empresa-dados">${endereco}</div>` : ''}
@@ -692,7 +726,7 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
         ${telefoneFormatado ? `<div class="empresa-dados">Fone: ${telefoneFormatado}</div>` : ''}
     </div>
     
-    <div class="titulo">${dadosPedido.parcelas && Array.isArray(dadosPedido.parcelas) && dadosPedido.parcelas.length > 0 ? 'FICHA DE PRESTAÇÃO' : 'COMPROVANTE DE VENDA'}</div>
+    <div class="titulo">COMPROVANTE DE VENDA</div>
     
     <div class="data-hora">
         ${dataHora}
@@ -747,7 +781,9 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
     ${(() => {
         const temParcelas = dadosPedido.parcelas && Array.isArray(dadosPedido.parcelas) && dadosPedido.parcelas.length > 0;
         const numeroParcelas = dadosPedido.numero_parcelas || 0;
-        const deveMostrar = temParcelas || numeroParcelas > 1;
+        
+        // ✅ Só mostra tabela se houver parcelas E a venda for parcelada (mais de 1 parcela)
+        const deveMostrar = temParcelas && numeroParcelas > 1;
         
         console.log('[PIX] 🔍 Verificando se deve mostrar parcelas:', {
             temParcelas,
@@ -756,13 +792,9 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
             quantidade_parcelas_array: dadosPedido.parcelas?.length || 0
         });
         
+        // Se não deve mostrar (venda à vista ou sem parcelas), retorna vazio
         if (!deveMostrar) {
-            return '';
-        }
-        
-        // Se não tem parcelas no array mas a venda é parcelada, mostra mensagem
-        if (!temParcelas && numeroParcelas > 1) {
-            console.warn('[PIX] ⚠️ Venda parcelada mas sem dados de parcelas. Mostrando apenas resumo.');
+            console.log('[PIX] ℹ️ Venda à vista ou sem parcelas. Tabela de parcelas não será exibida.');
             return '';
         }
         

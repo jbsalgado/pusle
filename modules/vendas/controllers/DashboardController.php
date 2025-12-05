@@ -46,50 +46,74 @@ class DashboardController extends Controller
     {
         $usuario = Yii::$app->user->identity;
 
-        // Estatísticas gerais
-        $stats = [
-            'total_clientes' => Cliente::find()->where(['usuario_id' => $usuario->id])->count(),
-            'total_produtos' => Produto::find()->where(['usuario_id' => $usuario->id])->count(),
-            'total_vendas' => Venda::find()->where(['usuario_id' => $usuario->id])->count(),
-            'total_categorias' => Categoria::find()->where(['usuario_id' => $usuario->id])->count(),
-        ];
-
-        // Vendas do mês atual - CORRIGIDO para PostgreSQL
-        $primeiroDiaMes = date('Y-m-01 00:00:00');
-        $ultimoDiaMes = date('Y-m-t 23:59:59');
-        
-        $vendasMes = Venda::find()
-            ->where(['usuario_id' => $usuario->id])
-            ->andWhere(['>=', 'data_venda', $primeiroDiaMes])
-            ->andWhere(['<=', 'data_venda', $ultimoDiaMes])
-            ->all();
-
-        $totalVendasMes = 0;
-        $quantidadeVendasMes = count($vendasMes);
-        
-        foreach ($vendasMes as $venda) {
-            $totalVendasMes += $venda->valor_total;
+        // Busca o colaborador associado ao usuário (se houver)
+        $colaborador = null;
+        $ehAdministrador = false;
+        if ($usuario) {
+            $colaborador = \app\modules\vendas\models\Colaborador::find()
+                ->where(['usuario_id' => $usuario->id])
+                ->andWhere(['ativo' => true])
+                ->one();
+            
+            if ($colaborador) {
+                $ehAdministrador = (bool)$colaborador->eh_administrador;
+            }
         }
 
-        // Clientes recentes (últimos 5)
-        $clientesRecentes = Cliente::find()
-            ->where(['usuario_id' => $usuario->id])
-            ->orderBy(['data_criacao' => SORT_DESC])
-            ->limit(5)
-            ->all();
+        // Estatísticas gerais (apenas para administradores)
+        $stats = [];
+        $totalVendasMes = 0;
+        $quantidadeVendasMes = 0;
+        $clientesRecentes = [];
+        $produtosMaisVendidos = [];
+        $vendasRecentes = [];
 
-        // Produtos mais vendidos (top 5)
-        $produtosMaisVendidos = $this->getProdutosMaisVendidos($usuario->id, 5);
+        if ($ehAdministrador) {
+            $stats = [
+                'total_clientes' => Cliente::find()->where(['usuario_id' => $usuario->id])->count(),
+                'total_produtos' => Produto::find()->where(['usuario_id' => $usuario->id])->count(),
+                'total_vendas' => Venda::find()->where(['usuario_id' => $usuario->id])->count(),
+                'total_categorias' => Categoria::find()->where(['usuario_id' => $usuario->id])->count(),
+            ];
 
-        // Vendas recentes (últimas 10)
-        $vendasRecentes = Venda::find()
-            ->where(['usuario_id' => $usuario->id])
-            ->orderBy(['data_venda' => SORT_DESC])
-            ->limit(10)
-            ->all();
+            // Vendas do mês atual - CORRIGIDO para PostgreSQL
+            $primeiroDiaMes = date('Y-m-01 00:00:00');
+            $ultimoDiaMes = date('Y-m-t 23:59:59');
+            
+            $vendasMes = Venda::find()
+                ->where(['usuario_id' => $usuario->id])
+                ->andWhere(['>=', 'data_venda', $primeiroDiaMes])
+                ->andWhere(['<=', 'data_venda', $ultimoDiaMes])
+                ->all();
+
+            $quantidadeVendasMes = count($vendasMes);
+            
+            foreach ($vendasMes as $venda) {
+                $totalVendasMes += $venda->valor_total;
+            }
+
+            // Clientes recentes (últimos 5)
+            $clientesRecentes = Cliente::find()
+                ->where(['usuario_id' => $usuario->id])
+                ->orderBy(['data_criacao' => SORT_DESC])
+                ->limit(5)
+                ->all();
+
+            // Produtos mais vendidos (top 5)
+            $produtosMaisVendidos = $this->getProdutosMaisVendidos($usuario->id, 5);
+
+            // Vendas recentes (últimas 10)
+            $vendasRecentes = Venda::find()
+                ->where(['usuario_id' => $usuario->id])
+                ->orderBy(['data_venda' => SORT_DESC])
+                ->limit(10)
+                ->all();
+        }
 
         return $this->render('index', [
             'usuario' => $usuario,
+            'colaborador' => $colaborador,
+            'ehAdministrador' => $ehAdministrador,
             'stats' => $stats,
             'totalVendasMes' => $totalVendasMes,
             'quantidadeVendasMes' => $quantidadeVendasMes,

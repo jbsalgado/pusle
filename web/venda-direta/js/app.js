@@ -17,6 +17,7 @@ import { buscarClientePorCpf, cadastrarCliente, getClienteAtual, setClienteAtual
 
 // Variáveis Globais
 let produtos = [];
+let produtosFiltrados = []; // Produtos filtrados pela busca
 let colaboradorAtual = null;
 let formasPagamento = [];
 let usuarioData = null;
@@ -41,6 +42,7 @@ async function init() {
         await carregarCarrinhoInicial();
         await carregarProdutos();
         inicializarEventListeners();
+        inicializarBuscaProdutos(); // Inicializa o filtro de busca
         configurarListenerServiceWorker();
         atualizarBadgeCarrinho();
         inicializarMonitoramentoRede();
@@ -180,18 +182,81 @@ async function carregarProdutos() {
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Erro ${response.status}`);
         produtos = await response.json();
-        renderizarProdutos(produtos);
+        produtosFiltrados = produtos; // Inicializa com todos os produtos
+        filtrarProdutos(); // Aplica filtro atual (se houver)
     } catch (error) {
         console.error('Erro ao carregar produtos:', error);
     }
 }
+
+function filtrarProdutos() {
+    const termoBusca = document.getElementById('busca-produto')?.value?.toLowerCase().trim() || '';
+    const btnLimpar = document.getElementById('btn-limpar-busca');
+    
+    // Mostra/oculta botão de limpar busca
+    if (btnLimpar) {
+        btnLimpar.classList.toggle('hidden', !termoBusca);
+    }
+    
+    if (!termoBusca) {
+        produtosFiltrados = produtos;
+    } else {
+        produtosFiltrados = produtos.filter(produto => 
+            produto.nome.toLowerCase().includes(termoBusca)
+        );
+    }
+    
+    renderizarProdutos(produtosFiltrados);
+}
+
+function inicializarBuscaProdutos() {
+    const inputBusca = document.getElementById('busca-produto');
+    if (!inputBusca) return;
+    
+    // Filtra enquanto o usuário digita (debounce)
+    let timeoutId;
+    inputBusca.addEventListener('input', (e) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            filtrarProdutos();
+        }, 300); // Aguarda 300ms após parar de digitar
+    });
+    
+    // Filtra ao pressionar Enter
+    inputBusca.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            filtrarProdutos();
+        }
+    });
+}
+
+window.limparBusca = function() {
+    const inputBusca = document.getElementById('busca-produto');
+    if (inputBusca) {
+        inputBusca.value = '';
+        filtrarProdutos();
+        inputBusca.focus();
+    }
+};
 
 function renderizarProdutos(listaProdutos) {
     const container = document.getElementById('catalogo-produtos');
     if (!container) return;
     
     if (listaProdutos.length === 0) {
-        container.innerHTML = `<div class="col-span-full text-center py-16"><p>Nenhum produto disponível.</p></div>`;
+        const termoBusca = document.getElementById('busca-produto')?.value?.trim() || '';
+        if (termoBusca) {
+            container.innerHTML = `<div class="col-span-full text-center py-16">
+                <svg class="h-16 w-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                <p class="text-gray-600 font-medium">Nenhum produto encontrado</p>
+                <p class="text-sm text-gray-500 mt-2">Tente buscar com outro termo</p>
+            </div>`;
+        } else {
+            container.innerHTML = `<div class="col-span-full text-center py-16"><p>Nenhum produto disponível.</p></div>`;
+        }
         return;
     }
     

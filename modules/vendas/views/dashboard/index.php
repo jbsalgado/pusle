@@ -64,6 +64,16 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
         </div>
     </div>
 
+    <?php 
+    $ehAdministrador = isset($ehAdministrador) ? (bool)$ehAdministrador : false;
+    if (!$ehAdministrador): 
+    ?>
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+            <p class="text-yellow-800 font-medium">
+                Você não tem permissão para visualizar os dados do dashboard. Apenas administradores podem acessar essas informações.
+            </p>
+        </div>
+    <?php else: ?>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
         <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
@@ -278,7 +288,9 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
             <?php endif; ?>
         </div>
     </div>
+    <?php endif; ?>
 
+    <?php if ($ehAdministrador): ?>
     <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg p-6 text-white">
         <h2 class="text-2xl font-bold mb-4">Ações Rápidas</h2>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -307,5 +319,6 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
             ) ?>
         </div>
     </div>
+    <?php endif; ?>
 
 </div>

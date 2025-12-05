@@ -43,6 +43,25 @@ export async function gerarComprovanteVenda(carrinho, dadosPedido) {
         console.warn('[Receipt] Erro ao buscar dados da loja, usando valores padrão:', error);
     }
     
+    // Constrói URL da logo se houver
+    let logoUrl = '';
+    if (dadosEmpresa.logo_path) {
+        if (dadosEmpresa.logo_path.match(/^(https?:\/\/|\/)/)) {
+            // URL completa ou caminho absoluto
+            logoUrl = dadosEmpresa.logo_path;
+        } else {
+            // Caminho relativo - precisa da URL base
+            try {
+                const { CONFIG } = await import('./config.js');
+                logoUrl = CONFIG.URL_BASE_WEB + '/' + dadosEmpresa.logo_path.replace(/^\//, '');
+            } catch (e) {
+                // Fallback: usa window.location se não conseguir importar CONFIG
+                const baseUrl = window.location.origin + window.location.pathname.split('/').slice(0, -2).join('/');
+                logoUrl = baseUrl + '/' + dadosEmpresa.logo_path.replace(/^\//, '');
+            }
+        }
+    }
+    
     // Formata CPF/CNPJ
     const cpfCnpjLimpo = dadosEmpresa.cpf_cnpj ? dadosEmpresa.cpf_cnpj.replace(/[^\d]/g, '') : '';
     const cpfCnpjFormatado = formatarCpfCnpj(dadosEmpresa.cpf_cnpj);
@@ -116,6 +135,16 @@ export async function gerarComprovanteVenda(carrinho, dadosPedido) {
             border-bottom: 1px dashed #000;
             padding-bottom: 5px;
             margin-bottom: 5px;
+        }
+        .logo-container {
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        .logo-container img {
+            max-width: 60mm;
+            max-height: 30mm;
+            height: auto;
+            object-fit: contain;
         }
         .empresa-nome {
             font-weight: bold;
@@ -222,6 +251,11 @@ export async function gerarComprovanteVenda(carrinho, dadosPedido) {
 </head>
 <body>
     <div class="header">
+        ${logoUrl ? `
+        <div class="logo-container">
+            <img src="${logoUrl}" alt="Logo" onerror="this.style.display='none';">
+        </div>
+        ` : ''}
         <div class="empresa-nome">${dadosEmpresa.nome_loja || dadosEmpresa.nome}</div>
         ${cpfCnpjFormatado ? `<div class="empresa-dados">${isCNPJ ? 'CNPJ' : 'CPF'}: ${cpfCnpjFormatado}</div>` : ''}
         ${endereco ? `<div class="empresa-dados">${endereco}</div>` : ''}
@@ -229,7 +263,7 @@ export async function gerarComprovanteVenda(carrinho, dadosPedido) {
         ${telefoneFormatado ? `<div class="empresa-dados">Fone: ${telefoneFormatado}</div>` : ''}
     </div>
     
-    <div class="titulo">${dadosPedido.parcelas && dadosPedido.parcelas.length > 1 ? 'FICHA DE PRESTAÇÃO' : 'COMPROVANTE DE VENDA'}</div>
+    <div class="titulo">COMPROVANTE DE VENDA</div>
     
     <div class="data-hora">
         ${dataHora}
@@ -266,7 +300,16 @@ export async function gerarComprovanteVenda(carrinho, dadosPedido) {
         ${dadosPedido.numero_parcelas === 1 ? `<div>VALOR PAGO: ${valorFormatado}</div>` : `<div>${dadosPedido.numero_parcelas}x de ${formatarMoeda(valorTotal / dadosPedido.numero_parcelas)}</div>`}
     </div>
     
-    ${dadosPedido.parcelas && dadosPedido.parcelas.length > 1 ? `
+    ${(() => {
+        const temParcelas = dadosPedido.parcelas && Array.isArray(dadosPedido.parcelas) && dadosPedido.parcelas.length > 0;
+        const numeroParcelas = dadosPedido.numero_parcelas || 0;
+        const deveMostrar = temParcelas && numeroParcelas > 1;
+        
+        if (!deveMostrar) {
+            return '';
+        }
+        
+        return `
     <div class="separador" style="margin-top: 10px;">--------------------------------</div>
     <div style="margin-top: 10px;">
         <div style="font-weight: bold; text-align: center; margin-bottom: 5px; font-size: 11px;">PARCELAS</div>
@@ -300,7 +343,8 @@ export async function gerarComprovanteVenda(carrinho, dadosPedido) {
             </tbody>
         </table>
     </div>
-    ` : ''}
+    `;
+    })()}
     
     <div class="footer">
         <div>Obrigado pela preferência!</div>

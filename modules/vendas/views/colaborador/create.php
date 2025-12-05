@@ -138,6 +138,23 @@ $this->params['breadcrumbs'][] = $this->title;
                         </div>
                     </div>
 
+                    <!-- Checkbox de Administrador -->
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                <?= Html::activeCheckbox($model, 'eh_administrador', [
+                                    'class' => 'w-4 h-4 text-yellow-600 bg-white border-gray-300 rounded focus:ring-yellow-500 focus:ring-2',
+                                    'label' => false,
+                                    'id' => 'eh_administrador_checkbox'
+                                ]) ?>
+                            </div>
+                            <div class="ml-3">
+                                <label for="eh_administrador_checkbox" class="font-medium text-gray-900 text-sm sm:text-base cursor-pointer">É Administrador</label>
+                                <p class="text-xs text-gray-500">Acesso completo a todos os módulos do sistema</p>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Comissões -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                         

@@ -105,6 +105,24 @@ $cards = [
         'description' => 'Gerir produtos'
     ],
     [
+        'order' => 2.5,
+        'visible' => true,
+        'label' => 'Fornecedores',
+        'url' => ['/vendas/fornecedor/index'],
+        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>',
+        'color' => 'orange',
+        'description' => 'Gerir fornecedores'
+    ],
+    [
+        'order' => 2.6,
+        'visible' => true,
+        'label' => 'Compras',
+        'url' => ['/vendas/compra/index'],
+        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>',
+        'color' => 'teal',
+        'description' => 'Gerir compras e resuprimentos'
+    ],
+    [
         'order' => 3,
         'visible' => true,
         'label' => 'Categorias',
@@ -232,8 +250,15 @@ $cards = [
     ],
 ];
 
-// Filtra cards visíveis e ordena pelo índice 'order'
-$visibleCards = array_filter($cards, function($card) {
+// Filtra cards visíveis baseado no flag de administrador
+$ehAdministrador = isset($ehAdministrador) ? (bool)$ehAdministrador : false;
+
+$visibleCards = array_filter($cards, function($card) use ($ehAdministrador) {
+    // Se não for administrador, mostra apenas o card "Nova Venda" (que não está na lista de cards de gerenciamento)
+    // Todos os outros cards de gerenciamento só aparecem para administradores
+    if (!$ehAdministrador) {
+        return false; // Não mostra nenhum card de gerenciamento para não-administradores
+    }
     return isset($card['visible']) && $card['visible'] === true;
 });
 
@@ -360,6 +385,7 @@ usort($visibleCards, function($a, $b) {
                 </div>
             </a>
 
+            <?php if ($ehAdministrador): ?>
             <!-- Listar Vendas -->
             <a href="<?= Url::to(['/vendas/venda/index']) ?>" 
                class="group block bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-md hover:shadow-xl border border-gray-200 transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
@@ -375,9 +401,11 @@ usort($visibleCards, function($a, $b) {
                     </div>
                 </div>
             </a>
+            <?php endif; ?>
         </div>
 
-        <!-- Seção de Gerenciamento -->
+        <?php if ($ehAdministrador): ?>
+        <!-- Seção de Gerenciamento (apenas para administradores) -->
         <div class="space-y-4 sm:space-y-5">
             <div class="flex items-center justify-between">
                 <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Gerenciamento</h2>
@@ -415,6 +443,7 @@ usort($visibleCards, function($a, $b) {
                 <?php endforeach; ?>
             </div>
         </div>
+        <?php endif; ?>
 
         <!-- Rodapé com informações adicionais -->
         <div class="pt-4 sm:pt-6 border-t border-gray-200">

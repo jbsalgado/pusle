@@ -78,14 +78,23 @@ class Produto extends ActiveRecord
             [['usuario_id', 'categoria_id'], 'string'],
             [['descricao'], 'string'],
             [['preco_custo', 'valor_frete', 'preco_venda_sugerido', 'preco_promocional'], 'number', 'min' => 0],
-            [['margem_lucro_percentual', 'markup_percentual'], 'number', 'min' => 0, 'max' => 99.99],
-            [['estoque_atual'], 'integer', 'min' => 0],
+            [['margem_lucro_percentual'], 'number', 'min' => 0, 'max' => 99.99], // Margem: 0-99.99%
+            [['markup_percentual'], 'number', 'min' => 0], // ✅ Markup: sem limite máximo (pode ser qualquer valor positivo)
+            [['estoque_atual'], 'integer', 'min' => 0, 'skipOnEmpty' => false], // ✅ skipOnEmpty: false garante que valores vazios sejam tratados
             [['estoque_atual'], 'default', 'value' => 0],
+            [['estoque_atual'], 'filter', 'filter' => function($value) {
+                // ✅ Converte string vazia para 0, mantém números inteiros
+                if ($value === '' || $value === null) {
+                    return 0;
+                }
+                return (int) $value;
+            }],
             [['valor_frete'], 'default', 'value' => 0],
             [['ativo', 'permite_parcelamento'], 'boolean'],
             [['ativo'], 'default', 'value' => true],
             [['permite_parcelamento'], 'default', 'value' => false],
             [['data_inicio_promocao', 'data_fim_promocao'], 'safe'],
+            [['estoque_atual'], 'safe'], // ✅ Garante que o campo pode ser carregado via load()
             [['nome'], 'string', 'max' => 150],
             [['codigo_referencia'], 'string', 'max' => 50],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
@@ -135,7 +144,26 @@ class Produto extends ActiveRecord
     public function beforeSave($insert)
     {
         if (parent::beforeSave($insert)) {
-            $this->calculateMargemMarkup(null, null);
+            // 🔍 DEBUG: Log do estoque antes de salvar
+            Yii::info('Estoque antes de salvar: ' . $this->estoque_atual, __METHOD__);
+            
+            // ✅ Calcula margem e markup, mas limita margem a 99.99% para não falhar validação
+            // Markup pode ser qualquer valor positivo (sem limite)
+            $custoTotal = PricingHelper::calcularCustoTotal($this->preco_custo, $this->valor_frete);
+            
+            if ($custoTotal > 0 && $this->preco_venda_sugerido > 0) {
+                $this->margem_lucro_percentual = PricingHelper::calcularMargemLucro($custoTotal, $this->preco_venda_sugerido);
+                $this->markup_percentual = PricingHelper::calcularMarkup($custoTotal, $this->preco_venda_sugerido);
+                
+                // ✅ Limita margem a 99.99% para não falhar validação
+                if ($this->margem_lucro_percentual > 99.99) {
+                    $this->margem_lucro_percentual = 99.99;
+                }
+            } else {
+                $this->margem_lucro_percentual = null;
+                $this->markup_percentual = null;
+            }
+            
             return true;
         }
         return false;

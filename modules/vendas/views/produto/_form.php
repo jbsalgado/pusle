@@ -5,12 +5,36 @@ use yii\helpers\Url;
 use yii\widgets\ActiveForm;
 use app\modules\vendas\models\Categoria;
 
-?>
+// ✅ Exibe erros de validação do modelo de forma destacada
+if ($model->hasErrors()): ?>
+    <div class="mb-4 bg-red-50 border-l-4 border-red-500 text-red-800 px-4 py-3 rounded-lg shadow-lg">
+        <div class="flex items-start">
+            <svg class="w-6 h-6 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+            </svg>
+            <div class="flex-1">
+                <p class="font-bold text-lg mb-2">❌ Erros de Validação:</p>
+                <ul class="list-disc list-inside space-y-1 text-sm">
+                    <?php foreach ($model->getErrors() as $attribute => $errors): ?>
+                        <?php foreach ($errors as $error): ?>
+                            <li><strong><?= $model->getAttributeLabel($attribute) ?>:</strong> <?= Html::encode($error) ?></li>
+                        <?php endforeach; ?>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
 
 <div class="produto-form">
 
     <?php $form = ActiveForm::begin([
-        'options' => ['enctype' => 'multipart/form-data'],
+        'options' => [
+            'enctype' => 'multipart/form-data',
+            'id' => 'form-produto', // ✅ Adiciona ID explícito para debug
+        ],
+        'enableClientValidation' => false, // ✅ DESABILITADO: Pode estar bloqueando o submit
+        'enableAjaxValidation' => false, // ✅ Desabilita validação AJAX
     ]); ?>
 
     <div class="space-y-6">
@@ -130,8 +154,10 @@ use app\modules\vendas\models\Categoria;
                 <?= $form->field($model, 'estoque_atual')->textInput([
                     'type' => 'number',
                     'min' => '0',
+                    'step' => '1',
                     'class' => 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                    'placeholder' => '0'
+                    'placeholder' => '0',
+                    'id' => 'produto-estoque-atual'
                 ])->label(false) ?>
             </div>
         </div>
@@ -247,7 +273,11 @@ use app\modules\vendas\models\Categoria;
                 $model->isNewRecord 
                     ? '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>Cadastrar' 
                     : '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>Salvar',
-                ['class' => 'flex-1 inline-flex items-center justify-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition duration-300']
+                [
+                    'class' => 'flex-1 inline-flex items-center justify-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition duration-300',
+                    'id' => 'btn-salvar-produto', // ✅ ID explícito para debug
+                    'onclick' => 'console.log("🔍 Botão clicado via onclick"); return true;' // ✅ Debug direto
+                ]
             ) ?>
             <?= Html::a('Cancelar', ['index'], 
                 ['class' => 'flex-1 text-center px-6 py-3 bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold rounded-lg transition duration-300']) ?>
@@ -260,8 +290,73 @@ use app\modules\vendas\models\Categoria;
 </div>
 
 <script>
+// 🔍 DEBUG IMEDIATO: Executa antes do DOMContentLoaded
+console.log('🔍 Script carregado');
+
 // Calcular margem e markup em tempo real
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔍 DOMContentLoaded executado');
+    
+    // 🔍 DEBUG: Adiciona listener para debug do formulário
+    const form = document.querySelector('.produto-form form');
+    const formById = document.getElementById('form-produto');
+    
+    console.log('🔍 Form encontrado (querySelector):', form);
+    console.log('🔍 Form encontrado (getElementById):', formById);
+    
+    if (form) {
+        console.log('🔍 Adicionando listener de submit ao formulário');
+        
+        form.addEventListener('submit', function(e) {
+            console.log('🔍 Formulário sendo submetido...');
+            console.log('Dados do formulário:', new FormData(form));
+            
+            // Verifica se há erros de validação HTML5
+            const invalidFields = form.querySelectorAll(':invalid');
+            if (invalidFields.length > 0) {
+                console.error('❌ Campos inválidos encontrados:', invalidFields);
+                invalidFields.forEach(function(field) {
+                    console.error('Campo inválido:', field.name, field.validationMessage);
+                });
+            } else {
+                console.log('✅ Todos os campos são válidos');
+            }
+        });
+        
+        // Debug do botão de submit - múltiplas formas
+        const submitButton = form.querySelector('button[type="submit"]');
+        const submitButtonById = document.getElementById('btn-salvar-produto');
+        
+        console.log('🔍 Botão encontrado (querySelector):', submitButton);
+        console.log('🔍 Botão encontrado (getElementById):', submitButtonById);
+        
+        if (submitButton) {
+            console.log('🔍 Adicionando listener de click ao botão');
+            submitButton.addEventListener('click', function(e) {
+                console.log('🔍 Botão Salvar clicado (addEventListener)');
+                console.log('Tipo do botão:', this.type);
+                console.log('Formulário:', form);
+                console.log('Event:', e);
+            });
+        }
+        
+        if (submitButtonById) {
+            submitButtonById.addEventListener('click', function(e) {
+                console.log('🔍 Botão Salvar clicado (por ID)');
+            });
+        }
+        
+        // Debug adicional: captura todos os cliques no formulário
+        form.addEventListener('click', function(e) {
+            if (e.target.type === 'submit' || e.target.closest('button[type="submit"]')) {
+                console.log('🔍 Clique detectado em botão submit (captura de eventos)');
+                console.log('Target:', e.target);
+            }
+        });
+    } else {
+        console.error('❌ Formulário não encontrado!');
+    }
+    
     const custoInput = document.getElementById('preco-custo');
     const freteInput = document.getElementById('valor-frete');
     const vendaInput = document.getElementById('preco-venda');

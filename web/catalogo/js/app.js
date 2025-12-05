@@ -38,6 +38,7 @@ import { inicializarMonitoramentoRede } from './network.js';
 // ==========================================================================
 
 let produtos = [];
+let produtosFiltrados = []; // Produtos filtrados pela busca
 let clienteAtual = null;
 let colaboradorAtual = null;
 let formasPagamento = [];
@@ -67,16 +68,19 @@ async function init() {
         // 5️⃣ Carregar produtos
         await carregarProdutos();
         
-        // 6️⃣ Inicializar event listeners
+        // 6️⃣ Inicializar busca de produtos
+        inicializarBuscaProdutos();
+        
+        // 7️⃣ Inicializar event listeners
         inicializarEventListeners();
         
-        // 7️⃣ Configurar listener do Service Worker
+        // 8️⃣ Configurar listener do Service Worker
         configurarListenerServiceWorker();
         
-        // 8️⃣ Atualizar badge do carrinho
+        // 9️⃣ Atualizar badge do carrinho
         atualizarBadgeCarrinho();
         
-        // 9️⃣ Inicializar monitoramento de rede (status online/offline)
+        // 🔟 Inicializar monitoramento de rede (status online/offline)
         inicializarMonitoramentoRede();
         
         console.log('[App] ✅ Aplicação inicializada com sucesso!');
@@ -311,7 +315,8 @@ async function carregarProdutos() {
         produtos = await response.json();
         console.log('[App] ✅ Produtos carregados:', produtos.length);
         
-        renderizarProdutos(produtos);
+        produtosFiltrados = produtos; // Inicializa com todos os produtos
+        filtrarProdutos(); // Aplica filtro atual (se houver)
         atualizarIndicadoresCarrinho();
         
     } catch (error) {
@@ -319,6 +324,57 @@ async function carregarProdutos() {
         mostrarErro('Erro ao carregar produtos. Verifique sua conexão.');
     }
 }
+
+function filtrarProdutos() {
+    const termoBusca = document.getElementById('busca-produto')?.value?.toLowerCase().trim() || '';
+    const btnLimpar = document.getElementById('btn-limpar-busca');
+    
+    // Mostra/oculta botão de limpar busca
+    if (btnLimpar) {
+        btnLimpar.classList.toggle('hidden', !termoBusca);
+    }
+    
+    if (!termoBusca) {
+        produtosFiltrados = produtos;
+    } else {
+        produtosFiltrados = produtos.filter(produto => 
+            produto.nome.toLowerCase().includes(termoBusca)
+        );
+    }
+    
+    renderizarProdutos(produtosFiltrados);
+}
+
+function inicializarBuscaProdutos() {
+    const inputBusca = document.getElementById('busca-produto');
+    if (!inputBusca) return;
+    
+    // Filtra enquanto o usuário digita (debounce)
+    let timeoutId;
+    inputBusca.addEventListener('input', (e) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            filtrarProdutos();
+        }, 300); // Aguarda 300ms após parar de digitar
+    });
+    
+    // Filtra ao pressionar Enter
+    inputBusca.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            filtrarProdutos();
+        }
+    });
+}
+
+window.limparBusca = function() {
+    const inputBusca = document.getElementById('busca-produto');
+    if (inputBusca) {
+        inputBusca.value = '';
+        filtrarProdutos();
+        inputBusca.focus();
+    }
+};
 
 function renderizarProdutos(listaProdutos) {
     const container = document.getElementById('catalogo-produtos');
@@ -329,11 +385,24 @@ function renderizarProdutos(listaProdutos) {
     }
     
     if (listaProdutos.length === 0) {
-        container.innerHTML = `
-            <div class="col-span-full text-center py-16">
-                <p class="text-gray-500 text-lg">Nenhum produto disponível no momento.</p>
-            </div>
-        `;
+        const termoBusca = document.getElementById('busca-produto')?.value?.trim() || '';
+        if (termoBusca) {
+            container.innerHTML = `
+                <div class="col-span-full text-center py-16">
+                    <svg class="h-16 w-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <p class="text-gray-600 font-medium">Nenhum produto encontrado</p>
+                    <p class="text-sm text-gray-500 mt-2">Tente buscar com outro termo</p>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div class="col-span-full text-center py-16">
+                    <p class="text-gray-500 text-lg">Nenhum produto disponível no momento.</p>
+                </div>
+            `;
+        }
         return;
     }
     

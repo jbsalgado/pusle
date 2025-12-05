@@ -39,6 +39,20 @@ class InicioController extends Controller
      */
     public function actionIndex()
     {
-        return $this->render('index');
+        $usuario = Yii::$app->user->identity;
+        
+        // Busca o colaborador associado ao usuário (se houver)
+        $colaborador = null;
+        if ($usuario) {
+            $colaborador = \app\modules\vendas\models\Colaborador::find()
+                ->where(['usuario_id' => $usuario->id])
+                ->andWhere(['ativo' => true])
+                ->one();
+        }
+        
+        return $this->render('index', [
+            'colaborador' => $colaborador,
+            'ehAdministrador' => $colaborador ? (bool)$colaborador->eh_administrador : false,
+        ]);
     }
 }

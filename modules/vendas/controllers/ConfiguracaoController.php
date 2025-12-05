@@ -8,7 +8,7 @@ use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\filters\VerbFilter;
 use yii\filters\AccessControl;
-use yii\data\ActiveDataProvider;
+use yii\db\Expression;
 
 class ConfiguracaoController extends Controller
 {
@@ -27,32 +27,78 @@ class ConfiguracaoController extends Controller
             'verbs' => [
                 'class' => VerbFilter::class,
                 'actions' => [
-                    'delete' => ['POST'],
+                    'update' => ['POST', 'GET'],
                 ],
             ],
         ];
     }
 
+    /**
+     * Exibe ou redireciona para edição da configuração
+     */
     public function actionIndex()
     {
-        $dataProvider = new ActiveDataProvider([
-            'query' => Configuracao::find()
-                ->where(['usuario_id' => Yii::$app->user->id]),
-            'pagination' => ['pageSize' => 20],
-            'sort' => ['defaultOrder' => ['chave' => SORT_ASC]],
-        ]);
+        $model = Configuracao::getConfiguracaoAtual();
+        return $this->redirect(['view']);
+    }
 
-        return $this->render('index', [
-            'dataProvider' => $dataProvider,
+    /**
+     * Exibe a configuração atual
+     */
+    public function actionView()
+    {
+        $model = Configuracao::getConfiguracaoAtual();
+        return $this->render('view', [
+            'model' => $model,
         ]);
     }
 
-    protected function findModel($id)
+    /**
+     * Atualiza a configuração
+     */
+    public function actionUpdate()
     {
-        if (($model = Configuracao::findOne(['id' => $id, 'usuario_id' => Yii::$app->user->id])) !== null) {
-            return $model;
+        $model = Configuracao::getConfiguracaoAtual();
+
+        if ($model->load(Yii::$app->request->post()) && $model->save()) {
+            Yii::$app->session->setFlash('success', 'Configurações atualizadas com sucesso!');
+            return $this->redirect(['view']);
         }
-        throw new NotFoundHttpException('A página solicitada não existe.');
+
+        return $this->render('update', [
+            'model' => $model,
+        ]);
+    }
+
+    /**
+     * Cria configuração inicial (se não existir)
+     */
+    public function actionCreate()
+    {
+        $usuarioId = Yii::$app->user->id;
+        
+        // Verifica se já existe
+        $existing = Configuracao::findOne(['usuario_id' => $usuarioId]);
+        if ($existing) {
+            Yii::$app->session->setFlash('info', 'Você já possui uma configuração. Redirecionando para edição...');
+            return $this->redirect(['update']);
+        }
+
+        $model = new Configuracao();
+        $model->usuario_id = $usuarioId;
+        $model->cor_primaria = '#3B82F6';
+        $model->cor_secundaria = '#10B981';
+        $model->catalogo_publico = false;
+        $model->aceita_orcamentos = true;
+
+        if ($model->load(Yii::$app->request->post()) && $model->save()) {
+            Yii::$app->session->setFlash('success', 'Configurações criadas com sucesso!');
+            return $this->redirect(['view']);
+        }
+
+        return $this->render('create', [
+            'model' => $model,
+        ]);
     }
 }
 

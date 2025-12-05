@@ -24,6 +24,7 @@ use app\modules\vendas\models\CarteiraCobranca;
  * @property string $email
  * @property boolean $eh_vendedor
  * @property boolean $eh_cobrador
+ * @property boolean $eh_administrador
  * @property float $percentual_comissao_venda
  * @property float $percentual_comissao_cobranca
  * @property boolean $ativo
@@ -70,7 +71,7 @@ class Colaborador extends ActiveRecord
         return [
             [['usuario_id', 'nome_completo'], 'required'],
             [['usuario_id'], 'string'],
-            [['eh_vendedor', 'eh_cobrador', 'ativo'], 'boolean'],
+            [['eh_vendedor', 'eh_cobrador', 'eh_administrador', 'ativo'], 'boolean'],
             [['percentual_comissao_venda', 'percentual_comissao_cobranca'], 'number', 'min' => 0, 'max' => 100],
             [['percentual_comissao_venda', 'percentual_comissao_cobranca'], 'default', 'value' => 0],
             [['data_admissao'], 'date', 'format' => 'php:Y-m-d'],
@@ -103,6 +104,7 @@ class Colaborador extends ActiveRecord
             'email' => 'E-mail',
             'eh_vendedor' => 'É Vendedor?',
             'eh_cobrador' => 'É Cobrador?',
+            'eh_administrador' => 'É Administrador?',
             'percentual_comissao_venda' => 'Comissão Venda (%)',
             'percentual_comissao_cobranca' => 'Comissão Cobrança (%)',
             'ativo' => 'Ativo',

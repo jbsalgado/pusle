@@ -123,14 +123,41 @@ class ProdutoController extends Controller
 
     public function actionUpdate($id)
     {
-        $model = $this->findModel($id);
+        try {
+            $model = $this->findModel($id);
+        } catch (NotFoundHttpException $e) {
+            Yii::error('Erro ao buscar produto: ' . $e->getMessage(), __METHOD__);
+            Yii::$app->session->setFlash('error', 'Produto não encontrado: ' . $e->getMessage());
+            return $this->redirect(['index']);
+        }
 
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            // Upload de fotos
-            $this->processUploadFotos($model);
+        if ($model->load(Yii::$app->request->post())) {
+            // 🔍 DEBUG: Log dos dados recebidos
+            $postData = Yii::$app->request->post('Produto', []);
+            Yii::info('Dados POST recebidos: ' . json_encode($postData), __METHOD__);
+            Yii::info('Estoque no POST: ' . ($postData['estoque_atual'] ?? 'não encontrado'), __METHOD__);
+            Yii::info('Estoque no model após load: ' . $model->estoque_atual, __METHOD__);
+            Yii::info('Model attributes após load: ' . json_encode($model->attributes), __METHOD__);
             
-            Yii::$app->session->setFlash('success', 'Produto atualizado com sucesso!');
-            return $this->redirect(['view', 'id' => $model->id]);
+            if ($model->save()) {
+                Yii::info('Produto salvo com sucesso. Estoque final: ' . $model->estoque_atual, __METHOD__);
+                // Upload de fotos
+                $this->processUploadFotos($model);
+                
+                Yii::$app->session->setFlash('success', 'Produto atualizado com sucesso!');
+                return $this->redirect(['view', 'id' => $model->id]);
+            } else {
+                // ✅ CORREÇÃO: Mostra erros de validação
+                $erros = $model->getErrors();
+                Yii::error('Erros de validação ao atualizar produto: ' . json_encode($erros), __METHOD__);
+                
+                $mensagemErro = 'Erro ao atualizar produto. Verifique os campos:';
+                foreach ($erros as $campo => $mensagens) {
+                    $mensagemErro .= "\n- " . $model->getAttributeLabel($campo) . ': ' . implode(', ', $mensagens);
+                }
+                
+                Yii::$app->session->setFlash('error', $mensagemErro);
+            }
         }
 
         return $this->render('update', [
@@ -338,10 +365,29 @@ class ProdutoController extends Controller
 
     protected function findModel($id)
     {
-        if (($model = Produto::findOne(['id' => $id, 'usuario_id' => Yii::$app->user->id])) !== null) {
-            return $model;
+        // 🔍 DEBUG: Log para identificar o problema
+        Yii::info('Buscando produto com ID: ' . $id, __METHOD__);
+        Yii::info('Usuário logado ID: ' . Yii::$app->user->id, __METHOD__);
+        
+        if (empty($id)) {
+            Yii::error('ID do produto está vazio', __METHOD__);
+            throw new NotFoundHttpException('ID do produto não fornecido.');
         }
-
-        throw new NotFoundHttpException('O produto solicitado não existe.');
+        
+        // Primeiro tenta buscar apenas pelo ID para verificar se existe
+        $produto = Produto::findOne($id);
+        if (!$produto) {
+            Yii::error('Produto não encontrado com ID: ' . $id, __METHOD__);
+            throw new NotFoundHttpException('O produto solicitado não existe.');
+        }
+        
+        // Depois verifica se pertence ao usuário
+        if ($produto->usuario_id !== Yii::$app->user->id) {
+            Yii::error('Produto pertence a outro usuário. Produto usuario_id: ' . $produto->usuario_id . ', Usuário logado: ' . Yii::$app->user->id, __METHOD__);
+            throw new NotFoundHttpException('Você não tem permissão para acessar este produto.');
+        }
+        
+        Yii::info('Produto encontrado com sucesso: ' . $produto->nome, __METHOD__);
+        return $produto;
     }
 }
