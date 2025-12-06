@@ -769,14 +769,22 @@ function renderizarRota() {
                         </div>
                     </div>
                     
-                    <!-- Botão Ver Detalhes -->
-                    <div class="text-center">
-                        <button class="btn-ver-detalhes bg-blue-600 text-white px-6 py-2 rounded-lg font-medium text-sm hover:bg-blue-700 active:bg-blue-800 transition-colors"
-                                data-venda-id="${venda.id}"
-                                data-cliente-id="${cliente.id}">
-                            VER DETALHES DA VENDA
-                        </button>
-                    </div>
+                        <!-- Botões de Ação -->
+                        <div class="text-center space-y-2">
+                            <div class="flex gap-2">
+                                <button class="btn-ver-detalhes flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-blue-700 active:bg-blue-800 transition-colors"
+                                        data-venda-id="${venda.id}"
+                                        data-cliente-id="${cliente.id}">
+                                    VER DETALHES
+                                </button>
+                                <button class="btn-gerar-cartao flex-1 bg-green-600 text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-green-700 active:bg-green-800 transition-colors"
+                                        data-venda-id="${venda.id}"
+                                        data-cliente-id="${cliente.id}"
+                                        data-venda-index="${index}">
+                                    GERAR CARTÃO
+                                </button>
+                            </div>
+                        </div>
                 </div>
             </div>
         `;
@@ -789,6 +797,15 @@ function renderizarRota() {
             const vendaId = btn.getAttribute('data-venda-id');
             const clienteId = btn.getAttribute('data-cliente-id');
             abrirDetalhesVenda(vendaId, clienteId);
+        });
+    });
+    
+    // Adiciona event listeners aos botões de gerar cartão
+    container.querySelectorAll('.btn-gerar-cartao').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const vendaIndex = parseInt(btn.getAttribute('data-venda-index'));
+            gerarImagemCartao(vendaIndex);
         });
     });
 }
@@ -1428,6 +1445,432 @@ async function carregarLogoEmpresa() {
     } catch (error) {
         console.warn('[App] ⚠️ Erro ao carregar logo:', error);
     }
+}
+
+/**
+ * Gera imagem do cartão da venda exatamente como exibido na interface
+ * Dimensões: 10cm x 15cm (378px x 567px a 96 DPI)
+ */
+async function gerarImagemCartao(vendaIndex) {
+    try {
+        const vendaItem = todasVendas[vendaIndex];
+        if (!vendaItem) {
+            mostrarToast('Venda não encontrada', 'error');
+            return;
+        }
+
+        const cliente = vendaItem.cliente;
+        const venda = vendaItem.venda;
+        const parcelas = vendaItem.parcelas || [];
+        
+        // Busca dados da empresa
+        let dadosEmpresa = null;
+        let logoUrl = null;
+        try {
+            const response = await fetch(`${API_ENDPOINTS.USUARIO_DADOS_LOJA}?usuario_id=${obterUsuarioId()}`);
+            if (response.ok) {
+                dadosEmpresa = await response.json();
+                if (dadosEmpresa.logo_path) {
+                    logoUrl = dadosEmpresa.logo_path;
+                    if (!logoUrl.match(/^(https?:\/\/|\/)/)) {
+                        logoUrl = CONFIG.URL_BASE_WEB + '/' + logoUrl.replace(/^\//, '');
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('[App] ⚠️ Erro ao buscar dados da empresa:', error);
+        }
+        
+        // Ordena parcelas por data de vencimento
+        const parcelasOrdenadas = [...parcelas].sort((a, b) => {
+            return new Date(a.data_vencimento) - new Date(b.data_vencimento);
+        });
+        
+        const itensVenda = venda.itens || [];
+        const numeroVenda = String(vendaIndex + 1).padStart(5, '0');
+        
+        // Dimensões: 10cm x 15cm = 378px x 567px (96 DPI)
+        const largura = 378;
+        const altura = 567;
+        
+        // Cria canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = largura;
+        canvas.height = altura;
+        const ctx = canvas.getContext('2d');
+        
+        // Fundo branco
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, largura, altura);
+        
+        // Configurações de fonte
+        const fonteTitulo = 'bold 11px Arial';
+        const fonteNormal = '10px Arial';
+        const fontePequena = '9px Arial';
+        const fonteBold = 'bold 10px Arial';
+        const fonteEmpresa = 'bold 12px Arial';
+        const fonteEmpresaPequena = '9px Arial';
+        
+        let y = 10; // Posição vertical inicial
+        const margem = 12;
+        const espacamentoLinha = 14;
+        const alturaLinha = 20;
+        
+        // Cabeçalho com Logo e Dados da Empresa
+        if (logoUrl) {
+            try {
+                const logo = await carregarImagem(logoUrl);
+                if (logo) {
+                    // Desenha logo (máximo 80px de altura)
+                    const logoAltura = 30;
+                    const logoLargura = (logo.width / logo.height) * logoAltura;
+                    const logoX = margem;
+                    const logoY = y;
+                    
+                    ctx.drawImage(logo, logoX, logoY, logoLargura, logoAltura);
+                    y += logoAltura + 8;
+                }
+            } catch (error) {
+                console.warn('[App] ⚠️ Erro ao carregar logo:', error);
+            }
+        }
+        
+        // Dados da Empresa
+        if (dadosEmpresa) {
+            ctx.fillStyle = '#111827';
+            ctx.font = fonteEmpresa;
+            ctx.textAlign = 'left';
+            
+            if (dadosEmpresa.nome_empresa || dadosEmpresa.nome_fantasia) {
+                ctx.fillText(dadosEmpresa.nome_empresa || dadosEmpresa.nome_fantasia || 'Empresa', margem, y);
+                y += espacamentoLinha;
+            }
+            
+            ctx.font = fonteEmpresaPequena;
+            ctx.fillStyle = '#4B5563';
+            
+            // Endereço da empresa
+            if (dadosEmpresa.endereco || dadosEmpresa.endereco_logradouro) {
+                const enderecoEmpresa = [
+                    dadosEmpresa.endereco_logradouro || dadosEmpresa.endereco,
+                    dadosEmpresa.endereco_numero ? `Nº ${dadosEmpresa.endereco_numero}` : null,
+                    dadosEmpresa.endereco_bairro,
+                    dadosEmpresa.endereco_cidade,
+                    dadosEmpresa.endereco_estado,
+                    dadosEmpresa.endereco_cep
+                ].filter(Boolean).join(', ');
+                
+                ctx.fillText(enderecoEmpresa, margem, y);
+                y += 10;
+            }
+            
+            // Telefone e outros dados
+            if (dadosEmpresa.telefone) {
+                ctx.fillText(`Tel: ${dadosEmpresa.telefone}`, margem, y);
+                y += 10;
+            }
+            
+            if (dadosEmpresa.email) {
+                ctx.fillText(`Email: ${dadosEmpresa.email}`, margem, y);
+                y += 10;
+            }
+            
+            y += 5;
+            
+            // Linha separadora
+            ctx.strokeStyle = '#E5E7EB';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(margem, y);
+            ctx.lineTo(largura - margem, y);
+            ctx.stroke();
+            y += 10;
+        }
+        
+        // Seção COMPRADOR
+        ctx.fillStyle = '#374151';
+        ctx.font = fonteTitulo;
+        ctx.textAlign = 'left';
+        ctx.fillText('COMPRADOR', margem, y);
+        y += espacamentoLinha;
+        
+        ctx.fillStyle = '#111827';
+        ctx.font = fonteBold;
+        ctx.fillText(cliente.nome || 'N/A', margem, y);
+        y += espacamentoLinha + 5;
+        
+        // Grid de 3 colunas: VENDA, DT VENDA, TOTAL VENDA
+        const larguraColuna = (largura - (margem * 2)) / 3;
+        const xCol1 = margem;
+        const xCol2 = margem + larguraColuna;
+        const xCol3 = margem + (larguraColuna * 2);
+        
+        ctx.fillStyle = '#374151';
+        ctx.font = fonteBold;
+        ctx.fillText('VENDA', xCol1, y);
+        ctx.fillText('DT VENDA', xCol2, y);
+        ctx.fillText('TOTAL VENDA', xCol3, y);
+        y += 8;
+        
+        ctx.fillStyle = '#111827';
+        ctx.font = fonteNormal;
+        ctx.fillText(`#${numeroVenda}`, xCol1, y);
+        ctx.fillText(formatarData(venda.data_venda), xCol2, y);
+        ctx.fillStyle = '#2563EB';
+        ctx.fillText(formatarMoeda(venda.valor_total), xCol3, y);
+        y += espacamentoLinha + 8;
+        
+        // Linha separadora
+        ctx.strokeStyle = '#E5E7EB';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(margem, y);
+        ctx.lineTo(largura - margem, y);
+        ctx.stroke();
+        y += 10;
+        
+        // Seção PRODUTOS
+        if (itensVenda.length > 0) {
+            ctx.fillStyle = '#374151';
+            ctx.font = fonteTitulo;
+            ctx.fillText('PRODUTOS', margem, y);
+            y += espacamentoLinha;
+            
+            // Cabeçalho da tabela
+            const larguraProduto = (largura - (margem * 2)) * 0.45;
+            const larguraQtd = (largura - (margem * 2)) * 0.15;
+            const larguraUnit = (largura - (margem * 2)) * 0.20;
+            const larguraTotal = (largura - (margem * 2)) * 0.20;
+            
+            const xProduto = margem;
+            const xQtd = xProduto + larguraProduto;
+            const xUnit = xQtd + larguraQtd;
+            const xTotal = xUnit + larguraUnit;
+            
+            // Fundo cinza claro para cabeçalho
+            ctx.fillStyle = '#F3F4F6';
+            ctx.fillRect(margem, y - 12, largura - (margem * 2), 16);
+            
+            ctx.fillStyle = '#374151';
+            ctx.font = fonteBold;
+            ctx.fillText('PRODUTO', xProduto, y);
+            ctx.fillText('QTD', xQtd, y);
+            ctx.fillText('VL.UNIT', xUnit, y);
+            ctx.fillText('VL. TOTAL', xTotal, y);
+            y += espacamentoLinha;
+            
+            // Linha separadora
+            ctx.strokeStyle = '#E5E7EB';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(margem, y - 5);
+            ctx.lineTo(largura - margem, y - 5);
+            ctx.stroke();
+            
+            // Itens da tabela
+            ctx.fillStyle = '#111827';
+            ctx.font = fontePequena;
+            itensVenda.forEach(item => {
+                const valorUnitario = item.quantidade > 0 ? item.valor_total / item.quantidade : 0;
+                
+                // Quebra nome do produto se necessário
+                const nomeProduto = item.produto_nome || 'Produto';
+                const linhasProduto = quebrarTexto(ctx, nomeProduto, larguraProduto - 4);
+                
+                linhasProduto.forEach((linha, idx) => {
+                    ctx.fillText(linha, xProduto + 2, y + (idx * 10));
+                });
+                
+                const alturaItem = Math.max(linhasProduto.length * 10, 12);
+                ctx.fillText(String(item.quantidade || 0), xQtd + 2, y);
+                ctx.fillText(formatarMoeda(valorUnitario), xUnit + 2, y);
+                ctx.font = fonteBold;
+                ctx.fillText(formatarMoeda(item.valor_total), xTotal + 2, y);
+                ctx.font = fontePequena;
+                
+                // Linha separadora entre itens
+                ctx.strokeStyle = '#E5E7EB';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(margem, y + alturaItem - 2);
+                ctx.lineTo(largura - margem, y + alturaItem - 2);
+                ctx.stroke();
+                
+                y += alturaItem + 2;
+            });
+            
+            y += 5;
+        }
+        
+        // Linha separadora
+        ctx.strokeStyle = '#D1D5DB';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(margem, y);
+        ctx.lineTo(largura - margem, y);
+        ctx.stroke();
+        y += 10;
+        
+        // Seção PARCELAS
+        ctx.fillStyle = '#374151';
+        ctx.font = fonteTitulo;
+        ctx.fillText('PARCELAS', margem, y);
+        y += espacamentoLinha;
+        
+        // Cabeçalho da tabela de parcelas
+        const larguraParcela = (largura - (margem * 2)) * 0.15;
+        const larguraVenc = (largura - (margem * 2)) * 0.25;
+        const larguraValor = (largura - (margem * 2)) * 0.20;
+        const larguraSituacao = (largura - (margem * 2)) * 0.20;
+        const larguraAcao = (largura - (margem * 2)) * 0.20;
+        
+        const xParcela = margem;
+        const xVenc = xParcela + larguraParcela;
+        const xValor = xVenc + larguraVenc;
+        const xSituacao = xValor + larguraValor;
+        const xAcao = xSituacao + larguraSituacao;
+        
+        // Fundo cinza claro para cabeçalho
+        ctx.fillStyle = '#F3F4F6';
+        ctx.fillRect(margem, y - 12, largura - (margem * 2), 16);
+        
+        ctx.fillStyle = '#374151';
+        ctx.font = fonteBold;
+        ctx.fillText('PARCELA', xParcela + 2, y);
+        ctx.fillText('VENCIMENTO', xVenc + 2, y);
+        ctx.fillText('VL PARCELA', xValor + 2, y);
+        ctx.fillText('SITUACAO', xSituacao + 2, y);
+        ctx.fillText('AÇÃO', xAcao + 2, y);
+        y += espacamentoLinha;
+        
+        // Linha separadora
+        ctx.strokeStyle = '#E5E7EB';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(margem, y - 5);
+        ctx.lineTo(largura - margem, y - 5);
+        ctx.stroke();
+        
+        // Linhas da tabela de parcelas
+        ctx.font = fontePequena;
+        parcelasOrdenadas.forEach((parcela, idx) => {
+            const estaPaga = parcela.status_parcela_codigo === STATUS_PARCELA.PAGA;
+            const estaVencida = new Date(parcela.data_vencimento) < new Date() && !estaPaga;
+            
+            // Cor de fundo da linha
+            if (estaPaga) {
+                ctx.fillStyle = '#DCFCE7'; // Verde claro
+            } else if (estaVencida) {
+                ctx.fillStyle = '#FEE2E2'; // Vermelho claro
+            } else {
+                ctx.fillStyle = '#FEF3C7'; // Amarelo claro
+            }
+            ctx.fillRect(margem, y - 10, largura - (margem * 2), alturaLinha);
+            
+            // Texto da parcela
+            const numeroParcela = String(parcela.numero_parcela || idx + 1).padStart(2, '0');
+            const totalParcelas = String(parcelas.length).padStart(2, '0');
+            
+            ctx.fillStyle = '#111827';
+            ctx.font = fonteBold;
+            ctx.fillText(`${numeroParcela}/${totalParcelas}`, xParcela + 2, y);
+            
+            ctx.font = fontePequena;
+            ctx.fillText(formatarData(parcela.data_vencimento), xVenc + 2, y);
+            ctx.fillText(formatarMoeda(parcela.valor_parcela), xValor + 2, y);
+            
+            // Situação
+            let situacao = 'PENDENTE';
+            if (estaPaga) {
+                situacao = 'PAGA';
+                ctx.fillStyle = '#16A34A';
+            } else if (estaVencida) {
+                situacao = 'VENCIDA';
+                ctx.fillStyle = '#DC2626';
+            } else {
+                situacao = 'PENDENTE';
+                ctx.fillStyle = '#CA8A04';
+            }
+            ctx.font = fonteBold;
+            ctx.fillText(situacao, xSituacao + 2, y);
+            
+            // Ação
+            ctx.fillStyle = '#111827';
+            if (estaPaga) {
+                ctx.fillText('✓', xAcao + 2, y);
+            } else {
+                ctx.fillText('-', xAcao + 2, y);
+            }
+            
+            // Linha separadora
+            ctx.strokeStyle = '#E5E7EB';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(margem, y + alturaLinha - 10);
+            ctx.lineTo(largura - margem, y + alturaLinha - 10);
+            ctx.stroke();
+            
+            y += alturaLinha;
+        });
+        
+        // Converte canvas para imagem e faz download
+        canvas.toBlob((blob) => {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `cartao-venda-${venda.id.substring(0, 8)}-${Date.now()}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            mostrarToast('Cartão gerado com sucesso!', 'success');
+        }, 'image/png');
+        
+    } catch (error) {
+        console.error('[App] ❌ Erro ao gerar imagem do cartão:', error);
+        mostrarToast('Erro ao gerar cartão', 'error');
+    }
+}
+
+/**
+ * Quebra texto em múltiplas linhas se exceder largura máxima
+ */
+function quebrarTexto(ctx, texto, maxWidth) {
+    const palavras = texto.split(' ');
+    const linhas = [];
+    let linhaAtual = '';
+    
+    palavras.forEach(palavra => {
+        const teste = linhaAtual + (linhaAtual ? ' ' : '') + palavra;
+        const metrica = ctx.measureText(teste);
+        
+        if (metrica.width > maxWidth && linhaAtual) {
+            linhas.push(linhaAtual);
+            linhaAtual = palavra;
+        } else {
+            linhaAtual = teste;
+        }
+    });
+    
+    if (linhaAtual) {
+        linhas.push(linhaAtual);
+    }
+    
+    return linhas;
+}
+
+/**
+ * Carrega imagem de uma URL e retorna como Image object
+ */
+function carregarImagem(url) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous'; // Permite carregar imagens de outros domínios
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Erro ao carregar imagem'));
+        img.src = url;
+    });
 }
 
 // Inicializa quando o DOM estiver pronto
