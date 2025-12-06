@@ -38,6 +38,7 @@ async function init() {
         verificarElementosCriticos(ELEMENTOS_CRITICOS);
         popularOpcoesParcelas();
         await carregarConfigLoja();
+        await carregarLogoEmpresa(); // Carrega logo da empresa
         await registrarServiceWorker();
         await carregarCarrinhoInicial();
         await carregarProdutos();
@@ -50,6 +51,60 @@ async function init() {
         console.log('[App] ✅ Aplicação inicializada!');
     } catch (error) {
         console.error('[App] ❌ Erro na inicialização:', error);
+    }
+}
+
+// Carregar Logo da Empresa
+async function carregarLogoEmpresa() {
+    try {
+        console.log('[App] 🖼️ Carregando logo da empresa...');
+        const logoImg = document.getElementById('logo-empresa');
+        if (!logoImg) {
+            console.warn('[App] ⚠️ Elemento logo-empresa não encontrado no DOM');
+            return;
+        }
+        
+        const response = await fetch(`${API_ENDPOINTS.USUARIO_DADOS_LOJA}?usuario_id=${CONFIG.ID_USUARIO_LOJA}`);
+        console.log('[App] 📡 Resposta da API dados-loja:', response.status);
+        
+        if (response.ok) {
+            const dadosLoja = await response.json();
+            console.log('[App] 📋 Dados da loja recebidos:', { 
+                tem_logo_path: !!dadosLoja.logo_path, 
+                logo_path: dadosLoja.logo_path 
+            });
+            
+            if (dadosLoja.logo_path) {
+                let logoUrl = dadosLoja.logo_path;
+                // Se não for URL completa ou caminho absoluto, adiciona URL base
+                if (!logoUrl.match(/^(https?:\/\/|\/)/)) {
+                    logoUrl = CONFIG.URL_BASE_WEB + '/' + logoUrl.replace(/^\//, '');
+                }
+                
+                console.log('[App] 🔗 URL da logo construída:', logoUrl);
+                
+                // Remove o onerror que esconde a imagem
+                logoImg.onerror = function() {
+                    console.warn('[App] ⚠️ Erro ao carregar imagem da logo:', logoUrl);
+                    this.style.display = 'none';
+                };
+                
+                // Adiciona onload para confirmar que carregou
+                logoImg.onload = function() {
+                    console.log('[App] ✅ Logo carregada com sucesso!');
+                    this.classList.remove('hidden');
+                };
+                
+                logoImg.src = logoUrl;
+                logoImg.classList.remove('hidden'); // Remove hidden imediatamente
+            } else {
+                console.log('[App] ℹ️ Logo não configurada para esta loja');
+            }
+        } else {
+            console.warn('[App] ⚠️ Erro ao buscar dados da loja. Status:', response.status);
+        }
+    } catch (error) {
+        console.error('[App] ❌ Erro ao carregar logo da empresa:', error);
     }
 }
 

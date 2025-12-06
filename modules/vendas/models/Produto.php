@@ -30,6 +30,8 @@ use app\modules\vendas\helpers\PricingHelper;
  * @property float $margem_lucro_percentual
  * @property float $markup_percentual
  * @property integer $estoque_atual
+ * @property integer $estoque_minimo
+ * @property integer $ponto_corte
  * @property boolean $ativo
  * @property string $data_criacao
  * @property string $data_atualizacao
@@ -80,21 +82,25 @@ class Produto extends ActiveRecord
             [['preco_custo', 'valor_frete', 'preco_venda_sugerido', 'preco_promocional'], 'number', 'min' => 0],
             [['margem_lucro_percentual'], 'number', 'min' => 0, 'max' => 99.99], // Margem: 0-99.99%
             [['markup_percentual'], 'number', 'min' => 0], // ✅ Markup: sem limite máximo (pode ser qualquer valor positivo)
-            [['estoque_atual'], 'integer', 'min' => 0, 'skipOnEmpty' => false], // ✅ skipOnEmpty: false garante que valores vazios sejam tratados
+            [['estoque_atual', 'estoque_minimo', 'ponto_corte'], 'integer', 'min' => 0, 'skipOnEmpty' => false],
             [['estoque_atual'], 'default', 'value' => 0],
-            [['estoque_atual'], 'filter', 'filter' => function($value) {
+            [['estoque_minimo'], 'default', 'value' => 10],
+            [['ponto_corte'], 'default', 'value' => 5],
+            [['estoque_atual', 'estoque_minimo', 'ponto_corte'], 'filter', 'filter' => function($value) {
                 // ✅ Converte string vazia para 0, mantém números inteiros
                 if ($value === '' || $value === null) {
                     return 0;
                 }
                 return (int) $value;
             }],
+            // Validação: ponto_corte deve ser menor ou igual a estoque_minimo
+            [['ponto_corte'], 'compare', 'compareAttribute' => 'estoque_minimo', 'operator' => '<=', 'skipOnEmpty' => false, 'message' => 'O ponto de corte deve ser menor ou igual ao estoque mínimo.'],
             [['valor_frete'], 'default', 'value' => 0],
             [['ativo', 'permite_parcelamento'], 'boolean'],
             [['ativo'], 'default', 'value' => true],
             [['permite_parcelamento'], 'default', 'value' => false],
             [['data_inicio_promocao', 'data_fim_promocao'], 'safe'],
-            [['estoque_atual'], 'safe'], // ✅ Garante que o campo pode ser carregado via load()
+            [['estoque_atual', 'estoque_minimo', 'ponto_corte'], 'safe'], // ✅ Garante que os campos podem ser carregados via load()
             [['nome'], 'string', 'max' => 150],
             [['codigo_referencia'], 'string', 'max' => 50],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
@@ -187,6 +193,8 @@ class Produto extends ActiveRecord
             'margem_lucro_percentual' => 'Margem de Lucro (%)',
             'markup_percentual' => 'Markup (%)',
             'estoque_atual' => 'Estoque Atual',
+            'estoque_minimo' => 'Estoque Mínimo',
+            'ponto_corte' => 'Ponto de Corte',
             'ativo' => 'Ativo',
             'data_criacao' => 'Data de Cadastro',
             'data_atualizacao' => 'Última Atualização',

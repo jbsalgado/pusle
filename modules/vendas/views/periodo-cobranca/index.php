@@ -2,8 +2,9 @@
 
 use yii\helpers\Html;
 use yii\widgets\LinkPager;
+use app\modules\vendas\models\PeriodoCobranca;
 
-$this->title = 'Rotas de Cobrança';
+$this->title = 'Períodos de Cobrança';
 $this->params['breadcrumbs'][] = $this->title;
 ?>
 
@@ -14,7 +15,7 @@ $this->params['breadcrumbs'][] = $this->title;
                 <h1 class="text-3xl font-bold text-gray-900"><?= Html::encode($this->title) ?></h1>
                 <div class="flex flex-wrap gap-2">
                     <?= Html::a(
-                        '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Nova Rota',
+                        '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Novo Período',
                         ['create'],
                         ['class' => 'inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-300']
                     ) ?>
@@ -32,11 +33,10 @@ $this->params['breadcrumbs'][] = $this->title;
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cobrador</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Período</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dia da Semana</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ordem</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data Início</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data Fim</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                             <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ações</th>
                         </tr>
                     </thead>
@@ -45,19 +45,22 @@ $this->params['breadcrumbs'][] = $this->title;
                             <?php foreach ($dataProvider->getModels() as $model): ?>
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                        <?= Html::encode($model->nome_rota) ?>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        <?= Html::encode($model->cobrador->nome_completo ?? '-') ?>
+                                        <?= Html::encode($model->descricao) ?>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                        <?= Html::encode($model->periodo->descricao ?? '-') ?>
+                                        <?= Yii::$app->formatter->asDate($model->data_inicio) ?>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        <?= Html::encode($model->getNomeDiaSemana()) ?>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                        <?= Yii::$app->formatter->asDate($model->data_fim) ?>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        <?= Html::encode($model->ordem_execucao) ?>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <?php
+                                        $statusClass = $model->status === PeriodoCobranca::STATUS_FECHADO ? 'bg-gray-100 text-gray-800' : 
+                                                      ($model->status === PeriodoCobranca::STATUS_EM_COBRANCA ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800');
+                                        ?>
+                                        <span class="px-2 py-1 text-xs font-semibold rounded-full <?= $statusClass ?>">
+                                            <?= Html::encode($model->status) ?>
+                                        </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                                         <div class="flex justify-center gap-2">
@@ -66,7 +69,7 @@ $this->params['breadcrumbs'][] = $this->title;
                                             <?= Html::a('Excluir', ['delete', 'id' => $model->id], [
                                                 'class' => 'text-red-600 hover:text-red-900',
                                                 'data' => [
-                                                    'confirm' => 'Tem certeza que deseja excluir esta rota?',
+                                                    'confirm' => 'Tem certeza que deseja excluir este período?',
                                                     'method' => 'post',
                                                 ],
                                             ]) ?>
@@ -76,8 +79,8 @@ $this->params['breadcrumbs'][] = $this->title;
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="6" class="px-6 py-12 text-center text-gray-500">
-                                    Nenhuma rota encontrada
+                                <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                                    Nenhum período encontrado. Crie um novo período para começar.
                                 </td>
                             </tr>
                         <?php endif; ?>

@@ -2,6 +2,7 @@
 
 use yii\helpers\Html;
 use yii\widgets\LinkPager;
+use app\modules\vendas\models\HistoricoCobranca;
 
 $this->title = 'Histórico de Cobrança';
 $this->params['breadcrumbs'][] = $this->title;
@@ -21,6 +22,43 @@ $this->params['breadcrumbs'][] = $this->title;
                 </div>
             </div>
         </div>
+
+        <!-- Filtros -->
+        <div class="bg-white rounded-lg shadow-md mb-6 p-4">
+            <form method="get" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Ação</label>
+                        <select name="tipo_acao" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Todos</option>
+                            <option value="PAGAMENTO" <?= Yii::$app->request->get('tipo_acao') === 'PAGAMENTO' ? 'selected' : '' ?>>Pagamento</option>
+                            <option value="VISITA" <?= Yii::$app->request->get('tipo_acao') === 'VISITA' ? 'selected' : '' ?>>Visita</option>
+                            <option value="AUSENTE" <?= Yii::$app->request->get('tipo_acao') === 'AUSENTE' ? 'selected' : '' ?>>Ausente</option>
+                            <option value="RECUSA" <?= Yii::$app->request->get('tipo_acao') === 'RECUSA' ? 'selected' : '' ?>>Recusa</option>
+                            <option value="NEGOCIACAO" <?= Yii::$app->request->get('tipo_acao') === 'NEGOCIACAO' ? 'selected' : '' ?>>Negociação</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Data Início</label>
+                        <input type="date" name="data_inicio" value="<?= Html::encode(Yii::$app->request->get('data_inicio', '')) ?>" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Data Fim</label>
+                        <input type="date" name="data_fim" value="<?= Html::encode(Yii::$app->request->get('data_fim', '')) ?>" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div class="flex items-end">
+                        <button type="submit" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition duration-300">
+                            Filtrar
+                        </button>
+                    </div>
+                </div>
+                <?php if (Yii::$app->request->queryParams): ?>
+                    <?= Html::a('Limpar Filtros', ['index'], ['class' => 'text-sm text-blue-600 hover:text-blue-800']) ?>
+                <?php endif; ?>
+            </form>
+        </div>
         
         <div class="bg-white rounded-lg shadow-md overflow-hidden">
             <div class="overflow-x-auto">
@@ -33,6 +71,7 @@ $this->params['breadcrumbs'][] = $this->title;
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo de Ação</th>
                             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Valor Recebido</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Observação</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ações</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -46,7 +85,7 @@ $this->params['breadcrumbs'][] = $this->title;
                                         <?= Html::encode($model->cliente->nome_completo ?? '-') ?>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        <?= Html::encode($model->cobrador->nome ?? '-') ?>
+                                        <?= Html::encode($model->cobrador->nome_completo ?? '-') ?>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <span class="px-2 py-1 text-xs font-semibold rounded-full <?= 
@@ -64,11 +103,14 @@ $this->params['breadcrumbs'][] = $this->title;
                                     <td class="px-6 py-4 text-sm text-gray-500">
                                         <?= Html::encode(mb_substr($model->observacao ?? '', 0, 50)) ?><?= mb_strlen($model->observacao ?? '') > 50 ? '...' : '' ?>
                                     </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                        <?= Html::a('Ver', ['view', 'id' => $model->id], ['class' => 'text-blue-600 hover:text-blue-900']) ?>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                                <td colspan="7" class="px-6 py-12 text-center text-gray-500">
                                     Nenhum histórico encontrado
                                 </td>
                             </tr>

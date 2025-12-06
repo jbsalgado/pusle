@@ -1,0 +1,36 @@
+{
+  "name": "Prestanista - Sistema de Cobrança",
+  "short_name": "Prestanista",
+  "description": "Sistema de cobrança porta a porta para prestanistas - PWA Offline-First",
+  "start_url": "/pulse/basic/web/prestanista/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "finance"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Sincronizar Rota",
+      "short_name": "Sincronizar",
+      "description": "Sincronizar rota do dia",
+      "url": "/pulse/basic/web/prestanista/?action=sync",
+      "icons": [{ "src": "images/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
+

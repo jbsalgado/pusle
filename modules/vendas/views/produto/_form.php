@@ -159,7 +159,42 @@ if ($model->hasErrors()): ?>
                     'placeholder' => '0',
                     'id' => 'produto-estoque-atual'
                 ])->label(false) ?>
+                <p class="mt-1 text-xs text-gray-500">Quantidade atual em estoque</p>
             </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Estoque Mínimo (un)</label>
+                <?= $form->field($model, 'estoque_minimo')->textInput([
+                    'type' => 'number',
+                    'min' => '0',
+                    'step' => '1',
+                    'class' => 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                    'placeholder' => '10',
+                    'id' => 'produto-estoque-minimo'
+                ])->label(false) ?>
+                <p class="mt-1 text-xs text-gray-500">Alerta quando estoque ficar abaixo deste valor</p>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Ponto de Corte (un)</label>
+                <?= $form->field($model, 'ponto_corte')->textInput([
+                    'type' => 'number',
+                    'min' => '0',
+                    'step' => '1',
+                    'class' => 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                    'placeholder' => '5',
+                    'id' => 'produto-ponto-corte'
+                ])->label(false) ?>
+                <p class="mt-1 text-xs text-gray-500">Resuprimento urgente quando chegar neste valor</p>
+            </div>
+        </div>
+        
+        <!-- Aviso sobre ponto de corte -->
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-2">
+            <p class="text-xs text-yellow-800">
+                <strong>💡 Dica:</strong> O ponto de corte deve ser menor ou igual ao estoque mínimo. 
+                Quando o estoque atual chegar ao ponto de corte, é recomendado fazer resuprimento urgente.
+            </p>
         </div>
 
         <!-- Opção: Calcular preço por margem desejada -->

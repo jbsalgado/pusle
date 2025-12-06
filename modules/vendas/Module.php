@@ -32,6 +32,7 @@ class Module extends \yii\base\Module
             'carteira-cobranca' => 'app\modules\vendas\controllers\CarteiraCobrancaController',
             'rota-cobranca' => 'app\modules\vendas\controllers\RotaCobrancaController',
             'historico-cobranca' => 'app\modules\vendas\controllers\HistoricoCobrancaController',
+            'periodo-cobranca' => 'app\modules\vendas\controllers\PeriodoCobrancaController',
         ];
     }
 }

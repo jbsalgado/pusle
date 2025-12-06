@@ -78,7 +78,9 @@ class Colaborador extends ActiveRecord
             [['observacoes'], 'string'],
             [['nome_completo'], 'string', 'max' => 150],
             [['cpf'], 'string', 'max' => 11],
-            [['cpf'], 'match', 'pattern' => '/^[0-9]{11}$/'],
+            [['cpf'], 'match', 'pattern' => '/^[0-9]{11}$/', 'skipOnEmpty' => true],
+            // Validação: CPF único por loja (usuario_id) - apenas se CPF estiver preenchido
+            [['cpf'], 'validateCpfUnico', 'skipOnEmpty' => true],
             [['telefone'], 'string', 'max' => 20],
             [['email'], 'string', 'max' => 100],
             [['email'], 'email'],
@@ -113,6 +115,28 @@ class Colaborador extends ActiveRecord
             'data_criacao' => 'Data de Cadastro',
             'data_atualizacao' => 'Última Atualização',
         ];
+    }
+
+    /**
+     * Validação customizada: CPF único por loja (usuario_id)
+     */
+    public function validateCpfUnico($attribute, $params)
+    {
+        if (empty($this->cpf) || empty($this->usuario_id)) {
+            return;
+        }
+
+        $query = self::find()
+            ->where(['cpf' => $this->cpf, 'usuario_id' => $this->usuario_id]);
+
+        // Ao editar, exclui o próprio registro
+        if (!$this->isNewRecord) {
+            $query->andWhere(['!=', 'id', $this->id]);
+        }
+
+        if ($query->exists()) {
+            $this->addError($attribute, 'Este CPF já está cadastrado para esta loja.');
+        }
     }
 
     /**

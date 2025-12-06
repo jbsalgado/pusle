@@ -144,6 +144,14 @@ class UsuarioController extends Controller
             ]);
             $enderecoCompleto = !empty($enderecoPartes) ? implode(', ', $enderecoPartes) : ($config->endereco_completo ?? '');
             
+            // Logo: prioriza prest_configuracoes, depois prest_usuarios
+            $logoPath = '';
+            if ($config && !empty($config->logo_path)) {
+                $logoPath = $config->logo_path;
+            } elseif (!empty($usuario['logo_path'])) {
+                $logoPath = $usuario['logo_path'];
+            }
+            
             return [
                 'nome' => $usuario['nome'] ?? 'Loja',
                 'cpf_cnpj' => $usuario['cpf'] ?? '',
@@ -154,7 +162,7 @@ class UsuarioController extends Controller
                 'cidade' => $usuario['cidade'] ?? '',
                 'estado' => $usuario['estado'] ?? '',
                 'endereco_completo' => $enderecoCompleto,
-                'logo_path' => $usuario['logo_path'] ?? '',
+                'logo_path' => $logoPath,
                 'nome_loja' => $config->nome_loja ?? $usuario['nome'] ?? 'Loja',
             ];
             

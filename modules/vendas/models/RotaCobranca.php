@@ -44,19 +44,61 @@ class RotaCobranca extends ActiveRecord
     /**
      * {@inheritdoc}
      */
+    public function behaviors()
+    {
+        return [
+            [
+                'class' => TimestampBehavior::class,
+                'createdAtAttribute' => 'data_criacao',
+                'updatedAtAttribute' => false, // Não há campo de atualização
+                'value' => new Expression('NOW()'),
+            ],
+        ];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function beforeSave($insert)
+    {
+        if (parent::beforeSave($insert)) {
+            // Gera UUID se for um novo registro
+            if ($insert && empty($this->id)) {
+                // Usa comando SQL direto para gerar UUID no PostgreSQL
+                $uuid = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
+                $this->id = $uuid;
+            }
+            // Converte dia_semana vazio para null
+            if ($this->dia_semana === '' || $this->dia_semana === null) {
+                $this->dia_semana = null;
+            }
+            // Garante que ordem_execucao seja um inteiro
+            if ($this->ordem_execucao === '' || $this->ordem_execucao === null) {
+                $this->ordem_execucao = 0;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function rules()
     {
         return [
             [['periodo_id', 'cobrador_id', 'usuario_id', 'nome_rota'], 'required'],
             [['periodo_id', 'cobrador_id', 'usuario_id'], 'string'],
             [['dia_semana', 'ordem_execucao'], 'integer'],
-            [['dia_semana'], 'in', 'range' => [0, 1, 2, 3, 4, 5, 6]],
+            [['dia_semana'], 'in', 'range' => [0, 1, 2, 3, 4, 5, 6], 'skipOnEmpty' => true],
+            [['dia_semana'], 'default', 'value' => null],
             [['ordem_execucao'], 'default', 'value' => 0],
             [['nome_rota'], 'string', 'max' => 100],
-            [['descricao'], 'string'],
-            [['periodo_id'], 'exist', 'skipOnError' => true, 'targetClass' => PeriodoCobranca::class, 'targetAttribute' => ['periodo_id' => 'id']],
-            [['cobrador_id'], 'exist', 'skipOnError' => true, 'targetClass' => Colaborador::class, 'targetAttribute' => ['cobrador_id' => 'id']],
-            [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
+            [['descricao'], 'string', 'skipOnEmpty' => true],
+            // Validações exist - removido skipOnError para mostrar erros claros
+            [['periodo_id'], 'exist', 'targetClass' => PeriodoCobranca::class, 'targetAttribute' => ['periodo_id' => 'id'], 'message' => 'O período selecionado não existe.'],
+            [['cobrador_id'], 'exist', 'targetClass' => Colaborador::class, 'targetAttribute' => ['cobrador_id' => 'id'], 'message' => 'O cobrador selecionado não existe.'],
+            [['usuario_id'], 'exist', 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id'], 'message' => 'O usuário não existe.'],
         ];
     }
 

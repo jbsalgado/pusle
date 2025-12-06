@@ -177,6 +177,15 @@ $cards = [
         'description' => 'Configurar comissões'
     ],
     [
+        'order' => 7,
+        'visible' => true,
+        'label' => 'Período Cobrança',
+        'url' => ['/vendas/periodo-cobranca/index'],
+        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>',
+        'color' => 'orange',
+        'description' => 'Períodos de cobrança'
+    ],
+    [
         'order' => 8,
         'visible' => true,
         'label' => 'Carteira Cobrança',
@@ -367,8 +376,8 @@ usort($visibleCards, function($a, $b) {
             <p class="text-sm sm:text-base text-gray-600">Bem-vindo ao seu painel de vendas.</p>
         </div>
 
-        <!-- Cards de Ação Rápida (Nova Venda e Listar Vendas) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <!-- Card de Ação Rápida (Nova Venda) -->
+        <div class="grid grid-cols-1 gap-3 sm:gap-4">
             <!-- Nova Venda -->
             <a href="<?= Url::to(['/venda-direta']) ?>" 
                class="group block bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
@@ -384,24 +393,6 @@ usort($visibleCards, function($a, $b) {
                     </div>
                 </div>
             </a>
-
-            <?php if ($ehAdministrador): ?>
-            <!-- Listar Vendas -->
-            <a href="<?= Url::to(['/vendas/venda/index']) ?>" 
-               class="group block bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-md hover:shadow-xl border border-gray-200 transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
-                <div class="flex items-center space-x-3 sm:space-x-4">
-                    <div class="bg-gray-100 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-gray-200 transition-all">
-                        <svg class="w-7 h-7 sm:w-8 sm:h-8 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                        </svg>
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="text-lg sm:text-xl font-bold text-gray-900 mb-0.5">Listar Vendas</h3>
-                        <p class="text-xs sm:text-sm text-gray-600">Ver histórico de vendas</p>
-                    </div>
-                </div>
-            </a>
-            <?php endif; ?>
         </div>
 
         <?php if ($ehAdministrador): ?>

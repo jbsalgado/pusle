@@ -121,6 +121,10 @@ $config = [
                 'GET api/usuario/config' => 'api/usuario/config',
                 'GET api/colaborador/buscar-cpf' => 'api/colaborador/buscar-cpf',
                 'GET api/calculo/calcular-parcelas' => 'api/calculo/calcular-parcelas',
+                
+                // ROTAS PRESTANISTA
+                'GET api/rota-cobranca/dia' => 'api/rota-cobranca/dia',
+                'POST api/cobranca/registrar-pagamento' => 'api/cobranca/registrar-pagamento',
 
                 // REGRA ESPECÍFICA PARA CLIENTE
                 [

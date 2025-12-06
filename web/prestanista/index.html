@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="description" content="Sistema de Cobrança Prestanista - PWA Offline-First">
+    <title>Prestanista - Cobrança</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    
+    <style>
+        /* Custom styles for better mobile experience */
+        body {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #2563eb;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Status indicators */
+        .status-pendente { @apply bg-yellow-100 text-yellow-800 border-yellow-300; }
+        .status-pago { @apply bg-green-100 text-green-800 border-green-300; }
+        .status-ausente { @apply bg-gray-100 text-gray-800 border-gray-300; }
+        
+        /* Cards de Venda - Estilo Simples e Limpo */
+        .card-ficha {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .card-ficha:hover {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+        
+        .card-ficha:active {
+            transform: translateY(0);
+        }
+        
+        /* Garante que o body ocupe toda a tela */
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        /* Tabela de Parcelas estilo Ficha */
+        .tabela-parcelas {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.7rem;
+        }
+        
+        .tabela-parcelas th,
+        .tabela-parcelas td {
+            border: 1px solid #e5e7eb;
+            padding: 4px 6px;
+            text-align: center;
+        }
+        
+        .tabela-parcelas th {
+            background-color: #f3f4f6;
+            font-weight: 600;
+            font-size: 0.65rem;
+        }
+        
+        .tabela-parcelas td {
+            font-size: 0.7rem;
+        }
+        
+        .parcela-paga {
+            background-color: #dcfce7;
+            text-decoration: line-through;
+            color: #16a34a;
+        }
+        
+        .parcela-pendente {
+            background-color: #fef3c7;
+        }
+        
+        .parcela-vencida {
+            background-color: #fee2e2;
+            color: #dc2626;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen w-screen overflow-hidden">
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 bg-white z-50 flex items-center justify-center">
+        <div class="text-center">
+            <div class="spinner mx-auto mb-4"></div>
+            <p class="text-gray-600 font-medium">Carregando...</p>
+        </div>
+    </div>
+    
+    <!-- App Container -->
+    <div id="app-container" class="hidden h-full w-full flex flex-col">
+        <!-- Header -->
+        <header class="bg-white shadow-md flex-shrink-0 z-40">
+            <nav class="container mx-auto px-4 py-3">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <img id="logo-empresa" src="" alt="Logo" class="h-8 w-auto object-contain hidden" style="max-width: 120px;">
+                        <h1 class="text-lg font-bold text-blue-600">Prestanista</h1>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <!-- Status Online/Offline -->
+                        <div id="status-online" class="flex items-center gap-1 text-green-600 hidden">
+                            <span class="h-2 w-2 bg-green-500 rounded-full"></span>
+                            <span class="text-xs font-medium hidden sm:inline">Online</span>
+                        </div>
+                        <div id="status-offline" class="flex items-center gap-1 text-gray-500">
+                            <span class="h-2 w-2 bg-gray-400 rounded-full"></span>
+                            <span class="text-xs font-medium hidden sm:inline">Offline</span>
+                        </div>
+                        
+                        <!-- Botão Sincronizar -->
+                        <button id="btn-sincronizar" class="bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-600 active:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed" title="Sincronizar dados">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </nav>
+        </header>
+        
+        <!-- Main Content -->
+        <main class="w-full h-screen overflow-hidden relative bg-gray-100">
+            <!-- Dashboard View -->
+            <div id="view-dashboard" class="w-full h-full flex flex-col">
+                <!-- Header Resumo (fixo no topo) -->
+                <div class="bg-white shadow-sm border-b border-gray-200 px-4 py-3 flex-shrink-0">
+                    <div class="flex items-center justify-between mb-2">
+                        <h2 class="text-sm font-bold text-gray-900">Resumo do Dia</h2>
+                        <button id="btn-sincronizar-rota" class="bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-medium hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50">
+                            <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Sincronizar
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div>
+                            <p class="text-xs text-gray-600">A Receber</p>
+                            <p id="valor-a-receber" class="text-sm font-bold text-blue-600">R$ 0,00</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-600">Recebido</p>
+                            <p id="valor-recebido" class="text-sm font-bold text-green-600">R$ 0,00</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-600">Pendentes</p>
+                            <p id="visitas-pendentes" class="text-sm font-bold text-yellow-600">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Lista de Vendas -->
+                <div id="container-cards" class="flex-1 overflow-y-auto">
+                    <div id="lista-rotas" class="px-4 py-4 space-y-4">
+                        <!-- Cards serão inseridos aqui via JavaScript -->
+                        <div class="text-center text-gray-500 py-12">
+                            <p class="text-sm">Nenhuma rota carregada.</p>
+                            <p class="text-xs mt-1">Clique em "Sincronizar" para começar.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Ficha Digital View (hidden by default) -->
+            <div id="view-ficha" class="hidden w-full h-full flex flex-col">
+                <button id="btn-voltar-ficha" class="absolute top-4 left-4 z-10 bg-white text-blue-600 px-3 py-2 rounded-lg shadow-md font-medium flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                    Voltar
+                </button>
+                
+                <div class="flex-1 overflow-y-auto px-4 py-6">
+                    <div id="ficha-cabecalho" class="mb-4">
+                        <!-- Dados do cliente serão inseridos aqui -->
+                    </div>
+                    
+                    <div id="ficha-parcelas" class="space-y-4">
+                        <!-- Parcelas serão inseridas aqui -->
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Modal de Recebimento -->
+        <div id="modal-recebimento" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Registrar Pagamento</h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Parcela</label>
+                        <p id="modal-parcela-info" class="text-gray-900 font-medium"></p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Valor</label>
+                        <input type="number" id="modal-valor" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg font-medium">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Forma de Pagamento</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button id="btn-pagamento-dinheiro" class="bg-green-500 text-white py-3 rounded-lg font-medium text-lg hover:bg-green-600 active:bg-green-700">
+                                💵 DINHEIRO
+                            </button>
+                            <button id="btn-pagamento-pix" class="bg-blue-500 text-white py-3 rounded-lg font-medium text-lg hover:bg-blue-600 active:bg-blue-700">
+                                📱 PIX
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="modal-observacao" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Observação</label>
+                        <textarea id="modal-obs-text" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Opcional"></textarea>
+                    </div>
+                    
+                    <div class="flex gap-3 pt-2">
+                        <button id="btn-cancelar-recebimento" class="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-300">
+                            Cancelar
+                        </button>
+                        <button id="btn-confirmar-recebimento" class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            Confirmar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Toast Notifications -->
+        <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+    </div>
+    
+    <!-- Scripts -->
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
+
