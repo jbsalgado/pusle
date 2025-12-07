@@ -35,9 +35,22 @@ use app\modules\vendas\models\PeriodoCobranca;
 
             <?= $form->field($model, 'ano_referencia')->textInput(['type' => 'number', 'min' => '2020', 'max' => '2099', 'class' => 'form-control'])->label('Ano de Referência') ?>
 
-            <?= $form->field($model, 'data_inicio')->textInput(['type' => 'date', 'class' => 'form-control'])->label('Data de Início') ?>
+            <?= $form->field($model, 'data_inicio')->textInput([
+                'type' => 'date', 
+                'class' => 'form-control',
+                'id' => 'periodo-data-inicio',
+                'onchange' => 'validarPeriodoDatas()'
+            ])->label('Data de Início')->hint('Data inicial do período de cobrança') ?>
 
-            <?= $form->field($model, 'data_fim')->textInput(['type' => 'date', 'class' => 'form-control'])->label('Data de Fim') ?>
+            <?= $form->field($model, 'data_fim')->textInput([
+                'type' => 'date', 
+                'class' => 'form-control',
+                'id' => 'periodo-data-fim',
+                'onchange' => 'validarPeriodoDatas()'
+            ])->label('Data de Fim')->hint('Data final do período de cobrança (deve ser >= data de início)') ?>
+            
+            <!-- Alerta de validação em tempo real -->
+            <div id="periodo-alerta-datas" class="hidden mt-2"></div>
         </div>
     </div>
 
@@ -72,4 +85,89 @@ use app\modules\vendas\models\PeriodoCobranca;
 
     <?php ActiveForm::end(); ?>
 </div>
+
+<script>
+/**
+ * Validação em tempo real das datas do período
+ */
+function validarPeriodoDatas() {
+    const dataInicio = document.getElementById('periodo-data-inicio');
+    const dataFim = document.getElementById('periodo-data-fim');
+    const alertaDiv = document.getElementById('periodo-alerta-datas');
+    
+    if (!dataInicio || !dataFim || !alertaDiv) return;
+    
+    const valorInicio = dataInicio.value;
+    const valorFim = dataFim.value;
+    
+    // Limpa alerta anterior
+    alertaDiv.className = 'hidden mt-2';
+    alertaDiv.innerHTML = '';
+    
+    // Só valida se ambas as datas estiverem preenchidas
+    if (!valorInicio || !valorFim) return;
+    
+    const inicio = new Date(valorInicio);
+    const fim = new Date(valorFim);
+    
+    // Validação 1: data_fim >= data_inicio
+    if (fim < inicio) {
+        alertaDiv.className = 'mt-2 p-3 bg-red-50 border border-red-200 rounded-lg';
+        alertaDiv.innerHTML = `
+            <div class="flex items-start">
+                <svg class="w-5 h-5 text-red-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div>
+                    <p class="text-red-800 font-semibold text-sm">❌ Data inválida</p>
+                    <p class="text-red-700 text-xs mt-1">A data de fim deve ser maior ou igual à data de início.</p>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    // Validação 2: Alerta se cruzar anos (não bloqueia)
+    const anoInicio = inicio.getFullYear();
+    const anoFim = fim.getFullYear();
+    
+    if (anoInicio !== anoFim) {
+        alertaDiv.className = 'mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg';
+        alertaDiv.innerHTML = `
+            <div class="flex items-start">
+                <svg class="w-5 h-5 text-yellow-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                <div>
+                    <p class="text-yellow-800 font-semibold text-sm">⚠️ Período cruza anos</p>
+                    <p class="text-yellow-700 text-xs mt-1">Este período começa em ${anoInicio} e termina em ${anoFim}. Isso é permitido, mas verifique se está correto.</p>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    // Tudo OK - mostra confirmação visual (opcional)
+    const diasDiferenca = Math.ceil((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
+    if (diasDiferenca > 0) {
+        alertaDiv.className = 'mt-2 p-3 bg-green-50 border border-green-200 rounded-lg';
+        alertaDiv.innerHTML = `
+            <div class="flex items-start">
+                <svg class="w-5 h-5 text-green-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div>
+                    <p class="text-green-800 font-semibold text-sm">✅ Período válido</p>
+                    <p class="text-green-700 text-xs mt-1">Período de ${diasDiferenca} dia(s).</p>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// Valida ao carregar a página se já houver valores
+document.addEventListener('DOMContentLoaded', function() {
+    validarPeriodoDatas();
+});
+</script>
 

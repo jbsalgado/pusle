@@ -61,7 +61,42 @@ class PeriodoCobranca extends ActiveRecord
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
             // Validação: periodo único por usuário/mes/ano
             [['mes_referencia'], 'unique', 'targetAttribute' => ['usuario_id', 'mes_referencia', 'ano_referencia']],
+            // Validação: data_fim deve ser maior ou igual a data_inicio
+            [['data_fim'], 'compare', 'compareAttribute' => 'data_inicio', 'operator' => '>=', 'message' => 'A data de fim deve ser maior ou igual à data de início.'],
         ];
+    }
+
+    /**
+     * Validações customizadas após validação básica
+     */
+    public function afterValidate()
+    {
+        parent::afterValidate();
+        
+        // Armazena se havia erros antes da validação de cruzamento de anos
+        $tinhaErrosAntes = $this->hasErrors();
+        
+        // Validação adicional: alerta se período cruzar anos (não bloqueia, apenas adiciona warning)
+        if (!$tinhaErrosAntes && $this->data_inicio && $this->data_fim) {
+            try {
+                $dataInicio = new \DateTime($this->data_inicio);
+                $dataFim = new \DateTime($this->data_fim);
+                $anoInicio = (int)$dataInicio->format('Y');
+                $anoFim = (int)$dataFim->format('Y');
+                
+                if ($anoInicio != $anoFim) {
+                    // Adiciona warning apenas como informação (não bloqueia salvamento)
+                    // Usamos addError mas não retornamos false, apenas para mostrar na tela
+                    Yii::warning("Período cruza anos: {$anoInicio} → {$anoFim}", __METHOD__);
+                    // Não adiciona erro aqui para não bloquear - apenas loga o warning
+                }
+            } catch (\Exception $e) {
+                // Ignora erros de parsing de data (já foram validados nas rules)
+            }
+        }
+        
+        // Retorna true se não havia erros antes (permite salvar mesmo com warnings)
+        return !$tinhaErrosAntes;
     }
 
     /**
@@ -83,11 +118,18 @@ class PeriodoCobranca extends ActiveRecord
     }
 
     /**
-     * Antes de salvar, gera descrição automática se não informada
+     * Antes de salvar, gera UUID e descrição automática se não informada
      */
     public function beforeSave($insert)
     {
         if (parent::beforeSave($insert)) {
+            // Gera UUID se for um novo registro
+            if ($insert && empty($this->id)) {
+                $uuid = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
+                $this->id = $uuid;
+            }
+            
+            // Gera descrição automática se não informada
             if (empty($this->descricao)) {
                 $meses = [
                     1 => 'Janeiro', 2 => 'Fevereiro', 3 => 'Março', 4 => 'Abril',
@@ -96,6 +138,7 @@ class PeriodoCobranca extends ActiveRecord
                 ];
                 $this->descricao = $meses[$this->mes_referencia] . '/' . $this->ano_referencia;
             }
+            
             return true;
         }
         return false;

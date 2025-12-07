@@ -142,6 +142,37 @@ export async function baixarRotaDia(cobradorId, usuarioId) {
 
         const rota = await response.json();
         
+        // Verifica se há erro na resposta
+        if (rota.erro) {
+            console.error('[Sync] ❌ Erro do servidor:', rota.erro);
+            if (rota.debug) {
+                console.error('[Sync] 🔍 Debug info:', JSON.stringify(rota.debug, null, 2));
+                
+                // Se houver períodos encontrados, mostra informações
+                if (rota.debug.periodos_encontrados) {
+                    console.error('[Sync] 📋 Períodos encontrados no sistema:');
+                    rota.debug.periodos_encontrados.forEach(p => {
+                        console.error(`  - ${p.descricao} (Status: ${p.status}, ID: ${p.id})`);
+                    });
+                }
+                
+                // Se houver carteiras sem filtro, mostra informações
+                if (rota.debug.carteiras_info) {
+                    console.error('[Sync] 📋 Carteiras do cobrador (sem filtro de período):');
+                    rota.debug.carteiras_info.forEach(c => {
+                        console.error(`  - Carteira ID: ${c.id}, Período ID: ${c.periodo_id}, Ativo: ${c.ativo}`);
+                    });
+                }
+            }
+            throw new Error(rota.erro);
+        }
+        
+        // Verifica se rota é um array válido
+        if (!Array.isArray(rota)) {
+            console.error('[Sync] ❌ Resposta inválida do servidor:', rota);
+            throw new Error('Resposta inválida do servidor. Esperado array, recebido: ' + typeof rota);
+        }
+        
         // IMPORTANTE: Aplica pagamentos pendentes ANTES de salvar
         // Isso garante que os pagamentos offline sejam mantidos mesmo após baixar do servidor
         await aplicarPagamentosPendentesNaRotaBaixada(rota);

@@ -10,6 +10,7 @@ use app\modules\vendas\models\Parcela;
 use app\modules\vendas\models\Cliente;
 use app\modules\vendas\models\Venda;
 use app\modules\vendas\models\VendaItem;
+use app\modules\vendas\models\PeriodoCobranca;
 
 /**
  * API Controller para Rotas de Cobrança
@@ -55,18 +56,95 @@ class RotaCobrancaController extends Controller
                 $data = date('Y-m-d');
             }
 
-            // Busca carteiras de cobrança ativas do cobrador
+            // Busca período ativo (EM_COBRANCA ou ABERTO) para o usuário
+            $periodoAtual = PeriodoCobranca::getPeriodoAtual($usuario_id);
+            
+            if (!$periodoAtual) {
+                // Log para debug
+                Yii::warning("Nenhum período ativo encontrado para usuario_id: {$usuario_id}", __METHOD__);
+                
+                // Lista todos os períodos para debug
+                $todosPeriodos = PeriodoCobranca::find()
+                    ->where(['usuario_id' => $usuario_id])
+                    ->orderBy(['ano_referencia' => SORT_DESC, 'mes_referencia' => SORT_DESC])
+                    ->all();
+                
+                $periodosInfo = [];
+                foreach ($todosPeriodos as $p) {
+                    $periodosInfo[] = [
+                        'id' => $p->id,
+                        'descricao' => $p->descricao,
+                        'status' => $p->status,
+                        'data_inicio' => $p->data_inicio,
+                        'data_fim' => $p->data_fim
+                    ];
+                }
+                
+                Yii::$app->response->statusCode = 404;
+                return [
+                    'erro' => 'Nenhum período de cobrança ativo encontrado. Crie um período e defina-o como "Em Cobrança" ou "Aberto".',
+                    'debug' => [
+                        'usuario_id' => $usuario_id,
+                        'periodos_encontrados' => $periodosInfo
+                    ]
+                ];
+            }
+
+            // Log para debug
+            Yii::info("Período ativo encontrado: {$periodoAtual->id} - {$periodoAtual->descricao} (Status: {$periodoAtual->status})", __METHOD__);
+
+            // Busca carteiras de cobrança ativas do cobrador APENAS do período ativo
             $carteiras = CarteiraCobranca::find()
                 ->alias('c')
                 ->leftJoin('prest_rotas_cobranca r', 'r.id = c.rota_id')
                 ->where([
                     'c.cobrador_id' => $cobrador_id,
                     'c.usuario_id' => $usuario_id,
+                    'c.periodo_id' => $periodoAtual->id, // ✅ FILTRO POR PERÍODO ATIVO
                     'c.ativo' => true
                 ])
-                ->with(['cliente', 'rota'])
+                ->with(['cliente', 'rota', 'periodo'])
                 ->orderBy(['r.ordem_execucao' => SORT_ASC, 'c.data_distribuicao' => SORT_ASC])
                 ->all();
+            
+            // Log para debug
+            Yii::info("Carteiras encontradas para cobrador {$cobrador_id} no período {$periodoAtual->id}: " . count($carteiras), __METHOD__);
+            
+            if (count($carteiras) === 0) {
+                // Debug: verifica se há carteiras sem filtro de período
+                $todasCarteiras = CarteiraCobranca::find()
+                    ->where([
+                        'cobrador_id' => $cobrador_id,
+                        'usuario_id' => $usuario_id,
+                        'ativo' => true
+                    ])
+                    ->all();
+                
+                $carteirasInfo = [];
+                foreach ($todasCarteiras as $c) {
+                    $carteirasInfo[] = [
+                        'id' => $c->id,
+                        'periodo_id' => $c->periodo_id,
+                        'cliente_id' => $c->cliente_id,
+                        'ativo' => $c->ativo
+                    ];
+                }
+                
+                Yii::warning("Nenhuma carteira encontrada para o período ativo. Total de carteiras do cobrador (sem filtro de período): " . count($todasCarteiras), __METHOD__);
+                
+                return [
+                    'erro' => 'Nenhuma carteira encontrada para este cobrador no período ativo.',
+                    'debug' => [
+                        'periodo_ativo_id' => $periodoAtual->id,
+                        'periodo_ativo_descricao' => $periodoAtual->descricao,
+                        'periodo_ativo_status' => $periodoAtual->status,
+                        'cobrador_id' => $cobrador_id,
+                        'total_carteiras_sem_filtro' => count($todasCarteiras),
+                        'carteiras_info' => $carteirasInfo
+                    ],
+                    'rota' => [] // Retorna array vazio mas com informações de debug
+                ];
+            }
 
             $rota = [];
 
