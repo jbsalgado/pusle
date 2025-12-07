@@ -33,7 +33,7 @@ use app\modules\vendas\models\FormaPagamento;
             <!-- Tipo -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-3">Tipo de Pagamento</label>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                     <?php
                     $tipos = [
                         FormaPagamento::TIPO_DINHEIRO => [
@@ -42,9 +42,16 @@ use app\modules\vendas\models\FormaPagamento;
                             'color' => 'green'
                         ],
                         FormaPagamento::TIPO_PIX => [
-                            'label' => 'PIX',
+                            'label' => 'PIX (Dinâmico)',
                             'icon' => '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>',
-                            'color' => 'blue'
+                            'color' => 'blue',
+                            'description' => 'Com gateway'
+                        ],
+                        FormaPagamento::TIPO_PIX_ESTATICO => [
+                            'label' => 'PIX Estático',
+                            'icon' => '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>',
+                            'color' => 'indigo',
+                            'description' => 'QR Code fixo'
                         ],
                         FormaPagamento::TIPO_CARTAO => [
                             'label' => 'Cartão',
@@ -63,6 +70,7 @@ use app\modules\vendas\models\FormaPagamento;
                         $colorClasses = [
                             'green' => 'border-green-500 bg-green-50 text-green-700',
                             'blue' => 'border-blue-500 bg-blue-50 text-blue-700',
+                            'indigo' => 'border-indigo-500 bg-indigo-50 text-indigo-700',
                             'purple' => 'border-purple-500 bg-purple-50 text-purple-700',
                             'orange' => 'border-orange-500 bg-orange-50 text-orange-700',
                         ];
@@ -79,7 +87,10 @@ use app\modules\vendas\models\FormaPagamento;
                                 <div class="mb-2">
                                     <?= $info['icon'] ?>
                                 </div>
-                                <span class="text-sm font-medium"><?= $info['label'] ?></span>
+                                <span class="text-sm font-medium text-center"><?= $info['label'] ?></span>
+                                <?php if (isset($info['description'])): ?>
+                                    <span class="text-xs text-gray-500 mt-1 text-center"><?= $info['description'] ?></span>
+                                <?php endif; ?>
                             </div>
                         </label>
                     <?php endforeach; ?>

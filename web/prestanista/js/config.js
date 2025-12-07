@@ -56,5 +56,5 @@ export const TIPO_ACAO = {
 };
 
 // Formas de Pagamento permitidas para cobradores
-export const FORMAS_PAGAMENTO_COBRADOR = ['DINHEIRO', 'PIX'];
+export const FORMAS_PAGAMENTO_COBRADOR = ['DINHEIRO', 'PIX', 'PIX_ESTATICO'];
 

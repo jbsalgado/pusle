@@ -163,7 +163,11 @@ class UsuarioController extends Controller
                 'estado' => $usuario['estado'] ?? '',
                 'endereco_completo' => $enderecoCompleto,
                 'logo_path' => $logoPath,
-                'nome_loja' => $config->nome_loja ?? $usuario['nome'] ?? 'Loja',
+                'nome_loja' => $config ? ($config->nome_loja ?? $usuario['nome'] ?? 'Loja') : ($usuario['nome'] ?? 'Loja'),
+                // Dados PIX da configuração
+                'pix_chave' => $config ? ($config->pix_chave ?? null) : null,
+                'pix_nome' => $config ? ($config->pix_nome ?? null) : null,
+                'pix_cidade' => $config ? ($config->pix_cidade ?? null) : null,
             ];
             
         } catch (\Exception $e) {

@@ -73,10 +73,13 @@ export let GATEWAY_CONFIG = {
 };
 
 // ✅ Configuração da Chave PIX Estática
+// DEPRECATED: Agora os dados PIX são carregados da API (tabela prest_configuracoes)
+// Mantido apenas para compatibilidade, mas não deve ser usado
+// Use carregarConfigPix() do módulo pix.js ao invés disso
 export const PIX_CONFIG = {
-    chave: '81992888872', // Chave PIX (celular)
-    nome: 'JOSE BARBOSA DOS SANTOS',
-    cidade: 'CARUARU'
+    chave: null, // Carregado da API
+    nome: null,  // Carregado da API
+    cidade: null // Carregado da API
 };
 
 // ✅ NOVA: Função para carregar config da loja

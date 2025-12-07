@@ -51,22 +51,81 @@ class CarteiraCobranca extends ActiveRecord
     /**
      * {@inheritdoc}
      */
+    public function behaviors()
+    {
+        return [
+            [
+                'class' => TimestampBehavior::class,
+                'createdAtAttribute' => 'data_distribuicao',
+                'updatedAtAttribute' => false,
+                'value' => new Expression('NOW()'),
+            ],
+        ];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function beforeSave($insert)
+    {
+        if (parent::beforeSave($insert)) {
+            // Gera UUID se for um novo registro
+            if ($insert && empty($this->id)) {
+                $uuid = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
+                $this->id = $uuid;
+            }
+            
+            // Converte rota_id vazio para null (PostgreSQL não aceita string vazia em UUID)
+            if ($this->rota_id === '' || $this->rota_id === null) {
+                $this->rota_id = null;
+            }
+            
+            // Garante valores padrão
+            if ($this->total_parcelas === '' || $this->total_parcelas === null) {
+                $this->total_parcelas = 0;
+            }
+            if ($this->parcelas_pagas === '' || $this->parcelas_pagas === null) {
+                $this->parcelas_pagas = 0;
+            }
+            if ($this->valor_total === '' || $this->valor_total === null) {
+                $this->valor_total = 0;
+            }
+            if ($this->valor_recebido === '' || $this->valor_recebido === null) {
+                $this->valor_recebido = 0;
+            }
+            if ($this->observacoes === null) {
+                $this->observacoes = '';
+            }
+            
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function rules()
     {
         return [
             [['periodo_id', 'cobrador_id', 'cliente_id', 'usuario_id'], 'required'],
             [['periodo_id', 'cobrador_id', 'cliente_id', 'usuario_id', 'rota_id'], 'string'],
+            [['rota_id'], 'default', 'value' => null], // Permite null para rota_id
             [['ativo'], 'boolean'],
+            [['ativo'], 'default', 'value' => true],
             [['total_parcelas', 'parcelas_pagas'], 'integer', 'min' => 0],
             [['total_parcelas', 'parcelas_pagas'], 'default', 'value' => 0],
             [['valor_total', 'valor_recebido'], 'number', 'min' => 0],
             [['valor_total', 'valor_recebido'], 'default', 'value' => 0],
             [['observacoes'], 'string'],
+            [['observacoes'], 'default', 'value' => ''],
+            [['data_distribuicao'], 'date', 'format' => 'php:Y-m-d'],
+            [['data_distribuicao'], 'default', 'value' => date('Y-m-d')],
             [['periodo_id'], 'exist', 'skipOnError' => true, 'targetClass' => PeriodoCobranca::class, 'targetAttribute' => ['periodo_id' => 'id']],
             [['cobrador_id'], 'exist', 'skipOnError' => true, 'targetClass' => Colaborador::class, 'targetAttribute' => ['cobrador_id' => 'id']],
             [['cliente_id'], 'exist', 'skipOnError' => true, 'targetClass' => Cliente::class, 'targetAttribute' => ['cliente_id' => 'id']],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
-            [['rota_id'], 'exist', 'skipOnError' => true, 'targetClass' => RotaCobranca::class, 'targetAttribute' => ['rota_id' => 'id']],
+            [['rota_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => RotaCobranca::class, 'targetAttribute' => ['rota_id' => 'id']],
             // Validação: cliente único por período
             [['cliente_id'], 'unique', 'targetAttribute' => ['periodo_id', 'cliente_id']],
         ];

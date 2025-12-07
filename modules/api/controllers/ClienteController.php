@@ -5,6 +5,9 @@ use Yii;
 use yii\rest\Controller;
 use yii\web\Response;
 use app\modules\vendas\models\Cliente;
+use app\modules\vendas\models\Venda;
+use app\modules\vendas\models\Parcela;
+use app\modules\vendas\models\FormaPagamento;
 use yii\web\BadRequestHttpException;
 use yii\web\UnauthorizedHttpException;
 use yii\web\NotFoundHttpException;
@@ -19,7 +22,7 @@ class ClienteController extends Controller
         $behaviors['contentNegotiator']['formats']['text/html'] = Response::FORMAT_JSON;
         $behaviors['authenticator'] = [
             'class' => \yii\filters\auth\HttpBearerAuth::class,
-            'optional' => ['index', 'create', 'buscar-cpf', 'login', 'view'],
+            'optional' => ['index', 'create', 'buscar-cpf', 'login', 'view', 'dados-cobranca'],
         ];
         
         // Adicionar CORS para desenvolvimento
@@ -45,6 +48,7 @@ class ClienteController extends Controller
             'create' => ['POST'],
             'buscar-cpf' => ['GET'],
             'login' => ['POST'],
+            'dados-cobranca' => ['GET'],
         ];
     }
 
@@ -393,5 +397,97 @@ class ClienteController extends Controller
         ];
         
         return base64_encode(json_encode($payload));
+    }
+
+    /**
+     * Retorna dados de cobrança do cliente (parcelas pendentes e pagas)
+     * GET /api/cliente/dados-cobranca?cliente_id=xxx&usuario_id=yyy
+     */
+    public function actionDadosCobranca()
+    {
+        try {
+            $clienteId = Yii::$app->request->get('cliente_id');
+            $usuarioId = Yii::$app->request->get('usuario_id');
+            
+            if (empty($clienteId)) {
+                throw new BadRequestHttpException('Parâmetro cliente_id é obrigatório.');
+            }
+            
+            if (empty($usuarioId)) {
+                throw new BadRequestHttpException('Parâmetro usuario_id é obrigatório.');
+            }
+            
+            // Verifica se o cliente existe e pertence ao usuário
+            $cliente = Cliente::find()
+                ->where(['id' => $clienteId, 'usuario_id' => $usuarioId, 'ativo' => true])
+                ->one();
+            
+            if (!$cliente) {
+                throw new NotFoundHttpException('Cliente não encontrado.');
+            }
+            
+            // Busca todas as vendas parceladas do cliente
+            $vendas = Venda::find()
+                ->where(['cliente_id' => $clienteId, 'usuario_id' => $usuarioId])
+                ->with(['parcelas', 'formaPagamento'])
+                ->all();
+            
+            $totalParcelas = 0;
+            $parcelasPagas = 0;
+            $valorTotal = 0;
+            $valorRecebido = 0;
+            
+            foreach ($vendas as $venda) {
+                // Filtra apenas vendas parceladas (com mais de 1 parcela)
+                if ($venda->numero_parcelas <= 1) {
+                    continue;
+                }
+                
+                // Filtra vendas que podem ser cobradas manualmente
+                // Exclui cartão de crédito/débito
+                $formaPagamento = $venda->formaPagamento;
+                if ($formaPagamento) {
+                    $tipoPagamento = strtoupper($formaPagamento->tipo ?? '');
+                    if (in_array($tipoPagamento, ['CARTAO_CREDITO', 'CARTAO_DEBITO', 'CARTAO'])) {
+                        continue; // Pula vendas de cartão
+                    }
+                }
+                
+                // Busca todas as parcelas da venda
+                $parcelas = Parcela::find()
+                    ->where(['venda_id' => $venda->id])
+                    ->all();
+                
+                if (count($parcelas) === 0) {
+                    continue; // Pula vendas sem parcelas
+                }
+                
+                // Soma valores
+                foreach ($parcelas as $parcela) {
+                    $totalParcelas++;
+                    $valorTotal += (float)$parcela->valor_parcela;
+                    
+                    if ($parcela->status_parcela_codigo === 'PAGA') {
+                        $parcelasPagas++;
+                        $valorRecebido += (float)($parcela->valor_pago ?? $parcela->valor_parcela);
+                    }
+                }
+            }
+            
+            return [
+                'total_parcelas' => $totalParcelas,
+                'parcelas_pagas' => $parcelasPagas,
+                'valor_total' => round($valorTotal, 2),
+                'valor_recebido' => round($valorRecebido, 2),
+            ];
+            
+        } catch (BadRequestHttpException $e) {
+            throw $e;
+        } catch (NotFoundHttpException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Yii::error('Erro em actionDadosCobranca: ' . $e->getMessage(), 'api');
+            throw new ServerErrorHttpException('Erro ao buscar dados de cobrança: ' . $e->getMessage());
+        }
     }
 }

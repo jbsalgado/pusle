@@ -31,7 +31,8 @@ class FormaPagamento extends ActiveRecord
      * Constantes para tipos de pagamento
      */
     const TIPO_DINHEIRO = 'DINHEIRO';
-    const TIPO_PIX = 'PIX';
+    const TIPO_PIX = 'PIX'; // PIX Dinâmico (com gateway)
+    const TIPO_PIX_ESTATICO = 'PIX_ESTATICO'; // PIX Estático (QR Code fixo)
     const TIPO_CARTAO = 'CARTAO';
     const TIPO_CARTAO_CREDITO = 'CARTAO_CREDITO';
     const TIPO_CARTAO_DEBITO = 'CARTAO_DEBITO';
@@ -77,11 +78,12 @@ class FormaPagamento extends ActiveRecord
             [['ativo'], 'default', 'value' => true],
             [['aceita_parcelamento'], 'default', 'value' => false],
             [['nome'], 'string', 'max' => 100],
-            [['tipo'], 'string', 'max' => 20],
+            [['tipo'], 'string', 'max' => 30], // Aumentado para suportar PIX_ESTATICO
             // ✅ TIPOS DE PAGAMENTO EXPANDIDOS
             [['tipo'], 'in', 'range' => [
                 self::TIPO_DINHEIRO,
                 self::TIPO_PIX,
+                self::TIPO_PIX_ESTATICO,
                 self::TIPO_CARTAO,
                 self::TIPO_CARTAO_CREDITO,
                 self::TIPO_CARTAO_DEBITO,
@@ -117,7 +119,8 @@ class FormaPagamento extends ActiveRecord
     {
         return [
             self::TIPO_DINHEIRO => 'Dinheiro',
-            self::TIPO_PIX => 'PIX',
+            self::TIPO_PIX => 'PIX (Dinâmico)',
+            self::TIPO_PIX_ESTATICO => 'PIX Estático',
             self::TIPO_CARTAO => 'Cartão',
             self::TIPO_CARTAO_CREDITO => 'Cartão de Crédito',
             self::TIPO_CARTAO_DEBITO => 'Cartão de Débito',

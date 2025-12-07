@@ -105,3 +105,85 @@ use app\modules\vendas\models\RotaCobranca;
     <?php ActiveForm::end(); ?>
 </div>
 
+<?php
+$usuarioId = $model->usuario_id ?: Yii::$app->user->id;
+$apiUrl = Yii::$app->urlManager->createAbsoluteUrl(['/api/cliente/dados-cobranca']);
+$this->registerJs("
+(function() {
+    const clienteSelect = document.getElementById('carteiracobranca-cliente_id');
+    const valorTotalInput = document.getElementById('carteiracobranca-valor_total');
+    const totalParcelasInput = document.getElementById('carteiracobranca-total_parcelas');
+    const parcelasPagasInput = document.getElementById('carteiracobranca-parcelas_pagas');
+    const valorRecebidoInput = document.getElementById('carteiracobranca-valor_recebido');
+    const usuarioId = '{$usuarioId}';
+    const apiUrl = '{$apiUrl}';
+    
+    if (!clienteSelect || !valorTotalInput || !totalParcelasInput || !parcelasPagasInput || !valorRecebidoInput) {
+        console.warn('[CarteiraCobranca] Campos do formulário não encontrados');
+        return;
+    }
+    
+    let carregando = false;
+    
+    clienteSelect.addEventListener('change', async function() {
+        const clienteId = this.value;
+        
+        if (!clienteId) {
+            // Limpa os campos se nenhum cliente for selecionado
+            valorTotalInput.value = '';
+            totalParcelasInput.value = '';
+            parcelasPagasInput.value = '';
+            valorRecebidoInput.value = '';
+            return;
+        }
+        
+        if (carregando) {
+            return; // Evita múltiplas requisições simultâneas
+        }
+        
+        carregando = true;
+        
+        // Mostra indicador de carregamento
+        const campos = [valorTotalInput, totalParcelasInput, parcelasPagasInput, valorRecebidoInput];
+        campos.forEach(campo => {
+            campo.disabled = true;
+            campo.style.opacity = '0.6';
+        });
+        
+        try {
+            const url = apiUrl + '?cliente_id=' + encodeURIComponent(clienteId) + '&usuario_id=' + encodeURIComponent(usuarioId);
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error('Erro ao buscar dados: ' + response.statusText);
+            }
+            
+            const dados = await response.json();
+            
+            // Preenche os campos automaticamente
+            valorTotalInput.value = dados.valor_total || '0';
+            totalParcelasInput.value = dados.total_parcelas || '0';
+            parcelasPagasInput.value = dados.parcelas_pagas || '0';
+            valorRecebidoInput.value = dados.valor_recebido || '0';
+            
+            // Dispara evento change para garantir que o Yii2 valide os campos
+            campos.forEach(campo => {
+                const event = new Event('change', { bubbles: true });
+                campo.dispatchEvent(event);
+            });
+            
+        } catch (error) {
+            console.error('[CarteiraCobranca] Erro ao buscar dados de cobrança:', error);
+            alert('Erro ao buscar dados de cobrança do cliente. Verifique o console para mais detalhes.');
+        } finally {
+            carregando = false;
+            campos.forEach(campo => {
+                campo.disabled = false;
+                campo.style.opacity = '1';
+            });
+        }
+    });
+})();
+", \yii\web\View::POS_READY);
+?>
+

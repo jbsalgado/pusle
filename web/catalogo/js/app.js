@@ -653,8 +653,8 @@ function controlarParcelasPorFormaPagamento() {
     
     const tipo = formaSelecionada.tipo || '';
     
-    // Se for DINHEIRO ou PIX, desabilita parcelamento
-    if (tipo === 'DINHEIRO' || tipo === 'PIX') {
+    // Se for DINHEIRO, PIX ou PIX ESTATICO, desabilita parcelamento
+    if (tipo === 'DINHEIRO' || tipo === 'PIX' || tipo === 'PIX_ESTATICO') {
         // SEMPRE força para "À vista" - IMPORTANTE: fazer ANTES de desabilitar
         selectParcelas.value = '1';
         // Dispara evento change para atualizar campos relacionados
@@ -935,7 +935,7 @@ window.confirmarPedido = async function() {
     // Verifica se a forma de pagamento permite parcelamento antes de pegar o valor
     const formaPagamentoSelecionada = formasPagamento.find(fp => fp.id === formaPagamentoId);
     const tipoFormaPagamento = formaPagamentoSelecionada?.tipo || '';
-    const permiteParcelamento = tipoFormaPagamento !== 'DINHEIRO' && tipoFormaPagamento !== 'PIX';
+    const permiteParcelamento = tipoFormaPagamento !== 'DINHEIRO' && tipoFormaPagamento !== 'PIX' && tipoFormaPagamento !== 'PIX_ESTATICO';
     
     // Se não permite parcelamento, força para 1 parcela
     const selectParcelas = document.getElementById('numero-parcelas');

@@ -47,12 +47,24 @@ class CobrancaController extends Controller
             $data = Yii::$app->request->post();
 
             // Validações
-            $required = ['parcela_id', 'cobrador_id', 'cliente_id', 'usuario_id', 'tipo_acao', 'valor_recebido', 'forma_pagamento'];
+            $required = ['parcela_id', 'cobrador_id', 'cliente_id', 'usuario_id', 'tipo_acao'];
             foreach ($required as $field) {
                 if (!isset($data[$field])) {
                     Yii::$app->response->statusCode = 400;
                     return ['erro' => "Campo obrigatório ausente: {$field}"];
                 }
+            }
+            
+            // Para PAGAMENTO, valor_recebido e forma_pagamento são obrigatórios
+            if ($data['tipo_acao'] === HistoricoCobranca::TIPO_PAGAMENTO) {
+                if (!isset($data['valor_recebido']) || !isset($data['forma_pagamento'])) {
+                    Yii::$app->response->statusCode = 400;
+                    return ['erro' => 'Para pagamento, valor_recebido e forma_pagamento são obrigatórios'];
+                }
+            } else {
+                // Para outros tipos, valor_recebido é 0 e forma_pagamento pode ser vazio
+                $data['valor_recebido'] = $data['valor_recebido'] ?? 0;
+                $data['forma_pagamento'] = $data['forma_pagamento'] ?? '';
             }
 
             // Busca parcela
@@ -62,35 +74,42 @@ class CobrancaController extends Controller
                 return ['erro' => 'Parcela não encontrada'];
             }
 
-            // Verifica se já está paga (evita duplicação)
-            if ($parcela->status_parcela_codigo === 'PAGA') {
-                // Se já está paga, apenas registra o histórico (idempotência)
-                Yii::warning("Tentativa de registrar pagamento de parcela já paga: {$parcela->id}", __METHOD__);
-            } else {
-                // Atualiza parcela
-                $parcela->status_parcela_codigo = 'PAGA';
-                $parcela->data_pagamento = $data['data_acao'] ? date('Y-m-d', strtotime($data['data_acao'])) : date('Y-m-d');
-                $parcela->valor_pago = $data['valor_recebido'];
-                
-                if (!$parcela->save()) {
-                    Yii::$app->response->statusCode = 500;
-                    return ['erro' => 'Erro ao atualizar parcela', 'erros' => $parcela->errors];
+            // Só atualiza parcela se for PAGAMENTO
+            if ($data['tipo_acao'] === HistoricoCobranca::TIPO_PAGAMENTO) {
+                // Verifica se já está paga (evita duplicação)
+                if ($parcela->status_parcela_codigo === 'PAGA') {
+                    // Se já está paga, apenas registra o histórico (idempotência)
+                    Yii::warning("Tentativa de registrar pagamento de parcela já paga: {$parcela->id}", __METHOD__);
+                } else {
+                    // Atualiza parcela apenas se for pagamento
+                    $parcela->status_parcela_codigo = 'PAGA';
+                    $parcela->data_pagamento = $data['data_acao'] ? date('Y-m-d', strtotime($data['data_acao'])) : date('Y-m-d');
+                    $parcela->valor_pago = $data['valor_recebido'];
+                    
+                    if (!$parcela->save()) {
+                        Yii::$app->response->statusCode = 500;
+                        return ['erro' => 'Erro ao atualizar parcela', 'erros' => $parcela->errors];
+                    }
                 }
             }
+            // Para outros tipos de ação (VISITA, AUSENTE, RECUSA, NEGOCIACAO), apenas registra no histórico
 
-            // Busca ou cria forma de pagamento
-            $formaPagamento = FormaPagamento::find()
-                ->where(['usuario_id' => $data['usuario_id'], 'nome' => $data['forma_pagamento']])
-                ->one();
+            // Busca ou cria forma de pagamento (apenas se for PAGAMENTO e tiver forma_pagamento)
+            $formaPagamento = null;
+            if ($data['tipo_acao'] === HistoricoCobranca::TIPO_PAGAMENTO && !empty($data['forma_pagamento'])) {
+                $formaPagamento = FormaPagamento::find()
+                    ->where(['usuario_id' => $data['usuario_id'], 'nome' => $data['forma_pagamento']])
+                    ->one();
 
-            if (!$formaPagamento) {
-                // Cria forma de pagamento se não existir (DINHEIRO ou PIX)
-                $formaPagamento = new FormaPagamento();
-                $formaPagamento->usuario_id = $data['usuario_id'];
-                $formaPagamento->nome = $data['forma_pagamento'];
-                $formaPagamento->ativo = true;
-                if (!$formaPagamento->save()) {
-                    Yii::warning("Erro ao criar forma de pagamento: " . json_encode($formaPagamento->errors), __METHOD__);
+                if (!$formaPagamento) {
+                    // Cria forma de pagamento se não existir (DINHEIRO ou PIX)
+                    $formaPagamento = new FormaPagamento();
+                    $formaPagamento->usuario_id = $data['usuario_id'];
+                    $formaPagamento->nome = $data['forma_pagamento'];
+                    $formaPagamento->ativo = true;
+                    if (!$formaPagamento->save()) {
+                        Yii::warning("Erro ao criar forma de pagamento: " . json_encode($formaPagamento->errors), __METHOD__);
+                    }
                 }
             }
 
@@ -112,11 +131,20 @@ class CobrancaController extends Controller
                 return ['erro' => 'Erro ao registrar histórico', 'erros' => $historico->errors];
             }
 
+            $mensagens = [
+                HistoricoCobranca::TIPO_PAGAMENTO => 'Pagamento registrado com sucesso',
+                HistoricoCobranca::TIPO_VISITA => 'Visita registrada com sucesso',
+                HistoricoCobranca::TIPO_AUSENTE => 'Visita registrada: Cliente ausente',
+                HistoricoCobranca::TIPO_RECUSA => 'Visita registrada: Cliente recusou pagamento',
+                HistoricoCobranca::TIPO_NEGOCIACAO => 'Visita registrada: Negociação realizada',
+            ];
+            
             return [
                 'sucesso' => true,
                 'parcela_id' => $parcela->id,
                 'historico_id' => $historico->id,
-                'mensagem' => 'Pagamento registrado com sucesso'
+                'tipo_acao' => $data['tipo_acao'],
+                'mensagem' => $mensagens[$data['tipo_acao']] ?? 'Ação registrada com sucesso'
             ];
 
         } catch (\Exception $e) {

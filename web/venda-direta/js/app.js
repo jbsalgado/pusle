@@ -420,8 +420,8 @@ function controlarParcelasPorFormaPagamento() {
     // Campo de cliente (apenas para vendas parceladas)
     const campoCliente = document.getElementById('campo-cliente-parcelado');
     
-    // Se for DINHEIRO ou PIX, desabilita parcelamento
-    if (tipo === 'DINHEIRO' || tipo === 'PIX') {
+    // Se for DINHEIRO, PIX ou PIX ESTATICO, desabilita parcelamento
+    if (tipo === 'DINHEIRO' || tipo === 'PIX' || tipo === 'PIX_ESTATICO') {
         // SEMPRE força para "À vista" - IMPORTANTE: fazer ANTES de desabilitar
         selectParcelas.value = '1';
         // Dispara evento change para atualizar campos relacionados
@@ -595,7 +595,7 @@ window.confirmarPedido = async function() {
         // Verifica se a forma de pagamento permite parcelamento antes de pegar o valor
         const formaPagamentoSelecionada = formasPagamento.find(fp => fp.id === formaPagamentoId);
         const tipoFormaPagamento = formaPagamentoSelecionada?.tipo || '';
-        const permiteParcelamento = tipoFormaPagamento !== 'DINHEIRO' && tipoFormaPagamento !== 'PIX';
+        const permiteParcelamento = tipoFormaPagamento !== 'DINHEIRO' && tipoFormaPagamento !== 'PIX' && tipoFormaPagamento !== 'PIX_ESTATICO';
         
         // Se não permite parcelamento, força para 1 parcela
         const selectParcelas = document.getElementById('numero-parcelas');
@@ -644,9 +644,9 @@ window.confirmarPedido = async function() {
         });
         
         if (resultado.sucesso) {
-            // Verifica se é PIX À VISTA para mostrar o modal estático
+            // Verifica se é PIX ou PIX ESTATICO À VISTA para mostrar o modal estático
             const formaPagamentoSelecionada = formasPagamento.find(fp => fp.id == formaPagamentoId);
-            const isPix = formaPagamentoSelecionada && formaPagamentoSelecionada.tipo === 'PIX'; // Ajuste conforme seu backend retorna "tipo"
+            const isPix = formaPagamentoSelecionada && (formaPagamentoSelecionada.tipo === 'PIX' || formaPagamentoSelecionada.tipo === 'PIX_ESTATICO');
             const isVista = dadosPedido.numero_parcelas === 1;
 
             if (isPix && isVista && !resultado.offline) {
@@ -665,11 +665,11 @@ window.confirmarPedido = async function() {
                 const txId = `VendaDireta${dia}${mes}${ano}${hora}${minuto}`;
 
                 // Abre o Modal PIX com dados do pedido para gerar comprovante depois
-                mostrarModalPixEstatico(valorTotal, txId, {
+                await mostrarModalPixEstatico(valorTotal, txId, {
                     ...dadosPedido,
                     itens: carrinho,
                     valorTotal: valorTotal
-                });
+                }, CONFIG.ID_USUARIO_LOJA);
                 
                 // Limpa carrinho pois a venda foi registrada
                 limparCarrinho();

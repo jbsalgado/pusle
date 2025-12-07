@@ -142,7 +142,23 @@ export function validarCPF(cpf) {
  * Formata CPF
  */
 export function formatarCPF(cpf) {
+    if (!cpf) return '';
     cpf = cpf.replace(/[^\d]/g, '');
+    if (cpf.length !== 11) return cpf;
     return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+}
+
+/**
+ * Formata telefone
+ */
+export function formatarTelefone(telefone) {
+    if (!telefone) return '';
+    const tel = telefone.replace(/[^\d]/g, '');
+    if (tel.length === 11) {
+        return tel.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+    } else if (tel.length === 10) {
+        return tel.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+    }
+    return telefone;
 }
 

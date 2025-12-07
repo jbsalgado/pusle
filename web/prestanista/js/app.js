@@ -10,7 +10,8 @@ import {
     adicionarPagamentoPendente,
     carregarPagamentosPendentes,
     carregarClientesCache,
-    carregarParcelasCache
+    carregarParcelasCache,
+    limparDadosLocais
 } from './storage.js';
 import { 
     sincronizarPagamentosPendentes, 
@@ -23,7 +24,9 @@ import {
     formatarData, 
     formatarDataParcela, 
     obterGeolocalizacao, 
-    mostrarToast 
+    mostrarToast,
+    formatarCPF,
+    formatarTelefone
 } from './utils.js';
 
 // Variáveis Globais
@@ -143,6 +146,38 @@ async function fazerLogin(cpf) {
 }
 
 /**
+ * Faz logout do cobrador
+ */
+async function fazerLogout() {
+    try {
+        // Confirma logout
+        const confirmar = confirm('Deseja realmente sair do módulo Prestanista?');
+        if (!confirmar) {
+            return;
+        }
+        
+        // Limpa todos os dados locais
+        await limparDadosLocais();
+        
+        // Limpa variáveis globais
+        cobradorAtual = null;
+        rotaDia = [];
+        todasVendas = [];
+        
+        mostrarToast('Logout realizado com sucesso', 'success');
+        
+        // Recarrega a página para solicitar novo login
+        setTimeout(() => {
+            location.reload();
+        }, 1000);
+        
+    } catch (error) {
+        console.error('[App] ❌ Erro no logout:', error);
+        mostrarToast('Erro ao fazer logout', 'error');
+    }
+}
+
+/**
  * Obtém ID do usuário (loja) - temporário, deve vir da autenticação
  */
 function obterUsuarioId() {
@@ -179,6 +214,132 @@ function atualizarStatusConexao() {
  * Inicializa event listeners
  */
 function inicializarEventListeners() {
+    // Botão toggle filtros
+    const btnToggleFiltros = document.getElementById('btn-toggle-filtros');
+    const containerFiltros = document.getElementById('container-filtros');
+    
+    if (btnToggleFiltros && containerFiltros) {
+        btnToggleFiltros.addEventListener('click', () => {
+            const estaVisivel = !containerFiltros.classList.contains('hidden');
+            if (estaVisivel) {
+                containerFiltros.classList.add('hidden');
+            } else {
+                containerFiltros.classList.remove('hidden');
+            }
+        });
+    }
+    
+    // Filtros
+    const filtroNome = document.getElementById('filtro-nome');
+    const filtroCpf = document.getElementById('filtro-cpf');
+    const filtroData = document.getElementById('filtro-data');
+    const filtroDataCobranca = document.getElementById('filtro-data-cobranca');
+    const btnLimparFiltros = document.getElementById('btn-limpar-filtros');
+    
+    // Função para aplicar filtros
+    const aplicarFiltros = () => {
+        const nomeFiltro = (filtroNome.value || '').toLowerCase().trim();
+        const cpfFiltro = (filtroCpf.value || '').replace(/[^0-9]/g, '').trim();
+        const dataFiltro = filtroData.value || '';
+        const dataCobrancaFiltro = filtroDataCobranca.value || '';
+        
+        const cards = document.querySelectorAll('.card-ficha');
+        let cardsVisiveis = 0;
+        
+        cards.forEach(card => {
+            const clienteNome = card.getAttribute('data-cliente-nome') || '';
+            const clienteCpf = card.getAttribute('data-cliente-cpf') || '';
+            const vendaData = card.getAttribute('data-venda-data') || '';
+            const cobrancaData = card.getAttribute('data-cobranca-data') || '';
+            
+            let mostrar = true;
+            
+            // Filtro por nome
+            if (nomeFiltro && !clienteNome.includes(nomeFiltro)) {
+                mostrar = false;
+            }
+            
+            // Filtro por CPF
+            if (cpfFiltro && !clienteCpf.includes(cpfFiltro)) {
+                mostrar = false;
+            }
+            
+            // Filtro por data da venda
+            if (dataFiltro && vendaData !== dataFiltro) {
+                mostrar = false;
+            }
+            
+            // Filtro por data da cobrança
+            if (dataCobrancaFiltro && cobrancaData !== dataCobrancaFiltro) {
+                mostrar = false;
+            }
+            
+            if (mostrar) {
+                card.style.display = '';
+                cardsVisiveis++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+        
+        // Mostra mensagem se não houver resultados
+        const container = document.getElementById('lista-rotas');
+        let mensagemVazia = container.querySelector('.mensagem-sem-resultados');
+        
+        if (cardsVisiveis === 0 && cards.length > 0) {
+            if (!mensagemVazia) {
+                mensagemVazia = document.createElement('div');
+                mensagemVazia.className = 'mensagem-sem-resultados text-center text-gray-500 py-12';
+                mensagemVazia.innerHTML = `
+                    <p class="text-sm">Nenhuma venda encontrada com os filtros aplicados.</p>
+                    <p class="text-xs mt-1">Tente ajustar os filtros ou limpar para ver todas as vendas.</p>
+                `;
+                container.appendChild(mensagemVazia);
+            }
+        } else if (mensagemVazia) {
+            mensagemVazia.remove();
+        }
+    };
+    
+    // Event listeners para filtros
+    if (filtroNome) {
+        filtroNome.addEventListener('input', aplicarFiltros);
+    }
+    
+    if (filtroCpf) {
+        filtroCpf.addEventListener('input', (e) => {
+            // Formata CPF enquanto digita
+            let valor = e.target.value.replace(/[^0-9]/g, '');
+            if (valor.length > 11) valor = valor.substring(0, 11);
+            
+            if (valor.length > 0) {
+                valor = valor.replace(/(\d{3})(\d)/, '$1.$2');
+                valor = valor.replace(/(\d{3})(\d)/, '$1.$2');
+                valor = valor.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            }
+            e.target.value = valor;
+            aplicarFiltros();
+        });
+    }
+    
+    if (filtroData) {
+        filtroData.addEventListener('change', aplicarFiltros);
+    }
+    
+    if (filtroDataCobranca) {
+        filtroDataCobranca.addEventListener('change', aplicarFiltros);
+    }
+    
+    if (btnLimparFiltros) {
+        btnLimparFiltros.addEventListener('click', () => {
+            filtroNome.value = '';
+            filtroCpf.value = '';
+            filtroData.value = '';
+            filtroDataCobranca.value = '';
+            aplicarFiltros();
+        });
+    }
+    
     // Botão sincronizar rota
     document.getElementById('btn-sincronizar-rota').addEventListener('click', async () => {
         await sincronizarRota();
@@ -187,6 +348,11 @@ function inicializarEventListeners() {
     // Botão sincronizar
     document.getElementById('btn-sincronizar').addEventListener('click', async () => {
         await sincronizarTudo();
+    });
+    
+    // Botão sair/logout
+    document.getElementById('btn-sair').addEventListener('click', async () => {
+        await fazerLogout();
     });
     
     // Botão voltar da ficha
@@ -209,6 +375,22 @@ function inicializarEventListeners() {
     
     document.getElementById('btn-pagamento-pix').addEventListener('click', () => {
         selecionarFormaPagamento('PIX');
+    });
+    
+    // Event listeners do modal de visita
+    document.getElementById('btn-cancelar-visita').addEventListener('click', () => {
+        window.fecharModalVisita();
+    });
+    
+    document.getElementById('btn-confirmar-visita').addEventListener('click', async () => {
+        await window.confirmarVisita();
+    });
+    
+    document.querySelectorAll('.btn-tipo-visita').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const tipo = btn.getAttribute('data-tipo');
+            window.selecionarTipoVisita(tipo);
+        });
     });
     
     // Atualiza status de conexão periodicamente
@@ -479,6 +661,70 @@ function atualizarDashboard() {
  * Aplica pagamentos pendentes localmente na rota carregada
  * Isso garante que os pagamentos feitos offline apareçam mesmo após reload
  */
+/**
+ * Constrói endereço completo do cliente para uso no Google Maps
+ */
+function construirEnderecoCompleto(cliente) {
+    const partes = [];
+    
+    // A API retorna 'endereco' como string completa OU campos separados
+    if (cliente.endereco) {
+        // Se já vem como string completa da API
+        partes.push(cliente.endereco);
+    } else {
+        // Monta a partir dos campos separados
+        if (cliente.endereco_logradouro || cliente.logradouro) {
+            let endereco = cliente.endereco_logradouro || cliente.logradouro || '';
+            if (cliente.endereco_numero || cliente.numero) {
+                endereco += ', ' + (cliente.endereco_numero || cliente.numero);
+            }
+            if (cliente.endereco_complemento || cliente.complemento) {
+                endereco += ' - ' + (cliente.endereco_complemento || cliente.complemento);
+            }
+            if (endereco.trim()) {
+                partes.push(endereco);
+            }
+        }
+    }
+    
+    // Bairro
+    if (cliente.endereco_bairro || cliente.bairro) {
+        partes.push(cliente.endereco_bairro || cliente.bairro);
+    }
+    
+    // Cidade e Estado
+    if (cliente.endereco_cidade || cliente.cidade) {
+        let cidadeEstado = cliente.endereco_cidade || cliente.cidade;
+        if (cliente.endereco_estado || cliente.estado) {
+            cidadeEstado += ' - ' + (cliente.endereco_estado || cliente.estado);
+        }
+        partes.push(cidadeEstado);
+    }
+    
+    // CEP
+    if (cliente.endereco_cep || cliente.cep) {
+        partes.push(cliente.endereco_cep || cliente.cep);
+    }
+    
+    return partes.join(', ');
+}
+
+/**
+ * Abre Google Maps com rota até o endereço do cliente
+ */
+window.abrirGoogleMaps = function(endereco) {
+    if (!endereco || endereco.trim() === '') {
+        mostrarToast('Endereço não disponível', 'warning');
+        return;
+    }
+    
+    // URL do Google Maps com direções
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(endereco)}`;
+    
+    // Abre em nova aba
+    window.open(url, '_blank');
+};
+
 async function aplicarPagamentosPendentesNaRota() {
     try {
         const pagamentosPendentes = await carregarPagamentosPendentes();
@@ -653,42 +899,138 @@ function renderizarRota() {
         const valorTotalPendente = parcelasPendentes.reduce((sum, p) => sum + parseFloat(p.valor_parcela || 0), 0);
         const primeiraParcelaPendente = parcelasPendentes.length > 0 ? parcelasPendentes[0] : null;
         
+        // Data da cobrança: data de vencimento da primeira parcela pendente (ou mais próxima)
+        // Ordena parcelas pendentes por data de vencimento para pegar a mais próxima
+        const parcelasPendentesOrdenadas = [...parcelasPendentes].sort((a, b) => {
+            return new Date(a.data_vencimento) - new Date(b.data_vencimento);
+        });
+        const dataCobranca = parcelasPendentesOrdenadas.length > 0 
+            ? new Date(parcelasPendentesOrdenadas[0].data_vencimento).toISOString().split('T')[0] 
+            : '';
+        
+        // Verifica se há parcelas pendentes que podem ser cobradas (vencidas ou do mês atual)
+        // Parcelas futuras não devem aparecer, pois não podem ser marcadas
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        
+        const parcelasCobravel = parcelasPendentes.filter(parcela => {
+            const vencimento = new Date(parcela.data_vencimento);
+            vencimento.setHours(0, 0, 0, 0);
+            
+            // Verifica se está vencida
+            const estaVencida = vencimento < hoje;
+            
+            // Verifica se é do mês atual (mesmo mês e ano)
+            const mesmoMes = vencimento.getMonth() === hoje.getMonth() && 
+                           vencimento.getFullYear() === hoje.getFullYear();
+            
+            // Pode marcar visita se estiver vencida OU for do mês atual
+            // Parcelas futuras (não vencidas e não do mês atual) não contam
+            return estaVencida || mesmoMes;
+        });
+        
+        // Verifica se há parcelas cobráveis para mostrar o botão "MARCAR VISITA"
+        // Se todas as parcelas estão pagas ou são futuras, não precisa marcar visita
+        const temParcelasCobravel = parcelasCobravel.length > 0;
+        
         // Formata número da venda com zeros à esquerda
         const numeroVenda = String(index + 1).padStart(5, '0');
         
         // Prepara dados dos produtos
         const itensVenda = venda.itens && venda.itens.length > 0 ? venda.itens : [];
         
+        // Prepara endereço completo para Google Maps
+        const enderecoCompleto = construirEnderecoCompleto(cliente);
+        // Verifica se tem endereço suficiente para o mapa (endereco OU logradouro) E cidade
+        const temEnderecoParaMapa = (cliente.endereco || cliente.endereco_logradouro || cliente.logradouro) && (cliente.endereco_cidade || cliente.cidade || cliente.bairro);
+        
         return `
             <div class="card-ficha" 
                  data-index="${index}"
                  data-cliente-id="${cliente.id}"
-                 data-venda-id="${venda.id}">
-                <div class="p-4">
+                 data-venda-id="${venda.id}"
+                 data-cliente-nome="${(cliente.nome || '').toLowerCase()}"
+                 data-cliente-cpf="${(cliente.cpf || '').replace(/[^0-9]/g, '')}"
+                 data-venda-data="${venda.data_venda ? new Date(venda.data_venda).toISOString().split('T')[0] : ''}"
+                 data-cobranca-data="${dataCobranca}">
+                <div class="p-0">
                     <!-- COMPRADOR -->
-                    <div class="mb-4">
-                        <h2 class="text-sm font-bold text-gray-700 uppercase mb-2">COMPRADOR</h2>
-                        <h3 class="text-base font-bold text-gray-900">${cliente.nome || 'Cliente'}</h3>
+                    <div class="bg-gradient-to-br from-indigo-700 via-indigo-600 to-blue-700 text-white rounded-t-lg p-3 shadow-lg" style="background: linear-gradient(135deg, #4f46e5 0%, #4338ca 50%, #1e40af 100%);">
+                        <h2 class="text-sm font-bold text-white uppercase mb-2 drop-shadow-sm">COMPRADOR</h2>
+                        <h3 class="text-base font-bold text-white mb-3 drop-shadow-md">${cliente.nome || cliente.nome_completo || 'Cliente'}</h3>
+                        
+                        <!-- Informações de Localização -->
+                        <div class="space-y-1 text-xs">
+                            ${cliente.cpf ? `
+                                <div class="flex items-start">
+                                    <span class="font-semibold min-w-[60px]">CPF:</span>
+                                    <span>${formatarCPF(cliente.cpf)}</span>
+                                </div>
+                            ` : ''}
+                            
+                            ${cliente.telefone ? `
+                                <div class="flex items-start">
+                                    <span class="font-semibold min-w-[60px]">Tel:</span>
+                                    <span>${formatarTelefone(cliente.telefone)}</span>
+                                </div>
+                            ` : ''}
+                            
+                            ${cliente.endereco || cliente.endereco_logradouro || cliente.logradouro ? `
+                                <div class="flex items-start">
+                                    <span class="font-semibold min-w-[60px]">End:</span>
+                                    <span>${cliente.endereco || (cliente.endereco_logradouro || cliente.logradouro || '') + (cliente.endereco_numero || cliente.numero ? ', ' + (cliente.endereco_numero || cliente.numero) : '') + (cliente.endereco_complemento || cliente.complemento ? ' - ' + (cliente.endereco_complemento || cliente.complemento) : '')}</span>
+                                </div>
+                            ` : ''}
+                            
+                            ${cliente.endereco_bairro || cliente.bairro ? `
+                                <div class="flex items-start">
+                                    <span class="font-semibold min-w-[60px]">Bairro:</span>
+                                    <span>${cliente.endereco_bairro || cliente.bairro}</span>
+                                </div>
+                            ` : ''}
+                            
+                            ${cliente.endereco_cidade || cliente.cidade || cliente.endereco_estado || cliente.estado ? `
+                                <div class="flex items-start">
+                                    <span class="font-semibold min-w-[60px]">Cidade:</span>
+                                    <span>${cliente.endereco_cidade || cliente.cidade || ''}${cliente.endereco_estado || cliente.estado ? ' - ' + (cliente.endereco_estado || cliente.estado) : ''}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <!-- Botão Google Maps -->
+                        ${temEnderecoParaMapa ? `
+                            <div class="mt-3 pt-3 border-t border-indigo-300">
+                                <button class="btn-google-maps w-full bg-white text-indigo-700 px-3 py-2 rounded-lg font-medium text-xs hover:bg-indigo-50 active:bg-indigo-100 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                                        data-endereco="${enderecoCompleto.replace(/"/g, '&quot;').replace(/'/g, '&#39;')}">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    </svg>
+                                    Ver no Google Maps
+                                </button>
+                            </div>
+                        ` : ''}
                     </div>
                     
                     <!-- VENDA - DT VENDA - TOTAL VENDA -->
-                    <div class="mb-4 pb-3 border-b-2 border-gray-300">
+                    <div class="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 text-white p-3 shadow-md" style="background: linear-gradient(90deg, #475569 0%, #64748b 50%, #475569 100%);">
                         <div class="grid grid-cols-3 gap-2 text-xs">
                             <div>
-                                <p class="font-bold text-gray-700 uppercase mb-1">VENDA</p>
-                                <p class="text-sm font-bold text-gray-900">#${numeroVenda}</p>
+                                <p class="font-bold text-white uppercase mb-1 drop-shadow-sm">VENDA</p>
+                                <p class="text-sm font-bold text-white drop-shadow-md">#${numeroVenda}</p>
                             </div>
                             <div>
-                                <p class="font-bold text-gray-700 uppercase mb-1">DT VENDA</p>
-                                <p class="text-sm font-medium text-gray-900">${formatarData(venda.data_venda)}</p>
+                                <p class="font-bold text-white uppercase mb-1 drop-shadow-sm">DT VENDA</p>
+                                <p class="text-sm font-medium text-white drop-shadow-sm">${formatarData(venda.data_venda)}</p>
                             </div>
                             <div>
-                                <p class="font-bold text-gray-700 uppercase mb-1">TOTAL VENDA</p>
-                                <p class="text-sm font-bold text-blue-600">${formatarMoeda(venda.valor_total)}</p>
+                                <p class="font-bold text-white uppercase mb-1 drop-shadow-sm">TOTAL VENDA</p>
+                                <p class="text-sm font-bold text-white drop-shadow-md">${formatarMoeda(venda.valor_total)}</p>
                             </div>
                         </div>
                     </div>
                     
+                    <div class="p-4">
                     <!-- PRODUTOS -->
                     ${itensVenda.length > 0 ? `
                         <div class="mb-4 pb-3 border-b-2 border-gray-300">
@@ -769,26 +1111,57 @@ function renderizarRota() {
                         </div>
                     </div>
                     
-                        <!-- Botões de Ação -->
-                        <div class="text-center space-y-2">
-                            <div class="flex gap-2">
-                                <button class="btn-ver-detalhes flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-blue-700 active:bg-blue-800 transition-colors"
-                                        data-venda-id="${venda.id}"
-                                        data-cliente-id="${cliente.id}">
-                                    VER DETALHES
-                                </button>
-                                <button class="btn-gerar-cartao flex-1 bg-green-600 text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-green-700 active:bg-green-800 transition-colors"
-                                        data-venda-id="${venda.id}"
-                                        data-cliente-id="${cliente.id}"
-                                        data-venda-index="${index}">
-                                    GERAR CARTÃO
-                                </button>
-                            </div>
+                    <!-- Botões de Ação -->
+                    <div class="text-center space-y-2">
+                        <div class="flex gap-2">
+                            <button class="btn-ver-detalhes flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-blue-700 active:bg-blue-800 transition-colors"
+                                    data-venda-id="${venda.id}"
+                                    data-cliente-id="${cliente.id}">
+                                VER DETALHES
+                            </button>
+                            <button class="btn-gerar-cartao flex-1 bg-green-600 text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-green-700 active:bg-green-800 transition-colors"
+                                    data-venda-id="${venda.id}"
+                                    data-cliente-id="${cliente.id}"
+                                    data-venda-index="${index}">
+                                GERAR CARTÃO
+                            </button>
                         </div>
+                        ${temParcelasCobravel ? `
+                            <button class="btn-marcar-visita w-full bg-yellow-500 text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-yellow-600 active:bg-yellow-700 transition-colors"
+                                    data-cliente-id="${cliente.id}"
+                                    data-cliente-nome="${cliente.nome || cliente.nome_completo || 'Cliente'}">
+                                📍 MARCAR VISITA
+                            </button>
+                        ` : `
+                            <div class="w-full bg-green-100 text-green-700 px-4 py-2 rounded-lg font-medium text-sm text-center">
+                                ${parcelasPendentes.length > 0 ? '✓ Sem parcelas no período de cobrança' : '✓ Todas as parcelas pagas'}
+                            </div>
+                        `}
+                    </div>
+                    </div>
                 </div>
             </div>
         `;
     }).join('');
+    
+    // Remove mensagem de "sem resultados" se existir
+    const mensagemVazia = container.querySelector('.mensagem-sem-resultados');
+    if (mensagemVazia) {
+        mensagemVazia.remove();
+    }
+    
+    // Aplica filtros se houver valores nos campos de filtro
+    const filtroNome = document.getElementById('filtro-nome');
+    const filtroCpf = document.getElementById('filtro-cpf');
+    const filtroData = document.getElementById('filtro-data');
+    
+    if (filtroNome && filtroNome.value) {
+        filtroNome.dispatchEvent(new Event('input'));
+    } else if (filtroCpf && filtroCpf.value) {
+        filtroCpf.dispatchEvent(new Event('input'));
+    } else if (filtroData && filtroData.value) {
+        filtroData.dispatchEvent(new Event('change'));
+    }
     
     // Adiciona event listeners aos botões de detalhes
     container.querySelectorAll('.btn-ver-detalhes').forEach((btn) => {
@@ -806,6 +1179,37 @@ function renderizarRota() {
             e.stopPropagation();
             const vendaIndex = parseInt(btn.getAttribute('data-venda-index'));
             gerarImagemCartao(vendaIndex);
+        });
+    });
+    
+    // Adiciona event listeners aos botões do Google Maps
+    container.querySelectorAll('.btn-google-maps').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const endereco = btn.getAttribute('data-endereco');
+            if (endereco) {
+                window.abrirGoogleMaps(endereco);
+            }
+        });
+    });
+    
+    // Adiciona event listeners aos botões de marcar visita
+    container.querySelectorAll('.btn-marcar-visita').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const clienteId = btn.getAttribute('data-cliente-id');
+            const clienteNome = btn.getAttribute('data-cliente-nome');
+            window.abrirModalVisita(clienteId, clienteNome);
+        });
+    });
+    
+    // Adiciona event listeners aos botões de marcar visita
+    container.querySelectorAll('.btn-marcar-visita').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const clienteId = btn.getAttribute('data-cliente-id');
+            const clienteNome = btn.getAttribute('data-cliente-nome');
+            abrirModalVisita(clienteId, clienteNome);
         });
     });
 }
@@ -1386,6 +1790,150 @@ function fecharModalRecebimento() {
 }
 
 /**
+ * Variáveis globais para modal de visita
+ */
+let clienteVisitaSelecionado = null;
+let tipoVisitaSelecionado = null;
+
+/**
+ * Abre modal de visita sem pagamento
+ */
+window.abrirModalVisita = function(clienteId, clienteNome) {
+    clienteVisitaSelecionado = todasVendas.find(v => v.cliente.id === clienteId);
+    
+    if (!clienteVisitaSelecionado) {
+        mostrarToast('Cliente não encontrado', 'error');
+        return;
+    }
+    
+    document.getElementById('modal-visita-cliente-info').textContent = clienteNome;
+    tipoVisitaSelecionado = null;
+    document.getElementById('btn-confirmar-visita').disabled = true;
+    document.getElementById('modal-visita-obs').value = '';
+    document.querySelectorAll('.btn-tipo-visita').forEach(btn => {
+        btn.classList.remove('ring-4', 'ring-blue-300');
+    });
+    document.getElementById('modal-visita').classList.remove('hidden');
+};
+
+/**
+ * Seleciona tipo de visita
+ */
+window.selecionarTipoVisita = function(tipo) {
+    tipoVisitaSelecionado = tipo;
+    document.querySelectorAll('.btn-tipo-visita').forEach(btn => {
+        const btnTipo = btn.getAttribute('data-tipo');
+        if (btnTipo === tipo) {
+            btn.classList.add('ring-4', 'ring-blue-300');
+        } else {
+            btn.classList.remove('ring-4', 'ring-blue-300');
+        }
+    });
+    document.getElementById('btn-confirmar-visita').disabled = false;
+};
+
+/**
+ * Confirma visita sem pagamento
+ */
+window.confirmarVisita = async function() {
+    if (!clienteVisitaSelecionado || !tipoVisitaSelecionado) {
+        mostrarToast('Selecione o tipo de visita', 'warning');
+        return;
+    }
+    
+    // Filtra apenas parcelas pendentes que podem ser cobradas (vencidas ou do mês atual)
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    
+    const parcelasPendentes = clienteVisitaSelecionado.parcelas.filter(p => {
+        if (p.status_parcela_codigo !== STATUS_PARCELA.PENDENTE) {
+            return false;
+        }
+        
+        const vencimento = new Date(p.data_vencimento);
+        vencimento.setHours(0, 0, 0, 0);
+        
+        // Verifica se está vencida
+        const estaVencida = vencimento < hoje;
+        
+        // Verifica se é do mês atual
+        const mesmoMes = vencimento.getMonth() === hoje.getMonth() && 
+                        vencimento.getFullYear() === hoje.getFullYear();
+        
+        // Pode marcar visita se estiver vencida OU for do mês atual
+        return estaVencida || mesmoMes;
+    });
+    
+    if (parcelasPendentes.length === 0) {
+        mostrarToast('Cliente não possui parcelas pendentes no período de cobrança (vencidas ou do mês atual)', 'warning');
+        window.fecharModalVisita();
+        return;
+    }
+    
+    const parcelaReferencia = parcelasPendentes[0];
+    let geolocalizacao = null;
+    try {
+        geolocalizacao = await obterGeolocalizacao();
+    } catch (error) {
+        console.warn('[App] ⚠️ Erro ao obter geolocalização:', error);
+    }
+    
+    const visita = {
+        parcela_id: parcelaReferencia.id,
+        cobrador_id: cobradorAtual.id,
+        cliente_id: clienteVisitaSelecionado.cliente.id,
+        usuario_id: obterUsuarioId(),
+        tipo_acao: tipoVisitaSelecionado,
+        valor_recebido: 0,
+        forma_pagamento: '',
+        observacao: document.getElementById('modal-visita-obs').value || '',
+        localizacao_lat: geolocalizacao?.lat || null,
+        localizacao_lng: geolocalizacao?.lng || null,
+        data_acao: new Date().toISOString()
+    };
+    
+    await adicionarPagamentoPendente(visita);
+    
+    const mensagens = {
+        [TIPO_ACAO.VISITA]: 'Visita registrada com sucesso',
+        [TIPO_ACAO.AUSENTE]: 'Visita registrada: Cliente ausente',
+        [TIPO_ACAO.RECUSA]: 'Visita registrada: Cliente recusou pagamento',
+        [TIPO_ACAO.NEGOCIACAO]: 'Visita registrada: Negociação realizada',
+    };
+    
+    mostrarToast(mensagens[tipoVisitaSelecionado] || 'Visita registrada', 'success');
+    window.fecharModalVisita();
+    
+    if (estaOnline()) {
+        const resultado = await sincronizarPagamentosPendentes();
+        if (resultado.sucesso && resultado.sincronizados > 0) {
+            try {
+                const usuarioId = obterUsuarioId();
+                rotaDia = await baixarRotaDia(cobradorAtual.id, usuarioId);
+                await aplicarPagamentosPendentesNaRota();
+                renderizarRota();
+                atualizarDashboard();
+            } catch (error) {
+                console.error('[App] Erro ao recarregar rota:', error);
+            }
+        }
+    }
+};
+
+/**
+ * Fecha modal de visita
+ */
+window.fecharModalVisita = function() {
+    document.getElementById('modal-visita').classList.add('hidden');
+    clienteVisitaSelecionado = null;
+    tipoVisitaSelecionado = null;
+    document.getElementById('modal-visita-obs').value = '';
+    document.querySelectorAll('.btn-tipo-visita').forEach(btn => {
+        btn.classList.remove('ring-4', 'ring-blue-300');
+    });
+};
+
+/**
  * Mostra view do dashboard
  */
 function mostrarViewDashboard() {
@@ -1587,17 +2135,76 @@ async function gerarImagemCartao(vendaIndex) {
             y += 10;
         }
         
-        // Seção COMPRADOR
-        ctx.fillStyle = '#374151';
+        // Seção COMPRADOR (com gradiente índigo/azul como no header)
+        // Gradiente: indigo-700 -> indigo-600 -> blue-700
+        const gradientComprador = ctx.createLinearGradient(0, y - 5, 0, y + 75);
+        gradientComprador.addColorStop(0, '#4f46e5'); // indigo-700
+        gradientComprador.addColorStop(0.5, '#4338ca'); // indigo-600
+        gradientComprador.addColorStop(1, '#1e40af'); // blue-700
+        ctx.fillStyle = gradientComprador;
+        ctx.fillRect(0, y - 5, largura, 80); // Fundo com gradiente
+        
+        ctx.fillStyle = '#FFFFFF'; // Texto branco
         ctx.font = fonteTitulo;
         ctx.textAlign = 'left';
         ctx.fillText('COMPRADOR', margem, y);
         y += espacamentoLinha;
         
-        ctx.fillStyle = '#111827';
         ctx.font = fonteBold;
-        ctx.fillText(cliente.nome || 'N/A', margem, y);
-        y += espacamentoLinha + 5;
+        ctx.fillText(cliente.nome || cliente.nome_completo || 'N/A', margem, y);
+        y += espacamentoLinha;
+        
+        // Informações de localização do comprador
+        ctx.font = fontePequena;
+        ctx.fillStyle = '#FFFFFF';
+        
+        // CPF
+        if (cliente.cpf) {
+            ctx.fillText(`CPF: ${formatarCPF(cliente.cpf)}`, margem, y);
+            y += 10;
+        }
+        
+        // Telefone
+        if (cliente.telefone) {
+            ctx.fillText(`Tel: ${formatarTelefone(cliente.telefone)}`, margem, y);
+            y += 10;
+        }
+        
+        // Endereço
+        if (cliente.endereco || cliente.endereco_logradouro || cliente.logradouro) {
+            const enderecoTexto = cliente.endereco || 
+                (cliente.endereco_logradouro || cliente.logradouro || '') + 
+                (cliente.endereco_numero || cliente.numero ? ', ' + (cliente.endereco_numero || cliente.numero) : '') + 
+                (cliente.endereco_complemento || cliente.complemento ? ' - ' + (cliente.endereco_complemento || cliente.complemento) : '');
+            ctx.fillText(`End: ${enderecoTexto}`, margem, y);
+            y += 10;
+        }
+        
+        // Bairro
+        if (cliente.endereco_bairro || cliente.bairro) {
+            ctx.fillText(`Bairro: ${cliente.endereco_bairro || cliente.bairro}`, margem, y);
+            y += 10;
+        }
+        
+        // Cidade e Estado
+        if (cliente.endereco_cidade || cliente.cidade || cliente.endereco_estado || cliente.estado) {
+            const cidadeEstado = (cliente.endereco_cidade || cliente.cidade || '') + 
+                (cliente.endereco_estado || cliente.estado ? ' - ' + (cliente.endereco_estado || cliente.estado) : '');
+            ctx.fillText(`Cidade: ${cidadeEstado}`, margem, y);
+            y += 10;
+        }
+        
+        y += 5; // Espaço extra após o header
+        
+        // Seção VENDA - DT VENDA - TOTAL VENDA (com gradiente slate como no header)
+        const alturaSecaoVenda = 35;
+        // Gradiente: slate-700 -> slate-600 -> slate-700
+        const gradientVenda = ctx.createLinearGradient(0, y - 5, 0, y + alturaSecaoVenda);
+        gradientVenda.addColorStop(0, '#475569'); // slate-700
+        gradientVenda.addColorStop(0.5, '#64748b'); // slate-600
+        gradientVenda.addColorStop(1, '#475569'); // slate-700
+        ctx.fillStyle = gradientVenda;
+        ctx.fillRect(0, y - 5, largura, alturaSecaoVenda); // Fundo com gradiente
         
         // Grid de 3 colunas: VENDA, DT VENDA, TOTAL VENDA
         const larguraColuna = (largura - (margem * 2)) / 3;
@@ -1605,18 +2212,16 @@ async function gerarImagemCartao(vendaIndex) {
         const xCol2 = margem + larguraColuna;
         const xCol3 = margem + (larguraColuna * 2);
         
-        ctx.fillStyle = '#374151';
+        ctx.fillStyle = '#FFFFFF'; // Texto branco
         ctx.font = fonteBold;
         ctx.fillText('VENDA', xCol1, y);
         ctx.fillText('DT VENDA', xCol2, y);
         ctx.fillText('TOTAL VENDA', xCol3, y);
         y += 8;
         
-        ctx.fillStyle = '#111827';
         ctx.font = fonteNormal;
         ctx.fillText(`#${numeroVenda}`, xCol1, y);
         ctx.fillText(formatarData(venda.data_venda), xCol2, y);
-        ctx.fillStyle = '#2563EB';
         ctx.fillText(formatarMoeda(venda.valor_total), xCol3, y);
         y += espacamentoLinha + 8;
         

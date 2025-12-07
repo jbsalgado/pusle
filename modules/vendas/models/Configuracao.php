@@ -27,6 +27,9 @@ use app\models\Usuario;
  * @property string $facebook
  * @property string $endereco_completo
  * @property string $mensagem_boas_vindas
+ * @property string $pix_chave
+ * @property string $pix_nome
+ * @property string $pix_cidade
  * @property string $data_criacao
  * @property string $data_atualizacao
  * 
@@ -73,6 +76,9 @@ class Configuracao extends ActiveRecord
             [['cor_primaria', 'cor_secundaria'], 'match', 'pattern' => '/^#[0-9A-Fa-f]{6}$/'],
             [['whatsapp'], 'string', 'max' => 20],
             [['instagram', 'facebook'], 'string', 'max' => 100],
+            [['pix_chave'], 'string', 'max' => 100],
+            [['pix_nome'], 'string', 'max' => 100],
+            [['pix_cidade'], 'string', 'max' => 50],
             [['usuario_id'], 'unique'],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
         ];
@@ -97,6 +103,9 @@ class Configuracao extends ActiveRecord
             'facebook' => 'Facebook',
             'endereco_completo' => 'Endereço Completo',
             'mensagem_boas_vindas' => 'Mensagem de Boas-Vindas',
+            'pix_chave' => 'Chave PIX',
+            'pix_nome' => 'Nome do Recebedor PIX',
+            'pix_cidade' => 'Cidade do Recebedor PIX',
             'data_criacao' => 'Data de Criação',
             'data_atualizacao' => 'Última Atualização',
         ];

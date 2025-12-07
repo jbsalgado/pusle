@@ -1,12 +1,58 @@
 // pix.js - Geração de QR Code PIX Estático (CORRIGIDO)
 // Baseado na especificação EMV QR Code do Banco Central
 
-// Configuração PIX Estática
-const PIX_CONFIG = {
-    chave: '+5581992888872', // Chave PIX (celular)
-    nome: 'JOSE BARBOSA DOS SANTOS', // Sem acentos
-    cidade: 'CARUARU' // Sem acentos
-};
+// Cache de configuração PIX (carregado da API)
+let PIX_CONFIG_CACHE = null;
+
+/**
+ * Carrega configuração PIX da API
+ * @param {string} usuarioId - ID do usuário
+ * @returns {Promise<{chave: string, nome: string, cidade: string}>}
+ */
+export async function carregarConfigPix(usuarioId) {
+    // Se já tem cache, retorna
+    if (PIX_CONFIG_CACHE) {
+        return PIX_CONFIG_CACHE;
+    }
+
+    try {
+        const response = await fetch(`${window.CONFIG?.URL_API || '/pulse/basic/web/index.php'}/api/usuario/dados-loja?usuario_id=${usuarioId}`);
+        
+        if (!response.ok) {
+            throw new Error(`Erro ao carregar dados PIX: ${response.status}`);
+        }
+
+        const dados = await response.json();
+        
+        if (dados.erro) {
+            throw new Error(dados.erro);
+        }
+
+        // Valida se tem dados PIX
+        if (!dados.pix_chave || !dados.pix_nome || !dados.pix_cidade) {
+            throw new Error('Configuração PIX não encontrada. Configure os dados PIX nas configurações da loja.');
+        }
+
+        // Armazena no cache
+        PIX_CONFIG_CACHE = {
+            chave: dados.pix_chave,
+            nome: dados.pix_nome,
+            cidade: dados.pix_cidade
+        };
+
+        return PIX_CONFIG_CACHE;
+    } catch (error) {
+        console.error('[PIX] Erro ao carregar configuração PIX:', error);
+        throw error;
+    }
+}
+
+/**
+ * Limpa o cache de configuração PIX (útil após atualizações)
+ */
+export function limparCachePix() {
+    PIX_CONFIG_CACHE = null;
+}
 
 /**
  * Gera o código PIX estático (EMV QR Code)
@@ -224,8 +270,12 @@ let dadosPedidoPix = null;
 
 /**
  * Abre o Modal com os dados preenchidos
+ * @param {number} valor - Valor da transação
+ * @param {string} txId - ID da transação
+ * @param {object} dadosPedido - Dados do pedido (opcional)
+ * @param {string} usuarioId - ID do usuário (opcional, tenta buscar de window.CONFIG)
  */
-export function mostrarModalPixEstatico(valor, txId, dadosPedido = null) {
+export async function mostrarModalPixEstatico(valor, txId, dadosPedido = null, usuarioId = null) {
     console.log('[PIX] Abrindo modal para:', valor, txId);
     
     // Armazena dados do pedido para gerar comprovante depois
@@ -237,28 +287,67 @@ export function mostrarModalPixEstatico(valor, txId, dadosPedido = null) {
         return;
     }
 
-    // 1. Gera o código PIX string
-    const codigoPix = gerarCodigoPixEstatico(
-        PIX_CONFIG.chave,
-        PIX_CONFIG.nome,
-        PIX_CONFIG.cidade,
-        valor,
-        txId
-    );
-
-    // 2. Preenche os dados na tela
-    const elValor = document.getElementById('pix-valor');
-    const elCodigo = document.getElementById('pix-codigo-copia-cola');
-    const elContainerQR = document.getElementById('pix-qrcode-container');
-
-    if (elValor) elValor.textContent = `R$ ${parseFloat(valor).toFixed(2).replace('.', ',')}`;
-    if (elCodigo) elCodigo.textContent = codigoPix;
-    if (elContainerQR) gerarQRCodeVisual(codigoPix, elContainerQR);
-
-    // 3. Mostra o modal e bloqueia rolagem
+    // Mostra modal com loading
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     document.body.style.overflow = 'hidden';
+
+    // Mostra indicador de carregamento
+    const elContainerQR = document.getElementById('pix-qrcode-container');
+    const elCodigo = document.getElementById('pix-codigo-copia-cola');
+    if (elContainerQR) {
+        elContainerQR.innerHTML = '<div class="text-center p-4"><p class="text-gray-600">Carregando configuração PIX...</p></div>';
+    }
+    if (elCodigo) {
+        elCodigo.textContent = 'Carregando...';
+    }
+
+    try {
+        // Busca usuarioId se não foi fornecido
+        if (!usuarioId) {
+            usuarioId = window.CONFIG?.ID_USUARIO_LOJA || null;
+        }
+
+        if (!usuarioId) {
+            throw new Error('ID do usuário não encontrado. Não é possível gerar QR Code PIX.');
+        }
+
+        // Carrega configuração PIX da API
+        const pixConfig = await carregarConfigPix(usuarioId);
+
+        // 1. Gera o código PIX string
+        const codigoPix = gerarCodigoPixEstatico(
+            pixConfig.chave,
+            pixConfig.nome,
+            pixConfig.cidade,
+            valor,
+            txId
+        );
+
+        // 2. Preenche os dados na tela
+        const elValor = document.getElementById('pix-valor');
+        
+        if (elValor) elValor.textContent = `R$ ${parseFloat(valor).toFixed(2).replace('.', ',')}`;
+        if (elCodigo) elCodigo.textContent = codigoPix;
+        if (elContainerQR) gerarQRCodeVisual(codigoPix, elContainerQR);
+
+    } catch (error) {
+        console.error('[PIX] Erro ao carregar configuração PIX:', error);
+        
+        // Mostra mensagem de erro
+        if (elContainerQR) {
+            elContainerQR.innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                    <p class="text-red-800 text-sm font-semibold mb-2">❌ Erro ao carregar PIX</p>
+                    <p class="text-red-700 text-xs">${error.message}</p>
+                    <p class="text-red-600 text-xs mt-2">Configure os dados PIX nas configurações da loja.</p>
+                </div>
+            `;
+        }
+        if (elCodigo) {
+            elCodigo.textContent = 'Erro: Configure os dados PIX nas configurações da loja.';
+        }
+    }
 }
 
 // --- Funções Globais (Window) para os botões do HTML ---

@@ -64,9 +64,28 @@ class CarteiraCobrancaController extends Controller
         $model->ativo = true;
         $model->data_distribuicao = date('Y-m-d');
 
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Carteira de cobrança criada com sucesso.');
-            return $this->redirect(['view', 'id' => $model->id]);
+        if (Yii::$app->request->isPost) {
+            $postData = Yii::$app->request->post();
+            
+            // Converte rota_id vazio para null antes de carregar
+            if (isset($postData['CarteiraCobranca']['rota_id']) && $postData['CarteiraCobranca']['rota_id'] === '') {
+                $postData['CarteiraCobranca']['rota_id'] = null;
+            }
+            
+            if ($model->load($postData)) {
+                // Garante que rota_id seja null se vazio
+                if ($model->rota_id === '') {
+                    $model->rota_id = null;
+                }
+                
+                if ($model->save()) {
+                    Yii::$app->session->setFlash('success', 'Carteira de cobrança criada com sucesso.');
+                    return $this->redirect(['view', 'id' => $model->id]);
+                } else {
+                    Yii::error('Erros ao salvar CarteiraCobranca: ' . json_encode($model->errors), __METHOD__);
+                    Yii::$app->session->setFlash('error', 'Erro ao criar carteira de cobrança. Verifique os dados: ' . implode(', ', $model->getFirstErrors()));
+                }
+            }
         }
 
         return $this->render('create', [
@@ -78,9 +97,28 @@ class CarteiraCobrancaController extends Controller
     {
         $model = $this->findModel($id);
 
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Carteira de cobrança atualizada com sucesso.');
-            return $this->redirect(['view', 'id' => $model->id]);
+        if (Yii::$app->request->isPost) {
+            $postData = Yii::$app->request->post();
+            
+            // Converte rota_id vazio para null antes de carregar
+            if (isset($postData['CarteiraCobranca']['rota_id']) && $postData['CarteiraCobranca']['rota_id'] === '') {
+                $postData['CarteiraCobranca']['rota_id'] = null;
+            }
+            
+            if ($model->load($postData)) {
+                // Garante que rota_id seja null se vazio
+                if ($model->rota_id === '') {
+                    $model->rota_id = null;
+                }
+                
+                if ($model->save()) {
+                    Yii::$app->session->setFlash('success', 'Carteira de cobrança atualizada com sucesso.');
+                    return $this->redirect(['view', 'id' => $model->id]);
+                } else {
+                    Yii::error('Erros ao atualizar CarteiraCobranca: ' . json_encode($model->errors), __METHOD__);
+                    Yii::$app->session->setFlash('error', 'Erro ao atualizar carteira de cobrança. Verifique os dados: ' . implode(', ', $model->getFirstErrors()));
+                }
+            }
         }
 
         return $this->render('update', [

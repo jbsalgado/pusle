@@ -139,6 +139,7 @@ $config = [
                     'extraPatterns' => [
                         'GET buscar-cpf' => 'buscar-cpf',
                         'POST login'     => 'login',
+                        'GET dados-cobranca' => 'dados-cobranca',
                     ],
                 ],
 

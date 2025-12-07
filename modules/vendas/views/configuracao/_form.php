@@ -108,6 +108,42 @@ use yii\widgets\ActiveForm;
         </div>
     </div>
 
+    <!-- Configuração PIX -->
+    <div class="border-b border-gray-200 pb-6">
+        <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            Configuração PIX Estático
+        </h2>
+        <p class="text-sm text-gray-600 mb-4">Configure os dados para geração de QR Code PIX estático (sem gateway de pagamento)</p>
+
+        <div class="space-y-4">
+            <div>
+                <?= $form->field($model, 'pix_chave')->textInput([
+                    'maxlength' => true,
+                    'placeholder' => 'Ex: +5581992888872 (celular), 12345678900 (CPF), ou email@exemplo.com'
+                ])->hint('Chave PIX: celular (formato E.164: +55XXXXXXXXXXX), CPF, CNPJ, email ou chave aleatória') ?>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <?= $form->field($model, 'pix_nome')->textInput([
+                        'maxlength' => 100,
+                        'placeholder' => 'Ex: JOSE BARBOSA DOS SANTOS'
+                    ])->hint('Nome do recebedor (máx 25 caracteres, sem acentos)') ?>
+                </div>
+
+                <div>
+                    <?= $form->field($model, 'pix_cidade')->textInput([
+                        'maxlength' => 50,
+                        'placeholder' => 'Ex: CARUARU'
+                    ])->hint('Cidade do recebedor (máx 15 caracteres, sem acentos)') ?>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Endereço e Mensagem -->
     <div class="border-b border-gray-200 pb-6">
         <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center">

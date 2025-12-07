@@ -42,7 +42,7 @@ function validarDadosPedido(dadosPedido, carrinho) {
             
             if (formaSelecionada) {
                 const tipo = formaSelecionada.tipo || '';
-                if (tipo === 'DINHEIRO' || tipo === 'PIX') {
+                if (tipo === 'DINHEIRO' || tipo === 'PIX' || tipo === 'PIX_ESTATICO') {
                     // Força para 1 parcela (à vista) se tentar parcelar
                     if (numeroParcelas > 1) {
                         console.warn('[Order] ⚠️ Tentativa de parcelar com', tipo, '- forçando para à vista');
