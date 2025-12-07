@@ -49,17 +49,24 @@ class VendaDiretaController extends Controller
         $html = file_get_contents($htmlPath);
         
         // Obtém a URL base do web de forma mais robusta
-        // Usa a URL atual da requisição para construir o caminho base
+        // IMPORTANTE: Arquivos estáticos devem ser acessados diretamente, sem passar pelo index.php
         $request = Yii::$app->request;
         
         // Tenta obter baseUrl do request primeiro
         $baseUrl = $request->baseUrl;
         
+        // Remove /index.php do baseUrl se existir em qualquer lugar (arquivos estáticos não passam pelo index.php)
+        // Remove tanto do final quanto do meio do caminho
+        $baseUrl = preg_replace('#/index\.php(/|$)#', '/', $baseUrl);
+        $baseUrl = rtrim($baseUrl, '/');
+        
         // Se baseUrl estiver vazio, tenta usar @web alias
         if (empty($baseUrl)) {
             $webAlias = Yii::getAlias('@web');
             if (!empty($webAlias) && $webAlias !== '@web') {
-                $baseUrl = $webAlias;
+                // Remove /index.php do alias também se existir
+                $baseUrl = preg_replace('#/index\.php(/|$)#', '/', $webAlias);
+                $baseUrl = rtrim($baseUrl, '/');
             } else {
                 // Fallback: constrói a partir da URL absoluta atual
                 $absoluteUrl = $request->absoluteUrl;
@@ -67,12 +74,17 @@ class VendaDiretaController extends Controller
                 if (isset($urlInfo['path'])) {
                     // Remove 'venda-direta' ou 'venda-direta/index' do path
                     $path = preg_replace('#/venda-direta(/index)?$#', '', $urlInfo['path']);
+                    // Remove também /index.php se existir em qualquer lugar
+                    $path = preg_replace('#/index\.php(/|$)#', '/', $path);
                     $baseUrl = rtrim($path, '/');
                 } else {
-                    // Último fallback: usa o script name
+                    // Último fallback: usa o script name e remove index.php
                     $scriptUrl = $request->scriptUrl;
                     if (!empty($scriptUrl)) {
                         $baseUrl = dirname($scriptUrl);
+                        // Remove /index.php se existir em qualquer lugar
+                        $baseUrl = preg_replace('#/index\.php(/|$)#', '/', $baseUrl);
+                        $baseUrl = rtrim($baseUrl, '/');
                     }
                 }
             }
