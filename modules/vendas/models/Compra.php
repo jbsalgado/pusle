@@ -69,7 +69,7 @@ class Compra extends ActiveRecord
     public function rules()
     {
         return [
-            [['usuario_id', 'fornecedor_id', 'data_compra', 'valor_total'], 'required'],
+            [['usuario_id', 'fornecedor_id', 'data_compra'], 'required'],
             [['usuario_id', 'fornecedor_id'], 'string'],
             [['numero_nota_fiscal'], 'string', 'max' => 50],
             [['serie_nota_fiscal'], 'string', 'max' => 10],
@@ -77,7 +77,9 @@ class Compra extends ActiveRecord
             [['data_compra'], 'date', 'format' => 'php:Y-m-d'],
             [['data_vencimento'], 'date', 'format' => 'php:Y-m-d'],
             [['valor_total', 'valor_frete', 'valor_desconto'], 'number', 'min' => 0],
-            [['valor_total'], 'number', 'min' => 0.01],
+            [['valor_total'], 'default', 'value' => 0],
+            [['valor_frete'], 'default', 'value' => 0],
+            [['valor_desconto'], 'default', 'value' => 0],
             [['forma_pagamento'], 'string', 'max' => 50],
             [['status_compra'], 'string', 'max' => 20],
             [['status_compra'], 'default', 'value' => self::STATUS_PENDENTE],
@@ -179,15 +181,34 @@ class Compra extends ActiveRecord
     }
 
     /**
-     * Antes de salvar, recalcula o valor total se houver itens
+     * Antes de salvar, gera UUID e garante valores padrão
      */
     public function beforeSave($insert)
     {
         if (parent::beforeSave($insert)) {
-            // Se não for inserção e houver itens, recalcula
-            if (!$insert && $this->itens) {
+            // Gera UUID se for um novo registro
+            if ($insert && empty($this->id)) {
+                $uuid = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
+                $this->id = $uuid;
+            }
+            
+            // Garante valores padrão se não foram definidos
+            if ($this->valor_total === null || $this->valor_total === '') {
+                $this->valor_total = 0;
+            }
+            if ($this->valor_frete === null || $this->valor_frete === '') {
+                $this->valor_frete = 0;
+            }
+            if ($this->valor_desconto === null || $this->valor_desconto === '') {
+                $this->valor_desconto = 0;
+            }
+            
+            // Recalcula valor total apenas na atualização se houver itens já salvos
+            // Na criação, o controller faz o recálculo após salvar os itens
+            if (!$insert && $this->itens && count($this->itens) > 0) {
                 $this->recalcularValorTotal();
             }
+            
             return true;
         }
         return false;

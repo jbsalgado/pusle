@@ -107,12 +107,20 @@ class ItemCompra extends ActiveRecord
     }
 
     /**
-     * Antes de salvar, calcula o valor total
+     * Antes de salvar, gera UUID e calcula o valor total
      */
     public function beforeSave($insert)
     {
         if (parent::beforeSave($insert)) {
+            // Gera UUID se for um novo registro
+            if ($insert && empty($this->id)) {
+                $uuid = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
+                $this->id = $uuid;
+            }
+            
+            // Calcula o valor total do item
             $this->calcularValorTotal();
+            
             return true;
         }
         return false;

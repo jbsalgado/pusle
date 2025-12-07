@@ -151,6 +151,14 @@ class CompraController extends Controller
                     $transaction->commit();
                     Yii::$app->session->setFlash('success', 'Compra cadastrada com sucesso!');
                     return $this->redirect(['view', 'id' => $model->id]);
+                } else {
+                    // Se o save falhou, exibe erros de validação
+                    $transaction->rollBack();
+                    $erros = [];
+                    foreach ($model->errors as $attribute => $messages) {
+                        $erros[] = $model->getAttributeLabel($attribute) . ': ' . implode(', ', $messages);
+                    }
+                    Yii::$app->session->setFlash('error', 'Erro ao salvar compra: ' . implode(' | ', $erros));
                 }
             } catch (\Exception $e) {
                 $transaction->rollBack();

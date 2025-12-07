@@ -48,18 +48,42 @@ class VendaDiretaController extends Controller
         
         $html = file_get_contents($htmlPath);
         
-        // Obtém a URL base do web (ex: /pulse/basic/web ou /web)
-        // Usa baseUrl do request que é mais confiável
-        $baseUrl = Yii::$app->request->baseUrl;
+        // Obtém a URL base do web de forma mais robusta
+        // Usa a URL atual da requisição para construir o caminho base
+        $request = Yii::$app->request;
         
-        // Se baseUrl estiver vazio, tenta usar @web como fallback
+        // Tenta obter baseUrl do request primeiro
+        $baseUrl = $request->baseUrl;
+        
+        // Se baseUrl estiver vazio, tenta usar @web alias
         if (empty($baseUrl)) {
-            $baseUrl = Yii::getAlias('@web');
+            $webAlias = Yii::getAlias('@web');
+            if (!empty($webAlias) && $webAlias !== '@web') {
+                $baseUrl = $webAlias;
+            } else {
+                // Fallback: constrói a partir da URL absoluta atual
+                $absoluteUrl = $request->absoluteUrl;
+                $urlInfo = parse_url($absoluteUrl);
+                if (isset($urlInfo['path'])) {
+                    // Remove 'venda-direta' ou 'venda-direta/index' do path
+                    $path = preg_replace('#/venda-direta(/index)?$#', '', $urlInfo['path']);
+                    $baseUrl = rtrim($path, '/');
+                } else {
+                    // Último fallback: usa o script name
+                    $scriptUrl = $request->scriptUrl;
+                    if (!empty($scriptUrl)) {
+                        $baseUrl = dirname($scriptUrl);
+                    }
+                }
+            }
         }
         
-        // Remove barra inicial se existir para evitar duplicação
-        $baseUrl = ltrim($baseUrl, '/');
-        $vendaDiretaPath = '/' . $baseUrl . '/venda-direta';
+        // Garante que o caminho comece com / e não termine com /
+        $baseUrl = '/' . ltrim(rtrim($baseUrl, '/'), '/');
+        $vendaDiretaPath = $baseUrl . '/venda-direta';
+        
+        // Log para debug (remover em produção se necessário)
+        Yii::debug("Base URL: {$baseUrl}, Venda Direta Path: {$vendaDiretaPath}", __METHOD__);
         
         // Corrige os caminhos relativos para caminhos absolutos
         $html = $this->corrigirCaminhosRecursos($html, $vendaDiretaPath);
@@ -76,8 +100,8 @@ class VendaDiretaController extends Controller
      */
     private function corrigirCaminhosRecursos($html, $basePath)
     {
-        // Remove barra final se existir
-        $basePath = rtrim($basePath, '/');
+        // Garante que o caminho comece com / e não termine com /
+        $basePath = '/' . ltrim(rtrim($basePath, '/'), '/');
         
         // Remove o script problemático do QRCode (não é necessário)
         $html = preg_replace(
@@ -86,15 +110,16 @@ class VendaDiretaController extends Controller
             $html
         );
         
-        // Substituições diretas para recursos relativos
-        $substituicoes = [
-            'href="favicon.svg"' => 'href="' . $basePath . '/favicon.svg"',
-            'href="style.css"' => 'href="' . $basePath . '/style.css"',
-            'href="manifest.json"' => 'href="' . $basePath . '/manifest.json"',
-            'src="js/idb-keyval.js"' => 'src="' . $basePath . '/js/idb-keyval.js"',
-            'type="module" src="js/imagePlaceholder.js"' => 'type="module" src="' . $basePath . '/js/imagePlaceholder.js"',
-            'type="module" src="js/pix.js"' => 'type="module" src="' . $basePath . '/js/pix.js"',
-            'type="module" src="js/app.js"' => 'type="module" src="' . $basePath . '/js/app.js"',
+        // Substituições usando regex para garantir que capture todos os casos
+        // e substitua apenas caminhos relativos (que não começam com / ou http)
+        $patterns = [
+            '/href="(favicon\.svg)"/' => 'href="' . $basePath . '/$1"',
+            '/href="(style\.css)"/' => 'href="' . $basePath . '/$1"',
+            '/href="(manifest\.json)"/' => 'href="' . $basePath . '/$1"',
+            '/src="(js\/idb-keyval\.js)"/' => 'src="' . $basePath . '/$1"',
+            '/type="module" src="(js\/imagePlaceholder\.js)"/' => 'type="module" src="' . $basePath . '/$1"',
+            '/type="module" src="(js\/pix\.js)"/' => 'type="module" src="' . $basePath . '/$1"',
+            '/type="module" src="(js\/app\.js)"/' => 'type="module" src="' . $basePath . '/$1"',
         ];
         
         // Corrige CSS do status online/offline
@@ -104,8 +129,8 @@ class VendaDiretaController extends Controller
             $html
         );
         
-        foreach ($substituicoes as $busca => $substitui) {
-            $html = str_replace($busca, $substitui, $html);
+        foreach ($patterns as $pattern => $replacement) {
+            $html = preg_replace($pattern, $replacement, $html);
         }
         
         return $html;
