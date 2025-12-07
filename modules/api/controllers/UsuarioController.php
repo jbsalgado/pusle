@@ -168,6 +168,16 @@ class UsuarioController extends Controller
                 'pix_chave' => $config ? ($config->pix_chave ?? null) : null,
                 'pix_nome' => $config ? ($config->pix_nome ?? null) : null,
                 'pix_cidade' => $config ? ($config->pix_cidade ?? null) : null,
+                // Dados adicionais de prest_configuracoes para landing page
+                'cor_primaria' => $config ? ($config->cor_primaria ?? '#DC2626') : '#DC2626',
+                'cor_secundaria' => $config ? ($config->cor_secundaria ?? '#F59E0B') : '#F59E0B',
+                'mensagem_boas_vindas' => $config ? ($config->mensagem_boas_vindas ?? null) : null,
+                'whatsapp' => $config ? ($config->whatsapp ?? null) : null,
+                'instagram' => $config ? ($config->instagram ?? null) : null,
+                'facebook' => $config ? ($config->facebook ?? null) : null,
+                // Background image - null por padrão (usa background.jpg da landing page)
+                // Pode ser adicionado campo específico na tabela depois
+                'background_image' => null,
             ];
             
         } catch (\Exception $e) {

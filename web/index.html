@@ -3,579 +3,247 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pulse - Soluções Digitais Inovadoras</title>
+    <title id="page-title">Material de Construção</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        // Configuração dinâmica será aplicada via JavaScript
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        primary: '#6E65C6',
-                        'primary-dark': '#5B52B8',
-                        'primary-light': '#8780D9'
+                        primary: '#DC2626',
+                        'primary-dark': '#B91C1C',
+                        'primary-light': '#EF4444',
+                        accent: '#F59E0B',
                     }
                 }
             }
         }
     </script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body class="bg-gray-50 font-sans">
-    <!-- Header Navigation -->
-    <nav class="bg-white shadow-lg fixed w-full top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0 flex items-center">
-                       <div class="w-25 h-20 rounded-lg flex items-center justify-center overflow-hidden">
-                        <img src="imagens/logo/logo-01.png" 
-                            alt="Logo" 
-                            class="w-full h-full object-contain">
-                    </div>
-                        <span class="ml-3 text-2xl font-bold text-gray-800">Pulse</span>
-                    </div>
+<body class="min-h-screen relative overflow-hidden">
+    <!-- Background Image -->
+    <div id="background-image" class="fixed inset-0 -z-20 bg-cover bg-center bg-no-repeat opacity-50" style="background-image: url('imagens/logo/background.jpg');"></div>
+    
+    <!-- Overlay escuro para melhorar legibilidade -->
+    <div class="fixed inset-0 -z-10 bg-gradient-to-br from-gray-900/30 via-gray-800/20 to-gray-900/30"></div>
+    
+    <!-- Botão Entrar - Canto superior direito (discreto) -->
+    <div class="fixed top-4 right-4 z-50">
+        <a href="index.php/auth/login" 
+           id="btn-entrar"
+           class="inline-flex items-center gap-2 px-4 py-2 text-sm text-white/80 hover:text-white bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg hover:bg-white/20 transition-all duration-200 hover:border-white/30">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+            </svg>
+            <span class="hidden sm:inline">Entrar</span>
+        </a>
+    </div>
+    
+    <!-- Hero Section - Mobile First -->
+    <div class="min-h-screen flex flex-col items-center justify-center px-4 py-8 sm:py-12 relative z-10">
+        <div class="w-full max-w-md mx-auto text-center">
+            <!-- Logo -->
+            <div class="mb-8 sm:mb-12">
+                <div class="inline-block p-4 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl mb-4">
+                    <img id="logo-empresa" 
+                         src="imagens/logo/logo-01.png" 
+                         alt="Logo" 
+                         class="h-16 sm:h-20 w-auto mx-auto object-contain"
+                         onerror="this.style.display='none'">
                 </div>
-                <div class="hidden md:flex items-center space-x-8">
-                    <a href="#home" class="text-gray-700 hover:text-primary transition-colors">Início</a>
-                    <a href="#services" class="text-gray-700 hover:text-primary transition-colors">Serviços</a>
-                    <a href="#products" class="text-gray-700 hover:text-primary transition-colors">Produtos</a>
-                    <a href="#about" class="text-gray-700 hover:text-primary transition-colors">Sobre</a>
-                    <a href="../web/index.php/auth/login" 
-                       class="bg-primary hover:bg-primary-dark text-white px-6 py-2 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
-                        Entrar
-                    </a>
-                </div>
-                <div class="md:hidden flex items-center">
-                    <button id="mobile-menu-btn" class="text-gray-700 hover:text-primary">
-                        <i class="fas fa-bars text-xl"></i>
-                    </button>
-                </div>
+                <h1 id="nome-loja" class="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-2 drop-shadow-lg">
+                    Material de Construção
+                </h1>
+                <p id="mensagem-boas-vindas" class="text-lg sm:text-xl text-white/90 drop-shadow-md">
+                    Tudo para sua obra em um só lugar
+                </p>
             </div>
-        </div>
-        <!-- Mobile Menu -->
-        <div id="mobile-menu" class="md:hidden bg-white shadow-lg hidden">
-            <div class="px-2 pt-2 pb-3 space-y-1">
-                <a href="#home" class="block px-3 py-2 text-gray-700 hover:text-primary">Início</a>
-                <a href="#services" class="block px-3 py-2 text-gray-700 hover:text-primary">Serviços</a>
-                <a href="#products" class="block px-3 py-2 text-gray-700 hover:text-primary">Produtos</a>
-                <a href="#about" class="block px-3 py-2 text-gray-700 hover:text-primary">Sobre</a>
-                <a href="basici/web/index.php/auth/login" 
-                   class="block mx-3 mt-3 bg-primary hover:bg-primary-dark text-white px-6 py-2 rounded-lg font-semibold text-center transition-all duration-300">
-                    Entrar
+
+            <!-- Main CTA Button - Catálogo em Destaque -->
+            <div class="mb-8">
+                <a href="catalogo/" 
+                   id="btn-catalogo"
+                   class="block w-full max-w-sm mx-auto bg-gradient-to-r from-primary to-primary-dark text-white py-6 sm:py-8 px-8 rounded-2xl font-bold text-xl sm:text-2xl shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-4">
+                    <svg class="w-7 h-7 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                    </svg>
+                    CATÁLOGO DE PRODUTOS
                 </a>
             </div>
-        </div>
-    </nav>
 
-    <!-- Hero Section -->
-    <section id="home" class="pt-16 bg-gradient-to-br from-primary via-primary-light to-purple-500 text-white">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-            <div class="grid lg:grid-cols-2 gap-12 items-center">
-                <div class="text-center lg:text-left">
-                    <h1 class="text-4xl lg:text-6xl font-bold mb-6 leading-tight">
-                        Transforme seu negócio com 
-                        <span class="text-yellow-300">soluções digitais</span>
-                    </h1>
-                    <p class="text-xl mb-8 opacity-90 leading-relaxed">
-                        Desenvolvemos sistemas personalizados, oferecemos consultoria especializada e soluções SaaS que impulsionam o crescimento da sua empresa.
-                    </p>
-                    <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                        <a href="basici/web/index.php/auth/login" 
-                           class="bg-white text-primary px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center">
-                            <i class="fas fa-rocket mr-2"></i>
-                            Começar Agora
-                        </a>
-                        <button class="border-2 border-white text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white hover:text-primary transition-all duration-300 transform hover:scale-105">
-                            Saiba Mais
-                        </button>
-                    </div>
+            <!-- Features/Info Cards -->
+            <div class="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
+                <div class="bg-white/95 backdrop-blur-sm p-4 rounded-xl shadow-md">
+                    <div class="text-2xl sm:text-3xl mb-2">🏗️</div>
+                    <p class="text-xs sm:text-sm font-semibold text-gray-700">Materiais</p>
+                    <p class="text-xs text-gray-500">Completos</p>
                 </div>
-                <div class="relative">
-                    <div class="bg-white bg-opacity-10 p-8 rounded-2xl backdrop-blur-sm">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="bg-white bg-opacity-20 p-4 rounded-lg text-center">
-                                <i class="fas fa-code text-3xl mb-2"></i>
-                                <p class="text-sm font-semibold">Desenvolvimento</p>
-                            </div>
-                            <div class="bg-white bg-opacity-20 p-4 rounded-lg text-center">
-                                <i class="fas fa-chart-line text-3xl mb-2"></i>
-                                <p class="text-sm font-semibold">Consultoria</p>
-                            </div>
-                            <div class="bg-white bg-opacity-20 p-4 rounded-lg text-center">
-                                <i class="fas fa-cloud text-3xl mb-2"></i>
-                                <p class="text-sm font-semibold">SaaS</p>
-                            </div>
-                            <div class="bg-white bg-opacity-20 p-4 rounded-lg text-center">
-                                <i class="fas fa-mobile-alt text-3xl mb-2"></i>
-                                <p class="text-sm font-semibold">Mobile</p>
-                            </div>
-                        </div>
-                    </div>
+                <div class="bg-white/95 backdrop-blur-sm p-4 rounded-xl shadow-md">
+                    <div class="text-2xl sm:text-3xl mb-2">🚚</div>
+                    <p class="text-xs sm:text-sm font-semibold text-gray-700">Entrega</p>
+                    <p class="text-xs text-gray-500">Rápida</p>
                 </div>
+                <div class="bg-white/95 backdrop-blur-sm p-4 rounded-xl shadow-md">
+                    <div class="text-2xl sm:text-3xl mb-2">💰</div>
+                    <p class="text-xs sm:text-sm font-semibold text-gray-700">Preços</p>
+                    <p class="text-xs text-gray-500">Competitivos</p>
+                </div>
+                <div class="bg-white/95 backdrop-blur-sm p-4 rounded-xl shadow-md">
+                    <div class="text-2xl sm:text-3xl mb-2">✅</div>
+                    <p class="text-xs sm:text-sm font-semibold text-gray-700">Qualidade</p>
+                    <p class="text-xs text-gray-500">Garantida</p>
+                </div>
+            </div>
+
+            <!-- Footer Info -->
+            <div id="footer-info" class="text-sm text-white/80 drop-shadow-md">
+                <p>Atendimento de segunda a sábado</p>
+                <p class="mt-1">Das 7h às 18h</p>
             </div>
         </div>
-    </section>
-
-    <!-- Image Carousel -->
-    <section class="py-16 bg-white">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center mb-12">
-                <h2 class="text-3xl lg:text-4xl font-bold text-gray-800 mb-4">Nossos Projetos em Ação</h2>
-                <p class="text-xl text-gray-600">Veja alguns dos nossos trabalhos mais recentes</p>
-            </div>
-            <div class="relative overflow-hidden rounded-2xl">
-                <div id="carousel" class="flex transition-transform duration-500 ease-in-out">
-                    <div class="w-full flex-shrink-0">
-                        <div class="bg-gradient-to-r from-blue-500 to-purple-600 h-96 flex items-center justify-center text-white text-2xl font-bold rounded-2xl">
-                            <div class="text-center">
-                                <i class="fas fa-laptop-code text-6xl mb-4"></i>
-                                <p>Sistema de Gestão Empresarial</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="w-full flex-shrink-0">
-                        <div class="bg-gradient-to-r from-green-500 to-teal-600 h-96 flex items-center justify-center text-white text-2xl font-bold rounded-2xl">
-                            <div class="text-center">
-                                <i class="fas fa-chart-pie text-6xl mb-4"></i>
-                                <p>Dashboard Analytics</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="w-full flex-shrink-0">
-                        <div class="bg-gradient-to-r from-orange-500 to-red-600 h-96 flex items-center justify-center text-white text-2xl font-bold rounded-2xl">
-                            <div class="text-center">
-                                <i class="fas fa-shopping-cart text-6xl mb-4"></i>
-                                <p>E-commerce Platform</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <button id="prev-btn" class="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-3 shadow-lg transition-all">
-                    <i class="fas fa-chevron-left text-primary"></i>
-                </button>
-                <button id="next-btn" class="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-3 shadow-lg transition-all">
-                    <i class="fas fa-chevron-right text-primary"></i>
-                </button>
-            </div>
-            <div class="flex justify-center mt-6 space-x-2">
-                <button class="carousel-dot w-3 h-3 rounded-full bg-primary"></button>
-                <button class="carousel-dot w-3 h-3 rounded-full bg-gray-300"></button>
-                <button class="carousel-dot w-3 h-3 rounded-full bg-gray-300"></button>
-            </div>
-        </div>
-    </section>
-
-    <!-- Services Section -->
-    <section id="services" class="py-20 bg-gray-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center mb-16">
-                <h2 class="text-4xl lg:text-5xl font-bold text-gray-800 mb-4">Nossos Serviços</h2>
-                <p class="text-xl text-gray-600 max-w-3xl mx-auto">Soluções completas para transformar sua visão em realidade digital</p>
-            </div>
-            <div class="grid md:grid-cols-3 gap-8">
-                <div class="bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-                    <div class="bg-primary bg-opacity-10 w-16 h-16 rounded-full flex items-center justify-center mb-6">
-                        <i class="fas fa-code text-primary text-2xl"></i>
-                    </div>
-                    <h3 class="text-2xl font-bold text-gray-800 mb-4">Desenvolvimento Personalizado</h3>
-                    <p class="text-gray-600 mb-6">Criamos sistemas sob medida que se adaptam perfeitamente às necessidades específicas do seu negócio.</p>
-                    <ul class="space-y-2 text-gray-600">
-                        <li class="flex items-start">
-                            <i class="fas fa-check text-primary mr-2 mt-1"></i>
-                            <span>Aplicações Web Robustas</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fas fa-check text-primary mr-2 mt-1"></i>
-                            <span>Sistemas de Gestão</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fas fa-check text-primary mr-2 mt-1"></i>
-                            <span>APIs e Integrações</span>
-                        </li>
-                    </ul>
-                </div>
-
-                <div class="bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-                    <div class="bg-primary bg-opacity-10 w-16 h-16 rounded-full flex items-center justify-center mb-6">
-                        <i class="fas fa-chart-line text-primary text-2xl"></i>
-                    </div>
-                    <h3 class="text-2xl font-bold text-gray-800 mb-4">Consultoria Especializada</h3>
-                    <p class="text-gray-600 mb-6">Orientamos sua empresa na jornada digital com estratégias comprovadas e expertise técnica.</p>
-                    <ul class="space-y-2 text-gray-600">
-                        <li class="flex items-start">
-                            <i class="fas fa-check text-primary mr-2 mt-1"></i>
-                            <span>Análise de Processos</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fas fa-check text-primary mr-2 mt-1"></i>
-                            <span>Arquitetura de Soluções</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fas fa-check text-primary mr-2 mt-1"></i>
-                            <span>Otimização de Performance</span>
-                        </li>
-                    </ul>
-                </div>
-
-                <div class="bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-                    <div class="bg-primary bg-opacity-10 w-16 h-16 rounded-full flex items-center justify-center mb-6">
-                        <i class="fas fa-cloud text-primary text-2xl"></i>
-                    </div>
-                    <h3 class="text-2xl font-bold text-gray-800 mb-4">Soluções SaaS</h3>
-                    <p class="text-gray-600 mb-6">Produtos prontos e escaláveis que aceleram a transformação digital da sua empresa.</p>
-                    <ul class="space-y-2 text-gray-600">
-                        <li class="flex items-start">
-                            <i class="fas fa-check text-primary mr-2 mt-1"></i>
-                            <span>Infraestrutura em Nuvem</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fas fa-check text-primary mr-2 mt-1"></i>
-                            <span>Atualizações Automáticas</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fas fa-check text-primary mr-2 mt-1"></i>
-                            <span>Suporte Dedicado</span>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Products Section -->
-    <section id="products" class="py-20 bg-white">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center mb-16">
-                <h2 class="text-4xl lg:text-5xl font-bold text-gray-800 mb-4">Nossos Produtos</h2>
-                <p class="text-xl text-gray-600 max-w-3xl mx-auto">Ferramentas poderosas para impulsionar seu negócio</p>
-            </div>
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-                    <i class="fas fa-tasks text-4xl mb-4"></i>
-                    <h3 class="text-2xl font-bold mb-3">TaskMaster Pro</h3>
-                    <p class="mb-4 opacity-90">Sistema completo de gestão de projetos e tarefas com dashboards intuitivos.</p>
-                    <button class="bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-                        Saiba Mais
-                    </button>
-                </div>
-
-                <div class="bg-gradient-to-br from-green-500 to-green-600 text-white p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-                    <i class="fas fa-chart-pie text-4xl mb-4"></i>
-                    <h3 class="text-2xl font-bold mb-3">Analytics Plus</h3>
-                    <p class="mb-4 opacity-90">Análise avançada de dados com visualizações em tempo real e relatórios personalizados.</p>
-                    <button class="bg-white text-green-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-                        Saiba Mais
-                    </button>
-                </div>
-
-                <div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-                    <i class="fas fa-shopping-cart text-4xl mb-4"></i>
-                    <h3 class="text-2xl font-bold mb-3">E-shop</h3>
-                    <p class="mb-4 opacity-90">Plataforma de e-commerce completa com pagamentos integrados e gestão de estoque.</p>
-                    <button class="bg-white text-purple-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-                        Saiba Mais
-                    </button>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Stats Section -->
-    <section class="py-20 bg-gradient-to-r from-primary to-primary-dark text-white">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid md:grid-cols-4 gap-8 text-center">
-                <div class="transform hover:scale-110 transition-transform duration-300">
-                    <div class="text-5xl font-bold mb-2">150+</div>
-                    <div class="text-xl opacity-90">Projetos Entregues</div>
-                </div>
-                <div class="transform hover:scale-110 transition-transform duration-300">
-                    <div class="text-5xl font-bold mb-2">98%</div>
-                    <div class="text-xl opacity-90">Clientes Satisfeitos</div>
-                </div>
-                <div class="transform hover:scale-110 transition-transform duration-300">
-                    <div class="text-5xl font-bold mb-2">24/7</div>
-                    <div class="text-xl opacity-90">Suporte Disponível</div>
-                </div>
-                <div class="transform hover:scale-110 transition-transform duration-300">
-                    <div class="text-5xl font-bold mb-2">5+</div>
-                    <div class="text-xl opacity-90">Anos de Experiência</div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- About Section -->
-    <section id="about" class="py-20 bg-gray-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid lg:grid-cols-2 gap-12 items-center">
-                <div>
-                    <h2 class="text-4xl lg:text-5xl font-bold text-gray-800 mb-6">Sobre a Pulse</h2>
-                    <p class="text-xl text-gray-600 mb-6 leading-relaxed">
-                        Somos uma empresa de tecnologia focada em transformar desafios empresariais em soluções digitais inovadoras. Nossa missão é capacitar empresas de todos os tamanhos a alcançar seu máximo potencial através da tecnologia.
-                    </p>
-                    <p class="text-lg text-gray-600 mb-8 leading-relaxed">
-                        Com uma equipe de especialistas apaixonados por tecnologia, desenvolvemos soluções que não apenas atendem às necessidades atuais, mas também preparam nossos clientes para o futuro digital.
-                    </p>
-                    <div class="grid md:grid-cols-2 gap-4">
-                        <div class="flex items-start">
-                            <i class="fas fa-check-circle text-primary text-2xl mr-3 mt-1"></i>
-                            <div>
-                                <h4 class="font-bold text-gray-800 mb-1">Inovação Constante</h4>
-                                <p class="text-gray-600 text-sm">Sempre atualizados com as últimas tecnologias</p>
-                            </div>
-                        </div>
-                        <div class="flex items-start">
-                            <i class="fas fa-check-circle text-primary text-2xl mr-3 mt-1"></i>
-                            <div>
-                                <h4 class="font-bold text-gray-800 mb-1">Qualidade Garantida</h4>
-                                <p class="text-gray-600 text-sm">Código limpo e bem documentado</p>
-                            </div>
-                        </div>
-                        <div class="flex items-start">
-                            <i class="fas fa-check-circle text-primary text-2xl mr-3 mt-1"></i>
-                            <div>
-                                <h4 class="font-bold text-gray-800 mb-1">Suporte Dedicado</h4>
-                                <p class="text-gray-600 text-sm">Equipe disponível quando você precisar</p>
-                            </div>
-                        </div>
-                        <div class="flex items-start">
-                            <i class="fas fa-check-circle text-primary text-2xl mr-3 mt-1"></i>
-                            <div>
-                                <h4 class="font-bold text-gray-800 mb-1">Escalabilidade</h4>
-                                <p class="text-gray-600 text-sm">Soluções que crescem com seu negócio</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="relative">
-                    <div class="bg-gradient-to-br from-primary to-primary-dark p-8 rounded-2xl shadow-2xl">
-                        <div class="bg-white bg-opacity-10 p-6 rounded-xl backdrop-blur-sm">
-                            <h3 class="text-2xl font-bold text-white mb-4">Nossos Valores</h3>
-                            <div class="space-y-4">
-                                <div class="flex items-center text-white">
-                                    <i class="fas fa-lightbulb text-2xl mr-4"></i>
-                                    <span class="text-lg">Inovação</span>
-                                </div>
-                                <div class="flex items-center text-white">
-                                    <i class="fas fa-handshake text-2xl mr-4"></i>
-                                    <span class="text-lg">Transparência</span>
-                                </div>
-                                <div class="flex items-center text-white">
-                                    <i class="fas fa-trophy text-2xl mr-4"></i>
-                                    <span class="text-lg">Excelência</span>
-                                </div>
-                                <div class="flex items-center text-white">
-                                    <i class="fas fa-users text-2xl mr-4"></i>
-                                    <span class="text-lg">Colaboração</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- CTA Section -->
-    <section class="py-20 bg-gradient-to-r from-primary via-primary-dark to-purple-600 text-white">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 class="text-4xl lg:text-5xl font-bold mb-6">Pronto para Transformar seu Negócio?</h2>
-            <p class="text-xl mb-8 opacity-90">Entre em contato conosco e descubra como podemos ajudar sua empresa a alcançar novos patamares.</p>
-            <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <button class="bg-white text-primary px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-lg">
-                    <i class="fas fa-phone mr-2"></i>
-                    Agendar Consulta
-                </button>
-                <button class="border-2 border-white text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white hover:text-primary transition-all duration-300 transform hover:scale-105">
-                    <i class="fas fa-envelope mr-2"></i>
-                    Enviar Mensagem
-                </button>
-            </div>
-        </div>
-    </section>
-
-    <!-- Footer -->
-    <footer class="bg-gray-900 text-white py-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid md:grid-cols-4 gap-8">
-                <div>
-                    <h3 class="text-2xl font-bold mb-4">Pulse</h3>
-                    <p class="text-gray-300 mb-4">Transformando ideias em soluções digitais inovadoras.</p>
-                </div>
-                <div>
-                    <h4 class="font-bold mb-4">Links Rápidos</h4>
-                    <ul class="space-y-2 text-gray-300">
-                        <li><a href="#home" class="hover:text-white transition-colors">Início</a></li>
-                        <li><a href="#services" class="hover:text-white transition-colors">Serviços</a></li>
-                        <li><a href="#products" class="hover:text-white transition-colors">Produtos</a></li>
-                        <li><a href="#about" class="hover:text-white transition-colors">Sobre</a></li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="font-bold mb-4">Produtos</h4>
-                    <ul class="space-y-2 text-gray-300">
-                        <li><a href="#" class="hover:text-white transition-colors">TaskMaster Pro</a></li>
-                        <li><a href="#" class="hover:text-white transition-colors">Analytics Plus</a></li>
-                        <li><a href="#" class="hover:text-white transition-colors">E-shop</a></li>
-                        <li><a href="#" class="hover:text-white transition-colors">Suporte Técnico</a></li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="font-bold mb-4">Contato</h4>
-                    <ul class="space-y-2 text-gray-300">
-                        <li class="flex items-center">
-                            <i class="fas fa-envelope mr-2"></i>
-                            contato@pulse.com.br
-                        </li>
-                        <li class="flex items-center">
-                            <i class="fas fa-phone mr-2"></i>
-                            (81) 9999-9999
-                        </li>
-                        <li class="flex items-center">
-                            <i class="fas fa-map-marker-alt mr-2"></i>
-                            Caruaru, PE
-                        </li>
-                    </ul>
-                    <div class="flex space-x-4 mt-4">
-                        <a href="#" class="text-gray-300 hover:text-white transition-colors">
-                            <i class="fab fa-linkedin text-xl"></i>
-                        </a>
-                        <a href="#" class="text-gray-300 hover:text-white transition-colors">
-                            <i class="fab fa-instagram text-xl"></i>
-                        </a>
-                        <a href="#" class="text-gray-300 hover:text-white transition-colors">
-                            <i class="fab fa-github text-xl"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
-            <div class="border-t border-gray-700 mt-8 pt-8 text-center">
-                <p class="text-gray-300">&copy; 2025 Pulse. Todos os direitos reservados.</p>
-            </div>
-        </div>
-    </footer>
+    </div>
 
     <script>
-        // Mobile menu toggle
-        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-        const mobileMenu = document.getElementById('mobile-menu');
+        // ID padrão da loja (mesmo usado no catálogo)
+        const LOJA_ID = 'a99a38a9-e368-4a47-a4bd-02ba3bacaa76';
         
-        mobileMenuBtn.addEventListener('click', () => {
-            mobileMenu.classList.toggle('hidden');
-        });
-
-        // Smooth scrolling for navigation links
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                    // Close mobile menu if open
-                    mobileMenu.classList.add('hidden');
-                }
-            });
-        });
-
-        // Carousel functionality
-        const carousel = document.getElementById('carousel');
-        const prevBtn = document.getElementById('prev-btn');
-        const nextBtn = document.getElementById('next-btn');
-        const dots = document.querySelectorAll('.carousel-dot');
-        
-        let currentSlide = 0;
-        const totalSlides = 3;
-
-        function updateCarousel() {
-            carousel.style.transform = `translateX(-${currentSlide * 100}%)`;
+        // Detecta URL base da API
+        function detectApiBaseUrl() {
+            const pathname = window.location.pathname;
             
-            // Update dots
-            dots.forEach((dot, index) => {
-                if (index === currentSlide) {
-                    dot.classList.remove('bg-gray-300');
-                    dot.classList.add('bg-primary');
+            // Remove barra final se existir
+            let basePath = pathname.replace(/\/$/, '');
+            
+            // Se o path contém index.php, extrai tudo até /index.php
+            if (basePath.includes('/index.php')) {
+                const match = basePath.match(/^(.+\/index\.php)/);
+                if (match) {
+                    basePath = match[1];
                 } else {
-                    dot.classList.remove('bg-primary');
-                    dot.classList.add('bg-gray-300');
+                    const parts = basePath.split('/index.php');
+                    basePath = parts[0] + '/index.php';
                 }
-            });
-        }
-
-        nextBtn.addEventListener('click', () => {
-            currentSlide = (currentSlide + 1) % totalSlides;
-            updateCarousel();
-        });
-
-        prevBtn.addEventListener('click', () => {
-            currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
-            updateCarousel();
-        });
-
-        // Dot navigation
-        dots.forEach((dot, index) => {
-            dot.addEventListener('click', () => {
-                currentSlide = index;
-                updateCarousel();
-            });
-        });
-
-        // Auto-play carousel
-        setInterval(() => {
-            currentSlide = (currentSlide + 1) % totalSlides;
-            updateCarousel();
-        }, 5000);
-
-        // Scroll animations
-        const observerOptions = {
-            threshold: 0.1,
-            rootMargin: '0px 0px -50px 0px'
-        };
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('animate-fade-in');
+            } else {
+                // Se não tem index.php, adiciona
+                basePath = basePath.replace(/\/$/, '');
+                if (!basePath || basePath === '/') {
+                    basePath = '/index.php';
+                } else {
+                    basePath = basePath + '/index.php';
                 }
-            });
-        }, observerOptions);
-
-        // Observe all sections for animations
-        document.querySelectorAll('section').forEach(section => {
-            observer.observe(section);
-        });
-
-        // Add fade-in animation class
-        const style = document.createElement('style');
-        style.textContent = `
-            .animate-fade-in {
-                animation: fadeInUp 0.6s ease-out forwards;
             }
             
-            @keyframes fadeInUp {
-                from {
-                    opacity: 0;
-                    transform: translateY(30px);
-                }
-                to {
-                    opacity: 1;
-                    transform: translateY(0);
-                }
+            // Garante que comece com /
+            if (!basePath.startsWith('/')) {
+                basePath = '/' + basePath;
             }
-        `;
-        document.head.appendChild(style);
-
-        // Navbar background change on scroll
-        window.addEventListener('scroll', () => {
-            const nav = document.querySelector('nav');
-            if (window.scrollY > 50) {
-                nav.classList.add('bg-white/95', 'backdrop-blur-sm');
-            } else {
-                nav.classList.remove('bg-white/95', 'backdrop-blur-sm');
+            
+            return basePath;
+        }
+        
+        const API_BASE = detectApiBaseUrl();
+        
+        // Carrega dados da empresa
+        async function carregarDadosEmpresa() {
+            try {
+                const response = await fetch(`${API_BASE}/api/usuario/dados-loja?usuario_id=${LOJA_ID}`);
+                
+                if (!response.ok) {
+                    console.warn('Erro ao carregar dados da empresa:', response.status);
+                    return;
+                }
+                
+                const dados = await response.json();
+                
+                if (dados.erro) {
+                    console.warn('Erro na resposta:', dados.erro);
+                    return;
+                }
+                
+                // Aplica os dados na página
+                aplicarDadosEmpresa(dados);
+                
+            } catch (error) {
+                console.error('Erro ao carregar dados da empresa:', error);
             }
-        });
+        }
+        
+        // Aplica os dados da empresa na página
+        function aplicarDadosEmpresa(dados) {
+            // Nome da loja
+            if (dados.nome_loja) {
+                document.getElementById('nome-loja').textContent = dados.nome_loja;
+                document.getElementById('page-title').textContent = dados.nome_loja;
+            }
+            
+            // Mensagem de boas-vindas
+            if (dados.mensagem_boas_vindas) {
+                document.getElementById('mensagem-boas-vindas').textContent = dados.mensagem_boas_vindas;
+            }
+            
+            // Logo
+            if (dados.logo_path) {
+                const logoImg = document.getElementById('logo-empresa');
+                let logoUrl = dados.logo_path;
+                
+                // Se não for URL completa, adiciona caminho base
+                if (!logoUrl.match(/^(https?:\/\/|\/)/)) {
+                    const webBase = window.location.pathname.replace(/\/$/, '') || '/';
+                    logoUrl = webBase + '/' + logoUrl.replace(/^\//, '');
+                }
+                
+                logoImg.src = logoUrl;
+                logoImg.style.display = 'block';
+            }
+            
+            // Background image - só atualiza se houver uma imagem específica configurada
+            // Caso contrário, mantém o background.jpg padrão definido no HTML
+            const bgDiv = document.getElementById('background-image');
+            
+            // Só substitui se houver um background_image específico E diferente da logo
+            if (dados.background_image && dados.background_image !== dados.logo_path) {
+                let bgUrl = dados.background_image;
+                
+                // Se não for URL completa, adiciona caminho base
+                if (!bgUrl.match(/^(https?:\/\/|\/)/)) {
+                    const webBase = window.location.pathname.replace(/\/$/, '') || '/';
+                    bgUrl = webBase + '/' + bgUrl.replace(/^\//, '');
+                }
+                
+                bgDiv.style.backgroundImage = `url('${bgUrl}')`;
+                bgDiv.style.display = 'block';
+            }
+            // Se não houver background_image específico, mantém o background.jpg padrão
+            
+            // Cores personalizadas
+            if (dados.cor_primaria) {
+                const root = document.documentElement;
+                root.style.setProperty('--color-primary', dados.cor_primaria);
+                
+                // Aplica cor primária nos botões
+                const btnCatalogo = document.getElementById('btn-catalogo');
+                if (btnCatalogo) {
+                    btnCatalogo.style.background = `linear-gradient(to right, ${dados.cor_primaria}, ${dados.cor_secundaria || dados.cor_primaria})`;
+                }
+                
+                // Botão entrar já está discreto no canto superior direito
+                // Não precisa de ajustes de cor adicionais
+            }
+            
+            // Informações de contato no footer
+            const footerInfo = document.getElementById('footer-info');
+            if (dados.telefone) {
+                const telefoneFormatado = dados.telefone.replace(/\D/g, '').replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3');
+                footerInfo.innerHTML = `
+                    <p>${dados.telefone ? `📞 ${telefoneFormatado}` : ''}</p>
+                    ${dados.endereco_completo ? `<p class="mt-1">📍 ${dados.endereco_completo}</p>` : ''}
+                `;
+            }
+        }
+        
+        // Carrega dados ao carregar a página
+        document.addEventListener('DOMContentLoaded', carregarDadosEmpresa);
     </script>
 </body>
 </html>
