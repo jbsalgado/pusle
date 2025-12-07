@@ -17,13 +17,105 @@ const getLojaId = () => {
     return lojaMap[lojaPath] || lojaMap['venda-direta'];
 };
 
+/**
+ * Detecta automaticamente o caminho base da API a partir da URL atual
+ * Remove /venda-direta ou /venda-direta/index do pathname e garante /index.php no final
+ */
+const detectApiBaseUrl = () => {
+    const pathname = window.location.pathname;
+    
+    // Remove /venda-direta ou /venda-direta/index do final do path
+    let basePath = pathname.replace(/\/venda-direta(\/index)?(\/)?$/, '');
+    
+    // Se o path contém index.php, extrai tudo até /index.php
+    if (basePath.includes('/index.php')) {
+        // Pega tudo até /index.php (incluindo)
+        const match = basePath.match(/^(.+\/index\.php)/);
+        if (match) {
+            basePath = match[1];
+        } else {
+            // Se não encontrou padrão, tenta pegar o diretório que contém index.php
+            const parts = basePath.split('/index.php');
+            basePath = parts[0] + '/index.php';
+        }
+    } else {
+        // Se não tem index.php no path, pode estar usando pretty URLs
+        // Tenta encontrar o caminho base removendo o controller/action
+        // Remove barra final se existir
+        basePath = basePath.replace(/\/$/, '');
+        
+        // Se o path está vazio ou é apenas /, usa /index.php
+        if (!basePath || basePath === '/') {
+            basePath = '/index.php';
+        } else {
+            // Adiciona /index.php ao final do caminho base
+            basePath = basePath + '/index.php';
+        }
+    }
+    
+    // Garante que comece com /
+    if (!basePath.startsWith('/')) {
+        basePath = '/' + basePath;
+    }
+    
+    return basePath;
+};
+
+/**
+ * Detecta automaticamente o caminho base do web (sem index.php)
+ */
+const detectWebBaseUrl = () => {
+    const pathname = window.location.pathname;
+    
+    // Remove /venda-direta ou /venda-direta/index do final do path
+    let basePath = pathname.replace(/\/venda-direta(\/index)?\/?$/, '');
+    
+    // Remove /index.php se existir
+    basePath = basePath.replace(/\/index\.php.*$/, '');
+    
+    // Remove barra final se existir
+    basePath = basePath.replace(/\/$/, '');
+    
+    // Garante que comece com /
+    if (!basePath.startsWith('/')) {
+        basePath = '/' + basePath;
+    }
+    
+    // Se estiver vazio, retorna /
+    return basePath || '/';
+};
+
+// Detecta automaticamente os caminhos base
+const detectedApiUrl = detectApiBaseUrl();
+const detectedWebUrl = detectWebBaseUrl();
+
+// Fallback para desenvolvimento local
+const fallbackApiUrl = isProduction ? '/pulse/web/index.php' : '/pulse/basic/web/index.php';
+const fallbackWebUrl = isProduction ? '/pulse/web' : '/pulse/basic/web';
+
+// Log para debug (pode ser removido em produção)
+console.log('[Config] 🔍 Detecção automática de URLs:', {
+    pathname: window.location.pathname,
+    detectedApiUrl,
+    detectedWebUrl,
+    fallbackApiUrl,
+    fallbackWebUrl
+});
+
 export const CONFIG = {
-    URL_API: isProduction ? '/pulse/web/index.php' : '/pulse/basic/web/index.php',
-    URL_BASE_WEB: isProduction ? '/pulse/web' : '/pulse/basic/web',
+    URL_API: detectedApiUrl || fallbackApiUrl,
+    URL_BASE_WEB: detectedWebUrl || fallbackWebUrl,
     CACHE_NAME: 'venda-direta-cache-v1',
     SYNC_TAG: 'sync-novo-pedido-venda-direta',
     ID_USUARIO_LOJA: getLojaId()
 };
+
+// Log da configuração final
+console.log('[Config] ✅ Configuração final:', {
+    URL_API: CONFIG.URL_API,
+    URL_BASE_WEB: CONFIG.URL_BASE_WEB,
+    ID_USUARIO_LOJA: CONFIG.ID_USUARIO_LOJA
+});
 
 export const API_ENDPOINTS = {
     PRODUTO: `${CONFIG.URL_API}/api/produto`,
