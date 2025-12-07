@@ -6,6 +6,10 @@ RewriteCond %{HTTP:Authorization} .
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 # ---------------------------------
 
+# Define index.html como padrão na raiz (para landing page)
+# Mas permite que index.php seja acessado diretamente
+DirectoryIndex index.html index.php
+
 # Se o diretório ou arquivo existir, acesse-o diretamente
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
