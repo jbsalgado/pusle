@@ -40,6 +40,15 @@ class SiteController extends Controller
     }
 
     /**
+     * Logout - Redireciona para /auth/logout
+     * Mantido para compatibilidade com links antigos
+     */
+    public function actionLogout()
+    {
+        return $this->redirect(['/auth/logout']);
+    }
+
+    /**
      * Dashboard principal
      */
     public function actionIndex()

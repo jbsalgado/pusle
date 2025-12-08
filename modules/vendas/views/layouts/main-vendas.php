@@ -79,7 +79,7 @@ use yii\helpers\Html;
                 
                 <?php if (!Yii::$app->user->isGuest): ?>
                     <span class="text-gray-600">Olá, <?= Html::encode(Yii::$app->user->identity->username) ?></span>
-                    <?= Html::beginForm(['/site/logout'], 'post')
+                    <?= Html::beginForm(['/auth/logout'], 'post')
                         . Html::submitButton('Sair', ['class' => 'px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium'])
                         . Html::endForm() ?>
                 <?php else: ?>
@@ -106,7 +106,7 @@ use yii\helpers\Html;
             
             <?php if (!Yii::$app->user->isGuest): ?>
                 <span class="block px-3 py-2 text-gray-600">Olá, <?= Html::encode(Yii::$app->user->identity->username) ?></span>
-                <?= Html::beginForm(['/site/logout'], 'post', ['class' => 'px-3'])
+                <?= Html::beginForm(['/auth/logout'], 'post', ['class' => 'px-3'])
                     . Html::submitButton('Sair', ['class' => 'w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium'])
                     . Html::endForm() ?>
             <?php else: ?>
