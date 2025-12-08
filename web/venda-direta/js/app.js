@@ -23,6 +23,9 @@ let formasPagamento = [];
 let usuarioData = null;
 let clienteAtual = null; // Cliente para vendas parceladas
 
+// Disponibiliza CONFIG no window para compatibilidade com módulos que não usam import
+window.CONFIG = CONFIG;
+
 // Inicialização
 async function init() {
     try {
@@ -190,7 +193,11 @@ function renderizarCarrinho() {
     container.innerHTML = carrinho.map((item, index) => {
         let urlImagem = 'https://dummyimage.com/100x100/cccccc/ffffff.png&text=Sem+Imagem';
         if (item.fotos && item.fotos.length > 0 && item.fotos[0].arquivo_path) {
-            urlImagem = `${CONFIG.URL_BASE_WEB}/${item.fotos[0].arquivo_path}`;
+            // Remove barra inicial se existir e constrói URL correta
+            const arquivoPath = item.fotos[0].arquivo_path.replace(/^\//, '');
+            // Garante que URL_BASE_WEB não termine com / e arquivoPath não comece com /
+            const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
+            urlImagem = `${baseUrl}/${arquivoPath}`;
         }
         const subtotal = item.preco_venda_sugerido * item.quantidade;
         return `
@@ -318,7 +325,9 @@ function renderizarProdutos(listaProdutos) {
     container.innerHTML = listaProdutos.map(produto => {
         let urlImagem = 'https://dummyimage.com/300x200/cccccc/ffffff.png&text=Sem+Imagem';
         if (produto.fotos && produto.fotos.length > 0 && produto.fotos[0].arquivo_path) {
-            urlImagem = `${CONFIG.URL_BASE_WEB}/${produto.fotos[0].arquivo_path}`;
+            const arquivoPath = produto.fotos[0].arquivo_path.replace(/^\//, '');
+            const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
+            urlImagem = `${baseUrl}/${arquivoPath}`;
         }
         return `
         <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl relative" data-produto-card="${produto.id}">
@@ -353,7 +362,9 @@ window.abrirModalQuantidade = function(produtoId) {
     document.getElementById('btn-confirmar-adicionar').onclick = () => {
         const quantidade = parseInt(inputQtd.value, 10);
         if (quantidade > 0 && quantidade <= produto.estoque_atual) {
-            const produtoComImagem = { ...produto, imagem: produto.fotos?.[0]?.arquivo_path ? `${CONFIG.URL_BASE_WEB}/${produto.fotos[0].arquivo_path}` : null };
+            const arquivoPath = produto.fotos?.[0]?.arquivo_path?.replace(/^\//, '') || '';
+            const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
+            const produtoComImagem = { ...produto, imagem: arquivoPath ? `${baseUrl}/${arquivoPath}` : null };
             if (adicionarAoCarrinho(produtoComImagem, quantidade)) {
                 atualizarBadgeProduto(produtoId, true);
                 atualizarBadgeCarrinho();

@@ -142,8 +142,10 @@ function atualizarFotoExibida() {
     if (galeriaAtual.length === 0) return;
 
     const fotoAtual = galeriaAtual[indiceFotoAtual];
-    const urlImagem = fotoAtual.arquivo_path 
-        ? `${CONFIG.URL_BASE_WEB}/${fotoAtual.arquivo_path}`
+    const arquivoPath = fotoAtual.arquivo_path?.replace(/^\//, '') || '';
+    const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
+    const urlImagem = arquivoPath 
+        ? `${baseUrl}/${arquivoPath}`
         : 'https://via.placeholder.com/800x800.png?text=Sem+Foto';
 
     // Atualizar imagem
@@ -189,8 +191,10 @@ function atualizarMiniaturas() {
     containerMiniaturas.innerHTML = '';
 
     galeriaAtual.forEach((foto, index) => {
-        const urlMiniatura = foto.arquivo_path 
-            ? `${CONFIG.URL_BASE_WEB}/${foto.arquivo_path}`
+        const arquivoPathMini = foto.arquivo_path?.replace(/^\//, '') || '';
+        const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
+        const urlMiniatura = arquivoPathMini 
+            ? `${baseUrl}/${arquivoPathMini}`
             : 'https://via.placeholder.com/80x80.png?text=Sem+Foto';
 
         const miniatura = document.createElement('button');

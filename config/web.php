@@ -119,6 +119,7 @@ $config = [
 
                 // ROTAS CUSTOMIZADAS - USUÁRIO/LOJA/COLABORADOR/CALCULO
                 'GET api/usuario/config' => 'api/usuario/config',
+                'GET api/usuario/dados-loja' => 'api/usuario/dados-loja',
                 'GET api/colaborador/buscar-cpf' => 'api/colaborador/buscar-cpf',
                 'GET api/calculo/calcular-parcelas' => 'api/calculo/calcular-parcelas',
                 
@@ -153,6 +154,17 @@ $config = [
                         'api/colaborador',
                     ],
                     'pluralize' => false,
+                ],
+                // Rota específica para api/usuario (deve vir antes das genéricas)
+                [
+                    'class' => 'yii\rest\UrlRule',
+                    'controller' => 'api/usuario',
+                    'pluralize' => false,
+                    'extraPatterns' => [
+                        'GET config' => 'config',
+                        'GET dados-loja' => 'dados-loja',
+                        'GET me' => 'me',
+                    ],
                 ],
                 // Rota específica para Venda Direta (protegida por autenticação)
                 'venda-direta' => 'venda-direta/index',

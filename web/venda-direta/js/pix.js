@@ -16,7 +16,27 @@ export async function carregarConfigPix(usuarioId) {
     }
 
     try {
-        const response = await fetch(`${window.CONFIG?.URL_API || '/pulse/basic/web/index.php'}/api/usuario/dados-loja?usuario_id=${usuarioId}`);
+        // Tenta usar window.CONFIG primeiro, depois importa se necessário
+        let urlApi = window.CONFIG?.URL_API;
+        if (!urlApi) {
+            try {
+                const { CONFIG: configModule } = await import('./config.js');
+                urlApi = configModule.URL_API;
+                // Disponibiliza no window para próximas chamadas
+                if (!window.CONFIG) {
+                    window.CONFIG = configModule;
+                }
+            } catch (e) {
+                console.warn('[PIX] Erro ao importar CONFIG, usando fallback:', e);
+                // Fallback: constrói URL baseada na origem atual
+                const pathname = window.location.pathname;
+                const basePath = pathname.replace(/\/venda-direta.*$/, '');
+                urlApi = window.location.origin + basePath + '/index.php';
+            }
+        }
+        
+        const url = `${urlApi}/api/usuario/dados-loja?usuario_id=${usuarioId}`;
+        const response = await fetch(url);
         
         if (!response.ok) {
             throw new Error(`Erro ao carregar dados PIX: ${response.status}`);
@@ -308,6 +328,16 @@ export async function mostrarModalPixEstatico(valor, txId, dadosPedido = null, u
             usuarioId = window.CONFIG?.ID_USUARIO_LOJA || null;
         }
 
+        if (!usuarioId) {
+            // Tenta buscar do CONFIG importado
+            try {
+                const { CONFIG } = await import('./config.js');
+                usuarioId = CONFIG.ID_USUARIO_LOJA;
+            } catch (e) {
+                console.error('[PIX] Erro ao importar CONFIG:', e);
+            }
+        }
+        
         if (!usuarioId) {
             throw new Error('ID do usuário não encontrado. Não é possível gerar QR Code PIX.');
         }

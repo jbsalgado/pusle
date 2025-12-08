@@ -66,6 +66,7 @@ const detectApiBaseUrl = () => {
  */
 const detectWebBaseUrl = () => {
     const pathname = window.location.pathname;
+    const origin = window.location.origin;
     
     // Remove /venda-direta ou /venda-direta/index do final do path
     let basePath = pathname.replace(/\/venda-direta(\/index)?\/?$/, '');
@@ -82,7 +83,11 @@ const detectWebBaseUrl = () => {
     }
     
     // Se estiver vazio, retorna /
-    return basePath || '/';
+    basePath = basePath || '/';
+    
+    // Em produção, retorna caminho relativo (sem origin)
+    // O navegador vai resolver automaticamente baseado na origem atual
+    return basePath;
 };
 
 // Detecta automaticamente os caminhos base

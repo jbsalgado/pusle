@@ -106,6 +106,11 @@ class UsuarioController extends Controller
     public function actionDadosLoja($usuario_id)
     {
         try {
+            if (empty($usuario_id)) {
+                Yii::$app->response->statusCode = 400;
+                return ['erro' => 'Parâmetro usuario_id é obrigatório'];
+            }
+            
             $sql = "
                 SELECT 
                     id,

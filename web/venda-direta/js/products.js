@@ -75,7 +75,9 @@ function renderizarProdutos(produtos, container) {
 function criarCardProduto(produto) {
     let urlImagem = 'https://via.placeholder.com/300x300.png?text=Sem+Foto';
     if (produto.fotos && produto.fotos.length > 0 && produto.fotos[0].arquivo_path) {
-        urlImagem = `${CONFIG.URL_BASE_WEB}/${produto.fotos[0].arquivo_path}`;
+        const arquivoPath = produto.fotos[0].arquivo_path.replace(/^\//, '');
+        const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
+        urlImagem = `${baseUrl}/${arquivoPath}`;
     }
 
     const estoque = parseInt(produto.estoque_atual || 0);

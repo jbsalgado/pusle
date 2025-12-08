@@ -33,6 +33,9 @@ import {
 import { ELEMENTOS_CRITICOS } from './config.js';
 import { inicializarMonitoramentoRede } from './network.js';
 
+// Disponibiliza CONFIG no window para compatibilidade com módulos que não usam import
+window.CONFIG = CONFIG;
+
 // ==========================================================================
 // VARIÁVEIS GLOBAIS
 // ==========================================================================
@@ -271,7 +274,9 @@ function renderizarCarrinho() {
     container.innerHTML = carrinho.map((item, index) => {
         let urlImagem = 'https://dummyimage.com/100x100/cccccc/ffffff.png&text=Sem+Imagem';
         if (item.fotos && item.fotos.length > 0 && item.fotos[0].arquivo_path) {
-            urlImagem = `${CONFIG.URL_BASE_WEB}/${item.fotos[0].arquivo_path}`;
+            const arquivoPath = item.fotos[0].arquivo_path.replace(/^\//, '');
+            const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
+            urlImagem = `${baseUrl}/${arquivoPath}`;
         } else if (item.imagem) {
             urlImagem = item.imagem;
         }
@@ -470,7 +475,9 @@ function renderizarProdutos(listaProdutos) {
         // Construir URL da imagem corretamente
         let urlImagem = 'https://dummyimage.com/300x200/cccccc/ffffff.png&text=Sem+Imagem';
         if (produto.fotos && produto.fotos.length > 0 && produto.fotos[0].arquivo_path) {
-            urlImagem = `${CONFIG.URL_BASE_WEB}/${produto.fotos[0].arquivo_path}`;
+            const arquivoPath = produto.fotos[0].arquivo_path.replace(/^\//, '');
+            const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
+            urlImagem = `${baseUrl}/${arquivoPath}`;
         }
         
         return `
@@ -554,7 +561,11 @@ window.abrirModalQuantidade = function(produtoId) {
             const produtoComImagem = {
                 ...produto,
                 imagem: produto.fotos && produto.fotos.length > 0 && produto.fotos[0].arquivo_path
-                    ? `${CONFIG.URL_BASE_WEB}/${produto.fotos[0].arquivo_path}`
+                    ? (() => {
+                        const arquivoPath = produto.fotos[0].arquivo_path.replace(/^\//, '');
+                        const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
+                        return `${baseUrl}/${arquivoPath}`;
+                    })()
                     : 'https://dummyimage.com/300x200/cccccc/ffffff.png&text=Sem+Imagem'
             };
             
