@@ -16,9 +16,10 @@ use app\modules\vendas\models\CarteiraCobranca;
  * ============================================================================================================
  * Tabela: prest_colaboradores
  * 
- * @property string $id
- * @property string $usuario_id
- * @property string $nome_completo
+     * @property string $id
+     * @property string $usuario_id (FK para dono da loja)
+     * @property string|null $prest_usuario_login_id (FK para login do colaborador em prest_usuarios)
+     * @property string $nome_completo
  * @property string $cpf
  * @property string $telefone
  * @property string $email
@@ -70,7 +71,7 @@ class Colaborador extends ActiveRecord
     {
         return [
             [['usuario_id', 'nome_completo'], 'required'],
-            [['usuario_id'], 'string'],
+            [['usuario_id', 'prest_usuario_login_id'], 'string'],
             [['eh_vendedor', 'eh_cobrador', 'eh_administrador', 'ativo'], 'boolean'],
             [['percentual_comissao_venda', 'percentual_comissao_cobranca'], 'number', 'min' => 0, 'max' => 100],
             [['percentual_comissao_venda', 'percentual_comissao_cobranca'], 'default', 'value' => 0],
@@ -85,6 +86,8 @@ class Colaborador extends ActiveRecord
             [['email'], 'string', 'max' => 100],
             [['email'], 'email'],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
+            // prest_usuario_login_id é opcional e só é validado se preenchido (pode ser NULL para colaboradores sem login próprio)
+            [['prest_usuario_login_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['prest_usuario_login_id' => 'id']],
             // Pelo menos um papel deve estar marcado
             ['eh_vendedor', 'required', 'when' => function($model) {
                 return !$model->eh_cobrador;
@@ -99,7 +102,8 @@ class Colaborador extends ActiveRecord
     {
         return [
             'id' => 'ID',
-            'usuario_id' => 'Usuário',
+            'usuario_id' => 'Dono da Loja',
+            'prest_usuario_login_id' => 'Login do Colaborador',
             'nome_completo' => 'Nome Completo',
             'cpf' => 'CPF',
             'telefone' => 'Telefone',
@@ -154,9 +158,66 @@ class Colaborador extends ActiveRecord
         return 'Indefinido';
     }
 
+    /**
+     * Relacionamento com o dono da loja
+     */
     public function getUsuario()
     {
         return $this->hasOne(Usuario::class, ['id' => 'usuario_id']);
+    }
+    
+    /**
+     * Relacionamento com o login do colaborador (se tiver login próprio)
+     */
+    public function getUsuarioLogin()
+    {
+        return $this->hasOne(Usuario::class, ['id' => 'prest_usuario_login_id']);
+    }
+    
+    /**
+     * Retorna o ID da loja (sempre o usuario_id, que aponta para o dono)
+     */
+    public function getLojaId()
+    {
+        return $this->usuario_id;
+    }
+    
+    /**
+     * Verifica se o colaborador tem login próprio
+     */
+    public function temLoginProprio()
+    {
+        return $this->prest_usuario_login_id !== null;
+    }
+    
+    /**
+     * Busca colaborador associado ao usuário logado
+     * IMPORTANTE: Apenas colaboradores COM login próprio podem acessar sistema web
+     * Colaboradores sem login próprio acessam apenas via PWA (CPF)
+     * 
+     * @return Colaborador|null
+     */
+    public static function getColaboradorLogado()
+    {
+        $usuarioLogado = Yii::$app->user->identity;
+        
+        if (!$usuarioLogado) {
+            return null;
+        }
+        
+        // Se é dono, não é colaborador
+        if ($usuarioLogado->eh_dono_loja === true) {
+            return null;
+        }
+        
+        // Busca colaborador por prest_usuario_login_id (deve ter login próprio)
+        // Colaborador sem login próprio NÃO pode acessar sistema web
+        $colaborador = static::find()
+            ->where(['prest_usuario_login_id' => $usuarioLogado->id])
+            ->andWhere(['ativo' => true])
+            ->one();
+        
+        return $colaborador;
     }
 
     public function getVendas()

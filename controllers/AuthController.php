@@ -46,8 +46,13 @@ class AuthController extends Controller
         }
 
         $model->senha = '';
+        
+        // Busca dados da empresa para exibir na página de login
+        $dadosEmpresa = $this->buscarDadosEmpresa();
+        
         return $this->render('login', [
             'model' => $model,
+            'dadosEmpresa' => $dadosEmpresa,
         ]);
     }
 
@@ -107,5 +112,70 @@ class AuthController extends Controller
         // TODO: Implementar reset de senha
         Yii::$app->session->setFlash('info', 'Funcionalidade em desenvolvimento.');
         return $this->redirect(['login']);
+    }
+
+    /**
+     * Busca dados da empresa da tabela prest_configuracoes
+     * @return array
+     */
+    private function buscarDadosEmpresa()
+    {
+        // ID padrão da loja (mesmo usado no catálogo e landing page)
+        $lojaId = 'a99a38a9-e368-4a47-a4bd-02ba3bacaa76';
+        
+        try {
+            // Busca dados do usuário
+            $sql = "
+                SELECT 
+                    id,
+                    nome,
+                    logo_path
+                FROM prest_usuarios
+                WHERE id = :id::uuid
+                LIMIT 1
+            ";
+            
+            $usuario = Yii::$app->db->createCommand($sql, [
+                ':id' => $lojaId
+            ])->queryOne();
+            
+            if (!$usuario) {
+                return [
+                    'nome_loja' => 'THAUSZ-PULSE',
+                    'logo_path' => null,
+                ];
+            }
+            
+            // Busca configuração da loja
+            $config = \app\modules\vendas\models\Configuracao::findOne(['usuario_id' => $lojaId]);
+            
+            // Logo: prioriza prest_configuracoes, depois prest_usuarios
+            $logoPath = '';
+            if ($config && !empty($config->logo_path)) {
+                $logoPath = $config->logo_path;
+            } elseif (!empty($usuario['logo_path'])) {
+                $logoPath = $usuario['logo_path'];
+            }
+            
+            // Nome da loja: prioriza prest_configuracoes, depois prest_usuarios
+            $nomeLoja = 'THAUSZ-PULSE';
+            if ($config && !empty($config->nome_loja)) {
+                $nomeLoja = $config->nome_loja;
+            } elseif (!empty($usuario['nome'])) {
+                $nomeLoja = $usuario['nome'];
+            }
+            
+            return [
+                'nome_loja' => $nomeLoja,
+                'logo_path' => $logoPath,
+            ];
+            
+        } catch (\Exception $e) {
+            Yii::error('Erro ao buscar dados da empresa: ' . $e->getMessage());
+            return [
+                'nome_loja' => 'THAUSZ-PULSE',
+                'logo_path' => null,
+            ];
+        }
     }
 }

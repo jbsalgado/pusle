@@ -52,15 +52,18 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
     public function rules()
     {
         return [
-            [['email', 'auth_key', 'mercadopago_public_key', 'mercadopago_access_token', 'asaas_api_key'], 'default', 'value' => null],
-            [['id', 'nome', 'hash_senha', 'cpf', 'telefone'], 'required'],
+            [['email', 'auth_key', 'mercadopago_public_key', 'mercadopago_access_token', 'asaas_api_key', 'blocked_at', 'confirmed_at'], 'default', 'value' => null],
+            [['id', 'nome', 'hash_senha', 'cpf', 'telefone', 'username'], 'required'],
             [['id'], 'string'],
-            [['data_criacao', 'data_atualizacao'], 'safe'],
-            [['api_de_pagamento', 'mercadopago_sandbox', 'asaas_sandbox'], 'boolean'],
+            [['data_criacao', 'data_atualizacao', 'blocked_at', 'confirmed_at'], 'safe'],
+            [['api_de_pagamento', 'mercadopago_sandbox', 'asaas_sandbox', 'eh_dono_loja'], 'boolean'],
             [['api_de_pagamento'], 'default', 'value' => false],
+            [['eh_dono_loja'], 'default', 'value' => false],
             [['mercadopago_sandbox'], 'default', 'value' => true],
             [['asaas_sandbox'], 'default', 'value' => true],
             [['nome', 'email', 'catalogo_path'], 'string', 'max' => 100],
+            [['username'], 'string', 'max' => 50],
+            [['username'], 'unique'],
             [['hash_senha', 'mercadopago_public_key', 'mercadopago_access_token', 'asaas_api_key'], 'string', 'max' => 255],
             [['cpf'], 'string', 'max' => 20],
             [['telefone'], 'string', 'max' => 30],
@@ -88,6 +91,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
         return [
             'id' => 'ID',
             'nome' => 'Nome',
+            'username' => 'Usuário',
             'email' => 'Email',
             'hash_senha' => 'Hash Senha',
             'data_criacao' => 'Data Criacao',
@@ -95,6 +99,9 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
             'cpf' => 'Cpf',
             'telefone' => 'Telefone',
             'auth_key' => 'Auth Key',
+            'eh_dono_loja' => 'É Dono da Loja',
+            'blocked_at' => 'Bloqueado em',
+            'confirmed_at' => 'Confirmado em',
             'api_de_pagamento' => 'API de Pagamento',
             'mercadopago_public_key' => 'Mercado Pago - Public Key',
             'mercadopago_access_token' => 'Mercado Pago - Access Token',
@@ -194,7 +201,69 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
     
      public static function findByLogin($login)
     {
-        return static::find()->where(['cpf' => $login])->orWhere(['email' => $login])->one();
+        // Busca por username, email ou CPF
+        return static::find()
+            ->where(['username' => $login])
+            ->orWhere(['email' => $login])
+            ->orWhere(['cpf' => $login])
+            ->one();
+    }
+    
+    /**
+     * Verifica se o usuário é dono da loja
+     * @return bool
+     */
+    public function isDonoLoja()
+    {
+        return $this->eh_dono_loja === true;
+    }
+    
+    /**
+     * Verifica se o usuário está bloqueado
+     * @return bool
+     */
+    public function isBlocked()
+    {
+        return $this->blocked_at !== null;
+    }
+    
+    /**
+     * Verifica se o usuário está confirmado
+     * @return bool
+     */
+    public function isConfirmed()
+    {
+        return $this->confirmed_at !== null;
+    }
+    
+    /**
+     * Bloqueia o usuário
+     */
+    public function bloquear()
+    {
+        $this->blocked_at = date('Y-m-d H:i:s');
+        return $this->save(false);
+    }
+    
+    /**
+     * Desbloqueia o usuário
+     */
+    public function desbloquear()
+    {
+        $this->blocked_at = null;
+        return $this->save(false);
+    }
+    
+    /**
+     * Confirma o email do usuário
+     */
+    public function confirmar()
+    {
+        if ($this->confirmed_at === null) {
+            $this->confirmed_at = date('Y-m-d H:i:s');
+            return $this->save(false);
+        }
+        return true;
     }
     
     // ... (Restante do código original de Usuario.php)

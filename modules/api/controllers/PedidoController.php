@@ -336,6 +336,29 @@ class PedidoController extends Controller
             );
             Yii::error("Parcelas geradas para Venda ID {$venda->id}", 'api');
 
+            // ===== INTEGRAÇÃO COM CAIXA (VENDA DIRETA) =====
+            // Registra entrada no caixa apenas para vendas diretas (pagamento na hora)
+            if ($isVendaDireta) {
+                try {
+                    $movimentacao = \app\modules\caixa\helpers\CaixaHelper::registrarEntradaVenda(
+                        $venda->id,
+                        $venda->valor_total,
+                        $venda->forma_pagamento_id,
+                        $venda->usuario_id
+                    );
+                    
+                    if ($movimentacao) {
+                        Yii::info("✅ Entrada registrada no caixa para Venda ID {$venda->id}", 'api');
+                    } else {
+                        // Não falha a venda se não houver caixa aberto, apenas registra no log
+                        Yii::warning("⚠️ Não foi possível registrar entrada no caixa para Venda ID {$venda->id} (caixa pode não estar aberto)", 'api');
+                    }
+                } catch (\Exception $e) {
+                    // Não falha a venda se houver erro no caixa, apenas registra no log
+                    Yii::error("Erro ao registrar entrada no caixa (não crítico): " . $e->getMessage(), 'api');
+                }
+            }
+
             // ===== COMMIT =====
             $transaction->commit();
             Yii::error("✅ Transação commitada com sucesso!", 'api');

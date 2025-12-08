@@ -178,6 +178,12 @@ $config = [
         'vendas' => [
             'class' => 'app\modules\vendas\Module',
         ],
+        'caixa' => [
+            'class' => 'app\modules\caixa\Module',
+        ],
+        'contas-pagar' => [
+            'class' => 'app\modules\contas_pagar\Module',
+        ],
         'porrinha' => [
             'class' => 'app\modules\porrinha\Porrinha',
         ],

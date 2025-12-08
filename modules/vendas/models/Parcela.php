@@ -139,7 +139,32 @@ class Parcela extends ActiveRecord
             $this->forma_pagamento_id = $formaPagamentoId;
         }
         
-        return $this->save();
+        $saved = $this->save();
+        
+        // ===== INTEGRAÇÃO COM CAIXA =====
+        // Registra entrada no caixa quando parcela é paga (apenas se salvou com sucesso)
+        if ($saved) {
+            try {
+                $movimentacao = \app\modules\caixa\helpers\CaixaHelper::registrarEntradaParcela(
+                    $this->id,
+                    $this->valor_pago,
+                    $this->forma_pagamento_id,
+                    $this->usuario_id
+                );
+                
+                if ($movimentacao) {
+                    Yii::info("✅ Entrada registrada no caixa para Parcela ID {$this->id}", 'Parcela');
+                } else {
+                    // Não falha o pagamento se não houver caixa aberto, apenas registra no log
+                    Yii::warning("⚠️ Não foi possível registrar entrada no caixa para Parcela ID {$this->id} (caixa pode não estar aberto)", 'Parcela');
+                }
+            } catch (\Exception $e) {
+                // Não falha o pagamento se houver erro no caixa, apenas registra no log
+                Yii::error("Erro ao registrar entrada no caixa (não crítico): " . $e->getMessage(), 'Parcela');
+            }
+        }
+        
+        return $saved;
     }
 
     public function getVenda()

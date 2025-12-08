@@ -76,6 +76,25 @@ class CobrancaController extends Controller
 
             // Só atualiza parcela se for PAGAMENTO
             if ($data['tipo_acao'] === HistoricoCobranca::TIPO_PAGAMENTO) {
+                // Busca ou cria forma de pagamento ANTES de atualizar a parcela (para usar na integração com caixa)
+                $formaPagamento = null;
+                if (!empty($data['forma_pagamento'])) {
+                    $formaPagamento = FormaPagamento::find()
+                        ->where(['usuario_id' => $data['usuario_id'], 'nome' => $data['forma_pagamento']])
+                        ->one();
+
+                    if (!$formaPagamento) {
+                        // Cria forma de pagamento se não existir (DINHEIRO ou PIX)
+                        $formaPagamento = new FormaPagamento();
+                        $formaPagamento->usuario_id = $data['usuario_id'];
+                        $formaPagamento->nome = $data['forma_pagamento'];
+                        $formaPagamento->ativo = true;
+                        if (!$formaPagamento->save()) {
+                            Yii::warning("Erro ao criar forma de pagamento: " . json_encode($formaPagamento->errors), __METHOD__);
+                        }
+                    }
+                }
+                
                 // Verifica se já está paga (evita duplicação)
                 if ($parcela->status_parcela_codigo === 'PAGA') {
                     // Se já está paga, apenas registra o histórico (idempotência)
@@ -86,32 +105,39 @@ class CobrancaController extends Controller
                     $parcela->data_pagamento = $data['data_acao'] ? date('Y-m-d', strtotime($data['data_acao'])) : date('Y-m-d');
                     $parcela->valor_pago = $data['valor_recebido'];
                     
+                    // Atualiza forma de pagamento na parcela se foi informada
+                    if ($formaPagamento) {
+                        $parcela->forma_pagamento_id = $formaPagamento->id;
+                    }
+                    
                     if (!$parcela->save()) {
                         Yii::$app->response->statusCode = 500;
                         return ['erro' => 'Erro ao atualizar parcela', 'erros' => $parcela->errors];
                     }
-                }
-            }
-            // Para outros tipos de ação (VISITA, AUSENTE, RECUSA, NEGOCIACAO), apenas registra no histórico
-
-            // Busca ou cria forma de pagamento (apenas se for PAGAMENTO e tiver forma_pagamento)
-            $formaPagamento = null;
-            if ($data['tipo_acao'] === HistoricoCobranca::TIPO_PAGAMENTO && !empty($data['forma_pagamento'])) {
-                $formaPagamento = FormaPagamento::find()
-                    ->where(['usuario_id' => $data['usuario_id'], 'nome' => $data['forma_pagamento']])
-                    ->one();
-
-                if (!$formaPagamento) {
-                    // Cria forma de pagamento se não existir (DINHEIRO ou PIX)
-                    $formaPagamento = new FormaPagamento();
-                    $formaPagamento->usuario_id = $data['usuario_id'];
-                    $formaPagamento->nome = $data['forma_pagamento'];
-                    $formaPagamento->ativo = true;
-                    if (!$formaPagamento->save()) {
-                        Yii::warning("Erro ao criar forma de pagamento: " . json_encode($formaPagamento->errors), __METHOD__);
+                    
+                    // ===== INTEGRAÇÃO COM CAIXA =====
+                    // Registra entrada no caixa quando parcela é paga
+                    try {
+                        $movimentacao = \app\modules\caixa\helpers\CaixaHelper::registrarEntradaParcela(
+                            $parcela->id,
+                            $parcela->valor_pago,
+                            $formaPagamento ? $formaPagamento->id : null,
+                            $data['usuario_id']
+                        );
+                        
+                        if ($movimentacao) {
+                            Yii::info("✅ Entrada registrada no caixa para Parcela ID {$parcela->id}", 'api');
+                        } else {
+                            // Não falha o pagamento se não houver caixa aberto, apenas registra no log
+                            Yii::warning("⚠️ Não foi possível registrar entrada no caixa para Parcela ID {$parcela->id} (caixa pode não estar aberto)", 'api');
+                        }
+                    } catch (\Exception $e) {
+                        // Não falha o pagamento se houver erro no caixa, apenas registra no log
+                        Yii::error("Erro ao registrar entrada no caixa (não crítico): " . $e->getMessage(), 'api');
                     }
                 }
             }
+            // Para outros tipos de ação (VISITA, AUSENTE, RECUSA, NEGOCIACAO), apenas registra no histórico
 
             // Registra histórico de cobrança
             $historico = new HistoricoCobranca();

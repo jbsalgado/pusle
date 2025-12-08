@@ -255,6 +255,15 @@ class SignupForm extends Model
             $usuario->telefone = preg_replace('/[^0-9]/', '', $this->telefone);
             $usuario->email = trim(strtolower($this->email));
             
+            // Gera username (usa email ou CPF)
+            $usuario->username = !empty($this->email) ? trim(strtolower($this->email)) : preg_replace('/[^0-9]/', '', $this->cpf);
+            
+            // Define como dono da loja (cadastro via signup sempre é dono)
+            $usuario->eh_dono_loja = true;
+            
+            // Confirma automaticamente (pode mudar se implementar confirmação de email)
+            $usuario->confirmed_at = date('Y-m-d H:i:s');
+            
             // Campos de endereço (opcionais)
             $usuario->endereco = !empty($this->endereco) ? trim($this->endereco) : null;
             $usuario->bairro = !empty($this->bairro) ? trim($this->bairro) : null;

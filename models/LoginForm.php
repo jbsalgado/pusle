@@ -81,7 +81,33 @@ class LoginForm extends Model
     {
         if (!$this->hasErrors()) {
             $usuario = $this->getUsuario();
-            if (!$usuario || !$usuario->validatePassword($this->senha)) {
+            
+            if (!$usuario) {
+                $this->addError($attribute, 'Usuário não encontrado.');
+                return;
+            }
+            
+            // Verifica se está bloqueado
+            if ($usuario->isBlocked()) {
+                $this->addError($attribute, 'Usuário bloqueado. Entre em contato com o administrador.');
+                return;
+            }
+            
+            // Se não é dono, verifica se tem colaborador associado com login próprio
+            if ($usuario->eh_dono_loja === false) {
+                $colaborador = \app\modules\vendas\models\Colaborador::find()
+                    ->where(['prest_usuario_login_id' => $usuario->id])
+                    ->andWhere(['ativo' => true])
+                    ->one();
+                
+                if (!$colaborador) {
+                    $this->addError($attribute, 'Você não tem permissão para acessar o sistema web. Use o aplicativo mobile (PWA) para acessar como colaborador.');
+                    return;
+                }
+            }
+            
+            // Valida senha
+            if (!$usuario->validatePassword($this->senha)) {
                 $this->addError($attribute, 'CPF/E-mail ou senha incorretos.');
             }
         }
