@@ -120,6 +120,64 @@ class ProdutoController extends Controller
             'model' => $model,
         ]);
     }
+    
+    /**
+     * Gera código de referência sugerido baseado na categoria
+     */
+    public function actionGerarCodigoReferencia()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+        
+        $categoriaId = Yii::$app->request->get('categoria_id');
+        $usuarioId = Yii::$app->user->id;
+        
+        if (!$categoriaId) {
+            return ['success' => false, 'message' => 'Categoria não informada'];
+        }
+        
+        $codigo = Produto::gerarCodigoReferencia($categoriaId, $usuarioId);
+        
+        return [
+            'success' => true,
+            'codigo' => $codigo
+        ];
+    }
+    
+    /**
+     * Verifica se o código de referência já existe (para validação em tempo real)
+     */
+    public function actionVerificarCodigoReferencia()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+        
+        $codigo = Yii::$app->request->get('codigo');
+        $produtoId = Yii::$app->request->get('produto_id'); // Para edição, excluir o próprio produto
+        $usuarioId = Yii::$app->user->id;
+        
+        if (empty($codigo)) {
+            return [
+                'success' => true,
+                'disponivel' => true,
+                'message' => ''
+            ];
+        }
+        
+        $query = Produto::find()
+            ->where(['usuario_id' => $usuarioId, 'codigo_referencia' => $codigo]);
+        
+        // Se estiver editando, exclui o próprio produto da verificação
+        if ($produtoId) {
+            $query->andWhere(['!=', 'id', $produtoId]);
+        }
+        
+        $existe = $query->exists();
+        
+        return [
+            'success' => true,
+            'disponivel' => !$existe,
+            'message' => $existe ? 'Este código de referência já está em uso. Escolha outro.' : 'Código disponível.'
+        ];
+    }
 
     public function actionUpdate($id)
     {
@@ -334,10 +392,12 @@ class ProdutoController extends Controller
             $ordem = ProdutoFoto::find()->where(['produto_id' => $model->id])->count();
             
             foreach ($files as $file) {
-                $filename = uniqid() . '.' . $file->extension;
+                $tempPath = $file->tempName;
+                $filename = uniqid() . '.jpg'; // Sempre salva como JPG otimizado
                 $filePath = $uploadPath . '/' . $filename;
                 
-                if ($file->saveAs($filePath)) {
+                // Otimiza a imagem antes de salvar
+                if ($this->optimizeImage($tempPath, $filePath)) {
                     $foto = new ProdutoFoto();
                     $foto->produto_id = $model->id;
                     $foto->arquivo_nome = $file->name;
@@ -350,9 +410,135 @@ class ProdutoController extends Controller
                     }
                     
                     $foto->save();
+                } else {
+                    Yii::error('Erro ao otimizar imagem: ' . $file->name, __METHOD__);
                 }
             }
         }
+    }
+    
+    /**
+     * Otimiza imagem: redimensiona e comprime para tamanho entre 50-200KB
+     * 
+     * @param string $sourcePath Caminho da imagem original
+     * @param string $destinationPath Caminho onde salvar a imagem otimizada
+     * @param int $maxWidth Largura máxima (padrão: 1920)
+     * @param int $maxHeight Altura máxima (padrão: 1920)
+     * @param int $minSizeKB Tamanho mínimo em KB (padrão: 50)
+     * @param int $maxSizeKB Tamanho máximo em KB (padrão: 200)
+     * @return bool True se sucesso, False se erro
+     */
+    protected function optimizeImage($sourcePath, $destinationPath, $maxWidth = 1920, $maxHeight = 1920, $minSizeKB = 50, $maxSizeKB = 200)
+    {
+        if (!file_exists($sourcePath)) {
+            return false;
+        }
+        
+        // Detecta o tipo da imagem
+        $imageInfo = @getimagesize($sourcePath);
+        if ($imageInfo === false) {
+            return false;
+        }
+        
+        $mimeType = $imageInfo['mime'];
+        $originalWidth = $imageInfo[0];
+        $originalHeight = $imageInfo[1];
+        
+        // Cria imagem resource baseado no tipo
+        switch ($mimeType) {
+            case 'image/jpeg':
+                $sourceImage = @imagecreatefromjpeg($sourcePath);
+                break;
+            case 'image/png':
+                $sourceImage = @imagecreatefrompng($sourcePath);
+                break;
+            case 'image/gif':
+                $sourceImage = @imagecreatefromgif($sourcePath);
+                break;
+            case 'image/webp':
+                if (function_exists('imagecreatefromwebp')) {
+                    $sourceImage = @imagecreatefromwebp($sourcePath);
+                } else {
+                    return false;
+                }
+                break;
+            default:
+                return false;
+        }
+        
+        if ($sourceImage === false) {
+            return false;
+        }
+        
+        // Calcula novas dimensões mantendo proporção
+        $ratio = min($maxWidth / $originalWidth, $maxHeight / $originalHeight);
+        $newWidth = (int)($originalWidth * $ratio);
+        $newHeight = (int)($originalHeight * $ratio);
+        
+        // Se a imagem já é menor que o máximo, mantém o tamanho original
+        if ($originalWidth <= $maxWidth && $originalHeight <= $maxHeight) {
+            $newWidth = $originalWidth;
+            $newHeight = $originalHeight;
+        }
+        
+        // Cria nova imagem redimensionada
+        $newImage = imagecreatetruecolor($newWidth, $newHeight);
+        
+        // Preserva transparência para PNG
+        if ($mimeType === 'image/png') {
+            imagealphablending($newImage, false);
+            imagesavealpha($newImage, true);
+            $transparent = imagecolorallocatealpha($newImage, 255, 255, 255, 127);
+            imagefilledrectangle($newImage, 0, 0, $newWidth, $newHeight, $transparent);
+        }
+        
+        // Redimensiona a imagem
+        imagecopyresampled($newImage, $sourceImage, 0, 0, 0, 0, $newWidth, $newHeight, $originalWidth, $originalHeight);
+        
+        // Libera memória da imagem original
+        imagedestroy($sourceImage);
+        
+        // Tenta diferentes qualidades para atingir o tamanho desejado
+        $quality = 85;
+        $attempts = 0;
+        $maxAttempts = 10;
+        
+        do {
+            // Salva como JPEG (sempre converte para JPEG para melhor compressão)
+            $success = @imagejpeg($newImage, $destinationPath, $quality);
+            
+            if ($success) {
+                $fileSize = filesize($destinationPath);
+                $sizeKB = $fileSize / 1024;
+                
+                // Se está dentro do range desejado, sucesso
+                if ($sizeKB >= $minSizeKB && $sizeKB <= $maxSizeKB) {
+                    imagedestroy($newImage);
+                    return true;
+                }
+                
+                // Se está muito grande, reduz qualidade
+                if ($sizeKB > $maxSizeKB && $quality > 30) {
+                    $quality = max(30, $quality - 10);
+                }
+                // Se está muito pequena, aumenta qualidade (mas não muito)
+                elseif ($sizeKB < $minSizeKB && $quality < 95) {
+                    $quality = min(95, $quality + 5);
+                } else {
+                    // Aceita o resultado atual se não conseguir ajustar mais
+                    imagedestroy($newImage);
+                    return true;
+                }
+            } else {
+                imagedestroy($newImage);
+                return false;
+            }
+            
+            $attempts++;
+        } while ($attempts < $maxAttempts);
+        
+        imagedestroy($newImage);
+        return true;
     }
 
     protected function deleteFotoFile($foto)

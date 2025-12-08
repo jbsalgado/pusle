@@ -32,6 +32,7 @@ use app\modules\vendas\helpers\PricingHelper;
  * @property integer $estoque_atual
  * @property integer $estoque_minimo
  * @property integer $ponto_corte
+ * @property string $localizacao
  * @property boolean $ativo
  * @property string $data_criacao
  * @property string $data_atualizacao
@@ -93,8 +94,8 @@ class Produto extends ActiveRecord
                 }
                 return (int) $value;
             }],
-            // Validação: ponto_corte deve ser menor ou igual a estoque_minimo
-            [['ponto_corte'], 'compare', 'compareAttribute' => 'estoque_minimo', 'operator' => '<=', 'skipOnEmpty' => false, 'message' => 'O ponto de corte deve ser menor ou igual ao estoque mínimo.'],
+            // Validação: ponto_corte deve ser maior ou igual a estoque_minimo
+            [['ponto_corte'], 'compare', 'compareAttribute' => 'estoque_minimo', 'operator' => '>=', 'skipOnEmpty' => false, 'message' => 'O ponto de corte deve ser maior ou igual ao estoque mínimo.'],
             [['valor_frete'], 'default', 'value' => 0],
             [['ativo', 'permite_parcelamento'], 'boolean'],
             [['ativo'], 'default', 'value' => true],
@@ -103,10 +104,11 @@ class Produto extends ActiveRecord
             [['estoque_atual', 'estoque_minimo', 'ponto_corte'], 'safe'], // ✅ Garante que os campos podem ser carregados via load()
             [['nome'], 'string', 'max' => 150],
             [['codigo_referencia'], 'string', 'max' => 50],
+            [['localizacao'], 'string', 'max' => 30],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
             [['categoria_id'], 'exist', 'skipOnError' => true, 'targetClass' => Categoria::class, 'targetAttribute' => ['categoria_id' => 'id']],
-            // Código de referência único por usuário
-            [['codigo_referencia'], 'unique', 'targetAttribute' => ['usuario_id', 'codigo_referencia']],
+            // Código de referência único por usuário (validação customizada)
+            [['codigo_referencia'], 'validateCodigoReferenciaUnico'],
             // Validação de promoção: se tem preço promocional, deve ter datas
             ['preco_promocional', 'validatePromocao'],
         ];
@@ -127,6 +129,29 @@ class Produto extends ActiveRecord
             }
         }
     }
+    
+    /**
+     * Validação customizada para garantir que código de referência seja único por usuário
+     */
+    public function validateCodigoReferenciaUnico($attribute, $params)
+    {
+        // Se o código está vazio, não valida (é opcional)
+        if (empty($this->codigo_referencia)) {
+            return;
+        }
+        
+        $query = self::find()
+            ->where(['usuario_id' => $this->usuario_id, 'codigo_referencia' => $this->codigo_referencia]);
+        
+        // Se estiver editando, exclui o próprio produto da verificação
+        if (!$this->isNewRecord) {
+            $query->andWhere(['!=', 'id', $this->id]);
+        }
+        
+        if ($query->exists()) {
+            $this->addError($attribute, 'Este código de referência já está em uso. Escolha outro código.');
+        }
+    }
 
     /**
      * Calcula e atualiza margem de lucro e markup automaticamente
@@ -145,13 +170,54 @@ class Produto extends ActiveRecord
     }
 
     /**
-     * Hook antes de salvar para calcular margem e markup
+     * Hook antes de salvar para calcular margem e markup e garantir nome na descrição
      */
     public function beforeSave($insert)
     {
         if (parent::beforeSave($insert)) {
             // 🔍 DEBUG: Log do estoque antes de salvar
             Yii::info('Estoque antes de salvar: ' . $this->estoque_atual, __METHOD__);
+            
+            // Converte todos os campos de texto para MAIÚSCULO
+            if (!empty($this->nome)) {
+                $this->nome = mb_strtoupper(trim($this->nome), 'UTF-8');
+            }
+            
+            if (!empty($this->codigo_referencia)) {
+                $this->codigo_referencia = mb_strtoupper(trim($this->codigo_referencia), 'UTF-8');
+            }
+            
+            if (!empty($this->localizacao)) {
+                $this->localizacao = mb_strtoupper(trim($this->localizacao), 'UTF-8');
+            }
+            
+            // Garante que a descrição sempre inclua o nome do produto
+            if (!empty($this->nome)) {
+                $nome = $this->nome; // Já está em maiúsculo e trimado
+                $descricao = !empty($this->descricao) ? trim($this->descricao) : '';
+                $prefixo = $nome . ' - ';
+                
+                // Se a descrição não começa com o nome, adiciona
+                if (empty($descricao)) {
+                    $this->descricao = $nome;
+                } elseif (strpos($descricao, $nome) !== 0) {
+                    // Descrição não começa com o nome, adiciona
+                    $this->descricao = $prefixo . mb_strtoupper($descricao, 'UTF-8');
+                } elseif (strpos($descricao, $prefixo) === 0) {
+                    // Já está no formato correto (nome - descrição), converte para maiúsculo
+                    $parteUsuario = mb_strtoupper(substr($descricao, strlen($prefixo)), 'UTF-8');
+                    $this->descricao = $prefixo . $parteUsuario;
+                } elseif ($descricao === $nome) {
+                    // Se a descrição é apenas o nome, mantém
+                    $this->descricao = $nome;
+                } else {
+                    // Converte para maiúsculo
+                    $this->descricao = mb_strtoupper($descricao, 'UTF-8');
+                }
+            } elseif (!empty($this->descricao)) {
+                // Se não tem nome mas tem descrição, converte para maiúsculo
+                $this->descricao = mb_strtoupper(trim($this->descricao), 'UTF-8');
+            }
             
             // ✅ Calcula margem e markup, mas limita margem a 99.99% para não falhar validação
             // Markup pode ser qualquer valor positivo (sem limite)
@@ -195,6 +261,7 @@ class Produto extends ActiveRecord
             'estoque_atual' => 'Estoque Atual',
             'estoque_minimo' => 'Estoque Mínimo',
             'ponto_corte' => 'Ponto de Corte',
+            'localizacao' => 'Localização',
             'ativo' => 'Ativo',
             'data_criacao' => 'Data de Cadastro',
             'data_atualizacao' => 'Última Atualização',
@@ -375,5 +442,167 @@ class Produto extends ActiveRecord
             ->indexBy('id')
             ->orderBy(['nome' => SORT_ASC])
             ->column();
+    }
+    
+    /**
+     * Gera código de referência único baseado na categoria
+     * Formato: SIGLA_CATEGORIA-0000 (ex: ELET-0000, ROUP-0001, até 9999)
+     * 
+     * @param string $categoriaId ID da categoria
+     * @param string $usuarioId ID do usuário
+     * @return string Código de referência gerado
+     */
+    public static function gerarCodigoReferencia($categoriaId, $usuarioId)
+    {
+        // Busca a categoria
+        $categoria = Categoria::findOne($categoriaId);
+        
+        if (!$categoria || $categoria->usuario_id !== $usuarioId) {
+            return '';
+        }
+        
+        // Gera sigla da categoria (primeiras letras, maiúsculas, sem espaços)
+        $nome = $categoria->nome;
+        $sigla = self::gerarSiglaCategoria($nome);
+        
+        // Busca o último código da categoria para gerar o próximo sequencial
+        $ultimoCodigo = self::find()
+            ->where(['usuario_id' => $usuarioId, 'categoria_id' => $categoriaId])
+            ->andWhere(['like', 'codigo_referencia', $sigla . '-%', false])
+            ->orderBy(['codigo_referencia' => SORT_DESC])
+            ->select('codigo_referencia')
+            ->scalar();
+        
+        $sequencial = 0;
+        
+        if ($ultimoCodigo) {
+            // Extrai o número do último código (ex: ELET-0000 -> 0000)
+            if (preg_match('/' . preg_quote($sigla, '/') . '-(\d+)$/', $ultimoCodigo, $matches)) {
+                $sequencial = (int)$matches[1] + 1;
+            }
+        }
+        
+        // Verifica se excedeu o limite de 9999
+        if ($sequencial > 9999) {
+            // Se excedeu, tenta encontrar um número disponível ou retorna vazio
+            $sequencial = 0;
+            for ($i = 0; $i <= 9999; $i++) {
+                $codigoTeste = $sigla . '-' . str_pad($i, 4, '0', STR_PAD_LEFT);
+                if (!self::find()
+                    ->where(['usuario_id' => $usuarioId, 'codigo_referencia' => $codigoTeste])
+                    ->exists()) {
+                    $sequencial = $i;
+                    break;
+                }
+            }
+            
+            // Se não encontrou nenhum disponível, retorna vazio
+            if ($sequencial > 9999) {
+                return '';
+            }
+        }
+        
+        // Formata o código: SIGLA-0000 (4 dígitos, de 0000 a 9999)
+        $codigo = $sigla . '-' . str_pad($sequencial, 4, '0', STR_PAD_LEFT);
+        
+        // Verifica se o código já existe (garantia de unicidade)
+        $tentativas = 0;
+        $maxTentativas = 10000;
+        
+        while (self::find()
+            ->where(['usuario_id' => $usuarioId, 'codigo_referencia' => $codigo])
+            ->exists() && $tentativas < $maxTentativas && $sequencial <= 9999) {
+            $sequencial++;
+            if ($sequencial > 9999) {
+                // Se excedeu, tenta encontrar um número disponível
+                $encontrado = false;
+                for ($i = 0; $i <= 9999; $i++) {
+                    $codigoTeste = $sigla . '-' . str_pad($i, 4, '0', STR_PAD_LEFT);
+                    if (!self::find()
+                        ->where(['usuario_id' => $usuarioId, 'codigo_referencia' => $codigoTeste])
+                        ->exists()) {
+                        $sequencial = $i;
+                        $encontrado = true;
+                        break;
+                    }
+                }
+                if (!$encontrado) {
+                    return ''; // Não há mais códigos disponíveis
+                }
+            }
+            $codigo = $sigla . '-' . str_pad($sequencial, 4, '0', STR_PAD_LEFT);
+            $tentativas++;
+        }
+        
+        return $codigo;
+    }
+    
+    /**
+     * Gera sigla a partir do nome da categoria
+     * Ex: "Eletrônicos" -> "ELET", "Roupas e Acessórios" -> "ROUP"
+     * 
+     * @param string $nome Nome da categoria
+     * @return string Sigla gerada (máximo 4 caracteres)
+     */
+    protected static function gerarSiglaCategoria($nome)
+    {
+        // Remove acentos e caracteres especiais
+        $nome = self::removeAcentos($nome);
+        
+        // Remove palavras comuns (artigos, preposições)
+        $palavrasIgnorar = ['de', 'da', 'do', 'das', 'dos', 'e', 'ou', 'a', 'o', 'as', 'os'];
+        $palavras = explode(' ', strtolower($nome));
+        $palavras = array_filter($palavras, function($palavra) use ($palavrasIgnorar) {
+            return !in_array($palavra, $palavrasIgnorar) && strlen($palavra) > 0;
+        });
+        
+        // Se não há palavras válidas, usa as primeiras letras do nome
+        if (empty($palavras)) {
+            $sigla = strtoupper(substr(preg_replace('/[^a-zA-Z0-9]/', '', $nome), 0, 4));
+            return $sigla ?: 'PROD';
+        }
+        
+        // Pega as primeiras letras de cada palavra (máximo 4 caracteres)
+        $sigla = '';
+        foreach ($palavras as $palavra) {
+            if (strlen($sigla) >= 4) {
+                break;
+            }
+            $sigla .= strtoupper(substr($palavra, 0, 1));
+        }
+        
+        // Se a sigla tem menos de 3 caracteres, completa com letras do nome
+        if (strlen($sigla) < 3) {
+            $nomeLimpo = preg_replace('/[^a-zA-Z0-9]/', '', $nome);
+            $sigla = strtoupper(substr($nomeLimpo, 0, 4));
+        }
+        
+        return $sigla ?: 'PROD';
+    }
+    
+    /**
+     * Remove acentos de uma string
+     * 
+     * @param string $string
+     * @return string
+     */
+    protected static function removeAcentos($string)
+    {
+        $acentos = [
+            'À' => 'A', 'Á' => 'A', 'Â' => 'A', 'Ã' => 'A', 'Ä' => 'A',
+            'à' => 'a', 'á' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'a',
+            'È' => 'E', 'É' => 'E', 'Ê' => 'E', 'Ë' => 'E',
+            'è' => 'e', 'é' => 'e', 'ê' => 'e', 'ë' => 'e',
+            'Ì' => 'I', 'Í' => 'I', 'Î' => 'I', 'Ï' => 'I',
+            'ì' => 'i', 'í' => 'i', 'î' => 'i', 'ï' => 'i',
+            'Ò' => 'O', 'Ó' => 'O', 'Ô' => 'O', 'Õ' => 'O', 'Ö' => 'O',
+            'ò' => 'o', 'ó' => 'o', 'ô' => 'o', 'õ' => 'o', 'ö' => 'o',
+            'Ù' => 'U', 'Ú' => 'U', 'Û' => 'U', 'Ü' => 'U',
+            'ù' => 'u', 'ú' => 'u', 'û' => 'u', 'ü' => 'u',
+            'Ç' => 'C', 'ç' => 'c',
+            'Ñ' => 'N', 'ñ' => 'n',
+        ];
+        
+        return strtr($string, $acentos);
     }
 }
