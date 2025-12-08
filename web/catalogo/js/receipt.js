@@ -377,16 +377,105 @@ export async function gerarComprovanteVenda(carrinho, dadosPedido) {
 </html>
     `;
     
-    // Abre janela de impressão
-    const janelaImpressao = window.open('', '_blank', 'width=300,height=600');
-    janelaImpressao.document.write(html);
-    janelaImpressao.document.close();
+    // Cria elemento temporário para renderizar o comprovante
+    const tempDiv = document.createElement('div');
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    tempDiv.style.width = '80mm';
+    tempDiv.style.padding = '5mm';
+    tempDiv.style.fontFamily = "'Courier New', monospace";
+    tempDiv.style.fontSize = '12px';
+    tempDiv.style.lineHeight = '1.3';
+    tempDiv.style.backgroundColor = '#fff';
+    tempDiv.style.color = '#000';
+    document.body.appendChild(tempDiv);
     
-    // Aguarda carregamento e imprime
-    setTimeout(() => {
-        janelaImpressao.focus();
-        janelaImpressao.print();
-    }, 250);
+    // Cria iframe para renderizar o HTML completo com estilos
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.left = '-9999px';
+    iframe.style.width = '80mm';
+    iframe.style.height = 'auto';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+    
+    // Aguarda o iframe carregar
+    iframe.onload = async () => {
+        try {
+            // Aguarda um pouco mais para garantir que imagens carregaram
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Verifica se html2canvas está disponível
+            if (typeof html2canvas === 'undefined') {
+                console.error('[Receipt] ❌ html2canvas não está disponível');
+                alert('Erro: Biblioteca html2canvas não carregada. Recarregue a página.');
+                document.body.removeChild(tempDiv);
+                document.body.removeChild(iframe);
+                return;
+            }
+            
+            // Converte para PNG usando html2canvas
+            const canvas = await html2canvas(iframe.contentDocument.body, {
+                backgroundColor: '#ffffff',
+                scale: 2,
+                logging: false,
+                useCORS: true,
+                allowTaint: false,
+                width: iframe.contentDocument.body.scrollWidth,
+                height: iframe.contentDocument.body.scrollHeight
+            });
+            
+            // Converte canvas para blob
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    console.error('[Receipt] ❌ Erro ao gerar blob da imagem');
+                    alert('Erro ao gerar imagem do comprovante.');
+                    document.body.removeChild(tempDiv);
+                    document.body.removeChild(iframe);
+                    return;
+                }
+                
+                // Cria URL da imagem
+                const imageUrl = URL.createObjectURL(blob);
+                
+                // Armazena a imagem globalmente para compartilhamento
+                window.comprovanteImagem = {
+                    blob: blob,
+                    url: imageUrl,
+                    canvas: canvas
+                };
+                
+                // Exibe no modal
+                const container = document.getElementById('comprovante-container');
+                if (container) {
+                    container.innerHTML = `<img src="${imageUrl}" alt="Comprovante" class="max-w-full h-auto rounded-lg shadow-md" style="width: 100%; max-width: 600px;">`;
+                }
+                
+                // Abre o modal
+                const modal = document.getElementById('modal-comprovante');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                }
+                
+                // Limpa elementos temporários
+                document.body.removeChild(tempDiv);
+                document.body.removeChild(iframe);
+                
+                console.log('[Receipt] ✅ Comprovante gerado com sucesso como PNG');
+            }, 'image/png', 1.0);
+            
+        } catch (error) {
+            console.error('[Receipt] ❌ Erro ao gerar comprovante PNG:', error);
+            alert('Erro ao gerar comprovante. Tente novamente.');
+            document.body.removeChild(tempDiv);
+            document.body.removeChild(iframe);
+        }
+    };
+    
+    // Escreve o HTML no iframe
+    iframe.contentDocument.open();
+    iframe.contentDocument.write(html);
+    iframe.contentDocument.close();
 }
 
 /**

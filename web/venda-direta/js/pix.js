@@ -994,78 +994,105 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
 </html>
     `;
     
-    // Abre janela de impressão
-    const janelaImpressao = window.open('', '_blank', 'width=300,height=600');
-    if (!janelaImpressao) {
-        console.error('[PIX] ❌ Não foi possível abrir janela de impressão (bloqueador de popup?)');
-        alert('Não foi possível abrir a janela de impressão. Verifique se os popups estão habilitados.');
-        return;
-    }
+    // Cria elemento temporário para renderizar o comprovante
+    const tempDiv = document.createElement('div');
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    tempDiv.style.width = '80mm';
+    tempDiv.style.padding = '5mm';
+    tempDiv.style.fontFamily = "'Courier New', monospace";
+    tempDiv.style.fontSize = '12px';
+    tempDiv.style.lineHeight = '1.3';
+    tempDiv.style.backgroundColor = '#fff';
+    tempDiv.style.color = '#000';
+    document.body.appendChild(tempDiv);
     
-    janelaImpressao.document.write(html);
-    janelaImpressao.document.close();
+    // Cria iframe para renderizar o HTML completo com estilos
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.left = '-9999px';
+    iframe.style.width = '80mm';
+    iframe.style.height = 'auto';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
     
-        // Aguarda carregamento e imprime
-        setTimeout(() => {
-            try {
-                janelaImpressao.focus();
+    // Aguarda o iframe carregar
+    iframe.onload = async () => {
+        try {
+            // Aguarda um pouco mais para garantir que imagens carregaram
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Verifica se html2canvas está disponível
+            if (typeof html2canvas === 'undefined') {
+                console.error('[PIX] ❌ html2canvas não está disponível');
+                alert('Erro: Biblioteca html2canvas não carregada. Recarregue a página.');
+                document.body.removeChild(tempDiv);
+                document.body.removeChild(iframe);
+                return;
+            }
+            
+            // Converte para PNG usando html2canvas
+            const canvas = await html2canvas(iframe.contentDocument.body, {
+                backgroundColor: '#ffffff',
+                scale: 2,
+                logging: false,
+                useCORS: true,
+                allowTaint: false,
+                width: iframe.contentDocument.body.scrollWidth,
+                height: iframe.contentDocument.body.scrollHeight
+            });
+            
+            // Converte canvas para blob
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    console.error('[PIX] ❌ Erro ao gerar blob da imagem');
+                    alert('Erro ao gerar imagem do comprovante.');
+                    document.body.removeChild(tempDiv);
+                    document.body.removeChild(iframe);
+                    return;
+                }
                 
-                // Adiciona listener para fechar a janela após impressão ou cancelamento
-                const fecharJanela = () => {
-                    setTimeout(() => {
-                        try {
-                            if (janelaImpressao && !janelaImpressao.closed) {
-                                janelaImpressao.close();
-                                console.log('[PIX] ✅ Janela de impressão fechada');
-                            }
-                        } catch (e) {
-                            console.warn('[PIX] ⚠️ Erro ao fechar janela:', e);
-                        }
-                    }, 500);
+                // Cria URL da imagem
+                const imageUrl = URL.createObjectURL(blob);
+                
+                // Armazena a imagem globalmente para compartilhamento
+                window.comprovanteImagem = {
+                    blob: blob,
+                    url: imageUrl,
+                    canvas: canvas
                 };
                 
-                // Listener para quando a impressão for concluída ou cancelada
-                if (janelaImpressao.matchMedia) {
-                    const mediaQueryList = janelaImpressao.matchMedia('print');
-                    const handler = (mql) => {
-                        if (!mql.matches) {
-                            // Impressão foi cancelada ou concluída
-                            mediaQueryList.removeEventListener('change', handler);
-                            fecharJanela();
-                        }
-                    };
-                    mediaQueryList.addEventListener('change', handler);
+                // Exibe no modal
+                const container = document.getElementById('comprovante-container');
+                if (container) {
+                    container.innerHTML = `<img src="${imageUrl}" alt="Comprovante" class="max-w-full h-auto rounded-lg shadow-md" style="width: 100%; max-width: 600px;">`;
                 }
                 
-                // Fallback: fecha após 5 segundos se não houver interação
-                const timeoutFechar = setTimeout(() => {
-                    console.log('[PIX] ⏰ Timeout: fechando janela de impressão');
-                    fecharJanela();
-                }, 5000);
-                
-                // Limpa timeout se a janela for fechada manualmente
-                janelaImpressao.addEventListener('beforeunload', () => {
-                    clearTimeout(timeoutFechar);
-                });
-                
-                // Tenta imprimir
-                janelaImpressao.print();
-                
-                // Fecha automaticamente após um tempo se não houver interação do usuário
-                setTimeout(() => {
-                    if (!janelaImpressao.closed) {
-                        clearTimeout(timeoutFechar);
-                        fecharJanela();
-                    }
-                }, 3000);
-                
-            } catch (e) {
-                console.error('[PIX] ❌ Erro ao imprimir:', e);
-                if (janelaImpressao && !janelaImpressao.closed) {
-                    janelaImpressao.close();
+                // Abre o modal
+                const modal = document.getElementById('modal-comprovante');
+                if (modal) {
+                    modal.classList.remove('hidden');
                 }
-            }
-        }, 300);
+                
+                // Limpa elementos temporários
+                document.body.removeChild(tempDiv);
+                document.body.removeChild(iframe);
+                
+                console.log('[PIX] ✅ Comprovante gerado com sucesso como PNG');
+            }, 'image/png', 1.0);
+            
+        } catch (error) {
+            console.error('[PIX] ❌ Erro ao gerar comprovante PNG:', error);
+            alert('Erro ao gerar comprovante. Tente novamente.');
+            document.body.removeChild(tempDiv);
+            document.body.removeChild(iframe);
+        }
+    };
+    
+    // Escreve o HTML no iframe
+    iframe.contentDocument.open();
+    iframe.contentDocument.write(html);
+    iframe.contentDocument.close();
 }
 
 /**
