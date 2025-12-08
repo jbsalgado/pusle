@@ -452,51 +452,8 @@
                 return;
             }
             
-            printWindow.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Comprovante de Venda</title>
-                    <style>
-                        @media print {
-                            @page {
-                                margin: 0;
-                                size: auto;
-                            }
-                            body {
-                                margin: 0;
-                                padding: 0;
-                            }
-                        }
-                        body {
-                            margin: 0;
-                            padding: 20px;
-                            display: flex;
-                            justify-content: center;
-                            align-items: center;
-                            min-height: 100vh;
-                        }
-                        img {
-                            max-width: 100%;
-                            height: auto;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <img src="${window.comprovanteImagem.url}" alt="Comprovante de Venda">
-                    <script>
-                        window.onload = function() {
-                            setTimeout(function() {
-                                window.print();
-                                setTimeout(function() {
-                                    window.close();
-                                }, 500);
-                            }, 250);
-                        };
-                    </script>
-                </body>
-                </html>
-            `);
+            const imageUrl = window.comprovanteImagem.url;
+            printWindow.document.write('<!DOCTYPE html><html><head><title>Comprovante de Venda</title><style>@media print {@page {margin: 0; size: auto;} body {margin: 0; padding: 0;}} body {margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh;} img {max-width: 100%; height: auto;}</style></head><body><img src="' + imageUrl + '" alt="Comprovante de Venda"><script>window.onload = function() {setTimeout(function() {window.print(); setTimeout(function() {window.close();}, 500);}, 250);};</script></body></html>');
             printWindow.document.close();
         }
         
