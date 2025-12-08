@@ -70,6 +70,22 @@ class Venda extends ActiveRecord
     /**
      * {@inheritdoc}
      */
+    public function beforeSave($insert)
+    {
+        if (parent::beforeSave($insert)) {
+            // Gera UUID se for um novo registro e não tiver ID definido
+            if ($insert && empty($this->id)) {
+                $uuid = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
+                $this->id = $uuid;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function rules()
     {
         return [

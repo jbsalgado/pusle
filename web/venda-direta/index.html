@@ -414,7 +414,7 @@
     <!-- Funções para gerenciar comprovante -->
     <script>
         // Fechar modal do comprovante
-        function fecharModalComprovante() {
+        window.fecharModalComprovante = function() {
             const modal = document.getElementById('modal-comprovante');
             if (modal) {
                 modal.classList.add('hidden');
@@ -440,7 +440,7 @@
         });
         
         // Imprimir comprovante
-        function imprimirComprovante() {
+        window.imprimirComprovante = function() {
             if (!window.comprovanteImagem || !window.comprovanteImagem.url) {
                 alert('Comprovante não disponível para impressão.');
                 return;
@@ -453,12 +453,33 @@
             }
             
             const imageUrl = window.comprovanteImagem.url;
-            printWindow.document.write('<!DOCTYPE html><html><head><title>Comprovante de Venda</title><style>@media print {@page {margin: 0; size: auto;} body {margin: 0; padding: 0;}} body {margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh;} img {max-width: 100%; height: auto;}</style></head><body><img src="' + imageUrl + '" alt="Comprovante de Venda"><script>window.onload = function() {setTimeout(function() {window.print(); setTimeout(function() {window.close();}, 500);}, 250);};</script></body></html>');
+            const htmlContent = '<!DOCTYPE html><html><head><title>Comprovante de Venda</title><style>@media print {@page {margin: 0; size: auto;} body {margin: 0; padding: 0;}} body {margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh;} img {max-width: 100%; height: auto;}</style></head><body><img src="' + imageUrl + '" alt="Comprovante de Venda"></body></html>';
+            printWindow.document.write(htmlContent);
             printWindow.document.close();
+            
+            // Adiciona o script após o documento estar pronto
+            printWindow.document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(function() {
+                    printWindow.print();
+                    setTimeout(function() {
+                        printWindow.close();
+                    }, 500);
+                }, 250);
+            });
+            
+            // Fallback caso DOMContentLoaded já tenha disparado
+            if (printWindow.document.readyState === 'complete') {
+                setTimeout(function() {
+                    printWindow.print();
+                    setTimeout(function() {
+                        printWindow.close();
+                    }, 500);
+                }, 250);
+            }
         }
         
         // Compartilhar via WhatsApp
-        async function compartilharWhatsApp() {
+        window.compartilharWhatsApp = async function() {
             if (!window.comprovanteImagem || !window.comprovanteImagem.blob) {
                 alert('Comprovante não disponível para compartilhamento.');
                 return;
@@ -506,7 +527,7 @@
         }
         
         // Compartilhar via Telegram
-        async function compartilharTelegram() {
+        window.compartilharTelegram = async function() {
             if (!window.comprovanteImagem || !window.comprovanteImagem.blob) {
                 alert('Comprovante não disponível para compartilhamento.');
                 return;
@@ -554,7 +575,7 @@
         }
         
         // Baixar comprovante
-        function baixarComprovante() {
+        window.baixarComprovante = function() {
             if (!window.comprovanteImagem || !window.comprovanteImagem.blob) {
                 alert('Comprovante não disponível para download.');
                 return;
@@ -570,7 +591,7 @@
         }
         
         // Copiar comprovante para área de transferência
-        async function copiarComprovante() {
+        window.copiarComprovante = async function() {
             if (!window.comprovanteImagem || !window.comprovanteImagem.blob) {
                 alert('Comprovante não disponível para copiar.');
                 return;
