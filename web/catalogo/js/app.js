@@ -121,10 +121,24 @@ async function carregarLogoEmpresa() {
             });
             
             if (dadosLoja.logo_path) {
-                let logoUrl = dadosLoja.logo_path;
-                // Se não for URL completa ou caminho absoluto, adiciona URL base
-                if (!logoUrl.match(/^(https?:\/\/|\/)/)) {
-                    logoUrl = CONFIG.URL_BASE_WEB + '/' + logoUrl.replace(/^\//, '');
+                let logoUrl = dadosLoja.logo_path.trim();
+                
+                // Se não for URL completa (http:// ou https://), precisa construir a URL completa
+                if (!logoUrl.match(/^https?:\/\//)) {
+                    // Remove barra inicial se houver
+                    logoUrl = logoUrl.replace(/^\//, '');
+                    
+                    // Garante que CONFIG.URL_BASE_WEB está definido
+                    if (!CONFIG || !CONFIG.URL_BASE_WEB) {
+                        console.error('[App] ⚠️ CONFIG.URL_BASE_WEB não está definido!');
+                        // Fallback: usa window.location
+                        const baseUrl = window.location.origin + window.location.pathname.split('/').slice(0, -1).join('/');
+                        logoUrl = baseUrl + '/' + logoUrl;
+                    } else {
+                        // Remove barra final do URL_BASE_WEB se houver
+                        const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
+                        logoUrl = baseUrl + '/' + logoUrl;
+                    }
                 }
                 
                 console.log('[App] 🔗 URL da logo construída:', logoUrl);

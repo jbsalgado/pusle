@@ -628,19 +628,40 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
     // Constrói URL da logo se houver
     let logoUrl = '';
     if (dadosEmpresa.logo_path) {
-        if (dadosEmpresa.logo_path.match(/^(https?:\/\/|\/)/)) {
-            // URL completa ou caminho absoluto
-            logoUrl = dadosEmpresa.logo_path;
-        } else {
-            // Caminho relativo - precisa da URL base
-            try {
-                const { CONFIG } = await import('./config.js');
-                logoUrl = CONFIG.URL_BASE_WEB + '/' + dadosEmpresa.logo_path.replace(/^\//, '');
-            } catch (e) {
-                // Fallback: usa window.location se não conseguir importar CONFIG
-                const baseUrl = window.location.origin + window.location.pathname.split('/').slice(0, -2).join('/');
-                logoUrl = baseUrl + '/' + dadosEmpresa.logo_path.replace(/^\//, '');
+        let logoPath = dadosEmpresa.logo_path.trim();
+        
+        // Se não for URL completa (http:// ou https://), precisa construir a URL completa
+        if (!logoPath.match(/^https?:\/\//)) {
+            // Remove barra inicial se houver
+            logoPath = logoPath.replace(/^\//, '');
+            
+            // Tenta usar CONFIG (pode estar disponível globalmente ou precisa importar)
+            let baseUrl = '';
+            if (window.CONFIG && window.CONFIG.URL_BASE_WEB) {
+                baseUrl = window.CONFIG.URL_BASE_WEB.replace(/\/$/, '');
+            } else {
+                try {
+                    const { CONFIG } = await import('./config.js');
+                    if (CONFIG && CONFIG.URL_BASE_WEB) {
+                        baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
+                    }
+                } catch (e) {
+                    console.warn('[PIX] Não foi possível importar CONFIG, usando fallback');
+                }
             }
+            
+            // Se ainda não tem baseUrl, usa window.location como fallback
+            if (!baseUrl) {
+                const pathParts = window.location.pathname.split('/').filter(p => p);
+                // Remove 'venda-direta' ou 'index.html' do final
+                pathParts.pop();
+                baseUrl = window.location.origin + (pathParts.length > 0 ? '/' + pathParts.join('/') : '');
+            }
+            
+            logoUrl = baseUrl + '/' + logoPath;
+        } else {
+            // URL completa - usa como está
+            logoUrl = logoPath;
         }
     }
     
