@@ -41,29 +41,39 @@ class InicioController extends Controller
     {
         $usuario = Yii::$app->user->identity;
         
+        if (!$usuario) {
+            Yii::warning("⚠️ Usuário não autenticado!", __METHOD__);
+            return $this->redirect(['/auth/login']);
+        }
+        
         // Verifica se é dono da loja (acesso completo automático)
-        $ehDonoLoja = $usuario && $usuario->eh_dono_loja === true;
+        // Usa verificação mais robusta para garantir que funciona com diferentes tipos de dados
+        $ehDonoLoja = $usuario->eh_dono_loja === true || $usuario->eh_dono_loja === '1' || $usuario->eh_dono_loja === 1;
         
         // Busca o colaborador associado ao usuário (se houver)
         $colaborador = null;
         $ehAdministrador = false;
         
-        if ($usuario) {
-            // Se é dono da loja, tem acesso completo
-            if ($ehDonoLoja) {
-                $ehAdministrador = true;
+        // Se é dono da loja, tem acesso completo
+        if ($ehDonoLoja) {
+            $ehAdministrador = true;
+            Yii::info("✅ Usuário é dono da loja - Acesso completo concedido. ID: {$usuario->id}, eh_dono_loja: " . var_export($usuario->eh_dono_loja, true), __METHOD__);
+        } else {
+            // Se não é dono, verifica se é colaborador administrador
+            $colaborador = \app\modules\vendas\models\Colaborador::find()
+                ->where(['usuario_id' => $usuario->id])
+                ->andWhere(['ativo' => true])
+                ->one();
+            
+            if ($colaborador) {
+                $ehAdministrador = (bool)$colaborador->eh_administrador;
+                Yii::info("Colaborador encontrado - eh_administrador: " . ($colaborador->eh_administrador ? 'true' : 'false'), __METHOD__);
             } else {
-                // Se não é dono, verifica se é colaborador administrador
-                $colaborador = \app\modules\vendas\models\Colaborador::find()
-                    ->where(['usuario_id' => $usuario->id])
-                    ->andWhere(['ativo' => true])
-                    ->one();
-                
-                if ($colaborador) {
-                    $ehAdministrador = (bool)$colaborador->eh_administrador;
-                }
+                Yii::info("Colaborador não encontrado ou inativo para usuário ID: {$usuario->id}", __METHOD__);
             }
         }
+        
+        Yii::info("🔍 DEBUG InicioController - ehDonoLoja: " . ($ehDonoLoja ? 'true' : 'false') . ", ehAdministrador: " . ($ehAdministrador ? 'true' : 'false') . ", usuario->eh_dono_loja: " . var_export($usuario->eh_dono_loja, true), __METHOD__);
         
         return $this->render('index', [
             'colaborador' => $colaborador,

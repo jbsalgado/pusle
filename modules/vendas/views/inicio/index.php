@@ -296,7 +296,17 @@ $cards = [
 ];
 
 // Filtra cards visíveis baseado no flag de administrador
-$ehAdministrador = isset($ehAdministrador) ? (bool)$ehAdministrador : false;
+// A variável $ehAdministrador é passada pelo controller
+// Se não foi passada, assume false (não é administrador)
+if (!isset($ehAdministrador)) {
+    $ehAdministrador = false;
+    \Yii::warning("⚠️ Variável ehAdministrador não foi passada pelo controller!", __METHOD__);
+} else {
+    $ehAdministrador = (bool)$ehAdministrador;
+}
+
+// Debug: Log para verificar o valor (remover em produção se necessário)
+\Yii::info("🔍 DEBUG View inicio/index - ehAdministrador: " . ($ehAdministrador ? 'true' : 'false') . ", ehDonoLoja: " . (isset($ehDonoLoja) && $ehDonoLoja ? 'true' : 'false'), __METHOD__);
 
 $visibleCards = array_filter($cards, function($card) use ($ehAdministrador) {
     // Se não for administrador, mostra apenas o card "Nova Venda" (que não está na lista de cards de gerenciamento)
