@@ -70,15 +70,13 @@ class InicioController extends Controller
             Yii::info("✅ Usuário é dono da loja - Acesso completo concedido. ID: {$usuario->id}, eh_dono_loja: " . var_export($usuario->eh_dono_loja, true), __METHOD__);
         } else {
             // Se não é dono, verifica se é colaborador administrador
-            $colaborador = \app\modules\vendas\models\Colaborador::find()
-                ->where(['usuario_id' => $usuario->id])
-                ->andWhere(['ativo' => true])
-                ->one();
+            // Usa o método helper do modelo Colaborador que suporta ambos os cenários
+            $colaborador = \app\modules\vendas\models\Colaborador::getColaboradorLogado();
             
             if ($colaborador) {
                 // Helper para converter valor boolean do PostgreSQL para PHP boolean
                 $ehAdministrador = $this->converterParaBoolean($colaborador->eh_administrador);
-                Yii::info("Colaborador encontrado - eh_administrador: " . var_export($colaborador->eh_administrador, true) . " -> " . ($ehAdministrador ? 'true' : 'false'), __METHOD__);
+                Yii::info("Colaborador encontrado - eh_administrador: " . var_export($colaborador->eh_administrador, true) . " -> " . ($ehAdministrador ? 'true' : 'false') . ", prest_usuario_login_id: " . var_export($colaborador->prest_usuario_login_id, true) . ", usuario_id: " . var_export($colaborador->usuario_id, true), __METHOD__);
             } else {
                 Yii::info("Colaborador não encontrado ou inativo para usuário ID: {$usuario->id}", __METHOD__);
             }

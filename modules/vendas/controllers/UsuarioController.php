@@ -61,12 +61,21 @@ class UsuarioController extends Controller
         }
 
         // Se não é dono, verifica se é colaborador administrador
-        $colaborador = Colaborador::find()
-            ->where(['usuario_id' => $usuario->id])
-            ->andWhere(['ativo' => true])
-            ->one();
+        // Usa o método helper do modelo Colaborador que suporta ambos os cenários
+        $colaborador = Colaborador::getColaboradorLogado();
 
-        return $colaborador && $colaborador->eh_administrador === true;
+        if (!$colaborador) {
+            return false;
+        }
+        
+        // Converte valor boolean do PostgreSQL para PHP boolean
+        $ehAdmin = $colaborador->eh_administrador === true 
+            || $colaborador->eh_administrador === 't' 
+            || $colaborador->eh_administrador === '1' 
+            || $colaborador->eh_administrador === 1
+            || (is_string($colaborador->eh_administrador) && strtolower(trim($colaborador->eh_administrador)) === 't');
+
+        return $ehAdmin;
     }
 
     /**

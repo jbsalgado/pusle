@@ -192,8 +192,9 @@ class Colaborador extends ActiveRecord
     
     /**
      * Busca colaborador associado ao usuário logado
-     * IMPORTANTE: Apenas colaboradores COM login próprio podem acessar sistema web
-     * Colaboradores sem login próprio acessam apenas via PWA (CPF)
+     * Suporta dois cenários:
+     * 1. Colaborador COM login próprio: busca por prest_usuario_login_id
+     * 2. Colaborador SEM login próprio (usa login do dono): busca por usuario_id
      * 
      * @return Colaborador|null
      */
@@ -206,16 +207,23 @@ class Colaborador extends ActiveRecord
         }
         
         // Se é dono, não é colaborador
-        if ($usuarioLogado->eh_dono_loja === true) {
+        if ($usuarioLogado->eh_dono_loja === true || $usuarioLogado->eh_dono_loja === 't' || $usuarioLogado->eh_dono_loja === 1) {
             return null;
         }
         
-        // Busca colaborador por prest_usuario_login_id (deve ter login próprio)
-        // Colaborador sem login próprio NÃO pode acessar sistema web
+        // Tenta buscar por prest_usuario_login_id primeiro (colaborador com login próprio)
         $colaborador = static::find()
             ->where(['prest_usuario_login_id' => $usuarioLogado->id])
             ->andWhere(['ativo' => true])
             ->one();
+        
+        // Se não encontrou, tenta buscar por usuario_id (colaborador sem login próprio que usa login do dono)
+        if (!$colaborador) {
+            $colaborador = static::find()
+                ->where(['usuario_id' => $usuarioLogado->id])
+                ->andWhere(['ativo' => true])
+                ->one();
+        }
         
         return $colaborador;
     }

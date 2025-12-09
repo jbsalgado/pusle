@@ -63,10 +63,8 @@ class DashboardController extends Controller
                 $ehAdministrador = true;
             } else {
                 // Se não é dono, verifica se é colaborador administrador
-                $colaborador = \app\modules\vendas\models\Colaborador::find()
-                    ->where(['usuario_id' => $usuario->id])
-                    ->andWhere(['ativo' => true])
-                    ->one();
+                // Usa o método helper do modelo Colaborador que suporta ambos os cenários
+                $colaborador = \app\modules\vendas\models\Colaborador::getColaboradorLogado();
                 
                 if ($colaborador) {
                     $ehAdministrador = (bool)$colaborador->eh_administrador;
