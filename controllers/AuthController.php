@@ -171,34 +171,36 @@ class AuthController extends Controller
      */
     private function buscarDadosEmpresa()
     {
-        // ID padrão da loja (mesmo usado no catálogo e landing page)
-        $lojaId = 'a99a38a9-e368-4a47-a4bd-02ba3bacaa76';
-        
         try {
-            // Busca dados do usuário
-            $sql = "
-                SELECT 
-                    id,
-                    nome,
-                    logo_path
-                FROM prest_usuarios
-                WHERE id = :id::uuid
-                LIMIT 1
-            ";
+            // Busca a primeira configuração disponível para popular a tela de login.
+            // Caso existam múltiplas lojas, usamos a mais recente.
+            $config = \app\modules\vendas\models\Configuracao::find()
+                ->orderBy(['data_atualizacao' => SORT_DESC, 'data_criacao' => SORT_DESC])
+                ->one();
+            // Se não houver configuração, tenta pegar qualquer usuário como fallback.
+            $usuario = null;
+            if ($config) {
+                $usuario = Yii::$app->db->createCommand("
+                    SELECT id, nome, logo_path
+                    FROM prest_usuarios
+                    WHERE id = :id::uuid
+                    LIMIT 1
+                ", [':id' => $config->usuario_id])->queryOne();
+            } else {
+                $usuario = Yii::$app->db->createCommand("
+                    SELECT id, nome, logo_path
+                    FROM prest_usuarios
+                    ORDER BY created_at DESC NULLS LAST, id DESC
+                    LIMIT 1
+                ")->queryOne();
+            }
             
-            $usuario = Yii::$app->db->createCommand($sql, [
-                ':id' => $lojaId
-            ])->queryOne();
-            
-            if (!$usuario) {
+            if (!$usuario && !$config) {
                 return [
                     'nome_loja' => 'THAUSZ-PULSE',
                     'logo_path' => null,
                 ];
             }
-            
-            // Busca configuração da loja
-            $config = \app\modules\vendas\models\Configuracao::findOne(['usuario_id' => $lojaId]);
             
             // Logo: prioriza prest_configuracoes, depois prest_usuarios
             $logoPath = '';

@@ -19,7 +19,7 @@ $this->title = $dadosEmpresa['nome_loja'] ?? 'Login';
     <div style="background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 450px; width: 100%; padding: 50px 40px;">
         
         <!-- Logo/Título -->
-        <div style="text-align: center; margin-bottom: 40px;">
+        <div style="text-align: center; margin-bottom: 40px; display: flex; flex-direction: column; align-items: center;">
             <?php if (!empty($dadosEmpresa['logo_path'])): ?>
                 <?php
                 // Se não for URL completa, adiciona caminho base
@@ -30,31 +30,17 @@ $this->title = $dadosEmpresa['nome_loja'] ?? 'Login';
                 ?>
                 <img src="<?= Html::encode($logoUrl) ?>" 
                      alt="Logo" 
-                     style="max-height: 80px; max-width: 200px; margin-bottom: 15px; object-fit: contain;"
-                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                     style="max-height: 100px; max-width: 240px; margin: 0 auto 12px auto; object-fit: contain; display: block;"
+                     onerror="this.style.display='none';">
             <?php endif; ?>
-            <h1 id="nome-empresa" style="margin: 0 0 10px 0; font-size: 36px; color: #667eea; <?= !empty($dadosEmpresa['logo_path']) ? 'display: none;' : '' ?>">
-                🚀 <?= Html::encode($dadosEmpresa['nome_loja'] ?? 'THAUSZ-PULSE') ?>
+            <h1 id="nome-empresa" style="margin: 0 0 10px 0; font-size: 32px; color: #667eea; text-align: center;">
+                <?= Html::encode($dadosEmpresa['nome_loja'] ?? 'THAUSZ-PULSE') ?>
             </h1>
-            <p style="margin: 0; color: #666; font-size: 16px;">
+            <p style="margin: 0; color: #666; font-size: 16px; text-align: center;">
                 Sistema de Gestão
             </p>
         </div>
         
-        <script>
-            // Se a logo falhar ao carregar, mostra o título
-            document.addEventListener('DOMContentLoaded', function() {
-                const logoImg = document.querySelector('img[alt="Logo"]');
-                const nomeEmpresa = document.getElementById('nome-empresa');
-                if (logoImg && nomeEmpresa) {
-                    logoImg.addEventListener('error', function() {
-                        this.style.display = 'none';
-                        nomeEmpresa.style.display = 'block';
-                    });
-                }
-            });
-        </script>
-
         <!-- Mensagens Flash -->
         <?php if (Yii::$app->session->hasFlash('success')): ?>
             <div style="background: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
