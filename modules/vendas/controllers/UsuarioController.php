@@ -44,6 +44,9 @@ class UsuarioController extends Controller
 
     /**
      * Verifica se o usuário logado é administrador
+     * Retorna true se:
+     * - É dono da loja (eh_dono_loja = true), OU
+     * - É colaborador com eh_administrador = true
      */
     protected function isAdministrador()
     {
@@ -52,6 +55,12 @@ class UsuarioController extends Controller
             return false;
         }
 
+        // Se é dono da loja, tem acesso completo
+        if ($usuario->eh_dono_loja === true) {
+            return true;
+        }
+
+        // Se não é dono, verifica se é colaborador administrador
         $colaborador = Colaborador::find()
             ->where(['usuario_id' => $usuario->id])
             ->andWhere(['ativo' => true])

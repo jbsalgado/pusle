@@ -107,7 +107,8 @@ $this->params['breadcrumbs'][] = $this->title;
                                         ->one();
                                 }
                                 $estaBloqueado = $usuario->isBlocked();
-                                $ehAdmin = $colaborador ? $colaborador->eh_administrador : false;
+                                // Se é dono da loja, tem acesso completo
+                                $ehAdmin = $usuario->eh_dono_loja ? true : ($colaborador ? $colaborador->eh_administrador : false);
                                 ?>
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-6 py-4 whitespace-nowrap">

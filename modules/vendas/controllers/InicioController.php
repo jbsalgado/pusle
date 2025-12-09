@@ -41,18 +41,34 @@ class InicioController extends Controller
     {
         $usuario = Yii::$app->user->identity;
         
+        // Verifica se é dono da loja (acesso completo automático)
+        $ehDonoLoja = $usuario && $usuario->eh_dono_loja === true;
+        
         // Busca o colaborador associado ao usuário (se houver)
         $colaborador = null;
+        $ehAdministrador = false;
+        
         if ($usuario) {
-            $colaborador = \app\modules\vendas\models\Colaborador::find()
-                ->where(['usuario_id' => $usuario->id])
-                ->andWhere(['ativo' => true])
-                ->one();
+            // Se é dono da loja, tem acesso completo
+            if ($ehDonoLoja) {
+                $ehAdministrador = true;
+            } else {
+                // Se não é dono, verifica se é colaborador administrador
+                $colaborador = \app\modules\vendas\models\Colaborador::find()
+                    ->where(['usuario_id' => $usuario->id])
+                    ->andWhere(['ativo' => true])
+                    ->one();
+                
+                if ($colaborador) {
+                    $ehAdministrador = (bool)$colaborador->eh_administrador;
+                }
+            }
         }
         
         return $this->render('index', [
             'colaborador' => $colaborador,
-            'ehAdministrador' => $colaborador ? (bool)$colaborador->eh_administrador : false,
+            'ehAdministrador' => $ehAdministrador,
+            'ehDonoLoja' => $ehDonoLoja,
         ]);
     }
 }
