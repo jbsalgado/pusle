@@ -5,6 +5,7 @@ use yii\helpers\Url;
 use yii\widgets\ActiveForm;
 use app\modules\vendas\models\Categoria;
 use app\modules\vendas\models\DadosFinanceiros;
+use kartik\select2\Select2;
 
 // Carrega dados financeiros (global ou específico do produto)
 $dadosFinanceiros = $dadosFinanceiros ?? DadosFinanceiros::getConfiguracaoGlobal(Yii::$app->user->id);
@@ -47,14 +48,26 @@ if ($model->hasErrors()): ?>
         <!-- Categoria (Primeiro campo) -->
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Categoria *</label>
-            <?= $form->field($model, 'categoria_id')->dropDownList(
-                Categoria::getListaDropdown(),
-                [
-                    'prompt' => 'Selecione uma categoria',
-                    'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
-                    'id' => 'categoria-select'
-                ]
-            )->label(false) ?>
+            <?= $form->field($model, 'categoria_id')->widget(Select2::class, [
+                'data' => Categoria::getListaDropdown(),
+                'options' => [
+                    'placeholder' => 'Selecione ou pesquise uma categoria...',
+                    'id' => 'categoria-select',
+                    'class' => 'w-full'
+                ],
+                'pluginOptions' => [
+                    'allowClear' => true,
+                    'minimumInputLength' => 0,
+                    'language' => [
+                        'noResults' => function() {
+                            return 'Nenhuma categoria encontrada';
+                        },
+                        'searching' => function() {
+                            return 'Pesquisando...';
+                        }
+                    ]
+                ],
+            ])->label(false) ?>
         </div>
 
         <!-- Código de Referência -->

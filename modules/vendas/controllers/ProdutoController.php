@@ -523,24 +523,38 @@ class ProdutoController extends Controller
         $originalHeight = $imageInfo[1];
         
         // Cria imagem resource baseado no tipo
+        // Usa namespace global explícito para evitar problemas
         switch ($mimeType) {
             case 'image/jpeg':
-                $sourceImage = @imagecreatefromjpeg($sourcePath);
-                break;
-            case 'image/png':
-                $sourceImage = @imagecreatefrompng($sourcePath);
-                break;
-            case 'image/gif':
-                $sourceImage = @imagecreatefromgif($sourcePath);
-                break;
-            case 'image/webp':
-                if (function_exists('imagecreatefromwebp')) {
-                    $sourceImage = @imagecreatefromwebp($sourcePath);
-                } else {
+                if (!function_exists('imagecreatefromjpeg')) {
+                    Yii::error('Função imagecreatefromjpeg não está disponível. Verifique se a extensão GD está instalada.', __METHOD__);
                     return false;
                 }
+                $sourceImage = @\imagecreatefromjpeg($sourcePath);
+                break;
+            case 'image/png':
+                if (!function_exists('imagecreatefrompng')) {
+                    Yii::error('Função imagecreatefrompng não está disponível. Verifique se a extensão GD está instalada.', __METHOD__);
+                    return false;
+                }
+                $sourceImage = @\imagecreatefrompng($sourcePath);
+                break;
+            case 'image/gif':
+                if (!function_exists('imagecreatefromgif')) {
+                    Yii::error('Função imagecreatefromgif não está disponível. Verifique se a extensão GD está instalada.', __METHOD__);
+                    return false;
+                }
+                $sourceImage = @\imagecreatefromgif($sourcePath);
+                break;
+            case 'image/webp':
+                if (!function_exists('imagecreatefromwebp')) {
+                    Yii::error('Função imagecreatefromwebp não está disponível. Verifique se a extensão GD com suporte WebP está instalada.', __METHOD__);
+                    return false;
+                }
+                $sourceImage = @\imagecreatefromwebp($sourcePath);
                 break;
             default:
+                Yii::warning("Tipo de imagem não suportado: {$mimeType}", __METHOD__);
                 return false;
         }
         
@@ -560,21 +574,26 @@ class ProdutoController extends Controller
         }
         
         // Cria nova imagem redimensionada
-        $newImage = imagecreatetruecolor($newWidth, $newHeight);
+        if (!function_exists('imagecreatetruecolor')) {
+            Yii::error('Função imagecreatetruecolor não está disponível. Verifique se a extensão GD está instalada.', __METHOD__);
+            \imagedestroy($sourceImage);
+            return false;
+        }
+        $newImage = \imagecreatetruecolor($newWidth, $newHeight);
         
         // Preserva transparência para PNG
         if ($mimeType === 'image/png') {
-            imagealphablending($newImage, false);
-            imagesavealpha($newImage, true);
-            $transparent = imagecolorallocatealpha($newImage, 255, 255, 255, 127);
-            imagefilledrectangle($newImage, 0, 0, $newWidth, $newHeight, $transparent);
+            \imagealphablending($newImage, false);
+            \imagesavealpha($newImage, true);
+            $transparent = \imagecolorallocatealpha($newImage, 255, 255, 255, 127);
+            \imagefilledrectangle($newImage, 0, 0, $newWidth, $newHeight, $transparent);
         }
         
         // Redimensiona a imagem
-        imagecopyresampled($newImage, $sourceImage, 0, 0, 0, 0, $newWidth, $newHeight, $originalWidth, $originalHeight);
+        \imagecopyresampled($newImage, $sourceImage, 0, 0, 0, 0, $newWidth, $newHeight, $originalWidth, $originalHeight);
         
         // Libera memória da imagem original
-        imagedestroy($sourceImage);
+        \imagedestroy($sourceImage);
         
         // Tenta diferentes qualidades para atingir o tamanho desejado
         $quality = 85;
@@ -583,7 +602,12 @@ class ProdutoController extends Controller
         
         do {
             // Salva como JPEG (sempre converte para JPEG para melhor compressão)
-            $success = @imagejpeg($newImage, $destinationPath, $quality);
+            if (!function_exists('imagejpeg')) {
+                Yii::error('Função imagejpeg não está disponível. Verifique se a extensão GD está instalada.', __METHOD__);
+                \imagedestroy($newImage);
+                return false;
+            }
+            $success = @\imagejpeg($newImage, $destinationPath, $quality);
             
             if ($success) {
                 $fileSize = filesize($destinationPath);
@@ -591,7 +615,7 @@ class ProdutoController extends Controller
                 
                 // Se está dentro do range desejado, sucesso
                 if ($sizeKB >= $minSizeKB && $sizeKB <= $maxSizeKB) {
-                    imagedestroy($newImage);
+                    \imagedestroy($newImage);
                     return true;
                 }
                 
@@ -604,18 +628,18 @@ class ProdutoController extends Controller
                     $quality = min(95, $quality + 5);
                 } else {
                     // Aceita o resultado atual se não conseguir ajustar mais
-                    imagedestroy($newImage);
+                    \imagedestroy($newImage);
                     return true;
                 }
             } else {
-                imagedestroy($newImage);
+                \imagedestroy($newImage);
                 return false;
             }
             
             $attempts++;
         } while ($attempts < $maxAttempts);
         
-        imagedestroy($newImage);
+        \imagedestroy($newImage);
         return true;
     }
 
