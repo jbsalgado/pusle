@@ -148,9 +148,11 @@ if ($model->hasErrors()): ?>
                     'type' => 'number',
                     'step' => '0.01',
                     'min' => '0',
-                    'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
+                    'class' => 'money-auto w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
                     'placeholder' => '0.00',
-                    'id' => 'preco-custo'
+                    'id' => 'preco-custo',
+                    'inputmode' => 'numeric',
+                    'pattern' => '\d*'
                 ])->label(false) ?>
             </div>
 
@@ -160,9 +162,11 @@ if ($model->hasErrors()): ?>
                     'type' => 'number',
                     'step' => '0.01',
                     'min' => '0',
-                    'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
+                    'class' => 'money-auto w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
                     'placeholder' => '0.00',
-                    'id' => 'valor-frete'
+                    'id' => 'valor-frete',
+                    'inputmode' => 'numeric',
+                    'pattern' => '\d*'
                 ])->label(false) ?>
             </div>
 
@@ -172,9 +176,11 @@ if ($model->hasErrors()): ?>
                     'type' => 'number',
                     'step' => '0.01',
                     'min' => '0',
-                    'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
+                    'class' => 'money-auto w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
                     'placeholder' => '0.00',
-                    'id' => 'preco-venda'
+                    'id' => 'preco-venda',
+                    'inputmode' => 'numeric',
+                    'pattern' => '\d*'
                 ])->label(false) ?>
             </div>
         </div>
@@ -851,6 +857,24 @@ console.log('🔍 Script carregado');
 
 // Calcular margem e markup em tempo real
 document.addEventListener('DOMContentLoaded', function() {
+    /**
+     * Mascara de moeda: ao digitar números, desloca para esquerda formando os centavos.
+     * Ex: 1 -> 0.01, 10 -> 0.10, 100 -> 1.00
+     */
+    function formatMoneyInput(input) {
+        const digits = (input.value || '').replace(/\D/g, '');
+        const padded = digits.padStart(3, '0'); // garante pelo menos 0.00
+        const intPart = padded.slice(0, -2).replace(/^0+(?=\d)/, '') || '0';
+        const decPart = padded.slice(-2);
+        input.value = `${intPart}.${decPart}`;
+    }
+
+    // Aplica a máscara aos campos de dinheiro
+    document.querySelectorAll('.money-auto').forEach((input) => {
+        formatMoneyInput(input);
+        input.addEventListener('input', () => formatMoneyInput(input));
+        input.addEventListener('blur', () => formatMoneyInput(input));
+    });
     console.log('🔍 DOMContentLoaded executado');
     
     // Geração automática de código de referência
