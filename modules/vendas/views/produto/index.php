@@ -207,13 +207,12 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                                     ['class' => 'flex-1 text-center px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold rounded transition duration-300']) ?>
                                 <?= Html::a('Editar', ['update', 'id' => $model->id], 
                                     ['class' => 'flex-1 text-center px-3 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-semibold rounded transition duration-300']) ?>
-                                <?= Html::a('Excluir', ['delete', 'id' => $model->id], [
-                                    'class' => 'flex-1 text-center px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded transition duration-300',
-                                    'data' => [
-                                        'confirm' => 'Tem certeza que deseja excluir este produto?',
-                                        'method' => 'post',
-                                    ],
-                                ]) ?>
+                                <?= Html::beginForm(['delete', 'id' => $model->id], 'post', ['id' => 'delete-form-' . $model->id, 'style' => 'display: inline;']) ?>
+                                    <?= Html::button('Excluir', [
+                                        'class' => 'flex-1 text-center px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded transition duration-300',
+                                        'onclick' => 'return confirmDelete(\'' . $model->id . '\')',
+                                    ]) ?>
+                                <?= Html::endForm() ?>
                             </div>
                         </div>
                     </div>
@@ -295,13 +294,13 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                                         <div class="flex justify-end gap-2">
                                             <?= Html::a('Ver', ['view', 'id' => $model->id], ['class' => 'text-blue-600 hover:text-blue-900']) ?>
                                             <?= Html::a('Editar', ['update', 'id' => $model->id], ['class' => 'text-yellow-600 hover:text-yellow-900']) ?>
-                                            <?= Html::a('Excluir', ['delete', 'id' => $model->id], [
-                                                'class' => 'text-red-600 hover:text-red-900',
-                                                'data' => [
-                                                    'confirm' => 'Tem certeza que deseja excluir este produto?',
-                                                    'method' => 'post',
-                                                ],
-                                            ]) ?>
+                                            <?= Html::beginForm(['delete', 'id' => $model->id], 'post', ['id' => 'delete-form-' . $model->id, 'style' => 'display: inline;']) ?>
+                                                <?= Html::button('Excluir', [
+                                                    'class' => 'text-red-600 hover:text-red-900 bg-transparent border-0 p-0 cursor-pointer underline',
+                                                    'onclick' => 'return confirmDelete(\'' . $model->id . '\')',
+                                                    'type' => 'button',
+                                                ]) ?>
+                                            <?= Html::endForm() ?>
                                         </div>
                                     </td>
                                 </tr>
@@ -328,3 +327,12 @@ $viewMode = Yii::$app->request->get('view', 'cards');
 
     </div>
 </div>
+
+<script>
+function confirmDelete(id) {
+    if (confirm('Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita.')) {
+        document.getElementById('delete-form-' + id).submit();
+    }
+    return false;
+}
+</script>
