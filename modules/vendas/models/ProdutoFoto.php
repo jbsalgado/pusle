@@ -111,11 +111,19 @@ class ProdutoFoto extends ActiveRecord
     }
 
     /**
-     * Retorna URL completa da foto
+     * Retorna URL completa da foto (robusta para localhost e VPS)
      */
     public function getUrl()
     {
-        return Yii::getAlias('@web') . '/' . $this->arquivo_path;
+        $caminhoFoto = ltrim($this->arquivo_path, '/');
+        // Usa Url::to() que é mais robusto que getAlias('@web')
+        $url = \yii\helpers\Url::to('@web/' . $caminhoFoto, true);
+        // Fallback: se Url::to falhar, usa getAlias
+        if (empty($url) || $url === '@web/' . $caminhoFoto) {
+            $webAlias = Yii::getAlias('@web');
+            $url = rtrim($webAlias, '/') . '/' . ltrim($caminhoFoto, '/');
+        }
+        return $url;
     }
 
     public function getProduto()

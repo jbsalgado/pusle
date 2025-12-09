@@ -133,8 +133,45 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                             ?>
                             <?php if ($fotoPrincipal && !empty($fotoPrincipal->arquivo_path)): ?>
                                 <?php 
+                                // Constrói URL da foto de forma robusta (funciona em localhost e VPS)
                                 $caminhoFoto = ltrim($fotoPrincipal->arquivo_path, '/');
-                                $urlFoto = Yii::getAlias('@web') . '/' . $caminhoFoto;
+                                
+                                // Tenta múltiplas formas de construir a URL
+                                $urlFoto = null;
+                                
+                                // Método 1: Usa Url::to() com schema absoluto
+                                try {
+                                    $urlFoto = Url::to('@web/' . $caminhoFoto, true);
+                                    if (empty($urlFoto) || $urlFoto === '@web/' . $caminhoFoto) {
+                                        $urlFoto = null;
+                                    }
+                                } catch (\Exception $e) {
+                                    $urlFoto = null;
+                                }
+                                
+                                // Método 2: Se falhou, usa getAlias('@web')
+                                if (empty($urlFoto)) {
+                                    try {
+                                        $webAlias = Yii::getAlias('@web');
+                                        if (!empty($webAlias) && $webAlias !== '@web') {
+                                            $urlFoto = rtrim($webAlias, '/') . '/' . ltrim($caminhoFoto, '/');
+                                        }
+                                    } catch (\Exception $e) {
+                                        $urlFoto = null;
+                                    }
+                                }
+                                
+                                // Método 3: Fallback usando baseUrl do request
+                                if (empty($urlFoto)) {
+                                    $request = Yii::$app->request;
+                                    $baseUrl = $request->baseUrl;
+                                    if (!empty($baseUrl)) {
+                                        $urlFoto = rtrim($baseUrl, '/') . '/' . ltrim($caminhoFoto, '/');
+                                    } else {
+                                        // Último fallback: caminho relativo
+                                        $urlFoto = '/' . ltrim($caminhoFoto, '/');
+                                    }
+                                }
                                 ?>
                                 <img src="<?= $urlFoto ?>" 
                                      alt="<?= Html::encode($model->nome) ?>"
@@ -249,8 +286,45 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                                             ?>
                                             <?php if ($fotoPrincipal && !empty($fotoPrincipal->arquivo_path)): ?>
                                                 <?php 
+                                                // Constrói URL da foto de forma robusta (funciona em localhost e VPS)
                                                 $caminhoFoto = ltrim($fotoPrincipal->arquivo_path, '/');
-                                                $urlFoto = Yii::getAlias('@web') . '/' . $caminhoFoto;
+                                                
+                                                // Tenta múltiplas formas de construir a URL
+                                                $urlFoto = null;
+                                                
+                                                // Método 1: Usa Url::to() com schema absoluto
+                                                try {
+                                                    $urlFoto = Url::to('@web/' . $caminhoFoto, true);
+                                                    if (empty($urlFoto) || $urlFoto === '@web/' . $caminhoFoto) {
+                                                        $urlFoto = null;
+                                                    }
+                                                } catch (\Exception $e) {
+                                                    $urlFoto = null;
+                                                }
+                                                
+                                                // Método 2: Se falhou, usa getAlias('@web')
+                                                if (empty($urlFoto)) {
+                                                    try {
+                                                        $webAlias = Yii::getAlias('@web');
+                                                        if (!empty($webAlias) && $webAlias !== '@web') {
+                                                            $urlFoto = rtrim($webAlias, '/') . '/' . ltrim($caminhoFoto, '/');
+                                                        }
+                                                    } catch (\Exception $e) {
+                                                        $urlFoto = null;
+                                                    }
+                                                }
+                                                
+                                                // Método 3: Fallback usando baseUrl do request
+                                                if (empty($urlFoto)) {
+                                                    $request = Yii::$app->request;
+                                                    $baseUrl = $request->baseUrl;
+                                                    if (!empty($baseUrl)) {
+                                                        $urlFoto = rtrim($baseUrl, '/') . '/' . ltrim($caminhoFoto, '/');
+                                                    } else {
+                                                        // Último fallback: caminho relativo
+                                                        $urlFoto = '/' . ltrim($caminhoFoto, '/');
+                                                    }
+                                                }
                                                 ?>
                                                 <img src="<?= $urlFoto ?>" 
                                                      class="w-10 h-10 rounded object-cover mr-3"
