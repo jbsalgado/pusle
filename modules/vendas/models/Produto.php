@@ -10,6 +10,7 @@ use app\models\Usuario;
 use app\modules\vendas\models\Categoria;
 use app\modules\vendas\models\VendaItem;
 use app\modules\vendas\models\ProdutoFoto;
+use app\modules\vendas\models\DadosFinanceiros;
 use app\modules\vendas\helpers\PricingHelper;
 
 /**
@@ -45,6 +46,7 @@ use app\modules\vendas\helpers\PricingHelper;
  * @property Categoria $categoria
  * @property ProdutoFoto[] $fotos
  * @property VendaItem[] $vendaItens
+ * @property DadosFinanceiros|null $dadosFinanceiros
  */
 class Produto extends ActiveRecord
 {
@@ -83,6 +85,8 @@ class Produto extends ActiveRecord
             [['preco_custo', 'valor_frete', 'preco_venda_sugerido', 'preco_promocional'], 'number', 'min' => 0],
             [['margem_lucro_percentual'], 'number', 'min' => 0, 'max' => 99.99], // Margem: 0-99.99%
             [['markup_percentual'], 'number', 'min' => 0], // ✅ Markup: sem limite máximo (pode ser qualquer valor positivo)
+            // Validação: impedir prejuízo (margem negativa)
+            [['preco_venda_sugerido'], 'validatePrejuizo'],
             [['estoque_atual', 'estoque_minimo', 'ponto_corte'], 'integer', 'min' => 0, 'skipOnEmpty' => false],
             [['estoque_atual'], 'default', 'value' => 0],
             [['estoque_minimo'], 'default', 'value' => 10],
@@ -115,6 +119,30 @@ class Produto extends ActiveRecord
     }
 
     /**
+     * Validação customizada: impedir prejuízo (margem negativa)
+     */
+    public function validatePrejuizo($attribute, $params)
+    {
+        $custoTotal = PricingHelper::calcularCustoTotal($this->preco_custo ?? 0, $this->valor_frete ?? 0);
+        
+        if ($custoTotal > 0 && $this->preco_venda_sugerido > 0) {
+            // Busca configuração financeira (específica do produto ou global)
+            $dadosFinanceiros = DadosFinanceiros::getConfiguracaoParaProduto($this->id, $this->usuario_id);
+            
+            $provaReal = PricingHelper::calcularProvaReal(
+                $this->preco_venda_sugerido,
+                $custoTotal,
+                $dadosFinanceiros->taxa_fixa_percentual,
+                $dadosFinanceiros->taxa_variavel_percentual
+            );
+            
+            if ($provaReal['lucro_real'] < 0) {
+                $this->addError($attribute, "⚠️ ATENÇÃO: Este preço resultará em PREJUÍZO de R$ " . number_format(abs($provaReal['lucro_real']), 2, ',', '.') . ". Ajuste o preço de venda ou reduza as taxas.");
+            }
+        }
+    }
+
+    /**
      * Validação customizada para campos de promoção
      */
     public function validatePromocao($attribute, $params)
@@ -126,6 +154,25 @@ class Produto extends ActiveRecord
             
             if ($this->preco_promocional >= $this->preco_venda_sugerido) {
                 $this->addError($attribute, 'O preço promocional deve ser menor que o preço de venda sugerido.');
+            }
+            
+            // ✅ NOVO: Validação de prejuízo para preço promocional
+            $custoTotal = PricingHelper::calcularCustoTotal($this->preco_custo ?? 0, $this->valor_frete ?? 0);
+            
+            if ($custoTotal > 0 && $this->preco_promocional > 0) {
+                // Busca configuração financeira (específica do produto ou global)
+                $dadosFinanceiros = DadosFinanceiros::getConfiguracaoParaProduto($this->id, $this->usuario_id);
+                
+                $provaReal = PricingHelper::calcularProvaReal(
+                    $this->preco_promocional,
+                    $custoTotal,
+                    $dadosFinanceiros->taxa_fixa_percentual,
+                    $dadosFinanceiros->taxa_variavel_percentual
+                );
+                
+                if ($provaReal['lucro_real'] < 0) {
+                    $this->addError($attribute, "⚠️ ATENÇÃO: Este preço promocional resultará em PREJUÍZO de R$ " . number_format(abs($provaReal['lucro_real']), 2, ',', '.') . ". Ajuste o preço promocional ou reduza as taxas.");
+                }
             }
         }
     }
@@ -175,6 +222,29 @@ class Produto extends ActiveRecord
     public function beforeSave($insert)
     {
         if (parent::beforeSave($insert)) {
+            // Gera UUID se for um novo registro e não tiver ID definido
+            if ($insert && empty($this->id)) {
+                try {
+                    // Tenta usar gen_random_uuid() do PostgreSQL (nativo, não precisa de extensão)
+                    $uuid = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
+                    $this->id = $uuid;
+                } catch (\Exception $e) {
+                    // Fallback: gera UUID no PHP usando ramsey/uuid ou função nativa
+                    if (function_exists('uuid_create')) {
+                        $uuid = uuid_create(UUID_TYPE_RANDOM);
+                        $this->id = $uuid;
+                    } else {
+                        // Gera UUID v4 manualmente
+                        $this->id = sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+                            mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+                            mt_rand(0, 0xffff),
+                            mt_rand(0, 0x0fff) | 0x4000,
+                            mt_rand(0, 0x3fff) | 0x8000,
+                            mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+                        );
+                    }
+                }
+            }
             // 🔍 DEBUG: Log do estoque antes de salvar
             Yii::info('Estoque antes de salvar: ' . $this->estoque_atual, __METHOD__);
             
@@ -422,6 +492,26 @@ class Produto extends ActiveRecord
     public function getVendaItens()
     {
         return $this->hasMany(VendaItem::class, ['produto_id' => 'id']);
+    }
+
+    /**
+     * Retorna a relação com DadosFinanceiros (configuração específica do produto)
+     * Se não houver específica, retorna null (use getDadosFinanceirosOuGlobal() para buscar global)
+     */
+    public function getDadosFinanceiros()
+    {
+        return $this->hasOne(DadosFinanceiros::class, ['produto_id' => 'id']);
+    }
+
+    /**
+     * Retorna a configuração financeira para este produto
+     * Busca primeiro configuração específica, depois global
+     * 
+     * @return DadosFinanceiros
+     */
+    public function getDadosFinanceirosOuGlobal()
+    {
+        return DadosFinanceiros::getConfiguracaoParaProduto($this->id, $this->usuario_id);
     }
 
     /**

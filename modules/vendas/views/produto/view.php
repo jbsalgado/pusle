@@ -47,10 +47,23 @@ $this->params['breadcrumbs'][] = $this->title;
                 
                 <!-- Foto Principal -->
                 <div class="bg-white rounded-lg shadow-md overflow-hidden">
-                    <?php if ($fotoPrincipal = $model->fotoPrincipal): ?>
-                        <img src="<?= Yii::getAlias('@web') . '/' . $fotoPrincipal->arquivo_path ?>" 
+                    <?php 
+                    // Carrega fotos se não foram carregadas com eager loading
+                    $fotoPrincipal = $model->fotoPrincipal;
+                    if (!$fotoPrincipal && $model->fotos) {
+                        $fotoPrincipal = $model->fotos[0] ?? null;
+                    }
+                    ?>
+                    <?php if ($fotoPrincipal && !empty($fotoPrincipal->arquivo_path)): ?>
+                        <?php 
+                        // Garante que o caminho está correto (remove barra duplicada)
+                        $caminhoFoto = ltrim($fotoPrincipal->arquivo_path, '/');
+                        $urlFoto = Yii::getAlias('@web') . '/' . $caminhoFoto;
+                        ?>
+                        <img src="<?= $urlFoto ?>" 
                              alt="<?= Html::encode($model->nome) ?>"
-                             class="w-full h-64 object-cover">
+                             class="w-full h-64 object-cover"
+                             onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'200\'%3E%3Crect fill=\'%23e5e7eb\' width=\'300\' height=\'200\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\' fill=\'%239ca3af\' font-family=\'sans-serif\' font-size=\'14\'%3EErro ao carregar imagem%3C/text%3E%3C/svg%3E';">
                     <?php else: ?>
                         <div class="w-full h-64 bg-gray-200 flex items-center justify-center">
                             <svg class="w-24 h-24 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -214,7 +227,14 @@ $this->params['breadcrumbs'][] = $this->title;
                 </div>
 
                 <!-- Galeria de Fotos -->
-                <?php if ($fotos = $model->fotos): ?>
+                <?php 
+                // Garante que as fotos sejam carregadas
+                $fotos = $model->fotos ?: [];
+                if (empty($fotos) && !$model->isRelationPopulated('fotos')) {
+                    $fotos = $model->getFotos()->all();
+                }
+                ?>
+                <?php if (!empty($fotos)): ?>
                     <div class="bg-white rounded-lg shadow-md overflow-hidden">
                         <div class="px-6 py-4 bg-gray-50 border-b">
                             <h3 class="text-lg font-semibold text-gray-900">Galeria de Fotos (<?= count($fotos) ?>)</h3>
@@ -223,9 +243,15 @@ $this->params['breadcrumbs'][] = $this->title;
                             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                 <?php foreach ($fotos as $foto): ?>
                                     <div class="relative group">
-                                        <img src="<?= Yii::getAlias('@web') . '/' . $foto->arquivo_path ?>" 
+                                        <?php 
+                                        // Garante que o caminho está correto
+                                        $caminhoFoto = ltrim($foto->arquivo_path, '/');
+                                        $urlFoto = Yii::getAlias('@web') . '/' . $caminhoFoto;
+                                        ?>
+                                        <img src="<?= $urlFoto ?>" 
                                              alt="<?= Html::encode($foto->arquivo_nome) ?>"
-                                             class="w-full h-32 object-cover rounded-lg">
+                                             class="w-full h-32 object-cover rounded-lg"
+                                             onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'200\'%3E%3Crect fill=\'%23e5e7eb\' width=\'300\' height=\'200\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\' fill=\'%239ca3af\' font-family=\'sans-serif\' font-size=\'14\'%3EErro ao carregar imagem%3C/text%3E%3C/svg%3E';">
                                         
                                         <?php if ($foto->eh_principal): ?>
                                             <span class="absolute top-2 left-2 px-2 py-1 bg-blue-600 text-white text-xs font-semibold rounded">

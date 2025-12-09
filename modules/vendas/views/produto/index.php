@@ -124,10 +124,22 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                         
                         <!-- Imagem -->
                         <div class="relative h-48 bg-gray-200">
-                            <?php if ($fotoPrincipal = $model->fotoPrincipal): ?>
-                                <img src="<?= Yii::getAlias('@web') . '/' . $fotoPrincipal->arquivo_path ?>" 
+                            <?php 
+                            // Carrega foto principal
+                            $fotoPrincipal = $model->fotoPrincipal;
+                            if (!$fotoPrincipal && $model->fotos) {
+                                $fotoPrincipal = $model->fotos[0] ?? null;
+                            }
+                            ?>
+                            <?php if ($fotoPrincipal && !empty($fotoPrincipal->arquivo_path)): ?>
+                                <?php 
+                                $caminhoFoto = ltrim($fotoPrincipal->arquivo_path, '/');
+                                $urlFoto = Yii::getAlias('@web') . '/' . $caminhoFoto;
+                                ?>
+                                <img src="<?= $urlFoto ?>" 
                                      alt="<?= Html::encode($model->nome) ?>"
-                                     class="w-full h-full object-cover">
+                                     class="w-full h-full object-cover"
+                                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-full h-full flex items-center justify-center\'><svg class=\'w-16 h-16 text-gray-400\' fill=\'none\' stroke=\'currentColor\' viewBox=\'0 0 24 24\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z\'/></svg></div>';">
                             <?php else: ?>
                                 <div class="w-full h-full flex items-center justify-center">
                                     <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -229,10 +241,27 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="flex items-center">
-                                            <?php if ($fotoPrincipal = $model->fotoPrincipal): ?>
-                                                <img src="<?= Yii::getAlias('@web') . '/' . $fotoPrincipal->arquivo_path ?>" 
+                                            <?php 
+                                            // Carrega foto principal
+                                            $fotoPrincipal = $model->fotoPrincipal;
+                                            if (!$fotoPrincipal && $model->fotos) {
+                                                $fotoPrincipal = $model->fotos[0] ?? null;
+                                            }
+                                            ?>
+                                            <?php if ($fotoPrincipal && !empty($fotoPrincipal->arquivo_path)): ?>
+                                                <?php 
+                                                $caminhoFoto = ltrim($fotoPrincipal->arquivo_path, '/');
+                                                $urlFoto = Yii::getAlias('@web') . '/' . $caminhoFoto;
+                                                ?>
+                                                <img src="<?= $urlFoto ?>" 
                                                      class="w-10 h-10 rounded object-cover mr-3"
-                                                     alt="<?= Html::encode($model->nome) ?>">
+                                                     alt="<?= Html::encode($model->nome) ?>"
+                                                     onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                                <div class="w-10 h-10 rounded bg-gray-200 mr-3 flex items-center justify-center" style="display: none;">
+                                                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                                    </svg>
+                                                </div>
                                             <?php else: ?>
                                                 <div class="w-10 h-10 rounded bg-gray-200 mr-3 flex items-center justify-center">
                                                     <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

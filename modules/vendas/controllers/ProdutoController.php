@@ -6,6 +6,7 @@ use Yii;
 use app\modules\vendas\models\Produto;
 use app\modules\vendas\models\Categoria;
 use app\modules\vendas\models\ProdutoFoto;
+use app\modules\vendas\models\DadosFinanceiros;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\helpers\Url;
@@ -97,8 +98,18 @@ class ProdutoController extends Controller
 
     public function actionView($id)
     {
+        // Carrega o produto com fotos e categoria usando eager loading
+        $model = Produto::find()
+            ->where(['id' => $id, 'usuario_id' => Yii::$app->user->id])
+            ->with(['fotos', 'categoria'])
+            ->one();
+        
+        if (!$model) {
+            throw new NotFoundHttpException('Produto não encontrado.');
+        }
+        
         return $this->render('view', [
-            'model' => $this->findModel($id),
+            'model' => $model,
         ]);
     }
 
@@ -108,7 +119,38 @@ class ProdutoController extends Controller
         $model->usuario_id = Yii::$app->user->id;
         $model->ativo = true;
 
+        // Carrega configuração financeira global
+        $dadosFinanceiros = DadosFinanceiros::getConfiguracaoGlobal($model->usuario_id);
+
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
+            // Salva dados financeiros se foram informados
+            $postDadosFinanceiros = Yii::$app->request->post('DadosFinanceiros', []);
+            if (!empty($postDadosFinanceiros['taxa_fixa_percentual']) || 
+                !empty($postDadosFinanceiros['taxa_variavel_percentual']) || 
+                !empty($postDadosFinanceiros['lucro_liquido_percentual'])) {
+                
+                // Verifica se deve criar configuração específica ou usar global
+                $usarConfiguracaoEspecifica = !empty($postDadosFinanceiros['usar_configuracao_especifica']);
+                
+                if ($usarConfiguracaoEspecifica) {
+                    // Cria ou atualiza configuração específica do produto
+                    $dadosFinanceirosProduto = DadosFinanceiros::find()
+                        ->where(['produto_id' => $model->id, 'usuario_id' => $model->usuario_id])
+                        ->one();
+                    
+                    if (!$dadosFinanceirosProduto) {
+                        $dadosFinanceirosProduto = new DadosFinanceiros();
+                        $dadosFinanceirosProduto->usuario_id = $model->usuario_id;
+                        $dadosFinanceirosProduto->produto_id = $model->id;
+                    }
+                    
+                    $dadosFinanceirosProduto->taxa_fixa_percentual = $postDadosFinanceiros['taxa_fixa_percentual'] ?? 0;
+                    $dadosFinanceirosProduto->taxa_variavel_percentual = $postDadosFinanceiros['taxa_variavel_percentual'] ?? 0;
+                    $dadosFinanceirosProduto->lucro_liquido_percentual = $postDadosFinanceiros['lucro_liquido_percentual'] ?? 0;
+                    $dadosFinanceirosProduto->save();
+                }
+            }
+            
             // Upload de fotos
             $this->processUploadFotos($model);
             
@@ -118,6 +160,7 @@ class ProdutoController extends Controller
 
         return $this->render('create', [
             'model' => $model,
+            'dadosFinanceiros' => $dadosFinanceiros,
         ]);
     }
     
@@ -198,6 +241,32 @@ class ProdutoController extends Controller
             Yii::info('Model attributes após load: ' . json_encode($model->attributes), __METHOD__);
             
             if ($model->save()) {
+                // Salva dados financeiros se foram informados
+                $postDadosFinanceiros = Yii::$app->request->post('DadosFinanceiros', []);
+                if (!empty($postDadosFinanceiros['taxa_fixa_percentual']) || 
+                    !empty($postDadosFinanceiros['taxa_variavel_percentual']) || 
+                    !empty($postDadosFinanceiros['lucro_liquido_percentual'])) {
+                    
+                    $usarConfiguracaoEspecifica = !empty($postDadosFinanceiros['usar_configuracao_especifica']);
+                    
+                    if ($usarConfiguracaoEspecifica) {
+                        $dadosFinanceirosProduto = DadosFinanceiros::find()
+                            ->where(['produto_id' => $model->id, 'usuario_id' => $model->usuario_id])
+                            ->one();
+                        
+                        if (!$dadosFinanceirosProduto) {
+                            $dadosFinanceirosProduto = new DadosFinanceiros();
+                            $dadosFinanceirosProduto->usuario_id = $model->usuario_id;
+                            $dadosFinanceirosProduto->produto_id = $model->id;
+                        }
+                        
+                        $dadosFinanceirosProduto->taxa_fixa_percentual = $postDadosFinanceiros['taxa_fixa_percentual'] ?? 0;
+                        $dadosFinanceirosProduto->taxa_variavel_percentual = $postDadosFinanceiros['taxa_variavel_percentual'] ?? 0;
+                        $dadosFinanceirosProduto->lucro_liquido_percentual = $postDadosFinanceiros['lucro_liquido_percentual'] ?? 0;
+                        $dadosFinanceirosProduto->save();
+                    }
+                }
+                
                 Yii::info('Produto salvo com sucesso. Estoque final: ' . $model->estoque_atual, __METHOD__);
                 // Upload de fotos
                 $this->processUploadFotos($model);
@@ -218,8 +287,12 @@ class ProdutoController extends Controller
             }
         }
 
+        // Carrega configuração financeira (específica ou global)
+        $dadosFinanceiros = DadosFinanceiros::getConfiguracaoParaProduto($model->id, $model->usuario_id);
+
         return $this->render('update', [
             'model' => $model,
+            'dadosFinanceiros' => $dadosFinanceiros,
         ]);
     }
 
@@ -388,7 +461,12 @@ class ProdutoController extends Controller
 
         $files = UploadedFile::getInstancesByName('fotos');
         
-        if ($files) {
+        // 🔍 DEBUG: Log para verificar se as fotos estão sendo recebidas
+        Yii::info('Processando upload de fotos para produto: ' . $model->id, __METHOD__);
+        Yii::info('Número de arquivos recebidos: ' . ($files ? count($files) : 0), __METHOD__);
+        
+        if ($files && count($files) > 0) {
+            Yii::info('Arquivos recebidos: ' . json_encode(array_map(function($f) { return $f->name; }, $files)), __METHOD__);
             $ordem = ProdutoFoto::find()->where(['produto_id' => $model->id])->count();
             
             foreach ($files as $file) {

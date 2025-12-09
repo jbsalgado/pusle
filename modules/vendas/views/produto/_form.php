@@ -4,6 +4,11 @@ use yii\helpers\Html;
 use yii\helpers\Url;
 use yii\widgets\ActiveForm;
 use app\modules\vendas\models\Categoria;
+use app\modules\vendas\models\DadosFinanceiros;
+
+// Carrega dados financeiros (global ou específico do produto)
+$dadosFinanceiros = $dadosFinanceiros ?? DadosFinanceiros::getConfiguracaoGlobal(Yii::$app->user->id);
+$temConfiguracaoEspecifica = !$model->isNewRecord && $model->dadosFinanceiros !== null;
 
 // ✅ Exibe erros de validação do modelo de forma destacada
 if ($model->hasErrors()): ?>
@@ -132,33 +137,455 @@ if ($model->hasErrors()): ?>
             </div>
         </div>
 
-        <!-- Margem e Markup (calculados automaticamente) -->
-        <div id="margem-markup-container" class="hidden">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+
+        <!-- Campos ocultos para salvar margem e markup calculados -->
+        <?= $form->field($model, 'margem_lucro_percentual')->hiddenInput(['id' => 'margem-lucro-percentual'])->label(false) ?>
+        <?= $form->field($model, 'markup_percentual')->hiddenInput(['id' => 'markup-percentual'])->label(false) ?>
+
+        <!-- ============================================
+             SEÇÃO: CÁLCULOS DE PRECIFICAÇÃO
+             ============================================ -->
+        
+        <!-- Margem e Markup (calculados automaticamente dos preços acima) -->
+        <div id="margem-markup-container" class="mt-4 sm:mt-6" style="display: none;">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
                     <div class="flex justify-between items-center">
                         <div>
                             <span class="text-sm font-medium text-gray-700 block">Margem de Lucro</span>
                             <span class="text-xs text-gray-500">(sobre o preço de venda)</span>
                         </div>
-                        <span id="margem-valor" class="text-lg font-bold text-blue-600">0.00%</span>
+                        <span id="margem-valor" class="text-lg sm:text-xl font-bold text-blue-600">0.00%</span>
                     </div>
                 </div>
-                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div class="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4">
                     <div class="flex justify-between items-center">
                         <div>
                             <span class="text-sm font-medium text-gray-700 block">Markup</span>
                             <span class="text-xs text-gray-500">(sobre o custo)</span>
                         </div>
-                        <span id="markup-valor" class="text-lg font-bold text-green-600">0.00%</span>
+                        <span id="markup-valor" class="text-lg sm:text-xl font-bold text-green-600">0.00%</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Campos ocultos para salvar margem e markup calculados -->
-        <?= $form->field($model, 'margem_lucro_percentual')->hiddenInput(['id' => 'margem-lucro-percentual'])->label(false) ?>
-        <?= $form->field($model, 'markup_percentual')->hiddenInput(['id' => 'markup-percentual'])->label(false) ?>
+        <!-- ============================================
+             PRECIFICAÇÃO INTELIGENTE (MARKUP DIVISOR)
+             MÉTODO RECOMENDADO: Considera todas as taxas
+             ============================================ -->
+        <div class="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg p-4 sm:p-6 mt-4 sm:mt-6">
+            <div class="flex items-start sm:items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div class="bg-purple-600 rounded-lg p-2 flex-shrink-0">
+                    <svg class="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-base sm:text-lg font-bold text-gray-800 mb-1">Precificação Inteligente (Markup Divisor)</h3>
+                    <p class="text-xs sm:text-sm text-gray-600">⭐ Método recomendado: Calcula o preço considerando todas as taxas e o lucro líquido desejado.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+                <!-- Coluna Esquerda: Inputs (Mobile First) -->
+                <div class="space-y-3 sm:space-y-4">
+                    <!-- Opção: Usar configuração específica ou global -->
+                    <?php if (!$model->isNewRecord): ?>
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-2.5 sm:p-3">
+                        <label class="flex items-start cursor-pointer gap-2">
+                            <input type="checkbox" 
+                                   name="DadosFinanceiros[usar_configuracao_especifica]" 
+                                   value="1"
+                                   id="usar-config-especifica"
+                                   <?= $temConfiguracaoEspecifica ? 'checked' : '' ?>
+                                   class="mt-0.5 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0">
+                            <div class="flex-1">
+                                <span class="text-sm font-medium text-gray-700 block">
+                                    Usar configuração específica para este produto
+                                </span>
+                                <p class="text-xs text-gray-600 mt-1">
+                                    <?php if ($temConfiguracaoEspecifica): ?>
+                                        <span class="text-green-600 font-medium">✓ Configuração específica ativa</span>
+                                    <?php else: ?>
+                                        <span class="text-gray-500">Usando configuração global da loja</span>
+                                    <?php endif; ?>
+                                </p>
+                            </div>
+                        </label>
+                    </div>
+                    <?php endif; ?>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Taxas Fixas (%)</label>
+                        <p class="text-xs text-gray-500 mb-1.5">Impostos fixos, taxas de plataforma, etc.</p>
+                        <?= Html::activeTextInput($dadosFinanceiros, 'taxa_fixa_percentual', [
+                            'type' => 'number',
+                            'step' => '0.01',
+                            'min' => '0',
+                            'max' => '99.99',
+                            'class' => 'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors',
+                            'placeholder' => '0.00',
+                            'id' => 'taxa-fixa',
+                            'name' => 'DadosFinanceiros[taxa_fixa_percentual]'
+                        ]) ?>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Taxas Variáveis (%)</label>
+                        <p class="text-xs text-gray-500 mb-1.5">Comissões, taxas de pagamento, etc.</p>
+                        <?= Html::activeTextInput($dadosFinanceiros, 'taxa_variavel_percentual', [
+                            'type' => 'number',
+                            'step' => '0.01',
+                            'min' => '0',
+                            'max' => '99.99',
+                            'class' => 'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors',
+                            'placeholder' => '0.00',
+                            'id' => 'taxa-variavel',
+                            'name' => 'DadosFinanceiros[taxa_variavel_percentual]'
+                        ]) ?>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Lucro Líquido Desejado (%)</label>
+                        <p class="text-xs text-gray-500 mb-1.5">Margem líquida após todos os custos e taxas</p>
+                        <?= Html::activeTextInput($dadosFinanceiros, 'lucro_liquido_percentual', [
+                            'type' => 'number',
+                            'step' => '0.01',
+                            'min' => '0',
+                            'max' => '99.99',
+                            'class' => 'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors',
+                            'placeholder' => '0.00',
+                            'id' => 'lucro-liquido',
+                            'name' => 'DadosFinanceiros[lucro_liquido_percentual]'
+                        ]) ?>
+                    </div>
+
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-2.5 sm:p-3">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs sm:text-sm font-medium text-gray-700">Fator Divisor:</span>
+                            <span id="fator-divisor-valor" class="text-base sm:text-lg font-bold text-blue-600">1.0000</span>
+                        </div>
+                        <p class="text-xs text-gray-600">Fator = 1 - ((Fixas + Variáveis + Lucro) / 100)</p>
+                    </div>
+
+                    <button type="button" 
+                            id="btn-calcular-markup-divisor" 
+                            class="w-full px-4 py-2.5 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-semibold rounded-lg transition-colors duration-200 text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                        </svg>
+                        Calcular Preço de Venda
+                    </button>
+                </div>
+
+                <!-- Coluna Direita: Resultados e A Prova Real (Mobile First) -->
+                <div class="space-y-3 sm:space-y-4">
+                    <!-- Preço Sugerido -->
+                    <div class="bg-green-50 border-2 border-green-300 rounded-lg p-3 sm:p-4">
+                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
+                            <span class="text-xs sm:text-sm font-medium text-gray-700">Preço de Venda Sugerido:</span>
+                            <span id="preco-sugerido-valor" class="text-xl sm:text-2xl font-bold text-green-600">R$ 0,00</span>
+                        </div>
+                        <p class="text-xs text-gray-600">Preço = Custo / Fator Divisor</p>
+                    </div>
+
+                    <!-- A Prova Real -->
+                    <div class="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
+                        <h4 class="text-xs sm:text-sm font-bold text-gray-800 mb-2 sm:mb-3 flex items-center gap-2">
+                            <svg class="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            A Prova Real
+                        </h4>
+                        <div class="overflow-x-auto -mx-3 sm:mx-0">
+                            <table class="w-full text-xs sm:text-sm min-w-full">
+                                <thead>
+                                    <tr class="border-b border-gray-200">
+                                        <th class="text-left py-1.5 sm:py-2 px-2 font-medium text-gray-700">Item</th>
+                                        <th class="text-right py-1.5 sm:py-2 px-2 font-medium text-gray-700">Valor</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-gray-600">
+                                    <tr class="border-b border-gray-100">
+                                        <td class="py-1.5 sm:py-2 px-2">Preço de Venda</td>
+                                        <td id="prova-preco-venda" class="text-right py-1.5 sm:py-2 px-2 font-medium">R$ 0,00</td>
+                                    </tr>
+                                    <tr class="border-b border-gray-100">
+                                        <td class="py-1.5 sm:py-2 px-2 text-red-600">(-) Taxas Fixas</td>
+                                        <td id="prova-taxas-fixas" class="text-right py-1.5 sm:py-2 px-2 text-red-600">R$ 0,00</td>
+                                    </tr>
+                                    <tr class="border-b border-gray-100">
+                                        <td class="py-1.5 sm:py-2 px-2 text-red-600">(-) Taxas Variáveis</td>
+                                        <td id="prova-taxas-variaveis" class="text-right py-1.5 sm:py-2 px-2 text-red-600">R$ 0,00</td>
+                                    </tr>
+                                    <tr class="border-b border-gray-100">
+                                        <td class="py-1.5 sm:py-2 px-2 text-red-600">(-) Custo Total</td>
+                                        <td id="prova-custo-total" class="text-right py-1.5 sm:py-2 px-2 text-red-600">R$ 0,00</td>
+                                    </tr>
+                                    <tr class="bg-gray-50 font-bold">
+                                        <td class="py-1.5 sm:py-2 px-2">(=) Lucro Real</td>
+                                        <td id="prova-lucro-real" class="text-right py-1.5 sm:py-2 px-2 text-green-600">R$ 0,00</td>
+                                    </tr>
+                                    <tr class="bg-gray-50">
+                                        <td class="py-1.5 sm:py-2 px-2 text-xs">Margem Real</td>
+                                        <td id="prova-margem-real" class="text-right py-1.5 sm:py-2 px-2 text-green-600 text-xs">0.00%</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Alerta de Prejuízo -->
+                    <div id="alerta-prejuizo" class="hidden bg-red-50 border-2 border-red-300 rounded-lg p-2.5 sm:p-3">
+                        <div class="flex items-start gap-2">
+                            <svg class="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                            </svg>
+                            <div class="flex-1">
+                                <p class="text-xs sm:text-sm font-bold text-red-800">⚠️ ATENÇÃO: Prejuízo Detectado!</p>
+                                <p id="mensagem-prejuizo" class="text-xs text-red-700 mt-1"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================
+             CALCULADORA SIMPLES (ALTERNATIVA RÁPIDA)
+             Método simplificado: Apenas margem, sem taxas
+             ============================================ -->
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 sm:p-4 mt-4 sm:mt-6">
+            <div class="flex items-start gap-2 mb-3">
+                <svg class="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                <div class="flex-1">
+                    <div class="flex items-start sm:items-center gap-2 mb-2">
+                        <input type="checkbox" id="calcular-por-margem" class="mt-1 sm:mt-0 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0">
+                        <label for="calcular-por-margem" class="text-sm sm:text-base font-medium text-gray-700 cursor-pointer">
+                            Calculadora Rápida: Preço por Margem Simples
+                        </label>
+                    </div>
+                    <p class="text-xs text-gray-600 ml-6">
+                        Método simplificado que calcula apenas pela margem, sem considerar taxas. 
+                        <span class="text-purple-600 font-medium">Recomendado: Use a Precificação Inteligente acima para cálculos mais precisos.</span>
+                    </p>
+                </div>
+            </div>
+            <div id="margem-desejada-container" class="hidden mt-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Margem Desejada (%)</label>
+                        <input type="number" 
+                               id="margem-desejada" 
+                               step="0.01" 
+                               min="0" 
+                               max="99.99"
+                               class="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                               placeholder="Ex: 30 para 30%">
+                    </div>
+                    <div class="flex items-end">
+                        <button type="button" 
+                                id="btn-calcular-preco" 
+                                class="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold rounded-lg transition-colors duration-200 text-sm">
+                            Calcular Preço
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================
+             PROMOÇÕES E OFERTAS
+             ============================================ -->
+        <div class="bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-200 rounded-lg p-4 sm:p-6 mt-4 sm:mt-6">
+            <div class="flex items-start sm:items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div class="bg-red-600 rounded-lg p-2 flex-shrink-0">
+                    <svg class="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-base sm:text-lg font-bold text-gray-800 mb-1">Promoções e Ofertas</h3>
+                    <p class="text-xs sm:text-sm text-gray-600">Configure preços promocionais com período de validade</p>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <!-- Status da Promoção (se já existe) -->
+                <?php if (!$model->isNewRecord && !empty($model->preco_promocional)): ?>
+                    <?php
+                    $emPromocao = $model->emPromocao;
+                    $agora = new \DateTime();
+                    $inicio = $model->data_inicio_promocao ? new \DateTime($model->data_inicio_promocao) : null;
+                    $fim = $model->data_fim_promocao ? new \DateTime($model->data_fim_promocao) : null;
+                    
+                    $statusPromocao = 'inativa';
+                    $statusText = 'Inativa';
+                    $statusClasses = 'border-gray-200 bg-gray-100 text-gray-800 border-gray-300';
+                    
+                    if ($inicio && $fim) {
+                        if ($agora < $inicio) {
+                            $statusPromocao = 'agendada';
+                            $statusText = 'Agendada';
+                            $statusClasses = 'border-blue-200 bg-blue-100 text-blue-800 border-blue-300';
+                        } elseif ($agora >= $inicio && $agora <= $fim) {
+                            $statusPromocao = 'ativa';
+                            $statusText = 'Em Promoção';
+                            $statusClasses = 'border-green-200 bg-green-100 text-green-800 border-green-300';
+                        } else {
+                            $statusPromocao = 'expirada';
+                            $statusText = 'Expirada';
+                            $statusClasses = 'border-red-200 bg-red-100 text-red-800 border-red-300';
+                        }
+                    }
+                    ?>
+                    <div class="bg-white border border-gray-200 rounded-lg p-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs sm:text-sm font-medium text-gray-700">Status da Promoção:</span>
+                            <span class="px-2.5 py-1 text-xs font-semibold rounded-full <?= $statusClasses ?>">
+                                <?= $statusText ?>
+                            </span>
+                        </div>
+                        <?php if ($inicio && $fim): ?>
+                            <div class="text-xs text-gray-600">
+                                <span class="font-medium">Período:</span> 
+                                <?= Yii::$app->formatter->asDate($model->data_inicio_promocao, 'dd/MM/yyyy') ?> 
+                                até 
+                                <?= Yii::$app->formatter->asDate($model->data_fim_promocao, 'dd/MM/yyyy') ?>
+                            </div>
+                        <?php endif; ?>
+                        <?php if ($emPromocao): ?>
+                            <div class="mt-2 flex items-center gap-2">
+                                <span class="text-xs text-gray-600">Desconto:</span>
+                                <span class="text-base font-bold text-red-600" id="desconto-percentual-display">
+                                    <?= number_format($model->descontoPromocional, 2, ',', '.') ?>%
+                                </span>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Preço Promocional -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Preço Promocional (R$)</label>
+                    <p class="text-xs text-gray-500 mb-1.5">Preço com desconto durante o período da promoção</p>
+                    <?= $form->field($model, 'preco_promocional')->textInput([
+                        'type' => 'number',
+                        'step' => '0.01',
+                        'min' => '0',
+                        'class' => 'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors',
+                        'placeholder' => '0.00',
+                        'id' => 'preco-promocional'
+                    ])->label(false) ?>
+                    <p class="text-xs text-gray-500 mt-1">Deve ser menor que o preço de venda normal</p>
+                </div>
+
+                <!-- Datas da Promoção -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Data de Início</label>
+                        <?php
+                        $dataInicio = $model->data_inicio_promocao;
+                        if ($dataInicio && !empty($dataInicio)) {
+                            try {
+                                $dateTime = new \DateTime($dataInicio);
+                                $dataInicio = $dateTime->format('Y-m-d\TH:i');
+                            } catch (\Exception $e) {
+                                $dataInicio = '';
+                            }
+                        } else {
+                            $dataInicio = '';
+                        }
+                        ?>
+                        <?= $form->field($model, 'data_inicio_promocao')->textInput([
+                            'type' => 'datetime-local',
+                            'value' => $dataInicio,
+                            'class' => 'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors',
+                            'id' => 'data-inicio-promocao'
+                        ])->label(false) ?>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Data de Fim</label>
+                        <?php
+                        $dataFim = $model->data_fim_promocao;
+                        if ($dataFim && !empty($dataFim)) {
+                            try {
+                                $dateTime = new \DateTime($dataFim);
+                                $dataFim = $dateTime->format('Y-m-d\TH:i');
+                            } catch (\Exception $e) {
+                                $dataFim = '';
+                            }
+                        } else {
+                            $dataFim = '';
+                        }
+                        ?>
+                        <?= $form->field($model, 'data_fim_promocao')->textInput([
+                            'type' => 'datetime-local',
+                            'value' => $dataFim,
+                            'class' => 'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors',
+                            'id' => 'data-fim-promocao'
+                        ])->label(false) ?>
+                    </div>
+                </div>
+
+                <!-- Preview do Desconto e Preços -->
+                <div id="promocao-preview" class="hidden bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-2.5 sm:p-3">
+                            <div class="text-xs text-gray-600 mb-1">Preço Normal</div>
+                            <div id="preco-normal-display" class="text-base sm:text-lg font-semibold text-gray-700 line-through">R$ 0,00</div>
+                        </div>
+                        <div class="bg-red-50 border-2 border-red-300 rounded-lg p-2.5 sm:p-3">
+                            <div class="text-xs text-gray-600 mb-1">Preço Promocional</div>
+                            <div id="preco-promocional-display" class="text-lg sm:text-xl font-bold text-red-600">R$ 0,00</div>
+                        </div>
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-medium text-gray-700">Desconto:</span>
+                            <span id="desconto-percentual" class="text-lg font-bold text-red-600">0%</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-1">
+                            <span class="text-xs text-gray-600">Economia:</span>
+                            <span id="economia-valor" class="text-sm font-semibold text-green-600">R$ 0,00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alerta de Prejuízo na Promoção -->
+                <div id="alerta-prejuizo-promocao" class="hidden bg-red-50 border-2 border-red-300 rounded-lg p-2.5 sm:p-3">
+                    <div class="flex items-start gap-2">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        <div class="flex-1">
+                            <p class="text-xs sm:text-sm font-bold text-red-800">⚠️ ATENÇÃO: Prejuízo Detectado na Promoção!</p>
+                            <p id="mensagem-prejuizo-promocao" class="text-xs text-red-700 mt-1"></p>
+                            <p class="text-xs text-red-600 mt-2 font-medium">💡 Dica: Ajuste o preço promocional ou reduza as taxas para evitar prejuízo.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tag de Promoção (Badge) -->
+                <div id="tag-promocao-container" class="hidden">
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                            </svg>
+                            <div class="flex-1">
+                                <p class="text-xs sm:text-sm font-medium text-yellow-800">
+                                    Este produto terá uma tag de <span class="font-bold">"PROMOÇÃO"</span> visível quando a promoção estiver ativa.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Estoque -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -219,37 +646,6 @@ if ($model->hasErrors()): ?>
                 <strong>💡 Dica:</strong> O ponto de corte deve ser maior ou igual ao estoque mínimo. 
                 Quando o estoque atual chegar ao ponto de corte, é recomendado fazer resuprimento urgente.
             </p>
-        </div>
-
-        <!-- Opção: Calcular preço por margem desejada -->
-        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 sm:p-4">
-            <div class="flex items-start sm:items-center mb-3 gap-2">
-                <input type="checkbox" id="calcular-por-margem" class="mt-1 sm:mt-0 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0">
-                <label for="calcular-por-margem" class="text-sm sm:text-base font-medium text-gray-700 cursor-pointer">
-                    Calcular preço de venda pela margem desejada
-                </label>
-            </div>
-            <div id="margem-desejada-container" class="hidden">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Margem Desejada (%)</label>
-                        <input type="number" 
-                               id="margem-desejada" 
-                               step="0.01" 
-                               min="0" 
-                               max="99.99"
-                               class="w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                               placeholder="Ex: 30 para 30%">
-                    </div>
-                    <div class="flex items-end">
-                        <button type="button" 
-                                id="btn-calcular-preco" 
-                                class="w-full px-4 py-2.5 sm:py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold rounded-lg transition-colors duration-200 text-sm sm:text-base">
-                            Calcular Preço
-                        </button>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- Upload de Fotos -->
@@ -726,6 +1122,20 @@ document.addEventListener('DOMContentLoaded', function() {
         
         form.addEventListener('submit', function(e) {
             console.log('🔍 Formulário sendo submetido...');
+            
+            // 🔍 DEBUG: Verifica se há fotos no input antes de enviar
+            if (fotosInput) {
+                console.log('📷 Fotos no input antes do submit:', fotosInput.files.length);
+                console.log('📷 selectedFiles array:', selectedFiles.length);
+                
+                // Garante que os arquivos estão no input antes de enviar
+                if (selectedFiles.length > 0 && fotosInput.files.length === 0) {
+                    console.log('⚠️ Arquivos no array mas não no input! Atualizando...');
+                    updateFileInput();
+                    console.log('📷 Fotos no input após atualização:', fotosInput.files.length);
+                }
+            }
+            
             console.log('Dados do formulário:', new FormData(form));
             
             // Verifica se há erros de validação HTML5
@@ -787,6 +1197,225 @@ document.addEventListener('DOMContentLoaded', function() {
     const margemDesejadaInput = document.getElementById('margem-desejada');
     const btnCalcularPreco = document.getElementById('btn-calcular-preco');
     
+    // Elementos de promoção
+    const precoPromocionalInput = document.getElementById('preco-promocional');
+    const dataInicioPromocaoInput = document.getElementById('data-inicio-promocao');
+    const dataFimPromocaoInput = document.getElementById('data-fim-promocao');
+    const promocaoPreview = document.getElementById('promocao-preview');
+    const tagPromocaoContainer = document.getElementById('tag-promocao-container');
+    const precoNormalDisplay = document.getElementById('preco-normal-display');
+    const precoPromocionalDisplay = document.getElementById('preco-promocional-display');
+    const descontoPercentual = document.getElementById('desconto-percentual');
+    const economiaValor = document.getElementById('economia-valor');
+    const alertaPrejuizoPromocao = document.getElementById('alerta-prejuizo-promocao');
+    const mensagemPrejuizoPromocao = document.getElementById('mensagem-prejuizo-promocao');
+    
+    // Elementos de taxas (para validação de prejuízo)
+    const taxaFixaInput = document.getElementById('taxa-fixa');
+    const taxaVariavelInput = document.getElementById('taxa-variavel');
+    
+    /**
+     * Valida se o preço promocional causa prejuízo
+     */
+    function validarPrejuizoPromocao() {
+        if (!precoPromocionalInput || !custoInput || !freteInput) return;
+        
+        const precoPromo = parseFloat(precoPromocionalInput.value) || 0;
+        const custo = parseFloat(custoInput.value) || 0;
+        const frete = parseFloat(freteInput.value) || 0;
+        const custoTotal = custo + frete;
+        
+        // Busca taxas da precificação inteligente
+        const taxaFixa = parseFloat(taxaFixaInput?.value) || 0;
+        const taxaVariavel = parseFloat(taxaVariavelInput?.value) || 0;
+        
+        if (precoPromo > 0 && custoTotal > 0) {
+            // Calcula "Prova Real" do preço promocional
+            const provaReal = calcularProvaReal(precoPromo, custoTotal, taxaFixa, taxaVariavel);
+            
+            if (provaReal.lucroReal < 0) {
+                // Mostra alerta de prejuízo
+                if (alertaPrejuizoPromocao) {
+                    alertaPrejuizoPromocao.classList.remove('hidden');
+                }
+                if (mensagemPrejuizoPromocao) {
+                    const prejuizo = Math.abs(provaReal.lucroReal);
+                    mensagemPrejuizoPromocao.textContent = 
+                        `Este preço promocional resultará em PREJUÍZO de ${formatarMoeda(prejuizo)}. ` +
+                        `Após descontar as taxas fixas (${formatarMoeda(provaReal.impostosFixos)}), ` +
+                        `taxas variáveis (${formatarMoeda(provaReal.impostosVariaveis)}) e o custo total (${formatarMoeda(custoTotal)}), ` +
+                        `o lucro real será negativo.`;
+                }
+                
+                // Destaca o campo de preço promocional
+                precoPromocionalInput.classList.add('border-red-500', 'bg-red-50');
+            } else {
+                // Esconde alerta se não houver prejuízo
+                if (alertaPrejuizoPromocao) {
+                    alertaPrejuizoPromocao.classList.add('hidden');
+                }
+                precoPromocionalInput.classList.remove('border-red-500', 'bg-red-50');
+            }
+        } else {
+            // Esconde alerta se não houver valores
+            if (alertaPrejuizoPromocao) {
+                alertaPrejuizoPromocao.classList.add('hidden');
+            }
+            precoPromocionalInput.classList.remove('border-red-500', 'bg-red-50');
+        }
+    }
+    
+    /**
+     * Calcula desconto percentual: ((Preço Normal - Preço Promocional) / Preço Normal) * 100
+     */
+    function calcularDescontoPercentual(precoNormal, precoPromocional) {
+        if (precoNormal <= 0 || precoPromocional <= 0) return 0;
+        if (precoPromocional >= precoNormal) return 0;
+        return ((precoNormal - precoPromocional) / precoNormal) * 100;
+    }
+    
+    /**
+     * Calcula economia: Preço Normal - Preço Promocional
+     */
+    function calcularEconomia(precoNormal, precoPromocional) {
+        if (precoNormal <= 0 || precoPromocional <= 0) return 0;
+        return Math.max(0, precoNormal - precoPromocional);
+    }
+    
+    /**
+     * Atualiza preview da promoção
+     */
+    function atualizarPreviewPromocao() {
+        const precoNormal = parseFloat(vendaInput.value) || 0;
+        const precoPromo = parseFloat(precoPromocionalInput.value) || 0;
+        
+        if (precoNormal > 0 && precoPromo > 0 && precoPromo < precoNormal) {
+            const desconto = calcularDescontoPercentual(precoNormal, precoPromo);
+            const economia = calcularEconomia(precoNormal, precoPromo);
+            
+            // Atualiza displays
+            if (precoNormalDisplay) {
+                precoNormalDisplay.textContent = formatarMoeda(precoNormal);
+            }
+            if (precoPromocionalDisplay) {
+                precoPromocionalDisplay.textContent = formatarMoeda(precoPromo);
+            }
+            if (descontoPercentual) {
+                descontoPercentual.textContent = desconto.toFixed(2) + '%';
+            }
+            if (economiaValor) {
+                economiaValor.textContent = formatarMoeda(economia);
+            }
+            
+            // Mostra preview
+            if (promocaoPreview) {
+                promocaoPreview.classList.remove('hidden');
+            }
+            if (tagPromocaoContainer) {
+                tagPromocaoContainer.classList.remove('hidden');
+            }
+            
+            // ✅ Valida prejuízo na promoção
+            validarPrejuizoPromocao();
+        } else {
+            // Esconde preview se não houver valores válidos
+            if (promocaoPreview) {
+                promocaoPreview.classList.add('hidden');
+            }
+            if (tagPromocaoContainer) {
+                tagPromocaoContainer.classList.add('hidden');
+            }
+            
+            // Esconde alerta de prejuízo
+            if (alertaPrejuizoPromocao) {
+                alertaPrejuizoPromocao.classList.add('hidden');
+            }
+        }
+    }
+    
+    /**
+     * Valida datas da promoção
+     */
+    function validarDatasPromocao() {
+        if (!dataInicioPromocaoInput || !dataFimPromocaoInput) return;
+        
+        const inicio = dataInicioPromocaoInput.value;
+        const fim = dataFimPromocaoInput.value;
+        
+        if (inicio && fim) {
+            const dataInicio = new Date(inicio);
+            const dataFim = new Date(fim);
+            
+            if (dataFim < dataInicio) {
+                dataFimPromocaoInput.setCustomValidity('A data de fim deve ser posterior à data de início.');
+                dataFimPromocaoInput.classList.add('border-red-500');
+            } else {
+                dataFimPromocaoInput.setCustomValidity('');
+                dataFimPromocaoInput.classList.remove('border-red-500');
+            }
+        } else {
+            dataFimPromocaoInput.setCustomValidity('');
+            dataFimPromocaoInput.classList.remove('border-red-500');
+        }
+    }
+    
+    // Event listeners para promoção
+    if (precoPromocionalInput && vendaInput) {
+        precoPromocionalInput.addEventListener('input', function() {
+            atualizarPreviewPromocao();
+            
+            // Valida se preço promocional é menor que preço normal
+            const precoNormal = parseFloat(vendaInput.value) || 0;
+            const precoPromo = parseFloat(this.value) || 0;
+            
+            if (precoPromo > 0 && precoNormal > 0) {
+                if (precoPromo >= precoNormal) {
+                    this.setCustomValidity('O preço promocional deve ser menor que o preço de venda normal.');
+                    this.classList.add('border-red-500');
+                } else {
+                    this.setCustomValidity('');
+                    // Remove border-red-500 apenas se não houver prejuízo (será adicionado pela validação de prejuízo)
+                    if (!this.classList.contains('bg-red-50')) {
+                        this.classList.remove('border-red-500');
+                    }
+                }
+            }
+        });
+        
+        vendaInput.addEventListener('input', atualizarPreviewPromocao);
+        
+        // Valida prejuízo quando custo ou frete mudarem
+        if (custoInput) {
+            custoInput.addEventListener('input', validarPrejuizoPromocao);
+        }
+        if (freteInput) {
+            freteInput.addEventListener('input', validarPrejuizoPromocao);
+        }
+        
+        // Valida prejuízo quando taxas mudarem
+        if (taxaFixaInput) {
+            taxaFixaInput.addEventListener('input', validarPrejuizoPromocao);
+        }
+        if (taxaVariavelInput) {
+            taxaVariavelInput.addEventListener('input', validarPrejuizoPromocao);
+        }
+    }
+    
+    if (dataInicioPromocaoInput) {
+        dataInicioPromocaoInput.addEventListener('change', validarDatasPromocao);
+    }
+    
+    if (dataFimPromocaoInput) {
+        dataFimPromocaoInput.addEventListener('change', validarDatasPromocao);
+    }
+    
+    // Atualiza preview ao carregar se houver valores
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', atualizarPreviewPromocao);
+    } else {
+        atualizarPreviewPromocao();
+    }
+    
     /**
      * Calcula margem de lucro: (Preço Venda - Custo Total) / Preço Venda * 100
      */
@@ -828,16 +1457,23 @@ document.addEventListener('DOMContentLoaded', function() {
             const margem = calcularMargemLucro(custoTotal, venda);
             const markup = calcularMarkup(custoTotal, venda);
             
-            margemValor.textContent = margem.toFixed(2) + '%';
-            markupValor.textContent = markup.toFixed(2) + '%';
+            if (margemValor) margemValor.textContent = margem.toFixed(2) + '%';
+            if (markupValor) markupValor.textContent = markup.toFixed(2) + '%';
             
             // Atualizar campos ocultos
             if (margemLucroPercentualInput) margemLucroPercentualInput.value = margem;
             if (markupPercentualInput) markupPercentualInput.value = markup;
             
-            margemMarkupContainer.classList.remove('hidden');
+            // Mostra sempre que houver valores
+            if (margemMarkupContainer) {
+                margemMarkupContainer.style.display = 'block';
+            }
         } else {
-            margemMarkupContainer.classList.add('hidden');
+            if (margemMarkupContainer) {
+                margemMarkupContainer.style.display = 'none';
+            }
+            if (margemValor) margemValor.textContent = '0.00%';
+            if (markupValor) markupValor.textContent = '0.00%';
             if (margemLucroPercentualInput) margemLucroPercentualInput.value = '';
             if (markupPercentualInput) markupPercentualInput.value = '';
         }
@@ -903,6 +1539,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnRetake = document.getElementById('btn-retake');
     const btnUsePhoto = document.getElementById('btn-use-photo');
     const cameraError = document.getElementById('camera-error');
+    
+    // 🔍 DEBUG: Verifica se os elementos foram encontrados
+    if (!cameraModal) console.error('❌ camera-modal não encontrado');
+    if (!btnCamera) console.error('❌ btn-camera não encontrado');
+    if (!cameraVideo) console.error('❌ camera-video não encontrado');
+    if (!cameraCanvas) console.error('❌ camera-canvas não encontrado');
     
     let stream = null; // Stream da câmera
     let capturedBlob = null; // Foto capturada
@@ -1037,11 +1679,30 @@ document.addEventListener('DOMContentLoaded', function() {
      * Atualiza o input de arquivos com DataTransfer
      */
     function updateFileInput() {
-        const dataTransfer = new DataTransfer();
-        selectedFiles.forEach(file => {
-            dataTransfer.items.add(file);
-        });
-        fotosInput.files = dataTransfer.files;
+        try {
+            if (!fotosInput) {
+                console.error('❌ fotosInput não encontrado');
+                return;
+            }
+            
+            const dataTransfer = new DataTransfer();
+            selectedFiles.forEach(file => {
+                try {
+                    dataTransfer.items.add(file);
+                } catch (err) {
+                    console.error('❌ Erro ao adicionar arquivo ao DataTransfer:', err, file);
+                }
+            });
+            
+            fotosInput.files = dataTransfer.files;
+            console.log('✅ Input atualizado com', fotosInput.files.length, 'arquivo(s)');
+        } catch (err) {
+            console.error('❌ Erro ao atualizar input de arquivos:', err);
+            // Fallback: tenta usar o método antigo se DataTransfer não funcionar
+            if (selectedFiles.length > 0) {
+                console.warn('⚠️ Tentando método alternativo para enviar arquivos...');
+            }
+        }
     }
     
     /**
@@ -1104,6 +1765,20 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     async function startCamera() {
         try {
+            // Verifica se os elementos necessários existem
+            if (!cameraVideo || !cameraCanvas) {
+                console.error('❌ Elementos da câmera não encontrados');
+                showError('Erro: Elementos da câmera não foram encontrados. Recarregue a página.');
+                return;
+            }
+            
+            // Verifica se o navegador suporta getUserMedia
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                console.error('❌ getUserMedia não suportado');
+                showError('Seu navegador não suporta acesso à câmera. Use um navegador moderno ou HTTPS.');
+                return;
+            }
+            
             hideError();
             
             // Tenta acessar a câmera traseira primeiro (environment), depois frontal (user)
@@ -1115,20 +1790,42 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             };
             
+            console.log('📷 Tentando acessar câmera...');
             stream = await navigator.mediaDevices.getUserMedia(constraints);
+            console.log('✅ Câmera acessada com sucesso');
+            
+            if (!cameraVideo) {
+                console.error('❌ cameraVideo não encontrado após acesso à câmera');
+                return;
+            }
+            
             cameraVideo.srcObject = stream;
-            cameraVideo.play();
+            await cameraVideo.play();
             
             // Mostra o vídeo e esconde o preview
-            cameraVideo.classList.remove('hidden');
-            cameraPreview.classList.add('hidden');
-            btnCapture.classList.remove('hidden');
-            btnRetake.classList.add('hidden');
-            btnUsePhoto.classList.add('hidden');
+            if (cameraVideo) cameraVideo.classList.remove('hidden');
+            if (cameraPreview) cameraPreview.classList.add('hidden');
+            if (btnCapture) btnCapture.classList.remove('hidden');
+            if (btnRetake) btnRetake.classList.add('hidden');
+            if (btnUsePhoto) btnUsePhoto.classList.add('hidden');
             
         } catch (err) {
-            console.error('Erro ao acessar câmera:', err);
-            showError('Não foi possível acessar a câmera. Verifique as permissões do navegador.');
+            console.error('❌ Erro ao acessar câmera:', err);
+            let errorMessage = 'Não foi possível acessar a câmera. ';
+            
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                errorMessage += 'Permissão negada. Permita o acesso à câmera nas configurações do navegador.';
+            } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                errorMessage += 'Nenhuma câmera encontrada. Verifique se há uma câmera conectada.';
+            } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                errorMessage += 'A câmera está sendo usada por outro aplicativo.';
+            } else if (err.name === 'OverconstrainedError' || err.name === 'ConstraintNotSatisfiedError') {
+                errorMessage += 'Configurações da câmera não suportadas.';
+            } else {
+                errorMessage += 'Erro: ' + err.message;
+            }
+            
+            showError(errorMessage);
         }
     }
     
@@ -1215,8 +1912,22 @@ document.addEventListener('DOMContentLoaded', function() {
      * Abre o modal da câmera
      */
     function openCamera() {
-        cameraModal.classList.remove('hidden');
-        startCamera();
+        console.log('📷 openCamera chamado');
+        
+        if (!cameraModal) {
+            console.error('❌ cameraModal não encontrado');
+            alert('Erro: Modal da câmera não encontrado. Recarregue a página.');
+            return;
+        }
+        
+        try {
+            cameraModal.classList.remove('hidden');
+            console.log('✅ Modal da câmera aberto');
+            startCamera();
+        } catch (err) {
+            console.error('❌ Erro ao abrir câmera:', err);
+            alert('Erro ao abrir a câmera: ' + err.message);
+        }
     }
     
     /**
@@ -1249,10 +1960,34 @@ document.addEventListener('DOMContentLoaded', function() {
         cameraError.classList.add('hidden');
     }
     
-    // Event listeners
-    if (btnCamera) {
-        btnCamera.addEventListener('click', openCamera);
-    }
+    // Event listeners - Executa após um pequeno delay para garantir que o DOM está pronto
+    setTimeout(function() {
+        if (btnCamera) {
+            console.log('✅ btnCamera encontrado, adicionando listener');
+            btnCamera.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('📷 Botão câmera clicado');
+                openCamera();
+            });
+            
+            // Teste adicional: verifica se o listener foi adicionado
+            console.log('✅ Listener adicionado ao botão câmera');
+        } else {
+            console.error('❌ btnCamera não encontrado - botão de câmera não funcionará');
+            console.error('Tentando encontrar novamente...');
+            const btnCameraRetry = document.getElementById('btn-camera');
+            if (btnCameraRetry) {
+                console.log('✅ btnCamera encontrado na segunda tentativa');
+                btnCameraRetry.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('📷 Botão câmera clicado (retry)');
+                    openCamera();
+                });
+            }
+        }
+    }, 100);
     
     if (closeCameraModal) {
         closeCameraModal.addEventListener('click', closeCamera);
@@ -1279,6 +2014,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    console.log('✅ Event listeners da câmera configurados');
+    
     // Input de upload de arquivos
     if (fotosInput) {
         fotosInput.addEventListener('change', async function(e) {
@@ -1301,6 +2038,244 @@ document.addEventListener('DOMContentLoaded', function() {
     if (fotosInput && fotosInput.files.length > 0) {
         selectedFiles = Array.from(fotosInput.files);
         updateAllPreviews();
+    }
+
+    // ============================================
+    // PRECIFICAÇÃO INTELIGENTE (MARKUP DIVISOR)
+    // ============================================
+    // Nota: taxaFixaInput e taxaVariavelInput já foram declarados acima (linha ~1200)
+    const lucroLiquidoInput = document.getElementById('lucro-liquido');
+    const btnCalcularMarkupDivisor = document.getElementById('btn-calcular-markup-divisor');
+    const fatorDivisorValor = document.getElementById('fator-divisor-valor');
+    const precoSugeridoValor = document.getElementById('preco-sugerido-valor');
+    const alertaPrejuizo = document.getElementById('alerta-prejuizo');
+    const mensagemPrejuizo = document.getElementById('mensagem-prejuizo');
+
+    // Elementos da tabela "A Prova Real"
+    const provaPrecoVenda = document.getElementById('prova-preco-venda');
+    const provaTaxasFixas = document.getElementById('prova-taxas-fixas');
+    const provaTaxasVariaveis = document.getElementById('prova-taxas-variaveis');
+    const provaCustoTotal = document.getElementById('prova-custo-total');
+    const provaLucroReal = document.getElementById('prova-lucro-real');
+    const provaMargemReal = document.getElementById('prova-margem-real');
+
+    /**
+     * Calcula o Fator Divisor
+     * Fator Divisor = 1 - ((%Fixas + %Variáveis + %Lucro) / 100)
+     */
+    function calcularFatorDivisor(taxaFixa, taxaVariavel, lucroLiquido) {
+        const soma = taxaFixa + taxaVariavel + lucroLiquido;
+        if (soma >= 100) {
+            throw new Error('A soma das taxas e lucro não pode ser 100% ou mais.');
+        }
+        return 1 - (soma / 100);
+    }
+
+    /**
+     * Calcula o preço de venda usando Markup Divisor
+     * Preço Venda = Custo / Fator Divisor
+     */
+    function calcularPrecoPorMarkupDivisor(custoTotal, fatorDivisor) {
+        if (fatorDivisor <= 0) {
+            return 0;
+        }
+        return custoTotal / fatorDivisor;
+    }
+
+    /**
+     * Calcula a "Prova Real" (engenharia reversa)
+     */
+    function calcularProvaReal(precoVenda, custoTotal, taxaFixa, taxaVariavel) {
+        const impostosFixos = (precoVenda * taxaFixa) / 100;
+        const impostosVariaveis = (precoVenda * taxaVariavel) / 100;
+        const lucroReal = precoVenda - impostosFixos - impostosVariaveis - custoTotal;
+        const margemReal = (lucroReal / precoVenda) * 100;
+
+        return {
+            precoVenda: precoVenda,
+            impostosFixos: impostosFixos,
+            impostosVariaveis: impostosVariaveis,
+            custoTotal: custoTotal,
+            lucroReal: lucroReal,
+            margemReal: margemReal
+        };
+    }
+
+    /**
+     * Formata valor monetário
+     */
+    function formatarMoeda(valor) {
+        if (isNaN(valor) || valor === null || valor === undefined) {
+            return 'R$ 0,00';
+        }
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        }).format(valor);
+    }
+
+    /**
+     * Atualiza todos os cálculos da precificação inteligente
+     */
+    function atualizarPrecificacaoInteligente() {
+        try {
+            const custo = parseFloat(custoInput.value) || 0;
+            const frete = parseFloat(freteInput.value) || 0;
+            const custoTotal = custo + frete;
+            const taxaFixa = parseFloat(taxaFixaInput.value) || 0;
+            const taxaVariavel = parseFloat(taxaVariavelInput.value) || 0;
+            const lucroLiquido = parseFloat(lucroLiquidoInput.value) || 0;
+
+            // Calcula o fator divisor
+            const fatorDivisor = calcularFatorDivisor(taxaFixa, taxaVariavel, lucroLiquido);
+            fatorDivisorValor.textContent = fatorDivisor.toFixed(4);
+
+            // Calcula o preço sugerido
+            if (custoTotal > 0 && fatorDivisor > 0) {
+                const precoSugerido = calcularPrecoPorMarkupDivisor(custoTotal, fatorDivisor);
+                precoSugeridoValor.textContent = formatarMoeda(precoSugerido);
+
+                // Atualiza a "Prova Real"
+                const provaReal = calcularProvaReal(precoSugerido, custoTotal, taxaFixa, taxaVariavel);
+                
+                provaPrecoVenda.textContent = formatarMoeda(provaReal.precoVenda);
+                provaTaxasFixas.textContent = formatarMoeda(provaReal.impostosFixos);
+                provaTaxasVariaveis.textContent = formatarMoeda(provaReal.impostosVariaveis);
+                provaCustoTotal.textContent = formatarMoeda(provaReal.custoTotal);
+                
+                // Lucro real com cor semântica
+                if (provaReal.lucroReal < 0) {
+                    provaLucroReal.textContent = formatarMoeda(provaReal.lucroReal);
+                    provaLucroReal.className = 'text-right py-2 px-2 text-red-600 font-bold';
+                    provaMargemReal.textContent = provaReal.margemReal.toFixed(2) + '%';
+                    provaMargemReal.className = 'text-right py-2 px-2 text-red-600 text-xs';
+                    
+                    // Mostra alerta de prejuízo
+                    alertaPrejuizo.classList.remove('hidden');
+                    mensagemPrejuizo.textContent = `Este preço resultará em PREJUÍZO de ${formatarMoeda(Math.abs(provaReal.lucroReal))}. Ajuste o preço de venda ou reduza as taxas.`;
+                } else {
+                    provaLucroReal.textContent = formatarMoeda(provaReal.lucroReal);
+                    provaLucroReal.className = 'text-right py-2 px-2 text-green-600 font-bold';
+                    provaMargemReal.textContent = provaReal.margemReal.toFixed(2) + '%';
+                    provaMargemReal.className = 'text-right py-2 px-2 text-green-600 text-xs';
+                    
+                    // Esconde alerta de prejuízo
+                    alertaPrejuizo.classList.add('hidden');
+                }
+            } else {
+                precoSugeridoValor.textContent = 'R$ 0,00';
+                provaPrecoVenda.textContent = 'R$ 0,00';
+                provaTaxasFixas.textContent = 'R$ 0,00';
+                provaTaxasVariaveis.textContent = 'R$ 0,00';
+                provaCustoTotal.textContent = 'R$ 0,00';
+                provaLucroReal.textContent = 'R$ 0,00';
+                provaLucroReal.className = 'text-right py-2 px-2 text-green-600 font-bold';
+                provaMargemReal.textContent = '0.00%';
+                provaMargemReal.className = 'text-right py-2 px-2 text-green-600 text-xs';
+                alertaPrejuizo.classList.add('hidden');
+            }
+        } catch (error) {
+            console.error('Erro ao calcular precificação inteligente:', error);
+            fatorDivisorValor.textContent = '0.0000';
+            precoSugeridoValor.textContent = 'R$ 0,00';
+            alertaPrejuizo.classList.remove('hidden');
+            mensagemPrejuizo.textContent = error.message || 'Erro ao calcular. Verifique os valores informados.';
+        }
+    }
+
+    /**
+     * Aplica o preço sugerido ao campo de preço de venda
+     */
+    function aplicarPrecoSugerido() {
+        try {
+            const custo = parseFloat(custoInput.value) || 0;
+            const frete = parseFloat(freteInput.value) || 0;
+            const custoTotal = custo + frete;
+            const taxaFixa = parseFloat(taxaFixaInput.value) || 0;
+            const taxaVariavel = parseFloat(taxaVariavelInput.value) || 0;
+            const lucroLiquido = parseFloat(lucroLiquidoInput.value) || 0;
+
+            if (custoTotal <= 0) {
+                alert('Por favor, informe o preço de custo primeiro.');
+                return;
+            }
+
+            const fatorDivisor = calcularFatorDivisor(taxaFixa, taxaVariavel, lucroLiquido);
+            const precoSugerido = calcularPrecoPorMarkupDivisor(custoTotal, fatorDivisor);
+
+            if (precoSugerido > 0) {
+                vendaInput.value = precoSugerido.toFixed(2);
+                
+                // Feedback visual
+                vendaInput.classList.add('bg-green-50', 'border-green-500');
+                setTimeout(() => {
+                    vendaInput.classList.remove('bg-green-50', 'border-green-500');
+                }, 2000);
+
+                // Atualiza cálculos de margem/markup
+                atualizarCalculos();
+                
+                // Atualiza precificação inteligente
+                atualizarPrecificacaoInteligente();
+            }
+        } catch (error) {
+            alert('Erro ao calcular: ' + error.message);
+        }
+    }
+
+    // Event listeners para cálculo em tempo real
+    if (taxaFixaInput && taxaVariavelInput && lucroLiquidoInput) {
+        taxaFixaInput.addEventListener('input', atualizarPrecificacaoInteligente);
+        taxaVariavelInput.addEventListener('input', atualizarPrecificacaoInteligente);
+        lucroLiquidoInput.addEventListener('input', atualizarPrecificacaoInteligente);
+        
+        // Também atualiza quando custo ou frete mudam
+        if (custoInput) custoInput.addEventListener('input', atualizarPrecificacaoInteligente);
+        if (freteInput) freteInput.addEventListener('input', atualizarPrecificacaoInteligente);
+        if (vendaInput) vendaInput.addEventListener('input', function() {
+            // Quando o preço de venda muda manualmente, atualiza a prova real
+            const custo = parseFloat(custoInput.value) || 0;
+            const frete = parseFloat(freteInput.value) || 0;
+            const custoTotal = custo + frete;
+            const taxaFixa = parseFloat(taxaFixaInput.value) || 0;
+            const taxaVariavel = parseFloat(taxaVariavelInput.value) || 0;
+            const precoVenda = parseFloat(this.value) || 0;
+
+            if (precoVenda > 0 && custoTotal > 0) {
+                const provaReal = calcularProvaReal(precoVenda, custoTotal, taxaFixa, taxaVariavel);
+                
+                provaPrecoVenda.textContent = formatarMoeda(provaReal.precoVenda);
+                provaTaxasFixas.textContent = formatarMoeda(provaReal.impostosFixos);
+                provaTaxasVariaveis.textContent = formatarMoeda(provaReal.impostosVariaveis);
+                provaCustoTotal.textContent = formatarMoeda(provaReal.custoTotal);
+                
+                if (provaReal.lucroReal < 0) {
+                    provaLucroReal.textContent = formatarMoeda(provaReal.lucroReal);
+                    provaLucroReal.className = 'text-right py-2 px-2 text-red-600 font-bold';
+                    provaMargemReal.textContent = provaReal.margemReal.toFixed(2) + '%';
+                    provaMargemReal.className = 'text-right py-2 px-2 text-red-600 text-xs';
+                    
+                    alertaPrejuizo.classList.remove('hidden');
+                    mensagemPrejuizo.textContent = `Este preço resultará em PREJUÍZO de ${formatarMoeda(Math.abs(provaReal.lucroReal))}. Ajuste o preço de venda ou reduza as taxas.`;
+                } else {
+                    provaLucroReal.textContent = formatarMoeda(provaReal.lucroReal);
+                    provaLucroReal.className = 'text-right py-2 px-2 text-green-600 font-bold';
+                    provaMargemReal.textContent = provaReal.margemReal.toFixed(2) + '%';
+                    provaMargemReal.className = 'text-right py-2 px-2 text-green-600 text-xs';
+                    alertaPrejuizo.classList.add('hidden');
+                }
+            }
+        });
+    }
+
+    // Botão para calcular e aplicar preço sugerido
+    if (btnCalcularMarkupDivisor) {
+        btnCalcularMarkupDivisor.addEventListener('click', aplicarPrecoSugerido);
+    }
+
+    // Inicializa cálculos ao carregar
+    if (taxaFixaInput && taxaVariavelInput && lucroLiquidoInput && custoInput) {
+        atualizarPrecificacaoInteligente();
     }
 });
 </script>
