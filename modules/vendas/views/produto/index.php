@@ -246,9 +246,9 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                                     ['class' => 'flex-1 text-center px-3 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-semibold rounded transition duration-300']) ?>
                                 <?= Html::beginForm(['delete', 'id' => $model->id], 'post', ['id' => 'delete-form-' . $model->id, 'style' => 'display: inline;']) ?>
                                     <?= Html::button('Excluir', [
-                                        'class' => 'flex-1 text-center px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded transition duration-300',
+                                    'class' => 'flex-1 text-center px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded transition duration-300',
                                         'onclick' => 'return confirmDelete(\'' . $model->id . '\')',
-                                    ]) ?>
+                                ]) ?>
                                 <?= Html::endForm() ?>
                             </div>
                         </div>

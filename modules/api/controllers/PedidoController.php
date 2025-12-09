@@ -37,6 +37,7 @@ class PedidoController extends Controller
             'index' => ['GET', 'HEAD'],
             'create' => ['POST'],
             'parcelas' => ['GET', 'HEAD'],
+            'confirmar-recebimento' => ['POST'],
         ];
     }
 
@@ -234,8 +235,13 @@ class PedidoController extends Controller
             }
 
             // ===== CRIAR E SALVAR VENDA =====
-            // VENDA DIRETA: Detecta se é venda direta (cliente_id null)
-            $isVendaDireta = ($clienteId === null);
+            // ✅ CORREÇÃO: Detecta se é venda direta baseado no status
+            // Venda direta = pagamento na hora (status QUITADA)
+            // Venda online = aguardando pagamento (status EM_ABERTO)
+            // Verifica se há indicação explícita de venda direta no request
+            $isVendaDireta = isset($data['is_venda_direta']) && $data['is_venda_direta'] === true;
+            // Se não houver indicação explícita, assume venda online (catálogo)
+            // Venda direta sempre deve enviar is_venda_direta=true
             
             $venda = new Venda();
             $venda->usuario_id = $usuarioId;
@@ -245,7 +251,7 @@ class PedidoController extends Controller
             $venda->numero_parcelas = $numeroParcelas;
             
             // VENDA DIRETA: Status QUITADA (pagamento na hora)
-            // VENDA NORMAL: Status EM_ABERTO (aguardando pagamento)
+            // VENDA ONLINE: Status EM_ABERTO (aguardando pagamento)
             $venda->status_venda_codigo = $isVendaDireta 
                 ? \app\modules\vendas\models\StatusVenda::QUITADA 
                 : \app\modules\vendas\models\StatusVenda::EM_ABERTO;
@@ -293,7 +299,8 @@ class PedidoController extends Controller
             Yii::error("✅ Venda ID {$venda->id} salva com valor R$ {$venda->valor_total}", 'api');
             Yii::error("✅ Venda forma_pagamento_id após save: " . ($venda->forma_pagamento_id ?? 'NULL'), 'api');
 
-            // ===== LOOP 2: CRIAR ITENS E ATUALIZAR ESTOQUE =====
+            // ===== LOOP 2: CRIAR ITENS =====
+            // ✅ CORREÇÃO: Para vendas online, estoque só é baixado após confirmação de pagamento
             Yii::error("Iniciando criação de itens...", 'api');
             foreach ($data['itens'] as $index => $itemData) {
                 $produto = Produto::findOne($itemData['produto_id']);
@@ -311,13 +318,18 @@ class PedidoController extends Controller
                 }
                 Yii::error("✅ Item ID {$item->id} salvo com sucesso", 'api');
 
-                // Atualizar estoque
-                $produto->estoque_atual -= $item->quantidade;
-                if (!$produto->save(false, ['estoque_atual'])) {
-                    Yii::error("❌ FALHA ao atualizar estoque do produto {$produto->id}", 'api');
-                    throw new Exception("Erro ao atualizar estoque do produto '{$produto->nome}'.");
+                // ✅ CORREÇÃO: Atualizar estoque APENAS para vendas diretas (pagamento na hora)
+                // Para vendas online, estoque será baixado após confirmação de pagamento via webhook
+                if ($isVendaDireta) {
+                    $produto->estoque_atual -= $item->quantidade;
+                    if (!$produto->save(false, ['estoque_atual'])) {
+                        Yii::error("❌ FALHA ao atualizar estoque do produto {$produto->id}", 'api');
+                        throw new Exception("Erro ao atualizar estoque do produto '{$produto->nome}'.");
+                    }
+                    Yii::error("✅ Estoque de '{$produto->nome}' atualizado para {$produto->estoque_atual} (Venda Direta)", 'api');
+                } else {
+                    Yii::info("⏳ Estoque de '{$produto->nome}' será baixado após confirmação de pagamento (Venda Online)", 'api');
                 }
-                Yii::error("✅ Estoque de '{$produto->nome}' atualizado para {$produto->estoque_atual}", 'api');
             }
             Yii::error("Criação de itens concluída.", 'api');
 
@@ -419,6 +431,117 @@ class PedidoController extends Controller
         } catch (\Exception $e) {
             Yii::error('Erro ao buscar parcelas: ' . $e->getMessage(), 'api');
             throw new ServerErrorHttpException('Erro ao buscar parcelas: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Confirma recebimento de venda e emite comprovante
+     * POST /api/pedido/confirmar-recebimento
+     * Body: {venda_id: "uuid", forma_pagamento_entrega: "uuid" (opcional para PAGAR_AO_ENTREGADOR)}
+     */
+    public function actionConfirmarRecebimento()
+    {
+        try {
+            $rawBody = Yii::$app->request->getRawBody();
+            $data = json_decode($rawBody, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new BadRequestHttpException('JSON inválido: ' . json_last_error_msg());
+            }
+
+            if (empty($data['venda_id'])) {
+                throw new BadRequestHttpException('venda_id é obrigatório.');
+            }
+
+            $vendaId = $data['venda_id'];
+            $venda = Venda::findOne($vendaId);
+
+            if (!$venda) {
+                throw new NotFoundHttpException('Venda não encontrada.');
+            }
+
+            // Verifica se a venda já está quitada
+            if ($venda->status_venda_codigo === \app\modules\vendas\models\StatusVenda::QUITADA) {
+                Yii::info("Venda {$vendaId} já está quitada", 'api');
+                // Retorna dados da venda mesmo se já estiver quitada
+            } else {
+                $transaction = Yii::$app->db->beginTransaction();
+                
+                try {
+                    // Atualiza status para QUITADA
+                    $venda->status_venda_codigo = \app\modules\vendas\models\StatusVenda::QUITADA;
+                    $venda->data_atualizacao = new \yii\db\Expression('NOW()');
+                    
+                    // Se for PAGAR_AO_ENTREGADOR e foi informada forma de pagamento na entrega
+                    if ($venda->formaPagamento && $venda->formaPagamento->tipo === 'PAGAR_AO_ENTREGADOR') {
+                        if (!empty($data['forma_pagamento_entrega'])) {
+                            // Atualiza a forma de pagamento para a escolhida na entrega
+                            $venda->forma_pagamento_id = $data['forma_pagamento_entrega'];
+                        }
+                    }
+                    
+                    if (!$venda->save(false, ['status_venda_codigo', 'forma_pagamento_id', 'data_atualizacao'])) {
+                        throw new Exception('Erro ao atualizar status da venda.');
+                    }
+
+                    // Baixa estoque dos itens (se ainda não foi baixado)
+                    foreach ($venda->itens as $item) {
+                        $produto = $item->produto;
+                        if ($produto) {
+                            // Verifica se o estoque já foi baixado (comparando com quantidade do item)
+                            // Se não, baixa agora
+                            $produto->refresh();
+                            // Baixa estoque
+                            $produto->estoque_atual -= $item->quantidade;
+                            if (!$produto->save(false, ['estoque_atual'])) {
+                                Yii::error("❌ FALHA ao atualizar estoque do produto {$produto->id} na confirmação", 'api');
+                                throw new Exception("Erro ao atualizar estoque do produto '{$produto->nome}'.");
+                            }
+                            Yii::info("✅ Estoque de '{$produto->nome}' baixado para {$produto->estoque_atual} na confirmação", 'api');
+                        }
+                    }
+
+                    // Registra entrada no caixa
+                    try {
+                        $movimentacao = \app\modules\caixa\helpers\CaixaHelper::registrarEntradaVenda(
+                            $venda->id,
+                            $venda->valor_total,
+                            $venda->forma_pagamento_id,
+                            $venda->usuario_id
+                        );
+                        
+                        if ($movimentacao) {
+                            Yii::info("✅ Entrada registrada no caixa para Venda ID {$venda->id} na confirmação", 'api');
+                        } else {
+                            Yii::warning("⚠️ Não foi possível registrar entrada no caixa para Venda ID {$venda->id} (caixa pode não estar aberto)", 'api');
+                        }
+                    } catch (\Exception $e) {
+                        Yii::error("Erro ao registrar entrada no caixa na confirmação (não crítico): " . $e->getMessage(), 'api');
+                    }
+
+                    $transaction->commit();
+                } catch (\Exception $e) {
+                    $transaction->rollBack();
+                    throw $e;
+                }
+            }
+
+            // Recarrega venda com relacionamentos
+            $venda->refresh();
+            $venda->populateRelation('itens', $venda->itens);
+            $venda->populateRelation('cliente', $venda->cliente);
+            $venda->populateRelation('parcelas', $venda->parcelas);
+            
+            foreach ($venda->itens as $item) {
+                $item->populateRelation('produto', $item->produto);
+            }
+
+            Yii::$app->response->statusCode = 200;
+            return $venda->toArray([], ['itens.produto', 'parcelas', 'cliente', 'vendedor', 'formaPagamento']);
+            
+        } catch (\Exception $e) {
+            Yii::error('Erro ao confirmar recebimento: ' . $e->getMessage(), 'api');
+            throw new ServerErrorHttpException('Erro ao confirmar recebimento: ' . $e->getMessage());
         }
     }
 }

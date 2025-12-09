@@ -1751,16 +1751,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            const dataTransfer = new DataTransfer();
-            selectedFiles.forEach(file => {
+        const dataTransfer = new DataTransfer();
+        selectedFiles.forEach(file => {
                 try {
-                    dataTransfer.items.add(file);
+            dataTransfer.items.add(file);
                 } catch (err) {
                     console.error('❌ Erro ao adicionar arquivo ao DataTransfer:', err, file);
                 }
-            });
+        });
             
-            fotosInput.files = dataTransfer.files;
+        fotosInput.files = dataTransfer.files;
             console.log('✅ Input atualizado com', fotosInput.files.length, 'arquivo(s)');
         } catch (err) {
             console.error('❌ Erro ao atualizar input de arquivos:', err);
@@ -1987,9 +1987,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
-            cameraModal.classList.remove('hidden');
+        cameraModal.classList.remove('hidden');
             console.log('✅ Modal da câmera aberto');
-            startCamera();
+        startCamera();
         } catch (err) {
             console.error('❌ Erro ao abrir câmera:', err);
             alert('Erro ao abrir a câmera: ' + err.message);
@@ -2028,7 +2028,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Event listeners - Executa após um pequeno delay para garantir que o DOM está pronto
     setTimeout(function() {
-        if (btnCamera) {
+    if (btnCamera) {
             console.log('✅ btnCamera encontrado, adicionando listener');
             btnCamera.addEventListener('click', function(e) {
                 e.preventDefault();

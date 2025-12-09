@@ -32,6 +32,8 @@ import {
 } from './utils.js';
 import { ELEMENTOS_CRITICOS } from './config.js';
 import { inicializarMonitoramentoRede } from './network.js';
+import { cadastrarCliente } from './customer.js';
+import { mostrarModalPixEstatico } from './pix.js';
 
 // Disponibiliza CONFIG no window para compatibilidade com módulos que não usam import
 window.CONFIG = CONFIG;
@@ -60,7 +62,9 @@ async function init() {
         
         // 2️⃣ Carregar configuração da loja (gateways de pagamento)
         console.log('[App] ⚙️ Carregando configuração da loja...');
-        await carregarConfigLoja();
+        const gatewayConfig = await carregarConfigLoja();
+        // Disponibilizar GATEWAY_CONFIG no window para uso em outras funções
+        window.GATEWAY_CONFIG = gatewayConfig;
         
         // 2.5️⃣ Carregar logo da empresa
         await carregarLogoEmpresa();
@@ -614,7 +618,7 @@ window.abrirCarrinho = function() {
 
 /**
  * Popula o dropdown de Formas de Pagamento
- * @param {Array} formas - Array de objetos {id, nome}
+ * @param {Array} formas - Array de objetos {id, nome, tipo}
  */
 function popularFormasPagamento(formas) {
     const select = document.getElementById('forma-pagamento');
@@ -628,10 +632,72 @@ function popularFormasPagamento(formas) {
         return;
     }
     
+    // Filtrar formas de pagamento para vendas online
+    // 1. Remover DINHEIRO (não disponível em vendas online)
+    // 2. Mostrar apenas formas online se api_de_pagamento estiver habilitado
+    console.log('[App] 🔍 Filtrando formas de pagamento. Total recebido:', formas.length);
+    console.log('[App] 🔍 Formas recebidas:', formas.map(f => ({ nome: f.nome, tipo: f.tipo })));
+    console.log('[App] 🔍 GATEWAY_CONFIG:', window.GATEWAY_CONFIG);
+    
+    // ✅ CORREÇÃO: Verificar GATEWAY_CONFIG antes de filtrar
+    const gatewayHabilitado = window.GATEWAY_CONFIG && window.GATEWAY_CONFIG.habilitado === true;
+    console.log('[App] 🔍 Gateway habilitado:', gatewayHabilitado);
+    
+    const formasFiltradas = formas.filter(forma => {
+        const tipo = (forma.tipo || '').toUpperCase();
+        
+        console.log(`[App] 🔍 Analisando forma: ${forma.nome} (tipo: ${tipo})`);
+        
+        // Sempre remover DINHEIRO em vendas online
+        if (tipo === 'DINHEIRO') {
+            console.log(`[App] ❌ Removendo ${forma.nome} (DINHEIRO não disponível em vendas online)`);
+            return false;
+        }
+        
+        // ✅ CORREÇÃO: Formas de pagamento online que requerem gateway
+        // BOLETO, CARTAO_CREDITO, CARTAO_DEBITO, CARTAO, PIX (dinâmico) só aparecem se api_de_pagamento = true
+        const formasOnline = ['BOLETO', 'CARTAO_CREDITO', 'CARTAO_DEBITO', 'CARTAO', 'PIX'];
+        const ehFormaOnline = formasOnline.includes(tipo);
+        
+        // Se for forma online, só mostrar se api_de_pagamento estiver habilitado
+        if (ehFormaOnline) {
+            if (!gatewayHabilitado) {
+                console.log(`[App] ❌ Removendo ${forma.nome} (${tipo} requer api_de_pagamento=true)`);
+                return false;
+            }
+            console.log(`[App] ✅ Mantendo ${forma.nome} (${tipo} - gateway habilitado)`);
+            return true;
+        }
+        
+        // PAGAR_AO_ENTREGADOR sempre disponível (não requer gateway)
+        if (tipo === 'PAGAR_AO_ENTREGADOR') {
+            console.log(`[App] ✅ Mantendo ${forma.nome} (PAGAR_AO_ENTREGADOR sempre disponível)`);
+            return true;
+        }
+        
+        // PIX_ESTATICO pode aparecer mesmo sem gateway (QR Code fixo)
+        if (tipo === 'PIX_ESTATICO') {
+            console.log(`[App] ✅ Mantendo ${forma.nome} (PIX_ESTATICO sempre disponível)`);
+            return true;
+        }
+        
+        // ✅ CORREÇÃO: Outras formas NÃO aparecem por padrão (só as específicas acima)
+        console.log(`[App] ❌ Removendo ${forma.nome} (tipo ${tipo} não permitido em vendas online)`);
+        return false;
+    });
+    
+    console.log('[App] ✅ Formas filtradas:', formasFiltradas.length, formasFiltradas.map(f => f.nome));
+    
+    if (formasFiltradas.length === 0) {
+        select.options[0] = new Option('Nenhuma forma de pgto. disponível', '');
+        select.disabled = true;
+        return;
+    }
+    
     select.disabled = false;
     select.options[0] = new Option('Selecione o pagamento...', '');
     
-    formas.forEach(forma => {
+    formasFiltradas.forEach(forma => {
         if (forma.id && forma.nome) {
             const option = new Option(forma.nome, forma.id);
             // Armazena o tipo no atributo data-tipo para facilitar acesso
@@ -640,10 +706,10 @@ function popularFormasPagamento(formas) {
         }
     });
     
-    // Armazena formas de pagamento globalmente
-    formasPagamento = formas;
+    // Armazena formas de pagamento filtradas globalmente
+    formasPagamento = formasFiltradas;
     // Disponibiliza globalmente para validação em order.js
-    window.formasPagamento = formas;
+    window.formasPagamento = formasFiltradas;
     
     // Adiciona listener para controlar parcelas baseado na forma de pagamento
     // Remove listener anterior se existir para evitar duplicatas
@@ -778,6 +844,18 @@ window.abrirModalPedido = async function() {
         popularFormasPagamento([]); // Popula com erro
     }
     // ===============================================
+
+    // Ajusta link do cadastro de cliente para a base correta
+    const linkCadastro = document.getElementById('link-cadastro-cliente');
+    if (linkCadastro) {
+        linkCadastro.onclick = (e) => {
+            e.preventDefault();
+            const base = (CONFIG.URL_BASE_WEB || '').replace(/\/$/, '');
+            // Sem rota pública de cliente; direciona para login do painel
+            const url = `${base}/index.php/auth/login`;
+            window.open(url, '_blank');
+        };
+    }
 };
 
 // ==========================================================================
@@ -831,54 +909,78 @@ window.buscarCliente = async function() {
     try {
         const response = await fetch(`${API_ENDPOINTS.CLIENTE_BUSCA_CPF}?cpf=${cpf}&usuario_id=${CONFIG.ID_USUARIO_LOJA}`);
         
-        if (response.ok) {
-            clienteAtual = await response.json();
-            
-            // Tratar diferentes estruturas de resposta possíveis
-            const nomeCliente = clienteAtual.nome_completo || 
-                              clienteAtual.cliente?.nome_completo || 
-                              clienteAtual.nome || 
-                              'Cliente encontrado';
-            
-            document.getElementById('nome-cliente-info').textContent = nomeCliente;
-            document.getElementById('info-cliente').classList.remove('hidden');
-            
-            // Armazenar o ID do cliente no input hidden
-            const clienteId = clienteAtual.id || clienteAtual.cliente?.id;
-            const inputClienteId = document.getElementById('cliente_id');
-            if (inputClienteId && clienteId) {
-                inputClienteId.value = clienteId;
-            }
-            
-            console.log('[App] ✅ Cliente encontrado:', clienteAtual);
-
-            // CORREÇÃO: Habilitar o botão de confirmar
-            const btnConfirmar = document.getElementById('btn-confirmar-pedido');
-            if (btnConfirmar) {
-                btnConfirmar.disabled = false;
-            }
-            const msgHabilitar = document.getElementById('msg-habilitar-botao');
-            if (msgHabilitar) {
-                msgHabilitar.classList.add('hidden');
-            }
-
-        } else {
-            alert('Cliente não encontrado. Cadastre-o primeiro no sistema.');
-            clienteAtual = null;
-
-            // CORREÇÃO: Desabilitar o botão se a busca falhar
-            const btnConfirmar = document.getElementById('btn-confirmar-pedido');
-            if (btnConfirmar) {
-                btnConfirmar.disabled = true;
-            }
-            const msgHabilitar = document.getElementById('msg-habilitar-botao');
-            if (msgHabilitar) {
-                msgHabilitar.classList.remove('hidden');
-            }
+        if (!response.ok) {
+            throw new Error(`Status ${response.status}`);
         }
+
+        const data = await response.json();
+
+        // API pode retornar {existe: bool, cliente: {...}}
+        const existe = data.existe ?? !!data.id ?? !!data.cliente;
+        const cliente = data.cliente || data;
+
+        if (!existe || !cliente) {
+            // Abre modal de cadastro e preenche o CPF já digitado
+            if (typeof abrirModal === 'function') {
+                const cpfInput = document.getElementById('cliente-cpf-busca');
+                const cpfCadastro = document.getElementById('cadastro-cpf');
+                if (cpfInput && cpfCadastro) {
+                    cpfCadastro.value = cpfInput.value;
+                }
+                abrirModal('modal-cadastro-cliente');
+            }
+            clienteAtual = null;
+            const inputClienteId = document.getElementById('cliente_id');
+            if (inputClienteId) inputClienteId.value = '';
+            document.getElementById('info-cliente').classList.add('hidden');
+
+            const btnConfirmar = document.getElementById('btn-confirmar-pedido');
+            if (btnConfirmar) btnConfirmar.disabled = true;
+            const msgHabilitar = document.getElementById('msg-habilitar-botao');
+            if (msgHabilitar) msgHabilitar.classList.remove('hidden');
+            return;
+        }
+
+        clienteAtual = cliente;
+
+        // Tratar diferentes estruturas de resposta possíveis
+        const nomeCliente = cliente.nome_completo || 
+                          cliente.nome || 
+                          'Cliente encontrado';
+        
+        document.getElementById('nome-cliente-info').textContent = nomeCliente;
+        document.getElementById('info-cliente').classList.remove('hidden');
+        
+        // Armazenar o ID do cliente no input hidden
+        const clienteId = cliente.id;
+        const inputClienteId = document.getElementById('cliente_id');
+        if (inputClienteId && clienteId) {
+            inputClienteId.value = clienteId;
+        }
+        
+        console.log('[App] ✅ Cliente encontrado:', clienteAtual);
+
+        // CORREÇÃO: Habilitar o botão de confirmar
+        const btnConfirmar = document.getElementById('btn-confirmar-pedido');
+        if (btnConfirmar) {
+            btnConfirmar.disabled = false;
+        }
+        const msgHabilitar = document.getElementById('msg-habilitar-botao');
+        if (msgHabilitar) {
+            msgHabilitar.classList.add('hidden');
+        }
+
     } catch (error) {
         console.error('[App] Erro ao buscar cliente:', error);
         alert('Erro ao buscar cliente');
+        clienteAtual = null;
+        const inputClienteId = document.getElementById('cliente_id');
+        if (inputClienteId) inputClienteId.value = '';
+        document.getElementById('info-cliente').classList.add('hidden');
+        const btnConfirmar = document.getElementById('btn-confirmar-pedido');
+        if (btnConfirmar) btnConfirmar.disabled = true;
+        const msgHabilitar = document.getElementById('msg-habilitar-botao');
+        if (msgHabilitar) msgHabilitar.classList.remove('hidden');
     }
 };
 
@@ -936,6 +1038,154 @@ window.buscarVendedor = async function() {
 };
 
 // ==========================================================================
+// CADASTRAR CLIENTE (MODAL PÚBLICO)
+// ==========================================================================
+
+window.cadastrarClienteModal = async function() {
+    try {
+        // Coletar dados do formulário
+        const nomeCompleto = document.getElementById('cadastro-nome')?.value.trim();
+        const cpf = document.getElementById('cadastro-cpf')?.value.trim();
+        const telefone = document.getElementById('cadastro-telefone')?.value.trim();
+        const email = document.getElementById('cadastro-email')?.value.trim();
+        const senha = document.getElementById('cadastro-senha')?.value;
+        const senhaConfirm = document.getElementById('cadastro-senha-confirm')?.value;
+        const logradouro = document.getElementById('cadastro-logradouro')?.value.trim();
+        const numero = document.getElementById('cadastro-numero')?.value.trim();
+        const bairro = document.getElementById('cadastro-bairro')?.value.trim();
+        const cidade = document.getElementById('cadastro-cidade')?.value.trim();
+        const estado = document.getElementById('cadastro-estado')?.value.trim();
+        const cep = document.getElementById('cadastro-cep')?.value.trim();
+
+        // Validações básicas
+        if (!nomeCompleto) {
+            alert('Por favor, informe o nome completo.');
+            return;
+        }
+
+        if (!cpf || !validarCPF(cpf)) {
+            alert('Por favor, informe um CPF válido.');
+            return;
+        }
+
+        if (!telefone) {
+            alert('Por favor, informe o telefone.');
+            return;
+        }
+
+        if (!senha || senha.length < 4) {
+            alert('A senha deve ter no mínimo 4 caracteres.');
+            return;
+        }
+
+        if (senha !== senhaConfirm) {
+            alert('As senhas não coincidem.');
+            return;
+        }
+
+        if (!logradouro) {
+            alert('Por favor, informe o logradouro.');
+            return;
+        }
+
+        if (!numero) {
+            alert('Por favor, informe o número do endereço.');
+            return;
+        }
+
+        if (!bairro) {
+            alert('Por favor, informe o bairro.');
+            return;
+        }
+
+        if (!cidade) {
+            alert('Por favor, informe a cidade.');
+            return;
+        }
+
+        if (!estado) {
+            alert('Por favor, informe o estado.');
+            return;
+        }
+
+        // Preparar dados para envio
+        const dadosCliente = {
+            nome_completo: nomeCompleto,
+            cpf: cpf,
+            telefone: telefone,
+            email: email || null,
+            senha: senha,
+            endereco_logradouro: logradouro,
+            endereco_numero: numero,
+            endereco_bairro: bairro,
+            endereco_cidade: cidade,
+            endereco_estado: estado.toUpperCase(),
+            endereco_cep: cep || null,
+            usuario_id: CONFIG.ID_USUARIO_LOJA
+        };
+
+        console.log('[App] 📝 Cadastrando cliente:', dadosCliente);
+
+        // Desabilitar botão durante o cadastro
+        const btnCadastrar = document.querySelector('#modal-cadastro-cliente button[onclick*="cadastrarClienteModal"]');
+        if (btnCadastrar) {
+            btnCadastrar.disabled = true;
+            btnCadastrar.textContent = 'Cadastrando...';
+        }
+
+        // Chamar função de cadastro
+        const clienteCadastrado = await cadastrarCliente(dadosCliente);
+
+        console.log('[App] ✅ Cliente cadastrado com sucesso:', clienteCadastrado);
+
+        // Fechar modal
+        fecharModal('modal-cadastro-cliente');
+
+        // Preencher cliente no pedido
+        clienteAtual = clienteCadastrado;
+        const inputClienteId = document.getElementById('cliente_id');
+        if (inputClienteId && clienteCadastrado.id) {
+            inputClienteId.value = clienteCadastrado.id;
+        }
+
+        // Atualizar interface
+        const nomeCliente = clienteCadastrado.nome_completo || clienteCadastrado.nome || 'Cliente cadastrado';
+        document.getElementById('nome-cliente-info').textContent = nomeCliente;
+        document.getElementById('info-cliente').classList.remove('hidden');
+
+        // Habilitar botão de confirmar
+        const btnConfirmar = document.getElementById('btn-confirmar-pedido');
+        if (btnConfirmar) {
+            btnConfirmar.disabled = false;
+        }
+        const msgHabilitar = document.getElementById('msg-habilitar-botao');
+        if (msgHabilitar) {
+            msgHabilitar.classList.add('hidden');
+        }
+
+        // Limpar formulário
+        document.getElementById('form-cliente-pedido')?.querySelectorAll('input[type="text"], input[type="email"], input[type="password"]').forEach(input => {
+            if (input.id && input.id.startsWith('cadastro-')) {
+                input.value = '';
+            }
+        });
+
+        alert('✅ Cliente cadastrado com sucesso! Você pode finalizar o pedido.');
+
+    } catch (error) {
+        console.error('[App] ❌ Erro ao cadastrar cliente:', error);
+        alert('Erro ao cadastrar cliente: ' + error.message);
+
+        // Reabilitar botão
+        const btnCadastrar = document.querySelector('#modal-cadastro-cliente button[onclick*="cadastrarClienteModal"]');
+        if (btnCadastrar) {
+            btnCadastrar.disabled = false;
+            btnCadastrar.textContent = 'Cadastrar e usar no pedido';
+        }
+    }
+};
+
+// ==========================================================================
 // FINALIZAR PEDIDO
 // ==========================================================================
 
@@ -960,7 +1210,7 @@ window.confirmarPedido = async function() {
     // Verifica se a forma de pagamento permite parcelamento antes de pegar o valor
     const formaPagamentoSelecionada = formasPagamento.find(fp => fp.id === formaPagamentoId);
     const tipoFormaPagamento = formaPagamentoSelecionada?.tipo || '';
-    const permiteParcelamento = tipoFormaPagamento !== 'DINHEIRO' && tipoFormaPagamento !== 'PIX' && tipoFormaPagamento !== 'PIX_ESTATICO';
+    const permiteParcelamento = tipoFormaPagamento !== 'DINHEIRO' && tipoFormaPagamento !== 'PIX' && tipoFormaPagamento !== 'PIX_ESTATICO' && tipoFormaPagamento !== 'PAGAR_AO_ENTREGADOR';
     
     // Se não permite parcelamento, força para 1 parcela
     const selectParcelas = document.getElementById('numero-parcelas');
@@ -997,57 +1247,74 @@ window.confirmarPedido = async function() {
         console.log('[App] 📥 Resultado:', resultado);
         
         if (resultado.sucesso) {
+            const vendaId = resultado.dados?.id || resultado.dados?.venda?.id;
             
             // ===============================================
-            // ✅ AJUSTE PARA POLLING DO PIX (da etapa anterior)
+            // ✅ AJUSTE: Verifica se é PIX ESTATICO para abrir modal
+            // ===============================================
+            const isPixEstatico = tipoFormaPagamento === 'PIX_ESTATICO';
+            const isVista = numeroParcelas === 1;
+            
+            if (isPixEstatico && isVista && !resultado.offline && !resultado.redirecionado) {
+                console.log('[App] 🟢 Venda PIX Estático à vista detectada. Gerando QR Code...');
+                
+                const valorTotal = calcularTotalCarrinho();
+                
+                // Gera TxID limpo: Catalogo + DDMMYYYY + HHMM
+                const now = new Date();
+                const dia = String(now.getDate()).padStart(2, '0');
+                const mes = String(now.getMonth() + 1).padStart(2, '0');
+                const ano = String(now.getFullYear());
+                const hora = String(now.getHours()).padStart(2, '0');
+                const minuto = String(now.getMinutes()).padStart(2, '0');
+                const txId = `Catalogo${dia}${mes}${ano}${hora}${minuto}`;
+
+                // Abre o Modal PIX com dados do pedido
+                await mostrarModalPixEstatico(valorTotal, txId, {
+                    ...dadosPedido,
+                    itens: carrinho,
+                    valorTotal: valorTotal,
+                    venda_id: vendaId
+                }, CONFIG.ID_USUARIO_LOJA);
+                
+                // Limpa carrinho pois a venda foi registrada
+                limparCarrinho();
+                await carregarCarrinhoInicial();
+                atualizarBadgeCarrinho();
+                fecharModal('modal-cliente-pedido');
+                
+                // Restaura botão
+                btnConfirmar.disabled = false;
+                btnConfirmar.textContent = '✅ Confirmar Pedido';
+                return; // Encerra aqui para manter o modal PIX aberto
+            }
+            
+            // ===============================================
+            // ✅ AJUSTE PARA POLLING DO PIX DINÂMICO (gateway)
             // ===============================================
             if (resultado.redirecionado) {
                 // Se foi redirecionado (ex: MercadoPago), não faz mais nada aqui
                 return; 
             }
             
-            // Se o modal PIX foi exibido, o gateway-pagamento.js cuida do resto.
-            // O app.js só precisa esperar pelo evento 'pagamentoConfirmado'.
+            // Se o modal PIX dinâmico foi exibido, o gateway-pagamento.js cuida do resto.
             if (resultado.mensagem === 'Modal PIX exibido. Aguardando pagamento.') {
-                 console.log('[App] Modal PIX exibido. Aguardando confirmação...');
+                 console.log('[App] Modal PIX dinâmico exibido. Aguardando confirmação...');
                  // Não faz mais nada aqui, o polling está ativo
-                 return; // Sai da função, mas o botão continua "Processando..."
+                 return;
             }
             // ===============================================
 
-            // Para fluxos normais (offline, boleto, interno) - Gera comprovante
-            if (!resultado.offline && !resultado.redirecionado) {
-                console.log('[App] 🧾 Gerando comprovante de venda...');
-                
-                // Importa função de comprovante e funções do carrinho
-                const { gerarComprovanteVenda } = await import('./receipt.js');
-                const { calcularTotalCarrinho } = await import('./cart.js');
-                
-                // Busca parcelas se houver
-                let parcelas = null;
-                if (dadosPedido.numero_parcelas > 1 && resultado.dados?.venda?.id) {
-                    try {
-                        const { API_ENDPOINTS } = await import('./config.js');
-                        const response = await fetch(`${API_ENDPOINTS.PEDIDO_PARCELAS}?venda_id=${resultado.dados.venda.id}`);
-                        if (response.ok) {
-                            const dadosParcelas = await response.json();
-                            parcelas = dadosParcelas.parcelas || null;
-                        }
-                    } catch (error) {
-                        console.warn('[App] Erro ao buscar parcelas:', error);
-                    }
-                }
-                
-                await gerarComprovanteVenda(carrinho, {
-                    ...dadosPedido,
-                    itens: carrinho,
-                    valorTotal: calcularTotalCarrinho(),
-                    forma_pagamento: formaPagamentoSelecionada?.nome || 'Não informado',
-                    parcelas: parcelas
-                });
-            }
+            // ✅ CORREÇÃO: Para vendas online, comprovante só é exibido após confirmação de pagamento
+            // PAGAR_AO_ENTREGADOR também não gera comprovante imediatamente (aguarda confirmação na entrega)
+            const isPagarAoEntregador = tipoFormaPagamento === 'PAGAR_AO_ENTREGADOR';
             
-            alert(resultado.mensagem || 'Pedido realizado com sucesso!');
+            if (isPagarAoEntregador) {
+                alert('Pedido realizado com sucesso! O comprovante será gerado após a confirmação do pagamento na entrega.');
+            } else {
+                // Para outras formas de pagamento online, aguarda confirmação
+                alert('Pedido realizado com sucesso! Aguardando confirmação de pagamento...');
+            }
             
             if (!resultado.offline) {
                 // Limpar carrinho apenas se não for offline
@@ -1173,34 +1440,101 @@ function inicializarEventListeners() {
     document.querySelectorAll('.modal-overlay').forEach(modal => {
         modal.addEventListener('click', (e) => {
              // ✅ AJUSTE: Não fecha o modal PIX ao clicar fora
-            if (e.target === modal && modal.id !== 'modal-pix-asaas') {
+            if (e.target === modal && modal.id !== 'modal-pix-asaas' && modal.id !== 'modal-pix-estatico') {
                 fecharModal(modal.id);
             }
         });
     });
+    
+    // Listener específico para fechar modal PIX Estático ao clicar fora
+    const modalPixEstatico = document.getElementById('modal-pix-estatico');
+    if (modalPixEstatico) {
+        modalPixEstatico.addEventListener('click', (e) => {
+            if (e.target === modalPixEstatico) {
+                window.fecharModalPixEstatico();
+            }
+        });
+    }
 
     // ==================================================================
     // ✅ AJUSTE: OUVIR A CONFIRMAÇÃO DE PAGAMENTO DO GATEWAY
     // (Este foi o listener que adicionei na etapa anterior)
     // ==================================================================
-    window.addEventListener('pagamentoConfirmado', (event) => {
+    // ✅ AJUSTE: Listener para pagamento confirmado - chama endpoint de confirmação
+    // ==================================================================
+    window.addEventListener('pagamentoConfirmado', async (event) => {
         console.log('[App] 💳 Pagamento confirmado recebido!', event.detail);
         
-        // Exibe alerta de sucesso
-        alert(`Pagamento confirmado com sucesso!\nPedido ID: ${event.detail.pedidoId || 'N/A'}`);
+        const vendaId = event.detail.pedidoId || event.detail.venda_id;
         
-        // Limpa o carrinho
-        limparCarrinho();
-        atualizarBadgeCarrinho();
+        if (!vendaId) {
+            console.error('[App] ❌ Venda ID não encontrado no evento de pagamento confirmado');
+            alert('Erro: ID da venda não encontrado.');
+            return;
+        }
         
-        // Fecha o modal de pedido (onde o cliente inseriu o CPF)
-        fecharModal('modal-cliente-pedido');
-
-        // Re-habilita o botão de confirmar, caso o usuário abra de novo
-        const btnConfirmar = document.getElementById('btn-confirmar-pedido');
-        if (btnConfirmar) {
-            btnConfirmar.disabled = false;
-            btnConfirmar.textContent = '✅ Confirmar Pedido';
+        try {
+            // Chama endpoint de confirmação de recebimento
+            const response = await fetch(API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ venda_id: vendaId })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Erro ao confirmar recebimento: ${response.status}`);
+            }
+            
+            const vendaConfirmada = await response.json();
+            console.log('[App] ✅ Recebimento confirmado:', vendaConfirmada);
+            
+            // Gera comprovante após confirmação
+            const { gerarComprovanteVenda } = await import('./receipt.js');
+            const carrinho = vendaConfirmada.itens || [];
+            
+            // Busca parcelas se houver
+            let parcelas = null;
+            if (vendaConfirmada.numero_parcelas > 1) {
+                try {
+                    const response = await fetch(`${API_ENDPOINTS.PEDIDO_PARCELAS}?venda_id=${vendaId}`);
+                    if (response.ok) {
+                        const dadosParcelas = await response.json();
+                        parcelas = dadosParcelas.parcelas || null;
+                    }
+                } catch (error) {
+                    console.warn('[App] Erro ao buscar parcelas:', error);
+                }
+            }
+            
+            await gerarComprovanteVenda(carrinho, {
+                venda_id: vendaId,
+                itens: carrinho,
+                valorTotal: vendaConfirmada.valor_total,
+                forma_pagamento: vendaConfirmada.formaPagamento?.nome || 'Não informado',
+                parcelas: parcelas,
+                cliente: vendaConfirmada.cliente
+            });
+            
+            // Exibe alerta de sucesso
+            alert('Pagamento confirmado com sucesso! Comprovante gerado.');
+            
+            // Limpa o carrinho
+            limparCarrinho();
+            atualizarBadgeCarrinho();
+            
+            // Fecha o modal de pedido
+            fecharModal('modal-cliente-pedido');
+            
+            // Re-habilita o botão de confirmar
+            const btnConfirmar = document.getElementById('btn-confirmar-pedido');
+            if (btnConfirmar) {
+                btnConfirmar.disabled = false;
+                btnConfirmar.textContent = '✅ Confirmar Pedido';
+            }
+            
+        } catch (error) {
+            console.error('[App] ❌ Erro ao confirmar recebimento:', error);
+            alert('Erro ao confirmar recebimento: ' + error.message);
         }
     });
     // ==================================================================

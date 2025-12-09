@@ -95,7 +95,8 @@ const getLojaId = () => {
     const lojaPath = segments[segments.length - 2]; // Pega 'catalogo'
     
     const lojaMap = {
-        'catalogo': 'a99a38a9-e368-4a47-a4bd-02ba3bacaa76',
+        'catalogo': '5e449fee-4486-4536-a64f-74aed38a6987', // Top Construções
+        'top-construcoes': '5e449fee-4486-4536-a64f-74aed38a6987', // Top Construções
         'alexbird': '5eb98116-77c2-4a01-bd60-50db21eaa206',
         'victor':'0b633731-25a1-4991-b1c4-c46acc6bce06',
     };
@@ -115,8 +116,8 @@ const ID_USUARIO_LOJA = getLojaId();
 const API_PRODUTO_URL = `${URL_API}/api/produto?usuario_id=${ID_USUARIO_LOJA}`;
 const API_PEDIDO_URL = `${URL_API}/api/pedido`;
 
-// ✅ AJUSTE: Incrementado para v11 (para forçar atualização)
-const CACHE_NAME = 'catalogo-cache-v11'; 
+// ✅ AJUSTE: Incrementado para v12 (para forçar atualização após correção do usuario_id)
+const CACHE_NAME = 'catalogo-cache-v12'; 
 
 const APP_SHELL_FILES = [
     `${URL_BASE_WEB}/catalogo/index.html`,

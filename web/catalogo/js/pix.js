@@ -30,7 +30,7 @@ export async function carregarConfigPix(usuarioId) {
                 console.warn('[PIX] Erro ao importar CONFIG, usando fallback:', e);
                 // Fallback: constrói URL baseada na origem atual
                 const pathname = window.location.pathname;
-                const basePath = pathname.replace(/\/venda-direta.*$/, '');
+                const basePath = pathname.replace(/\/catalogo.*$/, '');
                 urlApi = window.location.origin + basePath + '/index.php';
             }
         }
@@ -581,7 +581,7 @@ window.confirmarRecebimentoPix = async function() {
     let carrinho = [];
     try {
         // Tenta buscar do localStorage ou da memória
-        const carrinhoSalvo = localStorage.getItem('carrinho_venda_direta');
+        const carrinhoSalvo = localStorage.getItem('carrinho_pwa');
         if (carrinhoSalvo) {
             carrinho = JSON.parse(carrinhoSalvo);
         }
@@ -611,6 +611,35 @@ window.confirmarRecebimentoPix = async function() {
             }
         } catch (error) {
             console.warn('[PIX] Erro ao buscar parcelas:', error);
+        }
+    }
+    
+    // ✅ NOVO: Confirma recebimento no backend antes de gerar comprovante
+    if (dadosPedidoPix.venda_id) {
+        try {
+            const { CONFIG, API_ENDPOINTS } = await import('./config.js');
+            const response = await fetch(API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ venda_id: dadosPedidoPix.venda_id })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Erro ao confirmar recebimento: ${response.status}`);
+            }
+            
+            const vendaConfirmada = await response.json();
+            console.log('[PIX] ✅ Recebimento confirmado:', vendaConfirmada);
+            
+            // Atualiza dados do pedido com os dados confirmados
+            dadosPedidoPix = {
+                ...dadosPedidoPix,
+                ...vendaConfirmada
+            };
+        } catch (error) {
+            console.error('[PIX] ❌ Erro ao confirmar recebimento:', error);
+            alert('Erro ao confirmar recebimento: ' + error.message);
+            return;
         }
     }
     
@@ -733,7 +762,7 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
             // Se ainda não tem baseUrl, usa window.location como fallback
             if (!baseUrl) {
                 const pathParts = window.location.pathname.split('/').filter(p => p);
-                // Remove 'venda-direta' ou 'index.html' do final
+                // Remove 'catalogo' ou 'index.html' do final
                 pathParts.pop();
                 baseUrl = window.location.origin + (pathParts.length > 0 ? '/' + pathParts.join('/') : '');
             }

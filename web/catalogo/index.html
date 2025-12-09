@@ -257,9 +257,112 @@
         <!-- Conteúdo do Modal Login -->
     </div>
     
-    <!-- Modal Cadastro Cliente -->
+    <!-- Modal Cadastro Cliente (público) -->
     <div id="modal-cadastro-cliente" class="fixed inset-0 bg-black bg-opacity-70 z-40 flex justify-center items-center p-4 hidden">
-        <!-- Conteúdo do Modal Cadastro -->
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b p-4">
+                <h2 class="text-lg font-semibold text-gray-800">Cadastrar Cliente</h2>
+                <button onclick="fecharModal('modal-cadastro-cliente')" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <div class="p-4 space-y-4">
+                <p class="text-sm text-gray-700">Preencha os dados para finalizar a compra.</p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nome completo *</label>
+                        <input type="text" id="cadastro-nome" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">CPF *</label>
+                        <input type="text" id="cadastro-cpf" maxlength="14" placeholder="000.000.000-00" data-mask="cpf" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Telefone *</label>
+                        <input type="text" id="cadastro-telefone" placeholder="(00) 00000-0000" data-mask="phone" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+                        <input type="email" id="cadastro-email" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Senha *</label>
+                        <input type="password" id="cadastro-senha" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Confirmar senha *</label>
+                        <input type="password" id="cadastro-senha-confirm" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Logradouro *</label>
+                        <input type="text" id="cadastro-logradouro" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Número *</label>
+                        <input type="text" id="cadastro-numero" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Bairro *</label>
+                        <input type="text" id="cadastro-bairro" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Cidade *</label>
+                        <input type="text" id="cadastro-cidade" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Estado *</label>
+                        <input type="text" id="cadastro-estado" maxlength="2" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">CEP</label>
+                        <input type="text" id="cadastro-cep" maxlength="9" placeholder="00000-000" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-2 pt-2">
+                    <button onclick="fecharModal('modal-cadastro-cliente')" class="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Cancelar</button>
+                    <button onclick="window.cadastrarClienteModal()" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Cadastrar e usar no pedido</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal PIX Estático -->
+    <div id="modal-pix-estatico" class="fixed inset-0 bg-black bg-opacity-70 z-50 flex justify-center items-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="flex justify-between items-center border-b p-4">
+                <h2 class="text-xl font-bold text-gray-800">Pagamento via PIX</h2>
+                <button onclick="window.fecharModalPixEstatico()" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <div class="p-6">
+                <div class="text-center mb-4">
+                    <p class="text-lg font-semibold text-gray-700 mb-2">Valor: <span id="pix-valor" class="text-blue-600"></span></p>
+                    <p class="text-sm text-gray-600">Escaneie o QR Code ou copie o código PIX</p>
+                </div>
+                
+                <div id="pix-qrcode-container" class="flex justify-center mb-4">
+                    <!-- QR Code será gerado aqui -->
+                </div>
+                
+                <div class="bg-gray-100 p-3 rounded-lg mb-4">
+                    <p class="text-xs text-gray-600 mb-2 font-semibold">Código PIX Copia e Cola:</p>
+                    <p id="pix-codigo-copia-cola" class="text-xs font-mono break-all bg-white p-2 rounded border border-gray-300"></p>
+                </div>
+                
+                <button onclick="copiarCodigoPix()" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 mb-3">
+                    📋 Copiar Código PIX
+                </button>
+                
+                <button onclick="window.confirmarRecebimentoPix()" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 mb-3">
+                    ✅ Confirmar Recebimento
+                </button>
+                
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p class="text-xs text-blue-800">
+                        <strong>Instruções:</strong> Após o pagamento, clique em "Confirmar Recebimento" para gerar o comprovante.
+                    </p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Modal Galeria de Fotos -->

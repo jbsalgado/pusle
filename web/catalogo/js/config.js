@@ -8,7 +8,8 @@ const getLojaId = () => {
     const lojaPath = segments[segments.length - 1];
     
     const lojaMap = {
-        'catalogo': 'a99a38a9-e368-4a47-a4bd-02ba3bacaa76',
+        'catalogo': '5e449fee-4486-4536-a64f-74aed38a6987', // Top Construções
+        'top-construcoes': '5e449fee-4486-4536-a64f-74aed38a6987', // Top Construções
         'alexbird': '5eb98116-77c2-4a01-bd60-50db21eaa206',
         'victor':'0b633731-25a1-4991-b1c4-c46acc6bce06',
     };
@@ -147,6 +148,8 @@ export const API_ENDPOINTS = {
     
     // ✅ NOVO: Endpoint para buscar parcelas de uma venda
     PEDIDO_PARCELAS: `${CONFIG.URL_API}/api/pedido/parcelas`,
+    // ✅ NOVO: Endpoint para confirmar recebimento de venda
+    PEDIDO_CONFIRMAR_RECEBIMENTO: `${CONFIG.URL_API}/api/pedido/confirmar-recebimento`,
 };
 
 export const STORAGE_KEYS = {

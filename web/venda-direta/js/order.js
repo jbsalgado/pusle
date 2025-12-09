@@ -80,6 +80,7 @@ function prepararObjetoPedido(dadosPedido, carrinho) {
         observacoes: dadosPedido.observacoes || null,
         numero_parcelas: parseInt(dadosPedido.numero_parcelas, 10) || 1,
         forma_pagamento_id: dadosPedido.forma_pagamento_id,
+        is_venda_direta: true, // ✅ MARCADOR: Identifica que é venda direta (loja física)
         itens: carrinho.map(item => ({
             produto_id: item.produto_id || item.id,
             quantidade: item.quantidade,

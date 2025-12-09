@@ -42,7 +42,7 @@ function validarDadosPedido(dadosPedido, carrinho) {
             
             if (formaSelecionada) {
                 const tipo = formaSelecionada.tipo || '';
-                if (tipo === 'DINHEIRO' || tipo === 'PIX' || tipo === 'PIX_ESTATICO') {
+                if (tipo === 'DINHEIRO' || tipo === 'PIX' || tipo === 'PIX_ESTATICO' || tipo === 'PAGAR_AO_ENTREGADOR') {
                     // Força para 1 parcela (à vista) se tentar parcelar
                     if (numeroParcelas > 1) {
                         console.warn('[Order] ⚠️ Tentativa de parcelar com', tipo, '- forçando para à vista');
@@ -325,7 +325,12 @@ export async function finalizarPedido(dadosPedido, carrinho) {
         
         // 2️⃣ DECIDIR FLUXO: Gateway Externo vs. Interno
         
-        if (GATEWAY_CONFIG.habilitado && GATEWAY_CONFIG.gateway !== 'nenhum') {
+        // ✅ CORREÇÃO: PIX ESTATICO e PAGAR_AO_ENTREGADOR sempre usam fluxo interno
+        const formaPagamentoSelecionada = window.formasPagamento?.find(fp => fp.id === dadosPedido.forma_pagamento_id);
+        const tipoFormaPagamento = formaPagamentoSelecionada?.tipo || '';
+        const usaFluxoInterno = tipoFormaPagamento === 'PIX_ESTATICO' || tipoFormaPagamento === 'PAGAR_AO_ENTREGADOR';
+        
+        if (GATEWAY_CONFIG.habilitado && GATEWAY_CONFIG.gateway !== 'nenhum' && !usaFluxoInterno) {
             // ============================================
             // FLUXO COM GATEWAY EXTERNO (MP ou Asaas)
             // ============================================

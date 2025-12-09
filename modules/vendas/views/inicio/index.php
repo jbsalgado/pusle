@@ -141,6 +141,15 @@ $cards = [
         'description' => 'Criar e gerenciar lojas/filiais'
     ],
     [
+        'order' => 2.9,
+        'visible' => true,
+        'label' => 'Confirmar Pagamentos',
+        'url' => ['/vendas/inicio/confirmar-pagamentos'],
+        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>',
+        'color' => 'green',
+        'description' => 'Confirmar pagamentos do catálogo'
+    ],
+    [
         'order' => 3,
         'visible' => true,
         'label' => 'Categorias',
@@ -434,8 +443,8 @@ usort($visibleCards, function($a, $b) {
             <p class="text-sm sm:text-base text-gray-600">Bem-vindo ao seu painel de vendas.</p>
         </div>
 
-        <!-- Card de Ação Rápida (Nova Venda) -->
-        <div class="grid grid-cols-1 gap-3 sm:gap-4">
+        <!-- Cards de Ação Rápida -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <!-- Nova Venda -->
             <a href="<?= Url::to(['/venda-direta']) ?>" 
                class="group block bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
@@ -451,7 +460,37 @@ usort($visibleCards, function($a, $b) {
                     </div>
                 </div>
             </a>
+
+            <?php if ($ehAdministrador || $ehDonoLoja): ?>
+            <!-- Confirmar Pagamentos -->
+            <a href="<?= Url::to(['/vendas/inicio/confirmar-pagamentos']) ?>" 
+               class="group block bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95 relative">
+                <?php if ($countVendasPendentes > 0): ?>
+                    <span class="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg">
+                        <?= $countVendasPendentes ?>
+                    </span>
+                <?php endif; ?>
+                <div class="flex items-center space-x-3 sm:space-x-4">
+                    <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
+                        <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div class="flex-1 text-white">
+                        <h3 class="text-lg sm:text-xl font-bold mb-0.5">Confirmar Pagamentos</h3>
+                        <p class="text-xs sm:text-sm opacity-90">
+                            <?php if ($countVendasPendentes > 0): ?>
+                                <?= $countVendasPendentes ?> venda(s) aguardando
+                            <?php else: ?>
+                                Nenhuma venda pendente
+                            <?php endif; ?>
+                        </p>
+                    </div>
+                </div>
+            </a>
+            <?php endif; ?>
         </div>
+
 
         <?php if ($ehAdministrador): ?>
         <!-- Seção de Gerenciamento (apenas para administradores) -->

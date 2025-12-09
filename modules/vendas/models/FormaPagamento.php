@@ -39,6 +39,7 @@ class FormaPagamento extends ActiveRecord
     const TIPO_BOLETO = 'BOLETO';
     const TIPO_TRANSFERENCIA = 'TRANSFERENCIA';
     const TIPO_CHEQUE = 'CHEQUE';
+    const TIPO_PAGAR_AO_ENTREGADOR = 'PAGAR_AO_ENTREGADOR'; // Pagar ao Entregador (permite escolher DINHEIRO ou PIX ESTATICO na entrega)
     const TIPO_OUTRO = 'OUTRO';
 
     /**
@@ -90,6 +91,7 @@ class FormaPagamento extends ActiveRecord
                 self::TIPO_BOLETO,
                 self::TIPO_TRANSFERENCIA,
                 self::TIPO_CHEQUE,
+                self::TIPO_PAGAR_AO_ENTREGADOR,
                 self::TIPO_OUTRO
             ]],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
@@ -127,6 +129,7 @@ class FormaPagamento extends ActiveRecord
             self::TIPO_BOLETO => 'Boleto',
             self::TIPO_TRANSFERENCIA => 'Transferência Bancária',
             self::TIPO_CHEQUE => 'Cheque',
+            self::TIPO_PAGAR_AO_ENTREGADOR => 'Pagar ao Entregador',
             self::TIPO_OUTRO => 'Outro',
         ];
     }

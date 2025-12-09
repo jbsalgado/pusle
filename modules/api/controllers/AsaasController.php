@@ -16,6 +16,10 @@ use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response as GuzzleResponse; 
 // ADICIONADO: Necessário para logar o CSRF
 use yii\base\ActionEvent;
+// ✅ ADICIONADO: Imports para modelos de vendas
+use app\modules\vendas\models\Venda;
+use app\modules\vendas\models\Produto;
+use app\modules\vendas\models\StatusVenda;
 
 
 class AsaasController extends Controller
@@ -899,7 +903,48 @@ class AsaasController extends Controller
     private function criarPedidoSeNecessario($payment, $cobranca, $usuario)
     {
         if (!empty($cobranca['pedido_id'])) {
-            Yii::info("Pedido já existe ({$cobranca['pedido_id']}). Nenhuma ação necessária.", 'asaas');
+            Yii::info("Pedido já existe ({$cobranca['pedido_id']}). Atualizando status e processando estoque/caixa.", 'asaas');
+            
+            // ✅ NOVO: Atualizar status da venda para QUITADA e processar estoque/caixa
+            $venda = \app\modules\vendas\models\Venda::findOne($cobranca['pedido_id']);
+            if ($venda && $venda->status_venda_codigo !== 'QUITADA') {
+                $venda->status_venda_codigo = \app\modules\vendas\models\StatusVenda::QUITADA;
+                if ($venda->save(false, ['status_venda_codigo', 'data_atualizacao'])) {
+                    Yii::info("✅ Status da venda {$venda->id} atualizado para QUITADA", 'asaas');
+                    
+                    // Baixar estoque dos itens
+                    foreach ($venda->itens as $item) {
+                        $produto = $item->produto;
+                        if ($produto) {
+                            $produto->estoque_atual -= $item->quantidade;
+                            if (!$produto->save(false, ['estoque_atual'])) {
+                                Yii::error("❌ FALHA ao atualizar estoque do produto {$produto->id} após confirmação de pagamento", 'asaas');
+                            } else {
+                                Yii::info("✅ Estoque de '{$produto->nome}' baixado para {$produto->estoque_atual} após confirmação de pagamento", 'asaas');
+                            }
+                        }
+                    }
+                    
+                    // Registrar entrada no caixa
+                    try {
+                        $movimentacao = \app\modules\caixa\helpers\CaixaHelper::registrarEntradaVenda(
+                            $venda->id,
+                            $venda->valor_total,
+                            $venda->forma_pagamento_id,
+                            $venda->usuario_id
+                        );
+                        
+                        if ($movimentacao) {
+                            Yii::info("✅ Entrada registrada no caixa para Venda ID {$venda->id} após confirmação de pagamento", 'asaas');
+                        } else {
+                            Yii::warning("⚠️ Não foi possível registrar entrada no caixa para Venda ID {$venda->id} (caixa pode não estar aberto)", 'asaas');
+                        }
+                    } catch (\Exception $e) {
+                        Yii::error("Erro ao registrar entrada no caixa após confirmação de pagamento (não crítico): " . $e->getMessage(), 'asaas');
+                    }
+                }
+            }
+            
             return $cobranca['pedido_id'];
         }
         
@@ -1448,6 +1493,36 @@ class AsaasController extends Controller
                     ':preco_unitario_venda' => $precoUnitario,
                     ':valor_total_item' => $valorTotalItem
                 ])->execute();
+                
+                // ✅ NOVO: Baixar estoque quando pagamento é confirmado (webhook)
+                $produto = \app\modules\vendas\models\Produto::findOne($produtoId);
+                if ($produto) {
+                    $produto->estoque_atual -= $quantidade;
+                    if (!$produto->save(false, ['estoque_atual'])) {
+                        Yii::error("❌ FALHA ao atualizar estoque do produto {$produtoId} após confirmação de pagamento", 'asaas');
+                        throw new \Exception("Erro ao atualizar estoque do produto após confirmação de pagamento.");
+                    }
+                    Yii::info("✅ Estoque de '{$produto->nome}' baixado para {$produto->estoque_atual} após confirmação de pagamento", 'asaas');
+                }
+            }
+            
+            // ✅ NOVO: Registrar entrada no caixa após confirmação de pagamento
+            try {
+                $movimentacao = \app\modules\caixa\helpers\CaixaHelper::registrarEntradaVenda(
+                    $vendaId,
+                    $dados['valor_total'],
+                    $dados['forma_pagamento_id'],
+                    $dados['usuario_id']
+                );
+                
+                if ($movimentacao) {
+                    Yii::info("✅ Entrada registrada no caixa para Venda ID {$vendaId} após confirmação de pagamento", 'asaas');
+                } else {
+                    Yii::warning("⚠️ Não foi possível registrar entrada no caixa para Venda ID {$vendaId} (caixa pode não estar aberto)", 'asaas');
+                }
+            } catch (\Exception $e) {
+                // Não falha a venda se houver erro no caixa, apenas registra no log
+                Yii::error("Erro ao registrar entrada no caixa após confirmação de pagamento (não crítico): " . $e->getMessage(), 'asaas');
             }
             
             $transaction->commit();

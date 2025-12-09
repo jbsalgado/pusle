@@ -33,7 +33,7 @@ use app\modules\vendas\models\FormaPagamento;
             <!-- Tipo -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-3">Tipo de Pagamento</label>
-                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                     <?php
                     $tipos = [
                         FormaPagamento::TIPO_DINHEIRO => [
@@ -58,10 +58,29 @@ use app\modules\vendas\models\FormaPagamento;
                             'icon' => '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>',
                             'color' => 'purple'
                         ],
+                        FormaPagamento::TIPO_CARTAO_CREDITO => [
+                            'label' => 'Cartão de Crédito',
+                            'icon' => '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>',
+                            'color' => 'purple',
+                            'description' => 'Com gateway'
+                        ],
+                        FormaPagamento::TIPO_CARTAO_DEBITO => [
+                            'label' => 'Cartão de Débito',
+                            'icon' => '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>',
+                            'color' => 'purple',
+                            'description' => 'Com gateway'
+                        ],
                         FormaPagamento::TIPO_BOLETO => [
                             'label' => 'Boleto',
                             'icon' => '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>',
-                            'color' => 'orange'
+                            'color' => 'orange',
+                            'description' => 'Com gateway'
+                        ],
+                        FormaPagamento::TIPO_PAGAR_AO_ENTREGADOR => [
+                            'label' => 'Pagar na Entrega',
+                            'icon' => '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>',
+                            'color' => 'green',
+                            'description' => 'DINHEIRO ou PIX'
                         ]
                     ];
                     
@@ -73,6 +92,7 @@ use app\modules\vendas\models\FormaPagamento;
                             'indigo' => 'border-indigo-500 bg-indigo-50 text-indigo-700',
                             'purple' => 'border-purple-500 bg-purple-50 text-purple-700',
                             'orange' => 'border-orange-500 bg-orange-50 text-orange-700',
+                            'red' => 'border-red-500 bg-red-50 text-red-700',
                         ];
                     ?>
                         <label class="relative cursor-pointer">
