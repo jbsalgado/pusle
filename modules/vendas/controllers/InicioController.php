@@ -47,8 +47,8 @@ class InicioController extends Controller
         }
         
         // Verifica se é dono da loja (acesso completo automático)
-        // Usa verificação mais robusta para garantir que funciona com diferentes tipos de dados
-        $ehDonoLoja = $usuario->eh_dono_loja === true || $usuario->eh_dono_loja === '1' || $usuario->eh_dono_loja === 1;
+        // Helper para converter valor boolean do PostgreSQL para PHP boolean
+        $ehDonoLoja = $this->converterParaBoolean($usuario->eh_dono_loja);
         
         // Busca o colaborador associado ao usuário (se houver)
         $colaborador = null;
@@ -66,8 +66,9 @@ class InicioController extends Controller
                 ->one();
             
             if ($colaborador) {
-                $ehAdministrador = (bool)$colaborador->eh_administrador;
-                Yii::info("Colaborador encontrado - eh_administrador: " . ($colaborador->eh_administrador ? 'true' : 'false'), __METHOD__);
+                // Helper para converter valor boolean do PostgreSQL para PHP boolean
+                $ehAdministrador = $this->converterParaBoolean($colaborador->eh_administrador);
+                Yii::info("Colaborador encontrado - eh_administrador: " . var_export($colaborador->eh_administrador, true) . " -> " . ($ehAdministrador ? 'true' : 'false'), __METHOD__);
             } else {
                 Yii::info("Colaborador não encontrado ou inativo para usuário ID: {$usuario->id}", __METHOD__);
             }
@@ -80,5 +81,25 @@ class InicioController extends Controller
             'ehAdministrador' => $ehAdministrador,
             'ehDonoLoja' => $ehDonoLoja,
         ]);
+    }
+    
+    /**
+     * Converte valor boolean do PostgreSQL para PHP boolean
+     * PostgreSQL pode retornar: true, false, 't', 'f', '1', '0', 1, 0
+     * 
+     * @param mixed $valor
+     * @return bool
+     */
+    protected function converterParaBoolean($valor)
+    {
+        if ($valor === true || $valor === 1 || $valor === '1' || $valor === 't' || $valor === 'true') {
+            return true;
+        }
+        
+        if (is_string($valor) && strtolower(trim($valor)) === 't') {
+            return true;
+        }
+        
+        return false;
     }
 }

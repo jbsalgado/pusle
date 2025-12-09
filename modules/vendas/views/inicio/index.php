@@ -302,11 +302,21 @@ if (!isset($ehAdministrador)) {
     $ehAdministrador = false;
     \Yii::warning("⚠️ Variável ehAdministrador não foi passada pelo controller!", __METHOD__);
 } else {
-    $ehAdministrador = (bool)$ehAdministrador;
+    // Converte para boolean de forma robusta (pode vir como string 't'/'f' do PostgreSQL)
+    if (is_string($ehAdministrador)) {
+        $ehAdministrador = (strtolower(trim($ehAdministrador)) === 't' || strtolower(trim($ehAdministrador)) === 'true' || $ehAdministrador === '1');
+} else {
+    // Converte para boolean de forma robusta (pode vir como string 't'/'f' do PostgreSQL)
+    if (is_string($ehAdministrador)) {
+        $ehAdministrador = (strtolower(trim($ehAdministrador)) === 't' || strtolower(trim($ehAdministrador)) === 'true' || $ehAdministrador === '1');
+    } else {
+        $ehAdministrador = (bool)$ehAdministrador;
+    }
+}
 }
 
 // Debug: Log para verificar o valor (remover em produção se necessário)
-\Yii::info("🔍 DEBUG View inicio/index - ehAdministrador: " . ($ehAdministrador ? 'true' : 'false') . ", ehDonoLoja: " . (isset($ehDonoLoja) && $ehDonoLoja ? 'true' : 'false'), __METHOD__);
+\Yii::info("🔍 DEBUG View inicio/index - ehAdministrador (original): " . var_export($ehAdministrador ?? 'NÃO DEFINIDO', true) . ", ehAdministrador (convertido): " . ($ehAdministrador ? 'true' : 'false') . ", ehDonoLoja: " . (isset($ehDonoLoja) && $ehDonoLoja ? 'true' : 'false'), __METHOD__);
 
 $visibleCards = array_filter($cards, function($card) use ($ehAdministrador) {
     // Se não for administrador, mostra apenas o card "Nova Venda" (que não está na lista de cards de gerenciamento)
@@ -420,6 +430,20 @@ usort($visibleCards, function($a, $b) {
                 Olá, <?= $usuario ? Html::encode($usuario->getPrimeiroNome()) : 'Utilizador' ?>! 👋
             </h1>
             <p class="text-sm sm:text-base text-gray-600">Bem-vindo ao seu painel de vendas.</p>
+            
+            <!-- DEBUG: Informações de permissão (remover em produção) -->
+            <div class="mt-4 p-3 bg-yellow-100 border border-yellow-400 rounded-lg text-xs">
+                <strong>🔍 DEBUG:</strong><br>
+                ehAdministrador (tipo): <?= isset($ehAdministrador) ? gettype($ehAdministrador) : 'NÃO DEFINIDO' ?><br>
+                ehAdministrador (valor): <?= isset($ehAdministrador) ? var_export($ehAdministrador, true) : 'NÃO DEFINIDO' ?><br>
+                ehAdministrador (bool): <?= isset($ehAdministrador) ? ($ehAdministrador ? 'TRUE' : 'FALSE') : 'NÃO DEFINIDO' ?><br>
+                ehDonoLoja: <?= isset($ehDonoLoja) ? ($ehDonoLoja ? 'TRUE' : 'FALSE') : 'NÃO DEFINIDO' ?><br>
+                usuario->eh_dono_loja (tipo): <?= $usuario ? gettype($usuario->eh_dono_loja) : 'N/A' ?><br>
+                usuario->eh_dono_loja (valor): <?= $usuario ? var_export($usuario->eh_dono_loja, true) : 'N/A' ?><br>
+                Cards visíveis: <?= count($visibleCards) ?><br>
+                Total de cards: <?= count($cards) ?><br>
+                Condição if ($ehAdministrador): <?= ($ehAdministrador ?? false) ? 'TRUE - DEVE MOSTRAR' : 'FALSE - NÃO MOSTRA' ?>
+            </div>
         </div>
 
         <!-- Card de Ação Rápida (Nova Venda) -->
