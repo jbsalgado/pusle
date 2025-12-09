@@ -151,8 +151,14 @@ class ProdutoController extends Controller
                 }
             }
             
-            // Upload de fotos
-            $this->processUploadFotos($model);
+            // Upload de fotos (sempre executa, mesmo se houver erros anteriores)
+            try {
+                $this->processUploadFotos($model);
+            } catch (\Exception $e) {
+                Yii::error('Erro ao processar upload de fotos: ' . $e->getMessage(), __METHOD__);
+                Yii::error('Stack trace: ' . $e->getTraceAsString(), __METHOD__);
+                // Não interrompe o fluxo, apenas loga o erro
+            }
             
             Yii::$app->session->setFlash('success', 'Produto cadastrado com sucesso!');
             return $this->redirect(['view', 'id' => $model->id]);
@@ -268,8 +274,14 @@ class ProdutoController extends Controller
                 }
                 
                 Yii::info('Produto salvo com sucesso. Estoque final: ' . $model->estoque_atual, __METHOD__);
-                // Upload de fotos
-                $this->processUploadFotos($model);
+                // Upload de fotos (sempre executa, mesmo se houver erros anteriores)
+                try {
+                    $this->processUploadFotos($model);
+                } catch (\Exception $e) {
+                    Yii::error('Erro ao processar upload de fotos: ' . $e->getMessage(), __METHOD__);
+                    Yii::error('Stack trace: ' . $e->getTraceAsString(), __METHOD__);
+                    // Não interrompe o fluxo, apenas loga o erro
+                }
                 
                 Yii::$app->session->setFlash('success', 'Produto atualizado com sucesso!');
                 return $this->redirect(['view', 'id' => $model->id]);
@@ -455,8 +467,36 @@ class ProdutoController extends Controller
     {
         $uploadPath = Yii::getAlias('@webroot/uploads/produtos/' . $model->id);
         
+        // 🔍 DEBUG: Log do caminho de upload
+        Yii::info('Caminho de upload: ' . $uploadPath, __METHOD__);
+        Yii::info('@webroot resolve para: ' . Yii::getAlias('@webroot'), __METHOD__);
+        
         if (!is_dir($uploadPath)) {
-            mkdir($uploadPath, 0755, true);
+            $created = @mkdir($uploadPath, 0755, true);
+            if (!$created) {
+                Yii::error('Erro ao criar diretório: ' . $uploadPath, __METHOD__);
+                $parentDir = dirname($uploadPath);
+                if (is_dir($parentDir)) {
+                    Yii::error('Permissões do diretório pai: ' . substr(sprintf('%o', fileperms($parentDir)), -4), __METHOD__);
+                }
+                return; // Não continua se não conseguir criar o diretório
+            } else {
+                Yii::info('Diretório criado com sucesso: ' . $uploadPath, __METHOD__);
+            }
+        } else {
+            Yii::info('Diretório já existe: ' . $uploadPath, __METHOD__);
+        }
+        
+        // Verifica se o diretório é gravável
+        if (!is_writable($uploadPath)) {
+            Yii::error('Diretório não é gravável: ' . $uploadPath, __METHOD__);
+            Yii::error('Permissões atuais: ' . substr(sprintf('%o', fileperms($uploadPath)), -4), __METHOD__);
+            // Tenta corrigir as permissões
+            @chmod($uploadPath, 0755);
+            if (!is_writable($uploadPath)) {
+                Yii::error('Não foi possível tornar o diretório gravável mesmo após chmod', __METHOD__);
+                return;
+            }
         }
 
         $files = UploadedFile::getInstancesByName('fotos');
@@ -487,9 +527,27 @@ class ProdutoController extends Controller
                         $foto->eh_principal = true;
                     }
                     
-                    $foto->save();
+                    // 🔍 DEBUG: Log antes de salvar
+                    Yii::info('Tentando salvar foto: ' . json_encode([
+                        'produto_id' => $foto->produto_id,
+                        'arquivo_nome' => $foto->arquivo_nome,
+                        'arquivo_path' => $foto->arquivo_path,
+                        'ordem' => $foto->ordem,
+                        'eh_principal' => $foto->eh_principal,
+                    ]), __METHOD__);
+                    
+                    if ($foto->save()) {
+                        Yii::info('Foto salva com sucesso. ID: ' . $foto->id, __METHOD__);
+                    } else {
+                        Yii::error('Erro ao salvar foto no banco: ' . json_encode($foto->errors), __METHOD__);
+                        Yii::error('Dados da foto: ' . json_encode($foto->attributes), __METHOD__);
+                    }
                 } else {
                     Yii::error('Erro ao otimizar imagem: ' . $file->name, __METHOD__);
+                    Yii::error('Caminho temporário: ' . $tempPath, __METHOD__);
+                    Yii::error('Caminho destino: ' . $filePath, __METHOD__);
+                    Yii::error('Diretório existe: ' . (is_dir($uploadPath) ? 'sim' : 'não'), __METHOD__);
+                    Yii::error('Diretório é gravável: ' . (is_writable($uploadPath) ? 'sim' : 'não'), __METHOD__);
                 }
             }
         }

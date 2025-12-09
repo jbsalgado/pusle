@@ -79,8 +79,13 @@ class ProdutoFoto extends ActiveRecord
                 try {
                     // Tenta usar gen_random_uuid() do PostgreSQL (nativo, não precisa de extensão)
                     $uuid = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
+                    if (empty($uuid)) {
+                        throw new \Exception('UUID vazio retornado do banco');
+                    }
                     $this->id = $uuid;
+                    Yii::info('UUID gerado pelo banco: ' . $this->id, __METHOD__);
                 } catch (\Exception $e) {
+                    Yii::warning('Erro ao gerar UUID pelo banco: ' . $e->getMessage() . '. Usando fallback PHP.', __METHOD__);
                     // Fallback: gera UUID no PHP usando ramsey/uuid ou função nativa
                     if (function_exists('uuid_create')) {
                         $uuid = uuid_create(UUID_TYPE_RANDOM);
@@ -95,6 +100,7 @@ class ProdutoFoto extends ActiveRecord
                             mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
                         );
                     }
+                    Yii::info('UUID gerado pelo PHP: ' . $this->id, __METHOD__);
                 }
             }
             
