@@ -40,7 +40,7 @@ class SignupForm extends Model
     {
         return [
             // Campos obrigatórios (conforme tabela prest_usuarios)
-            [['nome', 'cpf', 'telefone','senha', 'senha_confirmacao', 'termos_aceitos'], 'required', 'message' => 'Este campo é obrigatório.'],
+            [['nome', 'cpf', 'telefone', 'email', 'senha', 'senha_confirmacao', 'termos_aceitos'], 'required', 'message' => 'Este campo é obrigatório.'],
             
             // Nome
             [['nome'], 'string', 'min' => 3, 'max' => 100],
@@ -63,34 +63,36 @@ class SignupForm extends Model
 
             // Email (obrigatório conforme tabela)
             [['email'], 'trim'],
+            [['email'], 'required', 'message' => 'O e-mail é obrigatório.'],
             [['email'], 'email', 'message' => 'Formato de e-mail inválido.'],
             [['email'], 'string', 'max' => 100],
-            // [['email'], 'unique', 
-            //     'targetClass' => Usuario::class, 
-            //     'targetAttribute' => 'email',
-            //     'message' => 'Este e-mail já está cadastrado no sistema.'
-            // ],
+            [['email'], 'unique', 
+                'targetClass' => Usuario::class, 
+                'targetAttribute' => 'email',
+                'message' => 'Este e-mail já está cadastrado no sistema.',
+                'skipOnEmpty' => false
+            ],
             
             // Senha
             [['senha'], 'string', 'min' => 6, 'message' => 'A senha deve ter no mínimo 6 caracteres.'],
             
             // Confirmação de senha
+            [['senha_confirmacao'], 'required', 'message' => 'Confirme sua senha.'],
             [['senha_confirmacao'], 'compare', 
                 'compareAttribute' => 'senha', 
                 'message' => 'As senhas não conferem.'
             ],
             
-            // Termos de uso
+            // Termos de uso - validação melhorada para checkbox
             [['termos_aceitos'], 'boolean'],
-            [['termos_aceitos'], 'compare', 'compareValue' => 1, 
-                'message' => 'Você deve aceitar os termos de uso para continuar.'
-            ],
+            [['termos_aceitos'], 'required', 'message' => 'Você deve aceitar os termos de uso para continuar.'],
+            [['termos_aceitos'], 'validateTermosAceitos'],
             
             // Campos de endereço (opcionais)
             [['endereco'], 'string', 'max' => 255],
             [['bairro', 'cidade'], 'string', 'max' => 100],
             [['estado'], 'string', 'max' => 2],
-            [['estado'], 'match', 'pattern' => '/^[A-Z]{2}$/', 'message' => 'Estado deve ter 2 letras maiúsculas (ex: MG, SP).'],
+            [['estado'], 'match', 'pattern' => '/^[A-Z]{2}$/', 'message' => 'Estado deve ter 2 letras maiúsculas (ex: MG, SP).', 'skipOnEmpty' => true],
             [['logo_path'], 'string', 'max' => 500],
         ];
     }
@@ -114,6 +116,26 @@ class SignupForm extends Model
             'estado' => 'Estado (UF)',
             'logo_path' => 'URL/Caminho da Logo da Empresa',
         ];
+    }
+
+    /**
+     * Valida termos aceitos (checkbox)
+     */
+    public function validateTermosAceitos($attribute, $params)
+    {
+        // Checkbox pode vir como '1', 1, true, 'on', etc.
+        $value = $this->$attribute;
+        
+        // Converte para boolean
+        if ($value === '1' || $value === 1 || $value === true || $value === 'on') {
+            $this->$attribute = 1;
+            return;
+        }
+        
+        // Se estiver vazio ou false, adiciona erro
+        if (empty($value) || $value === false || $value === '0' || $value === 0) {
+            $this->addError($attribute, 'Você deve aceitar os termos de uso para continuar.');
+        }
     }
 
     /**
@@ -232,9 +254,15 @@ class SignupForm extends Model
 
     public function signup()
     {
+        // 🔍 DEBUG: Log antes da validação
+        Yii::info('🔍 Iniciando signup() - Dados: ' . json_encode($this->attributes), __METHOD__);
+        
         if (!$this->validate()) {
+            Yii::error('❌ Validação falhou no signup(): ' . json_encode($this->errors), __METHOD__);
             return null;
         }
+        
+        Yii::info('✅ Validação passou, iniciando criação do usuário', __METHOD__);
 
         $transaction = Yii::$app->db->beginTransaction();
         
@@ -246,13 +274,40 @@ class SignupForm extends Model
             // =============================================================
 
             // 1. Gera o ID (obrigatório pela regra do model Usuario )
-            //    (Usando expressão do Postgres, assumindo que seu DB é Postgres)
-            $usuario->id = new Expression('gen_random_uuid()');
+            //    Gera UUID como string para passar na validação (não usa Expression)
+            try {
+                // Tenta usar gen_random_uuid() do PostgreSQL (nativo, não precisa de extensão)
+                $usuario->id = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
+            } catch (\Exception $e) {
+                Yii::error("Erro ao gerar UUID com gen_random_uuid(): " . $e->getMessage(), __METHOD__);
+                // Fallback: gera UUID no PHP usando função nativa ou helper
+                if (function_exists('uuid_create')) {
+                    $uuid = uuid_create(UUID_TYPE_RANDOM);
+                    $usuario->id = $uuid; // uuid_create já retorna string
+                } elseif (class_exists('\Ramsey\Uuid\Uuid')) {
+                    $usuario->id = \Ramsey\Uuid\Uuid::uuid4()->toString();
+                } else {
+                    // Fallback final: gera UUID v4 manualmente
+                    $usuario->id = sprintf(
+                        '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+                        mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+                        mt_rand(0, 0xffff),
+                        mt_rand(0, 0x0fff) | 0x4000,
+                        mt_rand(0, 0x3fff) | 0x8000,
+                        mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+                    );
+                }
+            }
 
             // 2. Define os dados
             $usuario->nome = $this->nome;
             $usuario->cpf = preg_replace('/[^0-9]/', '', $this->cpf);
             $usuario->telefone = preg_replace('/[^0-9]/', '', $this->telefone);
+            
+            // Email é obrigatório - valida antes de usar
+            if (empty($this->email)) {
+                throw new \Exception('E-mail é obrigatório.');
+            }
             $usuario->email = trim(strtolower($this->email));
             
             // Gera username (usa email ou CPF)
@@ -268,14 +323,50 @@ class SignupForm extends Model
             $usuario->endereco = !empty($this->endereco) ? trim($this->endereco) : null;
             $usuario->bairro = !empty($this->bairro) ? trim($this->bairro) : null;
             $usuario->cidade = !empty($this->cidade) ? trim($this->cidade) : null;
+            // Estado: converte para maiúsculas se preenchido
             $usuario->estado = !empty($this->estado) ? strtoupper(trim($this->estado)) : null;
             $usuario->logo_path = !empty($this->logo_path) ? trim($this->logo_path) : null;
             
+            // 🔍 DEBUG: Log do usuário antes de salvar
+            Yii::info('🔍 Usuário preparado para salvar: ' . json_encode([
+                'nome' => $usuario->nome,
+                'email' => $usuario->email,
+                'cpf' => $usuario->cpf,
+                'username' => $usuario->username,
+                'eh_dono_loja' => $usuario->eh_dono_loja,
+            ]), __METHOD__);
+            
             // 3. Gera o HASH da senha usando o helper (NÃO SALVE SENHA EM TEXTO PLANO)
+            if (empty($this->senha)) {
+                throw new \Exception('Senha é obrigatória.');
+            }
             $usuario->setPassword($this->senha);
+            
+            // Verifica se hash_senha foi gerado
+            if (empty($usuario->hash_senha)) {
+                throw new \Exception('Erro ao gerar hash da senha.');
+            }
             
             // 4. Gera o AuthKey (necessário para "lembrar-me" e validação)
             $usuario->generateAuthKey();
+            
+            // Verifica se auth_key foi gerado
+            if (empty($usuario->auth_key)) {
+                throw new \Exception('Erro ao gerar auth_key.');
+            }
+            
+            // 🔍 DEBUG: Verifica campos obrigatórios antes de salvar
+            $camposObrigatorios = ['id', 'nome', 'hash_senha', 'cpf', 'telefone', 'username'];
+            $camposVazios = [];
+            foreach ($camposObrigatorios as $campo) {
+                if (empty($usuario->$campo)) {
+                    $camposVazios[] = $campo;
+                }
+            }
+            
+            if (!empty($camposVazios)) {
+                throw new \Exception('Campos obrigatórios não preenchidos: ' . implode(', ', $camposVazios));
+            }
             
             // As linhas antigas abaixo estavam erradas:
             // $usuario->senha = $this->senha;
@@ -289,17 +380,52 @@ class SignupForm extends Model
             Salg::log($usuario,false,"USUARIO-PREPARADO");
 
             if (!$usuario->save()) {
-                Yii::error('Erro ao salvar usuário: ' . json_encode($usuario->errors), __METHOD__);
+                Yii::error('❌ Erro ao salvar usuário: ' . json_encode($usuario->errors), __METHOD__);
+                Yii::error('❌ Atributos do usuário: ' . json_encode($usuario->attributes), __METHOD__);
+                Yii::error('❌ Campos obrigatórios do Usuario: id, nome, hash_senha, cpf, telefone, username', __METHOD__);
+                Yii::error('❌ Valores definidos: ' . json_encode([
+                    'id' => $usuario->id ? 'definido' : 'VAZIO',
+                    'nome' => $usuario->nome ? 'definido' : 'VAZIO',
+                    'hash_senha' => $usuario->hash_senha ? 'definido' : 'VAZIO',
+                    'cpf' => $usuario->cpf ? 'definido' : 'VAZIO',
+                    'telefone' => $usuario->telefone ? 'definido' : 'VAZIO',
+                    'username' => $usuario->username ? 'definido' : 'VAZIO',
+                ]), __METHOD__);
                 
-                // Adiciona erros do model ao form
+                // Adiciona erros do model ao form com mensagens específicas
+                $mensagensErro = [];
                 foreach ($usuario->errors as $field => $errors) {
                     foreach ($errors as $error) {
-                        $this->addError($field, $error);
+                        // Mapeia campos do Usuario para campos do SignupForm
+                        $campoForm = $field;
+                        if ($field === 'hash_senha') {
+                            $campoForm = 'senha';
+                        } elseif ($field === 'username') {
+                            // username pode ser gerado do email ou CPF
+                            // Se o erro for de unicidade, provavelmente é do email
+                            if (stripos($error, 'unique') !== false || stripos($error, 'já') !== false) {
+                                $campoForm = 'email';
+                            } else {
+                                $campoForm = 'email';
+                            }
+                        }
+                        $this->addError($campoForm, $error);
+                        // Tenta obter label do campo, senão usa o nome do campo
+                        $label = $usuario->getAttributeLabel($field);
+                        $mensagensErro[] = $label . ': ' . $error;
                     }
                 }
                 
-                throw new \Exception('Erro ao cadastrar usuário. Verifique os dados e tente novamente.');
+                // Se não houver erros específicos, adiciona erro genérico
+                if (empty($mensagensErro)) {
+                    $this->addError('email', 'Erro desconhecido ao salvar usuário. Verifique os logs.');
+                    $mensagensErro[] = 'Erro desconhecido ao salvar usuário.';
+                }
+                
+                throw new \Exception('Erro ao cadastrar: ' . implode(' | ', $mensagensErro));
             }
+            
+            Yii::info('✅ Usuário salvo com sucesso! ID: ' . $usuario->id, __METHOD__);
 
             $transaction->commit();
             
@@ -312,10 +438,12 @@ class SignupForm extends Model
             
         } catch (\Exception $e) {
             $transaction->rollBack();
-            Yii::error("Erro no cadastro: {$e->getMessage()}", __METHOD__);
+            Yii::error("❌ Erro no cadastro: {$e->getMessage()}", __METHOD__);
+            Yii::error("❌ Stack trace: " . $e->getTraceAsString(), __METHOD__);
             
+            // Se não houver erros específicos, adiciona o erro genérico
             if (!$this->hasErrors()) {
-                $this->addError('email', 'Erro ao cadastrar usuário. Tente novamente.');
+                $this->addError('email', $e->getMessage());
             }
             
             return null;

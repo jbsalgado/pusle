@@ -79,12 +79,51 @@ class AuthController extends Controller
         $model = new SignupForm();
         
         if ($model->load(Yii::$app->request->post())) {
-            if ($usuario = $model->signup()) {
-                // Faz login automaticamente
-                if (Yii::$app->user->login($usuario)) {
-                    Yii::$app->session->setFlash('success', 'Cadastro realizado com sucesso! Bem-vindo!');
-                    // ✅ AJUSTADO: Redireciona para o dashboard de vendas após cadastro
-                    return $this->redirect(['/vendas/dashboard']);
+            // 🔍 DEBUG: Log dos dados recebidos
+            Yii::info('📝 Dados POST recebidos no signup: ' . json_encode(Yii::$app->request->post()), __METHOD__);
+            Yii::info('📝 Model após load: ' . json_encode($model->attributes), __METHOD__);
+            
+            // Valida antes de tentar salvar
+            if (!$model->validate()) {
+                Yii::error('❌ Erros de validação no signup: ' . json_encode($model->errors), __METHOD__);
+                Yii::$app->session->setFlash('error', 'Por favor, corrija os erros abaixo e tente novamente.');
+            } else {
+                // Tenta criar o usuário
+                if ($usuario = $model->signup()) {
+                    // Faz login automaticamente
+                    if (Yii::$app->user->login($usuario)) {
+                        Yii::$app->session->setFlash('success', 'Cadastro realizado com sucesso! Bem-vindo!');
+                        // ✅ AJUSTADO: Redireciona para o dashboard de vendas após cadastro
+                        return $this->redirect(['/vendas/dashboard']);
+                    } else {
+                        Yii::error('❌ Erro ao fazer login após cadastro', __METHOD__);
+                        Yii::$app->session->setFlash('error', 'Cadastro realizado, mas houve erro ao fazer login. Tente fazer login manualmente.');
+                    }
+                } else {
+                    // signup() retornou null - pode ser erro de validação ou de salvamento
+                    if ($model->hasErrors()) {
+                        Yii::error('❌ Erros após signup(): ' . json_encode($model->errors), __METHOD__);
+                        
+                        // Monta mensagem de erro detalhada
+                        $mensagensErro = [];
+                        foreach ($model->errors as $campo => $erros) {
+                            foreach ($erros as $erro) {
+                                $label = $model->getAttributeLabel($campo);
+                                $mensagensErro[] = $label . ': ' . $erro;
+                            }
+                        }
+                        
+                        if (!empty($mensagensErro)) {
+                            $mensagemErro = 'Erro ao cadastrar: ' . implode(' | ', $mensagensErro);
+                        } else {
+                            $mensagemErro = 'Erro ao cadastrar. Verifique os dados e tente novamente.';
+                        }
+                        
+                        Yii::$app->session->setFlash('error', $mensagemErro);
+                    } else {
+                        Yii::error('❌ signup() retornou null sem erros visíveis', __METHOD__);
+                        Yii::$app->session->setFlash('error', 'Erro desconhecido ao cadastrar. Verifique os logs do servidor.');
+                    }
                 }
             }
         }
