@@ -67,12 +67,15 @@ const URL_BASE_WEB = isProduction ? '/pulse/web' : '/pulse/basic/web';
 const getLojaId = () => {
     const pathname = self.location.pathname;
     const segments = pathname.split('/').filter(p => p);
-    const lojaPath = segments[segments.length - 2]; 
+    const lojaPath = segments[segments.length - 2];
+    // ⚠️ Ajuste conforme a loja ativa. Para "Top Construções":
+    // usuario_id = 5e449fee-4486-4536-a64f-74aed38a6987
     const lojaMap = {
         'catalogo': 'a99a38a9-e368-4a47-a4bd-02ba3bacaa76',
         'alexbird': '5eb98116-77c2-4a01-bd60-50db21eaa206',
         'victor': '0b633731-25a1-4991-b1c4-c46acc6bce06',
-        'venda-direta': 'a99a38a9-e368-4a47-a4bd-02ba3bacaa76',
+        'venda-direta': '5e449fee-4486-4536-a64f-74aed38a6987',
+        'top-construcoes': '5e449fee-4486-4536-a64f-74aed38a6987',
     };
     return lojaMap[lojaPath] || lojaMap['venda-direta'];
 };
@@ -81,8 +84,8 @@ const ID_USUARIO_LOJA = getLojaId();
 const API_PRODUTO_URL = `${URL_API}/api/produto?usuario_id=${ID_USUARIO_LOJA}`;
 const API_PEDIDO_URL = `${URL_API}/api/pedido`;
 
-// 🔥 ATUALIZAÇÃO IMPORTANTE: Versão v3 para forçar novo pix.js
-const CACHE_NAME = 'venda-direta-cache-v3'; 
+// 🔥 ATUALIZAÇÃO IMPORTANTE: Versão v4 para forçar nova loja e limpar cache antigo
+const CACHE_NAME = 'venda-direta-cache-v4'; 
 
 const APP_SHELL_FILES = [
     `${URL_BASE_WEB}/venda-direta/index.html`,
