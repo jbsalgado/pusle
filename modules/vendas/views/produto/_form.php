@@ -58,15 +58,9 @@ if ($model->hasErrors()): ?>
                 'pluginOptions' => [
                     'allowClear' => true,
                     'minimumInputLength' => 0,
-                    'language' => [
-                        'noResults' => function() {
-                            return 'Nenhuma categoria encontrada';
-                        },
-                        'searching' => function() {
-                            return 'Pesquisando...';
-                        }
-                    ]
+                    'dropdownAutoWidth' => true,
                 ],
+                'hideSearch' => false,
             ])->label(false) ?>
         </div>
 
@@ -2290,5 +2284,32 @@ document.addEventListener('DOMContentLoaded', function() {
     if (taxaFixaInput && taxaVariavelInput && lucroLiquidoInput && custoInput) {
         atualizarPrecificacaoInteligente();
     }
+    
+    // Corrige problema do Select2 - garante que está inicializado corretamente
+    // Aguarda um pouco para garantir que o Select2 do Kartik foi carregado
+    setTimeout(function() {
+        if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
+            const categoriaSelect = jQuery('#categoria-select');
+            if (categoriaSelect.length) {
+                // Verifica se o Select2 está inicializado
+                const select2Instance = categoriaSelect.data('select2');
+                if (!select2Instance) {
+                    // Re-inicializa o Select2 se não estiver inicializado
+                    categoriaSelect.select2({
+                        allowClear: true,
+                        minimumInputLength: 0,
+                    });
+                } else {
+                    // Se já está inicializado, verifica se há problema com loadingMore
+                    if (select2Instance.results && typeof select2Instance.results.loadingMore !== 'function') {
+                        // Adiciona a função loadingMore se não existir
+                        select2Instance.results.loadingMore = function() {
+                            return false;
+                        };
+                    }
+                }
+            }
+        }
+    }, 500);
 });
 </script>
