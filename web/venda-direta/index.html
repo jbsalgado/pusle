@@ -8,6 +8,21 @@
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#007BFF"/>
+    <!-- Tailwind CSS via CDN (apenas para desenvolvimento) -->
+    <!-- Para produção, instale via npm: npm install -D tailwindcss -->
+    <!-- <script src="https://cdn.tailwindcss.com"></script> -->
+    <script>
+        // Suprime o aviso do console sobre Tailwind CDN
+        if (typeof console !== 'undefined' && console.warn) {
+            const originalWarn = console.warn;
+            console.warn = function(...args) {
+                if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
+                    return; // Suprime o aviso
+                }
+                originalWarn.apply(console, args);
+            };
+        }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Status online/offline - por padrão mostra offline até ser atualizado */

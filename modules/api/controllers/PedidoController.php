@@ -262,10 +262,18 @@ class PedidoController extends Controller
             $venda->forma_pagamento_id = $formaPagamentoId;
             Yii::info("Forma de Pagamento ID atribuída à venda: " . ($formaPagamentoId ?? 'NULL'), 'api');
 
-            // Adiciona o ID do vendedor, se foi enviado
+            // Adiciona o ID do vendedor, se foi enviado e existir
             $colaboradorId = $data['colaborador_vendedor_id'] ?? null;
             if (!empty($colaboradorId)) {
-                $venda->colaborador_vendedor_id = $colaboradorId;
+                // Valida se o colaborador existe antes de atribuir
+                $colaborador = \app\modules\vendas\models\Colaborador::findOne($colaboradorId);
+                if ($colaborador && $colaborador->usuario_id === $usuarioId) {
+                    $venda->colaborador_vendedor_id = $colaboradorId;
+                    Yii::info("Colaborador vendedor validado: {$colaboradorId}", 'api');
+                } else {
+                    Yii::warning("Colaborador vendedor ID {$colaboradorId} não encontrado ou não pertence à loja. Ignorando.", 'api');
+                    $venda->colaborador_vendedor_id = null;
+                }
             } else {
                 $venda->colaborador_vendedor_id = null;
             }

@@ -1,5 +1,14 @@
 // app.js - Aplicação principal do catálogo PWA
 // ✅ VERSÃO COMPLETA E CORRIGIDA (Baseado no app-old.js)
+//
+// ⚠️ ATENÇÃO: A função popularFormasPagamento() contém lógica crítica de filtragem
+// que NÃO deve ser alterada sem revisão. Ela garante que apenas formas de pagamento
+// apropriadas sejam exibidas baseado em api_de_pagamento=true.
+// 
+// REGRAS CRÍTICAS (ver função popularFormasPagamento para detalhes):
+// - BOLETO, CARTAO_CREDITO, CARTAO_DEBITO, CARTAO, PIX (dinâmico) só aparecem se api_de_pagamento=true
+// - DINHEIRO sempre removido
+// - PIX_ESTATICO e PAGAR_AO_ENTREGADOR sempre disponíveis
 
 import { CONFIG, API_ENDPOINTS, carregarConfigLoja } from './config.js';
 import { 
@@ -620,9 +629,28 @@ window.abrirCarrinho = function() {
  * Popula o dropdown de Formas de Pagamento
  * @param {Array} formas - Array de objetos {id, nome, tipo}
  */
+/**
+ * Filtra e popula as formas de pagamento disponíveis para vendas online
+ * 
+ * REGRAS IMPORTANTES (NÃO ALTERAR SEM REVISÃO):
+ * 1. DINHEIRO: SEMPRE removido (não disponível em vendas online)
+ * 2. Formas que REQUEREM api_de_pagamento=true:
+ *    - BOLETO
+ *    - CARTAO_CREDITO
+ *    - CARTAO_DEBITO
+ *    - CARTAO (genérico)
+ *    - PIX (dinâmico - quando tipo é apenas "PIX", não "PIX_ESTATICO")
+ * 3. Formas que SEMPRE aparecem (não requerem gateway):
+ *    - PIX_ESTATICO (QR Code fixo)
+ *    - PAGAR_AO_ENTREGADOR
+ * 4. Outras formas: REMOVIDAS por padrão
+ */
 function popularFormasPagamento(formas) {
     const select = document.getElementById('forma-pagamento');
-    if (!select) return;
+    if (!select) {
+        console.error('[App] ❌ Select de forma de pagamento não encontrado!');
+        return;
+    }
 
     select.innerHTML = ''; // Limpa "Carregando..."
 
@@ -632,71 +660,121 @@ function popularFormasPagamento(formas) {
         return;
     }
     
-    // Filtrar formas de pagamento para vendas online
-    // 1. Remover DINHEIRO (não disponível em vendas online)
-    // 2. Mostrar apenas formas online se api_de_pagamento estiver habilitado
-    console.log('[App] 🔍 Filtrando formas de pagamento. Total recebido:', formas.length);
+    // ========================================================================
+    // VALIDAÇÃO CRÍTICA: Verificar se GATEWAY_CONFIG está disponível
+    // ========================================================================
+    if (!window.GATEWAY_CONFIG) {
+        console.warn('[App] ⚠️ GATEWAY_CONFIG não está disponível! Tentando carregar...');
+        // Tenta carregar se não estiver disponível
+        carregarConfigLoja().then(config => {
+            window.GATEWAY_CONFIG = config;
+            console.log('[App] ✅ GATEWAY_CONFIG carregado:', config);
+            // Recarrega as formas de pagamento após carregar a config
+            popularFormasPagamento(formas);
+        }).catch(error => {
+            console.error('[App] ❌ Erro ao carregar GATEWAY_CONFIG:', error);
+        });
+        return;
+    }
+    
+    // ========================================================================
+    // LOGS PARA DEBUG
+    // ========================================================================
+    console.log('[App] 🔍 ========== FILTRAGEM DE FORMAS DE PAGAMENTO ==========');
+    console.log('[App] 🔍 Total de formas recebidas:', formas.length);
     console.log('[App] 🔍 Formas recebidas:', formas.map(f => ({ nome: f.nome, tipo: f.tipo })));
     console.log('[App] 🔍 GATEWAY_CONFIG:', window.GATEWAY_CONFIG);
     
-    // ✅ CORREÇÃO: Verificar GATEWAY_CONFIG antes de filtrar
-    const gatewayHabilitado = window.GATEWAY_CONFIG && window.GATEWAY_CONFIG.habilitado === true;
-    console.log('[App] 🔍 Gateway habilitado:', gatewayHabilitado);
+    // Verificar se api_de_pagamento está habilitado
+    const gatewayHabilitado = window.GATEWAY_CONFIG && 
+                              window.GATEWAY_CONFIG.habilitado === true;
+    console.log('[App] 🔍 api_de_pagamento habilitado?', gatewayHabilitado);
     
+    // ========================================================================
+    // LISTA EXPLÍCITA DE FORMAS QUE REQUEREM GATEWAY
+    // IMPORTANTE: Estas formas SÓ aparecem se api_de_pagamento = true
+    // ========================================================================
+    const FORMAS_QUE_REQUEREM_GATEWAY = [
+        'BOLETO',
+        'CARTAO_CREDITO',
+        'CARTAO_DEBITO',
+        'CARTAO', // Genérico (pode ser crédito ou débito)
+        'PIX' // PIX dinâmico (não confundir com PIX_ESTATICO)
+    ];
+    
+    // ========================================================================
+    // FILTRAGEM DAS FORMAS DE PAGAMENTO
+    // ========================================================================
     const formasFiltradas = formas.filter(forma => {
-        const tipo = (forma.tipo || '').toUpperCase();
+        const tipo = (forma.tipo || '').toUpperCase().trim();
+        const nome = forma.nome || 'Sem nome';
         
-        console.log(`[App] 🔍 Analisando forma: ${forma.nome} (tipo: ${tipo})`);
+        console.log(`[App] 🔍 Analisando: "${nome}" (tipo: "${tipo}")`);
         
-        // Sempre remover DINHEIRO em vendas online
+        // ====================================================================
+        // REGRA 1: DINHEIRO sempre removido
+        // ====================================================================
         if (tipo === 'DINHEIRO') {
-            console.log(`[App] ❌ Removendo ${forma.nome} (DINHEIRO não disponível em vendas online)`);
+            console.log(`[App] ❌ REMOVIDO: ${nome} (DINHEIRO não disponível em vendas online)`);
             return false;
         }
         
-        // ✅ CORREÇÃO: Formas de pagamento online que requerem gateway
-        // BOLETO, CARTAO_CREDITO, CARTAO_DEBITO, CARTAO, PIX (dinâmico) só aparecem se api_de_pagamento = true
-        const formasOnline = ['BOLETO', 'CARTAO_CREDITO', 'CARTAO_DEBITO', 'CARTAO', 'PIX'];
-        const ehFormaOnline = formasOnline.includes(tipo);
-        
-        // Se for forma online, só mostrar se api_de_pagamento estiver habilitado
-        if (ehFormaOnline) {
+        // ====================================================================
+        // REGRA 2: Formas que requerem gateway
+        // ====================================================================
+        const requerGateway = FORMAS_QUE_REQUEREM_GATEWAY.includes(tipo);
+        if (requerGateway) {
             if (!gatewayHabilitado) {
-                console.log(`[App] ❌ Removendo ${forma.nome} (${tipo} requer api_de_pagamento=true)`);
+                console.log(`[App] ❌ REMOVIDO: ${nome} (${tipo} requer api_de_pagamento=true, mas está desabilitado)`);
                 return false;
             }
-            console.log(`[App] ✅ Mantendo ${forma.nome} (${tipo} - gateway habilitado)`);
+            console.log(`[App] ✅ MANTIDO: ${nome} (${tipo} - gateway habilitado)`);
             return true;
         }
         
-        // PAGAR_AO_ENTREGADOR sempre disponível (não requer gateway)
-        if (tipo === 'PAGAR_AO_ENTREGADOR') {
-            console.log(`[App] ✅ Mantendo ${forma.nome} (PAGAR_AO_ENTREGADOR sempre disponível)`);
-            return true;
-        }
-        
-        // PIX_ESTATICO pode aparecer mesmo sem gateway (QR Code fixo)
+        // ====================================================================
+        // REGRA 3: PIX_ESTATICO sempre disponível (não requer gateway)
+        // ====================================================================
         if (tipo === 'PIX_ESTATICO') {
-            console.log(`[App] ✅ Mantendo ${forma.nome} (PIX_ESTATICO sempre disponível)`);
+            console.log(`[App] ✅ MANTIDO: ${nome} (PIX_ESTATICO sempre disponível)`);
             return true;
         }
         
-        // ✅ CORREÇÃO: Outras formas NÃO aparecem por padrão (só as específicas acima)
-        console.log(`[App] ❌ Removendo ${forma.nome} (tipo ${tipo} não permitido em vendas online)`);
+        // ====================================================================
+        // REGRA 4: PAGAR_AO_ENTREGADOR sempre disponível
+        // ====================================================================
+        if (tipo === 'PAGAR_AO_ENTREGADOR') {
+            console.log(`[App] ✅ MANTIDO: ${nome} (PAGAR_AO_ENTREGADOR sempre disponível)`);
+            return true;
+        }
+        
+        // ====================================================================
+        // REGRA 5: Outras formas são removidas por padrão
+        // ====================================================================
+        console.log(`[App] ❌ REMOVIDO: ${nome} (tipo "${tipo}" não permitido em vendas online)`);
         return false;
     });
     
-    console.log('[App] ✅ Formas filtradas:', formasFiltradas.length, formasFiltradas.map(f => f.nome));
+    
+    // ========================================================================
+    // RESULTADO DA FILTRAGEM
+    // ========================================================================
+    console.log('[App] ✅ ========== RESULTADO DA FILTRAGEM ==========');
+    console.log('[App] ✅ Total de formas filtradas:', formasFiltradas.length);
+    console.log('[App] ✅ Formas disponíveis:', formasFiltradas.map(f => ({ nome: f.nome, tipo: f.tipo })));
+    console.log('[App] ✅ ============================================');
     
     if (formasFiltradas.length === 0) {
         select.options[0] = new Option('Nenhuma forma de pgto. disponível', '');
         select.disabled = true;
+        console.warn('[App] ⚠️ Nenhuma forma de pagamento disponível após filtragem!');
         return;
     }
     
     select.disabled = false;
     select.options[0] = new Option('Selecione o pagamento...', '');
     
+    // Popula o select com as formas filtradas
     formasFiltradas.forEach(forma => {
         if (forma.id && forma.nome) {
             const option = new Option(forma.nome, forma.id);

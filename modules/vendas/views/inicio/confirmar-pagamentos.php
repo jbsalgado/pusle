@@ -11,7 +11,7 @@ use yii\helpers\Html;
 use yii\helpers\Url;
 use app\modules\vendas\models\Venda;
 
-$this->title = 'Confirmar Pagamentos - Catálogo';
+$this->title = 'Confirmar Pagamento de Vendas On-line';
 ?>
 
 <div class="min-h-screen bg-gray-50">
@@ -27,8 +27,8 @@ $this->title = 'Confirmar Pagamentos - Catálogo';
                         </svg>
                     </a>
                     <div>
-                        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Confirmar Pagamentos</h1>
-                        <p class="text-sm text-gray-600 mt-1">Vendas pendentes do catálogo</p>
+                        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Confirmar Pagamento de Vendas On-line</h1>
+                        <p class="text-sm text-gray-600 mt-1">Vendas pendentes do catálogo on-line</p>
                     </div>
                 </div>
             </div>

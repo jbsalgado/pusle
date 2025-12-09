@@ -143,11 +143,11 @@ $cards = [
     [
         'order' => 2.9,
         'visible' => true,
-        'label' => 'Confirmar Pagamentos',
+        'label' => 'Confirmar Pagamento de Vendas On-line',
         'url' => ['/vendas/inicio/confirmar-pagamentos'],
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>',
         'color' => 'green',
-        'description' => 'Confirmar pagamentos do catálogo'
+        'description' => 'Confirmar pagamentos de vendas on-line'
     ],
     [
         'order' => 3,
@@ -477,7 +477,7 @@ usort($visibleCards, function($a, $b) {
                         </svg>
                     </div>
                     <div class="flex-1 text-white">
-                        <h3 class="text-lg sm:text-xl font-bold mb-0.5">Confirmar Pagamentos</h3>
+                        <h3 class="text-lg sm:text-xl font-bold mb-0.5">Confirmar Pagamento de Vendas On-line</h3>
                         <p class="text-xs sm:text-sm opacity-90">
                             <?php if ($countVendasPendentes > 0): ?>
                                 <?= $countVendasPendentes ?> venda(s) aguardando

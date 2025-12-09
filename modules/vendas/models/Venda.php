@@ -101,7 +101,8 @@ class Venda extends ActiveRecord
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
             // VENDA DIRETA: cliente_id pode ser null, então só valida existência se não for null
             [['cliente_id'], 'exist', 'skipOnError' => true, 'targetClass' => Cliente::class, 'targetAttribute' => ['cliente_id' => 'id'], 'skipOnEmpty' => true],
-            [['colaborador_vendedor_id'], 'exist', 'skipOnError' => true, 'targetClass' => Colaborador::class, 'targetAttribute' => ['colaborador_vendedor_id' => 'id']],
+            // colaborador_vendedor_id é opcional (pode ser null), mas se preenchido deve existir
+            [['colaborador_vendedor_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => Colaborador::class, 'targetAttribute' => ['colaborador_vendedor_id' => 'id']],
             [['status_venda_codigo'], 'exist', 'skipOnError' => true, 'targetClass' => StatusVenda::class, 'targetAttribute' => ['status_venda_codigo' => 'codigo']],
             // Validação opcional de forma_pagamento_id (pode ser null, mas se preenchido deve existir)
             [['forma_pagamento_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => FormaPagamento::class, 'targetAttribute' => ['forma_pagamento_id' => 'id']],

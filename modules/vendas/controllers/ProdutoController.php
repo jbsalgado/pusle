@@ -56,10 +56,12 @@ class ProdutoController extends Controller
         }
 
         if ($busca) {
+            // Busca case-insensitive usando ILIKE (PostgreSQL)
+            // Funciona tanto para maiúsculas quanto minúsculas
             $query->andWhere([
                 'or',
-                ['like', 'nome', $busca],
-                ['like', 'codigo_referencia', $busca]
+                ['ilike', 'nome', $busca],
+                ['ilike', 'codigo_referencia', $busca]
             ]);
         }
 
