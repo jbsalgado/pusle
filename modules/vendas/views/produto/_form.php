@@ -33,6 +33,41 @@ if ($model->hasErrors()): ?>
 <?php endif; ?>
 
 <div class="produto-form">
+    <style>
+        /* Mobile-first sizing for touch targets */
+        .produto-form input,
+        .produto-form select,
+        .produto-form textarea,
+        .produto-form .select2-selection {
+            font-size: 16px;
+            padding: 14px 16px;
+            min-height: 52px;
+        }
+        .produto-form .select2-selection {
+            display: flex;
+            align-items: center;
+        }
+        .produto-form button {
+            font-size: 16px;
+            padding: 14px 16px;
+            min-height: 52px;
+        }
+        @media (min-width: 640px) {
+            .produto-form input,
+            .produto-form select,
+            .produto-form textarea,
+            .produto-form .select2-selection {
+                font-size: 15px;
+                padding: 12px 14px;
+                min-height: 48px;
+            }
+            .produto-form button {
+                font-size: 15px;
+                padding: 12px 14px;
+                min-height: 48px;
+            }
+        }
+    </style>
 
     <?php $form = ActiveForm::begin([
         'options' => [
