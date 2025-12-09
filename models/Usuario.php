@@ -122,7 +122,92 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
      */
     public static function findIdentity($id)
     {
-        return static::findOne(['id' => $id]);
+        $usuario = static::findOne(['id' => $id]);
+        if ($usuario) {
+            // Converte valores boolean do PostgreSQL após ler do banco
+            $usuario->converterBooleanFields();
+        }
+        return $usuario;
+    }
+    
+    /**
+     * Converte valores boolean do PostgreSQL para PHP boolean
+     * PostgreSQL pode retornar 't'/'f' como string
+     */
+    protected function converterBooleanFields()
+    {
+        // Converte eh_dono_loja
+        if (property_exists($this, 'eh_dono_loja') && isset($this->eh_dono_loja)) {
+            $valorOriginal = $this->eh_dono_loja;
+            
+            if (is_string($valorOriginal)) {
+                $this->eh_dono_loja = (strtolower(trim($valorOriginal)) === 't' || strtolower(trim($valorOriginal)) === 'true' || $valorOriginal === '1');
+                Yii::info("🔍 converterBooleanFields - eh_dono_loja convertido de '{$valorOriginal}' (string) para " . ($this->eh_dono_loja ? 'true' : 'false'), __METHOD__);
+            } elseif ($valorOriginal === 1 || $valorOriginal === '1') {
+                $this->eh_dono_loja = true;
+                Yii::info("🔍 converterBooleanFields - eh_dono_loja convertido de {$valorOriginal} (int) para true", __METHOD__);
+            } elseif ($valorOriginal === 0 || $valorOriginal === '0' || $valorOriginal === false) {
+                $this->eh_dono_loja = false;
+            } elseif ($valorOriginal === true) {
+                $this->eh_dono_loja = true;
+            } else {
+                // Se não conseguir converter, assume false
+                $this->eh_dono_loja = false;
+                Yii::warning("⚠️ converterBooleanFields - Não conseguiu converter eh_dono_loja. Valor original: " . var_export($valorOriginal, true) . " (tipo: " . gettype($valorOriginal) . ")", __METHOD__);
+            }
+        }
+        
+        // Converte outros campos boolean também
+        $booleanFields = ['api_de_pagamento', 'mercadopago_sandbox', 'asaas_sandbox'];
+        foreach ($booleanFields as $field) {
+            if (property_exists($this, $field) && isset($this->$field)) {
+                if (is_string($this->$field)) {
+                    $this->$field = (strtolower(trim($this->$field)) === 't' || strtolower(trim($this->$field)) === 'true' || $this->$field === '1');
+                } elseif ($this->$field === 1) {
+                    $this->$field = true;
+                } elseif ($this->$field === 0) {
+                    $this->$field = false;
+                }
+            }
+        }
+    }
+    
+    /**
+     * Hook afterFind para converter boolean fields
+     * Este método é chamado automaticamente pelo Yii2 após ler um registro do banco
+     */
+    public function afterFind()
+    {
+        parent::afterFind();
+        $this->converterBooleanFields();
+    }
+    
+    /**
+     * Override __get para garantir conversão ao acessar o atributo
+     * Isso garante que mesmo se afterFind não for chamado, a conversão acontece
+     */
+    public function __get($name)
+    {
+        $value = parent::__get($name);
+        
+        // Se for um campo boolean e ainda não foi convertido, converte
+        if (in_array($name, ['eh_dono_loja', 'api_de_pagamento', 'mercadopago_sandbox', 'asaas_sandbox'])) {
+            if (is_string($value)) {
+                $converted = (strtolower(trim($value)) === 't' || strtolower(trim($value)) === 'true' || $value === '1');
+                // Atualiza o valor no objeto para não precisar converter novamente
+                $this->$name = $converted;
+                Yii::info("🔍 __get - Campo {$name} convertido de '{$value}' (string) para " . ($converted ? 'true' : 'false'), __METHOD__);
+                return $converted;
+            } elseif ($value === 1 || $value === '1') {
+                $this->$name = true;
+                return true;
+            } elseif ($value === 0 || $value === '0' || $value === false) {
+                $this->$name = false;
+                return false;
+            }
+        }
+        
+        return $value;
     }
 
     /**
@@ -202,11 +287,18 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
      public static function findByLogin($login)
     {
         // Busca por username, email ou CPF
-        return static::find()
+        $usuario = static::find()
             ->where(['username' => $login])
             ->orWhere(['email' => $login])
             ->orWhere(['cpf' => $login])
             ->one();
+        
+        if ($usuario) {
+            // Converte valores boolean do PostgreSQL após ler do banco
+            $usuario->converterBooleanFields();
+        }
+        
+        return $usuario;
     }
     
     /**

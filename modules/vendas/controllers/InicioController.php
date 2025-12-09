@@ -46,9 +46,19 @@ class InicioController extends Controller
             return $this->redirect(['/auth/login']);
         }
         
+        // 🔍 DEBUG: Verifica valor direto do banco antes de qualquer conversão
+        $ehDonoLojaRaw = $usuario->eh_dono_loja;
+        Yii::info("🔍 DEBUG RAW - usuario->eh_dono_loja (tipo): " . gettype($ehDonoLojaRaw) . ", valor: " . var_export($ehDonoLojaRaw, true), __METHOD__);
+        
+        // Força recarregar do banco para garantir que temos o valor mais recente
+        $usuario->refresh();
+        Yii::info("🔍 DEBUG AFTER REFRESH - usuario->eh_dono_loja (tipo): " . gettype($usuario->eh_dono_loja) . ", valor: " . var_export($usuario->eh_dono_loja, true), __METHOD__);
+        
         // Verifica se é dono da loja (acesso completo automático)
         // Helper para converter valor boolean do PostgreSQL para PHP boolean
         $ehDonoLoja = $this->converterParaBoolean($usuario->eh_dono_loja);
+        
+        Yii::info("🔍 DEBUG AFTER CONVERSION - ehDonoLoja: " . ($ehDonoLoja ? 'true' : 'false'), __METHOD__);
         
         // Busca o colaborador associado ao usuário (se houver)
         $colaborador = null;
