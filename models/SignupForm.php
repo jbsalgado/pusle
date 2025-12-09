@@ -426,6 +426,63 @@ class SignupForm extends Model
             }
             
             Yii::info('✅ Usuário salvo com sucesso! ID: ' . $usuario->id, __METHOD__);
+            
+            // =============================================================
+            // ✅ CRIAR COLABORADOR AUTOMATICAMENTE
+            // =============================================================
+            // Quando criar uma conta (signup), automaticamente criar um registro
+            // em prest_colaboradores com os mesmos dados de prest_usuarios
+            try {
+                $colaborador = new \app\modules\vendas\models\Colaborador();
+                
+                // Gera UUID para colaborador
+                try {
+                    $colaborador->id = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
+                } catch (\Exception $e) {
+                    Yii::error("Erro ao gerar UUID para colaborador: " . $e->getMessage(), __METHOD__);
+                    // Fallback: gera UUID manualmente
+                    if (function_exists('uuid_create')) {
+                        $colaborador->id = uuid_create(UUID_TYPE_RANDOM);
+                    } else {
+                        $colaborador->id = sprintf(
+                            '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+                            mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+                            mt_rand(0, 0xffff),
+                            mt_rand(0, 0x0fff) | 0x4000,
+                            mt_rand(0, 0x3fff) | 0x8000,
+                            mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+                        );
+                    }
+                }
+                
+                // Define dados do colaborador baseado no usuário
+                $colaborador->usuario_id = $usuario->id; // O próprio usuário é o dono da loja
+                $colaborador->prest_usuario_login_id = null; // Não tem login próprio (usa o login do dono)
+                $colaborador->nome_completo = $usuario->nome;
+                $colaborador->cpf = $usuario->cpf;
+                $colaborador->telefone = $usuario->telefone;
+                $colaborador->email = $usuario->email;
+                $colaborador->eh_vendedor = true; // Por padrão, o dono é vendedor
+                $colaborador->eh_cobrador = false; // Pode ser ajustado depois
+                $colaborador->eh_administrador = true; // O dono é sempre administrador
+                $colaborador->ativo = true;
+                $colaborador->data_admissao = date('Y-m-d');
+                $colaborador->percentual_comissao_venda = 0;
+                $colaborador->percentual_comissao_cobranca = 0;
+                
+                if (!$colaborador->save()) {
+                    Yii::error('❌ Erro ao criar colaborador: ' . json_encode($colaborador->errors), __METHOD__);
+                    throw new \Exception('Erro ao criar registro de colaborador: ' . implode(', ', array_map(function($errors) {
+                        return implode(', ', $errors);
+                    }, $colaborador->errors)));
+                }
+                
+                Yii::info('✅ Colaborador criado com sucesso! ID: ' . $colaborador->id, __METHOD__);
+            } catch (\Exception $e) {
+                Yii::error("❌ Erro ao criar colaborador: {$e->getMessage()}", __METHOD__);
+                // Não faz rollback aqui, pois o usuário já foi criado
+                // Apenas loga o erro, mas permite que o cadastro continue
+            }
 
             $transaction->commit();
             

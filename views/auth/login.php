@@ -124,10 +124,12 @@ $this->title = $dadosEmpresa['nome_loja'] ?? 'Login';
             <p style="margin: 0 0 15px 0; color: #666;">
                 <?= Html::a('Esqueci minha senha', ['auth/forgot-password'], ['style' => 'color: #667eea; text-decoration: none;']) ?>
             </p>
-            <p style="margin: 0; color: #666;">
-                Não tem uma conta? 
-                <?= Html::a('Cadastre-se aqui', ['auth/signup'], ['style' => 'color: #667eea; text-decoration: none; font-weight: bold;']) ?>
-            </p>
+            <?php if (isset($mostrarCadastro) && $mostrarCadastro): ?>
+                <p style="margin: 0; color: #666;">
+                    Não tem uma conta? 
+                    <?= Html::a('Cadastre-se aqui', ['auth/signup'], ['style' => 'color: #667eea; text-decoration: none; font-weight: bold;']) ?>
+                </p>
+            <?php endif; ?>
         </div>
 
     </div>

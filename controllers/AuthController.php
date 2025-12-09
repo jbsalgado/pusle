@@ -50,9 +50,13 @@ class AuthController extends Controller
         // Busca dados da empresa para exibir na página de login
         $dadosEmpresa = $this->buscarDadosEmpresa();
         
+        // Verifica se há usuários cadastrados (se não houver, mostra link de cadastro)
+        $temUsuarios = \app\models\Usuario::find()->exists();
+        
         return $this->render('login', [
             'model' => $model,
             'dadosEmpresa' => $dadosEmpresa,
+            'mostrarCadastro' => !$temUsuarios, // Mostra cadastro apenas se não houver usuários
         ]);
     }
 
@@ -74,6 +78,14 @@ class AuthController extends Controller
         if (!Yii::$app->user->isGuest) {
             // ✅ AJUSTADO: Redireciona para o dashboard de vendas
             return $this->redirect(['/vendas/dashboard']);
+        }
+        
+        // Verifica se já existem usuários cadastrados
+        // Se existir, apenas o dono da loja pode criar novos usuários (via sistema interno)
+        $temUsuarios = \app\models\Usuario::find()->exists();
+        if ($temUsuarios) {
+            Yii::$app->session->setFlash('error', 'O cadastro público está desabilitado. Entre em contato com o administrador da loja para criar uma conta.');
+            return $this->redirect(['auth/login']);
         }
 
         $model = new SignupForm();
