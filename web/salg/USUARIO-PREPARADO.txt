@@ -1,0 +1,47 @@
+At 09-12-2025 00:03:44:
+app\models\Usuario Object
+(
+    [_events:yii\base\Component:private] => Array
+        (
+        )
+
+    [_eventWildcards:yii\base\Component:private] => Array
+        (
+        )
+
+    [_behaviors:yii\base\Component:private] => Array
+        (
+        )
+
+    [_errors:yii\base\Model:private] => 
+    [_validators:yii\base\Model:private] => 
+    [_scenario:yii\base\Model:private] => default
+    [_attributes:yii\db\BaseActiveRecord:private] => Array
+        (
+            [id] => 893fe6cf-3b33-4124-844e-8e136e2f009e
+            [nome] => PAULO FLORÊNCIA DE QUEIROZ
+            [cpf] => 21172846472
+            [telefone] => 81999911327
+            [email] => pauloflorencioqueiroz@gmail.com
+            [username] => pauloflorencioqueiroz@gmail.com
+            [eh_dono_loja] => 1
+            [confirmed_at] => 2025-12-09 00:03:43
+            [endereco] => RUA MARIA ANTONIETA, 107
+            [bairro] => SÃO JOÃO DA ESCÓCIA
+            [cidade] => Caruaru
+            [estado] => PE
+            [logo_path] => /web/images/logo/top-construcoes.png
+            [hash_senha] => $2y$13$hgxakzqAuX49U/hl.qod8O5CG8FXhGiPwtQKDwhoyfE2dB1hlV8kO
+            [auth_key] => lRkRFCs_jox03Bgzi3ndKd1nj4bv0YUe
+        )
+
+    [_oldAttributes:yii\db\BaseActiveRecord:private] => 
+    [_related:yii\db\BaseActiveRecord:private] => Array
+        (
+        )
+
+    [_relationsDependencies:yii\db\BaseActiveRecord:private] => Array
+        (
+        )
+
+)
