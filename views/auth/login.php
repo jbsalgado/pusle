@@ -23,15 +23,37 @@ $this->title = $dadosEmpresa['nome_loja'] ?? 'Login';
             <?php if (!empty($dadosEmpresa['logo_path'])): ?>
                 <?php
                 // Se não for URL completa, adiciona caminho base
-                $logoUrl = $dadosEmpresa['logo_path'];
-                if (!preg_match('/^(https?:\/\/|\/)/', $logoUrl)) {
-                    $logoUrl = Yii::getAlias('@web') . '/' . ltrim($logoUrl, '/');
+                $logoUrl = trim($dadosEmpresa['logo_path']);
+                
+                // Se começar com /, remove para evitar duplicação
+                $logoUrl = ltrim($logoUrl, '/');
+                
+                // Se não for URL completa (http:// ou https://), adiciona caminho base
+                if (!preg_match('/^https?:\/\//', $logoUrl)) {
+                    // Se já começar com /, usa como está, senão adiciona @web
+                    if (strpos($logoUrl, '/') === 0) {
+                        $logoUrl = Yii::getAlias('@web') . $logoUrl;
+                    } else {
+                        $logoUrl = Yii::getAlias('@web') . '/' . $logoUrl;
+                    }
+                }
+                
+                // Log para debug (apenas em modo desenvolvimento)
+                if (YII_DEBUG) {
+                    Yii::info("🖼️ Logo URL construída: {$logoUrl}", __METHOD__);
                 }
                 ?>
                 <img src="<?= Html::encode($logoUrl) ?>" 
                      alt="Logo" 
                      style="max-height: 100px; max-width: 240px; margin: 0 auto 12px auto; object-fit: contain; display: block;"
-                     onerror="this.style.display='none';">
+                     onerror="console.error('Erro ao carregar logo:', this.src); this.style.display='none';">
+            <?php else: ?>
+                <?php if (YII_DEBUG): ?>
+                    <!-- Debug: logo_path está vazio -->
+                    <div style="font-size: 10px; color: #999; margin-bottom: 10px;">
+                        Debug: logo_path não configurado
+                    </div>
+                <?php endif; ?>
             <?php endif; ?>
             <h1 id="nome-empresa" style="margin: 0 0 10px 0; font-size: 32px; color: #667eea; text-align: center;">
                 <?= Html::encode($dadosEmpresa['nome_loja'] ?? 'THAUSZ-PULSE') ?>

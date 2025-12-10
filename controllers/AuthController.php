@@ -172,13 +172,29 @@ class AuthController extends Controller
     private function buscarDadosEmpresa()
     {
         try {
-            // Busca a primeira configuração disponível para popular a tela de login.
-            // Caso existam múltiplas lojas, usamos a mais recente.
-            $config = \app\modules\vendas\models\Configuracao::find()
+            // Busca configurações ordenadas por data de atualização (mais recente primeiro)
+            // Prioriza configurações que tenham nome_loja preenchido
+            $configs = \app\modules\vendas\models\Configuracao::find()
                 ->orderBy(['data_atualizacao' => SORT_DESC, 'data_criacao' => SORT_DESC])
-                ->one();
-            // Se não houver configuração, tenta pegar qualquer usuário como fallback.
+                ->all();
+            
+            $config = null;
             $usuario = null;
+            
+            // Primeiro, tenta encontrar uma configuração com nome_loja preenchido
+            foreach ($configs as $c) {
+                if (!empty($c->nome_loja)) {
+                    $config = $c;
+                    break;
+                }
+            }
+            
+            // Se não encontrou uma com nome_loja, usa a mais recente
+            if (!$config && !empty($configs)) {
+                $config = $configs[0];
+            }
+            
+            // Busca o usuário relacionado à configuração
             if ($config) {
                 $usuario = Yii::$app->db->createCommand("
                     SELECT id, nome, logo_path
@@ -186,13 +202,27 @@ class AuthController extends Controller
                     WHERE id = :id::uuid
                     LIMIT 1
                 ", [':id' => $config->usuario_id])->queryOne();
-            } else {
+            }
+            
+            // Se não houver configuração, busca qualquer usuário dono de loja como fallback
+            if (!$config) {
                 $usuario = Yii::$app->db->createCommand("
                     SELECT id, nome, logo_path
                     FROM prest_usuarios
-                    ORDER BY created_at DESC NULLS LAST, id DESC
+                    WHERE eh_dono_loja = true
+                    ORDER BY data_criacao DESC NULLS LAST, id DESC
                     LIMIT 1
                 ")->queryOne();
+                
+                // Se não encontrar dono de loja, pega qualquer usuário
+                if (!$usuario) {
+                    $usuario = Yii::$app->db->createCommand("
+                        SELECT id, nome, logo_path
+                        FROM prest_usuarios
+                        ORDER BY data_criacao DESC NULLS LAST, id DESC
+                        LIMIT 1
+                    ")->queryOne();
+                }
             }
             
             if (!$usuario && !$config) {
@@ -205,22 +235,24 @@ class AuthController extends Controller
             // Logo: prioriza prest_configuracoes, depois prest_usuarios
             $logoPath = '';
             if ($config && !empty($config->logo_path)) {
-                $logoPath = $config->logo_path;
+                $logoPath = trim($config->logo_path);
             } elseif (!empty($usuario['logo_path'])) {
-                $logoPath = $usuario['logo_path'];
+                $logoPath = trim($usuario['logo_path']);
             }
             
-            // Nome da loja: prioriza prest_configuracoes, depois prest_usuarios
+            // Nome da loja: SEMPRE prioriza prest_configuracoes.nome_loja
+            // NÃO usa o nome do usuário como fallback, pois nome do usuário != nome da loja
             $nomeLoja = 'THAUSZ-PULSE';
             if ($config && !empty($config->nome_loja)) {
-                $nomeLoja = $config->nome_loja;
-            } elseif (!empty($usuario['nome'])) {
-                $nomeLoja = $usuario['nome'];
+                $nomeLoja = trim($config->nome_loja);
             }
+            
+            // Log para debug
+            Yii::info("🔍 Dados da empresa para login - Nome Loja: {$nomeLoja}, Logo: " . ($logoPath ?: 'não configurado'), __METHOD__);
             
             return [
                 'nome_loja' => $nomeLoja,
-                'logo_path' => $logoPath,
+                'logo_path' => $logoPath ?: null,
             ];
             
         } catch (\Exception $e) {
