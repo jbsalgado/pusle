@@ -161,7 +161,8 @@ export const API_ENDPOINTS = {
 
 export const STORAGE_KEYS = {
     CARRINHO: 'carrinho_venda_direta',
-    PEDIDO_PENDENTE: 'pedido_pendente_venda_direta'
+    PEDIDO_PENDENTE: 'pedido_pendente_venda_direta',
+    FORMAS_PAGAMENTO: 'formas_pagamento_venda_direta' // Cache offline de formas de pagamento
 };
 
 // ✅ NOVA: Configuração de gateway (carregada dinamicamente)

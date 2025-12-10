@@ -6,7 +6,7 @@ import {
     calcularTotalItens, limparCarrinho, atualizarIndicadoresCarrinho,
     atualizarBadgeProduto
 } from './cart.js';
-import { carregarCarrinho, limparDadosLocaisPosSinc } from './storage.js';
+import { carregarCarrinho, limparDadosLocaisPosSinc, carregarFormasPagamentoCache } from './storage.js';
 import { finalizarPedido } from './order.js';
 import { carregarFormasPagamento } from './payment.js';
 import { validarCPF, maskCPF, maskPhone, maskCEP, formatarMoeda, formatarCPF, verificarElementosCriticos } from './utils.js';
@@ -393,27 +393,62 @@ window.abrirModalQuantidade = function(produtoId) {
 
 window.abrirCarrinho = function() { renderizarCarrinho(); abrirModal('modal-carrinho'); };
 
-function popularFormasPagamento(formas) {
+function popularFormasPagamento(formas, usandoCache = false) {
     const select = document.getElementById('forma-pagamento');
     if (!select) return;
-    select.innerHTML = '<option value="">Selecione o pagamento...</option>';
+    
+    // Remove listener anterior se existir (evita duplicação)
+    const novoSelect = select.cloneNode(true);
+    select.parentNode.replaceChild(novoSelect, select);
+    const selectAtual = document.getElementById('forma-pagamento');
+    
+    selectAtual.innerHTML = '<option value="">Selecione o pagamento...</option>';
+    
+    // Remove avisos anteriores se existirem
+    const avisoAnterior = document.querySelector('.aviso-offline-pagamento');
+    if (avisoAnterior) {
+        avisoAnterior.remove();
+    }
+    
     if (formas && formas.length > 0) {
-        select.disabled = false;
+        selectAtual.disabled = false;
         formas.forEach(forma => {
             const option = new Option(forma.nome, forma.id);
             // Armazena o tipo no atributo data-tipo para facilitar acesso
             option.setAttribute('data-tipo', forma.tipo || '');
-            select.options[select.options.length] = option;
+            selectAtual.options[selectAtual.options.length] = option;
         });
         formasPagamento = formas;
         // Disponibiliza globalmente para validação em order.js
         window.formasPagamento = formas;
         
         // Adiciona listener para controlar parcelas baseado na forma de pagamento
-        select.addEventListener('change', controlarParcelasPorFormaPagamento);
+        selectAtual.addEventListener('change', controlarParcelasPorFormaPagamento);
+        
+        // Mostra aviso se estiver usando cache offline
+        if (usandoCache && !navigator.onLine) {
+            const avisoOffline = document.createElement('div');
+            avisoOffline.className = 'bg-yellow-50 border border-yellow-200 rounded-lg p-2 mt-2 text-xs text-yellow-800 aviso-offline-pagamento';
+            avisoOffline.innerHTML = 'ℹ️ <strong>Modo Offline:</strong> Usando formas de pagamento salvas. Algumas opções podem estar desatualizadas.';
+            const parent = selectAtual.parentElement;
+            if (parent) {
+                parent.appendChild(avisoOffline);
+            }
+        }
     } else {
-        select.options[0] = new Option('Nenhuma forma de pgto.', '');
-        select.disabled = true;
+        selectAtual.options[0] = new Option('Nenhuma forma de pgto.', '');
+        selectAtual.disabled = true;
+        
+        // Se estiver offline e não tiver formas, mostra mensagem
+        if (!navigator.onLine) {
+            const avisoOffline = document.createElement('div');
+            avisoOffline.className = 'bg-red-50 border border-red-200 rounded-lg p-2 mt-2 text-xs text-red-800 aviso-offline-pagamento';
+            avisoOffline.innerHTML = '⚠️ <strong>Modo Offline:</strong> Nenhuma forma de pagamento encontrada no cache. Conecte-se à internet para carregar as opções.';
+            const parent = selectAtual.parentElement;
+            if (parent) {
+                parent.appendChild(avisoOffline);
+            }
+        }
     }
 }
 
@@ -528,8 +563,23 @@ window.abrirModalPedido = async function() {
     preencherDadosVendedor();
     
     try {
+        const estaOffline = !navigator.onLine;
         const formas = await carregarFormasPagamento(CONFIG.ID_USUARIO_LOJA);
-        popularFormasPagamento(formas);
+        
+        // Remove avisos anteriores se existirem
+        const avisoAnterior = document.querySelector('.aviso-offline-pagamento');
+        if (avisoAnterior) {
+            avisoAnterior.remove();
+        }
+        
+        // Passa flag indicando se está usando cache
+        popularFormasPagamento(formas, estaOffline);
+        
+        // Mostra aviso se estiver offline e usando cache
+        if (estaOffline && formas.length > 0) {
+            console.log('[App] ℹ️ Usando formas de pagamento do cache (modo offline)');
+        }
+        
         // Verifica se já há uma forma selecionada (após popular)
         // Usa setTimeout para garantir que o DOM foi atualizado
         setTimeout(() => {
@@ -538,7 +588,20 @@ window.abrirModalPedido = async function() {
             setTimeout(() => controlarParcelasPorFormaPagamento(), 50);
         }, 100);
     } catch (error) {
-        popularFormasPagamento([]);
+        console.error('[App] ❌ Erro ao carregar formas de pagamento:', error);
+        // Tenta carregar do cache mesmo em caso de erro
+        try {
+            const formasCache = await carregarFormasPagamentoCache();
+            if (formasCache.length > 0) {
+                console.log('[App] 📦 Usando formas de pagamento do cache após erro');
+                popularFormasPagamento(formasCache, !navigator.onLine);
+            } else {
+                popularFormasPagamento([]);
+            }
+        } catch (cacheError) {
+            console.error('[App] ❌ Erro ao carregar do cache:', cacheError);
+            popularFormasPagamento([]);
+        }
     }
 };
 
@@ -1106,7 +1169,22 @@ function inicializarMonitoramentoRede() {
     atualizarStatusOnline();
     
     // Adiciona listeners para mudanças de status
-    window.addEventListener('online', () => {
+    window.addEventListener('online', async () => {
+        // Atualiza cache de formas de pagamento quando voltar online
+        try {
+            console.log('[App] 🔄 Conexão restaurada: atualizando cache de formas de pagamento...');
+            const formas = await carregarFormasPagamento(CONFIG.ID_USUARIO_LOJA);
+            if (formas.length > 0) {
+                console.log('[App] ✅ Cache de formas de pagamento atualizado');
+                // Se o modal de pedido estiver aberto, atualiza as opções
+                const modalPedido = document.getElementById('modal-cliente-pedido');
+                if (modalPedido && !modalPedido.classList.contains('hidden')) {
+                    popularFormasPagamento(formas, false);
+                }
+            }
+        } catch (error) {
+            console.warn('[App] ⚠️ Erro ao atualizar cache de formas de pagamento:', error);
+        }
         atualizarStatusOnline();
         console.log('[Network] 🌐 Conexão restaurada');
     });

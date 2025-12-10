@@ -86,6 +86,33 @@ export async function limparCacheProdutos() {
 }
 
 /**
+ * Salva formas de pagamento no IndexedDB para uso offline
+ */
+export async function salvarFormasPagamento(formas) {
+    try {
+        await idbKeyval.set(STORAGE_KEYS.FORMAS_PAGAMENTO, formas);
+        console.log('[Storage] Formas de pagamento salvas no cache');
+        return true;
+    } catch (err) {
+        console.error('[Storage] Erro ao salvar formas de pagamento:', err);
+        return false;
+    }
+}
+
+/**
+ * Carrega formas de pagamento do IndexedDB (cache offline)
+ */
+export async function carregarFormasPagamentoCache() {
+    try {
+        const formas = await idbKeyval.get(STORAGE_KEYS.FORMAS_PAGAMENTO);
+        return Array.isArray(formas) ? formas : [];
+    } catch (err) {
+        console.error('[Storage] Erro ao carregar formas de pagamento do cache:', err);
+        return [];
+    }
+}
+
+/**
  * Limpa todos os dados locais após sincronização
  */
 export async function limparDadosLocaisPosSinc() {

@@ -1,23 +1,62 @@
 // payment.js - Gerenciamento de formas de pagamento e parcelas
 
 import { API_ENDPOINTS, CONFIG } from './config.js';
+import { salvarFormasPagamento, carregarFormasPagamentoCache } from './storage.js';
 
 /**
  * Carrega formas de pagamento disponíveis
+ * Tenta carregar da API quando online, usa cache quando offline
  */
 export async function carregarFormasPagamento(idUsuarioLoja) {
     if (!idUsuarioLoja) {
         throw new Error('ID da loja não identificado');
     }
 
-    const response = await fetch(`${API_ENDPOINTS.FORMA_PAGAMENTO}?usuario_id=${idUsuarioLoja}`);
+    const estaOnline = navigator.onLine;
     
-    if (!response.ok) {
-        throw new Error(`Status: ${response.status}`);
-    }
+    // Se estiver online, tenta carregar da API
+    if (estaOnline) {
+        try {
+            const response = await fetch(`${API_ENDPOINTS.FORMA_PAGAMENTO}?usuario_id=${idUsuarioLoja}`);
+            
+            if (!response.ok) {
+                throw new Error(`Status: ${response.status}`);
+            }
 
-    const formas = await response.json();
-    return formas || [];
+            const formas = await response.json();
+            const formasArray = Array.isArray(formas) ? formas : [];
+            
+            // Salva no cache para uso offline
+            if (formasArray.length > 0) {
+                await salvarFormasPagamento(formasArray);
+                console.log('[Payment] ✅ Formas de pagamento carregadas da API e salvas no cache');
+            }
+            
+            return formasArray;
+        } catch (error) {
+            console.warn('[Payment] ⚠️ Erro ao carregar formas de pagamento da API:', error);
+            // Se falhar, tenta usar o cache
+            const formasCache = await carregarFormasPagamentoCache();
+            if (formasCache.length > 0) {
+                console.log('[Payment] 📦 Usando formas de pagamento do cache (API falhou)');
+                return formasCache;
+            }
+            throw error;
+        }
+    } else {
+        // Se estiver offline, usa o cache
+        console.log('[Payment] 📦 Modo offline: carregando formas de pagamento do cache');
+        const formasCache = await carregarFormasPagamentoCache();
+        
+        if (formasCache.length > 0) {
+            console.log('[Payment] ✅ Formas de pagamento carregadas do cache (offline)');
+            return formasCache;
+        } else {
+            console.warn('[Payment] ⚠️ Nenhuma forma de pagamento encontrada no cache');
+            // Retorna array vazio em vez de lançar erro, para não bloquear a interface
+            return [];
+        }
+    }
 }
 
 /**
