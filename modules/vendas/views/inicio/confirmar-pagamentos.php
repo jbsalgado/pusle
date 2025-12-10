@@ -127,7 +127,7 @@ $this->title = 'Confirmar Pagamento de Vendas On-line';
                                     }
                                 }
                             ?>
-                            <div class="flex justify-end">
+                            <div class="flex flex-col sm:flex-row gap-2 justify-end">
                                 <?php if ($podeConfirmar): ?>
                                     <?= Html::a('✅ Confirmar Pagamento', ['confirmar-pagamento', 'id' => $venda->id], [
                                         'class' => 'px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors text-sm text-center',
@@ -141,6 +141,14 @@ $this->title = 'Confirmar Pagamento de Vendas On-line';
                                         ⚠️ Estoque Insuficiente
                                     </span>
                                 <?php endif; ?>
+                                
+                                <?= Html::a('❌ Cancelar Pedido', ['cancelar-pedido', 'id' => $venda->id], [
+                                    'class' => 'px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors text-sm text-center',
+                                    'data' => [
+                                        'confirm' => 'Tem certeza que deseja cancelar este pedido? Esta ação não pode ser desfeita e o pedido será removido da lista de pendentes.',
+                                        'method' => 'post',
+                                    ],
+                                ]) ?>
                             </div>
                             <?php else: ?>
                             <div class="flex justify-end">

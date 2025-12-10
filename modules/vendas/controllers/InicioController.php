@@ -339,6 +339,90 @@ class InicioController extends Controller
     }
     
     /**
+     * Cancela um pedido de venda on-line
+     */
+    public function actionCancelarPedido($id)
+    {
+        $usuario = Yii::$app->user->identity;
+        if (!$usuario) {
+            Yii::$app->session->setFlash('error', 'Usuário não autenticado.');
+            return $this->redirect(['index']);
+        }
+        
+        // ✅ Verifica se é administrador ou dono da loja
+        $ehDonoLoja = $this->converterParaBoolean($usuario->eh_dono_loja);
+        $ehAdministrador = false;
+        
+        if ($ehDonoLoja) {
+            $ehAdministrador = true;
+        } else {
+            $colaborador = \app\modules\vendas\models\Colaborador::getColaboradorLogado();
+            if ($colaborador) {
+                $ehAdministrador = $this->converterParaBoolean($colaborador->eh_administrador);
+            }
+        }
+        
+        if (!$ehAdministrador && !$ehDonoLoja) {
+            Yii::$app->session->setFlash('error', 'Apenas administradores podem cancelar pedidos.');
+            return $this->redirect(['confirmar-pagamentos']);
+        }
+        
+        $venda = \app\modules\vendas\models\Venda::findOne($id);
+        
+        if (!$venda) {
+            Yii::$app->session->setFlash('error', 'Venda não encontrada.');
+            return $this->redirect(['confirmar-pagamentos']);
+        }
+        
+        // Verifica se a venda pertence ao usuário
+        if ($venda->usuario_id !== $usuario->id) {
+            Yii::$app->session->setFlash('error', 'Você não tem permissão para cancelar esta venda.');
+            return $this->redirect(['confirmar-pagamentos']);
+        }
+        
+        // Verifica se a venda está em status que pode ser cancelada
+        if ($venda->status_venda_codigo !== \app\modules\vendas\models\StatusVenda::EM_ABERTO) {
+            Yii::$app->session->setFlash('warning', 'Apenas vendas pendentes podem ser canceladas.');
+            return $this->redirect(['confirmar-pagamentos']);
+        }
+        
+        // Cancela a venda
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            $venda->status_venda_codigo = \app\modules\vendas\models\StatusVenda::CANCELADA;
+            $venda->data_atualizacao = new \yii\db\Expression('NOW()');
+            
+            if (!$venda->save(false, ['status_venda_codigo', 'data_atualizacao'])) {
+                throw new \Exception('Erro ao cancelar a venda.');
+            }
+            
+            // Cancela todas as parcelas pendentes da venda
+            $parcelas = \app\modules\vendas\models\Parcela::find()
+                ->where(['venda_id' => $venda->id])
+                ->andWhere(['status_parcela_codigo' => \app\modules\vendas\models\StatusParcela::PENDENTE])
+                ->all();
+            
+            foreach ($parcelas as $parcela) {
+                $parcela->status_parcela_codigo = \app\modules\vendas\models\StatusParcela::CANCELADA;
+                if (!$parcela->save(false, ['status_parcela_codigo'])) {
+                    Yii::warning("⚠️ Não foi possível cancelar parcela ID {$parcela->id} da venda {$venda->id}", 'vendas');
+                }
+            }
+            
+            $transaction->commit();
+            Yii::$app->session->setFlash('success', 'Pedido cancelado com sucesso!');
+            Yii::info("✅ Pedido ID {$venda->id} cancelado pelo usuário {$usuario->id}", 'vendas');
+            
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+            Yii::$app->session->setFlash('error', 'Erro ao cancelar pedido: ' . $e->getMessage());
+            Yii::error('Erro ao cancelar pedido: ' . $e->getMessage(), __METHOD__);
+        }
+        
+        return $this->redirect(['confirmar-pagamentos']);
+    }
+    
+    /**
      * Converte valor boolean do PostgreSQL para PHP boolean
      * PostgreSQL pode retornar: true, false, 't', 'f', '1', '0', 1, 0
      * 
