@@ -7,6 +7,7 @@ use app\modules\vendas\models\Produto;
 use app\modules\vendas\models\Categoria;
 use app\modules\vendas\models\ProdutoFoto;
 use app\modules\vendas\models\DadosFinanceiros;
+use app\modules\vendas\models\Colaborador;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\helpers\Url;
@@ -39,10 +40,85 @@ class ProdutoController extends Controller
         ];
     }
 
+    /**
+     * Retorna o ID da loja (dono) para usar nas queries
+     * Se for colaborador, retorna o usuario_id do colaborador (que é o ID do dono)
+     * Se for dono, retorna seu próprio ID
+     * 
+     * @return string ID da loja (dono)
+     */
+    protected function getLojaId()
+    {
+        $usuario = Yii::$app->user->identity;
+        
+        if (!$usuario) {
+            return null;
+        }
+        
+        // Se é dono da loja, retorna seu próprio ID
+        if ($usuario->eh_dono_loja === true || $usuario->eh_dono_loja === 't' || $usuario->eh_dono_loja === 1) {
+            return $usuario->id;
+        }
+        
+        // Se não é dono, busca o colaborador
+        $colaborador = Colaborador::getColaboradorLogado();
+        
+        if ($colaborador) {
+            // Retorna o usuario_id do colaborador, que é o ID do dono da loja
+            return $colaborador->usuario_id;
+        }
+        
+        // Fallback: retorna ID do usuário logado (caso não encontre colaborador)
+        return $usuario->id;
+    }
+
+    /**
+     * Verifica se o usuário logado é administrador
+     * Retorna true se for dono da loja OU colaborador com eh_administrador = true
+     * 
+     * @return bool
+     */
+    protected function isAdministrador()
+    {
+        $usuario = Yii::$app->user->identity;
+        
+        if (!$usuario) {
+            return false;
+        }
+        
+        // Se é dono da loja, tem acesso completo
+        if ($usuario->eh_dono_loja === true || $usuario->eh_dono_loja === 't' || $usuario->eh_dono_loja === 1) {
+            return true;
+        }
+        
+        // Se não é dono, verifica se é colaborador administrador
+        $colaborador = Colaborador::getColaboradorLogado();
+        
+        if (!$colaborador) {
+            return false;
+        }
+        
+        // Converte valor boolean do PostgreSQL para PHP boolean
+        $ehAdmin = $colaborador->eh_administrador === true 
+            || $colaborador->eh_administrador === 't' 
+            || $colaborador->eh_administrador === '1' 
+            || $colaborador->eh_administrador === 1
+            || (is_string($colaborador->eh_administrador) && strtolower(trim($colaborador->eh_administrador)) === 't');
+        
+        return $ehAdmin;
+    }
+
     public function actionIndex()
     {
+        // Verifica se é administrador (dono ou colaborador administrador)
+        if (!$this->isAdministrador()) {
+            throw new \yii\web\ForbiddenHttpException('Você não tem permissão para acessar esta página.');
+        }
+        
+        $lojaId = $this->getLojaId();
+        
         $query = Produto::find()
-            ->where(['usuario_id' => Yii::$app->user->id])
+            ->where(['usuario_id' => $lojaId])
             ->with(['categoria', 'fotos']);
 
         // Filtros
@@ -88,7 +164,7 @@ class ProdutoController extends Controller
         ]);
 
         $categorias = Categoria::find()
-            ->where(['usuario_id' => Yii::$app->user->id, 'ativo' => true])
+            ->where(['usuario_id' => $lojaId, 'ativo' => true])
             ->orderBy(['nome' => SORT_ASC])
             ->all();
 
@@ -100,9 +176,16 @@ class ProdutoController extends Controller
 
     public function actionView($id)
     {
+        // Verifica se é administrador
+        if (!$this->isAdministrador()) {
+            throw new \yii\web\ForbiddenHttpException('Você não tem permissão para acessar esta página.');
+        }
+        
+        $lojaId = $this->getLojaId();
+        
         // Carrega o produto com fotos e categoria usando eager loading
         $model = Produto::find()
-            ->where(['id' => $id, 'usuario_id' => Yii::$app->user->id])
+            ->where(['id' => $id, 'usuario_id' => $lojaId])
             ->with(['fotos', 'categoria'])
             ->one();
         
@@ -117,12 +200,19 @@ class ProdutoController extends Controller
 
     public function actionCreate()
     {
+        // Verifica se é administrador
+        if (!$this->isAdministrador()) {
+            throw new \yii\web\ForbiddenHttpException('Você não tem permissão para criar produtos.');
+        }
+        
+        $lojaId = $this->getLojaId();
+        
         $model = new Produto();
-        $model->usuario_id = Yii::$app->user->id;
+        $model->usuario_id = $lojaId; // Registra na loja do dono
         $model->ativo = true;
 
         // Carrega configuração financeira global
-        $dadosFinanceiros = DadosFinanceiros::getConfiguracaoGlobal($model->usuario_id);
+        $dadosFinanceiros = DadosFinanceiros::getConfiguracaoGlobal($lojaId);
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
             // Salva dados financeiros se foram informados
@@ -179,14 +269,18 @@ class ProdutoController extends Controller
     {
         Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
         
+        if (!$this->isAdministrador()) {
+            return ['success' => false, 'message' => 'Você não tem permissão para acessar esta funcionalidade.'];
+        }
+        
         $categoriaId = Yii::$app->request->get('categoria_id');
-        $usuarioId = Yii::$app->user->id;
+        $lojaId = $this->getLojaId();
         
         if (!$categoriaId) {
             return ['success' => false, 'message' => 'Categoria não informada'];
         }
         
-        $codigo = Produto::gerarCodigoReferencia($categoriaId, $usuarioId);
+        $codigo = Produto::gerarCodigoReferencia($categoriaId, $lojaId);
         
         return [
             'success' => true,
@@ -201,9 +295,13 @@ class ProdutoController extends Controller
     {
         Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
         
+        if (!$this->isAdministrador()) {
+            return ['success' => false, 'disponivel' => false, 'message' => 'Você não tem permissão para acessar esta funcionalidade.'];
+        }
+        
         $codigo = Yii::$app->request->get('codigo');
         $produtoId = Yii::$app->request->get('produto_id'); // Para edição, excluir o próprio produto
-        $usuarioId = Yii::$app->user->id;
+        $lojaId = $this->getLojaId();
         
         if (empty($codigo)) {
             return [
@@ -214,7 +312,7 @@ class ProdutoController extends Controller
         }
         
         $query = Produto::find()
-            ->where(['usuario_id' => $usuarioId, 'codigo_referencia' => $codigo]);
+            ->where(['usuario_id' => $lojaId, 'codigo_referencia' => $codigo]);
         
         // Se estiver editando, exclui o próprio produto da verificação
         if ($produtoId) {
@@ -331,6 +429,12 @@ class ProdutoController extends Controller
         $produtoId = null;
         
         try {
+            if (!$this->isAdministrador()) {
+                throw new \yii\web\ForbiddenHttpException('Você não tem permissão para excluir fotos.');
+            }
+            
+            $lojaId = $this->getLojaId();
+            
             $foto = ProdutoFoto::findOne($id);
             
             if (!$foto) {
@@ -343,8 +447,8 @@ class ProdutoController extends Controller
                 throw new NotFoundHttpException('Produto não encontrado para esta foto.');
             }
             
-            // Verificar se o produto pertence ao usuário
-            if ($produto->usuario_id !== Yii::$app->user->id) {
+            // Verificar se o produto pertence à loja (dono)
+            if ($produto->usuario_id !== $lojaId) {
                 throw new NotFoundHttpException('Acesso negado.');
             }
 
@@ -436,6 +540,12 @@ class ProdutoController extends Controller
 
     public function actionSetFotoPrincipal($id)
     {
+        if (!$this->isAdministrador()) {
+            throw new \yii\web\ForbiddenHttpException('Você não tem permissão para definir foto principal.');
+        }
+        
+        $lojaId = $this->getLojaId();
+        
         $foto = ProdutoFoto::findOne($id);
         
         if (!$foto) {
@@ -444,7 +554,7 @@ class ProdutoController extends Controller
 
         $produto = $foto->produto;
         
-        if ($produto->usuario_id !== Yii::$app->user->id) {
+        if ($produto->usuario_id !== $lojaId) {
             throw new NotFoundHttpException('Acesso negado.');
         }
 
@@ -713,9 +823,16 @@ class ProdutoController extends Controller
 
     protected function findModel($id)
     {
+        // Verifica se é administrador
+        if (!$this->isAdministrador()) {
+            throw new \yii\web\ForbiddenHttpException('Você não tem permissão para acessar este produto.');
+        }
+        
+        $lojaId = $this->getLojaId();
+        
         // 🔍 DEBUG: Log para identificar o problema
         Yii::info('Buscando produto com ID: ' . $id, __METHOD__);
-        Yii::info('Usuário logado ID: ' . Yii::$app->user->id, __METHOD__);
+        Yii::info('Loja ID: ' . $lojaId, __METHOD__);
         
         if (empty($id)) {
             Yii::error('ID do produto está vazio', __METHOD__);
@@ -729,9 +846,9 @@ class ProdutoController extends Controller
             throw new NotFoundHttpException('O produto solicitado não existe.');
         }
         
-        // Depois verifica se pertence ao usuário
-        if ($produto->usuario_id !== Yii::$app->user->id) {
-            Yii::error('Produto pertence a outro usuário. Produto usuario_id: ' . $produto->usuario_id . ', Usuário logado: ' . Yii::$app->user->id, __METHOD__);
+        // Depois verifica se pertence à loja (dono)
+        if ($produto->usuario_id !== $lojaId) {
+            Yii::error('Produto pertence a outra loja. Produto usuario_id: ' . $produto->usuario_id . ', Loja ID: ' . $lojaId, __METHOD__);
             throw new NotFoundHttpException('Você não tem permissão para acessar este produto.');
         }
         

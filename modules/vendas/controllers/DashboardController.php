@@ -10,6 +10,7 @@ use Yii;
 use yii\web\Controller;
 use yii\filters\AccessControl;
 use yii\db\Expression;
+use yii\db\Exception as DbException;
 use app\modules\vendas\models\Venda;
 use app\modules\vendas\models\Cliente;
 use app\modules\vendas\models\Produto;
@@ -91,6 +92,26 @@ class DashboardController extends Controller
             // KPIs detalhados
             $kpis = $this->calcularKPIs($usuario->id);
 
+            // Resumo financeiro da plataforma (split Mercado Pago)
+            // Trata caso a tabela ainda não tenha sido criada (migration pendente)
+            $saasFinanceiro = ['total_amount' => 0, 'total_fee' => 0, 'total_transacoes' => 0];
+            try {
+                $saasFinanceiro = Yii::$app->db->createCommand("
+                    SELECT 
+                        COALESCE(SUM(total_amount), 0) AS total_amount,
+                        COALESCE(SUM(platform_fee), 0) AS total_fee,
+                        COUNT(*) AS total_transacoes
+                    FROM saas_financial_logs
+                    WHERE tenant_id = :tenant_id::uuid
+                ", [':tenant_id' => $usuario->id])->queryOne();
+            } catch (DbException $e) {
+                // Se a tabela não existe, mantém valores padrão
+                // Log apenas se não for erro de tabela inexistente
+                if (strpos($e->getMessage(), 'does not exist') === false) {
+                    Yii::error('Erro ao consultar saas_financial_logs: ' . $e->getMessage(), 'dashboard');
+                }
+            }
+
             // Dados para gráficos
             $graficos = [
                 'vendas_por_dia' => $this->getVendasPorDia($usuario->id, 30),
@@ -139,6 +160,7 @@ class DashboardController extends Controller
             'clientesRecentes' => $clientesRecentes,
             'produtosMaisVendidos' => $produtosMaisVendidos,
             'vendasRecentes' => $vendasRecentes,
+            'saasFinanceiro' => $saasFinanceiro ?? ['total_amount' => 0, 'total_fee' => 0, 'total_transacoes' => 0],
         ]);
     }
 

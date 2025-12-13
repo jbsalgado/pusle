@@ -5,6 +5,13 @@ use yii\rest\Controller;
 use yii\web\Response;
 use yii\db\Expression;
 use yii\db\JsonExpression;
+use yii\db\Exception as DbException;
+use yii\helpers\Html;
+use GuzzleHttp\Client;
+use app\modules\vendas\models\Venda;
+use app\modules\vendas\models\StatusVenda;
+use app\modules\vendas\models\Produto;
+use app\modules\caixa\helpers\CaixaHelper;
 
 // SDK 3.7 - Importações
 use MercadoPago\MercadoPagoConfig;
@@ -26,7 +33,215 @@ class MercadoPagoController extends Controller
     {
         $behaviors = parent::behaviors();
         $behaviors['contentNegotiator']['formats']['application/json'] = Response::FORMAT_JSON;
+        $behaviors['contentNegotiator']['formats']['text/html'] = Response::FORMAT_HTML;
         return $behaviors;
+    }
+
+    /**
+     * ========================================================================
+     * ENDPOINT: GET /api/mercado-pago/connect-url
+     * Gera a URL de autorização OAuth para o vendedor/tenant.
+     * ========================================================================
+     */
+    public function actionConnectUrl()
+    {
+        $tenantId = Yii::$app->request->get('tenant_id') ?? Yii::$app->user->id;
+        $config = $this->getMpAppConfig();
+
+        if (empty($config['app_id']) || empty($config['client_secret'])) {
+            return $this->errorResponse('Credenciais do Mercado Pago não configuradas. Defina MP_APP_ID e MP_CLIENT_SECRET no ambiente.', 500);
+        }
+
+        if (!$tenantId || !$this->validarUUID($tenantId)) {
+            return $this->errorResponse('tenant_id inválido para gerar URL de conexão.');
+        }
+
+        $redirectUri = $config['redirect_uri'] ?? $this->buildDefaultRedirectUri();
+
+        $rawState = $tenantId . ':' . Yii::$app->security->generateRandomString(12);
+        $state = Yii::$app->security->hashData($rawState, $config['client_secret']);
+        Yii::$app->session->set('mp_oauth_state', $state);
+        Yii::$app->session->set('mp_oauth_raw', $rawState);
+
+        $authUrl = sprintf(
+            'https://auth.mercadopago.com/authorization?response_type=code&client_id=%s&redirect_uri=%s&state=%s',
+            urlencode($config['app_id']),
+            urlencode($redirectUri),
+            urlencode($state)
+        );
+
+        return [
+            'sucesso' => true,
+            'url' => $authUrl,
+            'tenant_id' => $tenantId,
+            'redirect_uri' => $redirectUri,
+        ];
+    }
+
+    /**
+     * ========================================================================
+     * ENDPOINT: GET /api/mercado-pago/oauth-callback
+     * Callback do OAuth: troca o code por tokens e salva no tenant.
+     * ========================================================================
+     */
+    public function actionOauthCallback()
+    {
+        $code = Yii::$app->request->get('code');
+        $state = Yii::$app->request->get('state');
+        $config = $this->getMpAppConfig();
+
+        if (empty($code) || empty($state)) {
+            return $this->renderContent('<h3>Conexão Mercado Pago falhou: parâmetros ausentes.</h3>');
+        }
+
+        $tenantId = null;
+        $expectedState = Yii::$app->session->get('mp_oauth_state');
+        $rawState = Yii::$app->session->get('mp_oauth_raw');
+
+        if ($expectedState && hash_equals($expectedState, $state) && $rawState) {
+            $tenantId = explode(':', $rawState)[0] ?? null;
+        } else {
+            $tenantId = Yii::$app->request->get('tenant_id');
+        }
+
+        if (!$tenantId || !$this->validarUUID($tenantId)) {
+            Yii::error([
+                'action' => 'oauth_callback',
+                'error' => 'tenant_id inválido',
+                'state' => $state
+            ], 'mercadopago');
+            return $this->renderContent('<h3>Não foi possível identificar a loja para salvar o token.</h3>');
+        }
+
+        try {
+            $redirectUri = $config['redirect_uri'] ?? $this->buildDefaultRedirectUri();
+            $client = new Client(['base_uri' => 'https://api.mercadopago.com']);
+
+            $response = $client->post('/oauth/token', [
+                'form_params' => [
+                    'grant_type' => 'authorization_code',
+                    'client_id' => $config['app_id'],
+                    'client_secret' => $config['client_secret'],
+                    'code' => $code,
+                    'redirect_uri' => $redirectUri,
+                ]
+            ]);
+
+            $payload = json_decode((string)$response->getBody(), true);
+            $this->salvarTokensOauth($tenantId, $payload);
+
+            return $this->renderContent('<h3>Conta Mercado Pago conectada com sucesso. Você já pode fechar esta janela.</h3>');
+        } catch (\Throwable $e) {
+            Yii::error([
+                'action' => 'oauth_callback',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'tenant_id' => $tenantId,
+            ], 'mercadopago');
+
+            return $this->renderContent('<h3>Erro ao conectar Mercado Pago: ' . Html::encode($e->getMessage()) . '</h3>');
+        }
+    }
+
+    /**
+     * ========================================================================
+     * ENDPOINT: POST /api/mercado-pago/pix-split
+     * Cria um pagamento PIX com split (application_fee 0,5%).
+     * ========================================================================
+     */
+    public function actionCriarPagamentoPixSplit()
+    {
+        try {
+            $request = Yii::$app->request->post();
+
+            $tenantId = $request['tenant_id'] ?? null;
+            $orderId = $request['order_id'] ?? null;
+            $amount = isset($request['amount']) ? (float)$request['amount'] : null;
+
+            if (!$tenantId || !$this->validarUUID($tenantId)) {
+                return $this->errorResponse('tenant_id é obrigatório.');
+            }
+
+            if (!$orderId || !$this->validarUUID($orderId)) {
+                return $this->errorResponse('order_id é obrigatório.');
+            }
+
+            if ($amount === null || $amount <= 0) {
+                return $this->errorResponse('amount deve ser maior que zero.');
+            }
+
+            $usuario = $this->buscarUsuarioPorId($tenantId);
+            if (!$usuario) {
+                return $this->errorResponse('Loja não encontrada.');
+            }
+
+            $accessToken = $this->obterTokenVendedor($usuario);
+            if (!$accessToken) {
+                return $this->errorResponse('Loja não conectada ao Mercado Pago via OAuth.');
+            }
+
+            $applicationFee = $this->calcularApplicationFee($amount);
+            if ($applicationFee > $amount) {
+                return $this->errorResponse('application_fee não pode ser maior que o valor da transação.');
+            }
+
+            MercadoPagoConfig::setAccessToken($accessToken);
+
+            $paymentData = [
+                'transaction_amount' => $amount,
+                'description' => $request['description'] ?? 'Pedido ' . $orderId,
+                'payment_method_id' => 'pix',
+                'notification_url' => $this->getBaseUrl() . '/pulse/web/index.php/api/mercado-pago/webhook',
+                'external_reference' => $orderId,
+                'metadata' => [
+                    'tenant_id' => $tenantId,
+                    'order_id' => $orderId,
+                ],
+                'application_fee' => $applicationFee,
+            ];
+
+            if (!empty($request['payer']) && is_array($request['payer'])) {
+                $paymentData['payer'] = $request['payer'];
+            } elseif (!empty($request['cliente']) && is_array($request['cliente'])) {
+                $paymentData['payer'] = $this->montarDadosPagador($request['cliente']);
+            }
+
+            $client = new PaymentClient();
+            $payment = $client->create($paymentData);
+
+            Yii::info([
+                'action' => 'pix_split_criado',
+                'payment_id' => $payment->id,
+                'tenant_id' => $tenantId,
+                'order_id' => $orderId,
+                'application_fee' => $applicationFee,
+                'amount' => $amount,
+            ], 'mercadopago');
+
+            return [
+                'sucesso' => true,
+                'payment_id' => $payment->id,
+                'status' => $payment->status,
+                'qr_code' => $payment->point_of_interaction->transaction_data->qr_code ?? null,
+                'qr_code_base64' => $payment->point_of_interaction->transaction_data->qr_code_base64 ?? null,
+                'point_of_interaction' => $payment->point_of_interaction ?? null,
+                'application_fee' => $applicationFee,
+            ];
+        } catch (MPApiException $e) {
+            Yii::error([
+                'action' => 'pix_split_criado',
+                'error' => $e->getMessage(),
+                'api_response' => $e->getApiResponse(),
+            ], 'mercadopago');
+            return $this->errorResponse('Erro no Mercado Pago: ' . $e->getMessage(), $e->getStatusCode());
+        } catch (\Throwable $e) {
+            Yii::error([
+                'action' => 'pix_split_criado',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ], 'mercadopago');
+            return $this->errorResponse('Erro interno ao criar pagamento PIX.', 500);
+        }
     }
 
     /**
@@ -245,8 +460,8 @@ class MercadoPagoController extends Controller
                 throw new \Exception('ID do pagamento não informado');
             }
             
-            // Buscar dados do pagamento na API do MP
-            $pagamentoMP = $this->consultarPagamentoMP($paymentId);
+            // Buscar dados do pagamento na API do MP (usando token do vendedor via OAuth)
+            $pagamentoMP = $this->consultarPagamentoMarketplace($paymentId, $data);
             
             if (!$pagamentoMP) {
                 throw new \Exception('Pagamento não encontrado no Mercado Pago');
@@ -269,7 +484,75 @@ class MercadoPagoController extends Controller
     }
 
     /**
-     * Consulta dados do pagamento no Mercado Pago
+     * Consulta dados do pagamento no Mercado Pago usando tokens de sellers conectados.
+     */
+    private function consultarPagamentoMarketplace($paymentId, array $webhookData = [])
+    {
+        try {
+            $tenantId = $webhookData['data']['metadata']['tenant_id'] ?? ($webhookData['metadata']['tenant_id'] ?? null);
+            $mpUserId = $webhookData['user_id'] ?? ($webhookData['data']['user_id'] ?? null);
+
+            if ($tenantId && $this->validarUUID($tenantId)) {
+                $usuario = $this->buscarUsuarioPorId($tenantId);
+                $token = $this->obterTokenVendedor($usuario);
+                if ($token) {
+                    $payment = $this->consultarPagamentoComToken($paymentId, $token);
+                    if ($payment) {
+                        return $payment;
+                    }
+                }
+            }
+
+            if ($mpUserId) {
+                $usuario = $this->buscarUsuarioPorMpUserId($mpUserId);
+                $token = $usuario ? $this->obterTokenVendedor($usuario) : null;
+                if ($token) {
+                    $payment = $this->consultarPagamentoComToken($paymentId, $token);
+                    if ($payment) {
+                        return $payment;
+                    }
+                }
+            }
+
+            // Fallback: tenta com todas as contas ativas (menos eficiente, mas resiliente)
+            foreach ($this->buscarUsuariosComMpAtivo() as $usuarioMp) {
+                try {
+                    $payment = $this->consultarPagamentoComToken($paymentId, $usuarioMp['access_token']);
+                    if ($payment) {
+                        return $payment;
+                    }
+                } catch (MPApiException $e) {
+                    continue;
+                }
+            }
+
+            throw new \Exception('Pagamento não encontrado em nenhuma conta MP configurada');
+        } catch (\Throwable $e) {
+            Yii::error([
+                'action' => 'erro_consultar_pagamento_mp_marketplace',
+                'payment_id' => $paymentId,
+                'error' => $e->getMessage()
+            ], 'mercadopago');
+            return null;
+        }
+    }
+
+    /**
+     * Consulta pagamento com token específico.
+     */
+    private function consultarPagamentoComToken($paymentId, $accessToken)
+    {
+        if (!$accessToken) {
+            return null;
+        }
+
+        MercadoPagoConfig::setAccessToken($accessToken);
+        $client = new PaymentClient();
+        return $client->get($paymentId);
+    }
+
+    /**
+     * Consulta dados do pagamento no Mercado Pago (legado)
      */
     private function consultarPagamentoMP($paymentId)
     {
@@ -434,11 +717,11 @@ class MercadoPagoController extends Controller
     private function buscarUsuariosComMpAtivo()
     {
         $sql = "
-            SELECT id, mercadopago_access_token
+            SELECT id, COALESCE(mp_access_token, mercadopago_access_token) AS access_token
             FROM prest_usuarios
             WHERE api_de_pagamento = true
             AND gateway_pagamento = 'mercadopago'
-            AND mercadopago_access_token IS NOT NULL
+            AND (mp_access_token IS NOT NULL OR mercadopago_access_token IS NOT NULL)
         ";
         return Yii::$app->db->createCommand($sql)->queryAll();
     }
@@ -452,8 +735,13 @@ class MercadoPagoController extends Controller
         $externalReference = $pagamento->external_reference;
         $status = $pagamento->status;
         $statusDetail = $pagamento->status_detail;
+        $metadata = isset($pagamento->metadata) ? (array)$pagamento->metadata : [];
+        $tenantId = $metadata['tenant_id'] ?? null;
+        $orderId = $metadata['order_id'] ?? null;
+        $valorTotal = isset($pagamento->transaction_amount) ? (float)$pagamento->transaction_amount : 0.0;
+        $platformFee = $this->calcularApplicationFee($valorTotal);
         
-        if (empty($externalReference)) {
+        if (empty($externalReference) && empty($orderId)) {
             Yii::warning([
                 'action' => 'pagamento_sem_external_reference',
                 'payment_id' => $pagamento->id
@@ -465,21 +753,31 @@ class MercadoPagoController extends Controller
             'action' => 'processar_notificacao',
             'external_reference' => $externalReference,
             'status' => $status,
-            'status_detail' => $statusDetail
+            'status_detail' => $statusDetail,
+            'tenant_id' => $tenantId,
+            'order_id' => $orderId
         ], 'mercadopago');
         
-        // Atualizar preferência
-        $this->atualizarStatusPreferencia($externalReference, [
-            'status' => $status,
-            'payment_id' => $pagamento->id,
-            'status_detail' => $statusDetail,
-            'dados_pagamento' => json_encode($pagamento)
-        ]);
+        // Atualizar preferência (legado)
+        if (!empty($externalReference)) {
+            $this->atualizarStatusPreferencia($externalReference, [
+                'status' => $status,
+                'payment_id' => $pagamento->id,
+                'status_detail' => $statusDetail,
+                'dados_pagamento' => json_encode($pagamento)
+            ]);
+        }
         
         // Ações baseadas no status
         switch ($status) {
             case 'approved':
-                $this->criarPedidoNoSistema($externalReference, $pagamento);
+                if ($tenantId && $orderId) {
+                    $this->registrarLogFinanceiro($tenantId, $orderId, $pagamento->id, $valorTotal, $platformFee, 'approved');
+                    $this->liberarPedido($tenantId, $orderId, $valorTotal, $pagamento->id);
+                } else {
+                    // Fluxo legado baseado em preferência
+                    $this->criarPedidoNoSistema($externalReference, $pagamento);
+                }
                 break;
                 
             case 'rejected':
@@ -488,6 +786,9 @@ class MercadoPagoController extends Controller
                 break;
                 
             case 'refunded':
+                if ($tenantId && $orderId) {
+                    $this->registrarLogFinanceiro($tenantId, $orderId, $pagamento->id, $valorTotal, $platformFee, 'refunded');
+                }
                 $this->estornarPedido($externalReference);
                 break;
         }
@@ -784,6 +1085,140 @@ class MercadoPagoController extends Controller
     }
 
     /**
+     * Registra auditoria financeira da plataforma (split).
+     */
+    private function registrarLogFinanceiro($tenantId, $orderId, $paymentId, $totalAmount, $platformFee, $status = 'pending')
+    {
+        if (!$tenantId || !$orderId) {
+            Yii::warning([
+                'action' => 'saas_financial_log_sem_ids',
+                'payment_id' => $paymentId,
+            ], 'mercadopago');
+            return;
+        }
+
+        $status = $status ?: 'pending';
+
+        try {
+            $existingId = Yii::$app->db->createCommand("
+                SELECT id FROM saas_financial_logs
+                WHERE tenant_id = :tenant_id::uuid
+                  AND order_id = :order_id::uuid
+                  AND mp_payment_id = :payment_id
+                LIMIT 1
+            ", [
+                ':tenant_id' => $tenantId,
+                ':order_id' => $orderId,
+                ':payment_id' => $paymentId
+            ])->queryScalar();
+
+            if ($existingId) {
+                Yii::$app->db->createCommand()->update('saas_financial_logs', [
+                    'total_amount' => $totalAmount,
+                    'platform_fee' => $platformFee,
+                    'status' => $status,
+                ], ['id' => $existingId])->execute();
+                return;
+            }
+
+            Yii::$app->db->createCommand()->insert('saas_financial_logs', [
+                'tenant_id' => $tenantId,
+                'order_id' => $orderId,
+                'mp_payment_id' => $paymentId,
+                'total_amount' => $totalAmount,
+                'platform_fee' => $platformFee,
+                'status' => $status,
+                'created_at' => new Expression('NOW()'),
+            ])->execute();
+        } catch (DbException $e) {
+            // Se a tabela não existe (migration pendente), loga mas não interrompe o fluxo
+            if (strpos($e->getMessage(), 'does not exist') !== false) {
+                Yii::warning([
+                    'action' => 'saas_financial_log_table_not_found',
+                    'message' => 'Tabela saas_financial_logs não encontrada. Execute a migration m251210_000010_add_mp_oauth_and_saas_financial_logs',
+                    'payment_id' => $paymentId,
+                ], 'mercadopago');
+            } else {
+                // Outros erros de banco devem ser logados como erro
+                Yii::error('Erro ao registrar log financeiro: ' . $e->getMessage(), 'mercadopago');
+            }
+        }
+    }
+
+    /**
+     * Marca venda como quitada, baixa estoque e registra caixa.
+     */
+    private function liberarPedido($tenantId, $orderId, $valorTotal, $paymentId)
+    {
+        $venda = Venda::findOne(['id' => $orderId, 'usuario_id' => $tenantId]);
+
+        if (!$venda) {
+            Yii::warning([
+                'action' => 'venda_nao_encontrada_webhook',
+                'order_id' => $orderId,
+                'tenant_id' => $tenantId
+            ], 'mercadopago');
+            return;
+        }
+
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            if ($venda->status_venda_codigo !== StatusVenda::QUITADA) {
+                $venda->status_venda_codigo = StatusVenda::QUITADA;
+                $venda->data_atualizacao = new Expression('NOW()');
+                $venda->forma_pagamento_id = $this->obterFormaPagamentoMercadoPago($tenantId);
+                $observacaoExtra = "\nPagamento aprovado Mercado Pago #" . $paymentId;
+                $venda->observacoes = trim(($venda->observacoes ?? '') . $observacaoExtra);
+
+                if (!$venda->save(false, ['status_venda_codigo', 'data_atualizacao', 'forma_pagamento_id', 'observacoes'])) {
+                    throw new \Exception('Erro ao atualizar status da venda.');
+                }
+
+                $this->baixarEstoqueVenda($venda);
+            }
+
+            try {
+                CaixaHelper::registrarEntradaVenda(
+                    $venda->id,
+                    $valorTotal ?: $venda->valor_total,
+                    $venda->forma_pagamento_id,
+                    $venda->usuario_id
+                );
+            } catch (\Throwable $e) {
+                Yii::error("Erro ao registrar entrada no caixa: " . $e->getMessage(), 'mercadopago');
+            }
+
+            $transaction->commit();
+        } catch (\Throwable $e) {
+            $transaction->rollBack();
+            Yii::error([
+                'action' => 'erro_liberar_pedido',
+                'order_id' => $orderId,
+                'tenant_id' => $tenantId,
+                'error' => $e->getMessage()
+            ], 'mercadopago');
+        }
+    }
+
+    /**
+     * Baixa estoque dos itens da venda (se existentes).
+     */
+    private function baixarEstoqueVenda(Venda $venda): void
+    {
+        foreach ($venda->itens as $item) {
+            $produto = $item->produto ?? null;
+            if (!$produto) {
+                continue;
+            }
+
+            $produto->refresh();
+            $novoEstoque = max(0, (float)$produto->estoque_atual - (float)$item->quantidade);
+            $produto->estoque_atual = $novoEstoque;
+            $produto->save(false, ['estoque_atual']);
+        }
+    }
+
+    /**
      * Obtém forma de pagamento "Mercado Pago" da loja
      */
     private function obterFormaPagamentoMercadoPago($usuarioId)
@@ -847,6 +1282,12 @@ class MercadoPagoController extends Controller
                 nome,
                 api_de_pagamento,
                 mercadopago_access_token,
+                mp_access_token,
+                mp_refresh_token,
+                mp_public_key,
+                mp_user_id,
+                mp_token_expiration,
+                gateway_pagamento,
                 mercadopago_public_key,
                 mercadopago_sandbox,
                 catalogo_path
@@ -858,6 +1299,120 @@ class MercadoPagoController extends Controller
         return Yii::$app->db->createCommand($sql, [
             ':id' => $usuarioId
         ])->queryOne();
+    }
+
+    /**
+     * Busca usuário pelo mp_user_id retornado pelo OAuth do Mercado Pago.
+     */
+    private function buscarUsuarioPorMpUserId($mpUserId)
+    {
+        if (!$mpUserId) {
+            return null;
+        }
+
+        $sql = "
+            SELECT 
+                id,
+                nome,
+                api_de_pagamento,
+                mercadopago_access_token,
+                mp_access_token,
+                mp_refresh_token,
+                mp_public_key,
+                mp_user_id,
+                mp_token_expiration,
+                gateway_pagamento,
+                mercadopago_public_key,
+                mercadopago_sandbox,
+                catalogo_path
+            FROM prest_usuarios
+            WHERE mp_user_id = :mp_user_id
+            LIMIT 1
+        ";
+
+        return Yii::$app->db->createCommand($sql, [
+            ':mp_user_id' => (string)$mpUserId
+        ])->queryOne();
+    }
+
+    /**
+     * Salva tokens OAuth no tenant.
+     */
+    private function salvarTokensOauth($tenantId, array $payload)
+    {
+        $expiration = null;
+        if (!empty($payload['expires_in'])) {
+            $expiration = (new \DateTimeImmutable('now'))
+                ->add(new \DateInterval('PT' . (int)$payload['expires_in'] . 'S'))
+                ->format('Y-m-d H:i:sP');
+        }
+
+        Yii::$app->db->createCommand()->update('prest_usuarios', [
+            'mp_access_token' => $payload['access_token'] ?? null,
+            'mp_refresh_token' => $payload['refresh_token'] ?? null,
+            'mp_public_key' => $payload['public_key'] ?? null,
+            'mp_user_id' => isset($payload['user_id']) ? (string)$payload['user_id'] : null,
+            'mp_token_expiration' => $expiration,
+            'gateway_pagamento' => 'mercadopago',
+            'api_de_pagamento' => true,
+        ], 'id = :id', [
+            ':id' => $tenantId
+        ])->execute();
+
+        Yii::info([
+            'action' => 'oauth_tokens_salvos',
+            'tenant_id' => $tenantId,
+            'mp_user_id' => $payload['user_id'] ?? null
+        ], 'mercadopago');
+    }
+
+    /**
+     * Retorna configuração da aplicação Mercado Pago via env.
+     */
+    private function getMpAppConfig(): array
+    {
+        return [
+            'app_id' => getenv('MP_APP_ID') ?: getenv('MERCADO_PAGO_APP_ID'),
+            'client_secret' => getenv('MP_CLIENT_SECRET') ?: getenv('MERCADO_PAGO_CLIENT_SECRET'),
+            'redirect_uri' => getenv('MP_REDIRECT_URI') ?: null,
+        ];
+    }
+
+    /**
+     * URL padrão de callback caso não seja definida por env.
+     */
+    private function buildDefaultRedirectUri(): string
+    {
+        return $this->getBaseUrl() . '/pulse/web/index.php/api/mercado-pago/oauth-callback';
+    }
+
+    /**
+     * Retorna token do vendedor com prioridade para OAuth.
+     */
+    private function obterTokenVendedor(?array $usuario): ?string
+    {
+        if (!$usuario) {
+            return null;
+        }
+
+        if (!empty($usuario['mp_access_token'])) {
+            return $usuario['mp_access_token'];
+        }
+
+        return $usuario['mercadopago_access_token'] ?? null;
+    }
+
+    /**
+     * Calcula application_fee de 0.5% com segurança.
+     */
+    private function calcularApplicationFee(float $valor): float
+    {
+        if ($valor <= 0) {
+            return 0;
+        }
+
+        $fee = round($valor * 0.005, 2);
+        return min($fee, $valor);
     }
 
     /**

@@ -2,6 +2,8 @@
 
 use yii\helpers\Html;
 use yii\widgets\ActiveForm;
+use yii\helpers\Url;
+use Yii;
 
 ?>
 
@@ -52,6 +54,39 @@ use yii\widgets\ActiveForm;
                 <?php endif; ?>
             </div>
         </div>
+    </div>
+
+    <!-- Integração Mercado Pago -->
+    <?php $usuarioAtual = Yii::$app->user->identity; ?>
+    <div class="border-b border-gray-200 pb-6">
+        <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Pagamentos Mercado Pago (Split 0,5%)
+        </h2>
+        <p class="text-sm text-gray-600 mb-4">Conecte sua conta Mercado Pago para ativar PIX com split automático (nossa taxa 0,5% já calculada na application_fee).</p>
+
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+            <button
+                type="button"
+                id="btn-conectar-mercadopago"
+                data-tenant="<?= Html::encode($usuarioAtual->id ?? '') ?>"
+                class="inline-flex items-center px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-lg shadow-md transition duration-300"
+            >
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5a1 1 0 112 0v6a1 1 0 01-.293.707l-3 3a1 1 0 11-1.414-1.414L11 10.586V5z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 19h10" />
+                </svg>
+                Conectar conta Mercado Pago
+            </button>
+
+            <?php $mpConectado = $usuarioAtual && ($usuarioAtual->mp_access_token || $usuarioAtual->mercadopago_access_token); ?>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm <?= $mpConectado ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' ?>">
+                <?= $mpConectado ? 'Conta conectada' : 'Conta não conectada' ?>
+            </span>
+        </div>
+        <p class="text-xs text-gray-500 mt-2">Usamos os dados da loja logada para associar o token OAuth ao tenant correto.</p>
     </div>
 
     <!-- Cores -->
@@ -251,6 +286,39 @@ document.addEventListener('DOMContentLoaded', function() {
             const preview = document.querySelector('.preview-cor-secundaria');
             if (preview) {
                 preview.style.backgroundColor = this.value;
+            }
+        });
+    }
+
+    // OAuth Mercado Pago
+    const btnConectarMP = document.getElementById('btn-conectar-mercadopago');
+    if (btnConectarMP) {
+        btnConectarMP.addEventListener('click', async function(e) {
+            e.preventDefault();
+            const tenantId = this.dataset.tenant;
+            if (!tenantId) {
+                alert('Não foi possível identificar a loja logada. Faça login novamente.');
+                return;
+            }
+
+            const original = this.innerHTML;
+            this.disabled = true;
+            this.innerHTML = 'Gerando link...';
+
+            try {
+                const resp = await fetch('<?= Url::to(['/api/mercado-pago/connect-url']) ?>?tenant_id=' + tenantId);
+                const data = await resp.json();
+
+                if (data && data.url) {
+                    window.open(data.url, '_blank');
+                } else {
+                    alert(data.erro || 'Não foi possível gerar a URL de conexão.');
+                }
+            } catch (err) {
+                alert('Erro ao conectar com o Mercado Pago.');
+            } finally {
+                this.disabled = false;
+                this.innerHTML = original;
             }
         });
     }

@@ -52,10 +52,10 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
     public function rules()
     {
         return [
-            [['email', 'auth_key', 'mercadopago_public_key', 'mercadopago_access_token', 'asaas_api_key', 'blocked_at', 'confirmed_at'], 'default', 'value' => null],
+            [['email', 'auth_key', 'mercadopago_public_key', 'mercadopago_access_token', 'mp_access_token', 'mp_refresh_token', 'mp_public_key', 'mp_user_id', 'mp_token_expiration', 'asaas_api_key', 'blocked_at', 'confirmed_at'], 'default', 'value' => null],
             [['id', 'nome', 'hash_senha', 'cpf', 'telefone', 'username'], 'required'],
             [['id'], 'string'],
-            [['data_criacao', 'data_atualizacao', 'blocked_at', 'confirmed_at'], 'safe'],
+            [['data_criacao', 'data_atualizacao', 'blocked_at', 'confirmed_at', 'mp_token_expiration'], 'safe'],
             [['api_de_pagamento', 'mercadopago_sandbox', 'asaas_sandbox', 'eh_dono_loja'], 'boolean'],
             [['api_de_pagamento'], 'default', 'value' => false],
             [['eh_dono_loja'], 'default', 'value' => false],
@@ -64,7 +64,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
             [['nome', 'email', 'catalogo_path'], 'string', 'max' => 100],
             [['username'], 'string', 'max' => 50],
             [['username'], 'unique'],
-            [['hash_senha', 'mercadopago_public_key', 'mercadopago_access_token', 'asaas_api_key'], 'string', 'max' => 255],
+            [['hash_senha', 'mercadopago_public_key', 'mercadopago_access_token', 'mp_access_token', 'mp_refresh_token', 'mp_public_key', 'mp_user_id', 'asaas_api_key'], 'string', 'max' => 255],
             [['cpf'], 'string', 'max' => 20],
             [['telefone'], 'string', 'max' => 30],
             [['auth_key'], 'string', 'max' => 32],
@@ -105,6 +105,11 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
             'api_de_pagamento' => 'API de Pagamento',
             'mercadopago_public_key' => 'Mercado Pago - Public Key',
             'mercadopago_access_token' => 'Mercado Pago - Access Token',
+            'mp_access_token' => 'MP OAuth - Access Token (seller)',
+            'mp_refresh_token' => 'MP OAuth - Refresh Token',
+            'mp_public_key' => 'MP OAuth - Public Key',
+            'mp_user_id' => 'MP OAuth - User ID',
+            'mp_token_expiration' => 'MP OAuth - Expiração do Token',
             'mercadopago_sandbox' => 'Mercado Pago - Modo Sandbox',
             'asaas_api_key' => 'Asaas - API Key',
             'asaas_sandbox' => 'Asaas - Modo Sandbox',
@@ -373,7 +378,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
      */
     public function temMercadoPagoConfigurado()
     {
-        return !empty($this->mercadopago_access_token);
+        return !empty($this->mp_access_token) || !empty($this->mercadopago_access_token);
     }
     
     /**

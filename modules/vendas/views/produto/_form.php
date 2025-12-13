@@ -8,7 +8,11 @@ use app\modules\vendas\models\DadosFinanceiros;
 use kartik\select2\Select2;
 
 // Carrega dados financeiros (global ou específico do produto)
-$dadosFinanceiros = $dadosFinanceiros ?? DadosFinanceiros::getConfiguracaoGlobal(Yii::$app->user->id);
+// Se não foi passado pelo controller, detecta automaticamente o ID correto da loja
+if (!isset($dadosFinanceiros)) {
+    $lojaId = \app\modules\vendas\models\Categoria::getLojaIdParaQuery();
+    $dadosFinanceiros = DadosFinanceiros::getConfiguracaoGlobal($lojaId);
+}
 $temConfiguracaoEspecifica = !$model->isNewRecord && $model->dadosFinanceiros !== null;
 
 // ✅ Exibe erros de validação do modelo de forma destacada

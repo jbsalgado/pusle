@@ -46,58 +46,77 @@ $this->params['breadcrumbs'][] = $this->title;
                 <!-- Foto Principal -->
                 <div class="bg-white rounded-lg shadow-md overflow-hidden">
                     <?php 
-                    // Carrega fotos se não foram carregadas com eager loading
-                    $fotoPrincipal = $model->fotoPrincipal;
-                    if (!$fotoPrincipal && $model->fotos) {
-                        $fotoPrincipal = $model->fotos[0] ?? null;
+                    // Tenta carregar foto principal primeiro
+                    $fotoPrincipal = null;
+                    
+                    // Se as fotos foram carregadas com eager loading, usa-as
+                    if ($model->isRelationPopulated('fotos') && !empty($model->fotos)) {
+                        // Busca foto marcada como principal
+                        foreach ($model->fotos as $foto) {
+                            if ($foto->eh_principal) {
+                                $fotoPrincipal = $foto;
+                                break;
+                            }
+                        }
+                        // Se não encontrou principal, pega a primeira
+                        if (!$fotoPrincipal) {
+                            $fotoPrincipal = $model->fotos[0] ?? null;
+                        }
+                    } else {
+                        // Se não foram carregadas, tenta usar o método getFotoPrincipal
+                        $fotoPrincipal = $model->fotoPrincipal;
+                        // Se não encontrou principal, busca qualquer foto
+                        if (!$fotoPrincipal) {
+                            $fotos = $model->getFotos()->limit(1)->all();
+                            $fotoPrincipal = $fotos[0] ?? null;
+                        }
                     }
                     ?>
                     <?php if ($fotoPrincipal && !empty($fotoPrincipal->arquivo_path)): ?>
                         <?php 
-                        // Constrói URL da foto de forma robusta (funciona em localhost e VPS)
-                        $caminhoFoto = ltrim($fotoPrincipal->arquivo_path, '/');
+                        // Constrói URL da foto usando o método do modelo que já tem fallbacks
+                        $urlFoto = $fotoPrincipal->url ?? null;
                         
-                        // Tenta múltiplas formas de construir a URL
-                        $urlFoto = null;
-                        
-                        // Método 1: Usa Url::to() com schema absoluto
-                        try {
-                            $urlFoto = Url::to('@web/' . $caminhoFoto, true);
-                            if (empty($urlFoto) || $urlFoto === '@web/' . $caminhoFoto) {
-                                $urlFoto = null;
-                            }
-                        } catch (\Exception $e) {
-                            $urlFoto = null;
-                        }
-                        
-                        // Método 2: Se falhou, usa getAlias('@web')
+                        // Se não conseguir usar o método do modelo, constrói manualmente
                         if (empty($urlFoto)) {
+                            $caminhoFoto = ltrim($fotoPrincipal->arquivo_path, '/');
+                            
+                            // Tenta Url::to primeiro
                             try {
-                                $webAlias = Yii::getAlias('@web');
-                                if (!empty($webAlias) && $webAlias !== '@web') {
-                                    $urlFoto = rtrim($webAlias, '/') . '/' . ltrim($caminhoFoto, '/');
+                                $urlFoto = Url::to('@web/' . $caminhoFoto, true);
+                                if (empty($urlFoto) || $urlFoto === '@web/' . $caminhoFoto) {
+                                    $urlFoto = null;
                                 }
                             } catch (\Exception $e) {
                                 $urlFoto = null;
                             }
-                        }
-                        
-                        // Método 3: Fallback usando baseUrl do request
-                        if (empty($urlFoto)) {
-                            $request = Yii::$app->request;
-                            $baseUrl = $request->baseUrl;
-                            if (!empty($baseUrl)) {
-                                $urlFoto = rtrim($baseUrl, '/') . '/' . ltrim($caminhoFoto, '/');
-                            } else {
-                                // Último fallback: caminho relativo
-                                $urlFoto = '/' . ltrim($caminhoFoto, '/');
+                            
+                            // Fallback: usa getAlias
+                            if (empty($urlFoto)) {
+                                try {
+                                    $webAlias = Yii::getAlias('@web');
+                                    if (!empty($webAlias) && $webAlias !== '@web') {
+                                        $urlFoto = rtrim($webAlias, '/') . '/' . ltrim($caminhoFoto, '/');
+                                    }
+                                } catch (\Exception $e) {
+                                    $urlFoto = null;
+                                }
+                            }
+                            
+                            // Último fallback: usa baseUrl do request
+                            if (empty($urlFoto)) {
+                                $request = Yii::$app->request;
+                                $baseUrl = $request->baseUrl;
+                                $urlFoto = !empty($baseUrl) 
+                                    ? rtrim($baseUrl, '/') . '/' . ltrim($caminhoFoto, '/')
+                                    : '/' . ltrim($caminhoFoto, '/');
                             }
                         }
                         ?>
-                        <img src="<?= $urlFoto ?>" 
+                        <img src="<?= Html::encode($urlFoto) ?>" 
                              alt="<?= Html::encode($model->nome) ?>"
                              class="w-full h-64 object-cover"
-                             onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'200\'%3E%3Crect fill=\'%23e5e7eb\' width=\'300\' height=\'200\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\' fill=\'%239ca3af\' font-family=\'sans-serif\' font-size=\'14\'%3EErro ao carregar imagem%3C/text%3E%3C/svg%3E';">
+                             onerror="console.error('Erro ao carregar imagem:', this.src); this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'200\'%3E%3Crect fill=\'%23e5e7eb\' width=\'300\' height=\'200\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\' fill=\'%239ca3af\' font-family=\'sans-serif\' font-size=\'14\'%3EErro ao carregar imagem%3C/text%3E%3C/svg%3E';">
                     <?php else: ?>
                         <div class="w-full h-64 bg-gray-200 flex items-center justify-center">
                             <svg class="w-24 h-24 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

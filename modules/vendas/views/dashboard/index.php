@@ -141,7 +141,7 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
     </div>
 
     <!-- KPIs Secundários -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mt-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mt-6">
         
         <div class="bg-white rounded-lg shadow-sm p-6 border-l-4 border-red-500">
             <div class="flex items-center justify-between">
@@ -186,6 +186,16 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
                 <div>
                     <p class="text-gray-600 text-sm font-medium">Total Vendas</p>
                     <p class="text-2xl font-bold text-gray-900 mt-1"><?= $stats['total_vendas'] ?? 0 ?></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm p-6 border-l-4 border-sky-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-600 text-sm font-medium">Comissão SaaS (MP)</p>
+                    <p class="text-2xl font-bold text-gray-900 mt-1">R$ <?= number_format($saasFinanceiro['total_fee'] ?? 0, 2, ',', '.') ?></p>
+                    <p class="text-xs text-gray-500 mt-1">Bruto: R$ <?= number_format($saasFinanceiro['total_amount'] ?? 0, 2, ',', '.') ?> • Transações: <?= $saasFinanceiro['total_transacoes'] ?? 0 ?></p>
                 </div>
             </div>
         </div>

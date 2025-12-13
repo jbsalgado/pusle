@@ -456,12 +456,24 @@ class Produto extends ActiveRecord
 
     /**
      * Retorna foto principal do produto
+     * Se não houver foto marcada como principal, retorna a primeira foto
      */
     public function getFotoPrincipal()
     {
-        return $this->getFotos()
+        // Primeiro tenta buscar foto marcada como principal
+        $fotoPrincipal = $this->getFotos()
             ->where(['eh_principal' => true])
             ->one();
+        
+        // Se não encontrou principal, retorna a primeira foto disponível
+        if (!$fotoPrincipal) {
+            $fotoPrincipal = $this->getFotos()
+                ->orderBy(['ordem' => SORT_ASC])
+                ->limit(1)
+                ->one();
+        }
+        
+        return $fotoPrincipal;
     }
 
     /**

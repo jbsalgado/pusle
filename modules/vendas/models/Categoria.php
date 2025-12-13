@@ -7,6 +7,7 @@ use yii\db\Expression;
 use yii\db\ActiveRecord;
 use yii\behaviors\TimestampBehavior;
 use app\modules\vendas\models\Produto;
+use app\modules\vendas\models\Colaborador;
 use app\models\Usuario;
 
 
@@ -106,10 +107,15 @@ class Categoria extends ActiveRecord
 
     /**
      * Retorna categorias ativas para dropdown
+     * Se não for informado $usuarioId, detecta automaticamente o ID correto da loja
+     * (dono ou loja do colaborador)
      */
     public static function getListaDropdown($usuarioId = null)
     {
-        $usuarioId = $usuarioId ?: Yii::$app->user->id;
+        if ($usuarioId === null) {
+            // Detecta automaticamente o ID correto da loja
+            $usuarioId = self::getLojaIdParaQuery();
+        }
         
         return self::find()
             ->where(['usuario_id' => $usuarioId, 'ativo' => true])
@@ -117,5 +123,37 @@ class Categoria extends ActiveRecord
             ->indexBy('id')
             ->orderBy(['ordem' => SORT_ASC, 'nome' => SORT_ASC])
             ->column();
+    }
+    
+    /**
+     * Retorna o ID da loja (dono) para usar nas queries
+     * Se for colaborador, retorna o usuario_id do colaborador (que é o ID do dono)
+     * Se for dono, retorna seu próprio ID
+     * 
+     * @return string ID da loja (dono)
+     */
+    public static function getLojaIdParaQuery()
+    {
+        $usuario = Yii::$app->user->identity;
+        
+        if (!$usuario) {
+            return null;
+        }
+        
+        // Se é dono da loja, retorna seu próprio ID
+        if ($usuario->eh_dono_loja === true || $usuario->eh_dono_loja === 't' || $usuario->eh_dono_loja === 1) {
+            return $usuario->id;
+        }
+        
+        // Se não é dono, busca o colaborador
+        $colaborador = Colaborador::getColaboradorLogado();
+        
+        if ($colaborador) {
+            // Retorna o usuario_id do colaborador, que é o ID do dono da loja
+            return $colaborador->usuario_id;
+        }
+        
+        // Fallback: retorna ID do usuário logado (caso não encontre colaborador)
+        return $usuario->id;
     }
 }
