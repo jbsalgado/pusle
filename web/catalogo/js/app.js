@@ -721,20 +721,118 @@ function inicializarBuscaProdutos() {
     const inputBusca = document.getElementById('busca-produto');
     if (!inputBusca) return;
     
-    // Filtra enquanto o usuário digita (debounce)
-    let timeoutId;
+    // CORREÇÃO AGRESSIVA: Limpar o campo imediatamente e continuamente
+    const limparSeCPF = () => {
+        const valor = inputBusca.value;
+        const valorLimpo = valor.replace(/[^\d]/g, '');
+        
+        // Se o valor tem exatamente 11 dígitos (CPF), limpa imediatamente
+        if (valorLimpo.length === 11 && /^\d{11}$/.test(valorLimpo)) {
+            console.log('[App] ⚠️ CPF detectado no campo de busca. Limpando:', valor);
+            inputBusca.value = '';
+            filtrarProdutos();
+            return true;
+        }
+        
+        // Se o valor tem formato de CPF com pontos e traço (XXX.XXX.XXX-XX)
+        if (/^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(valor)) {
+            console.log('[App] ⚠️ CPF formatado detectado no campo de busca. Limpando:', valor);
+            inputBusca.value = '';
+            filtrarProdutos();
+            return true;
+        }
+        
+        return false;
+    };
+    
+    // Limpa imediatamente ao inicializar
+    if (inputBusca.value) {
+        if (!limparSeCPF()) {
+            // Se não é CPF mas tem valor, verifica se parece com CPF
+            const valorLimpo = inputBusca.value.replace(/[^\d]/g, '');
+            if (valorLimpo.length === 11) {
+                console.log('[App] ⚠️ Valor suspeito no campo de busca. Limpando:', inputBusca.value);
+                inputBusca.value = '';
+            }
+        }
+    }
+    
+    // Desabilita autocomplete do navegador de todas as formas possíveis
+    inputBusca.setAttribute('autocomplete', 'off');
+    inputBusca.setAttribute('autocapitalize', 'off');
+    inputBusca.setAttribute('autocorrect', 'off');
+    inputBusca.setAttribute('spellcheck', 'false');
+    inputBusca.setAttribute('data-lpignore', 'true');
+    inputBusca.setAttribute('data-form-type', 'other');
+    inputBusca.setAttribute('data-1p-ignore', 'true');
+    
+    // Muda o tipo para 'search' que tem comportamento diferente de autocomplete
+    if (inputBusca.type !== 'search') {
+        inputBusca.type = 'search';
+    }
+    
+    // Monitora mudanças no valor do campo (incluindo autocomplete)
+    let ultimoValor = inputBusca.value;
+    const observer = new MutationObserver(() => {
+        if (inputBusca.value !== ultimoValor) {
+            ultimoValor = inputBusca.value;
+            if (inputBusca.value) {
+                limparSeCPF();
+            }
+        }
+    });
+    
+    observer.observe(inputBusca, {
+        attributes: true,
+        attributeFilter: ['value'],
+        childList: false,
+        subtree: false
+    });
+    
+    // Monitora mudanças via eventos
     inputBusca.addEventListener('input', (e) => {
+        if (limparSeCPF()) {
+            return; // Se limpou, não processa
+        }
+        
         clearTimeout(timeoutId);
         timeoutId = setTimeout(() => {
             filtrarProdutos();
-        }, 300); // Aguarda 300ms após parar de digitar
+        }, 300);
+    });
+    
+    // Limpa ao focar se detectar CPF
+    inputBusca.addEventListener('focus', (e) => {
+        limparSeCPF();
+    });
+    
+    // Limpa ao receber foco do navegador (autocomplete)
+    inputBusca.addEventListener('change', (e) => {
+        limparSeCPF();
+    });
+    
+    // Limpa quando o campo é preenchido automaticamente
+    let timeoutId;
+    const verificarAutocomplete = setInterval(() => {
+        if (inputBusca.value && inputBusca.value !== ultimoValor) {
+            ultimoValor = inputBusca.value;
+            limparSeCPF();
+        }
+    }, 100); // Verifica a cada 100ms
+    
+    // Para o intervalo quando a página é descarregada
+    window.addEventListener('beforeunload', () => {
+        clearInterval(verificarAutocomplete);
+        observer.disconnect();
     });
     
     // Filtra ao pressionar Enter
     inputBusca.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            filtrarProdutos();
+            if (!limparSeCPF()) {
+                filtrarProdutos();
+            }
         }
     });
 }

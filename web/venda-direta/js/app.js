@@ -23,6 +23,11 @@ let formasPagamento = [];
 let usuarioData = null;
 let clienteAtual = null; // Cliente para vendas parceladas
 
+// Cache de páginas já carregadas (melhora performance)
+const cacheProdutos = new Map();
+let paginaAtual = 1;
+let metadadosPaginacao = null;
+
 // Disponibiliza CONFIG no window para compatibilidade com módulos que não usam import
 window.CONFIG = CONFIG;
 
@@ -254,19 +259,261 @@ window.removerItem = function(index) {
     if (produtoId) { atualizarBadgeProduto(produtoId, false); renderizarCarrinho(); atualizarBadgeCarrinho(); }
 };
 
-// Produtos
-async function carregarProdutos() {
+// ==========================================================================
+// PRODUTOS
+// ==========================================================================
+
+/**
+ * Carrega uma página específica de produtos (paginação real)
+ * @param {number} pagina - Número da página a carregar (padrão: 1)
+ * @param {boolean} forcarRecarregar - Se true, ignora cache e recarrega
+ */
+async function carregarProdutos(pagina = 1, forcarRecarregar = false) {
     try {
-        const url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}`;
+        // Verifica cache primeiro (a menos que seja forçado recarregar)
+        if (!forcarRecarregar && cacheProdutos.has(pagina)) {
+            console.log(`[App] 📦 Usando cache da página ${pagina}`);
+            const dadosCache = cacheProdutos.get(pagina);
+            produtos = dadosCache.produtos;
+            produtosFiltrados = produtos;
+            paginaAtual = pagina;
+            metadadosPaginacao = dadosCache.metadados;
+            renderizarProdutos(produtosFiltrados);
+            atualizarControlesPaginacao();
+            ocultarCarregando();
+            return;
+        }
+        
+        console.log('[App] 📦 Carregando produtos (página', pagina, ')...');
+        mostrarCarregando();
+        
+        // Usa per-page padrão de 20 (configurado no backend)
+        const url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}&page=${pagina}&per-page=20`;
         const response = await fetch(url);
-        if (!response.ok) throw new Error(`Erro ${response.status}`);
-        produtos = await response.json();
-        produtosFiltrados = produtos; // Inicializa com todos os produtos
+        
+        if (!response.ok) {
+            throw new Error(`Erro ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        // A API do Yii2 retorna um objeto com items, _links e _meta quando usa ActiveDataProvider
+        let produtosPagina = [];
+        let metadados = null;
+        
+        if (data.items && Array.isArray(data.items)) {
+            // Formato paginado do Yii2
+            produtosPagina = data.items;
+            
+            // Tenta diferentes formatos de metadados
+            if (data._meta) {
+                metadados = {
+                    totalCount: data._meta.totalCount || data._meta.total || 0,
+                    pageCount: data._meta.pageCount || Math.ceil((data._meta.totalCount || 0) / (data._meta.perPage || 20)) || 1,
+                    currentPage: data._meta.currentPage || data._meta.page || pagina,
+                    perPage: data._meta.perPage || data._meta.pageSize || 20
+                };
+            } else {
+                // Fallback: calcula baseado nos items retornados
+                const perPage = 20;
+                const totalEstimado = produtosPagina.length < perPage 
+                    ? (pagina - 1) * perPage + produtosPagina.length
+                    : null;
+                
+                metadados = {
+                    totalCount: totalEstimado || produtosPagina.length * pagina,
+                    pageCount: totalEstimado ? Math.ceil(totalEstimado / perPage) : pagina + 1,
+                    currentPage: pagina,
+                    perPage: perPage
+                };
+                
+                console.warn('[App] ⚠️ Metadados de paginação não encontrados. Usando estimativas:', metadados);
+            }
+        } else if (Array.isArray(data)) {
+            // Formato direto (array) - fallback
+            produtosPagina = data;
+            metadados = {
+                totalCount: data.length,
+                pageCount: 1,
+                currentPage: 1,
+                perPage: data.length
+            };
+            console.warn('[App] ⚠️ Resposta não está paginada. Retornou array direto com', data.length, 'itens');
+        } else {
+            console.warn('[App] ⚠️ Formato de resposta inesperado:', data);
+            produtosPagina = [];
+            metadados = {
+                totalCount: 0,
+                pageCount: 1,
+                currentPage: 1,
+                perPage: 20
+            };
+        }
+        
+        // Salva no cache
+        cacheProdutos.set(pagina, {
+            produtos: produtosPagina,
+            metadados: metadados
+        });
+        
+        // Atualiza variáveis globais
+        produtos = produtosPagina; // Apenas produtos da página atual
+        produtosFiltrados = produtos;
+        paginaAtual = pagina;
+        metadadosPaginacao = metadados;
+        window.paginacaoMetadados = metadados;
+        
+        console.log(`[App] ✅ Página ${pagina} carregada: ${produtosPagina.length} produto(s) de ${metadados.totalCount} total`);
+        
+        // Renderiza apenas os produtos da página atual
         filtrarProdutos(); // Aplica filtro atual (se houver)
+        atualizarControlesPaginacao();
+        ocultarCarregando();
+        
     } catch (error) {
-        console.error('Erro ao carregar produtos:', error);
+        console.error('[App] ❌ Erro ao carregar produtos:', error);
+        const container = document.getElementById('catalogo-produtos');
+        if (container) {
+            container.innerHTML = '<div class="col-span-full text-center py-16"><p class="text-red-600">Erro ao carregar produtos. Verifique sua conexão.</p></div>';
+        }
+        ocultarCarregando();
     }
 }
+
+/**
+ * Mostra indicador de carregamento
+ */
+function mostrarCarregando() {
+    const carregando = document.getElementById('carregando-produtos');
+    if (carregando) {
+        carregando.classList.remove('hidden');
+    }
+}
+
+/**
+ * Oculta indicador de carregamento
+ */
+function ocultarCarregando() {
+    const carregando = document.getElementById('carregando-produtos');
+    if (carregando) {
+        carregando.classList.add('hidden');
+    }
+}
+
+/**
+ * Atualiza controles de paginação na interface (topo e rodapé)
+ */
+function atualizarControlesPaginacao() {
+    const containerPaginacao = document.getElementById('controles-paginacao');
+    const containerPaginacaoRodape = document.getElementById('controles-paginacao-rodape');
+    
+    if (!containerPaginacao && !containerPaginacaoRodape) {
+        return; // Controles de paginação não existem ainda
+    }
+    
+    const metadados = metadadosPaginacao || window.paginacaoMetadados;
+    
+    if (!metadados) {
+        if (containerPaginacao) containerPaginacao.classList.add('hidden');
+        if (containerPaginacaoRodape) containerPaginacaoRodape.classList.add('hidden');
+        return;
+    }
+    
+    // Mostra controles se houver mais de 1 página OU se totalCount > perPage
+    const deveMostrar = metadados.pageCount > 1 || (metadados.totalCount > metadados.perPage);
+    
+    if (!deveMostrar) {
+        if (containerPaginacao) containerPaginacao.classList.add('hidden');
+        if (containerPaginacaoRodape) containerPaginacaoRodape.classList.add('hidden');
+        return;
+    }
+    
+    // Calcula informações de exibição
+    const inicio = (metadados.currentPage - 1) * metadados.perPage + 1;
+    const fim = Math.min(metadados.currentPage * metadados.perPage, metadados.totalCount);
+    const textoInfo = `Mostrando ${inicio}-${fim} de ${metadados.totalCount} produtos`;
+    const textoPagina = `Página ${metadados.currentPage} de ${metadados.pageCount}`;
+    const podeAnterior = metadados.currentPage > 1;
+    const podeProxima = metadados.currentPage < metadados.pageCount;
+    
+    // Atualiza controles do topo
+    if (containerPaginacao) {
+        containerPaginacao.classList.remove('hidden');
+        
+        const infoPaginacao = document.getElementById('info-paginacao');
+        if (infoPaginacao) {
+            infoPaginacao.textContent = textoInfo;
+        }
+        
+        const paginaAtualInfo = document.getElementById('pagina-atual-info');
+        if (paginaAtualInfo) {
+            paginaAtualInfo.textContent = textoPagina;
+        }
+        
+        const btnAnterior = document.getElementById('btn-pagina-anterior');
+        const btnProxima = document.getElementById('btn-pagina-proxima');
+        
+        if (btnAnterior) {
+            btnAnterior.disabled = !podeAnterior;
+        }
+        
+        if (btnProxima) {
+            btnProxima.disabled = !podeProxima;
+        }
+    }
+    
+    // Atualiza controles do rodapé
+    if (containerPaginacaoRodape) {
+        containerPaginacaoRodape.classList.remove('hidden');
+        
+        const infoPaginacaoRodape = document.getElementById('info-paginacao-rodape');
+        if (infoPaginacaoRodape) {
+            infoPaginacaoRodape.textContent = textoInfo;
+        }
+        
+        const paginaAtualInfoRodape = document.getElementById('pagina-atual-info-rodape');
+        if (paginaAtualInfoRodape) {
+            paginaAtualInfoRodape.textContent = textoPagina;
+        }
+        
+        const btnAnteriorRodape = document.getElementById('btn-pagina-anterior-rodape');
+        const btnProximaRodape = document.getElementById('btn-pagina-proxima-rodape');
+        
+        if (btnAnteriorRodape) {
+            btnAnteriorRodape.disabled = !podeAnterior;
+        }
+        
+        if (btnProximaRodape) {
+            btnProximaRodape.disabled = !podeProxima;
+        }
+    }
+}
+
+/**
+ * Navega para próxima/anterior página
+ */
+window.navegarPagina = function(direcao) {
+    const metadados = metadadosPaginacao || window.paginacaoMetadados;
+    if (!metadados) {
+        console.warn('[App] Metadados de paginação não disponíveis');
+        return;
+    }
+    
+    const novaPagina = paginaAtual + direcao;
+    if (novaPagina < 1 || novaPagina > metadados.pageCount) {
+        console.warn('[App] Página inválida:', novaPagina);
+        return;
+    }
+    
+    console.log('[App] Navegando para página:', novaPagina);
+    carregarProdutos(novaPagina);
+    
+    // Scroll para o topo do catálogo
+    const container = document.getElementById('catalogo-produtos');
+    if (container) {
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+};
 
 function filtrarProdutos() {
     const termoBusca = document.getElementById('busca-produto')?.value?.toLowerCase().trim() || '';
@@ -321,7 +568,15 @@ window.limparBusca = function() {
 
 function renderizarProdutos(listaProdutos) {
     const container = document.getElementById('catalogo-produtos');
-    if (!container) return;
+    if (!container) {
+        console.error('[App] ❌ Container de produtos não encontrado');
+        return;
+    }
+    
+    console.log('[App] 🎨 Renderizando produtos:', {
+        total: listaProdutos.length,
+        produtos: listaProdutos.slice(0, 3).map(p => ({ id: p.id, nome: p.nome })) // Primeiros 3 para debug
+    });
     
     if (listaProdutos.length === 0) {
         const termoBusca = document.getElementById('busca-produto')?.value?.trim() || '';
@@ -334,8 +589,9 @@ function renderizarProdutos(listaProdutos) {
                 <p class="text-sm text-gray-500 mt-2">Tente buscar com outro termo</p>
             </div>`;
         } else {
-            container.innerHTML = `<div class="col-span-full text-center py-16"><p>Nenhum produto disponível.</p></div>`;
+            container.innerHTML = `<div class="col-span-full text-center py-16"><p class="text-gray-500">Nenhum produto disponível no momento.</p></div>`;
         }
+        console.warn('[App] ⚠️ Nenhum produto para renderizar');
         return;
     }
     
@@ -807,14 +1063,14 @@ window.confirmarPedido = async function() {
                 btnConfirmar.disabled = false;
                 btnConfirmar.textContent = '✅ Confirmar Venda';
                 return; // Encerra aqui - confirmação será feita quando usuário clicar em "Confirmar Recebimento"
-            }
-
+                }
+                
             // Outros pagamentos (cartão, boleto, etc): Confirma recebimento imediatamente
             console.log('[App] 🔄 Confirmando recebimento da venda:', vendaId);
             
             try {
                 // Chama endpoint de confirmação de recebimento
-                const { API_ENDPOINTS } = await import('./config.js');
+                            const { API_ENDPOINTS } = await import('./config.js');
                 const response = await fetch(API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO, {
                     method: 'POST',
                     headers: {
@@ -827,11 +1083,11 @@ window.confirmarPedido = async function() {
                 if (!response.ok) {
                     const errorText = await response.text();
                     throw new Error(`Erro ao confirmar recebimento: ${response.status} - ${errorText}`);
-                }
+                            }
 
                 const vendaConfirmada = await response.json();
                 console.log('[App] ✅ Recebimento confirmado com sucesso!', vendaConfirmada);
-
+                
                 // ✅ NOVO: Recarrega página PRIMEIRO para atualizar estoques
                 console.log('[App] 🔄 Recarregando página para atualizar estoques...');
                 

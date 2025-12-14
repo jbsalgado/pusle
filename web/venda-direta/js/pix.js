@@ -603,72 +603,72 @@ window.confirmarRecebimentoPix = async function() {
         const vendaConfirmada = await response.json();
         console.log('[PIX] ✅ Recebimento confirmado com sucesso!', vendaConfirmada);
         
-        // Importa funções necessárias dinamicamente
-        const { getCarrinho, calcularTotalCarrinho } = await import('./cart.js');
-        
-        // Busca dados do carrinho (se ainda estiverem disponíveis)
-        let carrinho = [];
-        try {
-            // Tenta buscar do localStorage ou da memória
-            const carrinhoSalvo = localStorage.getItem('carrinho_venda_direta');
-            if (carrinhoSalvo) {
-                carrinho = JSON.parse(carrinhoSalvo);
-            }
-        } catch (e) {
-            console.warn('[PIX] Não foi possível recuperar carrinho do localStorage');
+    // Importa funções necessárias dinamicamente
+    const { getCarrinho, calcularTotalCarrinho } = await import('./cart.js');
+    
+    // Busca dados do carrinho (se ainda estiverem disponíveis)
+    let carrinho = [];
+    try {
+        // Tenta buscar do localStorage ou da memória
+        const carrinhoSalvo = localStorage.getItem('carrinho_venda_direta');
+        if (carrinhoSalvo) {
+            carrinho = JSON.parse(carrinhoSalvo);
         }
-        
-        // Se não tiver carrinho, usa dados do pedido
-        if (carrinho.length === 0 && dadosPedidoPix.itens) {
-            carrinho = dadosPedidoPix.itens;
-        }
-        
-        if (carrinho.length === 0) {
-            alert('Erro: Não foi possível recuperar os itens da venda.');
-            return;
-        }
-        
+    } catch (e) {
+        console.warn('[PIX] Não foi possível recuperar carrinho do localStorage');
+    }
+    
+    // Se não tiver carrinho, usa dados do pedido
+    if (carrinho.length === 0 && dadosPedidoPix.itens) {
+        carrinho = dadosPedidoPix.itens;
+    }
+    
+    if (carrinho.length === 0) {
+        alert('Erro: Não foi possível recuperar os itens da venda.');
+        return;
+    }
+    
         // Busca parcelas se houver (usa dados da venda confirmada)
         let parcelas = vendaConfirmada.parcelas || null;
         if (!parcelas && dadosPedidoPix.numero_parcelas > 1) {
-            try {
-                const { CONFIG, API_ENDPOINTS } = await import('./config.js');
+        try {
+            const { CONFIG, API_ENDPOINTS } = await import('./config.js');
                 const response = await fetch(`${API_ENDPOINTS.PEDIDO_PARCELAS}?venda_id=${vendaId}`);
-                if (response.ok) {
-                    const dadosParcelas = await response.json();
-                    parcelas = dadosParcelas.parcelas || null;
-                }
-            } catch (error) {
-                console.warn('[PIX] Erro ao buscar parcelas:', error);
+            if (response.ok) {
+                const dadosParcelas = await response.json();
+                parcelas = dadosParcelas.parcelas || null;
             }
+        } catch (error) {
+            console.warn('[PIX] Erro ao buscar parcelas:', error);
         }
-        
-        // Busca dados do cliente se houver (para vendas parceladas)
-        let dadosCliente = null;
-        if (dadosPedidoPix.cliente_id) {
-            try {
-                const { API_ENDPOINTS } = await import('./config.js');
-                const response = await fetch(`${API_ENDPOINTS.CLIENTE}/${dadosPedidoPix.cliente_id}`);
-                if (response.ok) {
-                    const cliente = await response.json();
-                    dadosCliente = {
-                        nome: cliente.nome_completo || cliente.nome || '',
-                        cpf: cliente.cpf || '',
-                        telefone: cliente.telefone || '',
-                        endereco: cliente.endereco_logradouro || cliente.logradouro || '',
-                        numero: cliente.endereco_numero || cliente.numero || '',
-                        complemento: cliente.endereco_complemento || cliente.complemento || '',
-                        bairro: cliente.endereco_bairro || cliente.bairro || '',
-                        cidade: cliente.endereco_cidade || cliente.cidade || '',
-                        estado: cliente.endereco_estado || cliente.estado || '',
-                        cep: cliente.endereco_cep || cliente.cep || ''
-                    };
-                }
-            } catch (error) {
-                console.warn('[PIX] Erro ao buscar dados do cliente:', error);
+    }
+    
+    // Busca dados do cliente se houver (para vendas parceladas)
+    let dadosCliente = null;
+    if (dadosPedidoPix.cliente_id) {
+        try {
+            const { API_ENDPOINTS } = await import('./config.js');
+            const response = await fetch(`${API_ENDPOINTS.CLIENTE}/${dadosPedidoPix.cliente_id}`);
+            if (response.ok) {
+                const cliente = await response.json();
+                dadosCliente = {
+                    nome: cliente.nome_completo || cliente.nome || '',
+                    cpf: cliente.cpf || '',
+                    telefone: cliente.telefone || '',
+                    endereco: cliente.endereco_logradouro || cliente.logradouro || '',
+                    numero: cliente.endereco_numero || cliente.numero || '',
+                    complemento: cliente.endereco_complemento || cliente.complemento || '',
+                    bairro: cliente.endereco_bairro || cliente.bairro || '',
+                    cidade: cliente.endereco_cidade || cliente.cidade || '',
+                    estado: cliente.endereco_estado || cliente.estado || '',
+                    cep: cliente.endereco_cep || cliente.cep || ''
+                };
             }
+        } catch (error) {
+            console.warn('[PIX] Erro ao buscar dados do cliente:', error);
         }
-        
+    }
+    
         // Salva dados para exibir comprovante após reload
         const { formatarMoeda } = await import('./utils.js');
         sessionStorage.setItem('venda_confirmada_comprovante', JSON.stringify({
@@ -681,12 +681,12 @@ window.confirmarRecebimentoPix = async function() {
         // Limpa carrinho
         const { limparCarrinho } = await import('./cart.js');
         limparCarrinho();
-        
-        // Fecha o modal
-        fecharModalPixEstatico();
-        
-        // Limpa dados
-        dadosPedidoPix = null;
+    
+    // Fecha o modal
+    fecharModalPixEstatico();
+    
+    // Limpa dados
+    dadosPedidoPix = null;
         
         // ✅ Reload da página PRIMEIRO, comprovante será exibido após reload
         console.log('[PIX] 🔄 Recarregando página para atualizar estoques...');

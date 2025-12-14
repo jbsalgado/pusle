@@ -403,7 +403,7 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                         </svg>
                         <p class="mt-2 text-gray-500">Nenhum cliente cadastrado</p>
-                        <?= Html::a('Cadastrar primeiro cliente', ['/vendas/cliente/create'], ['class' => 'mt-4 inline-block text-blue-600 hover:text-blue-800']) ?>
+                        <?= Html::a('Cadastrar primeiro cliente', ['/vendas/clientes/create'], ['class' => 'mt-4 inline-block text-blue-600 hover:text-blue-800']) ?>
                     </div>
                 <?php else: ?>
                     <div class="space-y-4">
@@ -418,7 +418,7 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
                                         <p class="text-sm text-gray-500"><?= Html::encode($cliente->telefone) ?></p>
                                     </div>
                                 </div>
-                                <?= Html::a('Ver', ['/vendas/cliente/view', 'id' => $cliente->id], ['class' => 'text-blue-600 hover:text-blue-800 text-sm']) ?>
+                                <?= Html::a('Ver', ['/vendas/clientes/view', 'id' => $cliente->id], ['class' => 'text-blue-600 hover:text-blue-800 text-sm']) ?>
                             </div>
                         <?php endforeach; ?>
                     </div>
@@ -468,7 +468,7 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
         <div class="p-6 border-b border-gray-200">
             <div class="flex items-center justify-between">
                 <h2 class="text-xl font-semibold text-gray-900">Vendas Recentes</h2>
-                <?= Html::a('Ver todas', ['/vendas/venda/index'], ['class' => 'text-blue-600 hover:text-blue-800 text-sm font-medium']) ?>
+                <?= Html::a('Ver todas', ['/vendas/parcela/index'], ['class' => 'text-blue-600 hover:text-blue-800 text-sm font-medium']) ?>
             </div>
         </div>
         <div class="overflow-x-auto">
@@ -478,7 +478,7 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                     </svg>
                     <p class="mt-2 text-gray-500">Nenhuma venda registrada</p>
-                    <?= Html::a('Registrar primeira venda', ['/vendas/venda/create'], ['class' => 'mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700']) ?>
+                    <?= Html::a('Registrar primeira venda', Yii::getAlias('@web') . '/venda-direta/', ['class' => 'mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700']) ?>
                 </div>
             <?php else: ?>
                 <table class="min-w-full divide-y divide-gray-200">
@@ -520,7 +520,7 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
                                     R$ <?= number_format($venda->valor_total, 2, ',', '.') ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <?= Html::a('Ver', ['/vendas/venda/view', 'id' => $venda->id], ['class' => 'text-blue-600 hover:text-blue-900']) ?>
+                                    <?= Html::a('Ver Parcelas', ['/vendas/parcela/index', 'data_compra' => date('Y-m-d', strtotime($venda->data_venda))], ['class' => 'text-blue-600 hover:text-blue-900']) ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -537,13 +537,13 @@ $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <?= Html::a(
                 '<svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg><span>Nova Venda</span>',
-                ['/vendas/venda/create'],
+                Yii::getAlias('@web') . '/venda-direta/',
                 ['class' => 'bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg p-4 text-center transition flex flex-col items-center justify-center']
             ) ?>
             
             <?= Html::a(
                 '<svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg><span>Novo Cliente</span>',
-                ['/vendas/cliente/create'],
+                ['/vendas/clientes/create'],
                 ['class' => 'bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg p-4 text-center transition flex flex-col items-center justify-center']
             ) ?>
             
