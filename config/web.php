@@ -3,6 +3,14 @@
 $params = require __DIR__ . '/params.php';
 $db = require __DIR__ . '/db.php';
 
+// Detecta automaticamente se deve mostrar index.php nas URLs
+// Se a REQUEST_URI contém /index.php, usa index.php nas URLs geradas
+// Caso contrário, assume que o .htaccess está funcionando e não usa index.php
+$showScriptName = false; // Padrão: não mostra index.php (assume .htaccess funcionando)
+if (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/index.php') !== false) {
+    $showScriptName = true; // Se a URL atual tem index.php, usa nas URLs geradas
+}
+
 $config = [
     'id' => 'basic',
     'basePath' => dirname(__DIR__),
@@ -45,7 +53,10 @@ $config = [
         'db' => $db,
         'urlManager' => [
             'enablePrettyUrl' => true, // Habilitado para suportar rotas REST
-            'showScriptName' => true, // Mostra index.php na URL (necessário para funcionar com index.php)
+            // Detecta automaticamente se deve mostrar index.php baseado na URL atual
+            // Se a REQUEST_URI contém /index.php, usa index.php nas URLs geradas
+            // Caso contrário, assume que o .htaccess está funcionando e não usa index.php
+            'showScriptName' => $showScriptName,
             'rules' => [
                 // Regras REST específicas para pedido - POST vai para create
                 'POST api/pedido' => 'api/pedido/create',
