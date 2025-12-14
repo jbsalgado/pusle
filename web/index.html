@@ -242,8 +242,20 @@
             }
         }
         
+        // Atualiza o href do botão Entrar para usar o caminho base correto
+        function atualizarBotaoEntrar() {
+            const btnEntrar = document.getElementById('btn-entrar');
+            if (btnEntrar) {
+                const basePath = detectApiBaseUrl();
+                btnEntrar.href = basePath.replace('/index.php', '') + '/index.php/auth/login';
+            }
+        }
+        
         // Carrega dados ao carregar a página
-        document.addEventListener('DOMContentLoaded', carregarDadosEmpresa);
+        document.addEventListener('DOMContentLoaded', () => {
+            atualizarBotaoEntrar();
+            carregarDadosEmpresa();
+        });
     </script>
 </body>
 </html>

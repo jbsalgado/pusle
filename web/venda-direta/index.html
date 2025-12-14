@@ -79,6 +79,12 @@
                     <h1 class="text-xl font-bold text-blue-600">Venda Direta</h1>
                 </div>
                 <div class="flex items-center gap-3">
+                    <a href="/pulse/web/index.php/vendas/inicio" class="bg-gray-600 text-white px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                        <span class="hidden sm:inline">Início</span>
+                    </a>
                     <div id="status-online" class="items-center gap-1 text-green-600">
                         <span class="h-3 w-3 bg-green-500 rounded-full"></span>
                         <span class="text-xs font-medium hidden sm:inline">Online</span>
@@ -257,6 +263,41 @@
     <!-- Modal Galeria de Fotos -->
     <div id="modal-galeria" class="fixed inset-0 bg-black bg-opacity-95 z-50 hidden">
         <!-- Conteúdo do Modal Galeria -->
+    </div>
+
+    <!-- Modal Dinheiro -->
+    <div id="modal-dinheiro" class="fixed inset-0 bg-black bg-opacity-70 z-50 flex justify-center items-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="flex justify-between items-center border-b p-4">
+                <h2 class="text-xl font-bold text-gray-800">Pagamento em Dinheiro</h2>
+                <button onclick="window.fecharModalDinheiro()" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <div class="p-6">
+                <div class="text-center mb-4">
+                    <div class="mb-4">
+                        <svg class="w-16 h-16 mx-auto text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <p class="text-lg font-semibold text-gray-700 mb-2">Valor: <span id="dinheiro-valor" class="text-green-600"></span></p>
+                    <p class="text-sm text-gray-600">Confirme o recebimento do pagamento em dinheiro</p>
+                </div>
+                
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                    <p class="text-sm text-green-800">
+                        <strong>Instruções:</strong> Após receber o pagamento em dinheiro, clique em "Confirmar Recebimento" para finalizar a venda e gerar o comprovante.
+                    </p>
+                </div>
+                
+                <button onclick="window.confirmarRecebimentoDinheiro()" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 mb-3">
+                    ✅ Confirmar Recebimento
+                </button>
+                
+                <button onclick="window.fecharModalDinheiro()" class="w-full bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-400">
+                    Cancelar
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Modal PIX Estático -->

@@ -130,7 +130,8 @@ export const API_ENDPOINTS = {
     CLIENTE: `${CONFIG.URL_API}/api/cliente`,
     CLIENTE_BUSCA_CPF: `${CONFIG.URL_API}/api/cliente/buscar-cpf`,
     COLABORADOR_BUSCA_CPF: `${CONFIG.URL_API}/api/colaborador/buscar-cpf`,
-    PEDIDO: `${CONFIG.URL_API}/api/pedido`,
+    PEDIDO: `${CONFIG.URL_API}/api/pedido`, // GET - listar pedidos
+    PEDIDO_CREATE: `${CONFIG.URL_API}/api/pedido/create`, // POST - criar pedido
     
     // ✅ NOVOS ENDPOINTS
     USUARIO_CONFIG: `${CONFIG.URL_API}/api/usuario/config`,
@@ -157,6 +158,8 @@ export const API_ENDPOINTS = {
     
     // ✅ NOVO: Endpoint para buscar parcelas de uma venda
     PEDIDO_PARCELAS: `${CONFIG.URL_API}/api/pedido/parcelas`,
+    // ✅ NOVO: Endpoint para confirmar recebimento (processa estoque, caixa, etc)
+    PEDIDO_CONFIRMAR_RECEBIMENTO: `${CONFIG.URL_API}/api/pedido/confirmar-recebimento`,
 };
 
 export const STORAGE_KEYS = {

@@ -14,6 +14,8 @@ use Exception;
 
 class PedidoController extends Controller
 {
+    public $enableCsrfValidation = false; // Desabilita CSRF para API
+    
     public function behaviors()
     {
         $behaviors = parent::behaviors();
@@ -24,9 +26,17 @@ class PedidoController extends Controller
                 'text/html' => Response::FORMAT_JSON,
             ],
         ];
+        // Configura autenticação: todas as actions são opcionais (sem autenticação obrigatória)
+        // Usa 'except' para garantir que confirmar-recebimento não exija autenticação
         $behaviors['authenticator'] = [
             'class' => \yii\filters\auth\HttpBearerAuth::class,
-            'optional' => ['index', 'create', 'parcelas'],
+            'except' => ['confirmar-recebimento'], // Exclui explicitamente esta action
+            'optional' => ['index', 'create', 'parcelas'], // Outras actions opcionais
+        ];
+        // Adiciona VerbFilter para garantir que os métodos HTTP sejam respeitados
+        $behaviors['verbFilter'] = [
+            'class' => \yii\filters\VerbFilter::class,
+            'actions' => $this->verbs(),
         ];
         return $behaviors;
     }
@@ -235,9 +245,8 @@ class PedidoController extends Controller
             }
 
             // ===== CRIAR E SALVAR VENDA =====
-            // ✅ CORREÇÃO: Detecta se é venda direta baseado no status
-            // Venda direta = pagamento na hora (status QUITADA)
-            // Venda online = aguardando pagamento (status EM_ABERTO)
+            // ✅ NOVO FLUXO: Vendas diretas são criadas com status EM_ABERTO
+            // Processamento (estoque, caixa, etc) só acontece após confirmação de recebimento
             // Verifica se há indicação explícita de venda direta no request
             $isVendaDireta = isset($data['is_venda_direta']) && $data['is_venda_direta'] === true;
             // Se não houver indicação explícita, assume venda online (catálogo)
@@ -250,11 +259,9 @@ class PedidoController extends Controller
             $venda->observacoes = $data['observacoes'] ?? ($isVendaDireta ? 'Venda Direta' : 'Pedido PWA');
             $venda->numero_parcelas = $numeroParcelas;
             
-            // VENDA DIRETA: Status QUITADA (pagamento na hora)
-            // VENDA ONLINE: Status EM_ABERTO (aguardando pagamento)
-            $venda->status_venda_codigo = $isVendaDireta 
-                ? \app\modules\vendas\models\StatusVenda::QUITADA 
-                : \app\modules\vendas\models\StatusVenda::EM_ABERTO;
+            // ✅ NOVO: TODAS as vendas (direta e online) começam com EM_ABERTO
+            // Processamento só acontece após confirmação de recebimento
+            $venda->status_venda_codigo = \app\modules\vendas\models\StatusVenda::EM_ABERTO;
             
             $venda->valor_total = $valorTotalVenda;
             
@@ -291,7 +298,7 @@ class PedidoController extends Controller
             
             Yii::info("ID Colaborador Vendedor: " . ($venda->colaborador_vendedor_id ?? 'Nenhum'), 'api');
             Yii::info("Data Primeiro Pagamento: " . ($venda->data_primeiro_vencimento ?? 'Não informada'), 'api');
-            Yii::info("Tipo de Venda: " . ($isVendaDireta ? 'VENDA DIRETA (QUITADA)' : 'VENDA NORMAL (EM_ABERTO)'), 'api');
+            Yii::info("Tipo de Venda: " . ($isVendaDireta ? 'VENDA DIRETA (EM_ABERTO - aguardando confirmação)' : 'VENDA ONLINE (EM_ABERTO - aguardando pagamento)'), 'api');
             Yii::info("Forma de Pagamento ID: " . ($formaPagamentoId ?? 'Não informada'), 'api');
 
             Yii::error("Atributos VENDA antes de save(): " . print_r($venda->attributes, true), 'api');
@@ -326,18 +333,9 @@ class PedidoController extends Controller
                 }
                 Yii::error("✅ Item ID {$item->id} salvo com sucesso", 'api');
 
-                // ✅ CORREÇÃO: Atualizar estoque APENAS para vendas diretas (pagamento na hora)
-                // Para vendas online, estoque será baixado após confirmação de pagamento via webhook
-                if ($isVendaDireta) {
-                    $produto->estoque_atual -= $item->quantidade;
-                    if (!$produto->save(false, ['estoque_atual'])) {
-                        Yii::error("❌ FALHA ao atualizar estoque do produto {$produto->id}", 'api');
-                        throw new Exception("Erro ao atualizar estoque do produto '{$produto->nome}'.");
-                    }
-                    Yii::error("✅ Estoque de '{$produto->nome}' atualizado para {$produto->estoque_atual} (Venda Direta)", 'api');
-                } else {
-                    Yii::info("⏳ Estoque de '{$produto->nome}' será baixado após confirmação de pagamento (Venda Online)", 'api');
-                }
+                // ✅ NOVO FLUXO: Estoque NÃO é baixado aqui
+                // Estoque será baixado apenas após confirmação de recebimento (actionConfirmarRecebimento)
+                Yii::info("⏳ Estoque de '{$produto->nome}' será baixado após confirmação de recebimento", 'api');
             }
             Yii::error("Criação de itens concluída.", 'api');
 
@@ -348,36 +346,19 @@ class PedidoController extends Controller
             
             Yii::error("Chamando gerarParcelas com: formaPagamentoId={$formaPagamentoId}, isVendaDireta=" . ($isVendaDireta ? 'true' : 'false'), 'api');
             
+            // ✅ NOVO FLUXO: Parcelas são criadas mas NÃO marcadas como pagas
+            // Serão marcadas como pagas apenas após confirmação de recebimento
             $venda->gerarParcelas(
                 $formaPagamentoId, 
                 $isVendaDireta ? date('Y-m-d') : $dataPrimeiroPagamento, 
                 $intervaloDiasParcelas,
-                $isVendaDireta // Indica se é venda direta (para marcar como PAGA)
+                false // ✅ NÃO marca como paga - será feito na confirmação
             );
-            Yii::error("Parcelas geradas para Venda ID {$venda->id}", 'api');
+            Yii::error("Parcelas geradas para Venda ID {$venda->id} (não marcadas como pagas)", 'api');
 
-            // ===== INTEGRAÇÃO COM CAIXA (VENDA DIRETA) =====
-            // Registra entrada no caixa apenas para vendas diretas (pagamento na hora)
-            if ($isVendaDireta) {
-                try {
-                    $movimentacao = \app\modules\caixa\helpers\CaixaHelper::registrarEntradaVenda(
-                        $venda->id,
-                        $venda->valor_total,
-                        $venda->forma_pagamento_id,
-                        $venda->usuario_id
-                    );
-                    
-                    if ($movimentacao) {
-                        Yii::info("✅ Entrada registrada no caixa para Venda ID {$venda->id}", 'api');
-                    } else {
-                        // Não falha a venda se não houver caixa aberto, apenas registra no log
-                        Yii::warning("⚠️ Não foi possível registrar entrada no caixa para Venda ID {$venda->id} (caixa pode não estar aberto)", 'api');
-                    }
-                } catch (\Exception $e) {
-                    // Não falha a venda se houver erro no caixa, apenas registra no log
-                    Yii::error("Erro ao registrar entrada no caixa (não crítico): " . $e->getMessage(), 'api');
-                }
-            }
+            // ✅ NOVO FLUXO: Caixa NÃO é registrado aqui
+            // Entrada no caixa será registrada apenas após confirmação de recebimento
+            Yii::info("⏳ Entrada no caixa será registrada após confirmação de recebimento", 'api');
 
             // ===== COMMIT =====
             $transaction->commit();
@@ -506,6 +487,19 @@ class PedidoController extends Controller
                                 throw new Exception("Erro ao atualizar estoque do produto '{$produto->nome}'.");
                             }
                             Yii::info("✅ Estoque de '{$produto->nome}' baixado para {$produto->estoque_atual} na confirmação", 'api');
+                        }
+                    }
+
+                    // ✅ Marca parcelas como pagas (para vendas diretas)
+                    foreach ($venda->parcelas as $parcela) {
+                        if ($parcela->status_parcela_codigo !== 'PAGA') {
+                            $parcela->status_parcela_codigo = 'PAGA';
+                            $parcela->data_pagamento = date('Y-m-d H:i:s');
+                            if (!$parcela->save(false, ['status_parcela_codigo', 'data_pagamento'])) {
+                                Yii::warning("⚠️ Não foi possível marcar parcela {$parcela->numero_parcela} como paga", 'api');
+                            } else {
+                                Yii::info("✅ Parcela {$parcela->numero_parcela} marcada como paga", 'api');
+                            }
                         }
                     }
 

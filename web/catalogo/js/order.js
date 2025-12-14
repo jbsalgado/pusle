@@ -120,9 +120,9 @@ async function tentarEnvioDireto(pedido) {
     try {
         console.log('[Order] 🌐 Tentando envio direto...');
         console.log('[Order] 📦 Pedido:', JSON.stringify(pedido, null, 2));
-        console.log('[Order] 🎯 URL:', API_ENDPOINTS.PEDIDO);
+        console.log('[Order] 🎯 URL:', API_ENDPOINTS.PEDIDO_CREATE);
         
-        const response = await fetch(API_ENDPOINTS.PEDIDO, {
+        const response = await fetch(API_ENDPOINTS.PEDIDO_CREATE, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

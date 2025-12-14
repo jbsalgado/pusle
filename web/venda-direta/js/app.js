@@ -48,6 +48,9 @@ async function init() {
         inicializarEventListeners();
         inicializarBuscaProdutos(); // Inicializa o filtro de busca
         configurarListenerServiceWorker();
+        
+        // ✅ Verifica se há comprovante para exibir após reload
+        verificarComprovantePosReload();
         atualizarBadgeCarrinho();
         inicializarMonitoramentoRede();
         
@@ -731,212 +734,135 @@ window.confirmarPedido = async function() {
             resultado_completo: resultado  // Adiciona o resultado completo para debug
         });
         
-        if (resultado.sucesso) {
-            // Verifica se é PIX ou PIX ESTATICO À VISTA para mostrar o modal estático
+        if (resultado.sucesso && !resultado.offline) {
+            // ✅ NOVO FLUXO: NÃO confirma recebimento imediatamente
+            // Confirmação só acontece quando usuário clicar em "Confirmar Recebimento"
+            const vendaId = resultado.dados?.id || resultado.dados?.venda?.id || resultado.id;
+            
+            if (!vendaId) {
+                console.error('[App] ❌ ID da venda não encontrado no resultado');
+                alert('Erro: ID da venda não encontrado.');
+                btnConfirmar.disabled = false;
+                btnConfirmar.textContent = '✅ Confirmar Venda';
+                return;
+            }
+
+            // Verifica o tipo de pagamento para decidir o fluxo
             const formaPagamentoSelecionada = formasPagamento.find(fp => fp.id == formaPagamentoId);
-            const isPix = formaPagamentoSelecionada && (formaPagamentoSelecionada.tipo === 'PIX' || formaPagamentoSelecionada.tipo === 'PIX_ESTATICO');
+            const tipoPagamento = formaPagamentoSelecionada?.tipo || '';
+            const isPix = tipoPagamento === 'PIX' || tipoPagamento === 'PIX_ESTATICO';
+            const isDinheiro = tipoPagamento === 'DINHEIRO';
             const isVista = dadosPedido.numero_parcelas === 1;
 
-            if (isPix && isVista && !resultado.offline) {
-                console.log('[App] 🟢 Venda PIX à vista detectada. Gerando QR Code Estático...');
+            // PIX ESTÁTICO: Mostra modal PIX e aguarda confirmação do usuário
+            if (isPix && isVista) {
+                console.log('[App] 🟢 Venda PIX à vista detectada. Mostrando modal de confirmação...');
                 
                 const valorTotal = calcularTotalCarrinho();
                 
-                // Gera TxID limpo: VendaDireta + DDMMYYYY + HHMM (apenas letras e números)
+                // Gera TxID limpo: VendaDireta + DDMMYYYY + HHMM
                 const now = new Date();
                 const dia = String(now.getDate()).padStart(2, '0');
                 const mes = String(now.getMonth() + 1).padStart(2, '0');
                 const ano = String(now.getFullYear());
                 const hora = String(now.getHours()).padStart(2, '0');
                 const minuto = String(now.getMinutes()).padStart(2, '0');
-                // Formato: VendaDireta + DDMMYYYY + HHMM (ex: VendaDireta031220251430)
                 const txId = `VendaDireta${dia}${mes}${ano}${hora}${minuto}`;
 
-                // Abre o Modal PIX com dados do pedido para gerar comprovante depois
+                // Abre o Modal PIX - NÃO limpa carrinho ainda, NÃO confirma recebimento
                 await mostrarModalPixEstatico(valorTotal, txId, {
                     ...dadosPedido,
+                    venda_id: vendaId,
                     itens: carrinho,
                     valorTotal: valorTotal
                 }, CONFIG.ID_USUARIO_LOJA);
                 
-                // Limpa carrinho pois a venda foi registrada
-                limparCarrinho();
-                await carregarCarrinhoInicial();
-                atualizarBadgeCarrinho();
+                // Fecha modal de pedido mas mantém carrinho
                 fecharModal('modal-cliente-pedido');
                 
                 // Restaura botão
                 btnConfirmar.disabled = false;
                 btnConfirmar.textContent = '✅ Confirmar Venda';
-                return; // Encerra aqui para manter o modal PIX aberto
+                return; // Encerra aqui - confirmação será feita quando usuário clicar em "Confirmar Recebimento"
             }
 
-            // Fluxo normal (dinheiro, cartão, boleto, offline) - Gera comprovante
-            if (!resultado.offline) {
-                console.log('[App] 🧾 Gerando comprovante de venda...');
+            // DINHEIRO: Mostra modal de confirmação similar ao PIX
+            if (isDinheiro && isVista) {
+                console.log('[App] 💵 Venda DINHEIRO à vista detectada. Mostrando modal de confirmação...');
                 
-                // Importa função de comprovante
-                const { gerarComprovanteVenda } = await import('./pix.js');
+                const valorTotal = calcularTotalCarrinho();
                 
-                // ✅ CORREÇÃO: As parcelas já vêm na resposta da API!
-                // Primeiro tenta usar as parcelas que já vêm na resposta
-                let parcelas = null;
-                
-                // 🔍 DEBUG: Verifica todas as estruturas possíveis
-                console.log('[App] 🔍 DEBUG - Estrutura completa do resultado:', {
-                    resultado_keys: Object.keys(resultado),
-                    resultado_dados: resultado.dados,
-                    resultado_dados_keys: resultado.dados ? Object.keys(resultado.dados) : [],
-                    resultado_dados_parcelas: resultado.dados?.parcelas,
-                    resultado_parcelas: resultado.parcelas
-                });
-                
-                // Tenta encontrar o ID da venda em múltiplas estruturas
-                const vendaId = resultado.dados?.id || resultado.dados?.venda?.id || resultado.id;
-                
-                // Verifica múltiplas possíveis estruturas de dados
-                const parcelasPossiveis = [
-                    resultado.dados?.parcelas,           // Estrutura: {dados: {parcelas: [...]}}
-                    resultado.dados?.venda?.parcelas,    // Estrutura aninhada
-                    resultado.parcelas,                   // Estrutura: {parcelas: [...]}
-                    resultado.dados                       // Se dados já é o array de parcelas (improvável)
-                ];
-                
-                console.log('[App] 🔍 Verificando estruturas de parcelas:', {
-                    estrutura_1: !!parcelasPossiveis[0] && Array.isArray(parcelasPossiveis[0]) ? parcelasPossiveis[0].length : 'não é array',
-                    estrutura_2: !!parcelasPossiveis[1] && Array.isArray(parcelasPossiveis[1]) ? parcelasPossiveis[1].length : 'não é array',
-                    estrutura_3: !!parcelasPossiveis[2] && Array.isArray(parcelasPossiveis[2]) ? parcelasPossiveis[2].length : 'não é array',
-                    estrutura_4: !!parcelasPossiveis[3] && Array.isArray(parcelasPossiveis[3]) ? parcelasPossiveis[3].length : 'não é array'
-                });
-                
-                for (let i = 0; i < parcelasPossiveis.length; i++) {
-                    const parcelaArray = parcelasPossiveis[i];
-                    if (parcelaArray && Array.isArray(parcelaArray) && parcelaArray.length > 0) {
-                        parcelas = parcelaArray;
-                        console.log(`[App] ✅ Parcelas encontradas na estrutura ${i + 1}:`, parcelas.length, 'parcelas');
-                        console.log('[App] 📋 Primeira parcela (exemplo):', parcelas[0]);
-                        break;
-                    }
-                }
-                
-                // Se não encontrou nas estruturas possíveis, busca via API
-                if (!parcelas && dadosPedido.numero_parcelas > 1 && vendaId) {
-                    try {
-                        console.log('[App] 🔍 Parcelas não encontradas na resposta. Buscando via API para venda:', vendaId);
-                        const response = await fetch(`${API_ENDPOINTS.PEDIDO_PARCELAS}?venda_id=${vendaId}`);
-                        if (response.ok) {
-                            const dadosParcelas = await response.json();
-                            parcelas = dadosParcelas.parcelas || null;
-                            console.log('[App] ✅ Parcelas encontradas via API:', parcelas?.length || 0, 'parcelas');
-                        } else {
-                            console.warn('[App] ⚠️ Erro ao buscar parcelas. Status:', response.status);
-                        }
-                    } catch (error) {
-                        console.error('[App] ❌ Erro ao buscar parcelas:', error);
-                    }
-                }
-                
-                if (!parcelas && dadosPedido.numero_parcelas > 1) {
-                    console.warn('[App] ⚠️ ATENÇÃO: Venda parcelada mas parcelas não encontradas!', {
-                        numero_parcelas: dadosPedido.numero_parcelas,
-                        venda_id: vendaId,
-                        estrutura_dados: {
-                            tem_dados: !!resultado.dados,
-                            chaves_dados: resultado.dados ? Object.keys(resultado.dados) : [],
-                            tem_parcelas_direto: !!resultado.dados?.parcelas,
-                            tem_parcelas_venda: !!resultado.dados?.venda?.parcelas,
-                            tem_parcelas_raiz: !!resultado.parcelas,
-                            resultado_completo: resultado
-                        }
-                    });
-                }
-                
-                // Busca dados do cliente se houver (para vendas parceladas)
-                let dadosCliente = null;
-                if (dadosPedido.cliente_id) {
-                    // Se já temos clienteAtual, usa ele
-                    if (clienteAtual) {
-                        dadosCliente = {
-                            nome: clienteAtual.nome_completo || clienteAtual.nome || '',
-                            cpf: clienteAtual.cpf || '',
-                            telefone: clienteAtual.telefone || '',
-                            endereco: clienteAtual.endereco_logradouro || '',
-                            numero: clienteAtual.endereco_numero || '',
-                            complemento: clienteAtual.endereco_complemento || '',
-                            bairro: clienteAtual.endereco_bairro || '',
-                            cidade: clienteAtual.endereco_cidade || '',
-                            estado: clienteAtual.endereco_estado || '',
-                            cep: clienteAtual.endereco_cep || ''
-                        };
-                    } else {
-                        // Se não temos em memória, busca da API
-                        try {
-                            const { API_ENDPOINTS } = await import('./config.js');
-                            const response = await fetch(`${API_ENDPOINTS.CLIENTE}/${dadosPedido.cliente_id}`);
-                            if (response.ok) {
-                                const cliente = await response.json();
-                                dadosCliente = {
-                                    nome: cliente.nome_completo || cliente.nome || '',
-                                    cpf: cliente.cpf || '',
-                                    telefone: cliente.telefone || '',
-                                    endereco: cliente.endereco_logradouro || cliente.logradouro || '',
-                                    numero: cliente.endereco_numero || cliente.numero || '',
-                                    complemento: cliente.endereco_complemento || cliente.complemento || '',
-                                    bairro: cliente.endereco_bairro || cliente.bairro || '',
-                                    cidade: cliente.endereco_cidade || cliente.cidade || '',
-                                    estado: cliente.endereco_estado || cliente.estado || '',
-                                    cep: cliente.endereco_cep || cliente.cep || ''
-                                };
-                            }
-                        } catch (error) {
-                            console.warn('[App] Erro ao buscar dados do cliente:', error);
-                        }
-                    }
-                }
-                
-                console.log('[App] 📋 Dados para comprovante:', {
-                    numero_parcelas: dadosPedido.numero_parcelas,
-                    parcelas_encontradas: parcelas?.length || 0,
-                    tem_cliente: !!dadosCliente,
-                    parcelas_detalhes: parcelas ? parcelas.map(p => ({
-                        numero: p.numero_parcela,
-                        vencimento: p.data_vencimento,
-                        valor: p.valor_parcela
-                    })) : null
-                });
-                
-                // Se não encontrou parcelas mas a venda é parcelada, tenta buscar novamente
-                if (dadosPedido.numero_parcelas > 1 && (!parcelas || parcelas.length === 0) && vendaId) {
-                    console.warn('[App] ⚠️ Parcelas não encontradas na primeira tentativa. Tentando novamente...');
-                    try {
-                        const response = await fetch(`${API_ENDPOINTS.PEDIDO_PARCELAS}?venda_id=${vendaId}`);
-                        if (response.ok) {
-                            const dadosParcelas = await response.json();
-                            parcelas = dadosParcelas.parcelas || null;
-                            console.log('[App] ✅ Parcelas encontradas na segunda tentativa:', parcelas?.length || 0);
-                        }
-                    } catch (error) {
-                        console.error('[App] ❌ Erro na segunda tentativa:', error);
-                    }
-                }
-                
-                await gerarComprovanteVenda(carrinho, {
+                // Mostra modal de confirmação para dinheiro
+                await mostrarModalDinheiro(valorTotal, {
                     ...dadosPedido,
+                    venda_id: vendaId,
                     itens: carrinho,
-                    valorTotal: calcularTotalCarrinho(),
-                    forma_pagamento: formaPagamentoSelecionada?.nome || 'Não informado',
-                    parcelas: parcelas,
-                    cliente: dadosCliente
+                    valorTotal: valorTotal
                 });
+                
+                // Fecha modal de pedido mas mantém carrinho
+                fecharModal('modal-cliente-pedido');
+                
+                // Restaura botão
+                btnConfirmar.disabled = false;
+                btnConfirmar.textContent = '✅ Confirmar Venda';
+                return; // Encerra aqui - confirmação será feita quando usuário clicar em "Confirmar Recebimento"
             }
+
+            // Outros pagamentos (cartão, boleto, etc): Confirma recebimento imediatamente
+            console.log('[App] 🔄 Confirmando recebimento da venda:', vendaId);
             
-            alert(resultado.mensagem || 'Venda realizada com sucesso!');
-            if (!resultado.offline) {
+            try {
+                // Chama endpoint de confirmação de recebimento
+                const { API_ENDPOINTS } = await import('./config.js');
+                const response = await fetch(API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ venda_id: vendaId })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Erro ao confirmar recebimento: ${response.status} - ${errorText}`);
+                }
+
+                const vendaConfirmada = await response.json();
+                console.log('[App] ✅ Recebimento confirmado com sucesso!', vendaConfirmada);
+
+                // ✅ NOVO: Recarrega página PRIMEIRO para atualizar estoques
+                console.log('[App] 🔄 Recarregando página para atualizar estoques...');
+                
+                // Salva dados da venda no sessionStorage para exibir comprovante após reload
+                sessionStorage.setItem('venda_confirmada_comprovante', JSON.stringify({
+                    venda: vendaConfirmada,
+                    dadosPedido: dadosPedido,
+                    carrinho: carrinho,
+                    formaPagamento: formaPagamentoSelecionada?.nome || 'Não informado'
+                }));
+                
+                // Limpa carrinho antes do reload
                 limparCarrinho();
-                await carregarCarrinhoInicial();
-                atualizarBadgeCarrinho();
+                fecharModal('modal-cliente-pedido');
+                
+                // Recarrega página imediatamente
+                window.location.reload();
+                
+            } catch (error) {
+                console.error('[App] ❌ Erro ao confirmar recebimento:', error);
+                alert('Erro ao confirmar recebimento: ' + error.message);
+                btnConfirmar.disabled = false;
+                btnConfirmar.textContent = '✅ Confirmar Venda';
+                return;
             }
+        } else if (resultado.sucesso && resultado.offline) {
+            // Offline: venda salva localmente
+            alert(resultado.mensagem || 'Venda salva localmente. Será enviada quando a conexão for restaurada.');
             fecharModal('modal-cliente-pedido');
+            btnConfirmar.disabled = false;
+            btnConfirmar.textContent = '✅ Confirmar Venda';
         } else {
             alert(`Erro: ${resultado.mensagem}`);
         }
@@ -1200,6 +1126,160 @@ function inicializarMonitoramentoRede() {
         atualizarStatusOnline();
     }, 5000);
 }
+
+/**
+ * Verifica se há comprovante salvo no sessionStorage para exibir após reload
+ */
+async function verificarComprovantePosReload() {
+    try {
+        const dadosSalvos = sessionStorage.getItem('venda_confirmada_comprovante');
+        if (!dadosSalvos) {
+            return; // Não há comprovante para exibir
+        }
+        
+        const dados = JSON.parse(dadosSalvos);
+        sessionStorage.removeItem('venda_confirmada_comprovante'); // Remove para não exibir novamente
+        
+        console.log('[App] 📋 Exibindo comprovante após reload...', dados);
+        
+        // Aguarda um pouco para garantir que a página carregou completamente
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Importa função de comprovante
+        const { gerarComprovanteVenda } = await import('./pix.js');
+        
+        // Gera e exibe o comprovante
+        await gerarComprovanteVenda(dados.carrinho, {
+            ...dados.dadosPedido,
+            venda_id: dados.venda.id,
+            itens: dados.carrinho,
+            valorTotal: dados.venda.valor_total,
+            forma_pagamento: dados.formaPagamento,
+            parcelas: dados.venda.parcelas || null,
+            cliente: dados.venda.cliente || null
+        });
+        
+    } catch (error) {
+        console.error('[App] ❌ Erro ao exibir comprovante após reload:', error);
+    }
+}
+
+/**
+ * Mostra modal de confirmação para pagamento em DINHEIRO
+ */
+async function mostrarModalDinheiro(valorTotal, dadosPedido) {
+    const { formatarMoeda } = await import('./utils.js');
+    
+    // Armazena dados do pedido globalmente
+    window.dadosPedidoDinheiro = {
+        ...dadosPedido,
+        valorTotal: valorTotal
+    };
+    
+    // Atualiza valores no modal
+    const modal = document.getElementById('modal-dinheiro');
+    if (!modal) {
+        console.error('[App] ❌ Modal de dinheiro não encontrado');
+        return;
+    }
+    
+    document.getElementById('dinheiro-valor').textContent = formatarMoeda(valorTotal);
+    
+    // Mostra o modal
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+}
+
+/**
+ * Confirma recebimento de pagamento em DINHEIRO
+ */
+window.confirmarRecebimentoDinheiro = async function() {
+    if (!window.dadosPedidoDinheiro) {
+        alert('Erro: Dados do pedido não encontrados. Por favor, recarregue a página.');
+        return;
+    }
+    
+    const vendaId = window.dadosPedidoDinheiro.venda_id;
+    
+    if (!vendaId) {
+        alert('Erro: ID da venda não encontrado. A venda pode não ter sido criada corretamente.');
+        return;
+    }
+    
+    console.log('[Dinheiro] 🔄 Confirmando recebimento da venda:', vendaId);
+    
+    try {
+        const { API_ENDPOINTS } = await import('./config.js');
+        const response = await fetch(API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ venda_id: vendaId })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Erro ao confirmar recebimento: ${response.status} - ${errorText}`);
+        }
+
+        const vendaConfirmada = await response.json();
+        console.log('[Dinheiro] ✅ Recebimento confirmado com sucesso!', vendaConfirmada);
+        
+        // Recupera carrinho
+        const { getCarrinho } = await import('./cart.js');
+        let carrinho = getCarrinho();
+        if (carrinho.length === 0 && window.dadosPedidoDinheiro.itens) {
+            carrinho = window.dadosPedidoDinheiro.itens;
+        }
+        
+        // Salva dados para exibir comprovante após reload
+        sessionStorage.setItem('venda_confirmada_comprovante', JSON.stringify({
+            venda: vendaConfirmada,
+            dadosPedido: window.dadosPedidoDinheiro,
+            carrinho: carrinho,
+            formaPagamento: 'Dinheiro'
+        }));
+        
+        // Limpa carrinho
+        const { limparCarrinho } = await import('./cart.js');
+        limparCarrinho();
+        
+        // Fecha modal
+        const modal = document.getElementById('modal-dinheiro');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+        document.body.style.overflow = '';
+        
+        // Limpa dados
+        window.dadosPedidoDinheiro = null;
+        
+        // ✅ Reload da página PRIMEIRO, comprovante será exibido após reload
+        console.log('[Dinheiro] 🔄 Recarregando página para atualizar estoques...');
+        window.location.reload();
+        
+    } catch (error) {
+        console.error('[Dinheiro] ❌ Erro ao confirmar recebimento:', error);
+        alert('Erro ao confirmar recebimento: ' + error.message);
+    }
+};
+
+/**
+ * Fecha modal de dinheiro
+ */
+window.fecharModalDinheiro = function() {
+    const modal = document.getElementById('modal-dinheiro');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.body.style.overflow = '';
+    }
+    window.dadosPedidoDinheiro = null;
+};
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 export { init, carregarProdutos, abrirModal, fecharModal };
