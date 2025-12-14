@@ -31,6 +31,14 @@ class ProdutoController extends Controller
         ];
         return $behaviors;
     }
+    
+    /**
+     * Configura o serializer para garantir que metadados de paginação sejam incluídos
+     */
+    public $serializer = [
+        'class' => 'yii\rest\Serializer',
+        'collectionEnvelope' => 'items',
+    ];
 
     /**
      * Lista todos os produtos ativos para o catálogo.

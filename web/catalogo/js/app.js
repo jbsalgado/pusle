@@ -393,29 +393,309 @@ window.limparCarrinhoCompleto = function() {
 // PRODUTOS
 // ==========================================================================
 
-async function carregarProdutos() {
+// Cache de páginas já carregadas (melhora performance)
+const cacheProdutos = new Map();
+let paginaAtual = 1;
+let metadadosPaginacao = null;
+
+/**
+ * Carrega uma página específica de produtos (paginação real)
+ * @param {number} pagina - Número da página a carregar (padrão: 1)
+ * @param {boolean} forcarRecarregar - Se true, ignora cache e recarrega
+ */
+async function carregarProdutos(pagina = 1, forcarRecarregar = false) {
     try {
-        console.log('[App] 📦 Carregando produtos...');
+        // Verifica cache primeiro (a menos que seja forçado recarregar)
+        if (!forcarRecarregar && cacheProdutos.has(pagina)) {
+            console.log(`[App] 📦 Usando cache da página ${pagina}`);
+            const dadosCache = cacheProdutos.get(pagina);
+            produtos = dadosCache.produtos;
+            produtosFiltrados = produtos;
+            paginaAtual = pagina;
+            metadadosPaginacao = dadosCache.metadados;
+            renderizarProdutos(produtosFiltrados);
+            atualizarIndicadoresCarrinho();
+            atualizarControlesPaginacao();
+            ocultarCarregando();
+            return;
+        }
         
-        const url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}`;
+        console.log('[App] 📦 Carregando produtos (página', pagina, ')...');
+        mostrarCarregando();
+        
+        // Usa per-page padrão de 20 (configurado no backend)
+        const url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}&page=${pagina}&per-page=20`;
         const response = await fetch(url);
         
         if (!response.ok) {
             throw new Error(`Erro ${response.status}: ${response.statusText}`);
         }
         
-        produtos = await response.json();
-        console.log('[App] ✅ Produtos carregados:', produtos.length);
+        const data = await response.json();
         
-        produtosFiltrados = produtos; // Inicializa com todos os produtos
+        // DEBUG: Log completo da resposta para identificar o formato
+        console.log('[App] 🔍 DEBUG - Resposta completa da API:', {
+            temItems: !!data.items,
+            temMeta: !!data._meta,
+            temLinks: !!data._links,
+            chaves: Object.keys(data),
+            totalItems: data.items?.length || (Array.isArray(data) ? data.length : 0),
+            estrutura: JSON.stringify(data).substring(0, 500) // Primeiros 500 chars
+        });
+        
+        // A API do Yii2 retorna um objeto com items, _links e _meta quando usa ActiveDataProvider
+        // Mas o formato pode variar dependendo do serializer configurado
+        let produtosPagina = [];
+        let metadados = null;
+        
+        if (data.items && Array.isArray(data.items)) {
+            // Formato paginado do Yii2 (serializer padrão)
+            produtosPagina = data.items;
+            
+            // Tenta diferentes formatos de metadados
+            if (data._meta) {
+                // Formato padrão do Yii2
+                metadados = {
+                    totalCount: data._meta.totalCount || data._meta.total || 0,
+                    pageCount: data._meta.pageCount || Math.ceil((data._meta.totalCount || 0) / (data._meta.perPage || 20)) || 1,
+                    currentPage: data._meta.currentPage || data._meta.page || pagina,
+                    perPage: data._meta.perPage || data._meta.pageSize || 20
+                };
+            } else if (data._links) {
+                // Tenta extrair dos links
+                const lastLink = data._links.last;
+                if (lastLink) {
+                    const lastPageMatch = lastLink.match(/page=(\d+)/);
+                    const lastPage = lastPageMatch ? parseInt(lastPageMatch[1]) : 1;
+                    metadados = {
+                        totalCount: data._meta?.totalCount || 0,
+                        pageCount: lastPage,
+                        currentPage: pagina,
+                        perPage: 20
+                    };
+                }
+            } else {
+                // Fallback: calcula baseado nos items retornados
+                // Se retornou menos que per-page, é a última página
+                const perPage = 20;
+                const totalEstimado = produtosPagina.length < perPage 
+                    ? (pagina - 1) * perPage + produtosPagina.length
+                    : null; // Não sabemos o total exato
+                
+                metadados = {
+                    totalCount: totalEstimado || produtosPagina.length * pagina, // Estimativa
+                    pageCount: totalEstimado ? Math.ceil(totalEstimado / perPage) : pagina + 1, // Estimativa
+                    currentPage: pagina,
+                    perPage: perPage
+                };
+                
+                console.warn('[App] ⚠️ Metadados de paginação não encontrados. Usando estimativas:', metadados);
+            }
+        } else if (Array.isArray(data)) {
+            // Formato direto (array) - sem paginação ou serializer diferente
+            produtosPagina = data;
+            metadados = {
+                totalCount: data.length,
+                pageCount: 1,
+                currentPage: 1,
+                perPage: data.length
+            };
+            console.warn('[App] ⚠️ Resposta não está paginada. Retornou array direto com', data.length, 'itens');
+        } else {
+            console.warn('[App] ⚠️ Formato de resposta inesperado:', data);
+            produtosPagina = [];
+            metadados = {
+                totalCount: 0,
+                pageCount: 1,
+                currentPage: 1,
+                perPage: 20
+            };
+        }
+        
+        // DEBUG: Log dos metadados extraídos
+        console.log('[App] 🔍 DEBUG - Metadados extraídos:', metadados);
+        
+        // Salva no cache
+        cacheProdutos.set(pagina, {
+            produtos: produtosPagina,
+            metadados: metadados
+        });
+        
+        // Atualiza variáveis globais
+        produtos = produtosPagina; // Apenas produtos da página atual
+        produtosFiltrados = produtos;
+        paginaAtual = pagina;
+        metadadosPaginacao = metadados;
+        window.paginacaoMetadados = metadados;
+        
+        console.log(`[App] ✅ Página ${pagina} carregada: ${produtosPagina.length} produto(s) de ${metadados.totalCount} total`);
+        
+        // Renderiza apenas os produtos da página atual
         filtrarProdutos(); // Aplica filtro atual (se houver)
         atualizarIndicadoresCarrinho();
+        atualizarControlesPaginacao();
+        ocultarCarregando();
         
     } catch (error) {
         console.error('[App] Erro ao carregar produtos:', error);
         mostrarErro('Erro ao carregar produtos. Verifique sua conexão.');
+        ocultarCarregando();
     }
 }
+
+/**
+ * Mostra indicador de carregamento
+ */
+function mostrarCarregando() {
+    const carregando = document.getElementById('carregando-produtos');
+    if (carregando) {
+        carregando.classList.remove('hidden');
+    }
+}
+
+/**
+ * Oculta indicador de carregamento
+ */
+function ocultarCarregando() {
+    const carregando = document.getElementById('carregando-produtos');
+    if (carregando) {
+        carregando.classList.add('hidden');
+    }
+}
+
+/**
+ * Atualiza controles de paginação na interface (topo e rodapé)
+ */
+function atualizarControlesPaginacao() {
+    const containerPaginacao = document.getElementById('controles-paginacao');
+    const containerPaginacaoRodape = document.getElementById('controles-paginacao-rodape');
+    
+    if (!containerPaginacao && !containerPaginacaoRodape) {
+        console.warn('[App] ⚠️ Containers de controles de paginação não encontrados');
+        return;
+    }
+    
+    const metadados = metadadosPaginacao || window.paginacaoMetadados;
+    
+    // DEBUG: Log dos metadados
+    console.log('[App] 🔍 DEBUG atualizarControlesPaginacao:', {
+        metadadosPaginacao: metadadosPaginacao,
+        windowPaginacaoMetadados: window.paginacaoMetadados,
+        metadados: metadados,
+        pageCount: metadados?.pageCount,
+        totalCount: metadados?.totalCount
+    });
+    
+    if (!metadados) {
+        console.warn('[App] ⚠️ Metadados de paginação não disponíveis. Ocultando controles.');
+        if (containerPaginacao) containerPaginacao.classList.add('hidden');
+        if (containerPaginacaoRodape) containerPaginacaoRodape.classList.add('hidden');
+        return;
+    }
+    
+    // Mostra controles se houver mais de 1 página OU se totalCount > perPage
+    const deveMostrar = metadados.pageCount > 1 || (metadados.totalCount > metadados.perPage);
+    
+    if (!deveMostrar) {
+        console.log('[App] ℹ️ Apenas 1 página ou menos de perPage produtos. Ocultando controles.');
+        if (containerPaginacao) containerPaginacao.classList.add('hidden');
+        if (containerPaginacaoRodape) containerPaginacaoRodape.classList.add('hidden');
+        return;
+    }
+    
+    console.log('[App] ✅ Mostrando controles de paginação:', {
+        pageCount: metadados.pageCount,
+        currentPage: metadados.currentPage,
+        totalCount: metadados.totalCount,
+        perPage: metadados.perPage
+    });
+    
+    // Calcula informações de exibição
+    const inicio = (metadados.currentPage - 1) * metadados.perPage + 1;
+    const fim = Math.min(metadados.currentPage * metadados.perPage, metadados.totalCount);
+    const textoInfo = `Mostrando ${inicio}-${fim} de ${metadados.totalCount} produtos`;
+    const textoPagina = `Página ${metadados.currentPage} de ${metadados.pageCount}`;
+    const podeAnterior = metadados.currentPage > 1;
+    const podeProxima = metadados.currentPage < metadados.pageCount;
+    
+    // Atualiza controles do topo
+    if (containerPaginacao) {
+        containerPaginacao.classList.remove('hidden');
+        
+        const infoPaginacao = document.getElementById('info-paginacao');
+        if (infoPaginacao) {
+            infoPaginacao.textContent = textoInfo;
+        }
+        
+        const paginaAtualInfo = document.getElementById('pagina-atual-info');
+        if (paginaAtualInfo) {
+            paginaAtualInfo.textContent = textoPagina;
+        }
+        
+        const btnAnterior = document.getElementById('btn-pagina-anterior');
+        const btnProxima = document.getElementById('btn-pagina-proxima');
+        
+        if (btnAnterior) {
+            btnAnterior.disabled = !podeAnterior;
+        }
+        
+        if (btnProxima) {
+            btnProxima.disabled = !podeProxima;
+        }
+    }
+    
+    // Atualiza controles do rodapé
+    if (containerPaginacaoRodape) {
+        containerPaginacaoRodape.classList.remove('hidden');
+        
+        const infoPaginacaoRodape = document.getElementById('info-paginacao-rodape');
+        if (infoPaginacaoRodape) {
+            infoPaginacaoRodape.textContent = textoInfo;
+        }
+        
+        const paginaAtualInfoRodape = document.getElementById('pagina-atual-info-rodape');
+        if (paginaAtualInfoRodape) {
+            paginaAtualInfoRodape.textContent = textoPagina;
+        }
+        
+        const btnAnteriorRodape = document.getElementById('btn-pagina-anterior-rodape');
+        const btnProximaRodape = document.getElementById('btn-pagina-proxima-rodape');
+        
+        if (btnAnteriorRodape) {
+            btnAnteriorRodape.disabled = !podeAnterior;
+        }
+        
+        if (btnProximaRodape) {
+            btnProximaRodape.disabled = !podeProxima;
+        }
+    }
+}
+
+/**
+ * Navega para próxima/anterior página
+ */
+window.navegarPagina = function(direcao) {
+    const metadados = metadadosPaginacao || window.paginacaoMetadados;
+    if (!metadados) {
+        console.warn('[App] Metadados de paginação não disponíveis');
+        return;
+    }
+    
+    const novaPagina = paginaAtual + direcao;
+    if (novaPagina < 1 || novaPagina > metadados.pageCount) {
+        console.warn('[App] Página inválida:', novaPagina);
+        return;
+    }
+    
+    console.log('[App] Navegando para página:', novaPagina);
+    carregarProdutos(novaPagina);
+    
+    // Scroll para o topo do catálogo
+    const container = document.getElementById('catalogo-produtos');
+    if (container) {
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+};
 
 function filtrarProdutos() {
     const termoBusca = document.getElementById('busca-produto')?.value?.toLowerCase().trim() || '';

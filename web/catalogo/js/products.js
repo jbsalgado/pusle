@@ -21,9 +21,12 @@ export function setIdUsuarioLoja(id) {
 }
 
 /**
- * Carrega produtos da API
+ * Carrega produtos da API com suporte a paginação real (carrega apenas uma página por vez)
+ * @param {HTMLElement} catalogoContainer - Container onde os produtos serão renderizados
+ * @param {number} pagina - Número da página a carregar (padrão: 1)
+ * @param {boolean} forcarRecarregar - Se true, ignora cache e recarrega
  */
-export async function carregarProdutos(catalogoContainer) {
+export async function carregarProdutos(catalogoContainer, pagina = 1, forcarRecarregar = false) {
     if (!catalogoContainer) {
         console.error('[Products] Container do catálogo não encontrado');
         return;
@@ -32,25 +35,66 @@ export async function carregarProdutos(catalogoContainer) {
     try {
         // Usar ID da loja do CONFIG (detectado pelo path)
         idUsuarioLoja = CONFIG.ID_USUARIO_LOJA;
-        console.log('[Products] Carregando produtos para loja:', idUsuarioLoja);
+        console.log('[Products] Carregando produtos para loja:', idUsuarioLoja, '(página', pagina, ')');
         
-        // Filtrar produtos por usuario_id
-        const url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${idUsuarioLoja}`;
+        // Filtrar produtos por usuario_id com paginação (20 por página - padrão do backend)
+        const url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${idUsuarioLoja}&page=${pagina}&per-page=20`;
         const response = await fetch(url, { cache: 'no-cache' });
         
         if (!response.ok) throw new Error(`Erro: ${response.statusText}`);
 
         const data = await response.json();
-        const produtos = data.items || data;
+        
+        // A API do Yii2 retorna um objeto com items, _links e _meta quando usa ActiveDataProvider
+        let produtosPagina = [];
+        let metadados = null;
+        
+        if (data.items && Array.isArray(data.items)) {
+            // Formato paginado do Yii2
+            produtosPagina = data.items;
+            metadados = {
+                totalCount: data._meta?.totalCount || 0,
+                pageCount: data._meta?.pageCount || 1,
+                currentPage: data._meta?.currentPage || pagina,
+                perPage: data._meta?.perPage || 20
+            };
+        } else if (Array.isArray(data)) {
+            // Formato direto (array) - fallback
+            produtosPagina = data;
+            metadados = {
+                totalCount: data.length,
+                pageCount: 1,
+                currentPage: 1,
+                perPage: data.length
+            };
+        } else {
+            console.warn('[Products] ⚠️ Formato de resposta inesperado:', data);
+            produtosPagina = [];
+            metadados = {
+                totalCount: 0,
+                pageCount: 1,
+                currentPage: 1,
+                perPage: 20
+            };
+        }
 
-        if (!produtos || produtos.length === 0) {
-            catalogoContainer.innerHTML = '<p class="col-span-full text-center text-gray-500">Nenhum produto disponível para esta loja.</p>';
-            console.log('[Products] Nenhum produto encontrado para esta loja');
+        if (!produtosPagina || produtosPagina.length === 0) {
+            if (pagina === 1) {
+                catalogoContainer.innerHTML = '<p class="col-span-full text-center text-gray-500">Nenhum produto disponível para esta loja.</p>';
+                console.log('[Products] Nenhum produto encontrado para esta loja');
+            }
             return;
         }
 
-        console.log(`[Products] ${produtos.length} produto(s) carregado(s) com sucesso`);
-        renderizarProdutos(produtos, catalogoContainer);
+        console.log(`[Products] ✅ Página ${pagina} carregada: ${produtosPagina.length} produto(s) de ${metadados.totalCount} total`);
+        
+        // Limpa container e renderiza apenas produtos da página atual
+        catalogoContainer.innerHTML = '';
+        renderizarProdutos(produtosPagina, catalogoContainer, false);
+        
+        // Expõe metadados globalmente para controles de paginação
+        window.paginacaoMetadados = metadados;
+        
     } catch (error) {
         console.error('[Products] Erro ao carregar produtos:', error);
         catalogoContainer.innerHTML = '<p class="col-span-full text-center text-red-600">Erro ao carregar produtos.</p>';
@@ -59,9 +103,14 @@ export async function carregarProdutos(catalogoContainer) {
 
 /**
  * Renderiza produtos no catálogo
+ * @param {Array} produtos - Array de produtos a renderizar
+ * @param {HTMLElement} container - Container onde os produtos serão renderizados
+ * @param {boolean} limparAntes - Se true, limpa o container antes de adicionar (padrão: false para paginação)
  */
-function renderizarProdutos(produtos, container) {
-    container.innerHTML = '';
+function renderizarProdutos(produtos, container, limparAntes = false) {
+    if (limparAntes) {
+        container.innerHTML = '';
+    }
     
     produtos.forEach(produto => {
         const card = criarCardProduto(produto);
