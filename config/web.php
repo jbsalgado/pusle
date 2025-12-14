@@ -23,6 +23,32 @@ $config = [
         'request' => [
             // !!! insert a secret key in the following (if it is empty) - this is required by cookie validation
             'cookieValidationKey' => 'your-secret-key-here-change-in-production',
+            // Detecta automaticamente o baseUrl baseado no SCRIPT_NAME
+            // Isso permite que funcione tanto com /pulse/web/index.php quanto sem
+            // Na VPS, se o DocumentRoot está em /pulse/web, o SCRIPT_NAME será /index.php
+            // Se o DocumentRoot está na raiz, o SCRIPT_NAME será /pulse/web/index.php
+            'baseUrl' => (function() {
+                if (!isset($_SERVER['SCRIPT_NAME'])) {
+                    return '';
+                }
+                
+                $scriptName = $_SERVER['SCRIPT_NAME'];
+                
+                // Remove /index.php do final do SCRIPT_NAME para obter o baseUrl
+                $baseUrl = dirname($scriptName);
+                
+                // Normaliza o caminho (remove barras duplas, pontos, etc)
+                $baseUrl = str_replace(['\\', '//'], '/', $baseUrl);
+                $baseUrl = rtrim($baseUrl, '/');
+                
+                // Se o baseUrl for apenas /, retorna vazio
+                if ($baseUrl === '/' || $baseUrl === '' || $baseUrl === '.') {
+                    return '';
+                }
+                
+                // Retorna o baseUrl normalizado (garante que comece com /)
+                return $baseUrl;
+            })(),
         ],
         'cache' => [
             'class' => 'yii\caching\FileCache',
