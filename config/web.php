@@ -23,9 +23,8 @@ $config = [
         'request' => [
             // !!! insert a secret key in the following (if it is empty) - this is required by cookie validation
             'cookieValidationKey' => 'your-secret-key-here-change-in-production',
-            // Detecta automaticamente o baseUrl baseado no SCRIPT_NAME
-            // Isso permite que funcione tanto com /pulse/web/index.php quanto sem
-            // Na VPS, se o DocumentRoot está em /pulse/web, o SCRIPT_NAME será /index.php
+            // Detecta automaticamente o baseUrl baseado no SCRIPT_NAME e REQUEST_URI
+            // Se o DocumentRoot está em /srv/http/pulse/web, o SCRIPT_NAME será /index.php
             // Se o DocumentRoot está na raiz, o SCRIPT_NAME será /pulse/web/index.php
             'baseUrl' => (function() {
                 if (!isset($_SERVER['SCRIPT_NAME'])) {
@@ -33,6 +32,7 @@ $config = [
                 }
                 
                 $scriptName = $_SERVER['SCRIPT_NAME'];
+                $requestUri = $_SERVER['REQUEST_URI'] ?? '';
                 
                 // Remove /index.php do final do SCRIPT_NAME para obter o baseUrl
                 $baseUrl = dirname($scriptName);
@@ -43,6 +43,18 @@ $config = [
                 
                 // Se o baseUrl for apenas /, retorna vazio
                 if ($baseUrl === '/' || $baseUrl === '' || $baseUrl === '.') {
+                    return '';
+                }
+                
+                // CORREÇÃO: Se o SCRIPT_NAME é /index.php, o DocumentRoot está em /pulse/web
+                // então o baseUrl deve ser vazio (URLs devem ser /vendas/inicio, não /pulse/web/vendas/inicio)
+                // EXCETO se a REQUEST_URI contém /pulse/web (acesso direto via URL com caminho completo)
+                if ($scriptName === '/index.php') {
+                    // Se a REQUEST_URI contém /pulse/web, está acessando via URL completa
+                    if (strpos($requestUri, '/pulse/web') !== false) {
+                        return '/pulse/web';
+                    }
+                    // Caso contrário, DocumentRoot está correto, baseUrl é vazio
                     return '';
                 }
                 
