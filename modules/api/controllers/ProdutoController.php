@@ -71,6 +71,27 @@ class ProdutoController extends Controller
             ->where(['ativo' => true, 'usuario_id' => $usuarioId])
             ->with(['fotos', 'categoria']);
 
+        // Suporte a busca por nome do produto
+        $busca = \Yii::$app->request->get('q') ?: \Yii::$app->request->get('busca');
+        if ($busca && trim($busca) !== '') {
+            $termoBusca = trim($busca);
+            // Busca case-insensitive usando ILIKE (PostgreSQL)
+            // Adiciona wildcards manualmente para buscar em qualquer parte do nome
+            // Escapa caracteres especiais do SQL LIKE/ILIKE (% e _)
+            $termoBuscaEscapado = str_replace(['%', '_', '\\'], ['\%', '\_', '\\\\'], $termoBusca);
+            $termoBuscaComWildcards = '%' . $termoBuscaEscapado . '%';
+            
+            if (\Yii::$app->db->driverName === 'pgsql') {
+                // PostgreSQL: usa ILIKE para busca case-insensitive
+                // O terceiro parâmetro false indica que o valor já está escapado e não precisa de escape adicional
+                $query->andWhere(['ilike', 'nome', $termoBuscaComWildcards, false]);
+            } else {
+                // Outros bancos: usa LIKE com LOWER para busca case-insensitive
+                $query->andWhere(['like', new \yii\db\Expression('LOWER(nome)'), strtolower($termoBuscaComWildcards), false]);
+            }
+            \Yii::info("Aplicando filtro de busca: {$termoBusca}", 'api');
+        }
+
         return new ActiveDataProvider([
             'query' => $query,
             'pagination' => [

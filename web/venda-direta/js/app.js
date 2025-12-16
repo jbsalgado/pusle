@@ -267,11 +267,13 @@ window.removerItem = function(index) {
  * Carrega uma página específica de produtos (paginação real)
  * @param {number} pagina - Número da página a carregar (padrão: 1)
  * @param {boolean} forcarRecarregar - Se true, ignora cache e recarrega
+ * @param {string} termoBusca - Termo de busca opcional para filtrar produtos
  */
-async function carregarProdutos(pagina = 1, forcarRecarregar = false) {
+async function carregarProdutos(pagina = 1, forcarRecarregar = false, termoBusca = '') {
     try {
-        // Verifica cache primeiro (a menos que seja forçado recarregar)
-        if (!forcarRecarregar && cacheProdutos.has(pagina)) {
+        // Para busca, não usa cache (busca sempre precisa ser atualizada)
+        const cacheKey = termoBusca ? `${pagina}_${termoBusca}` : pagina;
+        if (!forcarRecarregar && !termoBusca && cacheProdutos.has(pagina)) {
             console.log(`[App] 📦 Usando cache da página ${pagina}`);
             const dadosCache = cacheProdutos.get(pagina);
             produtos = dadosCache.produtos;
@@ -284,11 +286,14 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false) {
             return;
         }
         
-        console.log('[App] 📦 Carregando produtos (página', pagina, ')...');
+        console.log('[App] 📦 Carregando produtos (página', pagina, termoBusca ? `, busca: "${termoBusca}"` : '', ')...');
         mostrarCarregando();
         
-        // Usa per-page padrão de 20 (configurado no backend)
-        const url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}&page=${pagina}&per-page=20`;
+        // Constrói URL com parâmetros de busca se houver
+        let url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}&page=${pagina}&per-page=20`;
+        if (termoBusca && termoBusca.trim() !== '') {
+            url += `&q=${encodeURIComponent(termoBusca.trim())}`;
+        }
         const response = await fetch(url);
         
         if (!response.ok) {
@@ -350,23 +355,25 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false) {
             };
         }
         
-        // Salva no cache
-        cacheProdutos.set(pagina, {
-            produtos: produtosPagina,
-            metadados: metadados
-        });
+        // Salva no cache apenas se não for busca (busca não deve ser cacheada)
+        if (!termoBusca) {
+            cacheProdutos.set(pagina, {
+                produtos: produtosPagina,
+                metadados: metadados
+            });
+        }
         
         // Atualiza variáveis globais
         produtos = produtosPagina; // Apenas produtos da página atual
-        produtosFiltrados = produtos;
+        produtosFiltrados = produtos; // Quando vem da API com busca, já está filtrado
         paginaAtual = pagina;
         metadadosPaginacao = metadados;
         window.paginacaoMetadados = metadados;
         
-        console.log(`[App] ✅ Página ${pagina} carregada: ${produtosPagina.length} produto(s) de ${metadados.totalCount} total`);
+        console.log(`[App] ✅ Página ${pagina} carregada: ${produtosPagina.length} produto(s) de ${metadados.totalCount} total${termoBusca ? ` (busca: "${termoBusca}")` : ''}`);
         
-        // Renderiza apenas os produtos da página atual
-        filtrarProdutos(); // Aplica filtro atual (se houver)
+        // Renderiza os produtos (já filtrados pela API se houver busca)
+        renderizarProdutos(produtosFiltrados);
         atualizarControlesPaginacao();
         ocultarCarregando();
         
@@ -515,8 +522,12 @@ window.navegarPagina = function(direcao) {
     }
 };
 
-function filtrarProdutos() {
-    const termoBusca = document.getElementById('busca-produto')?.value?.toLowerCase().trim() || '';
+/**
+ * Filtra produtos - se houver termo de busca, recarrega da API
+ * Caso contrário, mostra todos os produtos da página atual
+ */
+async function filtrarProdutos() {
+    const termoBusca = document.getElementById('busca-produto')?.value?.trim() || '';
     const btnLimpar = document.getElementById('btn-limpar-busca');
     
     // Mostra/oculta botão de limpar busca
@@ -525,14 +536,14 @@ function filtrarProdutos() {
     }
     
     if (!termoBusca) {
+        // Sem busca: usa produtos já carregados
         produtosFiltrados = produtos;
+        renderizarProdutos(produtosFiltrados);
     } else {
-        produtosFiltrados = produtos.filter(produto => 
-            produto.nome.toLowerCase().includes(termoBusca)
-        );
+        // Com busca: recarrega da API (vai buscar em todas as páginas, não apenas na atual)
+        console.log('[App] 🔍 Buscando produtos na API com termo:', termoBusca);
+        await carregarProdutos(1, true, termoBusca); // Sempre começa na página 1 quando busca
     }
-    
-    renderizarProdutos(produtosFiltrados);
 }
 
 function inicializarBuscaProdutos() {
@@ -543,25 +554,26 @@ function inicializarBuscaProdutos() {
     let timeoutId;
     inputBusca.addEventListener('input', (e) => {
         clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => {
-            filtrarProdutos();
+        timeoutId = setTimeout(async () => {
+            await filtrarProdutos();
         }, 300); // Aguarda 300ms após parar de digitar
     });
     
     // Filtra ao pressionar Enter
-    inputBusca.addEventListener('keypress', (e) => {
+    inputBusca.addEventListener('keypress', async (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            filtrarProdutos();
+            await filtrarProdutos();
         }
     });
 }
 
-window.limparBusca = function() {
+window.limparBusca = async function() {
     const inputBusca = document.getElementById('busca-produto');
     if (inputBusca) {
         inputBusca.value = '';
-        filtrarProdutos();
+        // Recarrega produtos sem busca (volta para página 1)
+        await carregarProdutos(1, true, '');
         inputBusca.focus();
     }
 };

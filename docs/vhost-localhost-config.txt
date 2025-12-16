@@ -1,0 +1,45 @@
+# ==========================================
+# CONFIGURAÇÃO DO VIRTUALHOST PARA LOCALHOST
+# ==========================================
+# 
+# Para que as URLs funcionem de forma idêntica em localhost e VPS,
+# adicione este VirtualHost ao arquivo /etc/httpd/conf/extra/httpd-vhosts.conf
+#
+# INSTRUÇÕES:
+# 1. Execute: sudo nano /etc/httpd/conf/extra/httpd-vhosts.conf
+# 2. Adicione o bloco abaixo ao final do arquivo
+# 3. Descomente a linha no httpd.conf: sudo nano /etc/httpd/conf/httpd.conf
+#    Procure por: #Include conf/extra/httpd-vhosts.conf
+#    Mude para: Include conf/extra/httpd-vhosts.conf
+# 4. Reinicie o Apache: sudo systemctl reload httpd
+# 5. Adicione ao /etc/hosts: echo "127.0.0.1 pulse.localhost" | sudo tee -a /etc/hosts
+#
+# ==========================================
+
+# PULSE - LOCALHOST (Desenvolvimento)
+# Configurado para funcionar de forma idêntica à VPS
+<VirtualHost *:80>
+    ServerName pulse.localhost
+    ServerAlias localhost
+    DocumentRoot "/srv/http/pulse/web"
+
+    <Directory "/srv/http/pulse/web">
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+        RewriteEngine on
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteCond %{REQUEST_FILENAME} !-d
+        RewriteRule . index.php
+    </Directory>
+
+    ErrorLog /var/log/httpd/pulse-localhost-error.log
+    CustomLog /var/log/httpd/pulse-localhost-access.log combined
+</VirtualHost>
+
+# ==========================================
+# ALTERNATIVA: Se preferir manter o VirtualHost padrão,
+# apenas ajuste o DocumentRoot existente para:
+# DocumentRoot "/srv/http/pulse/web"
+# ==========================================
+
