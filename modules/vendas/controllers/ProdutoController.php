@@ -211,6 +211,18 @@ class ProdutoController extends Controller
         $model->usuario_id = $lojaId; // Registra na loja do dono
         $model->ativo = true;
 
+        // Pré-preenche categoria se vier via GET (ex: vindo da view de outro produto)
+        $categoriaId = Yii::$app->request->get('categoria_id');
+        if ($categoriaId) {
+            // Verifica se a categoria pertence à loja do usuário
+            $categoria = Categoria::find()
+                ->where(['id' => $categoriaId, 'usuario_id' => $lojaId, 'ativo' => true])
+                ->one();
+            if ($categoria) {
+                $model->categoria_id = $categoriaId;
+            }
+        }
+
         // Carrega configuração financeira global
         $dadosFinanceiros = DadosFinanceiros::getConfiguracaoGlobal($lojaId);
 

@@ -16,6 +16,18 @@ $this->params['breadcrumbs'][] = $this->title;
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <h1 class="text-3xl font-bold text-gray-900"><?= Html::encode($this->title) ?></h1>
             <div class="flex flex-wrap gap-2">
+                <?php
+                // URL para criar novo produto, pré-preenchendo a categoria se existir
+                $createUrl = ['create'];
+                if ($model->categoria_id) {
+                    $createUrl['categoria_id'] = $model->categoria_id;
+                }
+                ?>
+                <?= Html::a(
+                    '<svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Novo Produto',
+                    $createUrl,
+                    ['class' => 'inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-300']
+                ) ?>
                 <?= Html::a(
                     '<svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>Editar',
                     ['update', 'id' => $model->id],

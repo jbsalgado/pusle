@@ -1004,6 +1004,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const isNewRecord = <?= $model->isNewRecord ? 'true' : 'false' ?>;
         
         if (isNewRecord) {
+            // Gera código automaticamente se a categoria já vier pré-preenchida
+            const categoriaPreenchida = categoriaSelect.value;
+            if (categoriaPreenchida && !codigoReferenciaInput.value) {
+                gerarCodigoReferencia(categoriaPreenchida);
+            }
+            
             categoriaSelect.addEventListener('change', function() {
                 const categoriaId = this.value;
                 if (categoriaId) {
@@ -1065,32 +1071,83 @@ document.addEventListener('DOMContentLoaded', function() {
     const produtoNomeInput = document.getElementById('produto-nome');
     const produtoDescricaoInput = document.getElementById('produto-descricao');
     let isUpdatingDescricao = false; // Flag para evitar loops
-    let descricaoUsuarioOriginal = ''; // Armazena a parte do usuário original
+    let nomeAnterior = produtoNomeInput ? produtoNomeInput.value.trim() : ''; // Armazena o nome anterior
+    let descricaoUsuarioOriginal = ''; // Armazena apenas a parte do usuário (sem o nome)
     
     /**
-     * Extrai a parte do usuário da descrição (remove o nome do produto)
+     * Extrai a parte do usuário da descrição removendo o nome do produto
+     * Esta função remove o nome do início da descrição, considerando variações
      */
     function extrairParteUsuario(nome, descricao) {
         if (!nome || !descricao) {
             return descricao || '';
         }
         
-        const prefixo = nome + ' - ';
-        if (descricao.startsWith(prefixo)) {
-            return descricao.substring(prefixo.length);
-        } else if (descricao === nome) {
-            return '';
-        } else if (descricao.startsWith(nome)) {
-            // Se começa com nome mas sem ' - ', assume que é tudo do usuário
-            return descricao.substring(nome.length).replace(/^[\s-]+/, '');
+        // Remove espaços extras
+        const descricaoTrim = descricao.trim();
+        const nomeTrim = nome.trim();
+        
+        if (!nomeTrim) {
+            return descricaoTrim;
         }
         
-        // Se não começa com o nome, assume que é tudo do usuário
-        return descricao;
+        // Caso 1: Descrição começa com "NOME - "
+        const prefixoComHifen = nomeTrim + ' - ';
+        if (descricaoTrim.startsWith(prefixoComHifen)) {
+            return descricaoTrim.substring(prefixoComHifen.length);
+        }
+        
+        // Caso 2: Descrição é exatamente igual ao nome
+        if (descricaoTrim === nomeTrim) {
+            return '';
+        }
+        
+        // Caso 3: Descrição começa apenas com o nome (sem " - ")
+        if (descricaoTrim.startsWith(nomeTrim)) {
+            const resto = descricaoTrim.substring(nomeTrim.length);
+            // Remove espaços, hífens e caracteres separadores do início
+            return resto.replace(/^[\s\-–—]+/, '');
+        }
+        
+        // Caso 4: Descrição não começa com o nome - retorna tudo como parte do usuário
+        return descricaoTrim;
+    }
+    
+    /**
+     * Remove o nome da descrição usando o nome ANTERIOR (para quando o nome muda)
+     * Retorna apenas a parte do usuário, removendo qualquer ocorrência do nome antigo
+     */
+    function limparNomeDaDescricao(nomeAntigo, descricao) {
+        if (!nomeAntigo || !descricao) {
+            return descricao || '';
+        }
+        
+        let resultado = descricao.trim();
+        const nomeTrim = nomeAntigo.trim();
+        
+        if (!nomeTrim) {
+            return resultado;
+        }
+        
+        // Escapa caracteres especiais para regex
+        const nomeEscapado = nomeTrim.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        
+        // Remove do início: "NOME" ou "NOME - " ou "NOME -" etc
+        resultado = resultado.replace(new RegExp('^' + nomeEscapado + '\\s*-?\\s*', 'i'), '');
+        
+        // Se ainda há conteúdo, pode ter ocorrências no meio ou fim - vamos tentar limpar
+        // Remove ocorrências intermediárias: " - NOME - " ou " - NOME"
+        resultado = resultado.replace(new RegExp('\\s*-\\s*' + nomeEscapado + '(\\s*-\\s*|\\s*$)', 'gi'), '');
+        
+        // Limpa múltiplos espaços, hífens duplicados e espaços nas extremidades
+        resultado = resultado.replace(/\s+/g, ' ').replace(/\s*-\s*-\s*/g, ' - ').trim();
+        
+        return resultado;
     }
     
     /**
      * Atualiza a descrição concatenando nome + ' - ' + descrição do usuário
+     * IMPORTANTE: Sempre limpa a descrição completamente antes de reconstruir
      */
     function atualizarDescricaoComNome() {
         if (!produtoNomeInput || !produtoDescricaoInput || isUpdatingDescricao) {
@@ -1099,40 +1156,83 @@ document.addEventListener('DOMContentLoaded', function() {
         
         isUpdatingDescricao = true;
         
-        const nome = produtoNomeInput.value.trim();
+        const nomeAtual = produtoNomeInput.value.trim();
         const descricaoAtual = produtoDescricaoInput.value.trim();
         
         // Se não há nome, mantém a descrição como está
-        if (!nome) {
+        if (!nomeAtual) {
             isUpdatingDescricao = false;
             return;
         }
         
-        // Extrai a parte do usuário
-        const parteUsuario = extrairParteUsuario(nome, descricaoAtual);
+        // Detecta se o nome mudou
+        const nomeMudou = nomeAnterior && nomeAnterior !== nomeAtual;
+        
+        let parteUsuario = '';
+        
+        if (nomeMudou) {
+            // Nome mudou: usa o nome ANTERIOR para extrair a parte do usuário
+            // Isso é crítico porque a descrição atual pode ter o nome antigo, não o novo
+            const parteExtraida = extrairParteUsuario(nomeAnterior, descricaoAtual);
+            
+            // Limpa qualquer ocorrência remanescente do nome antigo
+            parteUsuario = limparNomeDaDescricao(nomeAnterior, parteExtraida);
+            
+            // Se a parte extraída ainda contém o nome antigo ou parece duplicada, reseta
+            // Detecta duplicações: se a parte extraída é muito longa ou contém o nome antigo
+            if (parteUsuario.length > 100 || parteUsuario.toLowerCase().includes(nomeAnterior.toLowerCase())) {
+                // Parece haver duplicações, reseta para vazio
+                parteUsuario = '';
+            }
+        } else {
+            // Nome não mudou: extrai a parte do usuário normalmente
+            parteUsuario = extrairParteUsuario(nomeAtual, descricaoAtual);
+        }
+        
+        // Limpa espaços extras da parte do usuário
+        parteUsuario = parteUsuario.trim();
+        
+        // Armazena a parte do usuário limpa
         descricaoUsuarioOriginal = parteUsuario;
         
-        // Constrói a descrição final
-        let descricaoFinal = nome;
+        // Constrói a descrição final: sempre limpa e nova
+        let descricaoFinal = nomeAtual;
         if (parteUsuario) {
-            descricaoFinal = nome + ' - ' + parteUsuario;
+            descricaoFinal = nomeAtual + ' - ' + parteUsuario;
         }
         
-        // Atualiza apenas se realmente mudou
-        if (produtoDescricaoInput.value !== descricaoFinal) {
-            produtoDescricaoInput.value = descricaoFinal;
-        }
+        // Atualiza a descrição (sempre, para garantir que está correta)
+        produtoDescricaoInput.value = descricaoFinal;
+        
+        // Atualiza o nome anterior para a próxima comparação
+        nomeAnterior = nomeAtual;
         
         isUpdatingDescricao = false;
     }
     
     // Atualiza descrição quando o nome muda (apenas no blur para evitar loops)
     if (produtoNomeInput && produtoDescricaoInput) {
+        // Inicializa nomeAnterior com o valor atual ao carregar
+        nomeAnterior = produtoNomeInput.value.trim();
+        
+        // Atualiza nomeAnterior quando o campo perde o foco (depois da atualização)
         produtoNomeInput.addEventListener('blur', function() {
             atualizarDescricaoComNome();
+            // Atualiza nomeAnterior após processar
+            nomeAnterior = produtoNomeInput.value.trim();
         });
         
-        // Quando o usuário digita na descrição, preserva apenas a parte após ' - '
+        // Também monitora mudanças durante a digitação (para atualizar nomeAnterior)
+        produtoNomeInput.addEventListener('input', function() {
+            // Não atualiza descrição durante digitação, apenas no blur
+            // Mas atualiza nomeAnterior se detectar que mudou significativamente
+            const nomeAtual = this.value.trim();
+            if (nomeAnterior && nomeAnterior !== nomeAtual && nomeAtual.length > 0) {
+                // Nome mudou, mas aguarda blur para atualizar descrição
+            }
+        });
+        
+        // Quando o usuário digita na descrição, limpa e reconstrói para evitar duplicações
         produtoDescricaoInput.addEventListener('input', function() {
             if (isUpdatingDescricao) {
                 return;
@@ -1142,19 +1242,22 @@ document.addEventListener('DOMContentLoaded', function() {
             const descricaoAtual = this.value.trim();
             
             if (nome) {
+                // Extrai a parte do usuário da descrição atual
                 const parteUsuario = extrairParteUsuario(nome, descricaoAtual);
-                descricaoUsuarioOriginal = parteUsuario;
                 
-                // Reconstrói com o nome se necessário
-                const prefixo = nome + ' - ';
-                if (!descricaoAtual.startsWith(prefixo) && descricaoAtual !== nome) {
+                // Se extraiu algo diferente, reconstrói completamente
+                const prefixoEsperado = nome + ' - ';
+                const descricaoEsperada = parteUsuario ? prefixoEsperado + parteUsuario : nome;
+                
+                // Se a descrição não está no formato esperado, reconstrói
+                if (descricaoAtual !== descricaoEsperada && descricaoAtual !== nome) {
                     isUpdatingDescricao = true;
-                    if (parteUsuario) {
-                        this.value = nome + ' - ' + parteUsuario;
-                    } else {
-                        this.value = nome;
-                    }
+                    produtoDescricaoInput.value = descricaoEsperada;
+                    descricaoUsuarioOriginal = parteUsuario;
                     isUpdatingDescricao = false;
+                } else {
+                    // Atualiza a parte do usuário armazenada
+                    descricaoUsuarioOriginal = parteUsuario;
                 }
             }
         });
@@ -1164,18 +1267,22 @@ document.addEventListener('DOMContentLoaded', function() {
             const nome = produtoNomeInput.value.trim();
             const descricao = produtoDescricaoInput.value.trim();
             
-            // Se a descrição não começa com o nome, adiciona
-            if (nome && !descricao.startsWith(nome)) {
-                const parteUsuario = descricao;
-                if (parteUsuario) {
-                    produtoDescricaoInput.value = nome + ' - ' + parteUsuario;
-                } else {
-                    produtoDescricaoInput.value = nome;
-                }
+            // Extrai a parte do usuário corretamente
+            if (nome) {
+                const parteUsuario = extrairParteUsuario(nome, descricao);
                 descricaoUsuarioOriginal = parteUsuario;
-            } else if (nome && descricao.startsWith(nome + ' - ')) {
-                // Extrai a parte do usuário
-                descricaoUsuarioOriginal = descricao.substring((nome + ' - ').length);
+                
+                // Reconstroi a descrição no formato correto se necessário
+                const prefixoEsperado = nome + ' - ';
+                if (parteUsuario) {
+                    if (!descricao.startsWith(prefixoEsperado)) {
+                        produtoDescricaoInput.value = prefixoEsperado + parteUsuario;
+                    }
+                } else {
+                    if (descricao !== nome) {
+                        produtoDescricaoInput.value = nome;
+                    }
+                }
             }
         }
     }
@@ -2369,6 +2476,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         select2Instance.results.loadingMore = function() {
                             return false;
                         };
+                    }
+                }
+                
+                // Se há categoria pré-preenchida e código ainda não foi gerado, gera automaticamente
+                const isNewRecord = <?= $model->isNewRecord ? 'true' : 'false' ?>;
+                if (isNewRecord) {
+                    const categoriaId = categoriaSelect.val();
+                    const codigoInput = document.getElementById('produto-codigo_referencia');
+                    if (categoriaId && codigoInput && !codigoInput.value) {
+                        // Aguarda um pouco mais para garantir que tudo está pronto
+                        setTimeout(function() {
+                            gerarCodigoReferencia(categoriaId);
+                        }, 300);
                     }
                 }
             }
