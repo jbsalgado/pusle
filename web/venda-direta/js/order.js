@@ -4,7 +4,7 @@
 import { CONFIG, API_ENDPOINTS, GATEWAY_CONFIG } from './config.js';
 import { salvarPedidoPendente } from './storage.js';
 import { validarUUID } from './utils.js';
-import { getAcrescimo } from './cart.js';
+import { getAcrescimo } from './cart.js?v=surcharge_fix';
 
 /**
  * Valida dados do pedido antes de enviar (VENDA DIRETA - cliente opcional)

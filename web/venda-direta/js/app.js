@@ -5,7 +5,7 @@ import {
     aumentarQuantidadeItem, diminuirQuantidadeItem, calcularTotalCarrinho,
     calcularTotalItens, limparCarrinho, atualizarIndicadoresCarrinho,
     atualizarBadgeProduto, aplicarDescontoItem, getAcrescimo, setAcrescimo
-} from './cart.js';
+} from './cart.js?v=surcharge_fix';
 import { carregarCarrinho, limparDadosLocaisPosSinc, carregarFormasPagamentoCache } from './storage.js';
 import { finalizarPedido } from './order.js';
 import { carregarFormasPagamento } from './payment.js';
