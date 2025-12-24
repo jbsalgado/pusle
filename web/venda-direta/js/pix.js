@@ -815,10 +815,28 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
     }
     
     // Calcula totais
+    // Calcula totais
     const valorTotal = carrinho.reduce((total, item) => {
-        const preco = parseFloat(item.preco || item.preco_venda_sugerido || 0);
+        // Normalização de campos
+        const preco = parseFloat(item.preco || item.preco_venda_sugerido || item.preco_unitario || item.preco_unitario_venda || 0);
         const qtd = parseFloat(item.quantidade || 0);
-        return total + (preco * qtd);
+        const subtotalBruto = preco * qtd;
+        
+        // Processa desconto
+        let descontoValor = parseFloat(item.descontoValor || item.desconto_valor || 0);
+        let descontoPercentual = parseFloat(item.descontoPercentual || item.desconto_percentual || 0);
+        
+        let valorDesconto = 0;
+        if (descontoValor > 0) {
+            valorDesconto = descontoValor;
+        } else if (descontoPercentual > 0) {
+            valorDesconto = subtotalBruto * (descontoPercentual / 100);
+        }
+        
+        // Total Líquido
+        const subtotalLiquido = Math.max(0, subtotalBruto - valorDesconto);
+        
+        return total + subtotalLiquido;
     }, 0);
     
     // Formata valor
@@ -1014,17 +1032,41 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
     <div class="separador">--------------------------------</div>
     
     ${carrinho.map(item => {
-        const preco = parseFloat(item.preco || item.preco_venda_sugerido || 0);
+        // Normalização de campos (compatível com frontend e backend/snake_case)
+        const preco = parseFloat(item.preco || item.preco_venda_sugerido || item.preco_unitario || item.preco_unitario_venda || 0);
         const qtd = parseFloat(item.quantidade || 0);
-        const subtotal = preco * qtd;
-        const nomeProduto = item.nome || item.descricao || item.nome_produto || 'Produto';
+        
+        // Subtotal Bruto
+        const subtotalBruto = preco * qtd;
+        
+        // Processa desconto
+        let descontoValor = parseFloat(item.descontoValor || item.desconto_valor || 0);
+        let descontoPercentual = parseFloat(item.descontoPercentual || item.desconto_percentual || 0);
+        
+        let valorDesconto = 0;
+        if (descontoValor > 0) {
+            valorDesconto = descontoValor;
+        } else if (descontoPercentual > 0) {
+            valorDesconto = subtotalBruto * (descontoPercentual / 100);
+        }
+        
+        // Total Líquido do Item
+        const subtotalLiquido = Math.max(0, subtotalBruto - valorDesconto);
+        
+        const nomeProduto = item.nome || item.descricao || item.nome_produto || (item.produto ? item.produto.nome : 'Produto');
+        
         return `
         <div class="item">
             <div class="item-descricao">${nomeProduto}</div>
             <div class="item-detalhes">
                 <span>${qtd.toFixed(2)} x ${formatarValor(preco)}</span>
-                <span>${formatarValor(subtotal)}</span>
+                <span>${formatarValor(subtotalLiquido)}</span>
             </div>
+            ${valorDesconto > 0 ? `
+            <div class="item-detalhes" style="color: #444; font-size: 9px; margin-top: 1px;">
+                <span>Desconto (${descontoPercentual > 0 ? descontoPercentual.toFixed(2).replace('.', ',') + '%' : 'R$'})</span>
+                <span>-${formatarValor(valorDesconto)}</span>
+            </div>` : ''}
         </div>
     `;
     }).join('')}

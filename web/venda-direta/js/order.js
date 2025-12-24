@@ -84,7 +84,9 @@ function prepararObjetoPedido(dadosPedido, carrinho) {
         itens: carrinho.map(item => ({
             produto_id: item.produto_id || item.id,
             quantidade: item.quantidade,
-            preco_unitario: item.preco_venda_sugerido
+            preco_unitario: item.preco_venda_sugerido,
+            desconto_percentual: item.descontoPercentual || 0,
+            desconto_valor: item.descontoValor || 0
         }))
     };
 

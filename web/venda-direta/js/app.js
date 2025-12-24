@@ -4,7 +4,7 @@ import {
     getCarrinho, setCarrinho, adicionarAoCarrinho, removerDoCarrinho,
     aumentarQuantidadeItem, diminuirQuantidadeItem, calcularTotalCarrinho,
     calcularTotalItens, limparCarrinho, atualizarIndicadoresCarrinho,
-    atualizarBadgeProduto
+    atualizarBadgeProduto, aplicarDescontoItem
 } from './cart.js';
 import { carregarCarrinho, limparDadosLocaisPosSinc, carregarFormasPagamentoCache } from './storage.js';
 import { finalizarPedido } from './order.js';
@@ -222,6 +222,14 @@ function renderizarCarrinho() {
             urlImagem = `${baseUrl}/${arquivoPath}`;
         }
         const subtotal = item.preco_venda_sugerido * item.quantidade;
+        let valorDesconto = 0;
+        if (item.descontoValor > 0) {
+            valorDesconto = item.descontoValor;
+        } else if (item.descontoPercentual > 0) {
+            valorDesconto = subtotal * (item.descontoPercentual / 100);
+        }
+        const totalItem = Math.max(0, subtotal - valorDesconto);
+
         return `
         <div class="cart-item">
             <button onclick="removerItem(${index})" class="cart-item-remove" title="Remover item">✖</button>
@@ -235,9 +243,31 @@ function renderizarCarrinho() {
                         <span class="qty-value">${item.quantidade}</span>
                         <button onclick="aumentarQtd('${item.id}')" class="qty-btn">+</button>
                     </div>
-                    <div class="cart-item-total">
-                        <p class="cart-item-subtotal">Subtotal</p>
-                        <p class="cart-item-total-price">${formatarMoeda(subtotal)}</p>
+                    
+                    <!-- Área de Desconto -->
+                    <div class="mt-2 p-2 bg-gray-50 rounded text-sm">
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="text-xs text-gray-500">Desconto:</label>
+                            <select onchange="alterarTipoDesconto('${item.id}', this.value)" class="text-xs border rounded p-0.5 bg-white">
+                                <option value="valor" ${item.descontoValor > 0 ? 'selected' : ''}>R$</option>
+                                <option value="porcentagem" ${item.descontoPercentual > 0 ? 'selected' : ''}>%</option>
+                            </select>
+                        </div>
+                        <input type="tel" 
+                            value="${(item.descontoValor > 0 ? item.descontoValor : (item.descontoPercentual || 0)).toLocaleString('pt-BR', {minimumFractionDigits: 2})}" 
+                            data-desconto-item="${item.id}"
+                            oninput="formatarEntradaDesconto(this)"
+                            onchange="aplicarDesconto('${item.id}', this.value)" 
+                            class="w-full border rounded p-1 text-right text-xs" 
+                            placeholder="0,00">
+                    </div>
+
+                    <div class="cart-item-total mt-2">
+                        <p class="cart-item-subtotal">Total</p>
+                        <div class="text-right">
+                            ${valorDesconto > 0 ? `<span class="text-xs text-red-500 line-through block">${formatarMoeda(subtotal)}</span>` : ''}
+                            <p class="cart-item-total-price">${formatarMoeda(totalItem)}</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -257,6 +287,64 @@ window.diminuirQtd = function(produtoId) {
 window.removerItem = function(index) {
     const produtoId = removerDoCarrinho(index);
     if (produtoId) { atualizarBadgeProduto(produtoId, false); renderizarCarrinho(); atualizarBadgeCarrinho(); }
+};
+
+window.aplicarDesconto = function(produtoId, valorFormatado) {
+    const select = document.querySelector(`select[onchange^="alterarTipoDesconto('${produtoId}'"]`);
+    const tipo = select ? select.value : 'valor';
+    
+    // Converte "1.234,56" ou "10,00" para float
+    // Remove tudo que não é dígito, exceto a vírgula decimal
+    let valorNumerico = 0;
+    
+    // Se for string vazia, é 0
+    if (valorFormatado && typeof valorFormatado === 'string') {
+        // Remove pontos de milhar e troca vírgula por ponto
+        const limpo = valorFormatado.replace(/\./g, '').replace(',', '.');
+        valorNumerico = parseFloat(limpo) || 0;
+    } else {
+        valorNumerico = parseFloat(valorFormatado) || 0;
+    }
+
+    if (aplicarDescontoItem(produtoId, tipo, valorNumerico)) {
+        renderizarCarrinho();
+    }
+};
+
+window.alterarTipoDesconto = function(produtoId, novoTipo) {
+    // Apenas recalcula visualmente
+    // Pega o input atual associado
+    const input = document.querySelector(`input[data-desconto-item="${produtoId}"]`);
+    if (input) {
+        // Dispara a aplicação do desconto (que vai reler o tipo do select)
+        window.aplicarDesconto(produtoId, input.value);
+    }
+};
+
+window.formatarEntradaDesconto = function(input) {
+    let valor = input.value.replace(/\D/g, ''); // Remove tudo que não é dígito
+    
+    // Se vazio, fica vazio ou 0,00
+    if (valor === '') {
+        input.value = '';
+        return;
+    }
+    
+    // Converte para centavos
+    valor = (parseInt(valor) / 100).toFixed(2);
+    
+    // Formata para PT-BR
+    valor = valor.replace('.', ',');
+    
+    // Adiciona separador de milhar se necessário (ex: 1.234,56)
+    valor = valor.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+    
+    input.value = valor;
+    
+    // Opcional: já aplicar o desconto enquanto digita (pode ser pesado, melhor no onchange ou debounce)
+    // Para UX imediata:
+    // const produtoId = input.dataset.descontoItem;
+    // if(produtoId) window.aplicarDesconto(produtoId, input.value);
 };
 
 // ==========================================================================
