@@ -26,26 +26,26 @@ $config = [
             // Detecta automaticamente o baseUrl baseado no SCRIPT_NAME e REQUEST_URI
             // Se o DocumentRoot está em /srv/http/pulse/web, o SCRIPT_NAME será /index.php
             // Se o DocumentRoot está na raiz, o SCRIPT_NAME será /pulse/web/index.php
-            'baseUrl' => (function() {
+            'baseUrl' => (function () {
                 if (!isset($_SERVER['SCRIPT_NAME'])) {
                     return '';
                 }
-                
+
                 $scriptName = $_SERVER['SCRIPT_NAME'];
                 $requestUri = $_SERVER['REQUEST_URI'] ?? '';
-                
+
                 // Remove /index.php do final do SCRIPT_NAME para obter o baseUrl
                 $baseUrl = dirname($scriptName);
-                
+
                 // Normaliza o caminho (remove barras duplas, pontos, etc)
                 $baseUrl = str_replace(['\\', '//'], '/', $baseUrl);
                 $baseUrl = rtrim($baseUrl, '/');
-                
+
                 // Se o baseUrl for apenas /, retorna vazio
                 if ($baseUrl === '/' || $baseUrl === '' || $baseUrl === '.') {
                     return '';
                 }
-                
+
                 // CORREÇÃO: Se o SCRIPT_NAME é /index.php, o DocumentRoot está em /pulse/web
                 // então o baseUrl deve ser vazio (URLs devem ser /vendas/inicio, não /pulse/web/vendas/inicio)
                 // EXCETO se a REQUEST_URI contém /pulse/web (acesso direto via URL com caminho completo)
@@ -57,13 +57,21 @@ $config = [
                     // Caso contrário, DocumentRoot está correto, baseUrl é vazio
                     return '';
                 }
-                
+
                 // Retorna o baseUrl normalizado (garante que comece com /)
                 return $baseUrl;
             })(),
         ],
         'cache' => [
             'class' => 'yii\caching\FileCache',
+        ],
+        'formatter' => [
+            'class' => 'yii\i18n\Formatter',
+            'locale' => 'pt-BR',
+            'defaultTimeZone' => 'America/Sao_Paulo',
+            'currencyCode' => 'BRL',
+            'decimalSeparator' => ',',
+            'thousandSeparator' => '.',
         ],
         'user' => [
             'identityClass' => 'app\models\Usuario',
@@ -146,4 +154,3 @@ if (YII_ENV_DEV) {
 }
 
 return $config;
-
