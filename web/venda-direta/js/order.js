@@ -4,6 +4,7 @@
 import { CONFIG, API_ENDPOINTS, GATEWAY_CONFIG } from './config.js';
 import { salvarPedidoPendente } from './storage.js';
 import { validarUUID } from './utils.js';
+import { getAcrescimo } from './cart.js';
 
 /**
  * Valida dados do pedido antes de enviar (VENDA DIRETA - cliente opcional)
@@ -74,6 +75,9 @@ function validarDadosPedido(dadosPedido, carrinho) {
 function prepararObjetoPedido(dadosPedido, carrinho) {
     console.log('[Order] 🔧 Preparando objeto do pedido (Venda Direta)...');
     
+    // Obtém dados do acréscimo do carrinho
+    const acrescimo = getAcrescimo();
+    
     const pedido = {
         usuario_id: CONFIG.ID_USUARIO_LOJA,
         cliente_id: dadosPedido.cliente_id || null, // VENDA DIRETA: pode ser null
@@ -87,7 +91,11 @@ function prepararObjetoPedido(dadosPedido, carrinho) {
             preco_unitario: item.preco_venda_sugerido,
             desconto_percentual: item.descontoPercentual || 0,
             desconto_valor: item.descontoValor || 0
-        }))
+        })),
+        // Adiciona dados do acréscimo
+        acrescimo_valor: parseFloat(acrescimo.valor) || 0,
+        acrescimo_tipo: acrescimo.tipo || null,
+        observacao_acrescimo: acrescimo.observacao || null
     };
 
     // Só incluir campos de parcelamento se realmente houver parcelas

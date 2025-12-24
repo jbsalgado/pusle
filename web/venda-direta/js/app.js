@@ -4,7 +4,7 @@ import {
     getCarrinho, setCarrinho, adicionarAoCarrinho, removerDoCarrinho,
     aumentarQuantidadeItem, diminuirQuantidadeItem, calcularTotalCarrinho,
     calcularTotalItens, limparCarrinho, atualizarIndicadoresCarrinho,
-    atualizarBadgeProduto, aplicarDescontoItem
+    atualizarBadgeProduto, aplicarDescontoItem, getAcrescimo, setAcrescimo
 } from './cart.js';
 import { carregarCarrinho, limparDadosLocaisPosSinc, carregarFormasPagamentoCache } from './storage.js';
 import { finalizarPedido } from './order.js';
@@ -274,8 +274,70 @@ function renderizarCarrinho() {
         </div>`;
     }).join('');
     
-    if (totalElement) totalElement.textContent = formatarMoeda(calcularTotalCarrinho());
+    // Atualiza lógica de acréscimo no render
+    const acrescimoAtual = getAcrescimo();
+    const inputValor = document.getElementById('input-acrescimo-valor');
+    const inputTipo = document.getElementById('input-acrescimo-tipo');
+    const inputObs = document.getElementById('input-acrescimo-obs');
+
+    if (inputValor && acrescimoAtual.valor > 0) {
+        // Se já tem valor setado (redraw), restaura
+        if (document.activeElement !== inputValor) {
+             inputValor.value = acrescimoAtual.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+        }
+    }
+    if (inputTipo) inputTipo.value = acrescimoAtual.tipo;
+    if (inputObs) inputObs.value = acrescimoAtual.observacao;
+
+    // Atualiza Total com acréscimo
+    const totalComAcrescimo = calcularTotalCarrinho();
+    if (totalElement) totalElement.textContent = formatarMoeda(totalComAcrescimo);
     if (totalItensFooter) totalItensFooter.textContent = calcularTotalItens();
+}
+
+// Funções globais para Acréscimo
+window.toggleAcrescimos = function() {
+    const container = document.getElementById('container-acrescimos');
+    const seta = document.getElementById('seta-acrescimo');
+    if (container) {
+        container.classList.toggle('hidden');
+        seta.classList.toggle('rotate-180');
+    }
+};
+
+window.formatarMoedaInput = function(input) {
+    let valor = input.value.replace(/\D/g, '');
+    valor = (valor / 100).toFixed(2) + '';
+    valor = valor.replace(".", ",");
+    valor = valor.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
+    input.value = valor;
+    
+    // Atualiza estado global
+    atualizarAcrescimoGlobal();
+};
+
+// Listener para select e obs também atualizarem o estado
+document.addEventListener('change', function(e) {
+    if (e.target.id === 'input-acrescimo-tipo' || e.target.id === 'input-acrescimo-obs') {
+        atualizarAcrescimoGlobal();
+    }
+});
+
+function atualizarAcrescimoGlobal() {
+    const inputValor = document.getElementById('input-acrescimo-valor');
+    const inputTipo = document.getElementById('input-acrescimo-tipo');
+    const inputObs = document.getElementById('input-acrescimo-obs');
+    
+    if (inputValor) {
+        let valorClean = inputValor.value.replace(/\./g, '').replace(',', '.');
+        setAcrescimo(valorClean, inputTipo.value, inputObs.value);
+        
+        // Atualiza apenas o texto do total, sem re-renderizar tudo (para não perder foco)
+        const totalElement = document.getElementById('valor-total-carrinho');
+        if (totalElement) {
+             totalElement.textContent = formatarMoeda(calcularTotalCarrinho());
+        }
+    }
 }
 
 window.aumentarQtd = function(produtoId) {
@@ -1507,6 +1569,7 @@ async function verificarComprovantePosReload() {
         // Gera e exibe o comprovante
         await gerarComprovanteVenda(dados.carrinho, {
             ...dados.dadosPedido,
+            venda: dados.venda, // Passa objeto completo da venda (incluindo acréscimos)
             venda_id: dados.venda.id,
             itens: dados.carrinho,
             valorTotal: dados.venda.valor_total,

@@ -157,6 +157,15 @@ class PedidoController extends Controller
         $clienteId = $data['cliente_id'] ?? null;
         $numeroParcelas = max(1, (int)($data['numero_parcelas'] ?? 1));
 
+        // NOVOS CAMPOS DE ACRÉSCIMO
+        $acrescimoValor = isset($data['acrescimo_valor']) ? (float)$data['acrescimo_valor'] : 0.0;
+        $acrescimoTipo = isset($data['acrescimo_tipo']) ? $data['acrescimo_tipo'] : null;
+        $observacaoAcrescimo = isset($data['observacao_acrescimo']) ? $data['observacao_acrescimo'] : null;
+
+        if ($acrescimoValor < 0) {
+            throw new BadRequestHttpException('O valor do acréscimo não pode ser negativo.');
+        }
+
         // === VALIDAÇÃO: DINHEIRO e PIX não permitem parcelamento ===
         if ($numeroParcelas > 1 && $formaPagamentoId) {
             $formaPagamento = \app\modules\vendas\models\FormaPagamento::findOne($formaPagamentoId);
@@ -261,10 +270,15 @@ class PedidoController extends Controller
                 Yii::error("Item #{$index} ({$produto->nome}): Qtd={$quantidadePedida}, Preço={$precoUnitario}, Desc={$descontoValor}. Total parcial={$valorTotalVenda}", 'api');
             }
 
-            Yii::error("Pré-cálculo concluído. Valor Total = {$valorTotalVenda}", 'api');
+            Yii::error("Pré-cálculo concluído. Valor Total Itens = {$valorTotalVenda}", 'api');
             if ($valorTotalVenda <= 0 && count($data['itens']) > 0) {
                 throw new Exception('Valor total do pedido não pode ser zero.');
             }
+
+            // Soma o acréscimo ao total da venda
+            $valorTotalItens = $valorTotalVenda;
+            $valorTotalVenda += $acrescimoValor;
+            Yii::info("Adicionando acréscimo: R$ {$acrescimoValor}. Novo Total: R$ {$valorTotalVenda}", 'api');
 
             // ===== CRIAR E SALVAR VENDA =====
             // ✅ NOVO FLUXO: Vendas diretas são criadas com status EM_ABERTO
@@ -286,6 +300,11 @@ class PedidoController extends Controller
             $venda->status_venda_codigo = \app\modules\vendas\models\StatusVenda::EM_ABERTO;
 
             $venda->valor_total = $valorTotalVenda;
+
+            // Salva dados do acréscimo
+            $venda->acrescimo_valor = $acrescimoValor;
+            $venda->acrescimo_tipo = $acrescimoTipo;
+            $venda->observacao_acrescimo = $observacaoAcrescimo;
 
             // Adiciona a forma de pagamento
             $venda->forma_pagamento_id = $formaPagamentoId;

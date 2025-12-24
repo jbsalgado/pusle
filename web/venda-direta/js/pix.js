@@ -815,8 +815,7 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
     }
     
     // Calcula totais
-    // Calcula totais
-    const valorTotal = carrinho.reduce((total, item) => {
+    let valorTotal = carrinho.reduce((total, item) => {
         // Normalização de campos
         const preco = parseFloat(item.preco || item.preco_venda_sugerido || item.preco_unitario || item.preco_unitario_venda || 0);
         const qtd = parseFloat(item.quantidade || 0);
@@ -838,6 +837,15 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
         
         return total + subtotalLiquido;
     }, 0);
+
+    // Adiciona acréscimo se houver (compatível com snake_case do backend ou JS puro)
+    // Primeiro tenta buscar do objeto venda dentro de dadosPedido (se existir), senão busca direto em dadosPedido
+    const dadosVenda = dadosPedido.venda || dadosPedido;
+    const acrescimoValor = parseFloat(dadosVenda.acrescimo_valor || dadosPedido.acrescimo_valor || 0);
+    const acrescimoTipo = dadosVenda.acrescimo_tipo || dadosPedido.acrescimo_tipo || '';
+    const acrescimoObs = dadosVenda.observacao_acrescimo || dadosPedido.observacao_acrescimo || '';
+
+    valorTotal += acrescimoValor;
     
     // Formata valor
     const valorFormatado = formatarMoeda(valorTotal);
@@ -1072,13 +1080,23 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
     }).join('')}
     
     <div class="separador">--------------------------------</div>
+
+    ${acrescimoValor > 0 ? `
+    <div class="item" style="margin-top: 5px; border-bottom: 1px dotted #ccc; padding-bottom: 5px;">
+        <div class="item-detalhes" style="font-weight: bold;">
+            <span>${acrescimoTipo || 'ACRÉSCIMO'}</span>
+            <span>+${formatarValor(acrescimoValor)}</span>
+        </div>
+        ${acrescimoObs ? `<div style="font-size: 9px; color: #555; margin-top: 2px;">Obs: ${acrescimoObs}</div>` : ''}
+    </div>
+    ` : ''}
     
     <div class="total">
         TOTAL: ${valorFormatado}
     </div>
     
     <div class="pagamento">
-        <div class="pagamento-tipo">FORMA DE PAGAMENTO: ${dadosPedido.forma_pagamento || 'Não informado'}</div>
+        <div class="pagamento-tipo">FORMA DE PAGAMENTO: ${dadosPedido.forma_pagamento || dadosVenda.forma_pagamento_nome || 'Não informado'}</div>
         ${dadosPedido.numero_parcelas === 1 ? `<div>VALOR PAGO: ${valorFormatado}</div>` : `<div>${dadosPedido.numero_parcelas}x de ${formatarMoeda(valorTotal / dadosPedido.numero_parcelas)}</div>`}
     </div>
     

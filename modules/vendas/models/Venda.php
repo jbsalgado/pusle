@@ -1,4 +1,5 @@
 <?php
+
 namespace app\modules\vendas\models;
 
 use Yii;
@@ -95,7 +96,7 @@ class Venda extends ActiveRecord
             [['valor_total'], 'number', 'min' => 0],
             [['numero_parcelas'], 'integer', 'min' => 1],
             [['numero_parcelas'], 'default', 'value' => 1],
-            [['data_venda','data_primeiro_vencimento'], 'safe'],
+            [['data_venda', 'data_primeiro_vencimento'], 'safe'],
             [['data_primeiro_vencimento'], 'date', 'format' => 'php:Y-m-d'],
             [['observacoes'], 'string'],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
@@ -106,6 +107,10 @@ class Venda extends ActiveRecord
             [['status_venda_codigo'], 'exist', 'skipOnError' => true, 'targetClass' => StatusVenda::class, 'targetAttribute' => ['status_venda_codigo' => 'codigo']],
             // Validação opcional de forma_pagamento_id (pode ser null, mas se preenchido deve existir)
             [['forma_pagamento_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => FormaPagamento::class, 'targetAttribute' => ['forma_pagamento_id' => 'id']],
+
+            // Novos campos de Acréscimo
+            [['acrescimo_valor'], 'number', 'min' => 0],
+            [['acrescimo_tipo', 'observacao_acrescimo'], 'string'],
         ];
     }
 
@@ -128,6 +133,9 @@ class Venda extends ActiveRecord
             'data_atualizacao' => 'Última Atualização',
             'data_primeiro_vencimento' => 'Data 1º Venc.',
             'forma_pagamento_id' => 'Forma de Pagamento',
+            'acrescimo_valor' => 'Valor Acréscimo',
+            'acrescimo_tipo' => 'Tipo Acréscimo',
+            'observacao_acrescimo' => 'Obs. Acréscimo',
         ];
     }
 
@@ -149,9 +157,9 @@ class Venda extends ActiveRecord
     {
         // Valida o intervalo de dias
         $intervaloDiasParcelas = max(1, min(365, (int)$intervaloDiasParcelas));
-        
+
         Yii::info("Gerando parcelas com intervalo de {$intervaloDiasParcelas} dias entre parcelas", 'Venda');
-        
+
         // Deleta parcelas existentes para esta venda
         Parcela::deleteAll(['venda_id' => $this->id]);
 
@@ -180,11 +188,11 @@ class Venda extends ActiveRecord
                 }
                 Yii::info("Regra de parcelamento encontrada para {$this->numero_parcelas}x: {$percentualAcrescimo}%. Valor base: {$valorBaseTotal}, Valor a prazo: {$valorTotalAPrazo}", 'Venda');
             } else {
-                 Yii::warning("Nenhuma regra de parcelamento encontrada para Venda ID {$this->id}, Usuario ID {$this->usuario_id} e {$this->numero_parcelas} parcelas. Usando valor base.", 'Venda');
-                 // Mantém $valorTotalAPrazo = $valorBaseTotal
+                Yii::warning("Nenhuma regra de parcelamento encontrada para Venda ID {$this->id}, Usuario ID {$this->usuario_id} e {$this->numero_parcelas} parcelas. Usando valor base.", 'Venda');
+                // Mantém $valorTotalAPrazo = $valorBaseTotal
             }
         } else {
-             Yii::info("Venda ID {$this->id} em 1 parcela. Sem acréscimo.", 'Venda');
+            Yii::info("Venda ID {$this->id} em 1 parcela. Sem acréscimo.", 'Venda');
         }
 
         // Calcula valor da parcela COM BASE NO VALOR TOTAL A PRAZO (que pode ter acréscimo)
@@ -192,13 +200,13 @@ class Venda extends ActiveRecord
         // --- FIM DA LÓGICA DE ACRÉSCIMO ---
 
         $valorParcelaArredondado = round($valorParcelaBase, 2);
-        
+
         // --- LÓGICA ATUALIZADA DE DATA DO PRIMEIRO VENCIMENTO ---
         // Prioridade:
         // 1. Parâmetro $dataPrimeiroPagamento passado para o método
         // 2. Campo data_primeiro_vencimento do modelo (se preenchido)
         // 3. Data da venda + intervalo (para parcelas > 1) ou data da venda (para parcela única)
-        
+
         if ($dataPrimeiroPagamento !== null) {
             // Se foi passado como parâmetro, usa essa data
             $dataVencimento = new \DateTime($dataPrimeiroPagamento);
@@ -210,7 +218,7 @@ class Venda extends ActiveRecord
         } else {
             // Senão, usa a data da venda
             $dataVencimento = new \DateTime($this->data_venda ?: 'now');
-            
+
             // Se tiver mais de 1 parcela, a primeira vence em +intervalo dias
             if ($this->numero_parcelas > 1) {
                 $dataVencimento->modify("+{$intervaloDiasParcelas} days");
@@ -220,7 +228,7 @@ class Venda extends ActiveRecord
             }
         }
         // --- FIM DA LÓGICA DE DATA ---
-        
+
         $valorTotalGerado = 0;
 
         for ($i = 1; $i <= $this->numero_parcelas; $i++) {
@@ -246,7 +254,7 @@ class Venda extends ActiveRecord
             }
 
             $parcela->data_vencimento = $dataVencimento->format('Y-m-d');
-            
+
             // VENDA DIRETA: Marca como PAGA (pagamento na hora)
             // VENDA NORMAL: Marca como PENDENTE (aguardando pagamento)
             if ($isVendaDireta) {
@@ -255,34 +263,34 @@ class Venda extends ActiveRecord
                 $parcela->valor_pago = (float)$parcela->valor_parcela; // Garante que é float
                 Yii::info("Venda Direta: Parcela {$i} marcada como PAGA - Valor: R$ {$parcela->valor_pago}, Data: {$parcela->data_pagamento}", 'Venda');
             } else {
-            $parcela->status_parcela_codigo = StatusParcela::PENDENTE;
+                $parcela->status_parcela_codigo = StatusParcela::PENDENTE;
                 // Para vendas normais, data_pagamento e valor_pago ficam null até o pagamento
             }
-            
+
             // Define a forma de pagamento
             // Converte string vazia para null (Yii2 pode não salvar string vazia corretamente)
-            $parcela->forma_pagamento_id = (!empty($formaPagamentoId) && $formaPagamentoId !== '') 
-                ? $formaPagamentoId 
+            $parcela->forma_pagamento_id = (!empty($formaPagamentoId) && $formaPagamentoId !== '')
+                ? $formaPagamentoId
                 : null;
-            
+
             // Log para debug
             Yii::info("Parcela {$i}: forma_pagamento_id recebido = " . var_export($formaPagamentoId, true), 'Venda');
             Yii::info("Parcela {$i}: forma_pagamento_id atribuído = " . var_export($parcela->forma_pagamento_id, true), 'Venda');
 
             if (!$parcela->save()) {
-                 Yii::error("Erro ao salvar parcela {$i} para venda {$this->id}: " . print_r($parcela->errors, true), 'Venda');
-                 Yii::error("Atributos da parcela que falhou: " . print_r($parcela->attributes, true), 'Venda');
-                 throw new \yii\db\Exception("Não foi possível salvar a parcela {$i}.");
+                Yii::error("Erro ao salvar parcela {$i} para venda {$this->id}: " . print_r($parcela->errors, true), 'Venda');
+                Yii::error("Atributos da parcela que falhou: " . print_r($parcela->attributes, true), 'Venda');
+                throw new \yii\db\Exception("Não foi possível salvar a parcela {$i}.");
             }
-            
+
             Yii::info("Parcela {$i} salva com sucesso. forma_pagamento_id = " . ($parcela->forma_pagamento_id ?? 'NULL'), 'Venda');
-            
+
             Yii::info("Parcela {$i}/{$this->numero_parcelas} gerada: R$ {$parcela->valor_parcela}, vencimento: {$parcela->data_vencimento}", 'Venda');
         }
-        
+
         // IMPORTANTE: Não alteramos $this->valor_total aqui. Ele permanece o valor base.
         // A soma das $parcela->valor_parcela refletirá o valor total a prazo.
-        
+
         Yii::info("Geração de parcelas concluída para Venda ID {$this->id}. Total de parcelas: {$this->numero_parcelas} com intervalo de {$intervaloDiasParcelas} dias", 'Venda');
         return true;
     }
@@ -311,7 +319,7 @@ class Venda extends ActiveRecord
             ->where(['status_parcela_codigo' => StatusParcela::PENDENTE])
             ->sum('valor_parcela') ?: 0;
     }
-    
+
     /**
      * Retorna o valor total real da venda (soma das parcelas),
      * que pode incluir acréscimos.
@@ -332,8 +340,14 @@ class Venda extends ActiveRecord
     }
 
     // Venda.php - ADICIONADO:
-    public function fields() {
+    public function fields()
+    {
         $fields = parent::fields();
+        // Garante que campos novos sejam retornados
+        $fields['acrescimo_valor'] = 'acrescimo_valor';
+        $fields['acrescimo_tipo'] = 'acrescimo_tipo';
+        $fields['observacao_acrescimo'] = 'observacao_acrescimo';
+
         $fields['itens'] = 'itens';
         $fields['parcelas'] = 'parcelas';
         $fields['statusVenda'] = 'statusVenda';

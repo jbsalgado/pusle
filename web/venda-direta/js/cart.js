@@ -106,8 +106,30 @@ export function diminuirQuantidadeItem(produtoId) {
 /**
  * Calcula total do carrinho
  */
+// Estado local para acréscimo (não persistido no storage pois é por venda)
+let acrescimoAtual = {
+  valor: 0,
+  tipo: '',
+  observacao: ''
+};
+
+export function setAcrescimo(valor, tipo, observacao) {
+  acrescimoAtual = {
+    valor: parseFloat(valor) || 0,
+    tipo: tipo || '',
+    observacao: observacao || ''
+  };
+}
+
+export function getAcrescimo() {
+  return acrescimoAtual;
+}
+
+/**
+ * Calcula total do carrinho
+ */
 export function calcularTotalCarrinho() {
-  return carrinho.reduce((total, item) => {
+  const totalItens = carrinho.reduce((total, item) => {
     // ✅ CORREÇÃO: Usar 'preco_venda_sugerido'
     const preco = parseFloat(item.preco_venda_sugerido || 0);
     // ✅ CORREÇÃO: Garantir que é número
@@ -128,6 +150,9 @@ export function calcularTotalCarrinho() {
 
     return total + Math.max(0, subtotal - valorDesconto);
   }, 0);
+
+  // Soma o acréscimo
+  return totalItens + (parseFloat(acrescimoAtual.valor) || 0);
 }
 
 /**
