@@ -1,4 +1,5 @@
 <?php
+
 namespace app\modules\vendas\models;
 
 use Yii;
@@ -16,10 +17,10 @@ use app\modules\vendas\models\CarteiraCobranca;
  * ============================================================================================================
  * Tabela: prest_colaboradores
  * 
-     * @property string $id
-     * @property string $usuario_id (FK para dono da loja)
-     * @property string|null $prest_usuario_login_id (FK para login do colaborador em prest_usuarios)
-     * @property string $nome_completo
+ * @property string $id
+ * @property string $usuario_id (FK para dono da loja)
+ * @property string|null $prest_usuario_login_id (FK para login do colaborador em prest_usuarios)
+ * @property string $nome_completo
  * @property string $cpf
  * @property string $telefone
  * @property string $email
@@ -41,6 +42,16 @@ use app\modules\vendas\models\CarteiraCobranca;
  */
 class Colaborador extends ActiveRecord
 {
+    /**
+     * @var string|null Senha para acesso ao sistema (virtual)
+     */
+    public $senha_usuario;
+
+    /**
+     * @var boolean Indita se deve conceder/manter acesso ao sistema (virtual)
+     */
+    public $acesso_sistema;
+
     /**
      * {@inheritdoc}
      */
@@ -89,9 +100,17 @@ class Colaborador extends ActiveRecord
             // prest_usuario_login_id é opcional e só é validado se preenchido (pode ser NULL para colaboradores sem login próprio)
             [['prest_usuario_login_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['prest_usuario_login_id' => 'id']],
             // Pelo menos um papel deve estar marcado
-            ['eh_vendedor', 'required', 'when' => function($model) {
+            ['eh_vendedor', 'required', 'when' => function ($model) {
                 return !$model->eh_cobrador;
             }, 'message' => 'O colaborador deve ser vendedor e/ou cobrador'],
+
+            // Validação de Acesso ao Sistema
+            [['acesso_sistema'], 'boolean'],
+            [['senha_usuario'], 'string', 'min' => 6],
+            ['senha_usuario', 'required', 'when' => function ($model) {
+                // Obrigatório se marcou acesso e é um novo registro OU se marcou acesso e não tem login vinculado ainda
+                return $model->acesso_sistema && ($model->isNewRecord || !$model->prest_usuario_login_id);
+            }, 'enableClientValidation' => false, 'message' => 'Senha é obrigatória para conceder acesso.'],
         ];
     }
 
@@ -117,7 +136,10 @@ class Colaborador extends ActiveRecord
             'data_admissao' => 'Data de Admissão',
             'observacoes' => 'Observações',
             'data_criacao' => 'Data de Cadastro',
+            'data_criacao' => 'Data de Cadastro',
             'data_atualizacao' => 'Última Atualização',
+            'senha_usuario' => 'Senha de Acesso',
+            'acesso_sistema' => 'Conceder Acesso ao Sistema?',
         ];
     }
 
@@ -165,7 +187,7 @@ class Colaborador extends ActiveRecord
     {
         return $this->hasOne(Usuario::class, ['id' => 'usuario_id']);
     }
-    
+
     /**
      * Relacionamento com o login do colaborador (se tiver login próprio)
      */
@@ -173,7 +195,7 @@ class Colaborador extends ActiveRecord
     {
         return $this->hasOne(Usuario::class, ['id' => 'prest_usuario_login_id']);
     }
-    
+
     /**
      * Retorna o ID da loja (sempre o usuario_id, que aponta para o dono)
      */
@@ -181,7 +203,14 @@ class Colaborador extends ActiveRecord
     {
         return $this->usuario_id;
     }
-    
+
+    public function afterFind()
+    {
+        parent::afterFind();
+        // Se tem ID de login vinculado, marca como tendo acesso
+        $this->acesso_sistema = !empty($this->prest_usuario_login_id);
+    }
+
     /**
      * Verifica se o colaborador tem login próprio
      */
@@ -189,7 +218,7 @@ class Colaborador extends ActiveRecord
     {
         return $this->prest_usuario_login_id !== null;
     }
-    
+
     /**
      * Busca colaborador associado ao usuário logado
      * Suporta dois cenários:
@@ -201,22 +230,22 @@ class Colaborador extends ActiveRecord
     public static function getColaboradorLogado()
     {
         $usuarioLogado = Yii::$app->user->identity;
-        
+
         if (!$usuarioLogado) {
             return null;
         }
-        
+
         // Se é dono, não é colaborador
         if ($usuarioLogado->eh_dono_loja === true || $usuarioLogado->eh_dono_loja === 't' || $usuarioLogado->eh_dono_loja === 1) {
             return null;
         }
-        
+
         // Tenta buscar por prest_usuario_login_id primeiro (colaborador com login próprio)
         $colaborador = static::find()
             ->where(['prest_usuario_login_id' => $usuarioLogado->id])
             ->andWhere(['ativo' => true])
             ->one();
-        
+
         // Se não encontrou, tenta buscar por usuario_id (colaborador sem login próprio que usa login do dono)
         if (!$colaborador) {
             $colaborador = static::find()
@@ -224,7 +253,7 @@ class Colaborador extends ActiveRecord
                 ->andWhere(['ativo' => true])
                 ->one();
         }
-        
+
         return $colaborador;
     }
 
@@ -249,7 +278,7 @@ class Colaborador extends ActiveRecord
     public static function getListaVendedores($usuarioId = null)
     {
         $usuarioId = $usuarioId ?: Yii::$app->user->id;
-        
+
         return self::find()
             ->where(['usuario_id' => $usuarioId, 'ativo' => true, 'eh_vendedor' => true])
             ->select(['nome_completo', 'id'])
@@ -264,7 +293,7 @@ class Colaborador extends ActiveRecord
     public static function getListaCobradores($usuarioId = null)
     {
         $usuarioId = $usuarioId ?: Yii::$app->user->id;
-        
+
         return self::find()
             ->where(['usuario_id' => $usuarioId, 'ativo' => true, 'eh_cobrador' => true])
             ->select(['nome_completo', 'id'])

@@ -4,6 +4,8 @@ namespace app\modules\vendas\controllers;
 
 use Yii;
 use app\modules\vendas\models\Colaborador;
+use app\models\Usuario; // Importado Usuario
+use app\helpers\Salg;   // Importado Helper Salg (se necessário para logs ou outros)
 use yii\data\ActiveDataProvider;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
@@ -125,6 +127,12 @@ class ColaboradorController extends Controller
 
 
             if ($model->save()) {
+
+                // --- LÓGICA DE USUÁRIO VINCULADO ---
+                if ($model->acesso_sistema && !empty($model->cpf)) {
+                    $this->gerenciarUsuarioVinculado($model);
+                }
+
                 Yii::$app->session->setFlash('success', 'Colaborador cadastrado com sucesso!');
                 return $this->redirect(['view', 'id' => $model->id]);
             } else {
@@ -158,6 +166,13 @@ class ColaboradorController extends Controller
 
 
             if ($model->save()) {
+
+                // --- LÓGICA DE USUÁRIO VINCULADO ---
+                // Se marcou acesso ou já tinha acesso (login vinculado)
+                if ($model->acesso_sistema || $model->prest_usuario_login_id) {
+                    $this->gerenciarUsuarioVinculado($model);
+                }
+
                 Yii::$app->session->setFlash('success', 'Colaborador atualizado com sucesso!');
                 return $this->redirect(['view', 'id' => $model->id]);
             } else {
@@ -212,5 +227,99 @@ class ColaboradorController extends Controller
         }
 
         throw new NotFoundHttpException('O colaborador solicitado não existe.');
+    }
+
+    /**
+     * Gerencia a criação ou atualização do usuário vinculado ao colaborador.
+     * @param Colaborador $colaborador
+     */
+    protected function gerenciarUsuarioVinculado($colaborador)
+    {
+        try {
+            $usuario = null;
+            $isNewUser = false;
+
+            // Tenta encontrar usuário existente pelo ID vinculado
+            if ($colaborador->prest_usuario_login_id) {
+                $usuario = Usuario::findOne($colaborador->prest_usuario_login_id);
+            }
+
+            // Se ainda não existe usuário, cria um novo
+            if (!$usuario) {
+                // VERIFICA SE JÁ EXISTE UM USUÁRIO COM ESTE CPF (USERNAME)
+                // username para colaborador é sempre o CPF (apenas números)
+                $usernameCpf = preg_replace('/[^0-9]/', '', $colaborador->cpf);
+
+                $existingUser = Usuario::findByLogin($usernameCpf);
+                if ($existingUser) {
+                    // Se já existe, vinculamos a este usuário existente!
+                    // Isso evita erro de duplicidade se o usuário já foi criado por outro meio
+                    $usuario = $existingUser;
+                    Yii::$app->session->setFlash('info', 'O CPF informado já possuía um usuário cadastrado. O colaborador foi vinculado a ele.');
+                } else {
+                    $usuario = new Usuario();
+
+                    // Gera ID (UUID)
+                    try {
+                        $usuario->id = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
+                    } catch (\Exception $e) {
+                        // Fallback básico se falhar (embora gen_random_uuid deva funcionar no PG)
+                        if (function_exists('uuid_create')) {
+                            $usuario->id = uuid_create(UUID_TYPE_RANDOM);
+                        } else {
+                            $usuario->id = sprintf(
+                                '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+                                mt_rand(0, 0xffff),
+                                mt_rand(0, 0xffff),
+                                mt_rand(0, 0xffff),
+                                mt_rand(0, 0x0fff) | 0x4000,
+                                mt_rand(0, 0x3fff) | 0x8000,
+                                mt_rand(0, 0xffff),
+                                mt_rand(0, 0xffff),
+                                mt_rand(0, 0xffff)
+                            );
+                        }
+                    }
+
+                    $isNewUser = true;
+                }
+            }
+
+            // Dados básicos
+            $usuario->nome = $colaborador->nome_completo;
+            $usuario->cpf = $colaborador->cpf;
+            $usuario->telefone = $colaborador->telefone;
+            $usuario->email = $colaborador->email;
+
+            // Username é SEMPRE o CPF (apenas números)
+            $usuario->username = preg_replace('/[^0-9]/', '', $colaborador->cpf);
+
+            // Definições de sistema
+            $usuario->eh_dono_loja = false; // Colaborador não é dono
+
+            // Se tiver senha informada, atualiza
+            if (!empty($colaborador->senha_usuario)) {
+                $usuario->setPassword($colaborador->senha_usuario);
+                $usuario->generateAuthKey();
+            }
+
+            // Salva o usuário
+            if ($usuario->save()) {
+                // Se foi sucesso, garante o vínculo no colaborador
+                if ($colaborador->prest_usuario_login_id !== $usuario->id) {
+                    $colaborador->prest_usuario_login_id = $usuario->id;
+                    $colaborador->save(false); // Salva sem validar pra evitar loops ou erros de validação extras
+                }
+
+                if ($isNewUser) {
+                    Yii::$app->session->addFlash('success', 'Acesso ao sistema criado para o colaborador. Login: ' . $usuario->username);
+                }
+            } else {
+                Yii::$app->session->setFlash('error', 'Erro ao processar usuário de acesso: ' . implode(', ', $usuario->getErrorSummary(true)));
+            }
+        } catch (\Exception $e) {
+            Yii::$app->session->setFlash('error', 'Exceção ao gerenciar acesso: ' . $e->getMessage());
+            Yii::error($e);
+        }
     }
 }
