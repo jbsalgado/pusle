@@ -52,7 +52,8 @@ class ColaboradorController extends Controller
         // Aplicar filtros
         $busca = Yii::$app->request->get('busca');
         if ($busca) {
-            $query->andFilterWhere(['or',
+            $query->andFilterWhere([
+                'or',
                 ['like', 'nome_completo', $busca],
                 ['like', 'cpf', $busca],
                 ['like', 'email', $busca],
@@ -115,26 +116,13 @@ class ColaboradorController extends Controller
         $model->ativo = true;
 
         if ($model->load(Yii::$app->request->post())) {
-            
+
             // Validação customizada: pelo menos um papel deve estar marcado
             if (!$model->eh_vendedor && !$model->eh_cobrador) {
                 Yii::$app->session->setFlash('error', 'O colaborador deve ser vendedor e/ou cobrador.');
                 return $this->render('create', ['model' => $model]);
             }
 
-            // Validação: CPF único por loja
-            if ($model->cpf) {
-                $existeColaborador = Colaborador::find()
-                    ->where(['cpf' => $model->cpf, 'usuario_id' => $model->usuario_id])
-                    ->andWhere(['!=', 'id', $model->id ?? ''])
-                    ->one();
-                
-                if ($existeColaborador) {
-                    $model->addError('cpf', 'Este CPF já está cadastrado para esta loja.');
-                    Yii::$app->session->setFlash('error', 'Este CPF já está cadastrado para esta loja.');
-                    return $this->render('create', ['model' => $model]);
-                }
-            }
 
             if ($model->save()) {
                 Yii::$app->session->setFlash('success', 'Colaborador cadastrado com sucesso!');
@@ -161,26 +149,13 @@ class ColaboradorController extends Controller
         $model = $this->findModel($id);
 
         if ($model->load(Yii::$app->request->post())) {
-            
+
             // Validação customizada: pelo menos um papel deve estar marcado
             if (!$model->eh_vendedor && !$model->eh_cobrador) {
                 Yii::$app->session->setFlash('error', 'O colaborador deve ser vendedor e/ou cobrador.');
                 return $this->render('update', ['model' => $model]);
             }
 
-            // Validação: CPF único por loja
-            if ($model->cpf) {
-                $existeColaborador = Colaborador::find()
-                    ->where(['cpf' => $model->cpf, 'usuario_id' => $model->usuario_id])
-                    ->andWhere(['!=', 'id', $model->id])
-                    ->one();
-                
-                if ($existeColaborador) {
-                    $model->addError('cpf', 'Este CPF já está cadastrado para esta loja.');
-                    Yii::$app->session->setFlash('error', 'Este CPF já está cadastrado para esta loja.');
-                    return $this->render('update', ['model' => $model]);
-                }
-            }
 
             if ($model->save()) {
                 Yii::$app->session->setFlash('success', 'Colaborador atualizado com sucesso!');
@@ -207,7 +182,7 @@ class ColaboradorController extends Controller
     public function actionDelete($id)
     {
         $model = $this->findModel($id);
-        
+
         try {
             // Exclusão lógica ao invés de física
             $model->ativo = false;
