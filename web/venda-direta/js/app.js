@@ -221,7 +221,9 @@ function renderizarCarrinho() {
             const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
             urlImagem = `${baseUrl}/${arquivoPath}`;
         }
-        const subtotal = item.preco_venda_sugerido * item.quantidade;
+        // ✅ CORREÇÃO: Usar preço promocional se disponível
+        const precoUnitario = item.preco_final || item.preco_venda_sugerido;
+        const subtotal = precoUnitario * item.quantidade;
         let valorDesconto = 0;
         if (item.descontoValor > 0) {
             valorDesconto = item.descontoValor;
@@ -229,6 +231,7 @@ function renderizarCarrinho() {
             valorDesconto = subtotal * (item.descontoPercentual / 100);
         }
         const totalItem = Math.max(0, subtotal - valorDesconto);
+        const emPromocao = item.em_promocao || false;
 
         return `
         <div class="cart-item">
@@ -236,8 +239,8 @@ function renderizarCarrinho() {
             <div class="cart-item-container">
                 <img src="${urlImagem}" alt="${item.nome}" class="cart-item-image">
                 <div class="cart-item-info">
-                    <h3 class="cart-item-name">${item.nome}</h3>
-                    <p class="cart-item-price">${formatarMoeda(item.preco_venda_sugerido)} un.</p>
+                    <h3 class="cart-item-name">${item.nome}${emPromocao ? ' <span class="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded">PROMOÇÃO</span>' : ''}</h3>
+                    <p class="cart-item-price">${formatarMoeda(precoUnitario)} un.${emPromocao && item.preco_venda_sugerido ? ` <span class="text-xs text-gray-500 line-through">${formatarMoeda(item.preco_venda_sugerido)}</span>` : ''}</p>
                     <div class="cart-item-controls">
                         <button onclick="diminuirQtd('${item.id}')" class="qty-btn">−</button>
                         <span class="qty-value">${item.quantidade}</span>
@@ -764,14 +767,27 @@ function renderizarProdutos(listaProdutos) {
             const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
             urlImagem = `${baseUrl}/${arquivoPath}`;
         }
+        // ✅ CORREÇÃO: Usar preço promocional se disponível
+        const precoExibido = produto.preco_final || produto.preco_venda_sugerido;
+        const emPromocao = produto.em_promocao || false;
+        const precoOriginal = emPromocao ? produto.preco_venda_sugerido : null;
+        
         return `
         <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl relative" data-produto-card="${produto.id}">
             <div class="badge-no-carrinho hidden absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full z-10">✓ No Carrinho</div>
+            ${emPromocao ? '<div class="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded z-10">PROMOÇÃO</div>' : ''}
             <img src="${urlImagem}" alt="${produto.nome}" class="w-full h-48 object-cover">
             <div class="p-4">
                 <h3 class="text-lg font-bold text-gray-800 mb-2">${produto.nome}</h3>
                 <div class="flex items-center justify-between mb-4">
-                    <span class="text-2xl font-bold text-blue-600">${formatarMoeda(produto.preco_venda_sugerido)}</span>
+                    <div class="flex flex-col">
+                        ${emPromocao && precoOriginal ? `
+                            <span class="text-sm text-gray-500 line-through">${formatarMoeda(precoOriginal)}</span>
+                            <span class="text-2xl font-bold text-red-600">${formatarMoeda(precoExibido)}</span>
+                        ` : `
+                            <span class="text-2xl font-bold text-blue-600">${formatarMoeda(precoExibido)}</span>
+                        `}
+                    </div>
                     <span class="text-xs ${produto.estoque_atual > 0 ? 'text-green-600' : 'text-red-600'} font-semibold">
                         ${produto.estoque_atual > 0 ? `${produto.estoque_atual} em estoque` : 'Sem estoque'}
                     </span>
@@ -790,7 +806,9 @@ window.abrirModalQuantidade = function(produtoId) {
     
     const inputQtd = document.getElementById('input-quantidade');
     document.getElementById('nome-produto-modal').textContent = produto.nome;
-    document.getElementById('preco-produto-modal').textContent = formatarMoeda(produto.preco_venda_sugerido);
+    // ✅ CORREÇÃO: Usar preço promocional se disponível
+    const precoExibido = produto.preco_final || produto.preco_venda_sugerido;
+    document.getElementById('preco-produto-modal').textContent = formatarMoeda(precoExibido);
     inputQtd.value = 1;
     inputQtd.max = produto.estoque_atual;
     

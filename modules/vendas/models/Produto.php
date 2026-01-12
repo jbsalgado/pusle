@@ -119,27 +119,17 @@ class Produto extends ActiveRecord
     }
 
     /**
-     * Validação customizada: impedir prejuízo (margem negativa)
+     * Validação customizada: alerta sobre prejuízo (não bloqueia cadastro)
+     * NOTA: Esta validação foi modificada para NÃO bloquear o cadastro quando há prejuízo.
+     * Os alertas visuais no frontend continuam funcionando para informar o usuário.
+     * O usuário tem autonomia para decidir se deseja vender com prejuízo ou não.
      */
     public function validatePrejuizo($attribute, $params)
     {
-        $custoTotal = PricingHelper::calcularCustoTotal($this->preco_custo ?? 0, $this->valor_frete ?? 0);
-        
-        if ($custoTotal > 0 && $this->preco_venda_sugerido > 0) {
-            // Busca configuração financeira (específica do produto ou global)
-            $dadosFinanceiros = DadosFinanceiros::getConfiguracaoParaProduto($this->id, $this->usuario_id);
-            
-            $provaReal = PricingHelper::calcularProvaReal(
-                $this->preco_venda_sugerido,
-                $custoTotal,
-                $dadosFinanceiros->taxa_fixa_percentual,
-                $dadosFinanceiros->taxa_variavel_percentual
-            );
-            
-            if ($provaReal['lucro_real'] < 0) {
-                $this->addError($attribute, "⚠️ ATENÇÃO: Este preço resultará em PREJUÍZO de R$ " . number_format(abs($provaReal['lucro_real']), 2, ',', '.') . ". Ajuste o preço de venda ou reduza as taxas.");
-            }
-        }
+        // Validação removida: não bloqueia mais o cadastro quando há prejuízo
+        // Os alertas visuais no frontend continuam informando o usuário sobre possíveis prejuízos
+        // O usuário tem autonomia para decidir se deseja prosseguir com o cadastro mesmo com prejuízo
+        return true;
     }
 
     /**
@@ -156,24 +146,9 @@ class Produto extends ActiveRecord
                 $this->addError($attribute, 'O preço promocional deve ser menor que o preço de venda sugerido.');
             }
             
-            // ✅ NOVO: Validação de prejuízo para preço promocional
-            $custoTotal = PricingHelper::calcularCustoTotal($this->preco_custo ?? 0, $this->valor_frete ?? 0);
-            
-            if ($custoTotal > 0 && $this->preco_promocional > 0) {
-                // Busca configuração financeira (específica do produto ou global)
-                $dadosFinanceiros = DadosFinanceiros::getConfiguracaoParaProduto($this->id, $this->usuario_id);
-                
-                $provaReal = PricingHelper::calcularProvaReal(
-                    $this->preco_promocional,
-                    $custoTotal,
-                    $dadosFinanceiros->taxa_fixa_percentual,
-                    $dadosFinanceiros->taxa_variavel_percentual
-                );
-                
-                if ($provaReal['lucro_real'] < 0) {
-                    $this->addError($attribute, "⚠️ ATENÇÃO: Este preço promocional resultará em PREJUÍZO de R$ " . number_format(abs($provaReal['lucro_real']), 2, ',', '.') . ". Ajuste o preço promocional ou reduza as taxas.");
-                }
-            }
+            // NOTA: Validação de prejuízo removida - não bloqueia mais o cadastro
+            // Os alertas visuais no frontend continuam informando o usuário sobre possíveis prejuízos
+            // O usuário tem autonomia para decidir se deseja criar promoções mesmo com prejuízo
         }
     }
     

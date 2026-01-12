@@ -130,8 +130,8 @@ export function getAcrescimo() {
  */
 export function calcularTotalCarrinho() {
   const totalItens = carrinho.reduce((total, item) => {
-    // ✅ CORREÇÃO: Usar 'preco_venda_sugerido'
-    const preco = parseFloat(item.preco_venda_sugerido || 0);
+    // ✅ CORREÇÃO: Usar preço promocional se disponível (preco_final), senão usar preco_venda_sugerido
+    const preco = parseFloat(item.preco_final || item.preco_venda_sugerido || 0);
     // ✅ CORREÇÃO: Garantir que é número
     const qtd = parseInt(item.quantidade || 0, 10);
 

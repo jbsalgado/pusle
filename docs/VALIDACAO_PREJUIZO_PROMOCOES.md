@@ -2,7 +2,9 @@
 
 ## 📋 Visão Geral
 
-Sistema implementado para garantir que produtos em promoção não causem prejuízo, considerando custos, taxas fixas e variáveis.
+Sistema implementado para **alertar** o usuário quando produtos em promoção ou preços de venda podem causar prejuízo, considerando custos, taxas fixas e variáveis.
+
+**⚠️ IMPORTANTE:** Os alertas são **apenas informativos** e **NÃO bloqueiam** o cadastro. O usuário tem autonomia para decidir se deseja prosseguir com o cadastro mesmo quando há prejuízo detectado.
 
 ## ✅ Implementações
 
@@ -10,30 +12,14 @@ Sistema implementado para garantir que produtos em promoção não causem preju�
 
 **Arquivo:** `modules/vendas/models/Produto.php`
 
-**Método:** `validatePromocao()`
+**Métodos:** `validatePrejuizo()` e `validatePromocao()`
 
-```php
-// Validação de prejuízo para preço promocional
-$custoTotal = PricingHelper::calcularCustoTotal($this->preco_custo ?? 0, $this->valor_frete ?? 0);
+**⚠️ ATUALIZAÇÃO:** As validações de prejuízo foram modificadas para **NÃO bloquear** o cadastro. Os métodos ainda existem para manter compatibilidade, mas não adicionam erros quando há prejuízo detectado.
 
-if ($custoTotal > 0 && $this->preco_promocional > 0) {
-    $dadosFinanceiros = DadosFinanceiros::getConfiguracaoParaProduto($this->id, $this->usuario_id);
-    
-    $provaReal = PricingHelper::calcularProvaReal(
-        $this->preco_promocional,
-        $custoTotal,
-        $dadosFinanceiros->taxa_fixa_percentual,
-        $dadosFinanceiros->taxa_variavel_percentual
-    );
-    
-    if ($provaReal['lucro_real'] < 0) {
-        $this->addError($attribute, "⚠️ ATENÇÃO: Este preço promocional resultará em PREJUÍZO...");
-    }
-}
-```
-
-**O que valida:**
-- ✅ Preço promocional não pode causar prejuízo
+**O que faz:**
+- ✅ **NÃO bloqueia** o cadastro quando há prejuízo
+- ✅ Os alertas visuais no frontend continuam funcionando
+- ✅ O usuário tem autonomia para decidir se deseja prosseguir
 - ✅ Considera custo total (custo + frete)
 - ✅ Considera taxas fixas e variáveis
 - ✅ Usa a mesma lógica da "Prova Real"
@@ -136,12 +122,13 @@ Usuário clica em Salvar
     ↓
 Model valida todos os campos
     ↓
-validatePromocao() é executada
+validatePrejuizo() e validatePromocao() são executadas
     ↓
 Se prejuízo detectado:
-    - Erro é adicionado
-    - Formulário não é salvo
-    - Mensagem de erro é exibida
+    - ⚠️ NÃO bloqueia mais o cadastro
+    - ✅ Formulário é salvo normalmente
+    - ℹ️ Alertas visuais no frontend continuam informando
+    - 👤 Usuário tem autonomia para decidir
 ```
 
 ## 📊 Cálculo da "Prova Real"
@@ -180,18 +167,19 @@ Lucro Real = 50 - 2.50 - 1.50 - 50 = -R$ 4,00 ❌ (Prejuízo!)
 
 ### Backend
 
-1. ✅ Preço promocional não pode causar prejuízo
+1. ⚠️ **NÃO bloqueia** cadastro quando há prejuízo (apenas informativo)
 2. ✅ Considera custo total (custo + frete)
 3. ✅ Considera taxas fixas e variáveis
-4. ✅ Mensagem de erro detalhada
+4. ✅ Usuário tem autonomia para decidir
 
 ### Frontend
 
 1. ✅ Validação em tempo real
-2. ✅ Alerta visual imediato
+2. ✅ Alerta visual imediato (informativo, não bloqueia)
 3. ✅ Campo destacado quando há prejuízo
 4. ✅ Mensagem detalhada com valores
 5. ✅ Atualização automática ao mudar custos/taxas
+6. ✅ Mostra exatamente o valor do prejuízo (ex: R$ 6,66)
 
 ## 🔍 Event Listeners
 
@@ -222,18 +210,22 @@ Lucro Real = 50 - 2.50 - 1.50 - 50 = -R$ 4,00 ❌ (Prejuízo!)
 
 ## 🚀 Benefícios
 
-1. **Prevenção de Prejuízo**: Impede salvar promoções que causem prejuízo
-2. **Feedback Imediato**: Usuário vê o problema antes de salvar
-3. **Transparência**: Mostra exatamente quanto será o prejuízo
-4. **Facilidade**: Calcula automaticamente considerando todas as variáveis
-5. **Consistência**: Usa a mesma lógica da "Prova Real" do preço normal
+1. **Informação Transparente**: Alerta o usuário sobre possíveis prejuízos
+2. **Autonomia do Usuário**: Permite que o usuário decida se deseja prosseguir
+3. **Feedback Imediato**: Usuário vê o problema em tempo real
+4. **Transparência**: Mostra exatamente quanto será o prejuízo (ex: R$ 6,66)
+5. **Facilidade**: Calcula automaticamente considerando todas as variáveis
+6. **Consistência**: Usa a mesma lógica da "Prova Real" do preço normal
+7. **Flexibilidade**: Permite promoções agressivas ou estratégicas mesmo com prejuízo
 
 ## 📝 Notas Importantes
 
-1. **Validação Dupla**: Backend e frontend validam
-2. **Configuração Financeira**: Usa configuração específica do produto ou global
-3. **Tempo Real**: Validação acontece enquanto o usuário digita
-4. **Precisão**: Considera todas as taxas e custos
+1. **Alertas Informativos**: Os alertas são apenas informativos e NÃO bloqueiam o cadastro
+2. **Autonomia do Usuário**: O usuário tem total controle para decidir se deseja vender com prejuízo
+3. **Configuração Financeira**: Usa configuração específica do produto ou global
+4. **Tempo Real**: Validação acontece enquanto o usuário digita
+5. **Precisão**: Considera todas as taxas e custos
+6. **Cálculo do Prejuízo**: O valor do prejuízo (ex: R$ 6,66) é calculado como: `Lucro Real = Preço de Venda - Taxas Fixas - Taxas Variáveis - Custo Total`. Se negativo, há prejuízo.
 
 ---
 

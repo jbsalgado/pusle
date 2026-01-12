@@ -1041,7 +1041,8 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
     
     ${carrinho.map(item => {
         // Normalização de campos (compatível com frontend e backend/snake_case)
-        const preco = parseFloat(item.preco || item.preco_venda_sugerido || item.preco_unitario || item.preco_unitario_venda || 0);
+        // ✅ CORREÇÃO: Priorizar preço promocional (preco_final) se disponível
+        const preco = parseFloat(item.preco_final || item.preco || item.preco_venda_sugerido || item.preco_unitario || item.preco_unitario_venda || 0);
         const qtd = parseFloat(item.quantidade || 0);
         
         // Subtotal Bruto
