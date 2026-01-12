@@ -814,38 +814,48 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
         cidade = enderecoPartes.slice(1).join(', ').trim() || '';
     }
     
-    // Calcula totais
-    let valorTotal = carrinho.reduce((total, item) => {
-        // Normalização de campos
-        const preco = parseFloat(item.preco || item.preco_venda_sugerido || item.preco_unitario || item.preco_unitario_venda || 0);
-        const qtd = parseFloat(item.quantidade || 0);
-        const subtotalBruto = preco * qtd;
-        
-        // Processa desconto
-        let descontoValor = parseFloat(item.descontoValor || item.desconto_valor || 0);
-        let descontoPercentual = parseFloat(item.descontoPercentual || item.desconto_percentual || 0);
-        
-        let valorDesconto = 0;
-        if (descontoValor > 0) {
-            valorDesconto = descontoValor;
-        } else if (descontoPercentual > 0) {
-            valorDesconto = subtotalBruto * (descontoPercentual / 100);
-        }
-        
-        // Total Líquido
-        const subtotalLiquido = Math.max(0, subtotalBruto - valorDesconto);
-        
-        return total + subtotalLiquido;
-    }, 0);
-
-    // Adiciona acréscimo se houver (compatível com snake_case do backend ou JS puro)
+    // ✅ CORREÇÃO: Priorizar valor total da venda salva no banco (já inclui todos os descontos e acréscimos)
     // Primeiro tenta buscar do objeto venda dentro de dadosPedido (se existir), senão busca direto em dadosPedido
     const dadosVenda = dadosPedido.venda || dadosPedido;
+    
+    // Tenta usar o valor total da venda salva no banco (mais confiável)
+    let valorTotal = parseFloat(dadosVenda.valor_total || dadosPedido.valorTotal || dadosPedido.valor_total || 0);
+    
+    // Se não houver valor total da venda, recalcula a partir do carrinho
+    if (!valorTotal || valorTotal <= 0) {
+        valorTotal = carrinho.reduce((total, item) => {
+            // Normalização de campos
+            // ✅ CORREÇÃO: Priorizar preço promocional (preco_final) se disponível
+            const preco = parseFloat(item.preco_final || item.preco || item.preco_venda_sugerido || item.preco_unitario || item.preco_unitario_venda || 0);
+            const qtd = parseFloat(item.quantidade || 0);
+            const subtotalBruto = preco * qtd;
+            
+            // Processa desconto
+            let descontoValor = parseFloat(item.descontoValor || item.desconto_valor || 0);
+            let descontoPercentual = parseFloat(item.descontoPercentual || item.desconto_percentual || 0);
+            
+            let valorDesconto = 0;
+            if (descontoValor > 0) {
+                valorDesconto = descontoValor;
+            } else if (descontoPercentual > 0) {
+                valorDesconto = subtotalBruto * (descontoPercentual / 100);
+            }
+            
+            // Total Líquido
+            const subtotalLiquido = Math.max(0, subtotalBruto - valorDesconto);
+            
+            return total + subtotalLiquido;
+        }, 0);
+
+        // Adiciona acréscimo se houver (compatível com snake_case do backend ou JS puro)
+        const acrescimoValor = parseFloat(dadosVenda.acrescimo_valor || dadosPedido.acrescimo_valor || 0);
+        valorTotal += acrescimoValor;
+    }
+    
+    // Busca dados do acréscimo para exibição (mesmo que já esteja no valor total)
     const acrescimoValor = parseFloat(dadosVenda.acrescimo_valor || dadosPedido.acrescimo_valor || 0);
     const acrescimoTipo = dadosVenda.acrescimo_tipo || dadosPedido.acrescimo_tipo || '';
     const acrescimoObs = dadosVenda.observacao_acrescimo || dadosPedido.observacao_acrescimo || '';
-
-    valorTotal += acrescimoValor;
     
     // Formata valor
     const valorFormatado = formatarMoeda(valorTotal);

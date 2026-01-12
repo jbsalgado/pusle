@@ -803,7 +803,8 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
     
     // Calcula totais
     const valorTotal = carrinho.reduce((total, item) => {
-        const preco = parseFloat(item.preco || item.preco_venda_sugerido || 0);
+        // ✅ CORREÇÃO: Priorizar preço promocional (preco_final) se disponível
+        const preco = parseFloat(item.preco_final || item.preco || item.preco_venda_sugerido || 0);
         const qtd = parseFloat(item.quantidade || 0);
         return total + (preco * qtd);
     }, 0);
