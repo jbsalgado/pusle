@@ -65,6 +65,12 @@ class _MyAppState extends State<MyApp> {
 
 
   void _handleSharedContent(String path) {
+    // CRITICAL FIX: Ignore Deep Link schemes if they accidentally trigger this handler
+    if (path.contains('printapp://')) { 
+        debugPrint("Ignored Deep Link in Shared Handler: $path");
+        return; 
+    }
+
      if (path.isNotEmpty && navigatorKey.currentContext != null) {
       final context = navigatorKey.currentContext!;
       final printerService = Provider.of<PrinterService>(context, listen: false);
@@ -151,13 +157,9 @@ class _MyAppState extends State<MyApp> {
                 // Fallback
              }
              
-             // Decodifica logoUrl se necessário
-             String? finalLogoUrl = logoUrl;
-             if (logoUrl != null) {
-                try {
-                   finalLogoUrl = Uri.decodeComponent(logoUrl);
-                } catch (e) {}
-             }
+             // Logo URL já vem decodificada corretamente pelo queryParameters
+             // Não aplicar decodeComponent novamente para evitar quebrar %20 em espaços
+             final String? finalLogoUrl = logoUrl;
 
              _printDataOrText(textToPrint, logoUrl: finalLogoUrl);
         }

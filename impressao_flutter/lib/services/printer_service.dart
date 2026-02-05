@@ -147,7 +147,7 @@ class PrinterService extends ChangeNotifier {
       final content = await file.readAsBytes();
       
       // Rasterize PDF using Android's native renderer (via printing package)
-      await for (final page in Printing.raster(content, dpi: 200)) {
+      await for (final page in Printing.raster(content, dpi: 300)) { // Increased DPI for better text clarity
         
         // Convert PdfRaster to image.Image
         final pngBytes = await page.toPng();
@@ -173,17 +173,22 @@ class PrinterService extends ChangeNotifier {
       const int printerWidth = 384; // Standard for 58mm
       const int chunkHeight = 20;   // Reduced to 20 to prevent buffer overflow
 
-      // 2. Resize to fit printer width
-      img.Image resized = sourceImage;
-      if (resized.width > printerWidth) {
-        resized = img.copyResize(resized, width: printerWidth);
+      // 2. Resize logic to fit standard width (384px)
+      img.Image processed = sourceImage;
+      if (processed.width > printerWidth) {
+        processed = img.copyResize(processed, width: printerWidth, interpolation: img.Interpolation.cubic);
       }
-      // No upscale - smaller images printed as is (left aligned typically) or we could center them in engine
       
-      // 3. Handle Transparency (Composite on White Background)
-      final whiteBg = img.Image(width: resized.width, height: resized.height);
-      img.fill(whiteBg, color: img.ColorRgb8(255, 255, 255));
-      final finalImage = img.compositeImage(whiteBg, resized);
+      // 3. Create a standardized canvas (384px width)
+      // This ensures stability as some printers fail with non-standard widths (like 13 bytes/line)
+      final canvas = img.Image(width: printerWidth, height: processed.height);
+      img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
+      
+      // 4. Center the image on the canvas
+      final int xOffset = (printerWidth - processed.width) ~/ 2;
+      img.compositeImage(canvas, processed, dstX: xOffset);
+      
+      final finalImage = canvas; // Use this standardized image for chunking
 
       // 4. Chunking (Split into strips)
       final int totalHeight = finalImage.height;

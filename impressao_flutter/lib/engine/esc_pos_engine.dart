@@ -96,8 +96,16 @@ class EscPosEngine {
           int x = i * 8 + bit;
           if (x < width) {
              final pixel = gray.getPixel(x, y);
-             // Use Bayer Ordered Dithering for better gradient/logo handling
-             if (shouldPrintDot(x, y, pixel.luminance.toInt())) {
+             int lum = pixel.luminance.toInt();
+             
+             // Contrast Boost: Darken pixels to make text bolder on thermal paper
+             // Thermal printers often print weak greys. We push greys towards black.
+             if (lum < 200) { // If not pure white
+                lum = (lum * 0.7).toInt(); // Darken by 30%
+             }
+             
+             // Use Bayer Ordered Dithering
+             if (shouldPrintDot(x, y, lum)) {
                 byte |= (1 << (7 - bit));
              }
           }
