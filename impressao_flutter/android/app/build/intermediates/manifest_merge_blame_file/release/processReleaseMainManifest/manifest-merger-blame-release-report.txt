@@ -1,0 +1,241 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.thermalprintdriver.impressao_flutter"
+4    android:versionCode="1"
+5    android:versionName="1.0.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="21"
+9        android:targetSdkVersion="35" />
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:49:5-66
+11-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:49:22-64
+12    <uses-permission android:name="android.permission.BLUETOOTH" />
+12-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:50:5-67
+12-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:50:22-65
+13    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+13-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:51:5-73
+13-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:51:22-71
+14    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+14-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:52:5-75
+14-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:52:22-73
+15    <uses-permission
+15-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:53:5-120
+16        android:name="android.permission.BLUETOOTH_SCAN"
+16-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:53:22-70
+17        android:usesPermissionFlags="neverForLocation" />
+17-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:53:71-117
+18    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+18-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:54:5-78
+18-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:54:22-76
+19    <!--
+20         Required to query activities that can process text, see:
+21         https://developer.android.com/training/package-visibility and
+22         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+23
+24         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin.
+25    -->
+26    <queries>
+26-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:60:5-65:15
+27        <intent>
+27-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:61:9-64:18
+28            <action android:name="android.intent.action.PROCESS_TEXT" />
+28-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:62:13-72
+28-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:62:21-70
+29
+30            <data android:mimeType="text/plain" />
+30-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:63:13-50
+30-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:63:19-48
+31        </intent>
+32    </queries>
+33
+34    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+34-->[:flutter_bluetooth_serial] /home/barbosa/.pub-cache/hosted/pub.dev/flutter_bluetooth_serial-0.4.0/android/build/intermediates/merged_manifest/release/processReleaseManifest/AndroidManifest.xml:9:5-81
+34-->[:flutter_bluetooth_serial] /home/barbosa/.pub-cache/hosted/pub.dev/flutter_bluetooth_serial-0.4.0/android/build/intermediates/merged_manifest/release/processReleaseManifest/AndroidManifest.xml:9:22-78
+35
+36    <permission
+36-->[androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.12/transforms/66aa7f682cf61ffe3ee75db6ee238d77/transformed/core-1.13.1/AndroidManifest.xml:22:5-24:47
+37        android:name="com.thermalprintdriver.impressao_flutter.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+37-->[androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.12/transforms/66aa7f682cf61ffe3ee75db6ee238d77/transformed/core-1.13.1/AndroidManifest.xml:23:9-81
+38        android:protectionLevel="signature" />
+38-->[androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.12/transforms/66aa7f682cf61ffe3ee75db6ee238d77/transformed/core-1.13.1/AndroidManifest.xml:24:9-44
+39
+40    <uses-permission android:name="com.thermalprintdriver.impressao_flutter.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+40-->[androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.12/transforms/66aa7f682cf61ffe3ee75db6ee238d77/transformed/core-1.13.1/AndroidManifest.xml:26:5-97
+40-->[androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.12/transforms/66aa7f682cf61ffe3ee75db6ee238d77/transformed/core-1.13.1/AndroidManifest.xml:26:22-94
+41
+42    <application
+43        android:name="android.app.Application"
+43-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:4:9-42
+44        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+44-->[androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.12/transforms/66aa7f682cf61ffe3ee75db6ee238d77/transformed/core-1.13.1/AndroidManifest.xml:28:18-86
+45        android:extractNativeLibs="true"
+46        android:icon="@mipmap/ic_launcher"
+46-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:5:9-43
+47        android:label="impressao_flutter" >
+47-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:3:9-42
+48        <activity
+48-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:6:9-41:20
+49            android:name="com.thermalprintdriver.impressao_flutter.MainActivity"
+49-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:7:13-41
+50            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+50-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:12:13-163
+51            android:exported="true"
+51-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:8:13-36
+52            android:hardwareAccelerated="true"
+52-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:13:13-47
+53            android:launchMode="singleTop"
+53-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:9:13-43
+54            android:taskAffinity=""
+54-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:10:13-36
+55            android:theme="@style/LaunchTheme"
+55-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:11:13-47
+56            android:windowSoftInputMode="adjustResize" >
+56-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:14:13-55
+57
+58            <!--
+59                 Specifies an Android theme to apply to this Activity as soon as
+60                 the Android process has started. This theme is visible to the user
+61                 while the Flutter UI initializes. After that, this theme continues
+62                 to determine the Window background behind the Flutter UI.
+63            -->
+64            <meta-data
+64-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:19:13-22:17
+65                android:name="io.flutter.embedding.android.NormalTheme"
+65-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:20:15-70
+66                android:resource="@style/NormalTheme" />
+66-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:21:15-52
+67
+68            <intent-filter>
+68-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:23:13-26:29
+69                <action android:name="android.intent.action.MAIN" />
+69-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:24:17-68
+69-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:24:25-66
+70
+71                <category android:name="android.intent.category.LAUNCHER" />
+71-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:25:17-76
+71-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:25:27-74
+72            </intent-filter>
+73            <!-- Deep Link: printapp:// -->
+74            <intent-filter android:autoVerify="true" >
+74-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:28:13-33:29
+74-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:28:28-53
+75                <action android:name="android.intent.action.VIEW" />
+75-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:29:17-69
+75-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:29:25-66
+76
+77                <category android:name="android.intent.category.DEFAULT" />
+77-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:30:17-76
+77-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:30:27-73
+78                <category android:name="android.intent.category.BROWSABLE" />
+78-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:31:17-78
+78-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:31:27-75
+79
+80                <data android:scheme="printapp" />
+80-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:63:13-50
+80-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:32:23-48
+81            </intent-filter>
+82
+83            <!-- Share Intent: Receive Text -->
+84            <intent-filter>
+84-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:36:13-40:29
+85                <action android:name="android.intent.action.SEND" />
+85-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:37:17-69
+85-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:37:25-66
+86
+87                <category android:name="android.intent.category.DEFAULT" />
+87-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:30:17-76
+87-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:30:27-73
+88
+89                <data android:mimeType="text/plain" />
+89-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:63:13-50
+89-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:63:19-48
+90            </intent-filter>
+91        </activity>
+92        <!--
+93             Don't delete the meta-data below.
+94             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java
+95        -->
+96        <meta-data
+96-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:44:9-46:33
+97            android:name="flutterEmbedding"
+97-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:45:13-44
+98            android:value="2" />
+98-->/srv/http/pulse/impressao_flutter/android/app/src/main/AndroidManifest.xml:46:13-30
+99
+100        <uses-library
+100-->[androidx.window:window:1.2.0] /home/barbosa/.gradle/caches/8.12/transforms/197f12b192a3f06912c946d4cbd2dd7d/transformed/jetified-window-1.2.0/AndroidManifest.xml:23:9-25:40
+101            android:name="androidx.window.extensions"
+101-->[androidx.window:window:1.2.0] /home/barbosa/.gradle/caches/8.12/transforms/197f12b192a3f06912c946d4cbd2dd7d/transformed/jetified-window-1.2.0/AndroidManifest.xml:24:13-54
+102            android:required="false" />
+102-->[androidx.window:window:1.2.0] /home/barbosa/.gradle/caches/8.12/transforms/197f12b192a3f06912c946d4cbd2dd7d/transformed/jetified-window-1.2.0/AndroidManifest.xml:25:13-37
+103        <uses-library
+103-->[androidx.window:window:1.2.0] /home/barbosa/.gradle/caches/8.12/transforms/197f12b192a3f06912c946d4cbd2dd7d/transformed/jetified-window-1.2.0/AndroidManifest.xml:26:9-28:40
+104            android:name="androidx.window.sidecar"
+104-->[androidx.window:window:1.2.0] /home/barbosa/.gradle/caches/8.12/transforms/197f12b192a3f06912c946d4cbd2dd7d/transformed/jetified-window-1.2.0/AndroidManifest.xml:27:13-51
+105            android:required="false" />
+105-->[androidx.window:window:1.2.0] /home/barbosa/.gradle/caches/8.12/transforms/197f12b192a3f06912c946d4cbd2dd7d/transformed/jetified-window-1.2.0/AndroidManifest.xml:28:13-37
+106
+107        <provider
+107-->[androidx.lifecycle:lifecycle-process:2.7.0] /home/barbosa/.gradle/caches/8.12/transforms/0c7cd1674da718ccee593f79cf8da244/transformed/jetified-lifecycle-process-2.7.0/AndroidManifest.xml:24:9-32:20
+108            android:name="androidx.startup.InitializationProvider"
+108-->[androidx.lifecycle:lifecycle-process:2.7.0] /home/barbosa/.gradle/caches/8.12/transforms/0c7cd1674da718ccee593f79cf8da244/transformed/jetified-lifecycle-process-2.7.0/AndroidManifest.xml:25:13-67
+109            android:authorities="com.thermalprintdriver.impressao_flutter.androidx-startup"
+109-->[androidx.lifecycle:lifecycle-process:2.7.0] /home/barbosa/.gradle/caches/8.12/transforms/0c7cd1674da718ccee593f79cf8da244/transformed/jetified-lifecycle-process-2.7.0/AndroidManifest.xml:26:13-68
+110            android:exported="false" >
+110-->[androidx.lifecycle:lifecycle-process:2.7.0] /home/barbosa/.gradle/caches/8.12/transforms/0c7cd1674da718ccee593f79cf8da244/transformed/jetified-lifecycle-process-2.7.0/AndroidManifest.xml:27:13-37
+111            <meta-data
+111-->[androidx.lifecycle:lifecycle-process:2.7.0] /home/barbosa/.gradle/caches/8.12/transforms/0c7cd1674da718ccee593f79cf8da244/transformed/jetified-lifecycle-process-2.7.0/AndroidManifest.xml:29:13-31:52
+112                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+112-->[androidx.lifecycle:lifecycle-process:2.7.0] /home/barbosa/.gradle/caches/8.12/transforms/0c7cd1674da718ccee593f79cf8da244/transformed/jetified-lifecycle-process-2.7.0/AndroidManifest.xml:30:17-78
+113                android:value="androidx.startup" />
+113-->[androidx.lifecycle:lifecycle-process:2.7.0] /home/barbosa/.gradle/caches/8.12/transforms/0c7cd1674da718ccee593f79cf8da244/transformed/jetified-lifecycle-process-2.7.0/AndroidManifest.xml:31:17-49
+114            <meta-data
+114-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:29:13-31:52
+115                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+115-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:30:17-85
+116                android:value="androidx.startup" />
+116-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:31:17-49
+117        </provider>
+118
+119        <receiver
+119-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:34:9-52:20
+120            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+120-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:35:13-76
+121            android:directBootAware="false"
+121-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:36:13-44
+122            android:enabled="true"
+122-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:37:13-35
+123            android:exported="true"
+123-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:38:13-36
+124            android:permission="android.permission.DUMP" >
+124-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:39:13-57
+125            <intent-filter>
+125-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:40:13-42:29
+126                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+126-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:41:17-91
+126-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:41:25-88
+127            </intent-filter>
+128            <intent-filter>
+128-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:43:13-45:29
+129                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+129-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:44:17-85
+129-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:44:25-82
+130            </intent-filter>
+131            <intent-filter>
+131-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:46:13-48:29
+132                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+132-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:47:17-88
+132-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:47:25-85
+133            </intent-filter>
+134            <intent-filter>
+134-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:49:13-51:29
+135                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+135-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:50:17-95
+135-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.12/transforms/a41c77be64ae79775eea5abf0296f1bb/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:50:25-92
+136            </intent-filter>
+137        </receiver>
+138    </application>
+139
+140</manifest>
