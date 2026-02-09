@@ -389,4 +389,22 @@ class Venda extends ActiveRecord
         return $this->hasMany(Parcela::class, ['venda_id' => 'id'])
             ->orderBy(['numero_parcela' => SORT_ASC]);
     }
+
+    /**
+     * @return \yii\db\ActiveQuery
+     */
+    public function getCuponsFiscais()
+    {
+        return $this->hasMany(CupomFiscal::class, ['venda_id' => 'id'])
+            ->orderBy(['data_emissao' => SORT_DESC]);
+    }
+
+    /**
+     * Retorna o último cupom fiscal emitido para esta venda
+     * @return CupomFiscal|null
+     */
+    public function getUltimoCupomFiscal()
+    {
+        return $this->getCuponsFiscais()->one();
+    }
 }

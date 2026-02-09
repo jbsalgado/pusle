@@ -459,7 +459,11 @@ usort($visibleCards, function ($a, $b) {
         <!-- Cards de Ação Rápida -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <!-- Nova Venda -->
-            <a href="<?= Yii::getAlias('@web') ?>/venda-direta/"
+            <?php
+            // ✅ Gera token JWT para SSO com o PWA
+            $tokenJwt = $usuario ? $usuario->generateJwt() : '';
+            ?>
+            <a href="<?= Yii::getAlias('@web') ?>/venda-direta/?token=<?= $tokenJwt ?>"
                 class="group block bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
                 <div class="flex items-center space-x-3 sm:space-x-4">
                     <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">

@@ -207,6 +207,30 @@ class IndDefinicoesIndicadores extends ActiveRecord
     }
 
     /**
+     * @return \yii\db\ActiveQuery
+     */
+    public function getMetas()
+    {
+        return $this->hasMany(IndMetasIndicadores::class, ['id_indicador' => 'id_indicador']);
+    }
+
+    /**
+     * @return \yii\db\ActiveQuery
+     */
+    public function getValores()
+    {
+        return $this->hasMany(IndValoresIndicadores::class, ['id_indicador' => 'id_indicador']);
+    }
+
+    /**
+     * @return \yii\db\ActiveQuery
+     */
+    public function getAtributosQualidade()
+    {
+        return $this->hasOne(IndAtributosQualidadeDesempenho::class, ['id_indicador' => 'id_indicador']);
+    }
+
+    /**
      * Lista de opções para tipo específico
      */
     public static function getTipoEspecificoOptions()
@@ -257,8 +281,74 @@ class IndDefinicoesIndicadores extends ActiveRecord
             ->orderBy(['nome_dimensao' => SORT_ASC])
             ->asArray()
             ->all();
-        
+
         // Mapeia o resultado para um array no formato [id => nome]
         return ArrayHelper::map($dimensoes, 'id_dimensao', 'nome_dimensao');
+    }
+
+    /**
+     * Busca os dados consolidados de um indicador para o dashboard.
+     * Melhora a versão antiga incluindo atributos de qualidade.
+     * @param string $cod_indicador O código do indicador (ex: 'FARM_VT')
+     * @return array|null
+     */
+    public static function getDashboardData(string $cod_indicador): ?array
+    {
+        $indicador = self::find()
+            ->where(['cod_indicador' => $cod_indicador, 'ativo' => true])
+            ->with(['unidadeMedida', 'atributosQualidade'])
+            ->asArray()
+            ->one();
+
+        if (!$indicador) {
+            return null;
+        }
+
+        // Busca o valor mais recente (competência)
+        $ultimoValor = IndValoresIndicadores::find()
+            ->where(['id_indicador' => $indicador['id_indicador']])
+            ->orderBy(['data_referencia' => SORT_DESC])
+            ->asArray()
+            ->one();
+
+        if (!$ultimoValor) {
+            return [
+                'definicao' => $indicador,
+                'ultimoValor' => null,
+                'meta' => null,
+                'atributos_qualidade' => $indicador['atributosQualidade'] ?? null,
+                'historico' => []
+            ];
+        }
+
+        $dataRef = $ultimoValor['data_referencia'];
+
+        // Busca a meta ativa para a data do último valor
+        $metaAtiva = IndMetasIndicadores::find()
+            ->where(['id_indicador' => $indicador['id_indicador']])
+            ->andWhere(['<=', 'data_inicio_vigencia', $dataRef])
+            ->andWhere([
+                'or',
+                ['data_fim_vigencia' => null],
+                ['>=', 'data_fim_vigencia', $dataRef]
+            ])
+            ->asArray()
+            ->one();
+
+        // Busca o histórico para o gráfico (últimos 12 meses)
+        $historico = IndValoresIndicadores::find()
+            ->where(['id_indicador' => $indicador['id_indicador']])
+            ->orderBy(['data_referencia' => SORT_ASC])
+            ->limit(12)
+            ->asArray()
+            ->all();
+
+        return [
+            'definicao' => $indicador,
+            'ultimoValor' => $ultimoValor,
+            'meta' => $metaAtiva,
+            'atributos_qualidade' => $indicador['atributosQualidade'] ?? null,
+            'historico' => $historico
+        ];
     }
 }

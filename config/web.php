@@ -97,6 +97,9 @@ $config = [
             ],
         ],
         'db' => $db,
+        'nfwService' => [
+            'class' => 'app\components\NFwService',
+        ],
         'urlManager' => [
             'enablePrettyUrl' => true, // Habilitado para suportar rotas REST
             // Detecta automaticamente se deve mostrar index.php baseado na URL atual
@@ -111,6 +114,9 @@ $config = [
                 'api/<controller:\w+>/<action:[\w-]+>' => 'api/<controller>/<action>',
                 'api/<controller:\w+>' => 'api/<controller>/index',
             ],
+        ],
+        'nfwService' => [
+            'class' => 'app\components\NFwService',
         ],
     ],
     'modules' => [

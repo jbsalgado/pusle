@@ -2,7 +2,7 @@
 // VERSÃO MODIFICADA PARA VENDA DIRETA
 
 import { CONFIG, API_ENDPOINTS, GATEWAY_CONFIG } from './config.js';
-import { salvarPedidoPendente } from './storage.js';
+import { salvarPedidoPendente, getToken } from './storage.js';
 import { validarUUID } from './utils.js';
 import { getAcrescimo } from './cart.js?v=surcharge_fix';
 
@@ -128,12 +128,21 @@ async function tentarEnvioDireto(pedido) {
         console.log('[Order] 📦 Pedido:', JSON.stringify(pedido, null, 2));
         console.log('[Order] 🎯 URL:', API_ENDPOINTS.PEDIDO_CREATE);
         
+        const token = await getToken();
+        console.log('[Order] 🔑 Token obtido para envio:', token ? 'Sim (mascarado: ' + token.substring(0, 10) + '...)' : 'Não');
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        };
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const response = await fetch(API_ENDPOINTS.PEDIDO_CREATE, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
+            headers: headers,
             body: JSON.stringify(pedido),
             signal: AbortSignal.timeout(10000)
         });

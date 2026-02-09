@@ -1468,7 +1468,7 @@ class MercadoPagoController extends Controller
     }
 
     /**
-     * Calcula application_fee de 0.5% com segurança.
+     * Calcula application_fee (split da plataforma) com segurança.
      */
     private function calcularApplicationFee(float $valor): float
     {
@@ -1476,7 +1476,8 @@ class MercadoPagoController extends Controller
             return 0;
         }
 
-        $fee = round($valor * 0.005, 2);
+        $percent = Yii::$app->params['pulse_platform_fee_percent'] ?? 0.005;
+        $fee = round($valor * $percent, 2);
         return min($fee, $valor);
     }
 

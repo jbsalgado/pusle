@@ -1,4 +1,5 @@
 <?php
+
 namespace app\modules\api\controllers;
 
 use Yii;
@@ -15,7 +16,7 @@ class UsuarioController extends Controller
     {
         $behaviors = parent::behaviors();
         $behaviors['contentNegotiator']['formats']['application/json'] = Response::FORMAT_JSON;
-        
+
         // CORS para permitir cookies de sessão
         $behaviors['corsFilter'] = [
             'class' => \yii\filters\Cors::class,
@@ -27,30 +28,12 @@ class UsuarioController extends Controller
                 'Access-Control-Max-Age' => 86400,
             ],
         ];
-        
-        // Adiciona controle de acesso para actionMe
-        // Usa 'denyCallback' para retornar 401 em vez de 403
-        // actionDadosLoja e actionConfig são públicos (não requerem autenticação)
-        $behaviors['access'] = [
-            'class' => AccessControl::class,
-            'rules' => [
-                [
-                    'actions' => ['me'],
-                    'allow' => true,
-                    'roles' => ['@'], // Apenas usuários autenticados
-                ],
-                [
-                    'actions' => ['dados-loja', 'config'],
-                    'allow' => true, // Público - não requer autenticação
-                ],
-            ],
-            'denyCallback' => function ($rule, $action) {
-                Yii::$app->response->statusCode = 401;
-                Yii::$app->response->format = Response::FORMAT_JSON;
-                return ['erro' => 'Usuário não autenticado'];
-            },
+
+        $behaviors['authenticator'] = [
+            'class' => \yii\filters\auth\HttpBearerAuth::class,
+            'optional' => ['dados-loja', 'config'],
         ];
-        
+
         return $behaviors;
     }
 
@@ -63,36 +46,38 @@ class UsuarioController extends Controller
         try {
             $sql = "
                 SELECT 
-                    id,
-                    nome,
-                    api_de_pagamento,
-                    gateway_pagamento,
-                    mercadopago_public_key,
-                    mercadopago_sandbox,
-                    asaas_sandbox,
-                    catalogo_path
-                FROM prest_usuarios
-                WHERE id = :id::uuid
+                    u.id,
+                    u.nome,
+                    u.api_de_pagamento,
+                    u.gateway_pagamento,
+                    u.mercadopago_public_key,
+                    u.mercadopago_sandbox,
+                    u.asaas_sandbox,
+                    u.catalogo_path,
+                    c.imprimir_automatico
+                FROM prest_usuarios u
+                LEFT JOIN prest_configuracoes c ON c.usuario_id = u.id
+                WHERE u.id = :id::uuid
                 LIMIT 1
             ";
-            
+
             $usuario = Yii::$app->db->createCommand($sql, [
                 ':id' => $usuario_id
             ])->queryOne();
-            
+
             if (!$usuario) {
                 return ['erro' => 'Usuário não encontrado'];
             }
-            
+
             return [
                 'api_de_pagamento' => $usuario['api_de_pagamento'] ?? false,
                 'gateway_pagamento' => $usuario['gateway_pagamento'] ?? 'nenhum',
                 'mercadopago_public_key' => $usuario['mercadopago_public_key'] ?? null,
                 'mercadopago_sandbox' => $usuario['mercadopago_sandbox'] ?? true,
                 'asaas_sandbox' => $usuario['asaas_sandbox'] ?? true,
-                'catalogo_path' => $usuario['catalogo_path'] ?? 'catalogo'
+                'catalogo_path' => $usuario['catalogo_path'] ?? 'catalogo',
+                'imprimir_automatico' => (bool)($usuario['imprimir_automatico'] ?? false)
             ];
-            
         } catch (\Exception $e) {
             Yii::$app->response->statusCode = 500;
             return ['erro' => $e->getMessage()];
@@ -110,7 +95,7 @@ class UsuarioController extends Controller
                 Yii::$app->response->statusCode = 400;
                 return ['erro' => 'Parâmetro usuario_id é obrigatório'];
             }
-            
+
             $sql = "
                 SELECT 
                     id,
@@ -127,19 +112,19 @@ class UsuarioController extends Controller
                 WHERE id = :id::uuid
                 LIMIT 1
             ";
-            
+
             $usuario = Yii::$app->db->createCommand($sql, [
                 ':id' => $usuario_id
             ])->queryOne();
-            
+
             if (!$usuario) {
                 Yii::$app->response->statusCode = 404;
                 return ['erro' => 'Usuário não encontrado'];
             }
-            
+
             // Busca configuração da loja (se existir)
             $config = \app\modules\vendas\models\Configuracao::findOne(['usuario_id' => $usuario_id]);
-            
+
             // Monta endereço completo a partir dos campos individuais
             $enderecoPartes = array_filter([
                 $usuario['endereco'] ?? '',
@@ -148,7 +133,7 @@ class UsuarioController extends Controller
                 $usuario['estado'] ?? ''
             ]);
             $enderecoCompleto = !empty($enderecoPartes) ? implode(', ', $enderecoPartes) : ($config->endereco_completo ?? '');
-            
+
             // Logo: prioriza prest_configuracoes, depois prest_usuarios
             $logoPath = '';
             if ($config && !empty($config->logo_path)) {
@@ -156,7 +141,7 @@ class UsuarioController extends Controller
             } elseif (!empty($usuario['logo_path'])) {
                 $logoPath = $usuario['logo_path'];
             }
-            
+
             return [
                 'nome' => $usuario['nome'] ?? 'Loja',
                 'cpf_cnpj' => $usuario['cpf'] ?? '',
@@ -184,7 +169,6 @@ class UsuarioController extends Controller
                 // Pode ser adicionado campo específico na tabela depois
                 'background_image' => null,
             ];
-            
         } catch (\Exception $e) {
             Yii::$app->response->statusCode = 500;
             return ['erro' => $e->getMessage()];
@@ -204,9 +188,9 @@ class UsuarioController extends Controller
                 Yii::$app->response->format = Response::FORMAT_JSON;
                 return ['erro' => 'Usuário não autenticado'];
             }
-            
+
             $usuario = Yii::$app->user->identity;
-            
+
             if (!$usuario) {
                 Yii::$app->response->statusCode = 401;
                 Yii::$app->response->format = Response::FORMAT_JSON;
@@ -243,7 +227,6 @@ class UsuarioController extends Controller
             }
 
             return $dados;
-            
         } catch (\Exception $e) {
             Yii::$app->response->statusCode = 500;
             Yii::$app->response->format = Response::FORMAT_JSON;

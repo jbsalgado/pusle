@@ -1298,6 +1298,18 @@ async function gerarComprovanteOrcamento(carrinho, dadosPedido) {
                 document.body.removeChild(iframe);
                 
                 console.log('[PIX] ✅ Comprovante gerado com sucesso como PNG');
+
+                // ✅ Automação de Impressão Térmica
+                if (window.GATEWAY_CONFIG?.imprimir_automatico) {
+                    console.log('[PIX] 🖨️ Automação: Detectada configuração de impressão automática');
+                    // Pequeno delay para garantir que o modal abriu e os dados globais foram setados
+                    setTimeout(() => {
+                        if (typeof window.imprimirComprovanteTexto === 'function') {
+                            console.log('[PIX] 🚀 Disparando impressão automática...');
+                            window.imprimirComprovanteTexto();
+                        }
+                    }, 800);
+                }
             }, 'image/png', 1.0);
             
         } catch (error) {

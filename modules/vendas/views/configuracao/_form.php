@@ -23,7 +23,7 @@ use Yii;
     <div class="border-b border-gray-200 pb-6">
         <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center">
             <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
             Identificação da Loja
         </h2>
@@ -72,8 +72,7 @@ use Yii;
                 type="button"
                 id="btn-conectar-mercadopago"
                 data-tenant="<?= Html::encode($usuarioAtual->id ?? '') ?>"
-                class="inline-flex items-center px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-lg shadow-md transition duration-300"
-            >
+                class="inline-flex items-center px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-lg shadow-md transition duration-300">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5a1 1 0 112 0v6a1 1 0 01-.293.707l-3 3a1 1 0 11-1.414-1.414L11 10.586V5z" />
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 19h10" />
@@ -93,7 +92,7 @@ use Yii;
     <div class="border-b border-gray-200 pb-6">
         <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center">
             <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
             </svg>
             Cores do Tema
         </h2>
@@ -123,7 +122,7 @@ use Yii;
     <div class="border-b border-gray-200 pb-6">
         <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center">
             <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
             </svg>
             Redes Sociais (Opcional)
         </h2>
@@ -183,7 +182,8 @@ use Yii;
     <div class="border-b border-gray-200 pb-6">
         <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center">
             <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             Informações Adicionais
         </h2>
@@ -209,7 +209,8 @@ use Yii;
     <div class="pb-2">
         <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center">
             <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             Configurações do Sistema
         </h2>
@@ -246,6 +247,22 @@ use Yii;
                     </div>
                 </div>
             </div>
+
+            <div class="bg-blue-50 rounded-lg p-4 border border-blue-100">
+                <div class="flex items-start">
+                    <div class="flex items-center h-5">
+                        <?= Html::activeCheckbox($model, 'imprimir_automatico', [
+                            'class' => 'w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2',
+                            'label' => false,
+                            'id' => 'imprimir_automatico_checkbox'
+                        ]) ?>
+                    </div>
+                    <div class="ml-3">
+                        <label for="imprimir_automatico_checkbox" class="font-medium text-blue-900 text-sm sm:text-base cursor-pointer">Impressão Automática (Térmica)</label>
+                        <p class="text-xs text-blue-700">Dispara automaticamente o comando para o app ThermalPrintDriver ao gerar um comprovante</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -266,62 +283,61 @@ use Yii;
 </div>
 
 <script>
-// Preview de cores em tempo real
-document.addEventListener('DOMContentLoaded', function() {
-    const corPrimaria = document.getElementById('configuracao-cor_primaria');
-    const corSecundaria = document.getElementById('configuracao-cor_secundaria');
-    
-    if (corPrimaria) {
-        corPrimaria.addEventListener('input', function() {
-            // Atualiza preview se houver
-            const preview = document.querySelector('.preview-cor-primaria');
-            if (preview) {
-                preview.style.backgroundColor = this.value;
-            }
-        });
-    }
-    
-    if (corSecundaria) {
-        corSecundaria.addEventListener('input', function() {
-            const preview = document.querySelector('.preview-cor-secundaria');
-            if (preview) {
-                preview.style.backgroundColor = this.value;
-            }
-        });
-    }
+    // Preview de cores em tempo real
+    document.addEventListener('DOMContentLoaded', function() {
+        const corPrimaria = document.getElementById('configuracao-cor_primaria');
+        const corSecundaria = document.getElementById('configuracao-cor_secundaria');
 
-    // OAuth Mercado Pago
-    const btnConectarMP = document.getElementById('btn-conectar-mercadopago');
-    if (btnConectarMP) {
-        btnConectarMP.addEventListener('click', async function(e) {
-            e.preventDefault();
-            const tenantId = this.dataset.tenant;
-            if (!tenantId) {
-                alert('Não foi possível identificar a loja logada. Faça login novamente.');
-                return;
-            }
-
-            const original = this.innerHTML;
-            this.disabled = true;
-            this.innerHTML = 'Gerando link...';
-
-            try {
-                const resp = await fetch('<?= Url::to(['/api/mercado-pago/connect-url']) ?>?tenant_id=' + tenantId);
-                const data = await resp.json();
-
-                if (data && data.url) {
-                    window.open(data.url, '_blank');
-                } else {
-                    alert(data.erro || 'Não foi possível gerar a URL de conexão.');
+        if (corPrimaria) {
+            corPrimaria.addEventListener('input', function() {
+                // Atualiza preview se houver
+                const preview = document.querySelector('.preview-cor-primaria');
+                if (preview) {
+                    preview.style.backgroundColor = this.value;
                 }
-            } catch (err) {
-                alert('Erro ao conectar com o Mercado Pago.');
-            } finally {
-                this.disabled = false;
-                this.innerHTML = original;
-            }
-        });
-    }
-});
-</script>
+            });
+        }
 
+        if (corSecundaria) {
+            corSecundaria.addEventListener('input', function() {
+                const preview = document.querySelector('.preview-cor-secundaria');
+                if (preview) {
+                    preview.style.backgroundColor = this.value;
+                }
+            });
+        }
+
+        // OAuth Mercado Pago
+        const btnConectarMP = document.getElementById('btn-conectar-mercadopago');
+        if (btnConectarMP) {
+            btnConectarMP.addEventListener('click', async function(e) {
+                e.preventDefault();
+                const tenantId = this.dataset.tenant;
+                if (!tenantId) {
+                    alert('Não foi possível identificar a loja logada. Faça login novamente.');
+                    return;
+                }
+
+                const original = this.innerHTML;
+                this.disabled = true;
+                this.innerHTML = 'Gerando link...';
+
+                try {
+                    const resp = await fetch('<?= Url::to(['/api/mercado-pago/connect-url']) ?>?tenant_id=' + tenantId);
+                    const data = await resp.json();
+
+                    if (data && data.url) {
+                        window.open(data.url, '_blank');
+                    } else {
+                        alert(data.erro || 'Não foi possível gerar a URL de conexão.');
+                    }
+                } catch (err) {
+                    alert('Erro ao conectar com o Mercado Pago.');
+                } finally {
+                    this.disabled = false;
+                    this.innerHTML = original;
+                }
+            });
+        }
+    });
+</script>

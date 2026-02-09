@@ -6,13 +6,13 @@ import {
     calcularTotalItens, limparCarrinho, atualizarIndicadoresCarrinho,
     atualizarBadgeProduto, aplicarDescontoItem, getAcrescimo, setAcrescimo
 } from './cart.js?v=surcharge_fix';
-import { carregarCarrinho, limparDadosLocaisPosSinc, carregarFormasPagamentoCache } from './storage.js';
+import { carregarCarrinho, limparDadosLocaisPosSinc, carregarFormasPagamentoCache, obterFilaPedidos } from './storage.js';
 import { finalizarPedido } from './order.js';
 import { carregarFormasPagamento } from './payment.js';
 import { validarCPF, maskCPF, maskPhone, maskCEP, formatarMoeda, formatarCPF, verificarElementosCriticos } from './utils.js';
 import { ELEMENTOS_CRITICOS } from './config.js';
 import { mostrarModalPixEstatico } from './pix.js'; // Importação do novo módulo
-import { verificarAutenticacao, getColaboradorData } from './auth.js'; // Importação do módulo de autenticação
+import { verificarAutenticacao, getColaboradorData, login } from './auth.js'; // Importação do módulo de autenticação
 import { buscarClientePorCpf, cadastrarCliente, getClienteAtual, setClienteAtual } from './customer.js'; // Importação do módulo de cliente
 
 // Variáveis Globais
@@ -57,6 +57,7 @@ async function init() {
         // ✅ Verifica se há comprovante para exibir após reload
         verificarComprovantePosReload();
         atualizarBadgeCarrinho();
+        await atualizarIndicadorPendentes();
         inicializarMonitoramentoRede();
         
         console.log('[App] ✅ Aplicação inicializada!');
@@ -64,6 +65,60 @@ async function init() {
         console.error('[App] ❌ Erro na inicialização:', error);
     }
 }
+
+// Listener para exibir modal de login (disparado pelo auth.js quando 401)
+window.addEventListener('exibir-login-modal', () => {
+    const modal = document.getElementById('modal-login');
+    if (modal) {
+        modal.classList.remove('hidden');
+        const inputUser = document.getElementById('login-username');
+        if (inputUser) setTimeout(() => inputUser.focus(), 100);
+    }
+});
+
+// Função global para realizar login via modal
+window.realizarLogin = async function() {
+    const user = document.getElementById('login-username').value;
+    const pass = document.getElementById('login-password').value;
+    const errorMsg = document.getElementById('login-error');
+    const btn = document.getElementById('btn-login-submit');
+
+    if (!user || !pass) {
+        if (errorMsg) {
+            errorMsg.textContent = 'Preencha usuário e senha.';
+            errorMsg.classList.remove('hidden');
+        }
+        return;
+    }
+
+    try {
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Entrando...';
+        }
+        if (errorMsg) errorMsg.classList.add('hidden');
+
+        await login(user, pass);
+
+        // Sucesso
+        const modal = document.getElementById('modal-login');
+        if (modal) modal.classList.add('hidden');
+        
+        // Recarrega para reinicializar
+        window.location.reload();
+
+    } catch (err) {
+        console.error('Erro no login:', err);
+        if (errorMsg) {
+            errorMsg.textContent = err.message || 'Erro ao entrar. Verifique suas credenciais.';
+            errorMsg.classList.remove('hidden');
+        }
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Entrar';
+        }
+    }
+};
 
 // Carregar Logo da Empresa
 async function carregarLogoEmpresa() {
@@ -1172,14 +1227,20 @@ window.confirmarPedido = async function() {
             resultado_completo: resultado  // Adiciona o resultado completo para debug
         });
         
-        if (resultado.sucesso && !resultado.offline) {
+            if (resultado.sucesso && !resultado.offline) {
             // ✅ NOVO FLUXO: NÃO confirma recebimento imediatamente
             // Confirmação só acontece quando usuário clicar em "Confirmar Recebimento"
-            const vendaId = resultado.dados?.id || resultado.dados?.orçamento?.id || resultado.id;
+            
+            // Tenta extrair o ID de várias fontes possíveis na resposta
+            const vendaId = resultado.dados?.id || 
+                           resultado.dados?.data?.id || 
+                           resultado.dados?.orçamento?.id || 
+                           resultado.dados?.data?.orçamento?.id || 
+                           resultado.id;
             
             if (!vendaId) {
-                console.error('[App] ❌ ID da orçamento não encontrado no resultado');
-                alert('Erro: ID da orçamento não encontrado.');
+                console.error('[App] ❌ ID da orçamento não encontrado no resultado', resultado);
+                alert('Erro: ID da orçamento não encontrado. Verifique o console para mais detalhes.');
                 btnConfirmar.disabled = false;
                 btnConfirmar.textContent = '✅ Confirmar Orçamento';
                 return;
@@ -1650,12 +1711,21 @@ window.confirmarRecebimentoDinheiro = async function() {
     
     try {
         const { API_ENDPOINTS } = await import('./config.js');
+        const { getToken } = await import('./storage.js');
+        const token = await getToken();
+
+        const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        };
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const response = await fetch(API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
+            headers: headers,
             body: JSON.stringify({ venda_id: vendaId })
         });
 
@@ -1722,3 +1792,46 @@ window.fecharModalDinheiro = function() {
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 export { init, carregarProdutos, abrirModal, fecharModal };
+/**
+ * Atualiza o indicador (badge) de pedidos aguardando sincronização
+ */
+async function atualizarIndicadorPendentes(count = null) {
+    try {
+        if (count === null) {
+            const fila = await obterFilaPedidos();
+            count = fila.length;
+        }
+        
+        const badgeDiv = document.getElementById('status-pendente');
+        const countSpan = document.getElementById('badge-pendente-count');
+        
+        if (badgeDiv && countSpan) {
+            if (count > 0) {
+                countSpan.textContent = count;
+                badgeDiv.classList.remove('hidden');
+                badgeDiv.classList.add('flex');
+                console.log(`[App] 📦 Badge pendente atualizado: ${count}`);
+            } else {
+                badgeDiv.classList.add('hidden');
+                badgeDiv.classList.remove('flex');
+            }
+        }
+    } catch (err) {
+        console.error('[App] Erro ao atualizar indicador de pendentes:', err);
+    }
+}
+
+// Listener para atualiza\u00e7\u00e3o da fila (disparado pelo storage.js)
+window.addEventListener('fila-pedidos-atualizada', (e) => {
+    atualizarIndicadorPendentes(e.detail.count);
+});
+
+// Listener para mensagens do Service Worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', async (event) => {
+        if (event.data && event.data.type === 'SYNC_SUCCESS') {
+            console.log('[App] \ud83d\udce4 Sincroniza\u00e7\u00e3o autom\u00e1tica via SW bem-sucedida!');
+            await atualizarIndicadorPendentes();
+        }
+    });
+}

@@ -165,7 +165,7 @@ export const API_ENDPOINTS = {
 
 export const STORAGE_KEYS = {
     CARRINHO: 'carrinho_orcamento',
-    PEDIDO_PENDENTE: 'orcamento_pendente',
+    FILA_PEDIDOS: 'fila_orcamentos_pendentes',
     FORMAS_PAGAMENTO: 'formas_pagamento_orcamento' // Cache offline de formas de pagamento
 };
 
@@ -174,8 +174,10 @@ export let GATEWAY_CONFIG = {
     habilitado: false,
     gateway: 'nenhum', // 'mercadopago' | 'asaas' | 'nenhum'
     mercadopago_public_key: null,
-    asaas_sandbox: false
+    asaas_sandbox: false,
+    imprimir_automatico: false
 };
+window.GATEWAY_CONFIG = GATEWAY_CONFIG;
 
 // ✅ Configuração da Chave PIX Estática
 // DEPRECATED: Agora os dados PIX são carregados da API (tabela prest_configuracoes)
@@ -204,6 +206,7 @@ export async function carregarConfigLoja() {
         GATEWAY_CONFIG.gateway = config.gateway_pagamento || 'nenhum';
         GATEWAY_CONFIG.mercadopago_public_key = config.mercadopago_public_key;
         GATEWAY_CONFIG.asaas_sandbox = config.asaas_sandbox || false;
+        GATEWAY_CONFIG.imprimir_automatico = config.imprimir_automatico || false;
         
         console.log('[Config] Gateway:', GATEWAY_CONFIG.gateway, 
                     GATEWAY_CONFIG.habilitado ? '✅ HABILITADO' : '❌ DESABILITADO');

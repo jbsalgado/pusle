@@ -42,7 +42,9 @@ import {
 import { ELEMENTOS_CRITICOS } from './config.js';
 import { inicializarMonitoramentoRede } from './network.js';
 import { cadastrarCliente } from './customer.js';
+
 import { mostrarModalPixEstatico } from './pix.js';
+import { inicializarSocial, toggleSelecaoProduto } from './social.js';
 
 // Disponibiliza CONFIG no window para compatibilidade com módulos que não usam import
 window.CONFIG = CONFIG;
@@ -100,7 +102,8 @@ async function init() {
         atualizarBadgeCarrinho();
         
         // 🔟 Inicializar monitoramento de rede (status online/offline)
-        inicializarMonitoramentoRede();
+        // 11️⃣ Inicializar módulo social
+        inicializarSocial();
         
         console.log('[App] ✅ Aplicação inicializada com sucesso!');
         
@@ -703,17 +706,31 @@ function filtrarProdutos() {
     
     // Mostra/oculta botão de limpar busca
     if (btnLimpar) {
-        btnLimpar.classList.toggle('hidden', !termoBusca);
+        btnLimpar.classList.toggle('hidden', !!termoBusca);
     }
     
-    if (!termoBusca) {
-        produtosFiltrados = produtos;
-    } else {
-        produtosFiltrados = produtos.filter(produto => 
+    // Filtro base: todos os produtos da página atual
+    let listaFiltrada = produtos;
+
+    // 1. Filtro por Social (Link Compartilhado)
+    if (window.FILTRO_IDS_SOCIAL && window.FILTRO_IDS_SOCIAL.length > 0) {
+        console.log('[App] 🔍 Aplicando filtro social:', window.FILTRO_IDS_SOCIAL);
+        listaFiltrada = listaFiltrada.filter(p => 
+            window.FILTRO_IDS_SOCIAL.includes(String(p.id))
+        );
+        
+        // Se filtrou e não sobrou nada, talvez devêssemos avisar ou tentar carregar mais?
+        // Por enquanto, mostra apenas o que tem na página que coincide.
+    }
+
+    // 2. Filtro por Busca (Nome)
+    if (termoBusca) {
+        listaFiltrada = listaFiltrada.filter(produto => 
             produto.nome.toLowerCase().includes(termoBusca)
         );
     }
     
+    produtosFiltrados = listaFiltrada;
     renderizarProdutos(produtosFiltrados);
 }
 
@@ -927,9 +944,40 @@ function renderizarProdutos(listaProdutos) {
                     🛒 Adicionar ao Carrinho
                 </button>
             </div>
+            
+            <!-- Overlay de Seleção Social -->
+            <div class="social-check hidden">
+                <div>
+                   <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                   </svg>
+                </div>
+            </div>
         </div>
     `;
     }).join('');
+    
+    // Adicionar listener de clique nos cards para seleção social
+    // Usamos delegação de evento ou adicionamos a cada card? Vamos adicionar ao container para perfomance
+    // Mas como o renderizarProdutos sobrescreve o HTML, precisamos re-adicionar ou usar onclick inline?
+    // Melhor: Adicionar onclick no div principal do card via JS logo após renderizar
+    
+    container.querySelectorAll('[data-produto-card]').forEach(card => {
+        card.addEventListener('click', (e) => {
+            // Se estiver em modo social (verificado pela classe no body)
+            if (document.body.classList.contains('modo-social')) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const id = card.getAttribute('data-produto-card');
+                // Encontrar o objeto produto completo
+                const produto = listaProdutos.find(p => String(p.id) === String(id));
+                if (produto) {
+                    toggleSelecaoProduto(produto);
+                }
+            }
+        });
+    });
 }
 
 // ==========================================================================

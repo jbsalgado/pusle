@@ -22,6 +22,7 @@ let colaboradorAtual = null;
 let formasPagamento = [];
 let usuarioData = null;
 let clienteAtual = null; // Cliente para vendas parceladas
+let categoriaSelecionada = 'todos'; // Categoria atual (todos = null na API)
 
 // Cache de páginas já carregadas (melhora performance)
 const cacheProdutos = new Map();
@@ -49,6 +50,8 @@ async function init() {
         await carregarLogoEmpresa(); // Carrega logo da empresa
         await registrarServiceWorker();
         await carregarCarrinhoInicial();
+        // ✅ Carrega categorias antes dos produtos
+        await carregarCategorias();
         await carregarProdutos();
         inicializarEventListeners();
         inicializarBuscaProdutos(); // Inicializa o filtro de busca
@@ -413,6 +416,79 @@ window.formatarEntradaDesconto = function(input) {
 };
 
 // ==========================================================================
+// CATEGORIAS
+// ==========================================================================
+
+async function carregarCategorias() {
+    try {
+        console.log('[App] 📂 Carregando categorias...');
+        const response = await fetch(`${API_ENDPOINTS.CATEGORIA}?usuario_id=${CONFIG.ID_USUARIO_LOJA}`);
+        
+        if (!response.ok) throw new Error('Falha ao carregar categorias');
+        
+        const data = await response.json();
+        const categorias = data.data || [];
+        
+        const container = document.getElementById('filtro-categorias');
+        if (!container) return; // Se não tiver container (ex: fora da home), ignora
+        
+        // Remove loading
+        const loading = document.getElementById('loading-categorias');
+        if (loading) loading.remove();
+        
+        // Mantém o botão "Todos" e adiciona as categorias
+        const btnTodos = container.querySelector('button[data-categoria-id="todos"]');
+        container.innerHTML = '';
+        if (btnTodos) container.appendChild(btnTodos);
+        
+        categorias.forEach(cat => {
+            const btn = document.createElement('button');
+            btn.className = 'categoria-chip flex-shrink-0 px-4 py-1.5 bg-white text-gray-700 rounded-full text-sm font-medium whitespace-nowrap shadow-sm hover:bg-gray-50 transition-colors border border-gray-200';
+            btn.textContent = cat.nome;
+            btn.dataset.categoriaId = cat.id;
+            btn.onclick = () => window.filtrarPorCategoria(cat.id);
+            container.appendChild(btn);
+        });
+        
+        console.log(`[App] ✅ ${categorias.length} categorias carregadas`);
+        
+    } catch (error) {
+        console.error('[App] ❌ Erro ao carregar categorias:', error);
+        // Remove loading em caso de erro
+        const loading = document.getElementById('loading-categorias');
+        if (loading) loading.style.display = 'none';
+    }
+}
+
+window.filtrarPorCategoria = async function(id) {
+    // Atualiza estado global
+    categoriaSelecionada = id;
+    
+    // Atualiza UI
+    document.querySelectorAll('.categoria-chip').forEach(btn => {
+        const isSelected = btn.dataset.categoriaId == id; // Loose equality para 'todos' vs id numérico
+        if (isSelected) {
+            btn.className = 'categoria-chip active px-4 py-1.5 bg-blue-600 text-white rounded-full text-sm font-medium whitespace-nowrap shadow-sm transition-colors border border-blue-600';
+        } else {
+            btn.className = 'categoria-chip px-4 py-1.5 bg-white text-gray-700 rounded-full text-sm font-medium whitespace-nowrap shadow-sm hover:bg-gray-50 transition-colors border border-gray-200';
+        }
+    });
+    
+    // Reseta busca quando muda categoria? 
+    // Por enquanto, mantenho a busca se existir, mas talvez seja melhor resetar o input
+    const inputBusca = document.getElementById('busca-produto');
+    const termoBusca = inputBusca ? inputBusca.value.trim() : '';
+    
+    // Recarrega produtos (página 1)
+    await carregarProdutos(1, true, termoBusca);
+};
+
+window.onload = function() {
+    // Garante que o CSS de scrollbar seja aplicado se não carregou
+    // (Opcional, mas styles.css já cuida disso)
+};
+
+// ==========================================================================
 // PRODUTOS
 // ==========================================================================
 
@@ -424,9 +500,10 @@ window.formatarEntradaDesconto = function(input) {
  */
 async function carregarProdutos(pagina = 1, forcarRecarregar = false, termoBusca = '') {
     try {
-        // Para busca, não usa cache (busca sempre precisa ser atualizada)
-        const cacheKey = termoBusca ? `${pagina}_${termoBusca}` : pagina;
-        if (!forcarRecarregar && !termoBusca && cacheProdutos.has(pagina)) {
+        // Para busca ou filtro de categoria, não usa cache
+        const usarCache = !forcarRecarregar && !termoBusca && (categoriaSelecionada === 'todos' || !categoriaSelecionada) && cacheProdutos.has(pagina);
+        
+        if (usarCache) {
             console.log(`[App] 📦 Usando cache da página ${pagina}`);
             const dadosCache = cacheProdutos.get(pagina);
             produtos = dadosCache.produtos;
@@ -439,13 +516,22 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false, termoBusca
             return;
         }
         
-        console.log('[App] 📦 Carregando produtos (página', pagina, termoBusca ? `, busca: "${termoBusca}"` : '', ')...');
+        const catInfo = categoriaSelecionada && categoriaSelecionada !== 'todos' ? `, categoria: ${categoriaSelecionada}` : '';
+        console.log('[App] 📦 Carregando produtos (página', pagina, termoBusca ? `, busca: "${termoBusca}"` : '', catInfo, ')...');
         mostrarCarregando();
         
-        // Constrói URL com parâmetros de busca se houver
-        let url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}&page=${pagina}&per-page=20`;
+        // Constrói URL com parâmetros
+        // ✅ UPDATE: Aumentado para 50 itens por página
+        let url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}&page=${pagina}&per-page=50`;
+        
+        // Adiciona busca
         if (termoBusca && termoBusca.trim() !== '') {
             url += `&q=${encodeURIComponent(termoBusca.trim())}`;
+        }
+        
+        // Adiciona categoria
+        if (categoriaSelecionada && categoriaSelecionada !== 'todos') {
+            url += `&categoria_id=${categoriaSelecionada}`;
         }
         const response = await fetch(url);
         
@@ -1175,11 +1261,17 @@ window.confirmarPedido = async function() {
         if (resultado.sucesso && !resultado.offline) {
             // ✅ NOVO FLUXO: NÃO confirma recebimento imediatamente
             // Confirmação só acontece quando usuário clicar em "Confirmar Recebimento"
-            const vendaId = resultado.dados?.id || resultado.dados?.venda?.id || resultado.id;
+            
+            // Tenta extrair o ID de várias fontes possíveis na resposta
+            const vendaId = resultado.dados?.id || 
+                           resultado.dados?.data?.id || 
+                           resultado.dados?.venda?.id || 
+                           resultado.dados?.data?.venda?.id || 
+                           resultado.id;
             
             if (!vendaId) {
-                console.error('[App] ❌ ID da venda não encontrado no resultado');
-                alert('Erro: ID da venda não encontrado.');
+                console.error('[App] ❌ ID da venda não encontrado no resultado', resultado);
+                alert('Erro: ID da venda não encontrado. Verifique o console para mais detalhes.');
                 btnConfirmar.disabled = false;
                 btnConfirmar.textContent = '✅ Confirmar Venda';
                 return;
@@ -1252,13 +1344,22 @@ window.confirmarPedido = async function() {
             
             try {
                 // Chama endpoint de confirmação de recebimento
-                            const { API_ENDPOINTS } = await import('./config.js');
+                const { API_ENDPOINTS } = await import('./config.js');
+                const { getToken } = await import('./storage.js');
+                const token = await getToken();
+
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                };
+
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+
                 const response = await fetch(API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
+                    headers: headers,
                     body: JSON.stringify({ venda_id: vendaId })
                 });
 
@@ -1650,12 +1751,21 @@ window.confirmarRecebimentoDinheiro = async function() {
     
     try {
         const { API_ENDPOINTS } = await import('./config.js');
+        const { getToken } = await import('./storage.js');
+        const token = await getToken();
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        };
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
         const response = await fetch(API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
+            headers: headers,
             body: JSON.stringify({ venda_id: vendaId })
         });
 

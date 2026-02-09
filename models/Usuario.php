@@ -24,6 +24,7 @@ use app\modules\vendas\models\RegraParcelamento;
 use app\modules\vendas\models\RotaCobranca;
 use app\modules\vendas\models\Venda;
 use app\modules\vendas\models\Vendedor;
+use app\components\JwtHelper;
 use Yii;
 // ✅ IMPORTAÇÕES ADICIONADAS
 use yii\web\IdentityInterface;
@@ -134,7 +135,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
         }
         return $usuario;
     }
-    
+
     /**
      * Converte valores boolean do PostgreSQL para PHP boolean
      * PostgreSQL pode retornar 't'/'f' como string
@@ -144,7 +145,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
         // Converte eh_dono_loja
         if (property_exists($this, 'eh_dono_loja') && isset($this->eh_dono_loja)) {
             $valorOriginal = $this->eh_dono_loja;
-            
+
             if (is_string($valorOriginal)) {
                 $this->eh_dono_loja = (strtolower(trim($valorOriginal)) === 't' || strtolower(trim($valorOriginal)) === 'true' || $valorOriginal === '1');
                 Yii::info("🔍 converterBooleanFields - eh_dono_loja convertido de '{$valorOriginal}' (string) para " . ($this->eh_dono_loja ? 'true' : 'false'), __METHOD__);
@@ -161,7 +162,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
                 Yii::warning("⚠️ converterBooleanFields - Não conseguiu converter eh_dono_loja. Valor original: " . var_export($valorOriginal, true) . " (tipo: " . gettype($valorOriginal) . ")", __METHOD__);
             }
         }
-        
+
         // Converte outros campos boolean também
         $booleanFields = ['api_de_pagamento', 'mercadopago_sandbox', 'asaas_sandbox'];
         foreach ($booleanFields as $field) {
@@ -176,7 +177,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
             }
         }
     }
-    
+
     /**
      * Hook afterFind para converter boolean fields
      * Este método é chamado automaticamente pelo Yii2 após ler um registro do banco
@@ -186,7 +187,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
         parent::afterFind();
         $this->converterBooleanFields();
     }
-    
+
     /**
      * Override __get para garantir conversão ao acessar o atributo
      * Isso garante que mesmo se afterFind não for chamado, a conversão acontece
@@ -194,7 +195,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
     public function __get($name)
     {
         $value = parent::__get($name);
-        
+
         // Se for um campo boolean e ainda não foi convertido, converte
         if (in_array($name, ['eh_dono_loja', 'api_de_pagamento', 'mercadopago_sandbox', 'asaas_sandbox'])) {
             if (is_string($value)) {
@@ -211,7 +212,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
                 return false;
             }
         }
-        
+
         return $value;
     }
 
@@ -220,8 +221,31 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
      */
     public static function findIdentityByAccessToken($token, $type = null)
     {
-        // Não usado neste projeto, mas obrigatório pela interface
-        throw new NotSupportedException('"findIdentityByAccessToken" não foi implementado.');
+        $secret = Yii::$app->request->cookieValidationKey;
+        $payload = JwtHelper::decode($token, $secret);
+
+        if ($payload && isset($payload['sub'])) {
+            return static::findIdentity($payload['sub']);
+        }
+
+        return null;
+    }
+
+    /**
+     * Gera um Token JWT para o usuário
+     * @return string
+     */
+    public function generateJwt()
+    {
+        $secret = Yii::$app->request->cookieValidationKey;
+        $payload = [
+            'sub' => $this->id,
+            'username' => $this->username,
+            'exp' => time() + (3600 * 24 * 30), // 30 dias de expiração
+            'iat' => time(),
+        ];
+
+        return JwtHelper::encode($payload, $secret);
     }
 
     /**
@@ -288,8 +312,8 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
     {
         return Yii::$app->security->validatePassword($senha, $this->hash_senha);
     }
-    
-     public static function findByLogin($login)
+
+    public static function findByLogin($login)
     {
         // Busca por username, email ou CPF
         $usuario = static::find()
@@ -297,15 +321,15 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
             ->orWhere(['email' => $login])
             ->orWhere(['cpf' => $login])
             ->one();
-        
+
         if ($usuario) {
             // Converte valores boolean do PostgreSQL após ler do banco
             $usuario->converterBooleanFields();
         }
-        
+
         return $usuario;
     }
-    
+
     /**
      * Verifica se o usuário é dono da loja
      * @return bool
@@ -314,7 +338,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
     {
         return $this->eh_dono_loja === true;
     }
-    
+
     /**
      * Verifica se o usuário está bloqueado
      * @return bool
@@ -323,7 +347,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
     {
         return $this->blocked_at !== null;
     }
-    
+
     /**
      * Verifica se o usuário está confirmado
      * @return bool
@@ -332,7 +356,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
     {
         return $this->confirmed_at !== null;
     }
-    
+
     /**
      * Bloqueia o usuário
      */
@@ -341,7 +365,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
         $this->blocked_at = date('Y-m-d H:i:s');
         return $this->save(false);
     }
-    
+
     /**
      * Desbloqueia o usuário
      */
@@ -350,7 +374,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
         $this->blocked_at = null;
         return $this->save(false);
     }
-    
+
     /**
      * Confirma o email do usuário
      */
@@ -380,7 +404,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
     {
         return !empty($this->mp_access_token) || !empty($this->mercadopago_access_token);
     }
-    
+
     /**
      * ✅ Verifica se o Asaas está configurado
      */
@@ -388,7 +412,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
     {
         return !empty($this->asaas_api_key);
     }
-    
+
     /**
      * ✅ Retorna o gateway ativo
      */
@@ -397,15 +421,15 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
         if ($this->gateway_pagamento === 'mercadopago' && $this->temMercadoPagoConfigurado()) {
             return 'mercadopago';
         }
-        
+
         if ($this->gateway_pagamento === 'asaas' && $this->temAsaasConfigurado()) {
             return 'asaas';
         }
-        
+
         return 'nenhum';
     }
 
-     /**
+    /**
      * Retorna primeiro nome
      * @return string
      */

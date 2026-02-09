@@ -2,7 +2,7 @@
 // VERSÃO MODIFICADA PARA VENDA DIRETA
 
 import { CONFIG, API_ENDPOINTS, GATEWAY_CONFIG } from './config.js';
-import { salvarPedidoPendente } from './storage.js';
+import { adicionarPedidoAFila, obterFilaPedidos, removerPedidoDaFila, getToken } from './storage.js';
 import { validarUUID } from './utils.js';
 import { getAcrescimo } from './cart.js?v=surcharge_fix';
 
@@ -125,16 +125,24 @@ function prepararObjetoPedido(dadosPedido, carrinho) {
  */
 async function tentarEnvioDireto(pedido) {
     try {
-        console.log('[Order] 🌐 Tentando envio direto (Orçamento Direta)...');
-        console.log('[Order] 📦 Pedido:', JSON.stringify(pedido, null, 2));
-        console.log('[Order] 🎯 URL:', API_ENDPOINTS.PEDIDO_CREATE);
+        const token = await getToken();
+        console.log('[Order] 🔑 Token obtido para envio:', token ? 'Sim (mascarado: ' + token.substring(0, 10) + '...)' : 'Não');
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        };
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+            console.log('[Order] 🛡️ Header Authorization adicionado');
+        } else {
+            console.warn('[Order] ⚠️ Token ausente! A requisição pode falhar com 401.');
+        }
         
         const response = await fetch(API_ENDPOINTS.PEDIDO_CREATE, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
+            headers: headers,
             body: JSON.stringify(pedido),
             signal: AbortSignal.timeout(10000)
         });
@@ -207,42 +215,48 @@ async function registrarSyncPedido() {
  */
 function configurarSincronizacaoManual() {
     window.addEventListener('online', async () => {
-        console.log('[Order] 🌐 Conexão restaurada! Verificando orçamentos pendentes...');
-        
-        const { idbKeyval } = await import('./utils.js');
-        const { STORAGE_KEYS } = await import('./config.js');
+        console.log('[Order] 🌐 Conexão restaurada! Verificando fila de orçamentos pendentes...');
         
         try {
-            const pedidoPendente = await idbKeyval.get(STORAGE_KEYS.PEDIDO_PENDENTE);
+            const fila = await obterFilaPedidos();
             
-            if (pedidoPendente) {
-                console.log('[Order] 📦 Orçamento pendente encontrada, tentando reenviar...');
+            if (fila.length > 0) {
+                console.log(`[Order] 📦 Encontrados ${fila.length} orçamentos pendentes. Iniciando sincronização...`);
                 
-                const resultado = await tentarEnvioDireto(pedidoPendente);
+                let sucessos = 0;
+                let falhas = 0;
+
+                for (const pedido of fila) {
+                    const resultado = await tentarEnvioDireto(pedido);
+                    if (resultado.sucesso) {
+                        sucessos++;
+                        await removerPedidoDaFila(pedido.id_local);
+                    } else {
+                        falhas++;
+                        console.error(`[Order] ❌ Falha ao sincronizar pedido ${pedido.id_local}:`, resultado.erro);
+                    }
+                }
                 
-                if (resultado.sucesso) {
-                    console.log('[Order] ✅ Orçamento pendente enviada com sucesso!');
-                    
-                    await idbKeyval.del(STORAGE_KEYS.PEDIDO_PENDENTE);
+                if (sucessos > 0) {
+                    const msg = falhas > 0 
+                        ? `${sucessos} orçamentos sincronizados, ${falhas} falharam.`
+                        : `Todos os ${sucessos} orçamentos pendentes foram sincronizados!`;
                     
                     if ('Notification' in window && Notification.permission === 'granted') {
-                        new Notification('Orçamento Enviada', {
-                            body: 'Sua orçamento offline foi enviada com sucesso!',
-                            icon: '/favicon.ico'
-                        });
+                        new Notification('Sincronização Concluída', { body: msg, icon: '/favicon.ico' });
                     } else {
-                        alert('Orçamento offline enviada com sucesso!');
+                        alert(msg);
                     }
                     
-                    setTimeout(() => window.location.reload(), 2000);
-                } else {
-                    console.error('[Order] ❌ Falha ao reenviar orçamento pendente:', resultado.erro);
+                    if (falhas === 0) {
+                        setTimeout(() => window.location.reload(), 2000);
+                    }
                 }
             } else {
-                console.log('[Order] ℹ️ Nenhuma orçamento pendente para sincronizar');
+                console.log('[Order] ℹ️ Fila de orçamentos vazia');
             }
         } catch (error) {
-            console.error('[Order] ❌ Erro ao verificar orçamentos pendentes:', error);
+            console.error('[Order] ❌ Erro ao processar fila de sincronização:', error);
         }
     });
     
@@ -278,7 +292,7 @@ export async function finalizarPedido(dadosPedido, carrinho) {
             // OFFLINE: Salvar localmente
             console.log('[Order] 🔴 Offline detectado, salvando localmente...');
             
-            const salvou = await salvarPedidoPendente(pedido);
+            const salvou = await adicionarPedidoAFila(pedido);
             if (!salvou) {
                 throw new Error('Erro ao salvar orçamento localmente');
             }
@@ -299,10 +313,11 @@ export async function finalizarPedido(dadosPedido, carrinho) {
             // ✅ Enviado com sucesso!
             console.log('[Order] 🎉 Orçamento finalizado com sucesso via envio direto');
             
+            const vendaData = resultadoDireto.dados?.data || resultadoDireto.dados;
             return {
                 sucesso: true,
                 dados: resultadoDireto.dados,
-                mensagem: `Orçamento gerado com sucesso!\n\nNúmero: ${resultadoDireto.dados?.id || resultadoDireto.dados?.orçamento?.id || 'N/A'}\nValor Total: R$ ${resultadoDireto.dados?.valor_total || resultadoDireto.dados?.orçamento?.valor_total || '0.00'}`
+                mensagem: `Orçamento gerado com sucesso!\n\nNúmero: ${vendaData?.id || vendaData?.orçamento?.id || 'N/A'}\nValor Total: R$ ${vendaData?.valor_total || vendaData?.orçamento?.valor_total || '0.00'}`
             };
         }
         
@@ -310,7 +325,7 @@ export async function finalizarPedido(dadosPedido, carrinho) {
         console.warn('[Order] ⚠️ Envio direto falhou, salvando para sincronização...');
         console.warn('[Order] Motivo:', resultadoDireto.erro);
         
-        const salvou = await salvarPedidoPendente(pedido);
+        const salvou = await adicionarPedidoAFila(pedido);
         if (!salvou) {
             throw new Error('Erro ao salvar orçamento localmente');
         }

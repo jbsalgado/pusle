@@ -1,4 +1,5 @@
 <?php
+
 namespace app\modules\api\controllers;
 
 use Yii;
@@ -7,22 +8,23 @@ use yii\web\Response;
 use yii\db\Expression;
 // ATUALIZADO: Removido o 'use GuzzleHttp\Client;' original
 // MANTIDO: As exceções do Guzzle para compatibilidade com o código original (catch blocks)
-use GuzzleHttp\Exception\GuzzleException; 
-use GuzzleHttp\Exception\ConnectException; 
-use GuzzleHttp\Exception\RequestException; 
-use GuzzleHttp\Exception\ClientException; 
+use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ServerException;
-use GuzzleHttp\Psr7\Request; 
-use GuzzleHttp\Psr7\Response as GuzzleResponse; 
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response as GuzzleResponse;
 // ADICIONADO: Necessário para logar o CSRF
 use yii\base\ActionEvent;
 // ✅ ADICIONADO: Imports para modelos de vendas
 use app\modules\vendas\models\Venda;
 use app\modules\vendas\models\Produto;
+use app\modules\vendas\models\AsaasCobrancas;
 use app\modules\vendas\models\StatusVenda;
 
 
-class AsaasController extends Controller
+class AsaasController extends BaseController
 {
     /**
      * Desabilita verificação CSRF para APIs (Mantido do original)
@@ -41,14 +43,13 @@ class AsaasController extends Controller
     public function behaviors()
     {
         $behaviors = parent::behaviors();
-        $behaviors['contentNegotiator']['formats']['application/json'] = Response::FORMAT_JSON;
-        
+
         // Desabilita CSRF se for webhook (Garantia extra de que o beforeAction será executado)
         $behaviors['authenticator'] = [
             'class' => \yii\filters\auth\CompositeAuth::class,
             'except' => ['webhook', 'consultar-status'], // Permite acesso público a estes
         ];
-        
+
         return $behaviors;
     }
 
@@ -59,7 +60,7 @@ class AsaasController extends Controller
     {
         if ($action->id === 'webhook') {
             Yii::$app->request->enableCsrfValidation = false;
-            Yii::info('CSRF desabilitado para actionWebhook', 'asaas'); 
+            Yii::info('CSRF desabilitado para actionWebhook', 'asaas');
         }
         return parent::beforeAction($action);
     }
@@ -72,28 +73,28 @@ class AsaasController extends Controller
     public function actionCriarCobranca()
     {
         $transaction = Yii::$app->db->beginTransaction();
-        
+
         try {
             $rawBody = Yii::$app->request->getRawBody();
             $request = json_decode($rawBody, true);
-            
+
             if (is_null($request)) {
                 Yii::error('Falha ao decodificar JSON body. Body recebido: ' . $rawBody, 'asaas');
                 throw new \Exception('Requisição JSON inválida ou vazia.');
             }
-            
+
             // 1️⃣ VALIDAÇÃO
             $this->validarRequestCobranca($request);
-            
+
             // 2️⃣ BUSCAR USUÁRIO (LOJA)
             $usuario = $this->buscarUsuarioComValidacao($request['usuario_id']);
-            
+
             // 3️⃣ BUSCAR OU CRIAR CLIENTE NA ASAAS
             $asaasCustomerId = $this->buscarOuCriarClienteAsaas($request['cliente'], $usuario);
-            
+
             // 4️⃣ GERAR REFERÊNCIA ÚNICA
             $externalReference = $this->gerarExternalReference($usuario['id']);
-            
+
             // 5️⃣ PREPARAR DADOS DA COBRANÇA
             $dadosCobranca = [
                 'customer' => $asaasCustomerId,
@@ -104,7 +105,24 @@ class AsaasController extends Controller
                 'externalReference' => $externalReference,
                 'postalService' => false
             ];
-            
+
+            // 5️⃣.1️⃣ LOGICA DE SPLIT SAAS (PULSE)
+            $splits = [];
+            $pulseWalletId = Yii::$app->params['pulse_asaas_wallet_id'] ?? null;
+
+            if ($pulseWalletId) {
+                $percentualPlatform = (Yii::$app->params['pulse_platform_fee_percent'] ?? 0.005) * 100;
+                $splits[] = [
+                    'walletId' => $pulseWalletId,
+                    'percentualValue' => $percentualPlatform
+                ];
+                Yii::info("Adicionando SPLIT SaaS Pulse: {$percentualPlatform}%", 'asaas');
+            }
+
+            if (!empty($splits)) {
+                $dadosCobranca['splits'] = $splits;
+            }
+
             // Configurações específicas por método
             if ($request['metodo_pagamento'] === 'CREDIT_CARD' && isset($request['cartao'])) {
                 $dadosCobranca = array_merge($dadosCobranca, [
@@ -112,13 +130,13 @@ class AsaasController extends Controller
                     'creditCardHolderInfo' => $this->prepararDadosTitular($request['cliente'])
                 ]);
             }
-            
+
             // Parcelamento (se aplicável)
             if (isset($request['parcelas']) && $request['parcelas'] > 1) {
                 $dadosCobranca['installmentCount'] = intval($request['parcelas']);
                 $dadosCobranca['installmentValue'] = round($dadosCobranca['value'] / $request['parcelas'], 2);
             }
-            
+
             // 6️⃣ CRIAR COBRANÇA NA ASAAS
             $cobranca = $this->chamarApiAsaas(
                 'POST',
@@ -126,7 +144,7 @@ class AsaasController extends Controller
                 $dadosCobranca,
                 $usuario
             );
-            
+
             if (!is_array($cobranca) || !isset($cobranca['id'])) {
                 Yii::error('Resposta inesperada da Asaas ao criar cobrança: ' . json_encode($cobranca), 'asaas');
                 throw new \Exception('Falha ao criar cobrança. Resposta inválida da Asaas.');
@@ -138,7 +156,7 @@ class AsaasController extends Controller
                 'external_reference' => $externalReference,
                 'valor' => $dadosCobranca['value']
             ], 'asaas');
-            
+
             // 7️⃣ SALVAR NO POSTGRES
             $cobrancaLocalId = $this->salvarCobrancaNoBanco([
                 'payment_id' => $cobranca['id'],
@@ -154,11 +172,12 @@ class AsaasController extends Controller
                 'dados_request' => $request,
                 'dados_cobranca' => $cobranca,
                 'ambiente' => $usuario['asaas_sandbox'] ? 'sandbox' : 'producao',
-                'pedido_id' => null
+                'pedido_id' => null,
+                'colaborador_id' => $request['colaborador_id'] ?? null
             ]);
-            
+
             $transaction->commit();
-            
+
             // 8️⃣ PREPARAR RESPOSTA
             $resposta = [
                 'sucesso' => true,
@@ -169,7 +188,7 @@ class AsaasController extends Controller
                 'vencimento' => $cobranca['dueDate'],
                 'cobranca_local_id' => $cobrancaLocalId
             ];
-            
+
             // Adicionar dados específicos por método de pagamento
             switch ($request['metodo_pagamento']) {
                 case 'PIX':
@@ -186,13 +205,13 @@ class AsaasController extends Controller
                             'expiracao' => $pixData['expirationDate'] ?? null
                         ];
                     } catch (\Exception $e) {
-                         $resposta['pix'] = [
+                        $resposta['pix'] = [
                             'payload' => $cobranca['pixCopyPasteCode'] ?? null,
                             'expiracao' => $cobranca['pixExpirationDate'] ?? null
                         ];
                     }
                     break;
-                    
+
                 case 'BOLETO':
                     $resposta['boleto'] = [
                         'url' => $cobranca['bankSlipUrl'] ?? null,
@@ -200,7 +219,7 @@ class AsaasController extends Controller
                         'linha_digitavel' => $cobranca['nossoNumero'] ?? null
                     ];
                     break;
-                    
+
                 case 'CREDIT_CARD':
                     $resposta['cartao'] = [
                         'status' => $cobranca['status'],
@@ -208,45 +227,43 @@ class AsaasController extends Controller
                     ];
                     break;
             }
-            
-            return $resposta;
-            
+
+            return $this->success($resposta);
         } catch (\GuzzleHttp\Exception\RequestException $e) {
             $transaction->rollBack();
-            
+
             $responseBody = $e->getResponse() ? $e->getResponse()->getBody()->getContents() : null;
             $response = $responseBody ? json_decode($responseBody, true) : null;
-            
+
             Yii::error([
                 'action' => 'erro_criar_cobranca',
                 'error' => $e->getMessage(),
                 'response' => $response
             ], 'asaas');
-            
+
             // Tenta extrair a mensagem de erro específica da Asaas
             $errorMessage = $response['errors'][0]['description'] ?? 'Erro na API Asaas';
-            
+
             // Se a resposta for o HTML de login (erro de autenticação)
             if (strpos($responseBody, '<title>Login</title>') !== false) {
-                 $errorMessage = 'Erro de autenticação com Asaas. Verifique a API Key.';
-                 Yii::error('Asaas retornou página de login. API Key provavelmente inválida.', 'asaas');
+                $errorMessage = 'Erro de autenticação com Asaas. Verifique a API Key.';
+                Yii::error('Asaas retornou página de login. API Key provavelmente inválida.', 'asaas');
             }
-            
-            return $this->errorResponse(
+
+            return $this->error(
                 $errorMessage,
                 $e->getCode()
             );
-            
         } catch (\Exception $e) {
             $transaction->rollBack();
-            
+
             Yii::error([
                 'action' => 'erro_criar_cobranca',
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ], 'asaas');
-            
-            return $this->errorResponse('Erro interno: ' . $e->getMessage(), 500);
+
+            return $this->error('Erro interno: ' . $e->getMessage(), 500);
         }
     }
 
@@ -259,26 +276,26 @@ class AsaasController extends Controller
     // public function actionConsultarStatus($payment_id, $usuario_id)
     // {
     //     Yii::info("[POLLING] Consultando status - Payment: {$payment_id}, User: {$usuario_id}", 'asaas');
-        
+
     //     // ✅ FORÇA RESPOSTA JSON
     //     Yii::$app->response->format = Response::FORMAT_JSON;
-        
+
     //     $transaction = Yii::$app->db->beginTransaction();
-        
+
     //     try {
     //         if (!$this->validarUUID($usuario_id)) {
     //             Yii::error("[POLLING] UUID inválido: {$usuario_id}", 'asaas');
-    //             return $this->errorResponse('ID de usuário inválido', 400);
+    //             return $this->error('ID de usuário inválido', 400);
     //         }
-            
+
     //         $usuario = $this->buscarUsuarioComValidacao($usuario_id);
     //         $cobrancaLocal = $this->buscarCobrancaPorPaymentId($payment_id);
-            
+
     //         if (!$cobrancaLocal) {
     //             Yii::error("[POLLING] Cobrança não encontrada: {$payment_id}", 'asaas');
-    //             return $this->errorResponse('Cobrança local não encontrada', 404);
+    //             return $this->error('Cobrança local não encontrada', 404);
     //         }
-            
+
     //         // 1. Consultar a Asaas API
     //         $cobrancaAsaas = $this->chamarApiAsaas(
     //             'GET',
@@ -286,17 +303,17 @@ class AsaasController extends Controller
     //             [],
     //             $usuario
     //         );
-            
+
     //         $statusAsaas = $cobrancaAsaas['status'] ?? 'PENDING';
     //         Yii::info("[POLLING] Status Asaas: {$statusAsaas}", 'asaas');
-            
+
     //         // 2. Processar pedido se pago
     //         $pedidoCriadoId = $cobrancaLocal['pedido_id']; 
     //         $statusAtualizado = $cobrancaLocal['status'];
 
     //         if (in_array($statusAsaas, ['RECEIVED', 'CONFIRMED'])) {
     //             Yii::info("[POLLING] Pagamento confirmado! Processando pedido...", 'asaas');
-                
+
     //             if ($cobrancaLocal['status'] !== 'pago' || empty($cobrancaLocal['pedido_id'])) {
     //                 try {
     //                     $pedidoCriadoId = $this->criarPedidoSeNecessario($cobrancaAsaas, $cobrancaLocal, $usuario);
@@ -321,9 +338,9 @@ class AsaasController extends Controller
     //             ]);
     //             $statusAtualizado = strtolower($statusAsaas);
     //         }
-            
+
     //         $transaction->commit();
-            
+
     //         $resposta = [
     //             'sucesso' => true,
     //             'status' => $statusAtualizado, 
@@ -331,41 +348,41 @@ class AsaasController extends Controller
     //             'pedido_id' => $pedidoCriadoId,
     //             'valor' => $cobrancaAsaas['value'] ?? $cobrancaLocal['valor']
     //         ];
-            
+
     //         Yii::info("[POLLING] Resposta: " . json_encode($resposta), 'asaas');
-    //         return $resposta;
-            
+    //         return $this->success($resposta);
+
     //     } catch (\Exception $e) {
     //         $transaction->rollBack();
     //         Yii::error("[POLLING] ERRO: {$e->getMessage()}\nTrace: {$e->getTraceAsString()}", 'asaas');
-    //         return $this->errorResponse('Erro na consulta de status: ' . $e->getMessage(), 500);
+    //         return $this->error('Erro na consulta de status: ' . $e->getMessage(), 500);
     //     }
     // }
 
-    
+
     public function actionConsultarStatus($payment_id, $usuario_id)
     {
         Yii::info("[POLLING] Consultando status - Payment: {$payment_id}, User: {$usuario_id}", 'asaas');
-        
+
         // ✅ FORÇA RESPOSTA JSON
         Yii::$app->response->format = Response::FORMAT_JSON;
-        
+
         $transaction = Yii::$app->db->beginTransaction();
-        
+
         try {
             if (!$this->validarUUID($usuario_id)) {
                 Yii::error("[POLLING] UUID inválido: {$usuario_id}", 'asaas');
-                return $this->errorResponse('ID de usuário inválido', 400);
+                return $this->error('ID de usuário inválido', 400);
             }
-            
+
             $usuario = $this->buscarUsuarioComValidacao($usuario_id);
             $cobrancaLocal = $this->buscarCobrancaPorPaymentId($payment_id);
-            
+
             if (!$cobrancaLocal) {
                 Yii::error("[POLLING] Cobrança não encontrada: {$payment_id}", 'asaas');
-                return $this->errorResponse('Cobrança local não encontrada', 404);
+                return $this->error('Cobrança local não encontrada', 404);
             }
-            
+
             // 1. Consultar a Asaas API
             $cobrancaAsaas = $this->chamarApiAsaas(
                 'GET',
@@ -373,17 +390,17 @@ class AsaasController extends Controller
                 [],
                 $usuario
             );
-            
+
             $statusAsaas = $cobrancaAsaas['status'] ?? 'PENDING';
             Yii::info("[POLLING] Status Asaas: {$statusAsaas}", 'asaas');
-            
+
             // 2. Processar pedido se pago
-            $pedidoCriadoId = $cobrancaLocal['pedido_id']; 
+            $pedidoCriadoId = $cobrancaLocal['pedido_id'];
             $statusAtualizado = $cobrancaLocal['status'];
 
             if (in_array($statusAsaas, ['RECEIVED', 'CONFIRMED'])) {
                 Yii::info("[POLLING] Pagamento confirmado! Processando pedido...", 'asaas');
-                
+
                 if ($cobrancaLocal['status'] !== 'QUITADA' || empty($cobrancaLocal['pedido_id'])) {
                     try {
                         $pedidoCriadoId = $this->criarPedidoSeNecessario($cobrancaAsaas, $cobrancaLocal, $usuario);
@@ -396,11 +413,11 @@ class AsaasController extends Controller
                     $pedidoCriadoId = $cobrancaLocal['pedido_id'];
                     Yii::info("[POLLING] Pedido já existe: {$pedidoCriadoId}", 'asaas');
                 }
-                $statusAtualizado = 'QUITADA'; 
+                $statusAtualizado = 'QUITADA';
             } else {
                 // 3. Atualiza status localmente
                 $this->atualizarStatusCobranca($cobrancaLocal['id'], [
-                    'status' => strtolower($statusAsaas), 
+                    'status' => strtolower($statusAsaas),
                     'status_asaas' => $statusAsaas,
                     'valor_recebido' => $cobrancaAsaas['value'] ?? null,
                     'data_pagamento' => $cobrancaAsaas['paymentDate'] ?? null,
@@ -408,17 +425,17 @@ class AsaasController extends Controller
                 ]);
                 $statusAtualizado = strtolower($statusAsaas);
             }
-            
+
             $transaction->commit();
-            
+
             $resposta = [
                 'sucesso' => true,
-                'status' => $statusAtualizado, 
-                'status_asaas' => $statusAsaas, 
+                'status' => $statusAtualizado,
+                'status_asaas' => $statusAsaas,
                 'pedido_id' => $pedidoCriadoId,
                 'valor' => $cobrancaAsaas['value'] ?? $cobrancaLocal['valor']
             ];
-            
+
             Yii::info("[POLLING] Resposta: " . json_encode($resposta), 'asaas');
 
             // ✅✅✅ INÍCIO DA CORREÇÃO (SERVER-SIDE) ✅✅✅
@@ -430,18 +447,17 @@ class AsaasController extends Controller
             $headers->set('Expires', gmdate('D, d M Y H:i:s') . ' GMT');
             // ✅✅✅ FIM DA CORREÇÃO (SERVER-SIDE) ✅✅✅
 
-            return $resposta;
-            
+            return $this->success($resposta);
         } catch (\Exception $e) {
             $transaction->rollBack();
             Yii::error("[POLLING] ERRO: {$e->getMessage()}\nTrace: {$e->getTraceAsString()}", 'asaas');
-            
+
             // Adiciona headers anti-cache também no erro
             $headers = Yii::$app->response->headers;
             $headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
             $headers->set('Pragma', 'no-cache');
-            
-            return $this->errorResponse('Erro na consulta de status: ' . $e->getMessage(), 500);
+
+            return $this->error('Erro na consulta de status: ' . $e->getMessage(), 500);
         }
     }
 
@@ -454,41 +470,41 @@ class AsaasController extends Controller
     public function actionWebhook()
     {
         $transaction = Yii::$app->db->beginTransaction();
-        
+
         try {
             $body = Yii::$app->request->getRawBody();
             $data = json_decode($body, true);
-            
+
             Yii::info([
                 'action' => 'webhook_recebido',
                 'event' => $data['event'] ?? null,
                 'data' => $data,
                 'headers' => Yii::$app->request->headers->toArray()
             ], 'asaas');
-            
+
             if (!isset($data['event']) || !isset($data['payment'])) {
-                return $this->errorResponse('Webhook inválido', 400);
+                return $this->error('Webhook inválido', 400);
             }
-            
+
             $event = $data['event'];
             $payment = $data['payment'];
             $paymentId = $payment['id'];
-            
+
             Yii::info("📥 Webhook: {$event} para payment: {$paymentId}", 'asaas');
-            
+
             $cobranca = $this->buscarCobrancaPorPaymentId($paymentId);
-            
+
             if (!$cobranca) {
                 Yii::warning("Cobrança não encontrada: {$paymentId}", 'asaas');
                 return ['status' => 'warning', 'message' => 'Cobrança não encontrada'];
             }
-            
+
             $usuario = $this->buscarUsuarioPorId($cobranca['usuario_id']);
-            
+
             if (!$usuario) {
                 throw new \Exception("Usuário não encontrado: {$cobranca['usuario_id']}");
             }
-            
+
             // Consultar a Asaas para obter dados completos e evitar fraude simples
             $cobrancaAtualizada = $this->chamarApiAsaas(
                 'GET',
@@ -496,7 +512,7 @@ class AsaasController extends Controller
                 [],
                 $usuario
             );
-            
+
             $statusAsaas = $cobrancaAtualizada['status'] ?? 'UNKNOWN';
 
             $resultado = $this->processarEventoWebhook($event, $cobrancaAtualizada, $cobranca, $usuario);
@@ -505,7 +521,18 @@ class AsaasController extends Controller
             if (in_array($statusAsaas, ['RECEIVED', 'CONFIRMED']) && empty($cobranca['pedido_id'])) {
                 $resultado['pedido_id'] = $this->criarPedidoSeNecessario($cobrancaAtualizada, $cobranca, $usuario);
             }
-            
+
+            // 1.1 Registrar/Atualizar log financeiro (SaaS Split)
+            $platformFee = $this->calcularPlatformFee(floatval($cobranca['valor']));
+            // Usa pedido_id ou external_reference como chave
+            $orderId = $cobranca['pedido_id'] ?? null;
+            if (!$orderId && !empty($cobranca['external_reference'])) {
+                // Tenta extrair ID do pedido da external_reference se possível, senão usa ela mesma
+                $orderId = $cobranca['external_reference'];
+            }
+
+            $this->registrarLogFinanceiro($usuario['id'], $orderId, $paymentId, floatval($cobranca['valor']), $platformFee, strtolower($statusAsaas));
+
             // 2. Atualiza o status localmente (inclusive se for cancelamento/vencido)
             $this->atualizarStatusCobranca($cobranca['id'], [
                 'status' => strtolower($statusAsaas),
@@ -514,20 +541,19 @@ class AsaasController extends Controller
                 'data_pagamento' => $cobrancaAtualizada['paymentDate'] ?? null,
                 'dados_cobranca' => $cobrancaAtualizada
             ]);
-            
+
             $transaction->commit();
-            
+
             return [
                 'status' => 'ok',
                 'event' => $event,
                 'payment_id' => $paymentId,
                 'processado' => $resultado
             ];
-            
         } catch (\Exception $e) {
             $transaction->rollBack();
             Yii::error(['action' => 'webhook_erro', 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()], 'asaas');
-            return $this->errorResponse('Erro interno: ' . $e->getMessage(), 500);
+            return $this->error('Erro interno: ' . $e->getMessage(), 500);
         }
     }
 
@@ -540,22 +566,22 @@ class AsaasController extends Controller
     {
         try {
             if (!$this->validarUUID($usuario_id)) {
-                return $this->errorResponse('ID de usuário inválido', 400);
+                return $this->error('ID de usuário inválido', 400);
             }
-            
+
             $usuario = $this->buscarUsuarioPorId($usuario_id);
-            
+
             if (!$usuario || !$usuario['asaas_api_key']) {
-                return $this->errorResponse('Usuário não autorizado', 403);
+                return $this->error('Usuário não autorizado', 403);
             }
-            
+
             $cobranca = $this->chamarApiAsaas(
                 'GET',
                 "/payments/{$payment_id}",
                 [],
                 $usuario
             );
-            
+
             return [
                 'sucesso' => true,
                 'payment_id' => $cobranca['id'],
@@ -566,15 +592,14 @@ class AsaasController extends Controller
                 'metodo' => $cobranca['billingType'],
                 'external_reference' => $cobranca['externalReference']
             ];
-            
         } catch (\GuzzleHttp\Exception\RequestException $e) {
             $response = json_decode($e->getResponse()->getBody()->getContents(), true);
-            return $this->errorResponse(
+            return $this->error(
                 $response['errors'][0]['description'] ?? 'Erro ao consultar cobrança',
                 $e->getCode()
             );
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro: ' . $e->getMessage(), 500);
+            return $this->error('Erro: ' . $e->getMessage(), 500);
         }
     }
 
@@ -587,18 +612,18 @@ class AsaasController extends Controller
     {
         try {
             $usuario = $this->buscarUsuarioPorId($usuario_id);
-            
+
             if (!$usuario) {
-                return $this->errorResponse('Usuário não encontrado', 404);
+                return $this->error('Usuário não encontrado', 404);
             }
-            
+
             $pixData = $this->chamarApiAsaas(
                 'GET',
                 "/payments/{$payment_id}/pixQrCode",
                 [],
                 $usuario
             );
-            
+
             return [
                 'sucesso' => true,
                 'qrcode_id' => $pixData['id'] ?? null,
@@ -606,9 +631,8 @@ class AsaasController extends Controller
                 'encoded_image' => $pixData['encodedImage'] ?? null,
                 'expiracao' => $pixData['expirationDate'] ?? null
             ];
-            
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao gerar QR Code: ' . $e->getMessage(), 500);
+            return $this->error('Erro ao gerar QR Code: ' . $e->getMessage(), 500);
         }
     }
 
@@ -621,9 +645,9 @@ class AsaasController extends Controller
     {
         try {
             if (!$this->validarUUID($usuario_id)) {
-                return $this->errorResponse('ID de usuário inválido', 400);
+                return $this->error('ID de usuário inválido', 400);
             }
-            
+
             $query = "
                 SELECT 
                     id,
@@ -642,29 +666,29 @@ class AsaasController extends Controller
                 FROM asaas_cobrancas
                 WHERE usuario_id = :usuario_id::uuid 
             ";
-            
+
             $params = [':usuario_id' => $usuario_id];
-            
+
             if ($status) {
                 $query .= " AND status_asaas = :status";
                 $params[':status'] = $status;
             }
-            
+
             $query .= " ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
             $params[':limit'] = (int)$limit;
             $params[':offset'] = (int)$offset;
-            
+
             $cobrancas = Yii::$app->db->createCommand($query, $params)->queryAll();
-            
+
             $countQuery = "SELECT COUNT(*) FROM asaas_cobrancas WHERE usuario_id = :usuario_id::uuid";
-            $countParams = [':usuario_id' => $usuario_id]; 
+            $countParams = [':usuario_id' => $usuario_id];
             if ($status) {
                 $countQuery .= " AND status_asaas = :status";
-                $countParams[':status'] = $status; 
+                $countParams[':status'] = $status;
             }
-            
-            $total = Yii::$app->db->createCommand($countQuery, $countParams)->queryScalar(); 
-            
+
+            $total = Yii::$app->db->createCommand($countQuery, $countParams)->queryScalar();
+
             return [
                 'sucesso' => true,
                 'total' => (int)$total,
@@ -672,9 +696,8 @@ class AsaasController extends Controller
                 'offset' => (int)$offset,
                 'cobrancas' => $cobrancas
             ];
-            
         } catch (\Exception $e) {
-            return $this->errorResponse('Erro ao listar cobranças: ' . $e->getMessage(), 500);
+            return $this->error('Erro ao listar cobranças: ' . $e->getMessage(), 500);
         }
     }
 
@@ -690,89 +713,89 @@ class AsaasController extends Controller
      */
     private function chamarApiAsaas($method, $endpoint, $data, $usuario)
     {
-        $baseUrl = $usuario['asaas_sandbox'] 
-            ? self::API_URL_SANDBOX 
+        $baseUrl = $usuario['asaas_sandbox']
+            ? self::API_URL_SANDBOX
             : self::API_URL_PRODUCTION;
-        
+
         $url = $baseUrl . $endpoint;
         $apiKey = $usuario['asaas_api_key'];
         $method = strtoupper($method);
 
         // Log de debug
         Yii::info([
-            'action' => 'chamar_api_asaas_curl', 
+            'action' => 'chamar_api_asaas_curl',
             'method' => $method,
             'endpoint' => $endpoint,
             'payload_enviado' => $data
         ], 'asaas');
-        
+
         $ch = curl_init();
-        
+
         // Configurar URL (adiciona query string para GET)
         if ($method === 'GET' && !empty($data)) {
             $url .= '?' . http_build_query($data);
         }
         curl_setopt($ch, CURLOPT_URL, $url);
-        
+
         // Configurar método
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-        
+
         // Configurar cabeçalhos (Exatamente como o proxy-asaas.php)
         $headers = [
             'Accept: application/json',
             'Content-Type: application/json',
-            'User-Agent: PWA-Catalogo/1.0 (cURL)', 
+            'User-Agent: PWA-Catalogo/1.0 (cURL)',
             'access_token: ' . $apiKey
         ];
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        
+
         // Configurar corpo (POST/PUT)
         if (!in_array($method, ['GET', 'DELETE']) && !empty($data)) {
             $jsonData = json_encode($data);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                 Yii::error('chamar_api_asaas_curl_falha_json_encode_body', 'asaas');
-                 curl_close($ch);
-                 throw new \Exception('Erro ao codificar corpo da requisição para JSON.');
+                Yii::error('chamar_api_asaas_curl_falha_json_encode_body', 'asaas');
+                curl_close($ch);
+                throw new \Exception('Erro ao codificar corpo da requisição para JSON.');
             }
             curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
         }
-        
+
         // Configurações cURL
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 45); 
-        curl_setopt($ch, CURLOPT_FAILONERROR, false); 
+        curl_setopt($ch, CURLOPT_TIMEOUT, 45);
+        curl_setopt($ch, CURLOPT_FAILONERROR, false);
 
         // Executar
         $responseBody = curl_exec($ch);
         $httpStatusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlErrorNo = curl_errno($ch);
         $curlErrorMsg = curl_error($ch);
-        
+
         curl_close($ch);
-        
+
         // Tratamento de Erro (Rede/cURL)
         if ($curlErrorNo) {
             Yii::error(['action' => 'chamar_api_asaas_curl_falha_rede', 'curl_error' => $curlErrorMsg], 'asaas');
             throw new ConnectException("cURL Error ({$curlErrorNo}): {$curlErrorMsg}", new Request($method, $url));
         }
-        
+
         // Tratamento da Resposta (JSON)
         $decodedResponse = json_decode($responseBody, true);
-        
+
         // Se falhou o decode (ex: HTML de login)
         if (json_last_error() !== JSON_ERROR_NONE) {
             Yii::error(['action' => 'chamar_api_asaas_falha_json_decode', 'http_status' => $httpStatusCode, 'raw_response_body' => substr($responseBody, 0, 500)], 'asaas');
-            
+
             if ($httpStatusCode >= 400) {
-                 throw new RequestException("Asaas returned non-JSON error (Status {$httpStatusCode})", new Request($method, $url), new GuzzleResponse($httpStatusCode, [], $responseBody));
+                throw new RequestException("Asaas returned non-JSON error (Status {$httpStatusCode})", new Request($method, $url), new GuzzleResponse($httpStatusCode, [], $responseBody));
             }
-            
-            return null; 
+
+            return null;
         }
 
         // Se for JSON mas for um erro (ex: 401, 404, 422)
         if ($httpStatusCode >= 400) {
-             throw new RequestException("Asaas returned error (Status {$httpStatusCode})", new Request($method, $url), new GuzzleResponse($httpStatusCode, [], $responseBody));
+            throw new RequestException("Asaas returned error (Status {$httpStatusCode})", new Request($method, $url), new GuzzleResponse($httpStatusCode, [], $responseBody));
         }
 
         // ✅ LOG: Ver resposta completa da Asaas
@@ -791,20 +814,20 @@ class AsaasController extends Controller
         if (empty($dadosCliente)) {
             throw new \Exception('Dados do cliente são obrigatórios');
         }
-        
+
         $cpfCnpj = preg_replace('/[^0-9]/', '', $dadosCliente['cpf'] ?? '');
-        
+
         if (empty($cpfCnpj)) {
             throw new \Exception('CPF/CNPJ do cliente é obrigatório');
         }
-        
+
         // Verificar se cliente já existe no banco local
         $clienteLocal = $this->buscarClienteAsaasPorCpf($cpfCnpj, $usuario['id']);
-        
+
         if ($clienteLocal && $clienteLocal['customer_asaas_id']) {
             return $clienteLocal['customer_asaas_id'];
         }
-        
+
         // Buscar na Asaas por CPF
         $clientes = null;
         try {
@@ -821,10 +844,10 @@ class AsaasController extends Controller
             }
             Yii::info("Cliente {$cpfCnpj} não encontrado (404), será criado.", 'asaas');
         }
-            
+
         if (is_array($clientes) && !empty($clientes['data'])) {
             $customerId = $clientes['data'][0]['id'];
-            
+
             $this->salvarClienteAsaasNoBanco([
                 'usuario_id' => $usuario['id'],
                 'customer_asaas_id' => $customerId,
@@ -832,10 +855,10 @@ class AsaasController extends Controller
                 'nome' => $dadosCliente['nome'] ?? '',
                 'email' => $dadosCliente['email'] ?? ''
             ]);
-            
+
             return $customerId;
         }
-        
+
         // Criar novo cliente na Asaas
         $novoCliente = $this->chamarApiAsaas(
             'POST',
@@ -857,7 +880,7 @@ class AsaasController extends Controller
             ],
             $usuario
         );
-        
+
         if (!is_array($novoCliente) || !isset($novoCliente['id'])) {
             Yii::error('Resposta inesperada da Asaas ao CRIAR cliente: ' . json_encode($novoCliente), 'asaas');
             throw new \Exception('Falha ao criar novo cliente. Resposta inválida da Asaas.');
@@ -870,7 +893,7 @@ class AsaasController extends Controller
             'nome' => $dadosCliente['nome'] ?? '',
             'email' => $dadosCliente['email'] ?? ''
         ]);
-        
+
         return $novoCliente['id'];
     }
 
@@ -883,14 +906,14 @@ class AsaasController extends Controller
             case 'PAYMENT_RECEIVED':
             case 'PAYMENT_CONFIRMED':
                 return $this->processarPagamentoRecebido($payment, $cobranca, $usuario);
-                
+
             case 'PAYMENT_OVERDUE':
                 return $this->processarPagamentoVencido($payment, $cobranca);
-                
+
             case 'PAYMENT_DELETED':
             case 'PAYMENT_REFUNDED':
                 return $this->processarPagamentoCancelado($payment, $cobranca);
-                
+
             default:
                 Yii::info("Evento ignorado: {$event}", 'asaas');
                 return ['processado' => false, 'motivo' => 'evento_nao_tratado'];
@@ -904,14 +927,14 @@ class AsaasController extends Controller
     {
         if (!empty($cobranca['pedido_id'])) {
             Yii::info("Pedido já existe ({$cobranca['pedido_id']}). Atualizando status e processando estoque/caixa.", 'asaas');
-            
+
             // ✅ NOVO: Atualizar status da venda para QUITADA e processar estoque/caixa
             $venda = \app\modules\vendas\models\Venda::findOne($cobranca['pedido_id']);
             if ($venda && $venda->status_venda_codigo !== 'QUITADA') {
                 $venda->status_venda_codigo = \app\modules\vendas\models\StatusVenda::QUITADA;
                 if ($venda->save(false, ['status_venda_codigo', 'data_atualizacao'])) {
                     Yii::info("✅ Status da venda {$venda->id} atualizado para QUITADA", 'asaas');
-                    
+
                     // Baixar estoque dos itens
                     foreach ($venda->itens as $item) {
                         $produto = $item->produto;
@@ -924,7 +947,7 @@ class AsaasController extends Controller
                             }
                         }
                     }
-                    
+
                     // Registrar entrada no caixa
                     try {
                         $movimentacao = \app\modules\caixa\helpers\CaixaHelper::registrarEntradaVenda(
@@ -933,7 +956,7 @@ class AsaasController extends Controller
                             $venda->forma_pagamento_id,
                             $venda->usuario_id
                         );
-                        
+
                         if ($movimentacao) {
                             Yii::info("✅ Entrada registrada no caixa para Venda ID {$venda->id} após confirmação de pagamento", 'asaas');
                         } else {
@@ -944,15 +967,15 @@ class AsaasController extends Controller
                     }
                 }
             }
-            
+
             return $cobranca['pedido_id'];
         }
-        
+
         $dadosOriginais = $cobranca['dados_request'];
-        
+
         if (!isset($dadosOriginais['itens']) || !is_array($dadosOriginais['itens']) || empty($dadosOriginais['itens'])) {
-             Yii::error("Dados originais dos itens não encontrados para a cobrança ID {$cobranca['id']}.", 'asaas');
-             throw new \Exception("Dados dos itens inválidos ou ausentes para criar o pedido.");
+            Yii::error("Dados originais dos itens não encontrados para a cobrança ID {$cobranca['id']}.", 'asaas');
+            throw new \Exception("Dados dos itens inválidos ou ausentes para criar o pedido.");
         }
 
         // 1. Atualiza status localmente como pago
@@ -963,10 +986,10 @@ class AsaasController extends Controller
             'data_pagamento' => $payment['paymentDate'] ?? null,
             'dados_cobranca' => $payment
         ]);
-        
+
         // 2. Obtém a forma de pagamento interna
         $formaPagamentoId = $this->obterFormaPagamentoAsaas($cobranca['usuario_id']);
-        
+
         // 3. Cria o Pedido
         $pedidoId = $this->criarPedido([
             'usuario_id' => $cobranca['usuario_id'],
@@ -978,12 +1001,12 @@ class AsaasController extends Controller
             'status' => 'QUITADA',
             'itens' => $dadosOriginais['itens']
         ]);
-        
+
         // 4. Vincula a cobrança ao novo pedido
         $this->vincularPedidoCobranca($cobranca['id'], $pedidoId);
-        
+
         Yii::info("✅ Pedido criado via auxiliar: {$pedidoId} (Ref: {$payment['externalReference']})", 'asaas');
-        
+
         return $pedidoId;
     }
 
@@ -998,13 +1021,12 @@ class AsaasController extends Controller
             $pedidoId = $this->criarPedidoSeNecessario($payment, $cobranca, $usuario);
 
             return ['processado' => true, 'pedido_id' => $pedidoId];
-            
         } catch (\Exception $e) {
             Yii::error("Erro ao processar pagamento recebido: {$e->getMessage()}", 'asaas');
             throw $e;
         }
     }
-    
+
     /**
      * Processa pagamento vencido (Mantido do original)
      */
@@ -1020,13 +1042,13 @@ class AsaasController extends Controller
     private function processarPagamentoCancelado($payment, $cobranca)
     {
         Yii::info("❌ Pagamento cancelado: {$payment['id']}", 'asaas');
-        
+
         $this->cancelarPedido(
-            $payment['externalReference'], 
+            $payment['externalReference'],
             'Pagamento cancelado/estornado pela Asaas',
             $cobranca['pedido_id']
         );
-        
+
         return ['processado' => true, 'status' => 'CANCELADA'];
     }
 
@@ -1101,7 +1123,7 @@ class AsaasController extends Controller
             )
             RETURNING id
         ";
-        
+
         return Yii::$app->db->createCommand($sql, [
             ':payment_id' => $dados['payment_id'],
             ':external_reference' => $dados['external_reference'],
@@ -1119,7 +1141,7 @@ class AsaasController extends Controller
             ':pedido_id' => $dados['pedido_id']
         ])->queryScalar();
     }
-    
+
     private function vincularPedidoCobranca($cobrancaId, $pedidoId)
     {
         $sql = "
@@ -1127,7 +1149,7 @@ class AsaasController extends Controller
             SET pedido_id = :pedido_id::uuid
             WHERE id = :id
         ";
-        
+
         Yii::$app->db->createCommand($sql, [
             ':pedido_id' => $pedidoId,
             ':id' => $cobrancaId
@@ -1145,16 +1167,16 @@ class AsaasController extends Controller
             WHERE payment_id = :payment_id
             LIMIT 1
         ";
-        
+
         $result = Yii::$app->db->createCommand($sql, [
             ':payment_id' => $paymentId
         ])->queryOne();
-        
+
         if ($result) {
             $result['dados_request'] = json_decode($result['dados_request'], true);
             $result['dados_cobranca'] = json_decode($result['dados_cobranca'], true);
         }
-        
+
         return $result;
     }
 
@@ -1171,7 +1193,7 @@ class AsaasController extends Controller
                 ultima_atualizacao = NOW()
             WHERE id = :id
         ";
-        
+
         Yii::$app->db->createCommand($sql, [
             ':id' => $id,
             ':status' => $dados['status'],
@@ -1206,7 +1228,7 @@ class AsaasController extends Controller
                 nome = EXCLUDED.nome,
                 email = EXCLUDED.email
         ";
-        
+
         Yii::$app->db->createCommand($sql, [
             ':usuario_id' => $dados['usuario_id'],
             ':customer_asaas_id' => $dados['customer_asaas_id'],
@@ -1224,7 +1246,7 @@ class AsaasController extends Controller
             AND usuario_id = :usuario_id::uuid
             LIMIT 1
         ";
-        
+
         return Yii::$app->db->createCommand($sql, [
             ':cpf' => $cpf,
             ':usuario_id' => $usuarioId
@@ -1239,11 +1261,11 @@ class AsaasController extends Controller
     //         AND LOWER(nome) LIKE '%asaas%'
     //         LIMIT 1
     //     ";
-        
+
     //     $id = Yii::$app->db->createCommand($sql, [
     //         ':usuario_id' => $usuarioId
     //     ])->queryScalar();
-        
+
     //     if (!$id) {
     //         $sql = "
     //             INSERT INTO forma_pagamento (
@@ -1259,12 +1281,12 @@ class AsaasController extends Controller
     //             )
     //             RETURNING id
     //         ";
-            
+
     //         $id = Yii::$app->db->createCommand($sql, [
     //             ':usuario_id' => $usuarioId
     //         ])->queryScalar();
     //     }
-        
+
     //     return $id;
     // }
 
@@ -1278,14 +1300,14 @@ class AsaasController extends Controller
             AND LOWER(nome) LIKE '%asaas%'
             LIMIT 1
         ";
-        
+
         $id = Yii::$app->db->createCommand($sql, [
             ':usuario_id' => $usuarioId
         ])->queryScalar();
-        
+
         if (!$id) {
             Yii::warning("Forma de pagamento 'Asaas' não encontrada para usuario_id {$usuarioId}. Tentando criar...", 'asaas');
-            
+
             // ✅ CORREÇÃO: Removido created_at, usando apenas data_criacao (que tem default NOW())
             $sql = "
                 INSERT INTO {$nomeTabelaFormaPagamento} (
@@ -1303,18 +1325,18 @@ class AsaasController extends Controller
                 )
                 RETURNING id
             ";
-            
+
             try {
                 $id = Yii::$app->db->createCommand($sql, [
                     ':usuario_id' => $usuarioId
                 ])->queryScalar();
                 Yii::info("Forma de pagamento 'Asaas' criada com ID: {$id}", 'asaas');
             } catch (\Exception $e) {
-                 Yii::error("Falha ao criar forma de pagamento 'Asaas': " . $e->getMessage(), 'asaas');
-                 throw new \yii\db\Exception("Erro crítico: Não foi possível encontrar ou criar a forma de pagamento 'Asaas'. Verifique se a tabela '{$nomeTabelaFormaPagamento}' existe e tem as colunas corretas (incluindo 'tipo' e 'aceita_parcelamento').", [], $e->getCode(), $e);
+                Yii::error("Falha ao criar forma de pagamento 'Asaas': " . $e->getMessage(), 'asaas');
+                throw new \yii\db\Exception("Erro crítico: Não foi possível encontrar ou criar a forma de pagamento 'Asaas'. Verifique se a tabela '{$nomeTabelaFormaPagamento}' existe e tem as colunas corretas (incluindo 'tipo' e 'aceita_parcelamento').", [], $e->getCode(), $e);
             }
         }
-        
+
         return $id;
     }
 
@@ -1342,15 +1364,15 @@ class AsaasController extends Controller
     // ========================================================================
     // MÉTODOS DE BANCO DE DADOS (PADRONIZADOS) (Mantidos do original)
     // ========================================================================
-    
+
     private function buscarUsuarioComValidacao($usuarioId)
     {
         if (!$this->validarUUID($usuarioId)) {
             throw new \Exception('ID de usuário inválido');
         }
-        
+
         $usuario = $this->buscarUsuarioPorId($usuarioId);
-        
+
         if (!$usuario) {
             throw new \Exception('Usuário não encontrado');
         }
@@ -1360,10 +1382,10 @@ class AsaasController extends Controller
         if (empty($usuario['asaas_api_key'])) {
             throw new \Exception('API Key da Asaas não configurada');
         }
-        
+
         return $usuario;
     }
-    
+
     private function buscarUsuarioPorId($usuarioId)
     {
         $sql = "
@@ -1378,10 +1400,10 @@ class AsaasController extends Controller
             WHERE id = :id::uuid
             LIMIT 1
         ";
-        
+
         return Yii::$app->db->createCommand($sql, [':id' => $usuarioId])->queryOne();
     }
-    
+
     private function gerarExternalReference($usuarioId)
     {
         $timestamp = time();
@@ -1389,30 +1411,24 @@ class AsaasController extends Controller
         $userShort = substr(str_replace('-', '', $usuarioId), 0, 8);
         return "ped_asaas_{$userShort}_{$timestamp}_{random}";
     }
-    
+
     private function validarUUID($uuid)
     {
         return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $uuid);
     }
-    
-    private function errorResponse($message, $code = 400)
+
+    private function errorResponse_deprecated($message, $code = 400)
     {
-        Yii::$app->response->statusCode = $code;
-        return [
-            'sucesso' => false,
-            'erro' => $message,
-            'codigo' => $code,
-            'timestamp' => date('c')
-        ];
+        return $this->error($message, $code);
     }
-    
+
     /**
      * Cria Pedido (Mantido do original, mas com saneamento extra de itens)
      */
     private function criarPedido($dados)
     {
         $transaction = Yii::$app->db->beginTransaction();
-        
+
         try {
             // ✅ CORREÇÃO SQL: Trocado 'created_at' e 'updated_at' pelos nomes corretos da tabela
             $sqlVenda = "
@@ -1439,7 +1455,7 @@ class AsaasController extends Controller
                 )
                 RETURNING id
             ";
-            
+
             $vendaId = Yii::$app->db->createCommand($sqlVenda, [
                 ':usuario_id' => $dados['usuario_id'],
                 ':cliente_id' => $dados['cliente_id'],
@@ -1449,23 +1465,23 @@ class AsaasController extends Controller
                 ':observacoes' => $dados['observacoes'],
                 ':status_venda_codigo' => $dados['status']
             ])->queryScalar();
-            
+
             if (!isset($dados['itens']) || !is_array($dados['itens'])) {
-                 Yii::error("CriarPedido: Array de itens inválido ou ausente. Venda ID: {$vendaId}.", 'asaas');
-                 throw new \Exception("Dados dos itens inválidos para criar o pedido.");
+                Yii::error("CriarPedido: Array de itens inválido ou ausente. Venda ID: {$vendaId}.", 'asaas');
+                throw new \Exception("Dados dos itens inválidos para criar o pedido.");
             }
 
             foreach ($dados['itens'] as $item) {
-                 // Saneamento e validação dos dados do item
-                $produtoId = $item['produto_id'] ?? ($item['id'] ?? null); 
+                // Saneamento e validação dos dados do item
+                $produtoId = $item['produto_id'] ?? ($item['id'] ?? null);
                 $quantidade = (isset($item['quantidade']) && is_numeric($item['quantidade']) && $item['quantidade'] > 0) ? $item['quantidade'] : 1;
                 $precoUnitario = (isset($item['preco_unitario']) && is_numeric($item['preco_unitario']) && $item['preco_unitario'] >= 0) ? $item['preco_unitario'] : 0;
-                
+
                 if (!$produtoId || !$this->validarUUID($produtoId)) {
                     Yii::warning("CriarPedido: Item com produto_id inválido ou ausente ({$produtoId}). Item ignorado.", 'asaas');
-                    continue; 
+                    continue;
                 }
-                
+
                 // ✅ CORREÇÃO: Nome correto da tabela é prest_venda_itens (não prest_itens_venda)
                 // ✅ CORREÇÃO: Campos corretos: preco_unitario_venda e valor_total_item (não preco_unitario, subtotal, created_at)
                 $sqlItem = "
@@ -1483,9 +1499,9 @@ class AsaasController extends Controller
                         :valor_total_item
                     )
                 ";
-                
+
                 $valorTotalItem = $quantidade * $precoUnitario;
-                
+
                 Yii::$app->db->createCommand($sqlItem, [
                     ':venda_id' => $vendaId,
                     ':produto_id' => $produtoId,
@@ -1493,7 +1509,7 @@ class AsaasController extends Controller
                     ':preco_unitario_venda' => $precoUnitario,
                     ':valor_total_item' => $valorTotalItem
                 ])->execute();
-                
+
                 // ✅ NOVO: Baixar estoque quando pagamento é confirmado (webhook)
                 $produto = \app\modules\vendas\models\Produto::findOne($produtoId);
                 if ($produto) {
@@ -1505,7 +1521,7 @@ class AsaasController extends Controller
                     Yii::info("✅ Estoque de '{$produto->nome}' baixado para {$produto->estoque_atual} após confirmação de pagamento", 'asaas');
                 }
             }
-            
+
             // ✅ NOVO: Registrar entrada no caixa após confirmação de pagamento
             try {
                 $movimentacao = \app\modules\caixa\helpers\CaixaHelper::registrarEntradaVenda(
@@ -1514,7 +1530,7 @@ class AsaasController extends Controller
                     $dados['forma_pagamento_id'],
                     $dados['usuario_id']
                 );
-                
+
                 if ($movimentacao) {
                     Yii::info("✅ Entrada registrada no caixa para Venda ID {$vendaId} após confirmação de pagamento", 'asaas');
                 } else {
@@ -1524,17 +1540,16 @@ class AsaasController extends Controller
                 // Não falha a venda se houver erro no caixa, apenas registra no log
                 Yii::error("Erro ao registrar entrada no caixa após confirmação de pagamento (não crítico): " . $e->getMessage(), 'asaas');
             }
-            
+
             $transaction->commit();
             return $vendaId;
-            
         } catch (\Exception $e) {
             $transaction->rollBack();
             Yii::error("Rollback da transação para criação do pedido. Erro: " . $e->getMessage(), 'asaas');
             throw $e;
         }
     }
-  
+
     private function cancelarPedido($externalReference, $motivo, $pedidoId = null)
     {
         $idParaCancelar = $pedidoId;
@@ -1561,12 +1576,79 @@ class AsaasController extends Controller
                     data_atualizacao = NOW()
                 WHERE id = :id::uuid
             ";
-            
+
             Yii::$app->db->createCommand($sql, [
                 ':id' => $idParaCancelar,
                 ':motivo' => $motivo
             ])->execute();
         }
     }
-    
+
+    /**
+     * Calcula o split da plataforma Pulse (SaaS)
+     */
+    private function calcularPlatformFee(float $valorTotal): float
+    {
+        $percent = Yii::$app->params['pulse_platform_fee_percent'] ?? 0.005;
+        $fee = round($valorTotal * $percent, 2);
+        return min($fee, $valorTotal);
+    }
+
+    /**
+     * Registra auditoria financeira da plataforma (split).
+     */
+    private function registrarLogFinanceiro($tenantId, $orderId, $paymentId, $totalAmount, $platformFee, $status = 'pending')
+    {
+        if (!$tenantId || !$orderId) return;
+
+        try {
+            // Verifica se orderId é UUID válido, se não for, tenta achar o pedido pelo external_reference
+            if (!$this->validarUUID($orderId)) {
+                $venda = Venda::findOne(['id' => $orderId]);
+                if (!$venda) {
+                    $cobrancaLocal = AsaasCobrancas::findOne(['payment_id' => $paymentId]);
+                    if ($cobrancaLocal && $cobrancaLocal->pedido_id) {
+                        $orderId = $cobrancaLocal->pedido_id;
+                    }
+                }
+            }
+
+            $paymentIdKey = 'asaas_' . $paymentId;
+
+            $existingId = Yii::$app->db->createCommand("
+                SELECT id FROM saas_financial_logs
+                WHERE tenant_id = :tenant_id::uuid
+                  AND mp_payment_id = :payment_id
+                LIMIT 1
+            ", [
+                ':tenant_id' => $tenantId,
+                ':payment_id' => $paymentIdKey
+            ])->queryScalar();
+
+            if ($existingId) {
+                Yii::$app->db->createCommand()->update('saas_financial_logs', [
+                    'total_amount' => $totalAmount,
+                    'platform_fee' => $platformFee,
+                    'status' => $status,
+                ], ['id' => $existingId])->execute();
+            } else {
+                if (!$this->validarUUID($orderId)) {
+                    Yii::warning("Não foi possível registrar log financeiro: order_id '{$orderId}' não é um UUID válido.", 'asaas');
+                    return;
+                }
+
+                Yii::$app->db->createCommand()->insert('saas_financial_logs', [
+                    'tenant_id' => $tenantId,
+                    'order_id' => $orderId,
+                    'mp_payment_id' => $paymentIdKey,
+                    'total_amount' => $totalAmount,
+                    'platform_fee' => $platformFee,
+                    'status' => $status,
+                    'created_at' => new Expression('NOW()'),
+                ])->execute();
+            }
+        } catch (\Exception $e) {
+            Yii::error('Erro ao registrar log financeiro Asaas: ' . $e->getMessage(), 'asaas');
+        }
+    }
 }

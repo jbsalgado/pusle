@@ -32,6 +32,7 @@ use app\modules\vendas\models\CarteiraCobranca;
  * @property boolean $ativo
  * @property string $data_admissao
  * @property string $observacoes
+ * @property string $asaas_wallet_id
  * @property string $data_criacao
  * @property string $data_atualizacao
  * 
@@ -87,7 +88,7 @@ class Colaborador extends ActiveRecord
             [['percentual_comissao_venda', 'percentual_comissao_cobranca'], 'number', 'min' => 0, 'max' => 100],
             [['percentual_comissao_venda', 'percentual_comissao_cobranca'], 'default', 'value' => 0],
             [['data_admissao'], 'date', 'format' => 'php:Y-m-d'],
-            [['observacoes'], 'string'],
+            [['observacoes', 'asaas_wallet_id'], 'string'],
             [['nome_completo'], 'string', 'max' => 150],
             [['cpf'], 'string', 'max' => 11],
             [['cpf'], 'match', 'pattern' => '/^[0-9]{11}$/', 'skipOnEmpty' => true],
@@ -140,6 +141,7 @@ class Colaborador extends ActiveRecord
             'data_atualizacao' => 'Última Atualização',
             'senha_usuario' => 'Senha de Acesso',
             'acesso_sistema' => 'Conceder Acesso ao Sistema?',
+            'asaas_wallet_id' => 'ID Carteira Asaas (Split)',
         ];
     }
 

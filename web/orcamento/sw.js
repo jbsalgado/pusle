@@ -2,8 +2,9 @@
 // VERSÃO V3 - CORREÇÃO PIX
 
 // === LÓGICA DO idbKeyval ===
-const DB_NAME = 'venda-direta-db';
+const DB_NAME = 'catalogo-db';
 const STORE_NAME = 'keyval-store';
+const TOKEN_KEY = 'venda_direta_token_jwt';
 
 function openDb() {
     return new Promise((resolve, reject) => {
@@ -59,7 +60,7 @@ const idbKeyval = {
 };
 
 // Configurações
-const PEDIDO_PENDENTE_KEY = 'orcamento_pendente';
+const FILA_PEDIDOS_KEY = 'fila_orcamentos_pendentes';
 const isProduction = self.location.hostname !== 'localhost' && self.location.hostname !== '127.0.0.1';
 const URL_API = isProduction ? '/pulse/web/index.php' : '/pulse/basic/web/index.php';
 const URL_BASE_WEB = isProduction ? '/pulse/web' : '/pulse/basic/web';
@@ -206,39 +207,90 @@ self.addEventListener('fetch', event => {
 // Sync
 self.addEventListener('sync', event => {
     if (event.tag === 'sync-novo-orcamento') {
-        event.waitUntil(enviarPedidosPendentes());
+        event.waitUntil(processarFilaPedidos());
     }
 });
 
-async function enviarPedidosPendentes() {
-    let pedidoPendente;
+async function processarFilaPedidos() {
+    console.log('[SW] 🔄 Iniciando processamento da fila de pedidos...');
+    let fila;
     try {
-        pedidoPendente = await idbKeyval.get(PEDIDO_PENDENTE_KEY);
-    } catch (err) { return; }
+        fila = await idbKeyval.get(FILA_PEDIDOS_KEY);
+    } catch (err) { 
+        console.error('[SW] ❌ Erro ao acessar IndexedDB:', err);
+        return; 
+    }
 
-    if (pedidoPendente) {
+    if (!Array.isArray(fila) || fila.length === 0) {
+        console.log('[SW] ℹ️ Fila vazia ou inválida.');
+        return;
+    }
+
+    console.log(`[SW] 📦 Processando ${fila.length} pedidos na fila.`);
+    
+    let sucessos = 0;
+    const novosPedidosParaFila = [];
+
+    for (const pedido of fila) {
         try {
+            // Remove metadados locais antes de enviar ao servidor
+            const { id_local, timestamp, ...pedidoParaEnviar } = pedido;
+
+            // Recupera o Token JWT do IndexedDB
+            let token = null;
+            try {
+                token = await idbKeyval.get(TOKEN_KEY);
+            } catch (e) {
+                console.error('[SW] Erro ao recuperar token:', e);
+            }
+
+            const headers = { 
+                'Content-Type': 'application/json', 
+                'Accept': 'application/json' 
+            };
+            
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
             const response = await fetch(API_PEDIDO_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify(pedidoPendente)
+                headers: headers,
+                body: JSON.stringify(pedidoParaEnviar)
             });
 
             if (response.ok) {
                 const responseData = await response.json();
-                await idbKeyval.del(PEDIDO_PENDENTE_KEY);
+                sucessos++;
+                console.log(`[SW] ✅ Pedido ${id_local} sincronizado com sucesso.`);
+                
+                // Notifica as abas abertas sobre o sucesso individual
                 const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-                clients.forEach(client => client.postMessage({ type: 'SYNC_SUCCESS', pedido: responseData }));
+                clients.forEach(client => client.postMessage({ 
+                    type: 'SYNC_SUCCESS', 
+                    pedido: responseData,
+                    id_local: id_local
+                }));
             } else {
-                const responseBody = await response.text();
-                const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-                clients.forEach(client => client.postMessage({ type: 'SYNC_ERROR', error: `Erro ${response.status}` }));
+                console.error(`[SW] ❌ Falha ao sincronizar pedido ${id_local}:`, response.status);
+                novosPedidosParaFila.push(pedido); // Mantém na fila para tentar depois
             }
         } catch (error) {
-            const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-            clients.forEach(client => client.postMessage({ type: 'SYNC_ERROR', error: error.message }));
+            console.error(`[SW] ❌ Erro de rede ao sincronizar pedido ${pedido.id_local}:`, error);
+            novosPedidosParaFila.push(pedido); // Mantém na fila
         }
     }
+
+    // Atualiza a fila com o que sobrou (que falhou)
+    if (sucessos > 0) {
+        await idbKeyval.set(FILA_PEDIDOS_KEY, novosPedidosParaFila);
+        console.log(`[SW] 📊 Sincronizados: ${sucessos}. Restantes na fila: ${novosPedidosParaFila.length}`);
+    }
+}
+
+// Manter enviarPedidosPendentes apenas como alias se necessário ou remover
+async function enviarPedidosPendentes() {
+    return processarFilaPedidos();
 }
 
 self.addEventListener('message', event => {

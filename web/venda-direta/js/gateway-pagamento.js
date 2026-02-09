@@ -1,5 +1,6 @@
 // gateway-pagamento.js - Gateway de pagamento para VENDA-DIRETA
 import { GATEWAY_CONFIG, API_ENDPOINTS, CONFIG } from './config.js';
+import { getToken } from './storage.js';
 
 /**
  * Processa pagamento via gateway externo ou fluxo interno
@@ -61,9 +62,13 @@ async function processarMercadoPago(dadosPedido, carrinho, cliente) {
             intervalo_dias_parcelas: dadosPedido.intervalo_dias_parcelas || 30
         };
         
+        const token = await getToken();
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
         const response = await fetch(API_ENDPOINTS.MERCADOPAGO_CRIAR_PREFERENCIA, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: headers,
             body: JSON.stringify(payload)
         });
         
@@ -141,9 +146,13 @@ async function processarAsaas(dadosPedido, carrinho, cliente) {
             observacoes: dadosPedido.observacoes || null
         };
         
+        const token = await getToken();
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
         const response = await fetch(API_ENDPOINTS.ASAAS_CRIAR_COBRANCA, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: headers,
             body: JSON.stringify(payload)
         });
         
@@ -204,12 +213,16 @@ async function verificarStatusPagamento(paymentId) {
     try {
         const url = `${API_ENDPOINTS.ASAAS_CONSULTAR_STATUS}?payment_id=${paymentId}&usuario_id=${CONFIG.ID_USUARIO_LOJA}`;
         
+        const token = await getToken();
+        const headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
         const response = await fetch(url, {
             method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
+            headers: headers,
             cache: 'no-store'
         });
         

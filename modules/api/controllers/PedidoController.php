@@ -14,32 +14,19 @@ use yii\web\ServerErrorHttpException;
 use yii\web\NotFoundHttpException;
 use Exception;
 
-class PedidoController extends Controller
+class PedidoController extends BaseController
 {
     public $enableCsrfValidation = false; // Desabilita CSRF para API
 
     public function behaviors()
     {
         $behaviors = parent::behaviors();
-        $behaviors['contentNegotiator'] = [
-            'class' => \yii\filters\ContentNegotiator::class,
-            'formats' => [
-                'application/json' => Response::FORMAT_JSON,
-                'text/html' => Response::FORMAT_JSON,
-            ],
-        ];
         // Configura autenticação: todas as actions são opcionais (sem autenticação obrigatória)
         // Usa 'except' para garantir que confirmar-recebimento não exija autenticação
         $behaviors['authenticator'] = [
             'class' => \yii\filters\auth\HttpBearerAuth::class,
-            'except' => ['confirmar-recebimento'], // Exclui explicitamente esta action
-            'optional' => ['index', 'create', 'parcelas'], // Outras actions opcionais
         ];
-        // Adiciona VerbFilter para garantir que os métodos HTTP sejam respeitados
-        $behaviors['verbFilter'] = [
-            'class' => \yii\filters\VerbFilter::class,
-            'actions' => $this->verbs(),
-        ];
+        // VerbFilter já é tratado pelo rest\Controller se configurado, mas mantemos local se necessário
         return $behaviors;
     }
 
@@ -93,8 +80,7 @@ class PedidoController extends Controller
             ],
         ]);
 
-        // Retornar apenas os models (sem metadados de paginação)
-        return $dataProvider->getModels();
+        return $this->success($dataProvider);
     }
 
     /**
@@ -436,7 +422,7 @@ class PedidoController extends Controller
             Yii::$app->response->statusCode = 201;
             $venda->refresh();
 
-            return $venda->toArray([], ['itens.produto', 'parcelas', 'cliente', 'vendedor']);
+            return $this->success($venda->toArray([], ['itens.produto', 'parcelas', 'cliente', 'vendedor']), 'Pedido criado com sucesso');
         } catch (BadRequestHttpException $e) {
             $transaction->rollBack();
             Yii::error("Rollback: BadRequest - " . $e->getMessage(), 'api');
@@ -476,12 +462,12 @@ class PedidoController extends Controller
                 ->asArray()
                 ->all();
 
-            return [
+            return $this->success([
                 'venda_id' => $vendaId,
                 'numero_parcelas' => $venda->numero_parcelas,
                 'valor_total' => $venda->valor_total,
                 'parcelas' => $parcelas
-            ];
+            ]);
         } catch (\Exception $e) {
             Yii::error('Erro ao buscar parcelas: ' . $e->getMessage(), 'api');
             throw new ServerErrorHttpException('Erro ao buscar parcelas: ' . $e->getMessage());
@@ -604,7 +590,7 @@ class PedidoController extends Controller
             }
 
             Yii::$app->response->statusCode = 200;
-            return $venda->toArray([], ['itens.produto', 'parcelas', 'cliente', 'vendedor', 'formaPagamento']);
+            return $this->success($venda->toArray([], ['itens.produto', 'parcelas', 'cliente', 'vendedor', 'formaPagamento']), 'Recebimento confirmado');
         } catch (\Exception $e) {
             Yii::error('Erro ao confirmar recebimento: ' . $e->getMessage(), 'api');
             throw new ServerErrorHttpException('Erro ao confirmar recebimento: ' . $e->getMessage());

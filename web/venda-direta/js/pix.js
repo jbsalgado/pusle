@@ -36,7 +36,15 @@ export async function carregarConfigPix(usuarioId) {
         }
         
         const url = `${urlApi}/api/usuario/dados-loja?usuario_id=${usuarioId}`;
-        const response = await fetch(url);
+        
+        // Importa getToken dinamicamente
+        const { getToken } = await import('./storage.js');
+        const token = await getToken();
+        
+        const headers = { 'Accept': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        
+        const response = await fetch(url, { headers });
         
         if (!response.ok) {
             throw new Error(`Erro ao carregar dados PIX: ${response.status}`);
@@ -586,12 +594,21 @@ window.confirmarRecebimentoPix = async function() {
     
     try {
         const { API_ENDPOINTS } = await import('./config.js');
+        const { getToken } = await import('./storage.js');
+        const token = await getToken();
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        };
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
         const response = await fetch(API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
+            headers: headers,
             body: JSON.stringify({ venda_id: vendaId })
         });
 
@@ -633,7 +650,12 @@ window.confirmarRecebimentoPix = async function() {
         if (!parcelas && dadosPedidoPix.numero_parcelas > 1) {
         try {
             const { CONFIG, API_ENDPOINTS } = await import('./config.js');
-                const response = await fetch(`${API_ENDPOINTS.PEDIDO_PARCELAS}?venda_id=${vendaId}`);
+            const { getToken } = await import('./storage.js');
+            const token = await getToken();
+            const headers = { 'Accept': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            
+                const response = await fetch(`${API_ENDPOINTS.PEDIDO_PARCELAS}?venda_id=${vendaId}`, { headers });
             if (response.ok) {
                 const dadosParcelas = await response.json();
                 parcelas = dadosParcelas.parcelas || null;
@@ -648,7 +670,12 @@ window.confirmarRecebimentoPix = async function() {
     if (dadosPedidoPix.cliente_id) {
         try {
             const { API_ENDPOINTS } = await import('./config.js');
-            const response = await fetch(`${API_ENDPOINTS.CLIENTE}/${dadosPedidoPix.cliente_id}`);
+            const { getToken } = await import('./storage.js');
+            const token = await getToken();
+            const headers = { 'Accept': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            
+            const response = await fetch(`${API_ENDPOINTS.CLIENTE}/${dadosPedidoPix.cliente_id}`, { headers });
             if (response.ok) {
                 const cliente = await response.json();
                 dadosCliente = {

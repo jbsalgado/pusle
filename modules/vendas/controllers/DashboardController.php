@@ -1,4 +1,5 @@
 <?php
+
 /**
  * DashboardController - Página inicial do prestanista
  * Localização: app/modules/vendas/controllers/DashboardController.php
@@ -18,6 +19,7 @@ use app\modules\vendas\models\Categoria;
 use app\modules\vendas\models\Parcela;
 use app\modules\vendas\models\StatusParcela;
 use app\modules\vendas\models\FormaPagamento;
+use app\modules\indicadores\models\IndDefinicoesIndicadores;
 
 /**
  * DashboardController - Painel principal do prestanista
@@ -53,11 +55,11 @@ class DashboardController extends Controller
 
         // Verifica se é dono da loja (acesso completo automático)
         $ehDonoLoja = $usuario && $usuario->eh_dono_loja === true;
-        
+
         // Busca o colaborador associado ao usuário (se houver)
         $colaborador = null;
         $ehAdministrador = false;
-        
+
         if ($usuario) {
             // Se é dono da loja, tem acesso completo
             if ($ehDonoLoja) {
@@ -66,9 +68,9 @@ class DashboardController extends Controller
                 // Se não é dono, verifica se é colaborador administrador
                 // Usa o método helper do modelo Colaborador que suporta ambos os cenários
                 $colaborador = \app\modules\vendas\models\Colaborador::getColaboradorLogado();
-            
-            if ($colaborador) {
-                $ehAdministrador = (bool)$colaborador->eh_administrador;
+
+                if ($colaborador) {
+                    $ehAdministrador = (bool)$colaborador->eh_administrador;
                 }
             }
         }
@@ -161,6 +163,54 @@ class DashboardController extends Controller
             'produtosMaisVendidos' => $produtosMaisVendidos,
             'vendasRecentes' => $vendasRecentes,
             'saasFinanceiro' => $saasFinanceiro ?? ['total_amount' => 0, 'total_fee' => 0, 'total_transacoes' => 0],
+        ]);
+    }
+
+    /**
+     * Dashboard Executivo - Visão consolidada com KPIs de Negócio e Metas
+     */
+    public function actionExecutivo()
+    {
+        $usuario = Yii::$app->user->identity;
+        $ehDonoLoja = $usuario && $usuario->eh_dono_loja === true;
+
+        if (!$ehDonoLoja) {
+            Yii::$app->session->setFlash('error', 'Acesso restrito a administradores.');
+            return $this->redirect(['/vendas/dashboard/index']);
+        }
+
+        // 1. KPIs Financeiros (Vendas Diretas)
+        $kpisFinanceiros = $this->calcularKPIs($usuario->id);
+
+        // 2. Indicadores de Negócio (BI)
+        $indicadoresCodigos = ['FARM_VT', 'FARM_TM', 'FARM_ML', 'FARM_GE'];
+        $indicadoresNegocio = [];
+
+        foreach ($indicadoresCodigos as $cod) {
+            $data = IndDefinicoesIndicadores::getDashboardData($cod);
+            if ($data) {
+                $indicadoresNegocio[$cod] = $data;
+            }
+        }
+
+        // 3. Dados para ECharts
+        $vendasMes = $this->getVendasPorMes($usuario->id, 6);
+
+        // Mock de Metas para fins de demonstração (Caso não haja no DB)
+        // Em um sistema real, isso viria de ind_metas_indicadores
+        $metaFaturamento = 50000; // Valor de exemplo
+        $realizadoFaturamento = $kpisFinanceiros['receita_mes'] ?? 0;
+        $progressoMeta = $metaFaturamento > 0 ? ($realizadoFaturamento / $metaFaturamento) * 100 : 0;
+
+        return $this->render('executivo', [
+            'kpis' => $kpisFinanceiros,
+            'indicadores' => $indicadoresNegocio,
+            'vendasMes' => $vendasMes,
+            'meta' => [
+                'faturamento' => $metaFaturamento,
+                'realizado' => $realizadoFaturamento,
+                'percentual' => round($progressoMeta, 2)
+            ]
         ]);
     }
 
@@ -260,7 +310,7 @@ class DashboardController extends Controller
     protected function getVendasPorDia($usuarioId, $dias = 30)
     {
         $dataInicio = date('Y-m-d', strtotime("-{$dias} days"));
-        
+
         $sql = "
             SELECT 
                 DATE(data_venda) as dia,
@@ -285,7 +335,7 @@ class DashboardController extends Controller
     protected function getVendasPorMes($usuarioId, $meses = 12)
     {
         $dataInicio = date('Y-m-01', strtotime("-{$meses} months"));
-        
+
         $sql = "
             SELECT 
                 TO_CHAR(data_venda, 'YYYY-MM') as mes,
@@ -311,7 +361,7 @@ class DashboardController extends Controller
     {
         $primeiroDiaMes = date('Y-m-01');
         $ultimoDiaMes = date('Y-m-t');
-        
+
         $sql = "
             SELECT 
                 fp.nome as forma_pagamento,
@@ -340,7 +390,7 @@ class DashboardController extends Controller
     {
         $primeiroDiaMes = date('Y-m-01');
         $ultimoDiaMes = date('Y-m-t');
-        
+
         $sql = "
             SELECT 
                 CASE 
@@ -373,7 +423,7 @@ class DashboardController extends Controller
     {
         $primeiroDiaMes = date('Y-m-01 00:00:00');
         $ultimoDiaMes = date('Y-m-t 23:59:59');
-        
+
         $sql = "
             SELECT 
                 c.id,

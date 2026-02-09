@@ -3,6 +3,46 @@
 import { idbKeyval } from './utils.js'; // Assumindo que idbKeyval está sendo importado de utils
 import { STORAGE_KEYS, CONFIG } from './config.js';
 
+// Adiciona chave para Token JWT
+const TOKEN_KEY = 'venda_direta_token_jwt';
+
+/**
+ * Salva o token JWT no IndexedDB
+ */
+export async function salvarToken(token) {
+    if (!token) return;
+    try {
+        await idbKeyval.set(TOKEN_KEY, token);
+        console.log('[Storage] 🔑 Token JWT salvo');
+    } catch (err) {
+        console.error('[Storage] Erro ao salvar token:', err);
+    }
+}
+
+/**
+ * Obtém o token JWT do IndexedDB
+ */
+export async function getToken() {
+    try {
+        return await idbKeyval.get(TOKEN_KEY);
+    } catch (err) {
+        console.error('[Storage] Erro ao obter token:', err);
+        return null;
+    }
+}
+
+/**
+ * Remove o token JWT
+ */
+export async function removerToken() {
+    try {
+        await idbKeyval.del(TOKEN_KEY);
+        console.log('[Storage] 🔑 Token JWT removido');
+    } catch (err) {
+        console.error('[Storage] Erro ao remover token:', err);
+    }
+}
+
 /**
  * Salva carrinho no IndexedDB
  */

@@ -99,14 +99,17 @@ async function verificarStatusPagamento(paymentId) {
             return { status: 'pendente' };
         }
         
-        const resultado = await response.json();
-        console.log('[Gateway] 📡 Status recebido:', resultado);
+        const responseJson = await response.json();
+        console.log('[Gateway] 📡 Status recebido:', responseJson);
         
-        const statusPago = ['pago', 'RECEIVED', 'CONFIRMED', 'received', 'confirmed'];
+        const resultado = responseJson.data || responseJson;
+        const sucesso = responseJson.success || responseJson.sucesso || false;
+        
+        const statusPago = ['pago', 'RECEIVED', 'CONFIRMED', 'received', 'confirmed', 'QUITADA'];
         const statusAsaas = (resultado.status_asaas || '').toUpperCase();
         const statusLocal = (resultado.status || '').toLowerCase();
         
-        if (resultado.sucesso && (statusPago.includes(statusLocal) || statusPago.includes(statusAsaas))) {
+        if (sucesso && (statusPago.includes(statusLocal) || statusPago.includes(statusAsaas))) {
             return { 
                 status: 'pago', 
                 pedido_id: resultado.pedido_id,
@@ -304,6 +307,7 @@ async function processarAsaas(dadosPedido, carrinho, cliente) {
             descricao: `Pedido PWA - ${carrinho.length} item(ns)`,
             metodo_pagamento: 'PIX',
             vencimento: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            colaborador_id: dadosPedido.colaborador_vendedor_id || null,
             
             itens: carrinho.map(item => ({
                 produto_id: item.produto_id || item.id || null,
@@ -338,7 +342,8 @@ async function processarAsaas(dadosPedido, carrinho, cliente) {
             throw new Error(erro.erro || 'Erro ao criar cobrança');
         }
         
-        const resultado = await response.json();
+        const responseJson = await response.json();
+        const resultado = responseJson.data || responseJson;
         
         localStorage.setItem('asaas_payment_id', resultado.payment_id);
         localStorage.setItem('asaas_external_ref', resultado.external_reference);

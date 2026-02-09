@@ -26,8 +26,10 @@ use Yii;
  * @property string|null $created_at
  * @property string|null $ultima_atualizacao
  * @property string|null $pedido_id
+ * @property string|null $colaborador_id
  *
  * @property PrestUsuarios $usuario
+ * @property Colaborador $colaborador
  */
 class AsaasCobrancas extends \yii\db\ActiveRecord
 {
@@ -51,7 +53,7 @@ class AsaasCobrancas extends \yii\db\ActiveRecord
             [['status'], 'default', 'value' => 'pending'],
             [['ambiente'], 'default', 'value' => 'producao'],
             [['payment_id', 'external_reference', 'usuario_id', 'valor', 'metodo_pagamento'], 'required'],
-            [['usuario_id', 'cliente_id', 'pedido_id'], 'string'],
+            [['usuario_id', 'cliente_id', 'pedido_id', 'colaborador_id'], 'string'],
             [['valor', 'valor_recebido'], 'number'],
             [['vencimento', 'data_pagamento', 'dados_request', 'dados_cobranca', 'created_at', 'ultima_atualizacao'], 'safe'],
             [['payment_id', 'external_reference', 'customer_asaas_id'], 'string', 'max' => 100],
@@ -87,6 +89,7 @@ class AsaasCobrancas extends \yii\db\ActiveRecord
             'created_at' => 'Created At',
             'ultima_atualizacao' => 'Ultima Atualizacao',
             'pedido_id' => 'Pedido ID',
+            'colaborador_id' => 'Colaborador ID',
         ];
     }
 
@@ -101,6 +104,14 @@ class AsaasCobrancas extends \yii\db\ActiveRecord
     }
 
     /**
+     * @return \yii\db\ActiveQuery
+     */
+    public function getColaborador()
+    {
+        return $this->hasOne(Colaborador::class, ['id' => 'colaborador_id']);
+    }
+
+    /**
      * {@inheritdoc}
      * @return \app\modules\vendas\query\AsaasCobrancasQuery the active query used by this AR class.
      */
@@ -108,5 +119,4 @@ class AsaasCobrancas extends \yii\db\ActiveRecord
     {
         return new \app\modules\vendas\query\AsaasCobrancasQuery(get_called_class());
     }
-
 }
