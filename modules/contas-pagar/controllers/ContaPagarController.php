@@ -1,4 +1,5 @@
 <?php
+
 namespace app\modules\contas_pagar\controllers;
 
 use Yii;
@@ -47,7 +48,7 @@ class ContaPagarController extends Controller
     public function actionIndex()
     {
         $usuarioId = Yii::$app->user->id;
-        
+
         $query = ContaPagar::find()
             ->where(['usuario_id' => $usuarioId])
             ->orderBy(['data_vencimento' => SORT_ASC]);
@@ -68,6 +69,56 @@ class ContaPagarController extends Controller
         return $this->render('index', [
             'dataProvider' => $dataProvider,
         ]);
+    }
+
+    /**
+     * Exporta as contas a pagar para CSV
+     * @return mixed
+     */
+    public function actionExport()
+    {
+        $usuarioId = Yii::$app->user->id;
+
+        $query = ContaPagar::find()
+            ->where(['usuario_id' => $usuarioId])
+            ->orderBy(['data_vencimento' => SORT_ASC]);
+
+        // Filtros (mesma lógica do index)
+        $status = Yii::$app->request->get('status');
+        if ($status) {
+            $query->andWhere(['status' => $status]);
+        }
+
+        $models = $query->all();
+
+        $filename = 'contas_pagar_' . date('Y-m-d_H-i-s') . '.csv';
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        $output = fopen('php://output', 'w');
+
+        // BOM para abrir corretamente no Excel (UTF-8)
+        fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+        // Cabeçalhos
+        fputcsv($output, ['ID', 'Descrição', 'Valor', 'Vencimento', 'Status', 'Fornecedor', 'Pagamento', 'Observações']);
+
+        foreach ($models as $model) {
+            fputcsv($output, [
+                $model->id,
+                $model->descricao,
+                number_format($model->valor, 2, ',', '.'),
+                date('d/m/Y', strtotime($model->data_vencimento)),
+                $model->status,
+                $model->fornecedor ? $model->fornecedor->nome : '-',
+                $model->data_pagamento ? date('d/m/Y', strtotime($model->data_pagamento)) : '-',
+                $model->observacoes
+            ]);
+        }
+
+        fclose($output);
+        exit;
     }
 
     /**
@@ -94,6 +145,12 @@ class ContaPagarController extends Controller
         $model->status = ContaPagar::STATUS_PENDENTE;
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
+
+            // Processa Upload
+            if ($this->processUpload($model)) {
+                $model->save(false);
+            }
+
             Yii::$app->session->setFlash('success', 'Conta a pagar criada com sucesso!');
             return $this->redirect(['view', 'id' => $model->id]);
         }
@@ -120,6 +177,12 @@ class ContaPagarController extends Controller
         }
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
+
+            // Processa Upload
+            if ($this->processUpload($model)) {
+                $model->save(false);
+            }
+
             Yii::$app->session->setFlash('success', 'Conta a pagar atualizada com sucesso!');
             return $this->redirect(['view', 'id' => $model->id]);
         }
@@ -127,6 +190,40 @@ class ContaPagarController extends Controller
         return $this->render('update', [
             'model' => $model,
         ]);
+    }
+
+    /**
+     * Processa upload de comprovante
+     */
+    protected function processUpload($model)
+    {
+        $file = \yii\web\UploadedFile::getInstance($model, 'comprovanteFile');
+
+        if ($file) {
+            $path = 'uploads/contas_pagar/' . $model->id;
+            $fullPath = Yii::getAlias('@webroot/' . $path);
+
+            if (!is_dir($fullPath)) {
+                mkdir($fullPath, 0755, true);
+            }
+
+            $fileName = uniqid() . '.' . $file->extension;
+            $filePath = $fullPath . '/' . $fileName;
+
+            if ($file->saveAs($filePath)) {
+                // Remove arquivo antigo se existir
+                if ($model->arquivo_comprovante) {
+                    $oldFile = Yii::getAlias('@webroot/' . $model->arquivo_comprovante);
+                    if (file_exists($oldFile)) {
+                        @unlink($oldFile);
+                    }
+                }
+
+                $model->arquivo_comprovante = $path . '/' . $fileName;
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -151,7 +248,17 @@ class ContaPagarController extends Controller
 
         $dataPagamento = Yii::$app->request->post('data_pagamento');
         if ($model->marcarComoPaga($dataPagamento)) {
-            Yii::$app->session->setFlash('success', 'Conta marcada como paga com sucesso!');
+            // INTEGRAÇÃO CAIXA: Registra saída
+            $movimentacao = \app\modules\caixa\helpers\CaixaHelper::registrarSaidaContaPagar($model->id, $model->valor);
+
+            $msg = 'Conta marcada como paga com sucesso!';
+            if ($movimentacao) {
+                $msg .= ' Débito registrado no caixa.';
+            } else {
+                $msg .= ' <br><small>⚠️ O débito não foi registrado no caixa (verifique se o caixa está aberto).</small>';
+            }
+
+            Yii::$app->session->setFlash('success', $msg);
         } else {
             Yii::$app->session->setFlash('error', 'Erro ao marcar conta como paga: ' . implode(', ', $model->getFirstErrors()));
         }
@@ -198,7 +305,7 @@ class ContaPagarController extends Controller
     public function actionDelete($id)
     {
         $model = $this->findModel($id);
-        
+
         // Não permite deletar conta paga
         if ($model->isPaga()) {
             Yii::$app->session->setFlash('error', 'Não é possível deletar uma conta já paga.');
@@ -220,7 +327,7 @@ class ContaPagarController extends Controller
     protected function findModel($id)
     {
         $usuarioId = Yii::$app->user->id;
-        
+
         if (($model = ContaPagar::findOne(['id' => $id, 'usuario_id' => $usuarioId])) !== null) {
             return $model;
         }
@@ -228,4 +335,3 @@ class ContaPagarController extends Controller
         throw new NotFoundHttpException('A conta a pagar solicitada não foi encontrada.');
     }
 }
-

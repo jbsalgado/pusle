@@ -75,7 +75,7 @@ $usuario = $isGuest ? null : Yii::$app->user->identity;
                 <?php endif; ?>
                 
                 <?= Html::a(
-                    '<span class="text-xl font-bold text-blue-600">🎯 Prestanista</span>',
+                    '<span class="text-xl font-bold text-blue-600">PULSE-CATALOGO</span>',
                     ['/vendas/inicio/index']
                 ) ?>
             </div>

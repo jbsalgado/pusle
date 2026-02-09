@@ -52,16 +52,22 @@ class ItemCompra extends ActiveRecord
     /**
      * {@inheritdoc}
      */
+    public $nome_produto_temp;
+
+    /**
+     * {@inheritdoc}
+     */
     public function rules()
     {
         return [
             [['compra_id', 'produto_id', 'quantidade', 'preco_unitario'], 'required'],
-            [['compra_id', 'produto_id'], 'string'],
+            [['compra_id', 'produto_id', 'nome_produto_temp'], 'string'],
             [['quantidade'], 'number', 'min' => 0.001],
             [['preco_unitario'], 'number', 'min' => 0],
             [['valor_total_item'], 'number', 'min' => 0],
             [['compra_id'], 'exist', 'skipOnError' => true, 'targetClass' => Compra::class, 'targetAttribute' => ['compra_id' => 'id']],
             [['produto_id'], 'exist', 'skipOnError' => true, 'targetClass' => Produto::class, 'targetAttribute' => ['produto_id' => 'id']],
+            [['nome_produto_temp'], 'safe'],
         ];
     }
 
@@ -117,10 +123,10 @@ class ItemCompra extends ActiveRecord
                 $uuid = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
                 $this->id = $uuid;
             }
-            
+
             // Calcula o valor total do item
             $this->calcularValorTotal();
-            
+
             return true;
         }
         return false;
@@ -141,15 +147,15 @@ class ItemCompra extends ActiveRecord
             // Adiciona a quantidade comprada ao estoque atual
             $quantidadeAnterior = $this->produto->estoque_atual;
             $this->produto->estoque_atual += (int)$this->quantidade;
-            
+
             // Atualiza o preço de custo com o preço unitário da compra
             $this->produto->preco_custo = $this->preco_unitario;
-            
+
             if (!$this->produto->save(false, ['estoque_atual', 'preco_custo'])) {
                 Yii::error("ItemCompra {$this->id}: Erro ao salvar produto após atualizar estoque", __METHOD__);
                 return false;
             }
-            
+
             Yii::info("ItemCompra {$this->id}: Estoque atualizado. Produto: {$this->produto->nome}, Estoque anterior: {$quantidadeAnterior}, Quantidade adicionada: {$this->quantidade}, Estoque novo: {$this->produto->estoque_atual}", __METHOD__);
             return true;
         } catch (\Exception $e) {
@@ -173,18 +179,18 @@ class ItemCompra extends ActiveRecord
             // Remove a quantidade comprada do estoque atual
             $quantidadeAnterior = $this->produto->estoque_atual;
             $this->produto->estoque_atual -= (int)$this->quantidade;
-            
+
             // Garante que o estoque não fique negativo
             if ($this->produto->estoque_atual < 0) {
                 Yii::warning("ItemCompra {$this->id}: Estoque ficaria negativo ({$this->produto->estoque_atual}), ajustando para 0", __METHOD__);
                 $this->produto->estoque_atual = 0;
             }
-            
+
             if (!$this->produto->save(false, ['estoque_atual'])) {
                 Yii::error("ItemCompra {$this->id}: Erro ao salvar produto após reverter estoque", __METHOD__);
                 return false;
             }
-            
+
             Yii::info("ItemCompra {$this->id}: Estoque revertido. Produto: {$this->produto->nome}, Estoque anterior: {$quantidadeAnterior}, Quantidade removida: {$this->quantidade}, Estoque novo: {$this->produto->estoque_atual}", __METHOD__);
             return true;
         } catch (\Exception $e) {
@@ -193,4 +199,3 @@ class ItemCompra extends ActiveRecord
         }
     }
 }
-

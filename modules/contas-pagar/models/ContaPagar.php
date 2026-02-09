@@ -1,4 +1,5 @@
 <?php
+
 namespace app\modules\contas_pagar\models;
 
 use Yii;
@@ -66,6 +67,11 @@ class ContaPagar extends ActiveRecord
     }
 
     /**
+     * @var \yii\web\UploadedFile|null
+     */
+    public $comprovanteFile;
+
+    /**
      * {@inheritdoc}
      */
     public function rules()
@@ -74,11 +80,12 @@ class ContaPagar extends ActiveRecord
             [['usuario_id', 'descricao', 'valor', 'data_vencimento'], 'required'],
             [['usuario_id', 'fornecedor_id', 'compra_id', 'status', 'forma_pagamento_id'], 'string'],
             [['valor'], 'number', 'min' => 0.01],
-            [['descricao'], 'string', 'max' => 255],
+            [['descricao', 'arquivo_comprovante'], 'string', 'max' => 255],
             [['data_vencimento', 'data_pagamento'], 'date', 'format' => 'php:Y-m-d'],
             [['observacoes'], 'string'],
             [['status'], 'in', 'range' => [self::STATUS_PENDENTE, self::STATUS_PAGA, self::STATUS_VENCIDA, self::STATUS_CANCELADA]],
             [['status'], 'default', 'value' => self::STATUS_PENDENTE],
+            [['comprovanteFile'], 'file', 'skipOnEmpty' => true, 'extensions' => 'png, jpg, jpeg, pdf', 'maxSize' => 1024 * 1024 * 5], // 5MB
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
             [['fornecedor_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => Fornecedor::class, 'targetAttribute' => ['fornecedor_id' => 'id']],
             [['compra_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => Compra::class, 'targetAttribute' => ['compra_id' => 'id']],
@@ -103,6 +110,8 @@ class ContaPagar extends ActiveRecord
             'status' => 'Status',
             'forma_pagamento_id' => 'Forma de Pagamento',
             'observacoes' => 'Observações',
+            'arquivo_comprovante' => 'Comprovante/Anexo',
+            'comprovanteFile' => 'Upload de Comprovante',
             'data_criacao' => 'Data de Criação',
             'data_atualizacao' => 'Data de Atualização',
         ];
@@ -167,7 +176,7 @@ class ContaPagar extends ActiveRecord
         if ($this->status === self::STATUS_PAGA || $this->status === self::STATUS_CANCELADA) {
             return false;
         }
-        
+
         return strtotime($this->data_vencimento) < strtotime(date('Y-m-d'));
     }
 
@@ -200,4 +209,3 @@ class ContaPagar extends ActiveRecord
         return $this->save(false);
     }
 }
-

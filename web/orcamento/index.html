@@ -1,0 +1,1510 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PULSE-CATALOGO - Orçamento</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#16a34a" />
+    <!-- Tailwind CSS via CDN (apenas para desenvolvimento) -->
+    <!-- Para produção, instale via npm: npm install -D tailwindcss -->
+    <!-- <script src="https://cdn.tailwindcss.com"></script> -->
+    <script>
+      // Suprime o aviso do console sobre Tailwind CDN
+      if (typeof console !== "undefined" && console.warn) {
+        const originalWarn = console.warn;
+        console.warn = function (...args) {
+          if (
+            args[0] &&
+            typeof args[0] === "string" &&
+            args[0].includes("cdn.tailwindcss.com")
+          ) {
+            return; // Suprime o aviso
+          }
+          originalWarn.apply(console, args);
+        };
+      }
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Status online/offline - por padrão mostra offline até ser atualizado */
+      #status-online {
+        display: none;
+      }
+      #status-offline {
+        display: none;
+      }
+      html.online #status-online {
+        display: flex;
+      }
+      html.online #status-offline {
+        display: none;
+      }
+      html.offline #status-offline {
+        display: flex;
+      }
+      html.offline #status-online {
+        display: none;
+      }
+      #itens-carrinho {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1rem;
+        align-items: start;
+        align-content: start;
+      }
+      @media (max-width: 640px) {
+        #itens-carrinho {
+          grid-template-columns: 1fr;
+        }
+      }
+      .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      #modal-carrinho .bg-white.rounded-t-3xl {
+        display: flex;
+        flex-direction: column;
+      }
+      @media (min-height: 600px) {
+        #itens-carrinho {
+          max-height: calc(90vh - 320px);
+        }
+      }
+      @media (max-height: 599px) {
+        #itens-carrinho {
+          max-height: 400px;
+        }
+      }
+
+      /* ✨ CSS para imagens com placeholder */
+      img.img-placeholder {
+        background: #f5f5f5;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+      }
+
+      /* Suavizar transição quando imagem carrega */
+      img {
+        transition: opacity 0.3s ease-in-out;
+      }
+
+      img[src*="data:image/svg"] {
+        object-fit: contain;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100">
+    <script>
+      // Inicialização imediata do status online (antes do carregamento completo)
+      (function () {
+        const htmlTag = document.documentElement;
+        if (navigator.onLine) {
+          htmlTag.classList.add("online");
+          htmlTag.classList.remove("offline");
+        } else {
+          htmlTag.classList.add("offline");
+          htmlTag.classList.remove("online");
+        }
+      })();
+    </script>
+
+    <header class="bg-white shadow-md sticky top-0 z-10">
+      <nav class="container mx-auto px-4 py-3">
+        <div class="flex justify-between items-center mb-3">
+          <div class="flex items-center gap-3">
+            <img
+              id="logo-empresa"
+              src=""
+              alt="Logo"
+              class="h-10 w-auto object-contain hidden"
+              style="max-width: 150px"
+            />
+            <h1 class="text-xl font-bold text-green-600">ORÇAMENTO</h1>
+          </div>
+          <div class="flex items-center gap-3">
+            <a
+              href="/vendas/inicio"
+              class="bg-gray-600 text-white px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium flex items-center gap-2"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                />
+              </svg>
+              <span class="hidden sm:inline">Início</span>
+            </a>
+            <div id="status-online" class="items-center gap-1 text-green-600">
+              <span class="h-3 w-3 bg-green-500 rounded-full"></span>
+              <span class="text-xs font-medium hidden sm:inline">Online</span>
+            </div>
+            <div id="status-offline" class="items-center gap-1 text-gray-500">
+              <span class="h-3 w-3 bg-gray-400 rounded-full"></span>
+              <span class="text-xs font-medium hidden sm:inline">Offline</span>
+            </div>
+            <button
+              id="btn-abrir-carrinho"
+              class="relative bg-green-500 text-white p-2 rounded-full hover:bg-green-600"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                />
+              </svg>
+              <span
+                id="contador-carrinho"
+                class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden"
+                >0</span
+              >
+            </button>
+          </div>
+        </div>
+        <!-- Campo de Busca -->
+        <div class="relative">
+          <input
+            type="text"
+            id="busca-produto"
+            placeholder="🔍 Buscar produto por nome..."
+            class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm text-gray-900 bg-white placeholder-gray-400"
+          />
+          <svg
+            class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            ></path>
+          </svg>
+          <button
+            id="btn-limpar-busca"
+            class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hidden"
+            onclick="limparBusca()"
+          >
+            <svg
+              class="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
+          </button>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container mx-auto p-4">
+      <!-- Controles de Paginação -->
+      <div
+        id="controles-paginacao"
+        class="mb-4 flex flex-col sm:flex-row justify-between items-center gap-4 hidden"
+      >
+        <div id="info-paginacao" class="text-sm text-gray-600 font-medium">
+          Carregando produtos...
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            id="btn-pagina-anterior"
+            onclick="navegarPagina(-1)"
+            class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            disabled
+          >
+            ← Anterior
+          </button>
+          <span
+            id="pagina-atual-info"
+            class="px-4 py-2 text-sm text-gray-700 font-medium bg-gray-100 rounded-lg"
+          >
+            Página 1
+          </span>
+          <button
+            id="btn-pagina-proxima"
+            onclick="navegarPagina(1)"
+            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            disabled
+          >
+            Próxima →
+          </button>
+        </div>
+      </div>
+
+      <!-- Grid de Produtos -->
+      <div
+        id="catalogo-produtos"
+        class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+      >
+        <!-- Products will be loaded here by app.js -->
+      </div>
+
+      <!-- Indicador de Carregamento -->
+      <div id="carregando-produtos" class="text-center py-8 text-gray-500">
+        <svg
+          class="animate-spin h-8 w-8 mx-auto mb-2 text-blue-500"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            class="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="4"
+          ></circle>
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          ></path>
+        </svg>
+        <p>Carregando produtos...</p>
+      </div>
+
+      <!-- Controles de Paginação no Rodapé -->
+      <div
+        id="controles-paginacao-rodape"
+        class="mt-8 mb-4 flex flex-col sm:flex-row justify-between items-center gap-4 hidden"
+      >
+        <div
+          id="info-paginacao-rodape"
+          class="text-sm text-gray-600 font-medium"
+        >
+          Carregando produtos...
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            id="btn-pagina-anterior-rodape"
+            onclick="navegarPagina(-1)"
+            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            disabled
+          >
+            ← Anterior
+          </button>
+          <span
+            id="pagina-atual-info-rodape"
+            class="px-4 py-2 text-sm text-gray-700 font-medium bg-gray-100 rounded-lg"
+          >
+            Página 1
+          </span>
+          <button
+            id="btn-pagina-proxima-rodape"
+            onclick="navegarPagina(1)"
+            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            disabled
+          >
+            Próxima →
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Modal Carrinho -->
+    <div
+      id="modal-carrinho"
+      class="fixed inset-0 bg-black bg-opacity-50 z-20 hidden"
+    >
+      <div class="h-full flex justify-center items-center p-4">
+        <div
+          class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
+        >
+          <div
+            class="flex justify-between items-center border-b p-4 sm:p-5 flex-shrink-0"
+          >
+            <div>
+              <h2 class="text-xl sm:text-2xl font-bold text-gray-800">
+                Meu Carrinho
+              </h2>
+              <p class="text-xs sm:text-sm text-gray-500 mt-1">
+                Revise seus itens
+              </p>
+            </div>
+            <button
+              onclick="fecharModal('modal-carrinho')"
+              class="text-gray-400 hover:text-gray-600 transition-colors p-2 -mr-2"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-7 w-7"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+          <div
+            id="itens-carrinho"
+            class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3"
+          >
+            <p id="carrinho-vazio-msg" class="text-center text-gray-500 py-8">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-16 w-16 mx-auto mb-3 text-gray-300"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                /></svg
+              >Seu carrinho está vazio
+            </p>
+          </div>
+          <div
+            class="border-t bg-gray-50 p-4 sm:p-5 flex-shrink-0 rounded-b-2xl"
+          >
+            <!-- Seção de Acréscimos -->
+            <div class="mb-4 p-3 bg-red-50 rounded-lg border border-red-100">
+              <div
+                class="flex justify-between items-center mb-2 cursor-pointer"
+                onclick="toggleAcrescimos()"
+              >
+                <span
+                  class="text-sm font-semibold text-red-700 flex items-center gap-1"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                    />
+                  </svg>
+                  Adicionar Acréscimo / Taxas
+                </span>
+                <svg
+                  id="seta-acrescimo"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4 text-red-500 transform transition-transform"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </div>
+              <div id="container-acrescimos" class="hidden space-y-3 mt-2">
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-xs font-medium text-gray-700"
+                      >Valor (R$)</label
+                    >
+                    <input
+                      type="text"
+                      id="input-acrescimo-valor"
+                      class="w-full p-2 border border-gray-300 rounded text-sm"
+                      placeholder="0,00"
+                      oninput="formatarMoedaInput(this); calcularTotalCarrinho()"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-gray-700"
+                      >Motivo</label
+                    >
+                    <select
+                      id="input-acrescimo-tipo"
+                      class="w-full p-2 border border-gray-300 rounded text-sm bg-white"
+                    >
+                      <option value="">Selecione...</option>
+                      <option value="FRETE">Frete</option>
+                      <option value="ACRESCIMO CARTÃO CREDITO">
+                        Taxa Cartão Crédito
+                      </option>
+                      <option value="ACRESCIMO CARTÃO DEBITO">
+                        Taxa Cartão Débito
+                      </option>
+                      <option value="ACRESCIMO BOLETO">Taxa Boleto</option>
+                      <option value="ACRESCIMO CARNE">Taxa Carnê</option>
+                      <option value="OUTROS">Outros</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-700"
+                    >Observação</label
+                  >
+                  <input
+                    type="text"
+                    id="input-acrescimo-obs"
+                    class="w-full p-2 border border-gray-300 rounded text-sm"
+                    placeholder="Detalhes do acréscimo..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="flex justify-between items-center mb-4">
+              <div>
+                <p class="text-sm text-gray-600">Valor Total</p>
+                <p
+                  id="valor-total-carrinho"
+                  class="text-2xl sm:text-3xl font-bold text-blue-600"
+                >
+                  R$ 0,00
+                </p>
+              </div>
+              <div class="text-right">
+                <p class="text-xs text-gray-500">Itens</p>
+                <p
+                  class="text-lg font-semibold text-gray-700"
+                  id="total-itens-footer"
+                >
+                  0
+                </p>
+              </div>
+            </div>
+            <button
+              id="btn-finalizar-pedido"
+              class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white p-3 sm:p-4 rounded-xl font-bold text-base sm:text-lg shadow-lg hover:from-green-600 hover:to-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled
+            >
+              Gerar Orçamento
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Finalizar Orçamento -->
+    <div
+      id="modal-cliente-pedido"
+      class="fixed inset-0 bg-black bg-opacity-50 z-30 flex justify-center items-center p-4 hidden"
+    >
+      <div
+        class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+      >
+        <div
+          class="flex justify-between items-center border-b p-4 sticky top-0 bg-white z-10"
+        >
+          <h2 class="text-xl font-bold text-gray-800">Finalizar Orçamento</h2>
+          <button
+            onclick="fecharModal('modal-cliente-pedido')"
+            class="text-gray-500 hover:text-gray-800 text-2xl"
+          >
+            &times;
+          </button>
+        </div>
+
+        <form id="form-cliente-pedido">
+          <div class="p-4 space-y-4">
+            <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <p class="text-sm text-gray-700">
+                <strong>Orçamento:</strong> O cliente escolhe a forma de
+                pagamento, paga e leva o produto. Informe o CPF do vendedor
+                apenas se desejar contabilizar comissão.
+              </p>
+            </div>
+
+            <!-- Campo de Cliente (apenas para orçamentos parcelados) -->
+            <div id="campo-cliente-parcelado" class="hidden">
+              <label
+                for="cliente-cpf-busca"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >CPF do Cliente *</label
+              >
+              <div class="flex gap-2">
+                <input
+                  type="text"
+                  id="cliente-cpf-busca"
+                  placeholder="000.000.000-00"
+                  maxlength="14"
+                  data-mask="cpf"
+                  class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  onclick="window.buscarClienteOrcamento()"
+                  class="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700"
+                >
+                  Buscar
+                </button>
+              </div>
+              <input type="hidden" id="cliente_id" name="cliente_id" />
+              <div
+                id="info-cliente"
+                class="mt-2 text-sm text-green-700 bg-green-50 p-2 rounded border border-green-200 hidden"
+              >
+                Cliente: <strong id="nome-cliente-info"></strong>
+              </div>
+              <div
+                id="msg-cadastrar-cliente"
+                class="mt-2 text-sm text-blue-700 bg-blue-50 p-2 rounded border border-blue-200 hidden"
+              >
+                <p class="mb-2">Cliente não encontrado. Deseja cadastrar?</p>
+                <button
+                  type="button"
+                  onclick="window.abrirModalCadastroCliente()"
+                  class="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 text-sm"
+                >
+                  Cadastrar Cliente
+                </button>
+              </div>
+              <p class="mt-1 text-xs text-gray-500">
+                ℹ️ Para orçamentos parcelados (boleto/carnê), é necessário cadastrar
+                o cliente.
+              </p>
+            </div>
+
+            <div>
+              <label
+                for="vendedor_cpf_busca"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >CPF do Vendedor (Opcional)</label
+              >
+              <div class="flex gap-2">
+                <input
+                  type="text"
+                  id="vendedor_cpf_busca"
+                  placeholder="000.000.000-00"
+                  maxlength="14"
+                  data-mask="cpf"
+                  class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  onclick="window.buscarVendedor()"
+                  class="px-4 py-2 bg-green-600 text-white rounded-md font-semibold hover:bg-green-700"
+                >
+                  Buscar
+                </button>
+              </div>
+              <input
+                type="hidden"
+                id="colaborador_vendedor_id"
+                name="colaborador_vendedor_id"
+              />
+              <div
+                id="info-vendedor"
+                class="mt-2 text-sm text-green-700 bg-green-50 p-2 rounded border border-green-200 hidden"
+              >
+                Vendedor: <strong id="nome-vendedor-info"></strong>
+              </div>
+              <p class="mt-1 text-xs text-gray-500">
+                ℹ️ Se não informar o CPF, o orçamento será registrado sem comissão.
+              </p>
+            </div>
+
+            <div>
+              <label
+                for="observacoes-pedido"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Observações</label
+              >
+              <textarea
+                id="observacoes-pedido"
+                name="observacoes"
+                rows="3"
+                class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Observações adicionais (opcional)"
+              ></textarea>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label
+                  for="numero-parcelas"
+                  class="block text-sm font-medium text-gray-700 mb-1"
+                  >Parcelas *</label
+                >
+                <select
+                  id="numero-parcelas"
+                  name="numero_parcelas"
+                  class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="1">À vista</option>
+                </select>
+                <div id="info-parcelas" class="mt-2 text-sm"></div>
+              </div>
+              <div>
+                <label
+                  for="forma-pagamento"
+                  class="block text-sm font-medium text-gray-700 mb-1"
+                  >Pagamento *</label
+                >
+                <select
+                  id="forma-pagamento"
+                  name="forma_pagamento"
+                  class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Carregando...</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="campo-data-primeiro-pagamento" class="hidden">
+              <label
+                for="data-primeiro-pagamento"
+                class="block text-sm font-medium text-gray-700 mb-1"
+              >
+                📅 Data do Primeiro Pagamento *
+              </label>
+              <input
+                type="date"
+                id="data-primeiro-pagamento"
+                name="data_primeiro_pagamento"
+                class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-base"
+              />
+              <p class="mt-1 text-xs text-gray-500">
+                ℹ️ Informe a data do vencimento da primeira parcela
+              </p>
+            </div>
+
+            <div id="campo-intervalo-parcelas" class="hidden">
+              <label
+                for="intervalo-dias"
+                class="block text-sm font-medium text-gray-700 mb-1"
+              >
+                📊 Intervalo entre Parcelas (dias) *
+              </label>
+              <input
+                type="number"
+                id="intervalo-dias"
+                name="intervalo_dias_parcelas"
+                min="1"
+                max="365"
+                value="30"
+                class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-base"
+                placeholder="Ex: 30 dias"
+              />
+              <p class="mt-1 text-xs text-gray-500">
+                ⏱️ Informe quantos dias entre cada parcela (padrão: 30 dias)
+              </p>
+            </div>
+          </div>
+
+          <div class="border-t p-4 bg-gray-50 rounded-b-lg">
+            <button
+              type="button"
+              id="btn-confirmar-pedido"
+              onclick="window.confirmarPedido()"
+              class="w-full bg-green-600 text-white p-3 rounded-lg font-semibold hover:bg-green-700 transition-opacity"
+            >
+              ✅ Confirmar Orçamento
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ✅ MODAL QUANTIDADE (ADICIONADO) -->
+    <div
+      id="modal-quantidade"
+      class="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center p-4 hidden"
+    >
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-xs">
+        <div class="flex justify-between items-center border-b p-4">
+          <h2 class="text-lg font-semibold">Adicionar ao Carrinho</h2>
+          <button
+            onclick="fecharModal('modal-quantidade')"
+            class="text-gray-500 hover:text-gray-800 text-2xl"
+          >
+            &times;
+          </button>
+        </div>
+        <div class="p-4 space-y-3">
+          <p class="text-center font-medium" id="nome-produto-modal">
+            [Nome do Produto]
+          </p>
+          <p
+            class="text-center text-xl font-bold text-blue-600"
+            id="preco-produto-modal"
+          >
+            [Preço]
+          </p>
+          <div>
+            <label
+              for="input-quantidade"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Quantidade</label
+            >
+            <input
+              type="number"
+              id="input-quantidade"
+              value="1"
+              min="1"
+              class="w-full p-2 border border-gray-300 rounded-md text-center"
+            />
+          </div>
+        </div>
+        <div class="border-t p-4 bg-gray-50 rounded-b-lg">
+          <button
+            id="btn-confirmar-adicionar"
+            class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700"
+          >
+            Confirmar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Galeria de Fotos -->
+    <div
+      id="modal-galeria"
+      class="fixed inset-0 bg-black bg-opacity-95 z-50 hidden"
+    >
+      <!-- Conteúdo do Modal Galeria -->
+    </div>
+
+    <!-- Modal Dinheiro -->
+    <div
+      id="modal-dinheiro"
+      class="fixed inset-0 bg-black bg-opacity-70 z-50 flex justify-center items-center p-4 hidden"
+    >
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div class="flex justify-between items-center border-b p-4">
+          <h2 class="text-xl font-bold text-gray-800">Pagamento em Dinheiro</h2>
+          <button
+            onclick="window.fecharModalDinheiro()"
+            class="text-gray-500 hover:text-gray-800 text-2xl"
+          >
+            &times;
+          </button>
+        </div>
+        <div class="p-6">
+          <div class="text-center mb-4">
+            <div class="mb-4">
+              <svg
+                class="w-16 h-16 mx-auto text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                ></path>
+              </svg>
+            </div>
+            <p class="text-lg font-semibold text-gray-700 mb-2">
+              Valor: <span id="dinheiro-valor" class="text-green-600"></span>
+            </p>
+            <p class="text-sm text-gray-600">
+              Confirme o recebimento do pagamento em dinheiro
+            </p>
+          </div>
+
+          <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+            <p class="text-sm text-green-800">
+              <strong>Instruções:</strong> Após receber o pagamento em dinheiro,
+              clique em "Confirmar Recebimento" para finalizar o orçamento e gerar o
+              comprovante.
+            </p>
+          </div>
+
+          <button
+            onclick="window.confirmarRecebimentoDinheiro()"
+            class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 mb-3"
+          >
+            ✅ Confirmar Recebimento
+          </button>
+
+          <button
+            onclick="window.fecharModalDinheiro()"
+            class="w-full bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-400"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal PIX Estático -->
+    <div
+      id="modal-pix-estatico"
+      class="fixed inset-0 bg-black bg-opacity-70 z-50 flex justify-center items-center p-4 hidden"
+    >
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div class="flex justify-between items-center border-b p-4">
+          <h2 class="text-xl font-bold text-gray-800">Pagamento via PIX</h2>
+          <button
+            onclick="window.fecharModalPixEstatico()"
+            class="text-gray-500 hover:text-gray-800 text-2xl"
+          >
+            &times;
+          </button>
+        </div>
+        <div class="p-6">
+          <div class="text-center mb-4">
+            <p class="text-lg font-semibold text-gray-700 mb-2">
+              Valor: <span id="pix-valor" class="text-blue-600"></span>
+            </p>
+            <p class="text-sm text-gray-600">
+              Escaneie o QR Code ou copie o código PIX
+            </p>
+          </div>
+
+          <div id="pix-qrcode-container" class="flex justify-center mb-4">
+            <!-- QR Code será gerado aqui -->
+          </div>
+
+          <div class="bg-gray-100 p-3 rounded-lg mb-4">
+            <p class="text-xs text-gray-600 mb-2 font-semibold">
+              Código PIX Copia e Cola:
+            </p>
+            <p
+              id="pix-codigo-copia-cola"
+              class="text-xs font-mono break-all bg-white p-2 rounded border border-gray-300"
+            ></p>
+          </div>
+
+          <button
+            onclick="copiarCodigoPix()"
+            class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 mb-3"
+          >
+            📋 Copiar Código PIX
+          </button>
+
+          <button
+            onclick="window.confirmarRecebimentoPix()"
+            class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 mb-3"
+          >
+            ✅ Confirmar Recebimento
+          </button>
+
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p class="text-xs text-blue-800">
+              <strong>Instruções:</strong> Após o pagamento, clique em
+              "Confirmar Recebimento" para gerar o comprovante.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Cadastro Cliente -->
+    <div
+      id="modal-cadastro-cliente"
+      class="fixed inset-0 bg-black bg-opacity-70 z-40 flex justify-center items-center p-4 hidden"
+    >
+      <div
+        class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+      >
+        <div
+          class="flex justify-between items-center border-b p-4 sticky top-0 bg-white z-10"
+        >
+          <h2 class="text-xl font-bold text-gray-800">Cadastrar Cliente</h2>
+          <button
+            onclick="fecharModal('modal-cadastro-cliente')"
+            class="text-gray-500 hover:text-gray-800 text-2xl"
+          >
+            &times;
+          </button>
+        </div>
+        <form id="form-cadastro-cliente" class="p-4 space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label
+                for="cadastro-nome"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Nome Completo *</label
+              >
+              <input
+                type="text"
+                id="cadastro-nome"
+                name="nome_completo"
+                required
+                class="w-full p-2 border border-gray-300 rounded-md"
+              />
+            </div>
+            <div>
+              <label
+                for="cadastro-cpf"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >CPF *</label
+              >
+              <input
+                type="text"
+                id="cadastro-cpf"
+                name="cpf"
+                maxlength="14"
+                data-mask="cpf"
+                required
+                class="w-full p-2 border border-gray-300 rounded-md"
+              />
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label
+                for="cadastro-telefone"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Telefone *</label
+              >
+              <input
+                type="text"
+                id="cadastro-telefone"
+                name="telefone"
+                data-mask="phone"
+                required
+                class="w-full p-2 border border-gray-300 rounded-md"
+              />
+            </div>
+            <div>
+              <label
+                for="cadastro-email"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >E-mail</label
+              >
+              <input
+                type="email"
+                id="cadastro-email"
+                name="email"
+                class="w-full p-2 border border-gray-300 rounded-md"
+              />
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label
+                for="cadastro-senha"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Senha * (mín. 4 caracteres)</label
+              >
+              <input
+                type="password"
+                id="cadastro-senha"
+                name="senha"
+                minlength="4"
+                required
+                autocomplete="new-password"
+                class="w-full p-2 border border-gray-300 rounded-md"
+              />
+            </div>
+            <div>
+              <label
+                for="cadastro-cep"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >CEP</label
+              >
+              <input
+                type="text"
+                id="cadastro-cep"
+                name="endereco_cep"
+                data-mask="cep"
+                class="w-full p-2 border border-gray-300 rounded-md"
+              />
+            </div>
+          </div>
+          <div>
+            <label
+              for="cadastro-logradouro"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Logradouro *</label
+            >
+            <input
+              type="text"
+              id="cadastro-logradouro"
+              name="endereco_logradouro"
+              required
+              class="w-full p-2 border border-gray-300 rounded-md"
+            />
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label
+                for="cadastro-numero"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Número *</label
+              >
+              <input
+                type="text"
+                id="cadastro-numero"
+                name="endereco_numero"
+                required
+                class="w-full p-2 border border-gray-300 rounded-md"
+              />
+            </div>
+            <div>
+              <label
+                for="cadastro-complemento"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Complemento</label
+              >
+              <input
+                type="text"
+                id="cadastro-complemento"
+                name="endereco_complemento"
+                class="w-full p-2 border border-gray-300 rounded-md"
+              />
+            </div>
+            <div>
+              <label
+                for="cadastro-bairro"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Bairro *</label
+              >
+              <input
+                type="text"
+                id="cadastro-bairro"
+                name="endereco_bairro"
+                required
+                class="w-full p-2 border border-gray-300 rounded-md"
+              />
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label
+                for="cadastro-cidade"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Cidade *</label
+              >
+              <input
+                type="text"
+                id="cadastro-cidade"
+                name="endereco_cidade"
+                required
+                class="w-full p-2 border border-gray-300 rounded-md"
+              />
+            </div>
+            <div>
+              <label
+                for="cadastro-estado"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Estado (UF) *</label
+              >
+              <input
+                type="text"
+                id="cadastro-estado"
+                name="endereco_estado"
+                maxlength="2"
+                required
+                class="w-full p-2 border border-gray-300 rounded-md"
+                style="text-transform: uppercase"
+              />
+            </div>
+          </div>
+          <div class="border-t p-4 bg-gray-50 rounded-b-lg">
+            <button
+              type="button"
+              id="btn-salvar-cliente"
+              onclick="window.salvarClienteOrcamento()"
+              class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700"
+            >
+              Salvar Cliente
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Comprovante -->
+    <div
+      id="modal-comprovante"
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+      >
+        <div
+          class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center"
+        >
+          <h2 class="text-xl font-bold text-gray-800">Orçamento</h2>
+          <button
+            onclick="fecharModalComprovante()"
+            class="text-gray-500 hover:text-gray-700 text-2xl"
+          >
+            &times;
+          </button>
+        </div>
+        <div class="p-6">
+          <div
+            id="comprovante-container"
+            class="flex justify-center items-center min-h-[200px]"
+          >
+            <div class="text-gray-500">Gerando comprovante...</div>
+          </div>
+          <div class="mt-6 flex flex-wrap gap-3 justify-center">
+            <button
+              onclick="imprimirComprovante()"
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            >
+              <svg
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                ></path>
+              </svg>
+              Imprimir
+            </button>
+            <button
+              onclick="compartilharWhatsApp()"
+              class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+            >
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"
+                />
+              </svg>
+              WhatsApp
+            </button>
+            <button
+              onclick="compartilharTelegram()"
+              class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"
+            >
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.169 1.858-.896 6.728-.896 6.728-.517 2.184-1.896 2.728-3.101 1.65l-4.319-3.18-2.073-1.9-3.743-1.15c-1.31-.403-1.31-1.27.26-1.896l14.7-5.65c1.09-.52 2.08.26 1.71 1.9z"
+                />
+              </svg>
+              Telegram
+            </button>
+            <button
+              onclick="baixarComprovante()"
+              class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center gap-2"
+            >
+              <svg
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                ></path>
+              </svg>
+              Baixar
+            </button>
+            <button
+              onclick="copiarComprovante()"
+              class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
+            >
+              <svg
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                ></path>
+              </svg>
+              Copiar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="js/idb-keyval.js"></script>
+    <script type="module" src="js/imagePlaceholder.js"></script>
+    <script type="module" src="js/pix.js"></script>
+    <script type="module" src="js/app.js?v=surcharge_v3"></script>
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
+
+    <script>
+        // Failsafe: Função de toggle UI inline para garantir funcionamento mesmo se app.js demorar ou falhar
+        function toggleAcrescimos() {
+            const container = document.getElementById('container-acrescimos');
+            const seta = document.getElementById('seta-acrescimo');
+            if (container) {
+                container.classList.toggle('hidden');
+                seta.classList.toggle('rotate-180');
+            }
+        }
+    </script>
+
+
+    <!-- Funções para gerenciar comprovante -->
+    <script>
+      // Fechar modal do comprovante
+      window.fecharModalComprovante = function () {
+        const modal = document.getElementById("modal-comprovante");
+        if (modal) {
+          modal.classList.add("hidden");
+        }
+        // Limpa a imagem da memória após um tempo
+        if (window.comprovanteImagem && window.comprovanteImagem.url) {
+          setTimeout(() => {
+            URL.revokeObjectURL(window.comprovanteImagem.url);
+          }, 1000);
+        }
+      };
+
+      // Fechar modal ao clicar fora
+      document.addEventListener("DOMContentLoaded", function () {
+        const modal = document.getElementById("modal-comprovante");
+        if (modal) {
+          modal.addEventListener("click", function (e) {
+            if (e.target === modal) {
+              fecharModalComprovante();
+            }
+          });
+        }
+      });
+
+      // Imprimir comprovante
+      window.imprimirComprovante = function () {
+        if (!window.comprovanteImagem || !window.comprovanteImagem.url) {
+          alert("Comprovante não disponível para impressão.");
+          return;
+        }
+
+        const printWindow = window.open("", "_blank");
+        if (!printWindow) {
+          alert(
+            "Não foi possível abrir a janela de impressão. Verifique se os popups estão habilitados."
+          );
+          return;
+        }
+
+        const imageUrl = window.comprovanteImagem.url;
+        const htmlContent =
+          '<!DOCTYPE html><html><head><title>Orçamento</title><style>@media print {@page {margin: 0; size: auto;} body {margin: 0; padding: 0;}} body {margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh;} img {max-width: 100%; height: auto;}</style></head><body><img src="' +
+          imageUrl +
+          '" alt="Orçamento"></body></html>';
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+
+        // Adiciona o script após o documento estar pronto
+        printWindow.document.addEventListener("DOMContentLoaded", function () {
+          setTimeout(function () {
+            printWindow.print();
+            setTimeout(function () {
+              printWindow.close();
+            }, 500);
+          }, 250);
+        });
+
+        // Fallback caso DOMContentLoaded já tenha disparado
+        if (printWindow.document.readyState === "complete") {
+          setTimeout(function () {
+            printWindow.print();
+            setTimeout(function () {
+              printWindow.close();
+            }, 500);
+          }, 250);
+        }
+      };
+
+      // Compartilhar via WhatsApp
+      window.compartilharWhatsApp = async function () {
+        if (!window.comprovanteImagem || !window.comprovanteImagem.blob) {
+          alert("Comprovante não disponível para compartilhamento.");
+          return;
+        }
+
+        // Tenta usar Web Share API se disponível (mobile)
+        if (navigator.share && navigator.canShare) {
+          try {
+            const file = new File(
+              [window.comprovanteImagem.blob],
+              "orcamento.png",
+              { type: "image/png" }
+            );
+            if (navigator.canShare({ files: [file] })) {
+              await navigator.share({
+                title: "Orçamento",
+                text: "Orçamento",
+                files: [file],
+              });
+              return;
+            }
+          } catch (error) {
+            if (error.name !== "AbortError") {
+              console.warn(
+                "Web Share API não disponível, usando fallback:",
+                error
+              );
+            } else {
+              return; // Usuário cancelou
+            }
+          }
+        }
+
+        // Fallback: baixa a imagem e abre WhatsApp
+        const url = window.comprovanteImagem.url;
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "orcamento.png";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Abre WhatsApp Web ou app
+        const text = encodeURIComponent("Orçamento");
+        const whatsappUrl = `https://wa.me/?text=${text}`;
+        window.open(whatsappUrl, "_blank");
+
+        // Notifica o usuário
+        setTimeout(() => {
+          alert("Imagem baixada! Agora você pode anexá-la no WhatsApp.");
+        }, 500);
+      };
+
+      // Compartilhar via Telegram
+      window.compartilharTelegram = async function () {
+        if (!window.comprovanteImagem || !window.comprovanteImagem.blob) {
+          alert("Comprovante não disponível para compartilhamento.");
+          return;
+        }
+
+        // Tenta usar Web Share API se disponível (mobile)
+        if (navigator.share && navigator.canShare) {
+          try {
+            const file = new File(
+              [window.comprovanteImagem.blob],
+              "orcamento.png",
+              { type: "image/png" }
+            );
+            if (navigator.canShare({ files: [file] })) {
+              await navigator.share({
+                title: "Orçamento",
+                text: "Orçamento",
+                files: [file],
+              });
+              return;
+            }
+          } catch (error) {
+            if (error.name !== "AbortError") {
+              console.warn(
+                "Web Share API não disponível, usando fallback:",
+                error
+              );
+            } else {
+              return; // Usuário cancelou
+            }
+          }
+        }
+
+        // Fallback: baixa a imagem e abre Telegram
+        const url = window.comprovanteImagem.url;
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "orcamento.png";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Abre Telegram Web ou app
+        const text = encodeURIComponent("Orçamento");
+        const telegramUrl = `https://t.me/share/url?url=&text=${text}`;
+        window.open(telegramUrl, "_blank");
+
+        // Notifica o usuário
+        setTimeout(() => {
+          alert("Imagem baixada! Agora você pode anexá-la no Telegram.");
+        }, 500);
+      };
+
+      // Baixar comprovante
+      window.baixarComprovante = function () {
+        if (!window.comprovanteImagem || !window.comprovanteImagem.blob) {
+          alert("Comprovante não disponível para download.");
+          return;
+        }
+
+        const url = window.comprovanteImagem.url;
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `orcamento-${new Date().getTime()}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
+
+      // Copiar comprovante para área de transferência
+      window.copiarComprovante = async function () {
+        if (!window.comprovanteImagem || !window.comprovanteImagem.blob) {
+          alert("Comprovante não disponível para copiar.");
+          return;
+        }
+
+        try {
+          // Tenta usar a API Clipboard moderna
+          if (navigator.clipboard && navigator.clipboard.write) {
+            await navigator.clipboard.write([
+              new ClipboardItem({
+                "image/png": window.comprovanteImagem.blob,
+              }),
+            ]);
+            alert("✅ Comprovante copiado para a área de transferência!");
+          } else {
+            // Fallback: baixa a imagem
+            baixarComprovante();
+            alert(
+              "⚠️ Seu navegador não suporta copiar imagens. A imagem foi baixada."
+            );
+          }
+        } catch (error) {
+          console.error("Erro ao copiar:", error);
+          // Fallback: baixa a imagem
+          baixarComprovante();
+          alert("⚠️ Não foi possível copiar. A imagem foi baixada.");
+        }
+      };
+    </script>
+  </body>
+</html>

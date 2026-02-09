@@ -1255,11 +1255,37 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
                     canvas: canvas
                 };
                 
-                // Exibe no modal
+                // Exibe no modal com botões de ação
                 const container = document.getElementById('comprovante-container');
                 if (container) {
-                    container.innerHTML = `<img src="${imageUrl}" alt="Comprovante" class="max-w-full h-auto rounded-lg shadow-md" style="width: 100%; max-width: 600px;">`;
+                    container.innerHTML = `
+                        <div class="flex flex-col gap-3">
+                            <img src="${imageUrl}" alt="Comprovante" class="max-w-full h-auto rounded-lg shadow-md mx-auto" style="width: 100%; max-width: 600px;">
+                            
+                            <div class="grid grid-cols-2 gap-3 mt-2">
+                                <button onclick="window.imprimirComprovanteTexto()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 shadow-sm transition-colors">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                    Imprimir (Rápido)
+                                </button>
+                                
+                                <button onclick="window.compartilharComprovanteImagem()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 shadow-sm transition-colors">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+                                    Compartilhar
+                                </button>
+                            </div>
+                        </div>`;
                 }
+                
+                // Armazena dados globais para as funções de impressão
+                window.dadosComprovanteAtual = {
+                    carrinho,
+                    dadosPedido,
+                    dadosEmpresa,
+                    valorTotal,
+                    dataHora,
+                    acrescimoValor,
+                    descontoTotal: dadosPedido.descontoTotal || 0 // Ajuste conforme estrutura real se necessário
+                };
                 
                 // Abre o modal
                 const modal = document.getElementById('modal-comprovante');
@@ -1277,8 +1303,8 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
         } catch (error) {
             console.error('[PIX] ❌ Erro ao gerar comprovante PNG:', error);
             alert('Erro ao gerar comprovante. Tente novamente.');
-            document.body.removeChild(tempDiv);
-            document.body.removeChild(iframe);
+            if (document.body.contains(tempDiv)) document.body.removeChild(tempDiv);
+            if (document.body.contains(iframe)) document.body.removeChild(iframe);
         }
     };
     
@@ -1287,6 +1313,150 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
     iframe.contentDocument.write(html);
     iframe.contentDocument.close();
 }
+
+/**
+ * Gera texto formatado para impressoras térmicas (32/48 colunas)
+ */
+function gerarTextoComprovante() {
+    if (!window.dadosComprovanteAtual) return '';
+    
+    const { carrinho, dadosPedido, dadosEmpresa, valorTotal, dataHora } = window.dadosComprovanteAtual;
+    const largura = 32; // Colunas (padrão 58mm)
+    const linhaSeparadora = '-'.repeat(largura);
+    
+    let texto = '';
+    
+    // Função center
+    const center = (str) => {
+        const spaces = Math.max(0, Math.floor((largura - str.length) / 2));
+        return ' '.repeat(spaces) + str;
+    };
+    
+    // Função para duas colunas (Esquerda direita)
+    const row = (left, right) => {
+        const lLen = left.length;
+        const rLen = right.length;
+        const spaces = Math.max(1, largura - lLen - rLen);
+        return left + ' '.repeat(spaces) + right;
+    };
+
+    // Cabeçalho
+    texto += center(removerAcentos(dadosEmpresa.nome_loja || 'LOJA').toUpperCase()) + '\n';
+    if(dadosEmpresa.cpf_cnpj) texto += center(formatarCpfCnpj(dadosEmpresa.cpf_cnpj)) + '\n';
+    texto += linhaSeparadora + '\n';
+    
+    // Info Venda
+    texto += `VENDA #${dadosPedido.venda_id || '???'}\n`;
+    texto += `DATA: ${dataHora}\n`;
+    texto += linhaSeparadora + '\n';
+    
+    // Itens
+    carrinho.forEach(item => {
+        const nome = removerAcentos(item.nome || 'Produto').substring(0, largura).toUpperCase();
+        texto += nome + '\n';
+        
+        const qtd = parseFloat(item.quantidade || 0);
+        // ✅ Preço correto (com promoção)
+        const preco = parseFloat(item.preco_final || item.preco || item.preco_venda_sugerido || 0);
+        const totalItem = qtd * preco;
+        
+        texto += row(`${qtd}x ${preco.toFixed(2)}`, `R$ ${totalItem.toFixed(2)}`) + '\n';
+    });
+    
+    texto += linhaSeparadora + '\n';
+    
+    // Totais
+    texto += row("TOTAL", `R$ ${valorTotal.toFixed(2)}`) + '\n';
+    const formaPgto = removerAcentos(dadosPedido.forma_pagamento || 'DINHEIRO').toUpperCase();
+    texto += row("PAGAMENTO", formaPgto) + '\n';
+    
+    // Rodapé
+    texto += '\n\n' + center("OBRIGADO PELA PREFERENCIA!") + '\n\n\n';
+    
+    return texto;
+}
+
+// ============== AÇÕES DOS BOTÕES ==============
+
+window.imprimirComprovanteTexto = function() {
+    try {
+        const texto = gerarTextoComprovante();
+        if (!texto) {
+            alert('Erro ao gerar texto para impressão.');
+            return;
+        }
+        
+        // Encode URL
+        const encodedText = encodeURIComponent(texto);
+        
+        // Tenta obter Logo URL Absoluta
+        let urlLogoParam = '';
+        try {
+            if (window.dadosComprovanteAtual && 
+                window.dadosComprovanteAtual.dadosEmpresa && 
+                window.dadosComprovanteAtual.dadosEmpresa.logo_url) {
+                
+                // Constrói URL absoluta usando a base da página atual
+                // Assume que logo_url é relativo ou absoluto correto
+                const logoRelativo = window.dadosComprovanteAtual.dadosEmpresa.logo_url;
+                // Cria URL absoluta baseada na origem atual (funciona para IP e localhost)
+                const logoAbsoluto = new URL(logoRelativo, window.location.href).href;
+                
+                urlLogoParam = `&logo=${encodeURIComponent(logoAbsoluto)}`;
+                console.log('[Print] 📷 Logo URL detectada:', logoAbsoluto);
+            }
+        } catch (e) {
+            console.warn('[Print] ⚠️ Falha ao processar URL do logo:', e);
+        }
+        
+        // Deep Link para o App Flutter
+        // Schema: printapp://print?data=CONTEXTO_TEXTO&logo=URL_DO_LOGO
+        const deepLink = `printapp://print?data=${encodedText}${urlLogoParam}`;
+        
+        console.log('[Print] 🖨️ Abrindo Deep Link:', deepLink);
+        
+        // Tenta abrir o app
+        window.location.href = deepLink;
+        
+        // Fallback setTimeOut se não abrir? (Difícil detectar em mobile web)
+        setTimeout(() => {
+             // Opcional: mostrar aviso se o usuário ainda estiver aqui
+             console.log('[Print] ⏳ Verificando se app abriu...');
+        }, 2000);
+        
+    } catch (e) {
+        console.error('[Print] ❌ Erro:', e);
+        alert('Erro ao processar impressão: ' + e.message);
+    }
+};
+
+window.compartilharComprovanteImagem = async function() {
+    if (!window.comprovanteImagem || !window.comprovanteImagem.blob) {
+        alert('Imagem do comprovante não disponível.');
+        return;
+    }
+    
+    try {
+        if (navigator.share) {
+            const file = new File([window.comprovanteImagem.blob], 'comprovante.png', { type: 'image/png' });
+            
+            await navigator.share({
+                title: 'Comprovante de Venda',
+                text: 'Segue comprovante da venda.',
+                files: [file]
+            });
+            console.log('[Share] ✅ Compartilhado com sucesso');
+        } else {
+            alert('Seu navegador não suporta compartilhamento direto. Pressione e segure na imagem para salvar/compartilhar.');
+        }
+    } catch (e) {
+        // Ignora AbortError (usuário cancelou)
+        if (e.name !== 'AbortError') {
+             console.error('[Share] ❌ Erro:', e);
+             alert('Erro ao compartilhar: ' + e.message);
+        }
+    }
+};
 
 /**
  * Formata data e hora para o comprovante

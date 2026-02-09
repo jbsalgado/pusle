@@ -66,6 +66,9 @@ class Compra extends ActiveRecord
     /**
      * {@inheritdoc}
      */
+    /**
+     * {@inheritdoc}
+     */
     public function rules()
     {
         return [
@@ -76,7 +79,8 @@ class Compra extends ActiveRecord
             [['data_compra', 'data_vencimento'], 'safe'],
             [['data_compra'], 'date', 'format' => 'php:Y-m-d'],
             [['data_vencimento'], 'date', 'format' => 'php:Y-m-d'],
-            [['valor_total', 'valor_frete', 'valor_desconto'], 'number', 'min' => 0],
+            [['valor_total'], 'number', 'min' => 0],
+            [['valor_frete', 'valor_desconto'], 'safe'],
             [['valor_total'], 'default', 'value' => 0],
             [['valor_frete'], 'default', 'value' => 0],
             [['valor_desconto'], 'default', 'value' => 0],
@@ -88,6 +92,23 @@ class Compra extends ActiveRecord
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
             [['fornecedor_id'], 'exist', 'skipOnError' => true, 'targetClass' => Fornecedor::class, 'targetAttribute' => ['fornecedor_id' => 'id']],
         ];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function beforeValidate()
+    {
+        if (parent::beforeValidate()) {
+            // Converte formato BRL (1.234,56) para float (1234.56)
+            foreach (['valor_frete', 'valor_desconto'] as $attribute) {
+                if (!empty($this->$attribute) && is_string($this->$attribute)) {
+                    $this->$attribute = str_replace(',', '.', str_replace('.', '', $this->$attribute));
+                }
+            }
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -191,7 +212,7 @@ class Compra extends ActiveRecord
                 $uuid = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
                 $this->id = $uuid;
             }
-            
+
             // Garante valores padrão se não foram definidos
             if ($this->valor_total === null || $this->valor_total === '') {
                 $this->valor_total = 0;
@@ -202,16 +223,15 @@ class Compra extends ActiveRecord
             if ($this->valor_desconto === null || $this->valor_desconto === '') {
                 $this->valor_desconto = 0;
             }
-            
+
             // Recalcula valor total apenas na atualização se houver itens já salvos
             // Na criação, o controller faz o recálculo após salvar os itens
             if (!$insert && $this->itens && count($this->itens) > 0) {
                 $this->recalcularValorTotal();
             }
-            
+
             return true;
         }
         return false;
     }
 }
-

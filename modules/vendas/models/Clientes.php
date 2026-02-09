@@ -54,7 +54,8 @@ class Clientes extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['cpf', 'telefone', 'email', 'endereco_logradouro', 'endereco_numero', 'endereco_complemento', 'endereco_bairro', 'endereco_cidade', 'endereco_estado', 'endereco_cep', 'ponto_referencia', 'observacoes', 'regiao_id', 'senha_hash'], 'default', 'value' => null],
+            [['cpf', 'telefone', 'email', 'endereco_logradouro', 'endereco_numero', 'endereco_complemento', 'endereco_bairro', 'endereco_cidade', 'endereco_estado', 'endereco_cep', 'ponto_referencia', 'observacoes', 'senha_hash'], 'default', 'value' => null],
+            [['regiao_id'], 'default', 'value' => null],
             [['ativo'], 'default', 'value' => 1],
             [['id', 'usuario_id', 'nome_completo'], 'required'],
             [['id', 'usuario_id', 'ponto_referencia', 'observacoes', 'regiao_id'], 'string'],
@@ -69,7 +70,7 @@ class Clientes extends \yii\db\ActiveRecord
             [['endereco_cep'], 'string', 'max' => 8],
             [['cpf'], 'unique', 'targetAttribute' => ['cpf', 'usuario_id'], 'message' => 'Este CPF já está cadastrado para esta loja.'],
             [['id'], 'unique'],
-            [['regiao_id'], 'exist', 'skipOnError' => true, 'targetClass' => Regioes::class, 'targetAttribute' => ['regiao_id' => 'id']],
+            [['regiao_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => Regioes::class, 'targetAttribute' => ['regiao_id' => 'id']],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuarios::class, 'targetAttribute' => ['usuario_id' => 'id']],
         ];
     }
@@ -181,5 +182,4 @@ class Clientes extends \yii\db\ActiveRecord
     {
         return new \app\modules\vendas\query\PrestClientesQuery(get_called_class());
     }
-
 }

@@ -776,7 +776,9 @@ function renderizarProdutos(listaProdutos) {
         <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl relative" data-produto-card="${produto.id}">
             <div class="badge-no-carrinho hidden absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full z-10">✓ No Carrinho</div>
             ${emPromocao ? '<div class="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded z-10">PROMOÇÃO</div>' : ''}
-            <img src="${urlImagem}" alt="${produto.nome}" class="w-full h-48 object-cover">
+            <div class="w-full h-48 bg-gray-50 overflow-hidden">
+                <img src="${urlImagem}" alt="${produto.nome}" class="w-full h-full object-contain">
+            </div>
             <div class="p-4">
                 <h3 class="text-lg font-bold text-gray-800 mb-2">${produto.nome}</h3>
                 <div class="flex items-center justify-between mb-4">

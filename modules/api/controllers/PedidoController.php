@@ -247,7 +247,10 @@ class PedidoController extends Controller
                 if (!$produto || $produto->usuario_id !== $usuarioId) {
                     throw new Exception("Item #{$index}: produto inválido ou não pertence à loja.");
                 }
-                if (!$produto->temEstoque($quantidadePedida)) {
+
+                // Pula validação de estoque se for orçamento
+                $isOrcamento = isset($data['is_orcamento']) && $data['is_orcamento'] === true;
+                if (!$isOrcamento && !$produto->temEstoque($quantidadePedida)) {
                     throw new Exception("Produto '{$produto->nome}' sem estoque suficiente.");
                 }
 
@@ -285,19 +288,20 @@ class PedidoController extends Controller
             // Processamento (estoque, caixa, etc) só acontece após confirmação de recebimento
             // Verifica se há indicação explícita de venda direta no request
             $isVendaDireta = isset($data['is_venda_direta']) && $data['is_venda_direta'] === true;
-            // Se não houver indicação explícita, assume venda online (catálogo)
-            // Venda direta sempre deve enviar is_venda_direta=true
+            $isOrcamento = isset($data['is_orcamento']) && $data['is_orcamento'] === true;
 
             $venda = new Venda();
             $venda->usuario_id = $usuarioId;
             $venda->cliente_id = $clienteId;
             $venda->data_venda = date('Y-m-d H:i:s');
-            $venda->observacoes = $data['observacoes'] ?? ($isVendaDireta ? 'Venda Direta' : 'Pedido PWA');
-            $venda->numero_parcelas = $numeroParcelas;
 
-            // ✅ NOVO: TODAS as vendas (direta e online) começam com EM_ABERTO
-            // Processamento só acontece após confirmação de recebimento
-            $venda->status_venda_codigo = \app\modules\vendas\models\StatusVenda::EM_ABERTO;
+            if ($isOrcamento) {
+                $venda->observacoes = $data['observacoes'] ?? 'Orçamento PWA';
+                $venda->status_venda_codigo = \app\modules\vendas\models\StatusVenda::ORCAMENTO;
+            } else {
+                $venda->observacoes = $data['observacoes'] ?? ($isVendaDireta ? 'Venda Direta' : 'Pedido PWA');
+                $venda->status_venda_codigo = \app\modules\vendas\models\StatusVenda::EM_ABERTO;
+            }
 
             $venda->valor_total = $valorTotalVenda;
 
@@ -400,22 +404,26 @@ class PedidoController extends Controller
             }
             Yii::error("Criação de itens concluída.", 'api');
 
-            // ===== GERAR PARCELAS =====
-            $intervaloDiasParcelas = isset($data['intervalo_dias_parcelas'])
-                ? (int)$data['intervalo_dias_parcelas']
-                : 30;
+            // ===== GERAR PARCELAS (Pular se for Orçamento) =====
+            if (!$isOrcamento) {
+                $intervaloDiasParcelas = isset($data['intervalo_dias_parcelas'])
+                    ? (int)$data['intervalo_dias_parcelas']
+                    : 30;
 
-            Yii::error("Chamando gerarParcelas com: formaPagamentoId={$formaPagamentoId}, isVendaDireta=" . ($isVendaDireta ? 'true' : 'false'), 'api');
+                Yii::error("Chamando gerarParcelas com: formaPagamentoId={$formaPagamentoId}, isVendaDireta=" . ($isVendaDireta ? 'true' : 'false'), 'api');
 
-            // ✅ NOVO FLUXO: Parcelas são criadas mas NÃO marcadas como pagas
-            // Serão marcadas como pagas apenas após confirmação de recebimento
-            $venda->gerarParcelas(
-                $formaPagamentoId,
-                $isVendaDireta ? date('Y-m-d') : $dataPrimeiroPagamento,
-                $intervaloDiasParcelas,
-                false // ✅ NÃO marca como paga - será feito na confirmação
-            );
-            Yii::error("Parcelas geradas para Venda ID {$venda->id} (não marcadas como pagas)", 'api');
+                // ✅ NOVO FLUXO: Parcelas são criadas mas NÃO marcadas como pagas
+                // Serão marcadas como pagas apenas após confirmação de recebimento
+                $venda->gerarParcelas(
+                    $formaPagamentoId,
+                    $isVendaDireta ? date('Y-m-d') : $dataPrimeiroPagamento,
+                    $intervaloDiasParcelas,
+                    false // ✅ NÃO marca como paga - será feito na confirmação
+                );
+                Yii::error("Parcelas geradas para Venda ID {$venda->id} (não marcadas como pagas)", 'api');
+            } else {
+                Yii::info("Orçamento detectado: pulando geração de parcelas e financeira.", 'api');
+            }
 
             // ✅ NOVO FLUXO: Caixa NÃO é registrado aqui
             // Entrada no caixa será registrada apenas após confirmação de recebimento

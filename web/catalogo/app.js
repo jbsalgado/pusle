@@ -232,8 +232,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     ` : ''}
 
-                    <div class="h-48 w-full overflow-hidden bg-gray-200 ${!temEstoque ? 'opacity-60' : ''}">
-                        <img src="${urlImagem}" alt="${produto.nome || 'Produto'}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300x300.png?text=Erro';">
+                    <div class="h-48 w-full overflow-hidden bg-gray-100 ${!temEstoque ? 'opacity-60' : ''}">
+                        <img src="${urlImagem}" alt="${produto.nome || 'Produto'}" class="w-full h-full object-contain" onerror="this.src='https://via.placeholder.com/300x300.png?text=Erro';">
                     </div>
                     <div class="p-4 flex flex-col flex-grow">
                         <h3 class="text-lg font-semibold text-gray-800 truncate">${produto.nome || 'Produto'}</h3>

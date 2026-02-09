@@ -143,7 +143,7 @@ class CompraController extends Controller
                             }
                         }
                     }
-                    
+
                     // Recalcula valor total
                     $model->recalcularValorTotal();
                     $model->save(false);
@@ -283,7 +283,7 @@ class CompraController extends Controller
             // Atualiza estoque dos produtos
             $itensAtualizados = 0;
             $errosEstoque = [];
-            
+
             foreach ($model->itens as $item) {
                 if ($item->atualizarEstoque()) {
                     $itensAtualizados++;
@@ -295,6 +295,37 @@ class CompraController extends Controller
             if (!empty($errosEstoque)) {
                 throw new \Exception('Erro ao atualizar estoque dos produtos: ' . implode(', ', $errosEstoque));
             }
+
+            // ====================================================================================
+            // INTEGRAÇÃO FINANCEIRA: Gera Conta a Pagar automaticamente
+            // ====================================================================================
+            // Verifica se já existe conta para esta compra (evita duplicidade em caso de erro/retry)
+            $contaExistente = \app\modules\contas_pagar\models\ContaPagar::findOne(['compra_id' => $model->id]);
+
+            if (!$contaExistente) {
+                $conta = new \app\modules\contas_pagar\models\ContaPagar();
+                $conta->usuario_id = $model->usuario_id;
+                $conta->fornecedor_id = $model->fornecedor_id;
+                $conta->compra_id = $model->id;
+
+                // Formata a descrição com número da nota
+                $notaTxt = $model->numero_nota_fiscal ? "NF {$model->numero_nota_fiscal}" : "S/N";
+                $conta->descricao = "Compra {$notaTxt} - " . ($model->fornecedor->nome_fantasia ?? 'Fornecedor');
+
+                // Usa o valor total (considerando frete e desc)
+                $conta->valor = $model->getValorLiquido();
+
+                // Vencimento (se não tiver, usa hoje)
+                $conta->data_vencimento = $model->data_vencimento ?: date('Y-m-d');
+
+                $conta->status = \app\modules\contas_pagar\models\ContaPagar::STATUS_PENDENTE;
+                $conta->observacoes = "Gerado automaticamente pela conclusão da Compra #{$model->id}";
+
+                if (!$conta->save()) {
+                    throw new \Exception('Erro ao gerar Conta a Pagar: ' . implode(', ', $conta->getFirstErrors()));
+                }
+            }
+            // ====================================================================================
 
             $transaction->commit();
             Yii::$app->session->setFlash('success', "Compra concluída com sucesso! O estoque de {$itensAtualizados} produto(s) foi atualizado.");
@@ -327,7 +358,7 @@ class CompraController extends Controller
         try {
             // Se a compra estava concluída, precisa reverter o estoque
             $estavaConcluida = ($model->status_compra === Compra::STATUS_CONCLUIDA);
-            
+
             $model->status_compra = Compra::STATUS_CANCELADA;
             if (!$model->save()) {
                 throw new \Exception('Erro ao salvar compra: ' . json_encode($model->errors));
@@ -337,7 +368,7 @@ class CompraController extends Controller
             if ($estavaConcluida && !empty($model->itens)) {
                 $itensRevertidos = 0;
                 $errosEstoque = [];
-                
+
                 foreach ($model->itens as $item) {
                     if ($item->reverterEstoque()) {
                         $itensRevertidos++;
@@ -398,7 +429,7 @@ class CompraController extends Controller
 
         if ($produto_id) {
             $produto = Produto::findOne(['id' => $produto_id, 'usuario_id' => Yii::$app->user->id]);
-            
+
             if ($produto) {
                 // Busca histórico usando a view ou query direta
                 $historico = Yii::$app->db->createCommand("
@@ -446,6 +477,158 @@ class CompraController extends Controller
     }
 
     /**
+     * Importar NFe via XML
+     */
+    public function actionImportarXml()
+    {
+        $uploadModel = new \yii\base\DynamicModel(['file']);
+        $uploadModel->addRule('file', 'file', ['extensions' => 'xml', 'checkExtensionByMimeType' => false]);
+
+        if (Yii::$app->request->isPost) {
+            $uploadModel->file = \yii\web\UploadedFile::getInstance($uploadModel, 'file');
+
+            if ($uploadModel->file && $uploadModel->validate()) {
+                try {
+                    $xmlContent = file_get_contents($uploadModel->file->tempName);
+                    // Suprime erros de parsing do XML para tratar na exceção
+                    $xml = @simplexml_load_string($xmlContent);
+
+                    if ($xml === false) {
+                        throw new \Exception("O arquivo enviado não é um XML válido.");
+                    }
+
+                    // Namespace handling
+                    $ns = $xml->getNamespaces(true);
+                    $xml->registerXPathNamespace('nfe', $ns[''] ?? 'http://www.portalfiscal.inf.br/nfe');
+
+                    // =========================================================
+                    // 1. Dados da NFe
+                    // =========================================================
+                    // Tenta estruturas comuns (NFe -> infNFe ou direto infNFe)
+                    $infNFe = $xml->NFe->infNFe ?? $xml->infNFe;
+
+                    if (!$infNFe) {
+                        throw new \Exception("Estrutura não reconhecida. Certifique-se que é uma NFe válida.");
+                    }
+
+                    $ide = $infNFe->ide;
+                    $emit = $infNFe->emit;
+                    $det = $infNFe->det;
+
+                    // =========================================================
+                    // 2. Criar Model Compra Preenchido
+                    // =========================================================
+                    $model = new Compra();
+                    $model->usuario_id = Yii::$app->user->id;
+                    $model->numero_nota_fiscal = (string)$ide->nNF;
+                    $model->serie_nota_fiscal = (string)$ide->serie;
+
+                    // Data (dhEmi ou dEmi)
+                    $dataEmissao = (string)($ide->dhEmi ?: $ide->dEmi);
+                    // Formato esperado BD: YYYY-MM-DD
+                    $model->data_compra = substr($dataEmissao, 0, 10);
+                    $model->data_vencimento = date('Y-m-d', strtotime('+30 days')); // Default
+                    $model->status_compra = Compra::STATUS_PENDENTE;
+
+                    // Totals
+                    if (isset($infNFe->total->ICMSTot)) {
+                        $model->valor_frete = (float)$infNFe->total->ICMSTot->vFrete;
+                        $model->valor_desconto = (float)$infNFe->total->ICMSTot->vDesc;
+                        $model->valor_total = (float)$infNFe->total->ICMSTot->vNF;
+                    }
+
+                    // =========================================================
+                    // 3. Fornecedor (Emitente)
+                    // =========================================================
+                    $cnpjEmit = (string)$emit->CNPJ;
+                    $nomeEmit = (string)$emit->xNome; // Razão Social
+                    $fantasiaEmit = (string)($emit->xFant ?? $emit->xNome); // Fantasia ou Razão
+
+                    // Tenta encontrar Fornecedor no banco
+                    $fornecedor = Fornecedor::find()
+                        ->where(['usuario_id' => Yii::$app->user->id])
+                        // Busca exata pelo CNPJ (assumindo que no banco pode estar formatado ou não, 
+                        // idealmente deveríamos limpar a formatação do banco para comparar, 
+                        // mas aqui vou tentar buscar pelo valor limpo enviado no XML)
+                        ->andWhere(['cnpj' => $cnpjEmit])
+                        ->one();
+
+                    // Se não achou pelo CNPJ limpo, tenta buscar formatado se a função de formatação for consistente
+                    if (!$fornecedor) {
+                        // Tenta regex simples para achar CNPJ
+                        // NOTA: O ideal seria ter stored procedure ou função de limpeza no BD
+                    }
+
+                    if ($fornecedor) {
+                        $model->fornecedor_id = $fornecedor->id;
+                        Yii::$app->session->addFlash('success', "Fornecedor identificado: " . ($fornecedor->nome_fantasia ?: $fornecedor->razao_social));
+                    } else {
+                        Yii::$app->session->addFlash('warning', "Fornecedor CNPJ {$cnpjEmit} ({$fantasiaEmit}) não encontrado. Verifique o cadastro.");
+                    }
+
+                    // =========================================================
+                    // 4. Itens
+                    // =========================================================
+                    $itens = [];
+
+                    foreach ($det as $itemXml) {
+                        $prod = $itemXml->prod;
+
+                        // Parse de valores float (pode variar locale, mas XML geralmente é ponto)
+                        $qtd = (float)$prod->qCom;
+                        $preco = (float)$prod->vUnCom;
+                        $codigo = (string)$prod->cProd;
+                        $nome = (string)$prod->xProd;
+                        $ean = (string)$prod->cEAN;
+
+                        $item = new ItemCompra();
+                        $item->quantidade = $qtd;
+                        $item->preco_unitario = $preco;
+                        $item->nome_produto_temp = $nome; // Nome para a view
+
+                        // Tenta encontrar produto
+                        $produtoDb = Produto::find()
+                            ->where(['usuario_id' => Yii::$app->user->id])
+                            ->andWhere([
+                                'OR',
+                                ['codigo_referencia' => $codigo],
+                                ['nome' => $nome]
+                            ])
+                            ->one();
+
+                        if ($produtoDb) {
+                            $item->produto_id = $produtoDb->id;
+                        }
+
+                        $itens[] = $item;
+                    }
+
+                    Yii::$app->session->addFlash('info', "Leitura do XML concluída. Verifique os dados abaixo antes de salvar.");
+
+                    // Carrega listas para a view
+                    $fornecedores = Fornecedor::getListaDropdownArray(Yii::$app->user->id);
+                    $produtos = Produto::find()
+                        ->where(['usuario_id' => Yii::$app->user->id, 'ativo' => true])
+                        ->orderBy('nome')
+                        ->all();
+
+                    // Renderiza create com os dados preenchidos
+                    return $this->render('create', [
+                        'model' => $model,
+                        'itens' => $itens,
+                        'fornecedores' => $fornecedores,
+                        'produtos' => $produtos,
+                    ]);
+                } catch (\Exception $e) {
+                    Yii::$app->session->setFlash('error', 'Erro ao processar XML: ' . $e->getMessage());
+                }
+            }
+        }
+
+        return $this->render('importar-xml', ['model' => $uploadModel]);
+    }
+
+    /**
      * Encontra o modelo Compra baseado no valor da chave primária.
      * @param string $id
      * @return Compra o modelo carregado
@@ -460,4 +643,3 @@ class CompraController extends Controller
         throw new NotFoundHttpException('A compra solicitada não existe.');
     }
 }
-

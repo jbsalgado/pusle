@@ -33,7 +33,7 @@ $usuario = !$isGuest ? Yii::$app->user->identity : null;
 <header class="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
     <div class="px-4 py-3">
         <div class="flex items-center justify-between">
-            <?= Html::a('<span class="text-xl font-bold text-blue-600">🎯 Prestanista</span>', ['/vendas/inicio/index']) ?>
+            <?= Html::a('<span class="text-xl font-bold text-blue-600">PULSE-CATALOGO</span>', ['/vendas/inicio/index']) ?>
             
             <?php if (!$isGuest && $usuario): ?>
                 <div class="bg-blue-600 text-white rounded-full w-10 h-10 flex items-center justify-center font-semibold text-sm">

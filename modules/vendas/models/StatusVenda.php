@@ -1,4 +1,4 @@
-<?php 
+<?php
 
 namespace app\modules\vendas\models;
 
@@ -15,6 +15,7 @@ class StatusVenda extends ActiveRecord
     const QUITADA = 'QUITADA';
     const CANCELADA = 'CANCELADA';
     const PARCIALMENTE_PAGA = 'PARCIALMENTE_PAGA';
+    const ORCAMENTO = 'ORCAMENTO';
 
     /**
      * {@inheritdoc}

@@ -253,7 +253,7 @@ configurarSincronizacaoManual();
 
 /**
  * FUNÇÃO PRINCIPAL: Finalizar Pedido (VENDA DIRETA)
- * VENDA DIRETA: Não usa gateway externo, sempre fluxo interno
+ * VENDA DIRETA: Pode usar gateway externo (Mercado Pago/Asaas) ou fluxo interno
  */
 export async function finalizarPedido(dadosPedido, carrinho) {
     try {
@@ -264,7 +264,38 @@ export async function finalizarPedido(dadosPedido, carrinho) {
         console.log('[Order] 🏪 Loja (usuario_id):', CONFIG.ID_USUARIO_LOJA);
         console.log('[Order] 👤 Vendedor:', dadosPedido.colaborador_vendedor_id || 'Não informado (sem comissão)');
         
-        // VENDA DIRETA: Sempre usa fluxo interno (sem gateway)
+        // 2️⃣ VERIFICAR SE DEVE USAR GATEWAY
+        const formaPagamentoSelecionada = window.formasPagamento?.find(fp => fp.id === dadosPedido.forma_pagamento_id);
+        const tipoFormaPagamento = formaPagamentoSelecionada?.tipo || '';
+        const usaFluxoInterno = tipoFormaPagamento === 'PIX_ESTATICO' || tipoFormaPagamento === 'PAGAR_AO_ENTREGADOR' || tipoFormaPagamento === 'DINHEIRO';
+        
+        // Obter GATEWAY_CONFIG do window (carregado pelo app.js)
+        const gatewayConfig = window.GATEWAY_CONFIG || { habilitado: false, gateway: 'nenhum' };
+        
+        // Se gateway está habilitado E a forma de pagamento requer gateway (MERCADOPAGO, PIX dinâmico, etc)
+        if (gatewayConfig.habilitado && !usaFluxoInterno && (tipoFormaPagamento === 'MERCADOPAGO' || tipoFormaPagamento === 'PIX')) {
+            console.log('[Order] 🔵 Usando gateway externo:', gatewayConfig.gateway);
+            
+            // Buscar dados do cliente
+            let cliente = null;
+            if (dadosPedido.cliente_id) {
+                try {
+                    const { buscarClientePorId } = await import('./customer.js');
+                    cliente = await buscarClientePorId(dadosPedido.cliente_id);
+                } catch (error) {
+                    console.error('[Order] ❌ Falha ao buscar dados do cliente:', error);
+                    throw new Error('Erro ao buscar dados do cliente para processamento do pagamento');
+                }
+            } else {
+                throw new Error('Cliente é obrigatório para pagamento via gateway');
+            }
+            
+            // Processar via gateway
+            const { processarPagamento } = await import('./gateway-pagamento.js');
+            return await processarPagamento(dadosPedido, carrinho, cliente);
+        }
+        
+        // VENDA DIRETA: Usa fluxo interno (sem gateway)
         console.log('[Order] 🟢 Usando fluxo interno (Venda Direta)');
         
         const pedido = prepararObjetoPedido(dadosPedido, carrinho);
