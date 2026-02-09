@@ -133,7 +133,7 @@ $config = [
             'class' => 'app\modules\caixa\Module',
         ],
         'contas-pagar' => [
-            'class' => 'app\modules\contas-pagar\Module',
+            'class' => 'app\modules\contas_pagar\Module',
         ],
         'servicos' => [
             'class' => 'app\modules\servicos\Saas',

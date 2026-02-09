@@ -11,7 +11,7 @@ use app\modules\vendas\models\FormaPagamento;
 /* @var $form yii\widgets\ActiveForm */
 
 // Fetch lists for dropdowns
-$fornecedores = ArrayHelper::map(Fornecedor::find()->orderBy('nome')->all(), 'id', 'nome');
+$fornecedores = ArrayHelper::map(Fornecedor::find()->orderBy('nome_fantasia')->all(), 'id', 'nome_fantasia');
 $formasPagamento = ArrayHelper::map(FormaPagamento::find()->where(['ativo' => true])->orderBy('nome')->all(), 'id', 'nome');
 
 ?>
