@@ -11,7 +11,7 @@ import { finalizarPedido } from './order.js';
 import { carregarFormasPagamento } from './payment.js';
 import { validarCPF, maskCPF, maskPhone, maskCEP, formatarMoeda, formatarCPF, verificarElementosCriticos } from './utils.js';
 import { ELEMENTOS_CRITICOS } from './config.js';
-import { mostrarModalPixEstatico } from './pix.js'; // Importação do novo módulo
+import { mostrarModalPixEstatico } from './pix.js?v=fix_routing'; // Importação do novo módulo
 import { verificarAutenticacao, getColaboradorData, login } from './auth.js'; // Importação do módulo de autenticação
 import { buscarClientePorCpf, cadastrarCliente, getClienteAtual, setClienteAtual } from './customer.js'; // Importação do módulo de cliente
 
@@ -1246,6 +1246,11 @@ window.confirmarPedido = async function() {
                 return;
             }
 
+            // ✅ ATUALIZAÇÃO CRÍTICA: Salva o ID no objeto dadosPedido para uso nos modais
+            dadosPedido.id = vendaId;
+            dadosPedido.venda_id = vendaId;
+            console.log('[App] 🆔 ID vinculado ao pedido local:', vendaId);
+
             // Verifica o tipo de pagamento para decidir o fluxo
             const formaPagamentoSelecionada = formasPagamento.find(fp => fp.id == formaPagamentoId);
             const tipoPagamento = formaPagamentoSelecionada?.tipo || '';
@@ -1313,8 +1318,19 @@ window.confirmarPedido = async function() {
             
             try {
                 // Chama endpoint de confirmação de recebimento
-                            const { API_ENDPOINTS } = await import('./config.js');
-                const response = await fetch(API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO, {
+                            // Chama endpoint de confirmação de recebimento
+                const { API_ENDPOINTS } = await import('./config.js');
+
+                // ✅ ROTEAMENTO INTELIGENTE (ROBUSTO):
+                const isIdNumerico = !isNaN(vendaId) && !vendaId.toString().includes('-');
+                
+                const endpoint = isIdNumerico
+                    ? API_ENDPOINTS.ORCAMENTO_CONFIRMAR_RECEBIMENTO
+                    : API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO;
+
+                console.log(`[App] 🛣️ Roteamento (Cartão/Outros): ID=${vendaId} -> ${endpoint}`);
+
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1334,10 +1350,20 @@ window.confirmarPedido = async function() {
                 // ✅ NOVO: Recarrega página PRIMEIRO para atualizar estoques
                 console.log('[App] 🔄 Recarregando página para atualizar estoques...');
                 
+                // ✅ CORREÇÃO: Extrai dados corretamente do response (que vem como { success, data, message })
+                const dadosVendaReal = vendaConfirmada.data || vendaConfirmada;
+
                 // Salva dados do orçamento no sessionStorage para exibir comprovante após reload
+                // ✅ GARANTE QUE O ID DO SERVIDOR SEJA PASSADO CORRETAMENTE
+                const dadosPedidoAtualizado = {
+                    ...dadosPedido,
+                    id: dadosVendaReal.id || dadosVendaReal.venda_id, // Prioriza ID do servidor
+                    venda_id: dadosVendaReal.id || dadosVendaReal.venda_id
+                };
+
                 sessionStorage.setItem('orcamento_confirmado_comprovante', JSON.stringify({
-                    orçamento: vendaConfirmada,
-                    dadosPedido: dadosPedido,
+                    orçamento: dadosVendaReal,
+                    dadosPedido: dadosPedidoAtualizado,
                     carrinho: carrinho,
                     formaPagamento: formaPagamentoSelecionada?.nome || 'Não informado'
                 }));
@@ -1645,13 +1671,13 @@ async function verificarComprovantePosReload() {
         await new Promise(resolve => setTimeout(resolve, 500));
         
         // Importa função de comprovante
-        const { gerarComprovanteOrcamento } = await import('./pix.js');
+        const { gerarComprovanteOrcamento } = await import('./pix.js?v=fix_routing');
         
         // Gera e exibe o comprovante
         await gerarComprovanteOrcamento(dados.carrinho, {
             ...dados.dadosPedido,
-            orçamento: dados.orçamento, // Passa objeto completo da orçamento (incluindo acréscimos)
-            venda_id: dados.orçamento.id,
+            orçamento: dados.orçamento, // Passa objeto completo
+            venda_id: dados.orçamento?.id || dados.orçamento?.data?.id || dados.orçamento?.dados?.id, // ID Robustez
             itens: dados.carrinho,
             valorTotal: dados.orçamento.valor_total,
             forma_pagamento: dados.formaPagamento,
@@ -1723,7 +1749,18 @@ window.confirmarRecebimentoDinheiro = async function() {
             headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const response = await fetch(API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO, {
+        // ✅ ROTEAMENTO INTELIGENTE (ROBUSTO):
+        // Se ID for numérico (ex: 1045), é Orçamento -> ORCAMENTO_CONFIRMAR_RECEBIMENTO
+        // Se ID for UUID (ex: 5e44...), é Pedido -> PEDIDO_CONFIRMAR_RECEBIMENTO
+        const isIdNumerico = !isNaN(vendaId) && !vendaId.toString().includes('-');
+        
+        const endpoint = isIdNumerico
+            ? API_ENDPOINTS.ORCAMENTO_CONFIRMAR_RECEBIMENTO
+            : API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO;
+
+        console.log(`[Dinheiro] 🛣️ Roteamento: ID=${vendaId} (${isIdNumerico ? 'NUMÉRICO' : 'UUID'}) -> ${endpoint}`);
+
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify({ venda_id: vendaId })
@@ -1745,9 +1782,19 @@ window.confirmarRecebimentoDinheiro = async function() {
         }
         
         // Salva dados para exibir comprovante após reload
+        // ✅ CORREÇÃO: Extrai dados corretamente do response (que vem como { success, data, message })
+        const dadosVendaReal = vendaConfirmada.data || vendaConfirmada;
+        
+        // ✅ GARANTE QUE O ID DO SERVIDOR SEJA PASSADO CORRETAMENTE
+        const dadosPedidoAtualizado = {
+            ...window.dadosPedidoDinheiro,
+            id: dadosVendaReal.id || dadosVendaReal.venda_id, // Prioriza ID do servidor
+            venda_id: dadosVendaReal.id || dadosVendaReal.venda_id
+        };
+
         sessionStorage.setItem('orcamento_confirmado_comprovante', JSON.stringify({
-            orçamento: vendaConfirmada,
-            dadosPedido: window.dadosPedidoDinheiro,
+            orçamento: dadosVendaReal,
+            dadosPedido: dadosPedidoAtualizado,
             carrinho: carrinho,
             formaPagamento: 'Dinheiro'
         }));

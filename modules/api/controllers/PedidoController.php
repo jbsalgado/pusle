@@ -508,6 +508,11 @@ class PedidoController extends BaseController
                 $transaction = Yii::$app->db->beginTransaction();
 
                 try {
+                    // ✅ CORREÇÃO CRÍTICA: Captura o status ORIGINAL antes de atualizar para QUITADA
+                    // Isso é necessário para saber se era um ORÇAMENTO (e não baixar estoque)
+                    $statusOriginal = $venda->status_venda_codigo;
+                    $isOrcamentoOriginal = ($statusOriginal === \app\modules\vendas\models\StatusVenda::ORCAMENTO);
+
                     // Atualiza status para QUITADA
                     $venda->status_venda_codigo = \app\modules\vendas\models\StatusVenda::QUITADA;
                     $venda->data_atualizacao = new \yii\db\Expression('NOW()');
@@ -525,20 +530,25 @@ class PedidoController extends BaseController
                     }
 
                     // Baixa estoque dos itens (se ainda não foi baixado)
-                    foreach ($venda->itens as $item) {
-                        $produto = $item->produto;
-                        if ($produto) {
-                            // Verifica se o estoque já foi baixado (comparando com quantidade do item)
-                            // Se não, baixa agora
-                            $produto->refresh();
-                            // Baixa estoque
-                            $produto->estoque_atual -= $item->quantidade;
-                            if (!$produto->save(false, ['estoque_atual'])) {
-                                Yii::error("❌ FALHA ao atualizar estoque do produto {$produto->id} na confirmação", 'api');
-                                throw new Exception("Erro ao atualizar estoque do produto '{$produto->nome}'.");
+                    // ✅ CORREÇÃO: Não baixa estoque se for ORÇAMENTO (baseado no status original)
+                    if (!$isOrcamentoOriginal) {
+                        foreach ($venda->itens as $item) {
+                            $produto = $item->produto;
+                            if ($produto) {
+                                // Verifica se o estoque já foi baixado (comparando com quantidade do item)
+                                // Se não, baixa agora
+                                $produto->refresh();
+                                // Baixa estoque
+                                $produto->estoque_atual -= $item->quantidade;
+                                if (!$produto->save(false, ['estoque_atual'])) {
+                                    Yii::error("❌ FALHA ao atualizar estoque do produto {$produto->id} na confirmação", 'api');
+                                    throw new Exception("Erro ao atualizar estoque do produto '{$produto->nome}'.");
+                                }
+                                Yii::info("✅ Estoque de '{$produto->nome}' baixado para {$produto->estoque_atual} na confirmação", 'api');
                             }
-                            Yii::info("✅ Estoque de '{$produto->nome}' baixado para {$produto->estoque_atual} na confirmação", 'api');
                         }
+                    } else {
+                        Yii::info("ℹ️ Venda {$venda->id} era um ORÇAMENTO. Estoque não foi alterado.", 'api');
                     }
 
                     // ✅ Marca parcelas como pagas (para vendas diretas)
@@ -556,17 +566,22 @@ class PedidoController extends BaseController
 
                     // Registra entrada no caixa
                     try {
-                        $movimentacao = \app\modules\caixa\helpers\CaixaHelper::registrarEntradaVenda(
-                            $venda->id,
-                            $venda->valor_total,
-                            $venda->forma_pagamento_id,
-                            $venda->usuario_id
-                        );
+                        // ✅ CORREÇÃO: Não registra no caixa se for ORÇAMENTO (baseado no status original)
+                        if (!$isOrcamentoOriginal) {
+                            $movimentacao = \app\modules\caixa\helpers\CaixaHelper::registrarEntradaVenda(
+                                $venda->id,
+                                $venda->valor_total,
+                                $venda->forma_pagamento_id,
+                                $venda->usuario_id
+                            );
 
-                        if ($movimentacao) {
-                            Yii::info("✅ Entrada registrada no caixa para Venda ID {$venda->id} na confirmação", 'api');
+                            if ($movimentacao) {
+                                Yii::info("✅ Entrada registrada no caixa para Venda ID {$venda->id} na confirmação", 'api');
+                            } else {
+                                Yii::warning("⚠️ Não foi possível registrar entrada no caixa para Venda ID {$venda->id} (caixa pode não estar aberto)", 'api');
+                            }
                         } else {
-                            Yii::warning("⚠️ Não foi possível registrar entrada no caixa para Venda ID {$venda->id} (caixa pode não estar aberto)", 'api');
+                            Yii::info("ℹ️ Venda {$venda->id} era um ORÇAMENTO. Não houve movimentação de caixa.", 'api');
                         }
                     } catch (\Exception $e) {
                         Yii::error("Erro ao registrar entrada no caixa na confirmação (não crítico): " . $e->getMessage(), 'api');

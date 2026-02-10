@@ -1,5 +1,6 @@
 // pix.js - Geração de QR Code PIX Estático (CORRIGIDO)
 // Baseado na especificação EMV QR Code do Banco Central
+console.log('✅ [PIX.JS] CARREGADO - VERSÃO: fix_routing ' + new Date().toISOString());
 
 // Cache de configuração PIX (carregado da API)
 let PIX_CONFIG_CACHE = null;
@@ -646,7 +647,20 @@ window.confirmarRecebimentoPix = async function () {
 
   try {
     const { API_ENDPOINTS } = await import("./config.js");
-    const response = await fetch(API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO, {
+    
+    // ✅ ROTEAMENTO INTELIGENTE: Se for orçamento, usa endpoint dedicado
+    // ✅ ROTEAMENTO INTELIGENTE (ROBUSTO):
+    // Se ID for numérico (ex: 1045), é Orçamento -> ORCAMENTO_CONFIRMAR_RECEBIMENTO
+    // Se ID for UUID (ex: 5e44...), é Pedido -> PEDIDO_CONFIRMAR_RECEBIMENTO
+    const isIdNumerico = !isNaN(vendaId) && !vendaId.toString().includes('-');
+    
+    const endpoint = isIdNumerico
+        ? API_ENDPOINTS.ORCAMENTO_CONFIRMAR_RECEBIMENTO
+        : API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO;
+
+    console.log(`[PIX] 🛣️ Roteamento: ID=${vendaId} (${isIdNumerico ? 'NUMÉRICO' : 'UUID'}) -> ${endpoint}`);
+
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -667,6 +681,14 @@ window.confirmarRecebimentoPix = async function () {
       "[PIX] ✅ Recebimento confirmado com sucesso!",
       vendaConfirmada,
     );
+
+    // ✅ CORREÇÃO: Extrai dados corretamente do response e atualiza ID
+    const dadosVendaReal = vendaConfirmada.data || vendaConfirmada;
+    if (dadosPedidoPix) {
+        dadosPedidoPix.id = dadosVendaReal.id || dadosVendaReal.venda_id;
+        dadosPedidoPix.venda_id = dadosVendaReal.id || dadosVendaReal.venda_id;
+        console.log('[PIX] 🆔 ID vinculado ao pedido local:', dadosPedidoPix.id);
+    }
 
     // Importa funções necessárias dinamicamente
     const { getCarrinho, calcularTotalCarrinho } = await import("./cart.js");
@@ -982,7 +1004,11 @@ async function gerarComprovanteOrcamento(carrinho, dadosPedido) {
   // AJEITAR ID: Prioriza ID do servidor > ID Local (offline)
   const dadosVendaReal = dadosPedido.venda || dadosPedido;
   const idOrcamento = dadosVendaReal.id || dadosPedido.venda_id || dadosPedido.id || dadosPedido.id_local || null;
-  const idExibicao = idOrcamento ? (!isNaN(idOrcamento) ? idOrcamento : `OFF-${idOrcamento.substring(0, 8).toUpperCase()}`) : "PENDENTE";
+  
+  // 🔥 FORÇA BRUTA: Se ainda assim for null, tenta pegar do dadosPedido direto
+  const idFinal = idOrcamento || (dadosPedido && dadosPedido.id) || (dadosPedido && dadosPedido.venda_id) || (dadosPedido && dadosPedido.orcamento_id);
+
+  const idExibicao = idFinal ? (!isNaN(idFinal) ? idFinal : `OFF-${(idFinal.toString()).substring(0, 8).toUpperCase()}`) : "PENDENTE";
 
   // Cria HTML do comprovante
   const html = `
@@ -1564,7 +1590,11 @@ function gerarTextoComprovante() {
   // AJEITAR ID: Prioriza ID do servidor > ID Local (offline)
   const dadosVendaReal = dadosPedido.venda || dadosPedido;
   const idOrcamento = dadosVendaReal.id || dadosPedido.venda_id || dadosPedido.id || dadosPedido.id_local || null;
-  const idExibicao = idOrcamento ? (!isNaN(idOrcamento) ? idOrcamento : `OFF-${idOrcamento.substring(0, 8).toUpperCase()}`) : "PENDENTE";
+  
+  // 🔥 FORÇA BRUTA: Se ainda assim for null, tenta pegar do dadosPedido direto
+  const idFinal = idOrcamento || (dadosPedido && dadosPedido.id) || (dadosPedido && dadosPedido.venda_id) || (dadosPedido && dadosPedido.orcamento_id);
+
+  const idExibicao = idFinal ? (!isNaN(idFinal) ? idFinal : `OFF-${(idFinal.toString()).substring(0, 8).toUpperCase()}`) : "PENDENTE";
 
   // Info Venda
   texto += `ORÇAMENTO #${idExibicao}\n`;

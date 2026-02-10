@@ -140,7 +140,14 @@ async function tentarEnvioDireto(pedido) {
             console.warn('[Order] ⚠️ Token ausente! A requisição pode falhar com 401.');
         }
         
-        const response = await fetch(API_ENDPOINTS.PEDIDO_CREATE, {
+        // ✅ ROTEAMENTO INTELIGENTE: Se for orçamento, usa endpoint dedicado
+        const endpoint = pedido.is_orcamento 
+            ? API_ENDPOINTS.ORCAMENTO_CREATE 
+            : API_ENDPOINTS.PEDIDO_CREATE;
+            
+        console.log(`[Order] 📡 Enviando para: ${endpoint}`);
+
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify(pedido),

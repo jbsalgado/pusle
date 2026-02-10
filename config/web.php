@@ -23,6 +23,9 @@ $config = [
         'request' => [
             // !!! insert a secret key in the following (if it is empty) - this is required by cookie validation
             'cookieValidationKey' => 'your-secret-key-here-change-in-production',
+            'parsers' => [
+                'application/json' => 'yii\web\JsonParser',
+            ],
             // Detecta automaticamente o baseUrl baseado no SCRIPT_NAME e REQUEST_URI
             // Se o DocumentRoot está em /srv/http/pulse/web, o SCRIPT_NAME será /index.php
             // Se o DocumentRoot está na raiz, o SCRIPT_NAME será /pulse/web/index.php

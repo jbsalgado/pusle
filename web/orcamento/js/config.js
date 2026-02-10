@@ -135,6 +135,7 @@ export const API_ENDPOINTS = {
     PEDIDO_CREATE: `${CONFIG.URL_API}/api/pedido/create`, // POST - criar pedido
     
     // ✅ NOVOS ENDPOINTS
+    ORCAMENTO_CREATE: `${CONFIG.URL_API}/api/orcamento/create`, // POST - criar orçamento (independente)
     USUARIO_CONFIG: `${CONFIG.URL_API}/api/usuario/config`,
     USUARIO_ME: `${CONFIG.URL_API}/api/usuario/me`, // Endpoint para dados do usuário logado
     USUARIO_DADOS_LOJA: `${CONFIG.URL_API}/api/usuario/dados-loja`, // Endpoint para dados da loja (comprovantes)
@@ -161,6 +162,8 @@ export const API_ENDPOINTS = {
     PEDIDO_PARCELAS: `${CONFIG.URL_API}/api/pedido/parcelas`,
     // ✅ NOVO: Endpoint para confirmar recebimento (processa estoque, caixa, etc)
     PEDIDO_CONFIRMAR_RECEBIMENTO: `${CONFIG.URL_API}/api/pedido/confirmar-recebimento`,
+    // ✅ NOVO: Endpoint para confirmar recebimento de orçamento (apenas muda status)
+    ORCAMENTO_CONFIRMAR_RECEBIMENTO: `${CONFIG.URL_API}/api/orcamento/confirmar-recebimento`,
 };
 
 export const STORAGE_KEYS = {
