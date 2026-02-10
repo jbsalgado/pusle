@@ -90,11 +90,12 @@ export async function limparCarrinho() {
 export async function adicionarPedidoAFila(pedido) {
     try {
         const fila = await obterFilaPedidos();
-        fila.push({
+        const pedidoComId = {
             ...pedido,
             timestamp: new Date().getTime(),
-            id_local: crypto.randomUUID()
-        });
+            id_local: pedido.id_local || crypto.randomUUID()
+        };
+        fila.push(pedidoComId);
         await idbKeyval.set(STORAGE_KEYS.FILA_PEDIDOS, fila);
         console.log('[Storage] Pedido adicionado à fila offline. Total:', fila.length);
         

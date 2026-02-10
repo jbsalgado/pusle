@@ -94,10 +94,10 @@ function prepararObjetoPedido(dadosPedido, carrinho) {
             desconto_percentual: item.descontoPercentual || 0,
             desconto_valor: item.descontoValor || 0
         })),
-        // Adiciona dados do acréscimo
         acrescimo_valor: parseFloat(acrescimo.valor) || 0,
         acrescimo_tipo: acrescimo.tipo || null,
-        observacao_acrescimo: acrescimo.observacao || null
+        observacao_acrescimo: acrescimo.observacao || null,
+        id_local: crypto.randomUUID() // ✅ GERA ID LOCAL ÚNICO PARA USO OFFLINE/IMPRESSÃO
     };
 
     // Só incluir campos de parcelamento se realmente houver parcelas
