@@ -25,3 +25,6 @@ composer.lock
 .env.*.local
 config/db-local.php
 config/params-local.php
+config/certificados/*.pfx
+config/certificados/*.key
+config/certificados/*.crt

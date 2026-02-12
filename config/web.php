@@ -141,6 +141,12 @@ $config = [
         'servicos' => [
             'class' => 'app\modules\servicos\Saas',
         ],
+        'marketplace' => [
+            'class' => 'app\modules\marketplace\Module',
+        ],
+        'cobranca' => [
+            'class' => 'app\modules\cobranca\Module',
+        ],
     ],
     'params' => $params,
 ];

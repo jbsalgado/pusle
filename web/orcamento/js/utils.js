@@ -165,6 +165,22 @@ export function maskCEP(input) {
 }
 
 /**
+ * Gera um ID aleatório curto ou longo (fallback para randomUUID)
+ */
+export function generateId(length = 8) {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    // Fallback para contextos não seguros (HTTP / IP)
+    const chars = 'abcdef0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result + Date.now().toString(36);
+}
+
+/**
  * Valida UUID
  */
 export function validarUUID(uuid) {

@@ -1,6 +1,6 @@
 // storage.js - Gerenciamento de IndexedDB e cache
 import { STORAGE_KEYS, CONFIG } from './config.js';
-import { idbKeyval } from './utils.js';
+import { idbKeyval, generateId } from './utils.js';
 
 // Adiciona chave para Token JWT
 const TOKEN_KEY = 'venda_direta_token_jwt';
@@ -93,7 +93,8 @@ export async function adicionarPedidoAFila(pedido) {
         const pedidoComId = {
             ...pedido,
             timestamp: new Date().getTime(),
-            id_local: pedido.id_local || crypto.randomUUID()
+            // id_local: pedido.id_local || crypto.randomUUID()
+            id_local: pedido.id_local || generateId()
         };
         fila.push(pedidoComId);
         await idbKeyval.set(STORAGE_KEYS.FILA_PEDIDOS, fila);

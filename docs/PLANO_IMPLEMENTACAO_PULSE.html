@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PULSE - Plano de Implementação</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #3730a3;
+            --secondary: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --info: #3b82f6;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: var(--gray-800); background: var(--gray-50); }
+        header { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); color: white; padding: 2.5rem 2rem; text-align: center; }
+        header h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+        header .subtitle { font-size: 1.1rem; opacity: 0.9; }
+        nav { background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
+        nav ul { display: flex; justify-content: center; flex-wrap: wrap; list-style: none; max-width: 1200px; margin: 0 auto; }
+        nav li a { display: block; padding: 1rem 1.25rem; color: var(--gray-700); text-decoration: none; font-weight: 500; transition: all 0.3s; border-bottom: 3px solid transparent; }
+        nav li a:hover { color: #dc2626; border-bottom-color: #dc2626; }
+        main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        section { background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); margin-bottom: 2rem; overflow: hidden; }
+        section h2 { background: var(--gray-800); color: white; padding: 1.25rem 1.5rem; font-size: 1.4rem; display: flex; align-items: center; gap: 0.75rem; }
+        .section-content { padding: 1.5rem; }
+        .badge { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+        .badge-critical { background: #fecaca; color: #991b1b; }
+        .badge-high { background: #fed7aa; color: #9a3412; }
+        .badge-medium { background: #fef08a; color: #854d0e; }
+        .badge-low { background: #bbf7d0; color: #166534; }
+        .badge-easy { background: #dbeafe; color: #1e40af; }
+        .badge-moderate { background: #fef3c7; color: #92400e; }
+        .badge-complex { background: #fce7f3; color: #9d174d; }
+        .badge-very-complex { background: #ede9fe; color: #5b21b6; }
+        .impact-low { background: #d1fae5; color: #065f46; }
+        .impact-medium { background: #fef3c7; color: #92400e; }
+        .impact-high { background: #fee2e2; color: #991b1b; }
+        .task-card { border: 2px solid var(--gray-200); border-radius: 12px; margin-bottom: 1.5rem; overflow: hidden; transition: all 0.3s; }
+        .task-card:hover { box-shadow: 0 8px 25px rgba(0,0,0,0.12); transform: translateY(-2px); }
+        .task-header { padding: 1.25rem; background: var(--gray-50); border-bottom: 1px solid var(--gray-200); }
+        .task-header h3 { font-size: 1.15rem; color: var(--gray-800); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+        .task-meta { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+        .task-body { padding: 1.25rem; }
+        .task-body p { color: var(--gray-600); margin-bottom: 1rem; }
+        .task-section { margin-bottom: 1rem; }
+        .task-section h4 { font-size: 0.9rem; color: var(--gray-700); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+        .task-section ul { padding-left: 1.25rem; }
+        .task-section li { color: var(--gray-600); font-size: 0.9rem; margin-bottom: 0.25rem; }
+        .task-footer { padding: 1rem 1.25rem; background: var(--gray-50); border-top: 1px solid var(--gray-200); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+        .time-estimate { font-weight: 600; color: var(--primary); }
+        .dependencies { font-size: 0.85rem; color: var(--gray-600); }
+        .priority-section { border-left: 4px solid; padding-left: 1rem; margin-bottom: 2rem; }
+        .priority-critical { border-color: #dc2626; }
+        .priority-high { border-color: #f97316; }
+        .priority-medium { border-color: #eab308; }
+        .priority-low { border-color: #22c55e; }
+        .priority-section h3 { margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+        th, td { padding: 0.875rem 1rem; text-align: left; border-bottom: 1px solid var(--gray-200); }
+        th { background: var(--gray-100); font-weight: 600; color: var(--gray-700); }
+        tr:hover { background: var(--gray-50); }
+        .legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .legend-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+        .code-block { background: var(--gray-800); color: #e5e7eb; padding: 1rem; border-radius: 8px; font-family: 'Consolas', monospace; font-size: 0.85rem; overflow-x: auto; margin: 0.5rem 0; }
+        .file-path { background: var(--gray-100); padding: 0.25rem 0.5rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; color: var(--gray-700); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .stat-card { background: white; border: 1px solid var(--gray-200); border-radius: 10px; padding: 1.25rem; text-align: center; }
+        .stat-card .stat-value { font-size: 2rem; font-weight: 700; }
+        .stat-card .stat-label { font-size: 0.85rem; color: var(--gray-600); margin-top: 0.25rem; }
+        .stat-critical .stat-value { color: #dc2626; }
+        .stat-high .stat-value { color: #f97316; }
+        .stat-medium .stat-value { color: #eab308; }
+        .stat-low .stat-value { color: #22c55e; }
+        footer { background: var(--gray-800); color: white; text-align: center; padding: 2rem; margin-top: 2rem; }
+        footer p { opacity: 0.8; font-size: 0.9rem; }
+        @media (max-width: 768px) { header h1 { font-size: 1.75rem; } nav ul { flex-direction: column; } main { padding: 1rem; } .task-footer { flex-direction: column; align-items: flex-start; } }
+        @media print { nav { display: none; } section { break-inside: avoid; box-shadow: none; border: 1px solid var(--gray-300); } }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>📋 Plano de Implementação</h1>
+        <p class="subtitle">PULSE - Funcionalidades Pendentes e Novas Features</p>
+    </header>
+    <nav>
+        <ul>
+            <li><a href="#resumo">Resumo</a></li>
+            <li><a href="#criticas">Críticas</a></li>
+            <li><a href="#alta">Alta Prioridade</a></li>
+            <li><a href="#media">Média Prioridade</a></li>
+            <li><a href="#baixa">Baixa Prioridade</a></li>
+            <li><a href="#cronograma">Cronograma</a></li>
+        </ul>
+    </nav>
+    <main>
+        <!-- Resumo Executivo -->
+        <section id="resumo">
+            <h2>📊 Resumo Executivo</h2>
+            <div class="section-content">
+                <div class="stats-grid">
+                    <div class="stat-card stat-critical"><div class="stat-value">4</div><div class="stat-label">Tarefas Críticas</div></div>
+                    <div class="stat-card stat-high"><div class="stat-value">5</div><div class="stat-label">Alta Prioridade</div></div>
+                    <div class="stat-card stat-medium"><div class="stat-value">6</div><div class="stat-label">Média Prioridade</div></div>
+                    <div class="stat-card stat-low"><div class="stat-value">4</div><div class="stat-label">Baixa Prioridade</div></div>
+                </div>
+                <h3 style="margin: 1.5rem 0 1rem;">Legenda de Classificação</h3>
+                <div class="legend">
+                    <div class="legend-item"><span class="badge badge-critical">Crítica</span> Bloqueia funcionalidades essenciais</div>
+                    <div class="legend-item"><span class="badge badge-high">Alta</span> Importante para operação diária</div>
+                    <div class="legend-item"><span class="badge badge-medium">Média</span> Melhoria significativa</div>
+                    <div class="legend-item"><span class="badge badge-low">Baixa</span> Nice to have</div>
+                </div>
+                <div class="legend">
+                    <div class="legend-item"><span class="badge badge-easy">Fácil</span> 1-2 dias, código isolado</div>
+                    <div class="legend-item"><span class="badge badge-moderate">Moderada</span> 3-5 dias, algumas integrações</div>
+                    <div class="legend-item"><span class="badge badge-complex">Complexa</span> 6-10 dias, múltiplas integrações</div>
+                    <div class="legend-item"><span class="badge badge-very-complex">Muito Complexa</span> 10+ dias, arquitetura</div>
+                </div>
+                <div class="legend">
+                    <div class="legend-item"><span class="badge impact-low">Impacto Baixo</span> Código novo, sem alterações</div>
+                    <div class="legend-item"><span class="badge impact-medium">Impacto Médio</span> Modificações em 2-5 arquivos</div>
+                    <div class="legend-item"><span class="badge impact-high">Impacto Alto</span> Alterações em múltiplos módulos</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tarefas Críticas -->
+        <section id="criticas">
+            <h2>🔴 Prioridade Crítica</h2>
+            <div class="section-content">
+                <p style="margin-bottom: 1.5rem; color: var(--gray-600);">Tarefas que bloqueiam funcionalidades essenciais do sistema ou são pré-requisitos para outras implementações.</p>
+
+                <!-- Task 1 -->
+                <div class="task-card" style="border-color: #dc2626;">
+                    <div class="task-header">
+                        <h3>📋 Views de Contas a Pagar</h3>
+                        <div class="task-meta">
+                            <span class="badge badge-critical">Crítica</span>
+                            <span class="badge badge-easy">Fácil</span>
+                            <span class="badge impact-low">Impacto Baixo</span>
+                        </div>
+                    </div>
+                    <div class="task-body">
+                        <p>O módulo de Contas a Pagar possui Model e Controller completos, mas não tem interface web. Sem as views, o módulo é inutilizável pela interface.</p>
+                        <div class="task-section">
+                            <h4>📁 Arquivos a Criar</h4>
+                            <ul>
+                                <li><span class="file-path">modules/contas_pagar/views/conta-pagar/index.php</span> - Listagem</li>
+                                <li><span class="file-path">modules/contas_pagar/views/conta-pagar/view.php</span> - Visualização</li>
+                                <li><span class="file-path">modules/contas_pagar/views/conta-pagar/create.php</span> - Criação</li>
+                                <li><span class="file-path">modules/contas_pagar/views/conta-pagar/update.php</span> - Edição</li>
+                                <li><span class="file-path">modules/contas_pagar/views/conta-pagar/_form.php</span> - Formulário</li>
+                                <li><span class="file-path">modules/contas_pagar/views/conta-pagar/_search.php</span> - Filtros</li>
+                            </ul>
+                        </div>
+                        <div class="task-section">
+                            <h4>⚙️ Implementação</h4>
+                            <ul>
+                                <li>Usar Gii para gerar views base</li>
+                                <li>Aplicar template AdminLTE existente</li>
+                                <li>Adicionar filtros por status, vencimento e fornecedor</li>
+                                <li>Incluir badges de status (PENDENTE, VENCIDA, PAGA)</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <span class="time-estimate">⏱️ 1-2 dias</span>
+                        <span class="dependencies">Dependências: Nenhuma</span>
+                    </div>
+                </div>
+
+                <!-- Task 2 -->
+                <div class="task-card" style="border-color: #dc2626;">
+                    <div class="task-header">
+                        <h3>🔗 Integração Contas a Pagar → Caixa</h3>
+                        <div class="task-meta">
+                            <span class="badge badge-critical">Crítica</span>
+                            <span class="badge badge-easy">Fácil</span>
+                            <span class="badge impact-medium">Impacto Médio</span>
+                        </div>
+                    </div>
+                    <div class="task-body">
+                        <p>Quando uma conta é paga, deve registrar automaticamente uma saída no caixa. Atualmente o pagamento não reflete no fluxo de caixa.</p>
+                        <div class="task-section">
+                            <h4>📁 Arquivos a Modificar</h4>
+                            <ul>
+                                <li><span class="file-path">modules/contas_pagar/controllers/ContaPagarController.php</span> - actionPagar()</li>
+                                <li><span class="file-path">modules/caixa/helpers/CaixaHelper.php</span> - Adicionar método</li>
+                            </ul>
+                        </div>
+                        <div class="task-section">
+                            <h4>⚙️ Implementação</h4>
+                            <div class="code-block">
+// Em ContaPagarController::actionPagar()
+$conta->marcarComoPaga();
+CaixaHelper::registrarSaidaContaPagar($conta);
+                            </div>
+                            <ul>
+                                <li>Criar método <code>CaixaHelper::registrarSaidaContaPagar($conta)</code></li>
+                                <li>Verificar se há caixa aberto antes de registrar</li>
+                                <li>Categoria: CONTA_PAGAR</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <span class="time-estimate">⏱️ 0.5-1 dia</span>
+                        <span class="dependencies">Dependências: Views de Contas a Pagar</span>
+                    </div>
+                </div>
+
+                <!-- Task 3 -->
+                <div class="task-card" style="border-color: #dc2626;">
+                    <div class="task-header">
+                        <h3>🔔 Webhooks Completos (Mercado Pago + Asaas)</h3>
+                        <div class="task-meta">
+                            <span class="badge badge-critical">Crítica</span>
+                            <span class="badge badge-moderate">Moderada</span>
+                            <span class="badge impact-medium">Impacto Médio</span>
+                        </div>
+                    </div>
+                    <div class="task-body">
+                        <p>Os webhooks existem parcialmente mas não atualizam status de parcelas nem registram no caixa. Pagamentos online não são confirmados automaticamente.</p>
+                        <div class="task-section">
+                            <h4>📁 Arquivos a Modificar</h4>
+                            <ul>
+                                <li><span class="file-path">modules/api/controllers/MercadoPagoController.php</span> - actionWebhook()</li>
+                                <li><span class="file-path">modules/api/controllers/AsaasController.php</span> - actionWebhook()</li>
+                            </ul>
+                        </div>
+                        <div class="task-section">
+                            <h4>⚙️ Implementação</h4>
+                            <ul>
+                                <li>Validar assinatura do webhook (segurança)</li>
+                                <li>Buscar parcela pelo external_reference</li>
+                                <li>Atualizar status da parcela para PAGA</li>
+                                <li>Chamar <code>CaixaHelper::registrarEntradaParcela()</code></li>
+                                <li>Registrar log de transação</li>
+                                <li>Enviar notificação (opcional)</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <span class="time-estimate">⏱️ 3-4 dias</span>
+                        <span class="dependencies">Dependências: Servidor HTTPS público</span>
+                    </div>
+                </div>
+
+                <!-- Task 4 -->
+                <div class="task-card" style="border-color: #dc2626;">
+                    <div class="task-header">
+                        <h3>📄 Estrutura de Dados - Cupom Fiscal</h3>
+                        <div class="task-meta">
+                            <span class="badge badge-critical">Crítica</span>
+                            <span class="badge badge-easy">Fácil</span>
+                            <span class="badge impact-low">Impacto Baixo</span>
+                        </div>
+                    </div>
+                    <div class="task-body">
+                        <p>Pré-requisito para emissão de NFe/NFCe. A biblioteca NFePHP já está instalada mas não há tabela para armazenar os cupons emitidos.</p>
+                        <div class="task-section">
+                            <h4>📁 Arquivos a Criar</h4>
+                            <ul>
+                                <li><span class="file-path">sql/postgres/011_create_cupons_fiscais.sql</span> - Migration</li>
+                                <li><span class="file-path">modules/vendas/models/CupomFiscal.php</span> - Model (já existe, ajustar)</li>
+                            </ul>
+                        </div>
+                        <div class="task-section">
+                            <h4>⚙️ Estrutura da Tabela</h4>
+                            <div class="code-block">
+CREATE TABLE prest_cupons_fiscais (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    venda_id UUID REFERENCES prest_vendas(id),
+    usuario_id UUID NOT NULL,
+    numero INTEGER NOT NULL,
+    serie VARCHAR(3) NOT NULL,
+    modelo VARCHAR(2) DEFAULT '65', -- 55=NFe, 65=NFCe
+    chave_acesso VARCHAR(44),
+    xml_path TEXT,
+    pdf_path TEXT,
+    status VARCHAR(20) DEFAULT 'PENDENTE',
+    data_emissao TIMESTAMP,
+    data_cancelamento TIMESTAMP,
+    motivo_cancelamento TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+                            </div>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <span class="time-estimate">⏱️ 1 dia</span>
+                        <span class="dependencies">Dependências: Nenhuma</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Alta Prioridade -->
+        <section id="alta">
+            <h2>🟠 Alta Prioridade</h2>
+            <div class="section-content">
+                <p style="margin-bottom: 1.5rem; color: var(--gray-600);">Funcionalidades importantes para operação diária do sistema.</p>
+
+                <!-- Task 5 -->
+                <div class="task-card" style="border-color: #f97316;">
+                    <div class="task-header">
+                        <h3>📄 Emissão de NFe/NFCe Completa</h3>
+                        <div class="task-meta">
+                            <span class="badge badge-high">Alta</span>
+                            <span class="badge badge-complex">Complexa</span>
+                            <span class="badge impact-medium">Impacto Médio</span>
+                        </div>
+                    </div>
+                    <div class="task-body">
+                        <p>A biblioteca NFePHP está instalada e o service básico existe. Falta montar o XML a partir dos dados da venda e integrar com o fluxo de vendas.</p>
+                        <div class="task-section">
+                            <h4>📁 Arquivos a Criar/Modificar</h4>
+                            <ul>
+                                <li><span class="file-path">components/NFeBuilder.php</span> - Classe para montar XML</li>
+                                <li><span class="file-path">components/NFwService.php</span> - Melhorar service existente</li>
+                                <li><span class="file-path">modules/api/controllers/CupomFiscalController.php</span> - Endpoints API</li>
+                                <li><span class="file-path">modules/vendas/controllers/CupomFiscalController.php</span> - Já existe, expandir</li>
+                                <li><span class="file-path">modules/vendas/views/cupom-fiscal/*</span> - Views</li>
+                            </ul>
+                        </div>
+                        <div class="task-section">
+                            <h4>⚙️ Implementação</h4>
+                            <ul>
+                                <li>Criar NFeBuilder para montar estrutura XML</li>
+                                <li>Buscar dados do emitente de prest_configuracoes</li>
+                                <li>Montar itens da NFe a partir de prest_venda_itens</li>
+                                <li>Calcular impostos (ICMS, PIS, COFINS)</li>
+                                <li>Gerar DANFE em PDF usando sped-da</li>
+                                <li>Implementar cancelamento de NFe</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <span class="time-estimate">⏱️ 6-8 dias</span>
+                        <span class="dependencies">Dependências: Estrutura de Dados Cupom Fiscal, Certificado Digital</span>
+                    </div>
+                </div>
+
+                <!-- Task 6 -->
+                <div class="task-card" style="border-color: #f97316;">
+                    <div class="task-header">
+                        <h3>📊 Dashboard Financeiro</h3>
+                        <div class="task-meta">
+                            <span class="badge badge-high">Alta</span>
+                            <span class="badge badge-moderate">Moderada</span>
+                            <span class="badge impact-low">Impacto Baixo</span>
+                        </div>
+                    </div>
+                    <div class="task-body">
+                        <p>Visão consolidada de caixa, contas a pagar e receber. Essencial para gestão financeira.</p>
+                        <div class="task-section">
+                            <h4>📁 Arquivos a Criar</h4>
+                            <ul>
+                                <li><span class="file-path">modules/vendas/controllers/DashboardFinanceiroController.php</span> - Já existe, expandir</li>
+                                <li><span class="file-path">modules/vendas/views/dashboard-financeiro/*</span> - Views</li>
+                            </ul>
+                        </div>
+                        <div class="task-section">
+                            <h4>⚙️ Funcionalidades</h4>
+                            <ul>
+                                <li>Saldo atual do caixa</li>
+                                <li>Contas a pagar (vencidas e a vencer)</li>
+                                <li>Parcelas a receber (vencidas e a vencer)</li>
+                                <li>Gráfico de entradas x saídas</li>
+                                <li>Projeção de fluxo de caixa</li>
+                                <li>Alertas de saldo baixo</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <span class="time-estimate">⏱️ 5-7 dias</span>
+                        <span class="dependencies">Dependências: Integração Caixa ↔ Contas a Pagar</span>
+                    </div>
+                </div>
+
+                <!-- Task 7 -->
+                <div class="task-card" style="border-color: #f97316;">
+                    <div class="task-header">
+                        <h3>📈 Relatórios de Caixa</h3>
+                        <div class="task-meta">
+                            <span class="badge badge-high">Alta</span>
+                            <span class="badge badge-moderate">Moderada</span>
+                            <span class="badge impact-low">Impacto Baixo</span>
+                        </div>
+                    </div>
+                    <div class="task-body">
+                        <p>Relatórios de fechamento de caixa e movimentações por período. Essencial para controle financeiro.</p>
+                        <div class="task-section">
+                            <h4>📁 Arquivos a Criar</h4>
+                            <ul>
+                                <li><span class="file-path">modules/caixa/controllers/RelatorioController.php</span></li>
+                                <li><span class="file-path">modules/caixa/views/relatorio/*</span></li>
+                            </ul>
+                        </div>
+                        <div class="task-section">
+                            <h4>⚙️ Relatórios</h4>
+                            <ul>
+                                <li>Fechamento de caixa (PDF)</li>
+                                <li>Movimentações por período</li>
+                                <li>Movimentações por categoria</li>
+                                <li>Exportação Excel/PDF</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <span class="time-estimate">⏱️ 3-4 dias</span>
+                        <span class="dependencies">Dependências: Nenhuma</span>
+                    </div>
+                </div>
+
+                <!-- Task 8 -->
+                <div class="task-card" style="border-color: #f97316;">
+                    <div class="task-header">
+                        <h3>📋 Relatórios de Contas a Pagar</h3>
+                        <div class="task-meta">
+                            <span class="badge badge-high">Alta</span>
+                            <span class="badge badge-easy">Fácil</span>
+                            <span class="badge impact-low">Impacto Baixo</span>
+                        </div>
+                    </div>
+                    <div class="task-body">
+                        <p>Relatórios de contas a vencer, vencidas e por fornecedor.</p>
+                        <div class="task-section">
+                            <h4>📁 Arquivos a Criar</h4>
+                            <ul>
+                                <li><span class="file-path">modules/contas_pagar/controllers/RelatorioController.php</span></li>
+                                <li><span class="file-path">modules/contas_pagar/views/relatorio/*</span></li>
+                            </ul>
+                        </div>
+                        <div class="task-section">
+                            <h4>⚙️ Relatórios</h4>
+                            <ul>
+                                <li>Contas a vencer (próximos 7, 15, 30 dias)</li>
+                                <li>Contas vencidas</li>
+                                <li>Por fornecedor</li>
+                                <li>Exportação Excel/PDF</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <span class="time-estimate">⏱️ 2-3 dias</span>
+                        <span class="dependencies">Dependências: Views de Contas a Pagar</span>
+                    </div>
+                </div>
+
+                <!-- Task 9 -->
+                <div class="task-card" style="border-color: #f97316;">
+                    <div class="task-header">
+                        <h3>🤖 Automação de Cobranças (WhatsApp/SMS)</h3>
+                        <div class="task-meta">
+                            <span class="badge badge-high">Alta</span>
+                            <span class="badge badge-complex">Complexa</span>
+                            <span class="badge impact-medium">Impacto Médio</span>
+                        </div>
+                    </div>
+                    <div class="task-body">
+                        <p>Sistema de envio automático de lembretes de vencimento. Alto impacto na redução de inadimplência.</p>
+                        <div class="task-section">
+                            <h4>📁 Arquivos a Criar</h4>
+                            <ul>
+                                <li><span class="file-path">components/NotificacaoService.php</span></li>
+                                <li><span class="file-path">commands/NotificacaoController.php</span> - Console command</li>
+                                <li><span class="file-path">modules/vendas/models/NotificacaoCobranca.php</span></li>
+                            </ul>
+                        </div>
+                        <div class="task-section">
+                            <h4>⚙️ Implementação</h4>
+                            <ul>
+                                <li>Integração com API WhatsApp (Twilio, Z-API, etc)</li>
+                                <li>Templates de mensagens configuráveis</li>
+                                <li>Agendamento de envios (cron job)</li>
+                                <li>Notificações: 3 dias antes, no dia, 1 dia após vencimento</li>
+                                <li>Log de notificações enviadas</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <span class="time-estimate">⏱️ 6-8 dias</span>
+                        <span class="dependencies">Dependências: Conta em API de mensageria</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Média Prioridade -->
+        <section id="media">
+            <h2>🟡 Média Prioridade</h2>
+            <div class="section-content">
+                <p style="margin-bottom: 1.5rem; color: var(--gray-600);">Melhorias significativas que agregam valor ao sistema.</p>
+
+                <!-- Task 10 -->
+                <div class="task-card" style="border-color: #eab308;">
+                    <div class="task-header">
+                        <h3>💳 Split de Pagamentos</h3>
+                        <div class="task-meta">
+                            <span class="badge badge-medium">Média</span>
+                            <span class="badge badge-complex">Complexa</span>
+                            <span class="badge impact-medium">Impacto Médio</span>
+                        </div>
+                    </div>
+                    <div class="task-body">
+                        <p>Divisão automática de recebimentos entre loja e terceiros (vendedores, parceiros).</p>
+                        <div class="task-section">
+                            <h4>📁 Arquivos a Criar/Modificar</h4>
+                            <ul>
+                                <li><span class="file-path">sql/postgres/012_create_split_pagamentos.sql</span></li>
+                                <li><span class="file-path">modules/vendas/models/SplitPagamento.php</span></li>
+                                <li><span class="file-path">modules/api/controllers/MercadoPagoController.php</span> - Modificar</li>
+                                <li><span class="file-path">modules/api/controllers/AsaasController.php</span> - Modificar</li>
+                            </ul>
+                        </div>
+                        <div class="task-section">
+                            <h4>⚙️ Implementação</h4>
+                            <ul>
+                                <li>Estudar API de Split do Mercado Pago</li>
+                                <li>Configurar percentuais por vendedor/parceiro</li>
+                                <li>Incluir split na criação de preferência</li>
+                                <li>Processar split no webhook</li>
+                                <li>Registrar valores divididos no caixa</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <span class="time-estimate">⏱️ 6-8 dias</span>
+                        <span class="dependencies">Dependências: Webhooks Completos</span>
+                    </div>
+                </div>
+
+                <!-- Task 11 -->
+                <div class="task-card" style="border-color: #eab308;">
+                    <div class="task-header">
+                        <h3>🔄 Geração Automática de Contas a Pagar</h3>
+                        <div class="task-meta">
+                            <span class="badge badge-medium">Média</span>
+                            <span class="badge badge-moderate">Moderada</span>
+                            <span class="badge impact-medium">Impacto Médio</span>
+                        </div>
+                    </div>
+                    <div class="task-body">
+                        <p>Ao registrar uma compra, gerar automaticamente as contas a pagar correspondentes.</p>
+                        <div class="task-section">
+                            <h4>📁 Arquivos a Modificar</h4>
+                            <ul>
+                                <li><span class="file-path">modules/vendas/controllers/CompraController.php</span></li>
+                                <li><span class="file-path">modules/vendas/models/Compra.php</span></li>
+                            </ul>
+                        </div>
+                        <div class="task-section">
+                            <h4>⚙️ Implementação</h4>
+                            <ul>
+                                <li>Após salvar compra, gerar contas a pagar</li>
+                                <li>Se parcelado, criar múltiplas contas</li>
+                                <li>Vincular contas à compra (compra_id)</li>
+                                <li>Definir vencimentos baseado em regras</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <span class="time-estimate">⏱️ 2-3 dias</span>
+                        <span class="dependencies">Dependências: Views de Contas a Pagar</span>
+                    </div>
+                </div>
+
+                <!-- Task 12 -->
+                <div class="task-card" style="border-color: #eab308;">
+                    <div class="task-header">
+                        <h3>📦 Gestão de Estoque Avançada</h3>
+                        <div class="task-meta">
+                            <span class="badge badge-medium">Média</span>
+                            <span class="badge badge-complex">Complexa</span>
+                            <span class="badge impact-high">Impacto Alto</span>
+                        </div>
+                    </div>
+                    <div class="task-body">
+                        <p>Múltiplos depósitos, controle de lote/validade, alertas de estoque mínimo.</p>
+                        <div class="task-section">
+                            <h4>📁 Arquivos a Criar</h4>
+                            <ul>
+                                <li><span class="file-path">modules/vendas/models/Deposito.php</span></li>
+                                <li><span class="file-path">modules/vendas/models/EstoqueLote.php</span></li>
+                                <li><span class="file-path">modules/vendas/controllers/EstoqueController.php</span></li>
+                            </ul>
+                        </div>
+                        <div class="task-section">
+                            <h4>⚙️ Funcionalidades</h4>
+                            <ul>
+                                <li>Múltiplos depósitos por loja</li>
+                                <li>Controle de lote e validade</li>
+                                <li>Transferência entre depósitos</li>
+                                <li>Alertas de estoque mínimo</li>
+                                <li>Sugestão automática de compras</li>
+                                <li>Inventário com leitor de código de barras</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <span class="time-estimate">⏱️ 8-10 dias</span>
+                        <span class="dependencies">Dependências: Nenhuma</span>
+                    </div>
+                </div>
+
+                <!-- Task 13 -->
+                <div class="task-card" style="border-color: #eab308;">
+                    <div class="task-header">
+                        <h3>📈 Business Intelligence (BI)</h3>
+                        <div class="task-meta">
+                            <span class="badge badge-medium">Média</span>
+                            <span class="badge badge-complex">Complexa</span>
+                            <span class="badge impact-low">Impacto Baixo</span>
+                        </div>
+                    </div>
+                    <div class="task-body">
+                        <p>Dashboard avançado com análise preditiva e recomendações baseadas em dados.</p>
+                        <div class="task-section">
+                            <h4>📁 Arquivos a Criar</h4>
+                            <ul>
+                                <li><span class="file-path">modules/indicadores/controllers/BiController.php</span></li>
+                                <li><span class="file-path">modules/indicadores/views/bi/*</span></li>
+                            </ul>
+                        </div>
+                        <div class="task-section">
+                            <h4>⚙️ Funcionalidades</h4>
+                            <ul>
+                                <li>Análise de tendências de vendas</li>
+                                <li>Identificação de padrões de inadimplência</li>
+                                <li>Previsão de fluxo de caixa</li>
+                                <li>Análise de sazonalidade</li>
+                                <li>Ranking de produtos/clientes</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <span class="time-estimate">⏱️ 7-10 dias</span>
+                        <span class="dependencies">Dependências: Dados históricos suficientes</span>
+                    </div>
+                </div>
+
+                <!-- Task 14 -->
+                <div class="task-card" style="border-color: #eab308;">
+                    <div class="task-header">
+                        <h3>🎯 CRM Integrado</h3>
+                        <div class="task-meta">
+                            <span class="badge badge-medium">Média</span>
+                            <span class="badge badge-complex">Complexa</span>
+                            <span class="badge impact-medium">Impacto Médio</span>
+                        </div>
+                    </div>
+                    <div class="task-body">
+                        <p>Módulo de CRM com funil de vendas, histórico de interações e segmentação de clientes.</p>
+                        <div class="task-section">
+                            <h4>📁 Arquivos a Criar</h4>
+                            <ul>
+                                <li><span class="file-path">modules/crm/</span> - Novo módulo</li>
+                                <li><span class="file-path">modules/crm/models/Lead.php</span></li>
+                                <li><span class="file-path">modules/crm/models/Interacao.php</span></li>
+                                <li><span class="file-path">modules/crm/models/Campanha.php</span></li>
+                            </ul>
+                        </div>
+                        <div class="task-section">
+                            <h4>⚙️ Funcionalidades</h4>
+                            <ul>
+                                <li>Funil de vendas visual</li>
+                                <li>Histórico de interações com clientes</li>
+                                <li>Segmentação de clientes</li>
+                                <li>Campanhas de marketing</li>
+                                <li>Análise de lifetime value (LTV)</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <span class="time-estimate">⏱️ 10-15 dias</span>
+                        <span class="dependencies">Dependências: Nenhuma</span>
+                    </div>
+                </div>
+
+                <!-- Task 15 -->
+                <div class="task-card" style="border-color: #eab308;">
+                    <div class="task-header">
+                        <h3>🔄 Integração com Marketplaces</h3>
+                        <div class="task-meta">
+                            <span class="badge badge-medium">Média</span>
+                            <span class="badge badge-very-complex">Muito Complexa</span>
+                            <span class="badge impact-medium">Impacto Médio</span>
+                        </div>
+                    </div>
+                    <div class="task-body">
+                        <p>Sincronização com Mercado Livre, Shopee, Amazon para produtos, estoque e pedidos.</p>
+                        <div class="task-section">
+                            <h4>📁 Arquivos a Criar</h4>
+                            <ul>
+                                <li><span class="file-path">components/MarketplaceService.php</span></li>
+                                <li><span class="file-path">components/MercadoLivreIntegration.php</span></li>
+                                <li><span class="file-path">components/ShopeeIntegration.php</span></li>
+                            </ul>
+                        </div>
+                        <div class="task-section">
+                            <h4>⚙️ Funcionalidades</h4>
+                            <ul>
+                                <li>Sincronização de produtos</li>
+                                <li>Atualização de estoque em tempo real</li>
+                                <li>Importação de pedidos</li>
+                                <li>Atualização de status de envio</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <span class="time-estimate">⏱️ 15-20 dias (por marketplace)</span>
+                        <span class="dependencies">Dependências: Conta de desenvolvedor nos marketplaces</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Baixa Prioridade -->
+        <section id="baixa">
+            <h2>🟢 Baixa Prioridade</h2>
+            <div class="section-content">
+                <p style="margin-bottom: 1.5rem; color: var(--gray-600);">Funcionalidades "nice to have" que podem ser implementadas após as prioridades maiores.</p>
+
+                <!-- Task 16 -->
+                <div class="task-card" style="border-color: #22c55e;">
+                    <div class="task-header">
+                        <h3>📱 Aplicativo Mobile Nativo</h3>
+                        <div class="task-meta">
+                            <span class="badge badge-low">Baixa</span>
+                            <span class="badge badge-very-complex">Muito Complexa</span>
+                            <span class="badge impact-low">Impacto Baixo</span>
+                        </div>
+                    </div>
+                    <div class="task-body">
+                        <p>App nativo (React Native ou Flutter) para cobradores e vendedores. Atualmente existe PWA que atende a maioria dos casos.</p>
+                        <div class="task-section">
+                            <h4>⚙️ Considerações</h4>
+                            <ul>
+                                <li>PWA atual já funciona offline</li>
+                                <li>App nativo oferece melhor UX</li>
+                                <li>Acesso a recursos nativos (GPS, câmera)</li>
+                                <li>Requer equipe de desenvolvimento mobile</li>
+                                <li>Custo de manutenção adicional</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <span class="time-estimate">⏱️ 30-45 dias</span>
+                        <span class="dependencies">Dependências: API completa e documentada</span>
+                    </div>
+                </div>
+
+                <!-- Task 17 -->
+                <div class="task-card" style="border-color: #22c55e;">
+                    <div class="task-header">
+                        <h3>🔐 Autenticação Multi-Fator (MFA)</h3>
+                        <div class="task-meta">
+                            <span class="badge badge-low">Baixa</span>
+                            <span class="badge badge-moderate">Moderada</span>
+                            <span class="badge impact-medium">Impacto Médio</span>
+                        </div>
+                    </div>
+                    <div class="task-body">
+                        <p>Autenticação de dois fatores via SMS, e-mail ou app autenticador.</p>
+                        <div class="task-section">
+                            <h4>📁 Arquivos a Modificar</h4>
+                            <ul>
+                                <li><span class="file-path">models/LoginForm.php</span></li>
+                                <li><span class="file-path">models/Usuario.php</span></li>
+                                <li><span class="file-path">controllers/SiteController.php</span></li>
+                            </ul>
+                        </div>
+                        <div class="task-section">
+                            <h4>⚙️ Implementação</h4>
+                            <ul>
+                                <li>Biblioteca: pragmarx/google2fa</li>
+                                <li>Geração de QR Code para configuração</li>
+                                <li>Validação de código TOTP</li>
+                                <li>Opção de SMS como fallback</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <span class="time-estimate">⏱️ 3-5 dias</span>
+                        <span class="dependencies">Dependências: Nenhuma</span>
+                    </div>
+                </div>
+
+                <!-- Task 18 -->
+                <div class="task-card" style="border-color: #22c55e;">
+                    <div class="task-header">
+                        <h3>🌐 API Pública Documentada</h3>
+                        <div class="task-meta">
+                            <span class="badge badge-low">Baixa</span>
+                            <span class="badge badge-moderate">Moderada</span>
+                            <span class="badge impact-low">Impacto Baixo</span>
+                        </div>
+                    </div>
+                    <div class="task-body">
+                        <p>Documentação completa da API com Swagger/OpenAPI para integrações de terceiros.</p>
+                        <div class="task-section">
+                            <h4>📁 Arquivos a Criar</h4>
+                            <ul>
+                                <li><span class="file-path">web/swagger/</span> - Swagger UI</li>
+                                <li><span class="file-path">docs/api/openapi.yaml</span> - Especificação</li>
+                            </ul>
+                        </div>
+                        <div class="task-section">
+                            <h4>⚙️ Implementação</h4>
+                            <ul>
+                                <li>Documentar todos os endpoints existentes</li>
+                                <li>Implementar rate limiting</li>
+                                <li>Sistema de API keys para terceiros</li>
+                                <li>Versionamento de API</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <span class="time-estimate">⏱️ 5-7 dias</span>
+                        <span class="dependencies">Dependências: Nenhuma</span>
+                    </div>
+                </div>
+
+                <!-- Task 19 -->
+                <div class="task-card" style="border-color: #22c55e;">
+                    <div class="task-header">
+                        <h3>🔄 Conciliação Bancária</h3>
+                        <div class="task-meta">
+                            <span class="badge badge-low">Baixa</span>
+                            <span class="badge badge-very-complex">Muito Complexa</span>
+                            <span class="badge impact-low">Impacto Baixo</span>
+                        </div>
+                    </div>
+                    <div class="task-body">
+                        <p>Importação de extratos bancários e matching automático com movimentações do sistema.</p>
+                        <div class="task-section">
+                            <h4>📁 Arquivos a Criar</h4>
+                            <ul>
+                                <li><span class="file-path">modules/caixa/models/Conciliacao.php</span></li>
+                                <li><span class="file-path">modules/caixa/controllers/ConciliacaoController.php</span></li>
+                                <li><span class="file-path">components/OfxParser.php</span> - Parser de extratos</li>
+                            </ul>
+                        </div>
+                        <div class="task-section">
+                            <h4>⚙️ Funcionalidades</h4>
+                            <ul>
+                                <li>Importação de OFX, CSV</li>
+                                <li>Algoritmo de matching automático</li>
+                                <li>Interface para conciliação manual</li>
+                                <li>Relatórios de diferenças</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <span class="time-estimate">⏱️ 10-12 dias</span>
+                        <span class="dependencies">Dependências: Módulo de Caixa completo</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Cronograma -->
+        <section id="cronograma">
+            <h2>📅 Cronograma Sugerido</h2>
+            <div class="section-content">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fase</th>
+                            <th>Tarefas</th>
+                            <th>Duração</th>
+                            <th>Acumulado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Fase 1</strong><br><small>Fundação</small></td>
+                            <td>Views Contas a Pagar, Integração Caixa, Estrutura Cupom Fiscal</td>
+                            <td>3-4 dias</td>
+                            <td>~1 semana</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Fase 2</strong><br><small>Integrações</small></td>
+                            <td>Webhooks Completos, Relatórios de Caixa e Contas</td>
+                            <td>8-11 dias</td>
+                            <td>~3 semanas</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Fase 3</strong><br><small>Fiscal</small></td>
+                            <td>Emissão NFe/NFCe Completa</td>
+                            <td>6-8 dias</td>
+                            <td>~4-5 semanas</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Fase 4</strong><br><small>Dashboard</small></td>
+                            <td>Dashboard Financeiro, Automação de Cobranças</td>
+                            <td>11-15 dias</td>
+                            <td>~7-8 semanas</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Fase 5</strong><br><small>Avançado</small></td>
+                            <td>Split de Pagamentos, Geração Automática de Contas</td>
+                            <td>8-11 dias</td>
+                            <td>~9-10 semanas</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Fase 6</strong><br><small>Expansão</small></td>
+                            <td>Estoque Avançado, BI, CRM</td>
+                            <td>25-35 dias</td>
+                            <td>~14-17 semanas</td>
+                        </tr>
+                        <tr style="background: var(--gray-100); font-weight: 600;">
+                            <td colspan="2">Total Estimado (Fases 1-5)</td>
+                            <td colspan="2">9-10 semanas (~2-2.5 meses)</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 style="margin: 2rem 0 1rem;">Recomendações de Execução</h3>
+                <ul style="padding-left: 1.5rem;">
+                    <li><strong>Priorize as tarefas críticas</strong> - Elas desbloqueiam outras funcionalidades</li>
+                    <li><strong>Faça entregas incrementais</strong> - Cada fase deve ser testável e utilizável</li>
+                    <li><strong>Mantenha testes atualizados</strong> - Especialmente para integrações de pagamento</li>
+                    <li><strong>Documente as mudanças</strong> - Facilita manutenção futura</li>
+                    <li><strong>Considere paralelização</strong> - Tarefas sem dependências podem ser feitas em paralelo</li>
+                </ul>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p><strong>PULSE</strong> - Plano de Implementação</p>
+        <p>Documento gerado em Fevereiro de 2026</p>
+    </footer>
+
+    <script>
+        document.querySelectorAll('nav a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -263,10 +263,12 @@ class CaixaHelper
      * 
      * @param string $contaPagarId ID da conta a pagar
      * @param float $valor Valor pago
+     * @param string|null $formaPagamentoId ID da forma de pagamento
      * @param string|null $usuarioId ID do usuário (se null, usa o usuário logado)
+     * @param bool $validarSaldo Se true, valida se há saldo suficiente antes de registrar
      * @return bool|CaixaMovimentacao Retorna a movimentação criada ou false em caso de erro
      */
-    public static function registrarSaidaContaPagar($contaPagarId, $valor, $usuarioId = null)
+    public static function registrarSaidaContaPagar($contaPagarId, $valor, $formaPagamentoId = null, $usuarioId = null, $validarSaldo = false)
     {
         try {
             $usuarioId = $usuarioId ?: Yii::$app->user->id;
@@ -279,8 +281,14 @@ class CaixaHelper
                 return false;
             }
 
-            // Opcional: Verificar saldo (sistema permite saldo negativo?)
-            // Por enquanto permite, mas loga se ficar negativo
+            // Validação de saldo se solicitado
+            if ($validarSaldo) {
+                $saldoAtual = $caixa->calcularValorEsperado();
+                if ($saldoAtual < $valor) {
+                    Yii::warning("⚠️ SALDO INSUFICIENTE. Conta ID: {$contaPagarId}. Saldo: R$ {$saldoAtual}, Valor: R$ {$valor}", 'caixa');
+                    return false;
+                }
+            }
 
             $conta = \app\modules\contas_pagar\models\ContaPagar::findOne($contaPagarId);
             $desc = $conta ? "Pagamento: " . substr($conta->descricao, 0, 50) : "Pagamento Conta #{$contaPagarId}";
@@ -293,7 +301,7 @@ class CaixaHelper
             $movimentacao->valor = $valor;
             $movimentacao->descricao = $desc;
             $movimentacao->conta_pagar_id = $contaPagarId;
-            $movimentacao->forma_pagamento_id = $conta->forma_pagamento_id ?? null;
+            $movimentacao->forma_pagamento_id = $formaPagamentoId ?: ($conta->forma_pagamento_id ?? null);
             $movimentacao->data_movimento = date('Y-m-d H:i:s');
 
             if (!$movimentacao->save()) {
@@ -307,6 +315,52 @@ class CaixaHelper
             return $movimentacao;
         } catch (\Exception $e) {
             Yii::error("Exceção ao registrar saída de conta no caixa: " . $e->getMessage(), 'caixa');
+            return false;
+        }
+    }
+
+    /**
+     * Estorna uma movimentação de conta a pagar no caixa
+     * 
+     * @param string $contaPagarId ID da conta a pagar
+     * @return bool Retorna true se o estorno foi bem-sucedido
+     */
+    public static function estornarSaidaContaPagar($contaPagarId)
+    {
+        try {
+            // Busca a movimentação relacionada à conta
+            $movimentacao = CaixaMovimentacao::find()
+                ->where(['conta_pagar_id' => $contaPagarId])
+                ->orderBy(['data_movimento' => SORT_DESC])
+                ->one();
+
+            if (!$movimentacao) {
+                Yii::warning("Tentativa de estornar conta sem movimentação no caixa. Conta ID: {$contaPagarId}", 'caixa');
+                return true; // Não há movimentação para estornar
+            }
+
+            // Verifica se o caixa ainda está aberto
+            $caixa = Caixa::findOne($movimentacao->caixa_id);
+            if (!$caixa) {
+                Yii::error("Caixa não encontrado para estorno. Movimentação ID: {$movimentacao->id}", 'caixa');
+                return false;
+            }
+
+            if ($caixa->isFechado()) {
+                Yii::warning("⚠️ Tentativa de estornar movimentação em caixa fechado. Caixa ID: {$caixa->id}, Conta ID: {$contaPagarId}", 'caixa');
+                // Permite o estorno mesmo com caixa fechado, mas registra no log
+            }
+
+            // Remove a movimentação
+            if ($movimentacao->delete()) {
+                Yii::info("✅ Estorno realizado: Conta #{$contaPagarId}, Valor: R$ {$movimentacao->valor}", 'caixa');
+                return true;
+            } else {
+                Yii::error("Erro ao deletar movimentação para estorno. Movimentação ID: {$movimentacao->id}", 'caixa');
+                return false;
+            }
+        } catch (\Exception $e) {
+            Yii::error("Exceção ao estornar saída de conta no caixa: " . $e->getMessage(), 'caixa');
             return false;
         }
     }

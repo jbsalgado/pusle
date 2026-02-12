@@ -1045,16 +1045,6 @@ async function gerarComprovanteOrcamento(carrinho, dadosPedido) {
             padding-bottom: 5px;
             margin-bottom: 5px;
         }
-        .logo-container {
-            text-align: center;
-            margin-bottom: 5px;
-        }
-        .logo-container img {
-            max-width: 60mm;
-            max-height: 30mm;
-            height: auto;
-            object-fit: contain;
-        }
         .empresa-nome {
             font-weight: bold;
             font-size: 14px;
@@ -1078,17 +1068,19 @@ async function gerarComprovanteOrcamento(carrinho, dadosPedido) {
         }
         .item {
             margin: 4px 0;
+            overflow: visible; /* Garante que o conteúdo não seja cortado */
         }
         .item-descricao {
             font-weight: bold;
-            margin-bottom: 2px;
+            margin-bottom: 4px; /* Aumentado para melhor espaçamento */
             overflow-wrap: break-word; /* Permite quebra de palavras longas */
-            word-wrap: break-word;
-            display: -webkit-box;
-            -webkit-line-clamp: 2; /* Limita a 2 linhas */
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            line-height: 1.2;
+            word-wrap: break-word; /* Compatibilidade com navegadores antigos */
+            word-break: break-word; /* Força quebra de palavras se necessário */
+            display: block; /* Mudado de -webkit-box para block */
+            line-height: 1.3; /* Aumentado para melhor legibilidade */
+            white-space: normal; /* Garante quebra de linha */
+            overflow: visible; /* Garante que texto não seja cortado */
+            max-width: 100%; /* Usa toda a largura disponível */
         }
         .item-detalhes {
             font-size: 10px;
@@ -1167,15 +1159,6 @@ async function gerarComprovanteOrcamento(carrinho, dadosPedido) {
 </head>
 <body>
     <div class="header">
-        ${
-          logoUrl
-            ? `
-        <div class="logo-container">
-            <img src="${logoUrl}" alt="Logo" onerror="this.style.display='none';">
-        </div>
-        `
-            : ""
-        }
         <div class="empresa-nome">${dadosEmpresa.nome_loja || dadosEmpresa.nome}</div>
         ${cpfCnpjFormatado ? `<div class="empresa-dados">${isCNPJ ? "CNPJ" : "CPF"}: ${cpfCnpjFormatado}</div>` : ""}
         ${endereco ? `<div class="empresa-dados">${endereco}</div>` : ""}
@@ -1585,6 +1568,27 @@ function gerarTextoComprovante() {
     "\n";
   if (dadosEmpresa.cpf_cnpj)
     texto += center(formatarCpfCnpj(dadosEmpresa.cpf_cnpj)) + "\n";
+
+  // Novo: Endereço (se houver)
+  if (dadosEmpresa.endereco) {
+    texto += center(removerAcentos(dadosEmpresa.endereco).toUpperCase()) + "\n";
+    const bairroCidade = (dadosEmpresa.bairro ? dadosEmpresa.bairro + ", " : "") + 
+                         (dadosEmpresa.cidade ? dadosEmpresa.cidade : "");
+    if (bairroCidade) {
+        texto += center(removerAcentos(bairroCidade).toUpperCase()) + "\n";
+    }
+  } else if (dadosEmpresa.endereco_completo) {
+    const endPartes = dadosEmpresa.endereco_completo.split(",");
+    endPartes.forEach(parte => {
+        if (parte.trim()) texto += center(removerAcentos(parte.trim()).toUpperCase()) + "\n";
+    });
+  }
+
+  // Novo: Telefone (se houver)
+  if (dadosEmpresa.telefone) {
+    texto += center(formatarTelefone(dadosEmpresa.telefone)) + "\n";
+  }
+
   texto += linhaSeparadora + "\n";
 
   // AJEITAR ID: Prioriza ID do servidor > ID Local (offline)

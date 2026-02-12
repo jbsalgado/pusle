@@ -229,7 +229,7 @@ class ContaPagarController extends Controller
     /**
      * Marca uma conta como paga
      * @param string $id
-     * @return \yii\web\Response
+     * @return string|\yii\web\Response
      * @throws NotFoundHttpException
      */
     public function actionPagar($id)
@@ -246,21 +246,93 @@ class ContaPagarController extends Controller
             return $this->redirect(['view', 'id' => $model->id]);
         }
 
-        $dataPagamento = Yii::$app->request->post('data_pagamento');
-        if ($model->marcarComoPaga($dataPagamento)) {
-            // INTEGRAÇÃO CAIXA: Registra saída
-            $movimentacao = \app\modules\caixa\helpers\CaixaHelper::registrarSaidaContaPagar($model->id, $model->valor);
+        // Se for POST, processa o pagamento
+        if (Yii::$app->request->isPost) {
+            $dataPagamento = Yii::$app->request->post('data_pagamento', date('Y-m-d'));
+            $formaPagamentoId = Yii::$app->request->post('forma_pagamento_id');
+            $validarSaldo = Yii::$app->request->post('validar_saldo', 1); // Padrão: validar
 
-            $msg = 'Conta marcada como paga com sucesso!';
-            if ($movimentacao) {
-                $msg .= ' Débito registrado no caixa.';
+            // Verifica saldo se solicitado
+            if ($validarSaldo) {
+                $caixa = \app\modules\caixa\helpers\CaixaHelper::getCaixaAberto();
+                if ($caixa) {
+                    $saldoAtual = $caixa->calcularValorEsperado();
+                    if ($saldoAtual < $model->valor) {
+                        Yii::$app->session->setFlash(
+                            'error',
+                            "Saldo insuficiente no caixa! Saldo atual: " . Yii::$app->formatter->asCurrency($saldoAtual) .
+                                ", Valor da conta: " . Yii::$app->formatter->asCurrency($model->valor)
+                        );
+                        return $this->redirect(['view', 'id' => $model->id]);
+                    }
+                }
+            }
+
+            // Marca como paga
+            if ($model->marcarComoPaga($dataPagamento)) {
+                // INTEGRAÇÃO CAIXA: Registra saída com forma de pagamento
+                $movimentacao = \app\modules\caixa\helpers\CaixaHelper::registrarSaidaContaPagar(
+                    $model->id,
+                    $model->valor,
+                    $formaPagamentoId,
+                    null,
+                    false // Não valida novamente, já validamos acima
+                );
+
+                $msg = 'Conta marcada como paga com sucesso!';
+                if ($movimentacao) {
+                    $msg .= ' Débito de ' . Yii::$app->formatter->asCurrency($model->valor) . ' registrado no caixa.';
+                } else {
+                    $msg .= ' <br><small>⚠️ O débito não foi registrado no caixa (verifique se o caixa está aberto).</small>';
+                }
+
+                Yii::$app->session->setFlash('success', $msg);
+                return $this->redirect(['view', 'id' => $model->id]);
             } else {
-                $msg .= ' <br><small>⚠️ O débito não foi registrado no caixa (verifique se o caixa está aberto).</small>';
+                Yii::$app->session->setFlash('error', 'Erro ao marcar conta como paga: ' . implode(', ', $model->getFirstErrors()));
+                return $this->redirect(['view', 'id' => $model->id]);
+            }
+        }
+
+        // Se for GET, mostra o formulário modal
+        return $this->renderAjax('_form_pagar', [
+            'model' => $model,
+        ]);
+    }
+
+    /**
+     * Estorna o pagamento de uma conta
+     * @param string $id
+     * @return \yii\web\Response
+     * @throws NotFoundHttpException
+     */
+    public function actionEstornar($id)
+    {
+        $model = $this->findModel($id);
+
+        if (!$model->isPaga()) {
+            Yii::$app->session->setFlash('error', 'Apenas contas pagas podem ser estornadas.');
+            return $this->redirect(['view', 'id' => $model->id]);
+        }
+
+        // Estorna a movimentação no caixa
+        $estornoOk = \app\modules\caixa\helpers\CaixaHelper::estornarSaidaContaPagar($model->id);
+
+        // Reverte o status da conta para PENDENTE
+        $model->status = ContaPagar::STATUS_PENDENTE;
+        $model->data_pagamento = null;
+
+        if ($model->save(false)) {
+            $msg = 'Pagamento estornado com sucesso! Conta voltou ao status PENDENTE.';
+            if ($estornoOk) {
+                $msg .= ' A movimentação do caixa foi removida.';
+            } else {
+                $msg .= ' <br><small>⚠️ Não foi possível remover a movimentação do caixa (pode já ter sido removida ou o caixa está fechado).</small>';
             }
 
             Yii::$app->session->setFlash('success', $msg);
         } else {
-            Yii::$app->session->setFlash('error', 'Erro ao marcar conta como paga: ' . implode(', ', $model->getFirstErrors()));
+            Yii::$app->session->setFlash('error', 'Erro ao estornar pagamento: ' . implode(', ', $model->getFirstErrors()));
         }
 
         return $this->redirect(['view', 'id' => $model->id]);

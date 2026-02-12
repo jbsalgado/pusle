@@ -173,6 +173,21 @@ export function validarUUID(uuid) {
 }
 
 /**
+ * Gera um ID aleatório curto
+ */
+export function generateId(length = 8) {
+    return Math.random().toString(36).substring(2, 2 + length);
+}
+
+/**
+ * Remove acentos de uma string
+ */
+export function removerAcentos(str) {
+    if (!str) return '';
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+}
+
+/**
  * Formata valor monetário
  */
 export function formatarMoeda(valor) {
@@ -197,4 +212,127 @@ export function verificarElementosCriticos(elementosIds) {
         document.body.innerHTML = `<div style="padding: 20px; color: red; font-family: sans-serif;">${mensagem}</div>`;
         throw new Error(mensagem);
     }
+}
+
+/**
+ * ========================================
+ * SISTEMA DE ATUALIZAÇÃO FORÇADA - PWA
+ * ========================================
+ * Limpa completamente todos os caches e dados locais
+ * para forçar atualização do sistema em dispositivos móveis
+ */
+
+/**
+ * Força atualização completa do sistema
+ * Remove Service Workers, Cache API, IndexedDB e Storage
+ */
+export async function forceSystemUpdate() {
+    console.log('🔄 Iniciando atualização forçada do sistema...');
+    
+    // Feedback visual imediato
+    const btns = document.querySelectorAll('button[onclick*="forceSystemUpdate"]');
+    btns.forEach(btn => {
+        btn.disabled = true;
+        btn.innerHTML = 'Updating...';
+    });
+
+    try {
+        // 1. Unregister todos os Service Workers
+        if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            console.log(`📋 Encontrados ${registrations.length} Service Workers`);
+            
+            for (let registration of registrations) {
+                await registration.unregister();
+                console.log('✅ Service Worker removido:', registration.scope);
+            }
+            // Pequeno delay para o S.O. mobile processar a remoção
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+        // 2. Limpar todos os Caches (Cache API)
+        if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            console.log(`🗑️ Encontrados ${cacheNames.length} caches`);
+            
+            for (let name of cacheNames) {
+                await caches.delete(name);
+                console.log('✅ Cache removido:', name);
+            }
+        }
+
+        // 3. Deletar IndexedDB (Com mais segurança)
+        try {
+            if ('indexedDB' in window) {
+                if (window.indexedDB.databases) {
+                    const dbs = await window.indexedDB.databases();
+                    for (let db of dbs) {
+                        window.indexedDB.deleteDatabase(db.name);
+                        console.log('✅ Database removido:', db.name);
+                    }
+                } else {
+                    // Fallback para navegadores que não suportam .databases()
+                    ['catalogo-db', 'venda-direta-db', 'keyval-store'].forEach(dbName => {
+                        window.indexedDB.deleteDatabase(dbName);
+                    });
+                }
+            }
+        } catch (e) {
+            console.warn('⚠️ Erro ao limpar IndexedDB:', e);
+        }
+
+        // 4. Limpar Storage
+        localStorage.clear();
+        sessionStorage.clear();
+        console.log('✅ Storage limpo');
+
+        // 5. Salvar flags de controle
+        localStorage.setItem('system_just_updated', 'true');
+        localStorage.setItem('app_version', 'forcing_update');
+        
+        // 6. Hard Reload furando cache do servidor e do navegador
+        console.log('🔄 Recarregando página com cache-busting...');
+        
+        // Em mobile, location.reload(true) é frequentemente ignorado ou não suportado
+        // Usar atribuição de URL com timestamp é a forma mais eficaz de "furar" caches de operadoras e navegadores
+        const url = new URL(window.location.origin + window.location.pathname);
+        url.searchParams.set('upd', Date.now());
+        
+        window.location.replace(url.href);
+        
+    } catch (error) {
+        console.error('❌ Erro durante atualização:', error);
+        alert('Erro ao atualizar: ' + error.message);
+        // Fallback final
+        window.location.reload(true);
+    }
+}
+
+/**
+ * Verifica se há atualização disponível
+ * @returns {Object|null} Informações da nova versão ou null se não houver atualização
+ */
+export async function checkForUpdates() {
+    try {
+        const response = await fetch('/venda-direta/version.json?' + Date.now());
+        const serverVersion = await response.json();
+        
+        const localVersion = localStorage.getItem('app_version');
+        
+        if (!localVersion || localVersion !== serverVersion.version) {
+            console.log('🆕 Nova versão disponível:', serverVersion.version);
+            return serverVersion;
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Erro ao verificar atualizações:', error);
+        return null;
+    }
+}
+
+// Exportar funções para uso global (compatibilidade com código não-module)
+if (typeof window !== 'undefined') {
+    window.forceSystemUpdate = forceSystemUpdate;
+    window.checkForUpdates = checkForUpdates;
 }

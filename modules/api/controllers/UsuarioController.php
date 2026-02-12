@@ -87,6 +87,7 @@ class UsuarioController extends Controller
     /**
      * GET /api/usuario/dados-loja?usuario_id=uuid
      * Retorna dados completos da loja para comprovantes
+     * PRIORIZA: loja_configuracao (centralizado) > prest_usuarios (fallback)
      */
     public function actionDadosLoja($usuario_id)
     {
@@ -96,6 +97,33 @@ class UsuarioController extends Controller
                 return ['erro' => 'Parâmetro usuario_id é obrigatório'];
             }
 
+            // ✅ PRIORIDADE 1: Busca configuração centralizada
+            $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $usuario_id]);
+
+            if ($lojaConfig) {
+                // Dados centralizados encontrados - usa eles!
+                return [
+                    'nome' => $lojaConfig->razao_social ?? $lojaConfig->nome_loja,
+                    'nome_loja' => $lojaConfig->nome_loja,
+                    'cpf_cnpj' => $lojaConfig->cpf_cnpj,
+                    'telefone' => $lojaConfig->telefone,
+                    'email' => $lojaConfig->email,
+                    'endereco' => $lojaConfig->logradouro . ($lojaConfig->numero ? ', ' . $lojaConfig->numero : ''),
+                    'bairro' => $lojaConfig->bairro,
+                    'cidade' => $lojaConfig->cidade,
+                    'estado' => $lojaConfig->estado,
+                    'cep' => $lojaConfig->cep,
+                    'endereco_completo' => $lojaConfig->getEnderecoCompleto(),
+                    'logo_path' => $lojaConfig->logo_path,
+                    // Dados adicionais
+                    'inscricao_estadual' => $lojaConfig->inscricao_estadual,
+                    'inscricao_municipal' => $lojaConfig->inscricao_municipal,
+                    'celular' => $lojaConfig->celular,
+                    'site' => $lojaConfig->site,
+                ];
+            }
+
+            // ⚠️ FALLBACK: Se não tem config centralizada, busca de prest_usuarios (legado)
             $sql = "
                 SELECT 
                     id,
@@ -154,20 +182,6 @@ class UsuarioController extends Controller
                 'endereco_completo' => $enderecoCompleto,
                 'logo_path' => $logoPath,
                 'nome_loja' => $config ? ($config->nome_loja ?? $usuario['nome'] ?? 'Loja') : ($usuario['nome'] ?? 'Loja'),
-                // Dados PIX da configuração
-                'pix_chave' => $config ? ($config->pix_chave ?? null) : null,
-                'pix_nome' => $config ? ($config->pix_nome ?? null) : null,
-                'pix_cidade' => $config ? ($config->pix_cidade ?? null) : null,
-                // Dados adicionais de prest_configuracoes para landing page
-                'cor_primaria' => $config ? ($config->cor_primaria ?? '#DC2626') : '#DC2626',
-                'cor_secundaria' => $config ? ($config->cor_secundaria ?? '#F59E0B') : '#F59E0B',
-                'mensagem_boas_vindas' => $config ? ($config->mensagem_boas_vindas ?? null) : null,
-                'whatsapp' => $config ? ($config->whatsapp ?? null) : null,
-                'instagram' => $config ? ($config->instagram ?? null) : null,
-                'facebook' => $config ? ($config->facebook ?? null) : null,
-                // Background image - null por padrão (usa background.jpg da landing page)
-                // Pode ser adicionado campo específico na tabela depois
-                'background_image' => null,
             ];
         } catch (\Exception $e) {
             Yii::$app->response->statusCode = 500;

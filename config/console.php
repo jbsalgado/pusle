@@ -13,6 +13,23 @@ $config = [
         '@npm'   => '@vendor/npm-asset',
         '@tests' => '@app/tests',
     ],
+    'modules' => [
+        'vendas' => [
+            'class' => 'app\modules\vendas\Vendas',
+        ],
+        'caixa' => [
+            'class' => 'app\modules\caixa\Module',
+        ],
+        'contas-pagar' => [
+            'class' => 'app\modules\contas_pagar\Module',
+        ],
+        'marketplace' => [
+            'class' => 'app\modules\marketplace\Module',
+        ],
+        'cobranca' => [
+            'class' => 'app\modules\cobranca\Module',
+        ],
+    ],
     'components' => [
         'cache' => [
             'class' => 'yii\caching\FileCache',

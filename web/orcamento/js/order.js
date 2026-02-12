@@ -3,7 +3,7 @@
 
 import { CONFIG, API_ENDPOINTS, GATEWAY_CONFIG } from './config.js';
 import { adicionarPedidoAFila, obterFilaPedidos, removerPedidoDaFila, getToken } from './storage.js';
-import { validarUUID } from './utils.js';
+import { validarUUID, generateId } from './utils.js';
 import { getAcrescimo } from './cart.js?v=surcharge_fix';
 
 /**
@@ -97,7 +97,8 @@ function prepararObjetoPedido(dadosPedido, carrinho) {
         acrescimo_valor: parseFloat(acrescimo.valor) || 0,
         acrescimo_tipo: acrescimo.tipo || null,
         observacao_acrescimo: acrescimo.observacao || null,
-        id_local: crypto.randomUUID() // ✅ GERA ID LOCAL ÚNICO PARA USO OFFLINE/IMPRESSÃO
+        // id_local: crypto.randomUUID() // ✅ GERA ID LOCAL ÚNICO PARA USO OFFLINE/IMPRESSÃO
+        id_local: generateId() // ✅ GERA ID LOCAL ÚNICO PARA USO OFFLINE/IMPRESSÃO (fallback mobile)
     };
 
     // Só incluir campos de parcelamento se realmente houver parcelas

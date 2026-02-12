@@ -124,6 +124,8 @@ class CompraController extends Controller
         $model->valor_total = 0;
         $model->valor_frete = 0;
         $model->valor_desconto = 0;
+        $model->num_parcelas = 1;
+        $model->intervalo_parcelas = 30;
 
         $itens = [];
         $post = Yii::$app->request->post();
@@ -148,8 +150,21 @@ class CompraController extends Controller
                     $model->recalcularValorTotal();
                     $model->save(false);
 
+                    // NOVO: Gera contas a pagar automaticamente
+                    $resultadoContas = $model->gerarContasPagar();
+                    if ($resultadoContas['success']) {
+                        Yii::$app->session->setFlash('success', sprintf(
+                            'Compra cadastrada com sucesso! %d conta(s) a pagar gerada(s) automaticamente.',
+                            $resultadoContas['contas_criadas']
+                        ));
+                    } else {
+                        Yii::$app->session->setFlash('warning', sprintf(
+                            'Compra cadastrada, mas houve erro ao gerar contas a pagar: %s',
+                            $resultadoContas['message'] ?? 'Erro desconhecido'
+                        ));
+                    }
+
                     $transaction->commit();
-                    Yii::$app->session->setFlash('success', 'Compra cadastrada com sucesso!');
                     return $this->redirect(['view', 'id' => $model->id]);
                 } else {
                     // Se o save falhou, exibe erros de validação

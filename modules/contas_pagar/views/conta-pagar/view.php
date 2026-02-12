@@ -32,15 +32,26 @@ $this->params['breadcrumbs'][] = $this->title;
                 </div>
             </div>
 
-            <div class="flex gap-2 w-full sm:w-auto">
+            <div class="flex gap-2 w-full sm:w-auto flex-wrap">
                 <?= Html::a('Voltar', ['index'], ['class' => 'flex-1 sm:flex-none text-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500']) ?>
 
                 <?php if (!$model->isPaga() && $model->status !== ContaPagar::STATUS_CANCELADA): ?>
-                    <?= Html::a('Pagar', ['pagar', 'id' => $model->id], [
-                        'class' => 'flex-1 sm:flex-none text-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500',
+                    <button type="button"
+                        onclick="abrirModalPagamento()"
+                        class="flex-1 sm:flex-none text-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        Pagar
+                    </button>
+                <?php endif; ?>
+
+                <?php if ($model->isPaga()): ?>
+                    <?= Html::a('Estornar', ['estornar', 'id' => $model->id], [
+                        'class' => 'flex-1 sm:flex-none text-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500',
                         'data' => [
                             'method' => 'post',
-                            'confirm' => 'Tem certeza que deseja marcar esta conta como PAGA?'
+                            'confirm' => 'Tem certeza que deseja ESTORNAR este pagamento? A conta voltará ao status PENDENTE e a movimentação do caixa será removida.'
                         ]
                     ]) ?>
                 <?php endif; ?>
@@ -143,3 +154,73 @@ $this->params['breadcrumbs'][] = $this->title;
         </div>
     </div>
 </div>
+
+<!-- Modal de Pagamento -->
+<div class="modal fade" id="modal-pagar" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-green-50 border-b border-green-200">
+                <h5 class="modal-title text-green-900 font-bold">
+                    <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    Registrar Pagamento
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="modal-pagar-content">
+                <!-- Conteúdo carregado via AJAX -->
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="sr-only">Carregando...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<?php
+$this->registerJs(
+    <<<JS
+function abrirModalPagamento() {
+    $('#modal-pagar').modal('show');
+    
+    // Carrega o formulário via AJAX
+    $.ajax({
+        url: '<?= \yii\helpers\Url::to(['pagar', 'id' => $model->id]) ?>',
+        type: 'GET',
+        success: function(data) {
+            $('#modal-pagar-content').html(data);
+        },
+        error: function() {
+            $('#modal-pagar-content').html('<div class="alert alert-danger">Erro ao carregar formulário.</div>');
+        }
+    });
+}
+
+// Submissão do formulário via AJAX
+$(document).on('submit', '#form-pagar-conta', function(e) {
+    e.preventDefault();
+    
+    var form = $(this);
+    var formData = form.serialize();
+    
+    $.ajax({
+        url: form.attr('action'),
+        type: 'POST',
+        data: formData,
+        success: function(response) {
+            // Recarrega a página para mostrar as alterações
+            location.reload();
+        },
+        error: function(xhr) {
+            alert('Erro ao processar pagamento. Verifique os dados e tente novamente.');
+        }
+    });
+});
+JS
+);
+?>

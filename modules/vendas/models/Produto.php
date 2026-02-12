@@ -91,7 +91,7 @@ class Produto extends ActiveRecord
             [['estoque_atual'], 'default', 'value' => 0],
             [['estoque_minimo'], 'default', 'value' => 10],
             [['ponto_corte'], 'default', 'value' => 5],
-            [['estoque_atual', 'estoque_minimo', 'ponto_corte'], 'filter', 'filter' => function($value) {
+            [['estoque_atual', 'estoque_minimo', 'ponto_corte'], 'filter', 'filter' => function ($value) {
                 // ✅ Converte string vazia para 0, mantém números inteiros
                 if ($value === '' || $value === null) {
                     return 0;
@@ -137,21 +137,26 @@ class Produto extends ActiveRecord
      */
     public function validatePromocao($attribute, $params)
     {
-        if (!empty($this->preco_promocional)) {
-            if (empty($this->data_inicio_promocao) || empty($this->data_fim_promocao)) {
-                $this->addError($attribute, 'Quando há preço promocional, as datas de início e fim são obrigatórias.');
-            }
-            
-            if ($this->preco_promocional >= $this->preco_venda_sugerido) {
-                $this->addError($attribute, 'O preço promocional deve ser menor que o preço de venda sugerido.');
-            }
-            
-            // NOTA: Validação de prejuízo removida - não bloqueia mais o cadastro
-            // Os alertas visuais no frontend continuam informando o usuário sobre possíveis prejuízos
-            // O usuário tem autonomia para decidir se deseja criar promoções mesmo com prejuízo
+        // ✅ FIX BUG-001: Só valida se realmente houver preço promocional > 0
+        // Antes: validava mesmo quando campo estava vazio, causando erro incorreto
+        if (empty($this->preco_promocional) || $this->preco_promocional <= 0) {
+            return; // Não valida se campo está vazio ou zero
         }
+
+        // Validações quando há preço promocional
+        if (empty($this->data_inicio_promocao) || empty($this->data_fim_promocao)) {
+            $this->addError($attribute, 'Quando há preço promocional, as datas de início e fim são obrigatórias.');
+        }
+
+        if ($this->preco_promocional >= $this->preco_venda_sugerido) {
+            $this->addError($attribute, 'O preço promocional deve ser menor que o preço de venda sugerido.');
+        }
+
+        // NOTA: Validação de prejuízo removida - não bloqueia mais o cadastro
+        // Os alertas visuais no frontend continuam informando o usuário sobre possíveis prejuízos
+        // O usuário tem autonomia para decidir se deseja criar promoções mesmo com prejuízo
     }
-    
+
     /**
      * Validação customizada para garantir que código de referência seja único por usuário
      */
@@ -161,15 +166,15 @@ class Produto extends ActiveRecord
         if (empty($this->codigo_referencia)) {
             return;
         }
-        
+
         $query = self::find()
             ->where(['usuario_id' => $this->usuario_id, 'codigo_referencia' => $this->codigo_referencia]);
-        
+
         // Se estiver editando, exclui o próprio produto da verificação
         if (!$this->isNewRecord) {
             $query->andWhere(['!=', 'id', $this->id]);
         }
-        
+
         if ($query->exists()) {
             $this->addError($attribute, 'Este código de referência já está em uso. Escolha outro código.');
         }
@@ -181,7 +186,7 @@ class Produto extends ActiveRecord
     public function calculateMargemMarkup($attribute, $params)
     {
         $custoTotal = PricingHelper::calcularCustoTotal($this->preco_custo, $this->valor_frete);
-        
+
         if ($custoTotal > 0 && $this->preco_venda_sugerido > 0) {
             $this->margem_lucro_percentual = PricingHelper::calcularMargemLucro($custoTotal, $this->preco_venda_sugerido);
             $this->markup_percentual = PricingHelper::calcularMarkup($custoTotal, $this->preco_venda_sugerido);
@@ -210,38 +215,42 @@ class Produto extends ActiveRecord
                         $this->id = $uuid;
                     } else {
                         // Gera UUID v4 manualmente
-                        $this->id = sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-                            mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+                        $this->id = sprintf(
+                            '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+                            mt_rand(0, 0xffff),
+                            mt_rand(0, 0xffff),
                             mt_rand(0, 0xffff),
                             mt_rand(0, 0x0fff) | 0x4000,
                             mt_rand(0, 0x3fff) | 0x8000,
-                            mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+                            mt_rand(0, 0xffff),
+                            mt_rand(0, 0xffff),
+                            mt_rand(0, 0xffff)
                         );
                     }
                 }
             }
             // 🔍 DEBUG: Log do estoque antes de salvar
             Yii::info('Estoque antes de salvar: ' . $this->estoque_atual, __METHOD__);
-            
+
             // Converte todos os campos de texto para MAIÚSCULO
             if (!empty($this->nome)) {
                 $this->nome = mb_strtoupper(trim($this->nome), 'UTF-8');
             }
-            
+
             if (!empty($this->codigo_referencia)) {
                 $this->codigo_referencia = mb_strtoupper(trim($this->codigo_referencia), 'UTF-8');
             }
-            
+
             if (!empty($this->localizacao)) {
                 $this->localizacao = mb_strtoupper(trim($this->localizacao), 'UTF-8');
             }
-            
+
             // Garante que a descrição sempre inclua o nome do produto
             if (!empty($this->nome)) {
                 $nome = $this->nome; // Já está em maiúsculo e trimado
                 $descricao = !empty($this->descricao) ? trim($this->descricao) : '';
                 $prefixo = $nome . ' - ';
-                
+
                 // Se a descrição não começa com o nome, adiciona
                 if (empty($descricao)) {
                     $this->descricao = $nome;
@@ -263,15 +272,15 @@ class Produto extends ActiveRecord
                 // Se não tem nome mas tem descrição, converte para maiúsculo
                 $this->descricao = mb_strtoupper(trim($this->descricao), 'UTF-8');
             }
-            
+
             // ✅ Calcula margem e markup, mas limita margem a 99.99% para não falhar validação
             // Markup pode ser qualquer valor positivo (sem limite)
             $custoTotal = PricingHelper::calcularCustoTotal($this->preco_custo, $this->valor_frete);
-            
+
             if ($custoTotal > 0 && $this->preco_venda_sugerido > 0) {
                 $this->margem_lucro_percentual = PricingHelper::calcularMargemLucro($custoTotal, $this->preco_venda_sugerido);
                 $this->markup_percentual = PricingHelper::calcularMarkup($custoTotal, $this->preco_venda_sugerido);
-                
+
                 // ✅ Limita margem a 99.99% para não falhar validação
                 if ($this->margem_lucro_percentual > 99.99) {
                     $this->margem_lucro_percentual = 99.99;
@@ -280,7 +289,7 @@ class Produto extends ActiveRecord
                 $this->margem_lucro_percentual = null;
                 $this->markup_percentual = null;
             }
-            
+
             return true;
         }
         return false;
@@ -397,15 +406,15 @@ class Produto extends ActiveRecord
         if (empty($this->preco_promocional)) {
             return false;
         }
-        
+
         $agora = new \DateTime();
         $inicio = $this->data_inicio_promocao ? new \DateTime($this->data_inicio_promocao) : null;
         $fim = $this->data_fim_promocao ? new \DateTime($this->data_fim_promocao) : null;
-        
+
         if ($inicio && $fim) {
             return $agora >= $inicio && $agora <= $fim;
         }
-        
+
         return false;
     }
 
@@ -425,7 +434,7 @@ class Produto extends ActiveRecord
         if (!$this->emPromocao || $this->preco_venda_sugerido == 0) {
             return 0;
         }
-        
+
         return (($this->preco_venda_sugerido - $this->preco_promocional) / $this->preco_venda_sugerido) * 100;
     }
 
@@ -439,7 +448,7 @@ class Produto extends ActiveRecord
         $fotoPrincipal = $this->getFotos()
             ->where(['eh_principal' => true])
             ->one();
-        
+
         // Se não encontrou principal, retorna a primeira foto disponível
         if (!$fotoPrincipal) {
             $fotoPrincipal = $this->getFotos()
@@ -447,7 +456,7 @@ class Produto extends ActiveRecord
                 ->limit(1)
                 ->one();
         }
-        
+
         return $fotoPrincipal;
     }
 
@@ -520,7 +529,7 @@ class Produto extends ActiveRecord
             ->orderBy(['nome' => SORT_ASC])
             ->column();
     }
-    
+
     /**
      * Gera código de referência único baseado na categoria
      * Formato: SIGLA_CATEGORIA-0000 (ex: ELET-0000, ROUP-0001, até 9999)
@@ -533,15 +542,15 @@ class Produto extends ActiveRecord
     {
         // Busca a categoria
         $categoria = Categoria::findOne($categoriaId);
-        
+
         if (!$categoria || $categoria->usuario_id !== $usuarioId) {
             return '';
         }
-        
+
         // Gera sigla da categoria (primeiras letras, maiúsculas, sem espaços)
         $nome = $categoria->nome;
         $sigla = self::gerarSiglaCategoria($nome);
-        
+
         // Busca o último código da categoria para gerar o próximo sequencial
         $ultimoCodigo = self::find()
             ->where(['usuario_id' => $usuarioId, 'categoria_id' => $categoriaId])
@@ -549,16 +558,16 @@ class Produto extends ActiveRecord
             ->orderBy(['codigo_referencia' => SORT_DESC])
             ->select('codigo_referencia')
             ->scalar();
-        
+
         $sequencial = 0;
-        
+
         if ($ultimoCodigo) {
             // Extrai o número do último código (ex: ELET-0000 -> 0000)
             if (preg_match('/' . preg_quote($sigla, '/') . '-(\d+)$/', $ultimoCodigo, $matches)) {
                 $sequencial = (int)$matches[1] + 1;
             }
         }
-        
+
         // Verifica se excedeu o limite de 9999
         if ($sequencial > 9999) {
             // Se excedeu, tenta encontrar um número disponível ou retorna vazio
@@ -572,23 +581,24 @@ class Produto extends ActiveRecord
                     break;
                 }
             }
-            
+
             // Se não encontrou nenhum disponível, retorna vazio
             if ($sequencial > 9999) {
                 return '';
             }
         }
-        
+
         // Formata o código: SIGLA-0000 (4 dígitos, de 0000 a 9999)
         $codigo = $sigla . '-' . str_pad($sequencial, 4, '0', STR_PAD_LEFT);
-        
+
         // Verifica se o código já existe (garantia de unicidade)
         $tentativas = 0;
         $maxTentativas = 10000;
-        
+
         while (self::find()
             ->where(['usuario_id' => $usuarioId, 'codigo_referencia' => $codigo])
-            ->exists() && $tentativas < $maxTentativas && $sequencial <= 9999) {
+            ->exists() && $tentativas < $maxTentativas && $sequencial <= 9999
+        ) {
             $sequencial++;
             if ($sequencial > 9999) {
                 // Se excedeu, tenta encontrar um número disponível
@@ -610,10 +620,10 @@ class Produto extends ActiveRecord
             $codigo = $sigla . '-' . str_pad($sequencial, 4, '0', STR_PAD_LEFT);
             $tentativas++;
         }
-        
+
         return $codigo;
     }
-    
+
     /**
      * Gera sigla a partir do nome da categoria
      * Ex: "Eletrônicos" -> "ELET", "Roupas e Acessórios" -> "ROUP"
@@ -625,20 +635,20 @@ class Produto extends ActiveRecord
     {
         // Remove acentos e caracteres especiais
         $nome = self::removeAcentos($nome);
-        
+
         // Remove palavras comuns (artigos, preposições)
         $palavrasIgnorar = ['de', 'da', 'do', 'das', 'dos', 'e', 'ou', 'a', 'o', 'as', 'os'];
         $palavras = explode(' ', strtolower($nome));
-        $palavras = array_filter($palavras, function($palavra) use ($palavrasIgnorar) {
+        $palavras = array_filter($palavras, function ($palavra) use ($palavrasIgnorar) {
             return !in_array($palavra, $palavrasIgnorar) && strlen($palavra) > 0;
         });
-        
+
         // Se não há palavras válidas, usa as primeiras letras do nome
         if (empty($palavras)) {
             $sigla = strtoupper(substr(preg_replace('/[^a-zA-Z0-9]/', '', $nome), 0, 4));
             return $sigla ?: 'PROD';
         }
-        
+
         // Pega as primeiras letras de cada palavra (máximo 4 caracteres)
         $sigla = '';
         foreach ($palavras as $palavra) {
@@ -647,16 +657,16 @@ class Produto extends ActiveRecord
             }
             $sigla .= strtoupper(substr($palavra, 0, 1));
         }
-        
+
         // Se a sigla tem menos de 3 caracteres, completa com letras do nome
         if (strlen($sigla) < 3) {
             $nomeLimpo = preg_replace('/[^a-zA-Z0-9]/', '', $nome);
             $sigla = strtoupper(substr($nomeLimpo, 0, 4));
         }
-        
+
         return $sigla ?: 'PROD';
     }
-    
+
     /**
      * Remove acentos de uma string
      * 
@@ -666,20 +676,56 @@ class Produto extends ActiveRecord
     protected static function removeAcentos($string)
     {
         $acentos = [
-            'À' => 'A', 'Á' => 'A', 'Â' => 'A', 'Ã' => 'A', 'Ä' => 'A',
-            'à' => 'a', 'á' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'a',
-            'È' => 'E', 'É' => 'E', 'Ê' => 'E', 'Ë' => 'E',
-            'è' => 'e', 'é' => 'e', 'ê' => 'e', 'ë' => 'e',
-            'Ì' => 'I', 'Í' => 'I', 'Î' => 'I', 'Ï' => 'I',
-            'ì' => 'i', 'í' => 'i', 'î' => 'i', 'ï' => 'i',
-            'Ò' => 'O', 'Ó' => 'O', 'Ô' => 'O', 'Õ' => 'O', 'Ö' => 'O',
-            'ò' => 'o', 'ó' => 'o', 'ô' => 'o', 'õ' => 'o', 'ö' => 'o',
-            'Ù' => 'U', 'Ú' => 'U', 'Û' => 'U', 'Ü' => 'U',
-            'ù' => 'u', 'ú' => 'u', 'û' => 'u', 'ü' => 'u',
-            'Ç' => 'C', 'ç' => 'c',
-            'Ñ' => 'N', 'ñ' => 'n',
+            'À' => 'A',
+            'Á' => 'A',
+            'Â' => 'A',
+            'Ã' => 'A',
+            'Ä' => 'A',
+            'à' => 'a',
+            'á' => 'a',
+            'â' => 'a',
+            'ã' => 'a',
+            'ä' => 'a',
+            'È' => 'E',
+            'É' => 'E',
+            'Ê' => 'E',
+            'Ë' => 'E',
+            'è' => 'e',
+            'é' => 'e',
+            'ê' => 'e',
+            'ë' => 'e',
+            'Ì' => 'I',
+            'Í' => 'I',
+            'Î' => 'I',
+            'Ï' => 'I',
+            'ì' => 'i',
+            'í' => 'i',
+            'î' => 'i',
+            'ï' => 'i',
+            'Ò' => 'O',
+            'Ó' => 'O',
+            'Ô' => 'O',
+            'Õ' => 'O',
+            'Ö' => 'O',
+            'ò' => 'o',
+            'ó' => 'o',
+            'ô' => 'o',
+            'õ' => 'o',
+            'ö' => 'o',
+            'Ù' => 'U',
+            'Ú' => 'U',
+            'Û' => 'U',
+            'Ü' => 'U',
+            'ù' => 'u',
+            'ú' => 'u',
+            'û' => 'u',
+            'ü' => 'u',
+            'Ç' => 'C',
+            'ç' => 'c',
+            'Ñ' => 'N',
+            'ñ' => 'n',
         ];
-        
+
         return strtr($string, $acentos);
     }
 }

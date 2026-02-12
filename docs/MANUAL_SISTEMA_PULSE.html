@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PULSE - Manual do Sistema</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #3730a3;
+            --secondary: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--gray-800);
+            background: var(--gray-50);
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            position: relative;
+        }
+
+        header .subtitle {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            position: relative;
+        }
+
+        header .version {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 0.25rem 1rem;
+            border-radius: 20px;
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            position: relative;
+        }
+
+        /* Navigation */
+        nav {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav ul {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            list-style: none;
+            padding: 0;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        nav li a {
+            display: block;
+            padding: 1rem 1.5rem;
+            color: var(--gray-700);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        nav li a:hover {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            background: var(--gray-50);
+        }
+
+        /* Main Content */
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        section h2 {
+            background: var(--gray-800);
+            color: white;
+            padding: 1.25rem 1.5rem;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        section h2 .icon {
+            font-size: 1.75rem;
+        }
+
+        .section-content {
+            padding: 1.5rem;
+        }
+
+        /* Cards Grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            border: 1px solid var(--gray-200);
+            border-radius: 10px;
+            padding: 1.5rem;
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .card h3 {
+            font-size: 1.1rem;
+            color: var(--gray-800);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card p {
+            color: var(--gray-600);
+            font-size: 0.95rem;
+        }
+
+        .card ul {
+            margin-top: 0.75rem;
+            padding-left: 1.25rem;
+        }
+
+        .card li {
+            color: var(--gray-600);
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+
+        /* Status Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        /* Progress Bars */
+        .progress-container {
+            margin: 1rem 0;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .progress-bar {
+            height: 10px;
+            background: var(--gray-200);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.5s ease;
+        }
+
+        .progress-fill.high { background: var(--success); }
+        .progress-fill.medium { background: var(--warning); }
+        .progress-fill.low { background: var(--danger); }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        th, td {
+            padding: 0.875rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        th {
+            background: var(--gray-100);
+            font-weight: 600;
+            color: var(--gray-700);
+        }
+
+        tr:hover {
+            background: var(--gray-50);
+        }
+
+        /* Feature List */
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--gray-100);
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+
+        .feature-list .status-icon {
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .feature-list .feature-text {
+            flex: 1;
+        }
+
+        .feature-list .feature-title {
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .feature-list .feature-desc {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            margin-top: 0.25rem;
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0.5rem;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--gray-200);
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: 1.5rem;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -1.65rem;
+            top: 0.25rem;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--primary);
+            border: 2px solid white;
+            box-shadow: 0 0 0 2px var(--primary);
+        }
+
+        .timeline-item.completed::before {
+            background: var(--success);
+            box-shadow: 0 0 0 2px var(--success);
+        }
+
+        .timeline-item.pending::before {
+            background: var(--warning);
+            box-shadow: 0 0 0 2px var(--warning);
+        }
+
+        .timeline-item h4 {
+            font-size: 1rem;
+            color: var(--gray-800);
+            margin-bottom: 0.25rem;
+        }
+
+        .timeline-item p {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+        }
+
+        /* Suggestions */
+        .suggestion-card {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border: 1px solid #bae6fd;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .suggestion-card h4 {
+            color: #0369a1;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .suggestion-card p {
+            color: #0c4a6e;
+            font-size: 0.95rem;
+        }
+
+        .suggestion-card .priority {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+
+        .priority-high { background: #fecaca; color: #991b1b; }
+        .priority-medium { background: #fef08a; color: #854d0e; }
+        .priority-low { background: #bbf7d0; color: #166534; }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 10px;
+            padding: 1.25rem;
+            text-align: center;
+        }
+
+        .stat-card .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .stat-card .stat-label {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            margin-top: 0.25rem;
+        }
+
+        /* Accordion */
+        .accordion {
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            overflow: hidden;
+        }
+
+        .accordion-header {
+            padding: 1rem 1.25rem;
+            background: var(--gray-50);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            color: var(--gray-800);
+            transition: background 0.3s;
+        }
+
+        .accordion-header:hover {
+            background: var(--gray-100);
+        }
+
+        .accordion-header::after {
+            content: '+';
+            font-size: 1.5rem;
+            font-weight: 300;
+            color: var(--gray-600);
+        }
+
+        .accordion.active .accordion-header::after {
+            content: '−';
+        }
+
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .accordion.active .accordion-content {
+            max-height: 1000px;
+        }
+
+        .accordion-body {
+            padding: 1.25rem;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--gray-800);
+            color: white;
+            text-align: center;
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+
+        footer p {
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2rem;
+            }
+
+            nav ul {
+                flex-direction: column;
+            }
+
+            nav li a {
+                padding: 0.75rem 1rem;
+                border-bottom: none;
+                border-left: 3px solid transparent;
+            }
+
+            nav li a:hover {
+                border-left-color: var(--primary);
+                border-bottom-color: transparent;
+            }
+
+            .cards-grid {
+                grid-template-columns: 1fr;
+            }
+
+            main {
+                padding: 1rem;
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+            nav {
+                display: none;
+            }
+
+            header {
+                background: var(--gray-800);
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            section {
+                break-inside: avoid;
+                box-shadow: none;
+                border: 1px solid var(--gray-300);
+            }
+
+            .accordion-content {
+                max-height: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🚀 PULSE</h1>
+        <p class="subtitle">Sistema de Gestão Comercial (ERP)</p>
+        <span class="version">Versão 2.0 | Atualizado em Fevereiro 2026</span>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="#visao-geral">Visão Geral</a></li>
+            <li><a href="#implementado">Implementado</a></li>
+            <li><a href="#pendente">Pendente</a></li>
+            <li><a href="#modulos">Módulos</a></li>
+            <li><a href="#sugestoes">Sugestões</a></li>
+            <li><a href="#roadmap">Roadmap</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <!-- Visão Geral -->
+        <section id="visao-geral">
+            <h2><span class="icon">📊</span> Visão Geral do Sistema</h2>
+            <div class="section-content">
+                <p style="font-size: 1.1rem; margin-bottom: 1.5rem;">
+                    O <strong>PULSE</strong> é um sistema de gestão comercial (ERP) desenvolvido em <strong>Yii2 (PHP)</strong> 
+                    com foco em vendas, controle financeiro, integrações de pagamento e emissão fiscal. 
+                    Sistema <strong>multi-loja</strong> com controle de usuários, colaboradores, comissões e fluxo de caixa.
+                </p>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">6</div>
+                        <div class="stat-label">Módulos Principais</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">23+</div>
+                        <div class="stat-label">Tabelas no Banco</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">70%</div>
+                        <div class="stat-label">Progresso Geral</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">∞</div>
+                        <div class="stat-label">Lojas Suportadas</div>
+                    </div>
+                </div>
+
+                <h3 style="margin: 1.5rem 0 1rem;">Tecnologias Utilizadas</h3>
+                <div class="cards-grid">
+                    <div class="card">
+                        <h3>🔧 Backend</h3>
+                        <ul>
+                            <li>Yii2 Framework (PHP)</li>
+                            <li>PostgreSQL</li>
+                            <li>NFePHP (Emissão Fiscal)</li>
+                            <li>Guzzle HTTP</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>🎨 Frontend</h3>
+                        <ul>
+                            <li>AdminLTE Template</li>
+                            <li>Tailwind CSS</li>
+                            <li>Chart.js (Gráficos)</li>
+                            <li>JavaScript/jQuery</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>💳 Integrações</h3>
+                        <ul>
+                            <li>Mercado Pago SDK</li>
+                            <li>Asaas API (PIX/Boleto)</li>
+                            <li>SEFAZ (NFe/NFCe)</li>
+                            <li>Webhooks</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- O que está implementado -->
+        <section id="implementado">
+            <h2><span class="icon">✅</span> Funcionalidades Implementadas</h2>
+            <div class="section-content">
+                
+                <!-- Módulo de Vendas -->
+                <div class="accordion active">
+                    <div class="accordion-header">
+                        🛒 Módulo de Vendas <span class="badge badge-success">90% Completo</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="accordion-body">
+                            <div class="progress-container">
+                                <div class="progress-label">
+                                    <span>Progresso</span>
+                                    <span>90%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill high" style="width: 90%"></div>
+                                </div>
+                            </div>
+                            <ul class="feature-list">
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">CRUD Completo de Vendas</div>
+                                        <div class="feature-desc">Criação, edição, visualização e exclusão de vendas com parcelamento</div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Sistema de Parcelamento</div>
+                                        <div class="feature-desc">Vendas parceladas com controle de parcelas e vencimentos</div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Gestão de Produtos</div>
+                                        <div class="feature-desc">Cadastro completo com categorias, fotos e controle de estoque</div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Gestão de Clientes</div>
+                                        <div class="feature-desc">Cadastro de clientes com endereços e histórico de compras</div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Sistema de Comissões Flexível</div>
+                                        <div class="feature-desc">Configuração de comissões por colaborador, categoria e período</div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Carteira de Cobranças</div>
+                                        <div class="feature-desc">Distribuição de clientes para cobradores com rotas e períodos</div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Dashboard de Vendas</div>
+                                        <div class="feature-desc">Visão geral com gráficos e indicadores de performance</div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Módulo de Caixa -->
+                <div class="accordion">
+                    <div class="accordion-header">
+                        💰 Módulo de Caixa (Fluxo de Caixa) <span class="badge badge-warning">70% Completo</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="accordion-body">
+                            <div class="progress-container">
+                                <div class="progress-label">
+                                    <span>Progresso</span>
+                                    <span>70%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill medium" style="width: 70%"></div>
+                                </div>
+                            </div>
+                            <ul class="feature-list">
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Abertura e Fechamento de Caixa</div>
+                                        <div class="feature-desc">Controle de abertura com valor inicial e fechamento com conferência</div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Registro de Movimentações</div>
+                                        <div class="feature-desc">Entradas e saídas categorizadas (venda, pagamento, suprimento, sangria)</div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Integração com Vendas</div>
+                                        <div class="feature-desc">Registro automático de entrada quando venda é finalizada</div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Cálculo Automático de Saldo</div>
+                                        <div class="feature-desc">Valor esperado calculado automaticamente baseado em movimentações</div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Módulo de Contas a Pagar -->
+                <div class="accordion">
+                    <div class="accordion-header">
+                        📋 Módulo de Contas a Pagar <span class="badge badge-warning">60% Completo</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="accordion-body">
+                            <div class="progress-container">
+                                <div class="progress-label">
+                                    <span>Progresso</span>
+                                    <span>60%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill medium" style="width: 60%"></div>
+                                </div>
+                            </div>
+                            <ul class="feature-list">
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">CRUD Completo</div>
+                                        <div class="feature-desc">Criação, edição e exclusão de contas a pagar</div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Controle de Vencimentos</div>
+                                        <div class="feature-desc">Cálculo automático de dias de atraso e status vencida</div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Relacionamento com Fornecedores</div>
+                                        <div class="feature-desc">Vinculação de contas a fornecedores e compras</div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- API e Integrações -->
+                <div class="accordion">
+                    <div class="accordion-header">
+                        🔌 API e Integrações de Pagamento <span class="badge badge-warning">50% Completo</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="accordion-body">
+                            <div class="progress-container">
+                                <div class="progress-label">
+                                    <span>Progresso</span>
+                                    <span>50%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill medium" style="width: 50%"></div>
+                                </div>
+                            </div>
+                            <h4 style="margin: 1rem 0 0.5rem;">Mercado Pago</h4>
+                            <ul class="feature-list">
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Criação de Preferências</div>
+                                        <div class="feature-desc">Geração de links de pagamento para checkout</div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Processamento Básico</div>
+                                        <div class="feature-desc">Recebimento e processamento de pagamentos</div>
+                                    </div>
+                                </li>
+                            </ul>
+                            <h4 style="margin: 1rem 0 0.5rem;">Asaas</h4>
+                            <ul class="feature-list">
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Criação de Cobranças</div>
+                                        <div class="feature-desc">PIX, Boleto e Cartão de Crédito</div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">QR Code PIX Dinâmico</div>
+                                        <div class="feature-desc">Geração de QR Code para pagamento instantâneo</div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sistema de Usuários -->
+                <div class="accordion">
+                    <div class="accordion-header">
+                        👥 Sistema de Usuários e Permissões <span class="badge badge-success">90% Completo</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="accordion-body">
+                            <div class="progress-container">
+                                <div class="progress-label">
+                                    <span>Progresso</span>
+                                    <span>90%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill high" style="width: 90%"></div>
+                                </div>
+                            </div>
+                            <ul class="feature-list">
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Sistema Multi-Loja</div>
+                                        <div class="feature-desc">Cada usuário dono pode ter múltiplas lojas com dados isolados</div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">RBAC Configurado</div>
+                                        <div class="feature-desc">Controle de acesso baseado em papéis (Role-Based Access Control)</div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Gestão de Colaboradores</div>
+                                        <div class="feature-desc">Usuários não donos vinculados a lojas específicas</div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Controle por Módulo</div>
+                                        <div class="feature-desc">Acesso configurável por módulo do sistema</div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Módulo de Indicadores -->
+                <div class="accordion">
+                    <div class="accordion-header">
+                        📊 Módulo de Indicadores <span class="badge badge-success">100% Completo</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="accordion-body">
+                            <div class="progress-container">
+                                <div class="progress-label">
+                                    <span>Progresso</span>
+                                    <span>100%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill high" style="width: 100%"></div>
+                                </div>
+                            </div>
+                            <ul class="feature-list">
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Dashboards Completos</div>
+                                        <div class="feature-desc">Visão geral com métricas e KPIs do negócio</div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="status-icon">✅</span>
+                                    <div class="feature-text">
+                                        <div class="feature-title">Gráficos e Relatórios</div>
+                                        <div class="feature-desc">Visualização de dados com Chart.js</div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- O que falta implementar -->
+        <section id="pendente">
+            <h2><span class="icon">⏳</span> Funcionalidades Pendentes</h2>
+            <div class="section-content">
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Funcionalidade</th>
+                            <th>Módulo</th>
+                            <th>Prioridade</th>
+                            <th>Estimativa</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Views de Contas a Pagar</strong><br><small>Interface web para gerenciamento</small></td>
+                            <td>Contas a Pagar</td>
+                            <td><span class="badge badge-danger">Alta</span></td>
+                            <td>1-2 dias</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Integração Contas a Pagar → Caixa</strong><br><small>Saída automática no caixa ao pagar conta</small></td>
+                            <td>Financeiro</td>
+                            <td><span class="badge badge-danger">Alta</span></td>
+                            <td>1 dia</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Webhooks Completos</strong><br><small>Mercado Pago e Asaas</small></td>
+                            <td>API</td>
+                            <td><span class="badge badge-danger">Alta</span></td>
+                            <td>3-4 dias</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Relatórios de Caixa</strong><br><small>Fechamento e movimentações por período</small></td>
+                            <td>Caixa</td>
+                            <td><span class="badge badge-warning">Média</span></td>
+                            <td>3-4 dias</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Relatórios de Contas a Pagar</strong><br><small>Contas a vencer/vencidas por fornecedor</small></td>
+                            <td>Contas a Pagar</td>
+                            <td><span class="badge badge-warning">Média</span></td>
+                            <td>2-3 dias</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Emissão de NFe/NFCe Completa</strong><br><small>Integração com vendas e geração de DANFE</small></td>
+                            <td>Fiscal</td>
+                            <td><span class="badge badge-danger">Alta</span></td>
+                            <td>6-8 dias</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Split de Pagamentos</strong><br><small>Divisão de recebimentos entre loja e terceiros</small></td>
+                            <td>API</td>
+                            <td><span class="badge badge-warning">Média</span></td>
+                            <td>6-8 dias</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Dashboard Financeiro</strong><br><small>Visão consolidada de caixa e contas</small></td>
+                            <td>Financeiro</td>
+                            <td><span class="badge badge-danger">Alta</span></td>
+                            <td>5-7 dias</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Conciliação Bancária</strong><br><small>Importação de extratos e matching automático</small></td>
+                            <td>Financeiro</td>
+                            <td><span class="badge badge-info">Baixa</span></td>
+                            <td>10-12 dias</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+            </div>
+        </section>
+
+        <!-- Módulos Detalhados -->
+        <section id="modulos">
+            <h2><span class="icon">📦</span> Detalhamento dos Módulos</h2>
+            <div class="section-content">
+                <div class="cards-grid">
+                    <div class="card">
+                        <h3>🛒 Vendas</h3>
+                        <p>Módulo principal do sistema com gestão completa de vendas, produtos, clientes e parcelas.</p>
+                        <ul>
+                            <li>28 Controllers</li>
+                            <li>38 Models</li>
+                            <li>115+ Views</li>
+                            <li>Sistema de Orçamentos</li>
+                            <li>Venda Direta (PDV)</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>💰 Caixa</h3>
+                        <p>Controle de fluxo de caixa com abertura, fechamento e movimentações.</p>
+                        <ul>
+                            <li>2 Controllers</li>
+                            <li>2 Models</li>
+                            <li>9 Views</li>
+                            <li>Helper de Integração</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>📋 Contas a Pagar</h3>
+                        <p>Gestão de contas a pagar com controle de vencimentos e fornecedores.</p>
+                        <ul>
+                            <li>1 Controller</li>
+                            <li>1 Model</li>
+                            <li>6 Views</li>
+                            <li>Integração com Compras</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>🔌 API</h3>
+                        <p>Endpoints REST para integrações externas e aplicativos móveis.</p>
+                        <ul>
+                            <li>17 Controllers</li>
+                            <li>Mercado Pago</li>
+                            <li>Asaas (PIX/Boleto)</li>
+                            <li>Autenticação JWT</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>📊 Indicadores</h3>
+                        <p>Dashboards e métricas para análise de performance do negócio.</p>
+                        <ul>
+                            <li>24 Controllers</li>
+                            <li>23 Models</li>
+                            <li>125 Views</li>
+                            <li>Gráficos Chart.js</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>⚙️ Serviços</h3>
+                        <p>Módulo SaaS com gestão de planos, assinaturas e módulos.</p>
+                        <ul>
+                            <li>1 Controller</li>
+                            <li>33 Models</li>
+                            <li>Gestão de Planos</li>
+                            <li>Controle de Módulos</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sugestões de Novas Funcionalidades -->
+        <section id="sugestoes">
+            <h2><span class="icon">💡</span> Sugestões de Novas Funcionalidades</h2>
+            <div class="section-content">
+                
+                <div class="suggestion-card">
+                    <h4>📱 Aplicativo Mobile Nativo <span class="priority priority-high">Alta Prioridade</span></h4>
+                    <p>Desenvolver aplicativo mobile nativo (React Native ou Flutter) para cobradores e vendedores externos, 
+                    com funcionalidades offline e sincronização automática. Atualmente existe um PWA, mas um app nativo 
+                    ofereceria melhor experiência e acesso a recursos do dispositivo.</p>
+                </div>
+
+                <div class="suggestion-card">
+                    <h4>🤖 Automação de Cobranças <span class="priority priority-high">Alta Prioridade</span></h4>
+                    <p>Sistema de envio automático de lembretes de vencimento via WhatsApp, SMS e E-mail. 
+                    Integração com APIs de mensageria para notificações automáticas antes e após o vencimento das parcelas.</p>
+                </div>
+
+                <div class="suggestion-card">
+                    <h4>📈 Business Intelligence (BI) <span class="priority priority-medium">Média Prioridade</span></h4>
+                    <p>Dashboard avançado de BI com análise preditiva de vendas, identificação de padrões de inadimplência, 
+                    previsão de fluxo de caixa e recomendações automáticas baseadas em dados históricos.</p>
+                </div>
+
+                <div class="suggestion-card">
+                    <h4>🔄 Integração com Marketplaces <span class="priority priority-medium">Média Prioridade</span></h4>
+                    <p>Integração com marketplaces como Mercado Livre, Shopee, Amazon e Magazine Luiza para sincronização 
+                    automática de produtos, estoque e pedidos.</p>
+                </div>
+
+                <div class="suggestion-card">
+                    <h4>📦 Gestão de Estoque Avançada <span class="priority priority-medium">Média Prioridade</span></h4>
+                    <p>Sistema de estoque com múltiplos depósitos, controle de lote e validade, inventário com leitor de 
+                    código de barras, alertas de estoque mínimo e sugestão automática de compras.</p>
+                </div>
+
+                <div class="suggestion-card">
+                    <h4>🎯 CRM Integrado <span class="priority priority-medium">Média Prioridade</span></h4>
+                    <p>Módulo de CRM com funil de vendas, histórico de interações com clientes, segmentação de clientes, 
+                    campanhas de marketing e análise de lifetime value (LTV).</p>
+                </div>
+
+                <div class="suggestion-card">
+                    <h4>📊 Relatórios Gerenciais Avançados <span class="priority priority-low">Baixa Prioridade</span></h4>
+                    <p>Geração de relatórios em PDF e Excel com templates personalizáveis, agendamento de envio automático 
+                    por e-mail e comparativos entre períodos.</p>
+                </div>
+
+                <div class="suggestion-card">
+                    <h4>🔐 Autenticação Multi-Fator (MFA) <span class="priority priority-low">Baixa Prioridade</span></h4>
+                    <p>Implementar autenticação de dois fatores via SMS, e-mail ou aplicativo autenticador para aumentar 
+                    a segurança do acesso ao sistema.</p>
+                </div>
+
+                <div class="suggestion-card">
+                    <h4>🌐 API Pública Documentada <span class="priority priority-low">Baixa Prioridade</span></h4>
+                    <p>Documentação completa da API com Swagger/OpenAPI para permitir integrações de terceiros, 
+                    com sistema de tokens e rate limiting.</p>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Roadmap -->
+        <section id="roadmap">
+            <h2><span class="icon">🗺️</span> Roadmap de Desenvolvimento</h2>
+            <div class="section-content">
+                
+                <div class="timeline">
+                    <div class="timeline-item completed">
+                        <h4>Fase 1: Fundação ✅</h4>
+                        <p>Estrutura de dados para Caixa e Contas a Pagar, Models e Controllers básicos, Migrations SQL.</p>
+                    </div>
+                    <div class="timeline-item pending">
+                        <h4>Fase 2: Integrações Básicas (2-3 semanas)</h4>
+                        <p>Views de Contas a Pagar, Webhooks completos (Mercado Pago e Asaas), Integração Caixa ↔ Contas a Pagar.</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>Fase 3: Funcionalidades Avançadas (3-4 semanas)</h4>
+                        <p>Emissão de NFe/NFCe completa, Dashboard Financeiro, Relatórios de Caixa e Contas.</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>Fase 4: Recursos Avançados (2-3 semanas)</h4>
+                        <p>Split de Pagamentos, Conciliação Bancária básica, Múltiplos caixas simultâneos.</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>Fase 5: Expansão (Opcional)</h4>
+                        <p>Aplicativo Mobile, Automação de Cobranças, BI e Analytics, Integrações com Marketplaces.</p>
+                    </div>
+                </div>
+
+                <h3 style="margin: 2rem 0 1rem;">Estimativa Total de Desenvolvimento</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nível</th>
+                            <th>Descrição</th>
+                            <th>Itens</th>
+                            <th>Estimativa</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge badge-success">Básico ⭐</span></td>
+                            <td>Views e estruturas de dados</td>
+                            <td>3 itens</td>
+                            <td>3-5 dias</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-warning">Intermediário ⭐⭐</span></td>
+                            <td>Integrações e relatórios básicos</td>
+                            <td>6 itens</td>
+                            <td>12-18 dias</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-danger">Avançado ⭐⭐⭐</span></td>
+                            <td>NFe/NFCe, Split, Dashboard</td>
+                            <td>5 itens</td>
+                            <td>24-35 dias</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-info">Muito Avançado ⭐⭐⭐⭐</span></td>
+                            <td>Conciliação, funcionalidades avançadas</td>
+                            <td>3 itens</td>
+                            <td>23-29 dias</td>
+                        </tr>
+                        <tr style="background: var(--gray-100); font-weight: 600;">
+                            <td colspan="3">Total Estimado</td>
+                            <td>62-87 dias</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+            </div>
+        </section>
+
+        <!-- Resumo do Status -->
+        <section>
+            <h2><span class="icon">📋</span> Resumo do Status por Módulo</h2>
+            <div class="section-content">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Módulo</th>
+                            <th>Estrutura</th>
+                            <th>Controllers</th>
+                            <th>Views</th>
+                            <th>Integrações</th>
+                            <th>Status Geral</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Vendas</strong></td>
+                            <td><span class="badge badge-success">100%</span></td>
+                            <td><span class="badge badge-success">100%</span></td>
+                            <td><span class="badge badge-success">90%</span></td>
+                            <td><span class="badge badge-warning">60%</span></td>
+                            <td><span class="badge badge-success">90%</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Caixa</strong></td>
+                            <td><span class="badge badge-success">100%</span></td>
+                            <td><span class="badge badge-success">100%</span></td>
+                            <td><span class="badge badge-success">80%</span></td>
+                            <td><span class="badge badge-warning">50%</span></td>
+                            <td><span class="badge badge-warning">70%</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Contas a Pagar</strong></td>
+                            <td><span class="badge badge-success">100%</span></td>
+                            <td><span class="badge badge-success">100%</span></td>
+                            <td><span class="badge badge-danger">0%</span></td>
+                            <td><span class="badge badge-danger">0%</span></td>
+                            <td><span class="badge badge-warning">60%</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>API Pagamentos</strong></td>
+                            <td><span class="badge badge-success">100%</span></td>
+                            <td><span class="badge badge-success">100%</span></td>
+                            <td>N/A</td>
+                            <td><span class="badge badge-warning">50%</span></td>
+                            <td><span class="badge badge-warning">50%</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Cupom Fiscal</strong></td>
+                            <td><span class="badge badge-danger">0%</span></td>
+                            <td><span class="badge badge-danger">0%</span></td>
+                            <td><span class="badge badge-danger">0%</span></td>
+                            <td><span class="badge badge-warning">30%</span></td>
+                            <td><span class="badge badge-danger">30%</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Comissões</strong></td>
+                            <td><span class="badge badge-success">100%</span></td>
+                            <td><span class="badge badge-success">100%</span></td>
+                            <td><span class="badge badge-success">80%</span></td>
+                            <td><span class="badge badge-success">80%</span></td>
+                            <td><span class="badge badge-success">90%</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Indicadores</strong></td>
+                            <td><span class="badge badge-success">100%</span></td>
+                            <td><span class="badge badge-success">100%</span></td>
+                            <td><span class="badge badge-success">100%</span></td>
+                            <td><span class="badge badge-success">100%</span></td>
+                            <td><span class="badge badge-success">100%</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <footer>
+        <p><strong>PULSE</strong> - Sistema de Gestão Comercial</p>
+        <p>Documento gerado em Fevereiro de 2026</p>
+        <p style="margin-top: 1rem; font-size: 0.8rem;">
+            Desenvolvido com Yii2 Framework | PostgreSQL | AdminLTE
+        </p>
+    </footer>
+
+    <script>
+        // Accordion functionality
+        document.querySelectorAll('.accordion-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const accordion = header.parentElement;
+                accordion.classList.toggle('active');
+            });
+        });
+
+        // Smooth scroll for navigation
+        document.querySelectorAll('nav a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Highlight current section in navigation
+        const sections = document.querySelectorAll('section[id]');
+        const navLinks = document.querySelectorAll('nav a');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollY >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.style.color = '';
+                link.style.borderBottomColor = 'transparent';
+                if (link.getAttribute('href') === '#' + current) {
+                    link.style.color = 'var(--primary)';
+                    link.style.borderBottomColor = 'var(--primary)';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

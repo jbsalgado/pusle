@@ -312,6 +312,15 @@ $cards = [
         'color' => 'gray',
         'description' => 'Configurações do sistema'
     ],
+    [
+        'order' => 99.5,
+        'visible' => true,
+        'label' => 'Dados da Loja',
+        'url' => ['/vendas/loja-configuracao/index'],
+        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>',
+        'color' => 'blue',
+        'description' => 'Configurar dados da loja (nome, endereço, CNPJ)'
+    ],
 ];
 
 // Filtra cards visíveis baseado no flag de administrador

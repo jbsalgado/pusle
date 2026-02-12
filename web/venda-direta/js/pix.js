@@ -924,16 +924,6 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
             padding-bottom: 5px;
             margin-bottom: 5px;
         }
-        .logo-container {
-            text-align: center;
-            margin-bottom: 5px;
-        }
-        .logo-container img {
-            max-width: 60mm;
-            max-height: 30mm;
-            height: auto;
-            object-fit: contain;
-        }
         .empresa-nome {
             font-weight: bold;
             font-size: 14px;
@@ -1039,11 +1029,6 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
 </head>
 <body>
     <div class="header">
-        ${logoUrl ? `
-        <div class="logo-container">
-            <img src="${logoUrl}" alt="Logo" onerror="this.style.display='none';">
-        </div>
-        ` : ''}
         <div class="empresa-nome">${dadosEmpresa.nome_loja || dadosEmpresa.nome}</div>
         ${cpfCnpjFormatado ? `<div class="empresa-dados">${isCNPJ ? 'CNPJ' : 'CPF'}: ${cpfCnpjFormatado}</div>` : ''}
         ${endereco ? `<div class="empresa-dados">${endereco}</div>` : ''}
@@ -1289,15 +1274,10 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
                         <div class="flex flex-col gap-3">
                             <img src="${imageUrl}" alt="Comprovante" class="max-w-full h-auto rounded-lg shadow-md mx-auto" style="width: 100%; max-width: 600px;">
                             
-                            <div class="grid grid-cols-2 gap-3 mt-2">
-                                <button onclick="window.imprimirComprovanteTexto()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 shadow-sm transition-colors">
+                            <div class="flex justify-center mt-2">
+                                <button onclick="window.imprimirComprovanteTexto()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2 shadow-sm transition-colors">
                                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                                    Imprimir (Rápido)
-                                </button>
-                                
-                                <button onclick="window.compartilharComprovanteImagem()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 shadow-sm transition-colors">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
-                                    Compartilhar
+                                    Imprimir (Termica)
                                 </button>
                             </div>
                         </div>`;
@@ -1370,6 +1350,27 @@ function gerarTextoComprovante() {
     // Cabeçalho
     texto += center(removerAcentos(dadosEmpresa.nome_loja || 'LOJA').toUpperCase()) + '\n';
     if(dadosEmpresa.cpf_cnpj) texto += center(formatarCpfCnpj(dadosEmpresa.cpf_cnpj)) + '\n';
+    
+    // Novo: Endereço (se houver)
+    if (dadosEmpresa.endereco) {
+        texto += center(removerAcentos(dadosEmpresa.endereco).toUpperCase()) + '\n';
+        const bairroCidade = (dadosEmpresa.bairro ? dadosEmpresa.bairro + ', ' : '') + 
+                             (dadosEmpresa.cidade ? dadosEmpresa.cidade : '');
+        if (bairroCidade) {
+            texto += center(removerAcentos(bairroCidade).toUpperCase()) + '\n';
+        }
+    } else if (dadosEmpresa.endereco_completo) {
+        const endPartes = dadosEmpresa.endereco_completo.split(',');
+        endPartes.forEach(parte => {
+            if (parte.trim()) texto += center(removerAcentos(parte.trim()).toUpperCase()) + '\n';
+        });
+    }
+
+    // Novo: Telefone (se houver)
+    if (dadosEmpresa.telefone) {
+        texto += center(formatarTelefone(dadosEmpresa.telefone)) + '\n';
+    }
+
     texto += linhaSeparadora + '\n';
     
     // Info Venda
@@ -1400,7 +1401,21 @@ function gerarTextoComprovante() {
     // Rodapé
     texto += '\n\n' + center("OBRIGADO PELA PREFERENCIA!") + '\n\n\n';
     
-    return texto;
+    // Sanitização final para garantir apenas ASCII e caracteres seguros
+    return sanitizarParaImpressora(texto);
+}
+
+/**
+ * Remove caracteres especiais e garante compatibilidade com impressoras térmicas
+ */
+function sanitizarParaImpressora(str) {
+    if (!str) return "";
+    return str
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "") // Remove acentos
+        .replace(/[^\x20-\x7E\n]/g, "") // Remove tudo que não for ASCII imprimível ou quebra de linha
+        .replace(/\r\n/g, "\n") // Normaliza quebras de linha
+        .replace(/\r/g, "\n"); // Normaliza quebras de linha
 }
 
 // ============== AÇÕES DOS BOTÕES ==============

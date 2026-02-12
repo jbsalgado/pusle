@@ -1,4 +1,5 @@
 <?php
+
 namespace app\modules\contas_pagar;
 
 /**
@@ -25,11 +26,11 @@ class Module extends \yii\base\Module
 
         // Layout padrão do módulo (usa o mesmo do vendas)
         $this->layout = 'main';
-        
+
         // Mapeamento de controllers com hífen
         $this->controllerMap = [
             'conta-pagar' => 'app\modules\contas_pagar\controllers\ContaPagarController',
+            'relatorio' => 'app\modules\contas_pagar\controllers\RelatorioController',
         ];
     }
 }
-
