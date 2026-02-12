@@ -1383,6 +1383,10 @@ function gerarTextoComprovante() {
     if (!window.dadosComprovanteAtual) return '';
     
     const { carrinho, dadosPedido, dadosEmpresa, valorTotal, dataHora, subtotalGeral, totalDescontos, acrescimoValor, acrescimoTipo, acrescimoObs } = window.dadosComprovanteAtual;
+    
+    // ✅ CORREÇÃO: Extrai dadosVenda de dadosPedido (igual à função gerarComprovanteVenda)
+    const dadosVenda = dadosPedido.venda || dadosPedido;
+    
     const largura = 32; // Colunas (padrão 58mm)
     const linhaSeparadora = '-'.repeat(largura);
     
