@@ -66,7 +66,12 @@ class _MyAppState extends State<MyApp> {
 
   void _handleSharedContent(String path) {
     // CRITICAL FIX: Ignore Deep Link schemes if they accidentally trigger this handler
-    if (path.contains('printapp://')) { 
+    // CRITICAL FIX: Ignore Deep Link schemes if they accidentally trigger this handler
+    // Handles both standard URI and potential modifications
+    final String lowerPath = path.toLowerCase().trim();
+    if (lowerPath.startsWith('printapp:') || 
+        lowerPath.contains('printapp://') || 
+        lowerPath.contains('print?data=')) { 
         debugPrint("Ignored Deep Link in Shared Handler: $path");
         return; 
     }
