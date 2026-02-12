@@ -211,6 +211,53 @@ export async function removerPagamentoPendente(idLocal) {
 }
 
 /**
+ * Adiciona venda pendente de sincronização
+ */
+export async function adicionarVendaPendente(venda) {
+    try {
+        const vendas = await carregarVendasPendentes();
+        venda.id_local = `venda_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        venda.timestamp = new Date().toISOString();
+        vendas.push(venda);
+        await idbKeyval.set(STORAGE_KEYS.VENDAS_PENDENTES, vendas);
+        console.log('[Storage] ✅ Venda pendente adicionada:', venda.id_local);
+        return venda.id_local;
+    } catch (error) {
+        console.error('[Storage] ❌ Erro ao adicionar venda pendente:', error);
+        return null;
+    }
+}
+
+/**
+ * Carrega vendas pendentes de sincronização
+ */
+export async function carregarVendasPendentes() {
+    try {
+        const vendas = await idbKeyval.get(STORAGE_KEYS.VENDAS_PENDENTES);
+        return Array.isArray(vendas) ? vendas : [];
+    } catch (error) {
+        console.error('[Storage] ❌ Erro ao carregar vendas pendentes:', error);
+        return [];
+    }
+}
+
+/**
+ * Remove venda pendente após sincronização bem-sucedida
+ */
+export async function removerVendaPendente(idLocal) {
+    try {
+        const vendas = await carregarVendasPendentes();
+        const filtrados = vendas.filter(v => v.id_local !== idLocal);
+        await idbKeyval.set(STORAGE_KEYS.VENDAS_PENDENTES, filtrados);
+        console.log('[Storage] ✅ Venda pendente removida:', idLocal);
+        return true;
+    } catch (error) {
+        console.error('[Storage] ❌ Erro ao remover venda pendente:', error);
+        return false;
+    }
+}
+
+/**
  * Salva cache de clientes
  */
 export async function salvarClientesCache(clientes) {
@@ -297,6 +344,7 @@ export async function limparDadosLocais() {
             idbKeyval.del(STORAGE_KEYS.COBRADOR),
             idbKeyval.del(STORAGE_KEYS.ROTA_DIA),
             idbKeyval.del(STORAGE_KEYS.PAGAMENTOS_PENDENTES),
+            idbKeyval.del(STORAGE_KEYS.VENDAS_PENDENTES),
             idbKeyval.del(STORAGE_KEYS.CLIENTES_CACHE),
             idbKeyval.del(STORAGE_KEYS.PARCELAS_CACHE),
         ]);

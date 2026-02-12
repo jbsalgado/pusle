@@ -4,6 +4,8 @@ import { API_ENDPOINTS, CONFIG, STATUS_PARCELA } from './config.js';
 import { 
     carregarPagamentosPendentes, 
     removerPagamentoPendente,
+    carregarVendasPendentes,
+    removerVendaPendente,
     atualizarUltimaSincronizacao,
     salvarRotaDia,
     salvarClientesCache,
@@ -71,6 +73,45 @@ export async function sincronizarPagamentosPendentes() {
 
     if (resultados.sincronizados > 0) {
         await atualizarUltimaSincronizacao();
+    }
+
+    return resultados;
+}
+
+/**
+ * Sincroniza vendas pendentes com o servidor
+ */
+export async function sincronizarVendasPendentes() {
+    if (!estaOnline()) return { sucesso: false, motivo: 'offline' };
+
+    const vendas = await carregarVendasPendentes();
+    if (vendas.length === 0) return { sucesso: true, sincronizados: 0 };
+
+    console.log(`[Sync] 🔄 Sincronizando ${vendas.length} venda(s) pendente(s)...`);
+
+    const resultados = { sucesso: true, sincronizados: 0, falhas: 0, erros: [] };
+
+    for (const venda of vendas) {
+        try {
+            const response = await fetch(API_ENDPOINTS.REGISTRAR_VENDA, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(venda)
+            });
+
+            if (response.ok) {
+                await removerVendaPendente(venda.id_local);
+                resultados.sincronizados++;
+                console.log(`[Sync] ✅ Venda sincronizada: ${venda.id_local}`);
+            } else {
+                const erro = await response.json();
+                resultados.falhas++;
+                resultados.erros.push({ id: venda.id_local, erro });
+            }
+        } catch (error) {
+            resultados.falhas++;
+            resultados.erros.push({ id: venda.id_local, erro: error.message });
+        }
     }
 
     return resultados;
@@ -238,6 +279,7 @@ export function iniciarMonitoramentoConexao(callbackSincronizacao) {
             await callbackSincronizacao();
         } else {
             await sincronizarPagamentosPendentes();
+            await sincronizarVendasPendentes();
         }
     });
 

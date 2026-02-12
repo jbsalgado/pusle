@@ -5,15 +5,15 @@ const SYNC_TAG = 'sync-cobranca-prestanista';
 
 // Recursos estáticos para cache
 const STATIC_ASSETS = [
-    '/pulse/basic/web/prestanista/',
-    '/pulse/basic/web/prestanista/index.html',
-    '/pulse/basic/web/prestanista/js/app.js',
-    '/pulse/basic/web/prestanista/js/config.js',
-    '/pulse/basic/web/prestanista/js/storage.js',
-    '/pulse/basic/web/prestanista/js/sync.js',
-    '/pulse/basic/web/prestanista/js/utils.js',
-    '/pulse/basic/web/prestanista/js/idb-keyval.js',
-    '/pulse/basic/web/prestanista/manifest.json',
+    './',
+    './index.html',
+    './js/app.js',
+    './js/config.js',
+    './js/storage.js',
+    './js/sync.js',
+    './js/utils.js',
+    './manifest.json',
+    './favicon.svg',
     'https://cdn.tailwindcss.com',
 ];
 

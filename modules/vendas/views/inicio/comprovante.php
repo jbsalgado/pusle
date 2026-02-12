@@ -114,37 +114,77 @@ $this->registerCss('
             <div class="border-t border-b border-gray-300 py-4 mb-4">
                 <h2 class="text-lg font-semibold text-gray-900 mb-3">Itens</h2>
                 <div class="space-y-2">
-                    <?php foreach ($venda->itens as $item):
+                    <?php
+                    $subtotal = 0;
+                    $totalDescontos = 0;
+
+                    foreach ($venda->itens as $item):
                         $produto = $item->produto;
+                        $valorItem = $item->quantidade * $item->preco_unitario_venda;
+                        $subtotal += $valorItem;
+                        $totalDescontos += $item->desconto_valor ?? 0;
                     ?>
                         <div class="flex justify-between items-start py-2 border-b border-gray-100">
                             <div class="flex-1">
-                                <p class="font-semibold text-gray-900">
+                                <p class="text-lg font-bold text-gray-900">
                                     <?= Html::encode($produto ? $produto->nome : 'Produto não encontrado') ?>
                                 </p>
-                                <p class="text-sm text-gray-600">
+                                <p class="text-base text-gray-700">
                                     <?= $item->quantidade ?> x R$ <?= number_format($item->preco_unitario_venda, 2, ',', '.') ?>
                                 </p>
+                                <?php if ($item->desconto_valor > 0): ?>
+                                    <p class="text-sm text-red-600">
+                                        Desconto: -R$ <?= number_format($item->desconto_valor, 2, ',', '.') ?>
+                                    </p>
+                                <?php endif; ?>
                             </div>
-                            <p class="font-semibold text-gray-900 ml-4">
-                                R$ <?= number_format($item->valor_total_item ?? ($item->quantidade * $item->preco_unitario_venda), 2, ',', '.') ?>
+                            <p class="text-base font-bold text-gray-900 ml-4">
+                                R$ <?= number_format($item->valor_total_item ?? ($valorItem - ($item->desconto_valor ?? 0)), 2, ',', '.') ?>
                             </p>
                         </div>
-                    <?php endforeach; ?>
+                    <?php endforeach;
+
+                    $acrescimo = $venda->acrescimo_valor ?? 0;
+                    $totalFinal = $subtotal - $totalDescontos + $acrescimo;
+                    ?>
                 </div>
             </div>
 
             <!-- Totais e Forma de Pagamento -->
-            <div class="space-y-3 mb-6">
-                <div class="flex justify-between items-center text-lg font-bold text-gray-900 border-t border-gray-300 pt-3">
+            <div class="space-y-2 mb-6">
+                <!-- Subtotal (só mostra se houver descontos ou acréscimos) -->
+                <?php if ($totalDescontos > 0 || $acrescimo > 0): ?>
+                    <div class="flex justify-between items-center text-gray-600">
+                        <span>Subtotal:</span>
+                        <span>R$ <?= number_format($subtotal, 2, ',', '.') ?></span>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Descontos -->
+                <?php if ($totalDescontos > 0): ?>
+                    <div class="flex justify-between items-center text-red-600">
+                        <span>Descontos:</span>
+                        <span>-R$ <?= number_format($totalDescontos, 2, ',', '.') ?></span>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Acréscimos -->
+                <?php if ($acrescimo > 0): ?>
+                    <div class="flex justify-between items-center text-gray-600">
+                        <span>Acréscimos:</span>
+                        <span>+R$ <?= number_format($acrescimo, 2, ',', '.') ?></span>
+                    </div>
+                <?php endif; ?>
+
+                <div class="flex justify-between items-center text-xl font-bold text-gray-900 border-t border-gray-300 pt-3 mt-2">
                     <span>Total:</span>
-                    <span>R$ <?= number_format($venda->valor_total, 2, ',', '.') ?></span>
+                    <span>R$ <?= number_format($totalFinal, 2, ',', '.') ?></span>
                 </div>
 
                 <?php if ($venda->formaPagamento): ?>
-                    <div class="flex justify-between items-center">
+                    <div class="flex justify-between items-center pt-2">
                         <span class="text-sm text-gray-600">Forma de Pagamento:</span>
-                        <span class="text-sm font-semibold text-gray-900">
+                        <span class="text-base font-semibold text-gray-900">
                             <?= Html::encode($venda->formaPagamento->nome) ?>
                         </span>
                     </div>
@@ -153,7 +193,7 @@ $this->registerCss('
                 <?php if ($venda->numero_parcelas > 1): ?>
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600">Parcelas:</span>
-                        <span class="text-sm font-semibold text-gray-900">
+                        <span class="text-base font-semibold text-gray-900">
                             <?= $venda->numero_parcelas ?>x
                         </span>
                     </div>
@@ -165,6 +205,13 @@ $this->registerCss('
                 <div class="border-t border-gray-300 pt-4 mb-4">
                     <p class="text-sm text-gray-600 mb-1">Observações:</p>
                     <p class="text-sm text-gray-900"><?= Html::encode($venda->observacoes) ?></p>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($venda->observacao_acrescimo): ?>
+                <div class="border-t border-gray-300 pt-4 mb-4">
+                    <p class="text-sm text-gray-600 mb-1">Motivo do Acréscimo:</p>
+                    <p class="text-sm text-gray-900"><?= Html::encode($venda->observacao_acrescimo) ?></p>
                 </div>
             <?php endif; ?>
 
@@ -247,11 +294,31 @@ $this->registerCss('
 
         <?php foreach ($venda->itens as $item): ?>
             texto += removerAcentos("<?= $item->produto ? Html::encode($item->produto->nome) : 'PRODUTO' ?>").substring(0, largura).toUpperCase() + '\n';
-            texto += row("<?= $item->quantidade ?>x <?= number_format($item->preco_unitario_venda, 2, '.', '') ?>", "R$ <?= number_format($item->valor_total_item ?? ($item->quantidade * $item->preco_unitario_venda), 2, '.', '') ?>") + '\n';
+            texto += row("<?= $item->quantidade ?>x <?= number_format($item->preco_unitario_venda, 2, '.', '') ?>", "R$ <?= number_format($item->valor_total_item ?? ($item->quantidade * $item->preco_unitario_venda - ($item->desconto_valor ?? 0)), 2, '.', '') ?>") + '\n';
+            <?php if ($item->desconto_valor > 0): ?>
+                texto += row("  DESCONTO ITEM", "-R$ <?= number_format($item->desconto_valor, 2, '.', '') ?>") + '\n';
+            <?php endif; ?>
         <?php endforeach; ?>
 
         texto += linhaSeparadora + '\n';
-        texto += row("TOTAL", "R$ <?= number_format($venda->valor_total, 2, '.', '') ?>") + '\n';
+
+        <?php if ($totalDescontos > 0 || $acrescimo > 0): ?>
+            texto += row("SUBTOTAL", "R$ <?= number_format($subtotal, 2, '.', '') ?>") + '\n';
+        <?php endif; ?>
+
+        <?php if ($totalDescontos > 0): ?>
+            texto += row("DESCONTOS", "-R$ <?= number_format($totalDescontos, 2, '.', '') ?>") + '\n';
+        <?php endif; ?>
+
+        <?php if ($acrescimo > 0): ?>
+            texto += row("ACRESCIMOS", "+R$ <?= number_format($acrescimo, 2, '.', '') ?>") + '\n';
+            <?php if ($venda->observacao_acrescimo): ?>
+                texto += removerAcentos("Obs: <?= Html::encode($venda->observacao_acrescimo) ?>").substring(0, largura) + '\n';
+            <?php endif; ?>
+        <?php endif; ?>
+
+        texto += row("TOTAL", "R$ <?= number_format($totalFinal, 2, '.', '') ?>") + '\n';
+
         texto += row("PAGAMENTO", "<?= $venda->formaPagamento ? Html::encode($venda->formaPagamento->nome) : 'DINHEIRO' ?>").toUpperCase() + '\n';
 
         texto += '\n\n' + center("OBRIGADO PELA PREFERENCIA!") + '\n\n\n';

@@ -112,6 +112,8 @@ export const API_ENDPOINTS = {
     ROTA_COBRANCA_DIA: `${CONFIG.URL_API}/api/rota-cobranca/dia`, // Rota do dia para o cobrador
     PARCELAS_CLIENTE: `${CONFIG.URL_API}/api/parcelas/cliente`, // Parcelas de um cliente
     REGISTRAR_PAGAMENTO: `${CONFIG.URL_API}/api/cobranca/registrar-pagamento`, // Registrar pagamento offline
+    REGISTRAR_VENDA: `${CONFIG.URL_API}/api/cobranca/registrar-venda`, // Registrar nova venda offline
+    PRODUTO_BUSCA: `${CONFIG.URL_API}/api/produto-api/buscar`, // Buscar produtos
     
     // Formas de Pagamento (apenas DINHEIRO e PIX)
     FORMA_PAGAMENTO: `${CONFIG.URL_API}/api/forma-pagamento`,
@@ -126,7 +128,8 @@ export const STORAGE_KEYS = {
     PAGAMENTOS_PENDENTES: 'prestanista_pagamentos_pendentes',
     ULTIMA_SINCRONIZACAO: 'prestanista_ultima_sincronizacao',
     CLIENTES_CACHE: 'prestanista_clientes_cache',
-    PARCELAS_CACHE: 'prestanista_parcelas_cache'
+    PARCELAS_CACHE: 'prestanista_parcelas_cache',
+    VENDAS_PENDENTES: 'prestanista_vendas_pendentes'
 };
 
 // Status de Parcelas

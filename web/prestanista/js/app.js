@@ -8,13 +8,16 @@ import {
     salvarRotaDia, 
     carregarRotaDia,
     adicionarPagamentoPendente,
+    adicionarVendaPendente,
     carregarPagamentosPendentes,
+    carregarVendasPendentes,
     carregarClientesCache,
     carregarParcelasCache,
     limparDadosLocais
 } from './storage.js';
 import { 
-    sincronizarPagamentosPendentes, 
+    sincronizarPagamentosPendentes,
+    sincronizarVendasPendentes,
     baixarRotaDia, 
     estaOnline,
     iniciarMonitoramentoConexao
@@ -39,6 +42,16 @@ let formaPagamentoSelecionada = null;
 let parcelaSelecionada = null;
 let todasVendas = []; // Array com todas as vendas para navegação
 let cardAtualIndex = 0; // Índice do card atualmente visível
+
+// Estado da Nova Venda
+let estadoNovaVenda = {
+    cliente_id: '',
+    itens: [],
+    valor_total: 0,
+    numero_parcelas: 1,
+    frequencia: 30,
+    data_primeiro_vencimento: ''
+};
 
 // Inicialização
 async function init() {
@@ -87,6 +100,12 @@ async function init() {
     } catch (error) {
         console.error('[App] ❌ Erro na inicialização:', error);
         mostrarToast('Erro ao inicializar aplicação', 'error');
+    } finally {
+        // Garante que o loading suma
+        const loadScreen = document.getElementById('loading-screen');
+        const appContainer = document.getElementById('app-container');
+        if (loadScreen) loadScreen.classList.add('hidden');
+        if (appContainer) appContainer.classList.remove('hidden');
     }
 }
 
@@ -395,7 +414,217 @@ function inicializarEventListeners() {
     
     // Atualiza status de conexão periodicamente
     setInterval(atualizarStatusConexao, 5000);
+
+    // --- Listeners: Novo Cartão ---
+    document.getElementById('btn-abrir-nova-venda').addEventListener('click', abrirNovaVenda);
+    document.getElementById('btn-fechar-nova-venda').addEventListener('click', fecharNovaVenda);
+    document.getElementById('busca-produto').addEventListener('input', debounce(buscarProdutos, 500));
+    document.getElementById('venda-parcelas').addEventListener('input', (e) => {
+        estadoNovaVenda.numero_parcelas = parseInt(e.target.value) || 1;
+        atualizarPreviaVenda();
+    });
+    document.getElementById('venda-frequencia').addEventListener('change', (e) => {
+        estadoNovaVenda.frequencia = parseInt(e.target.value) || 30;
+        atualizarPreviaVenda();
+    });
+    document.getElementById('venda-data-primeira').addEventListener('change', (e) => {
+        estadoNovaVenda.data_primeiro_vencimento = e.target.value;
+    });
+    document.getElementById('btn-finalizar-venda').addEventListener('click', finalizarVenda);
 }
+
+// --- Funções: Novo Cartão ---
+
+function abrirNovaVenda() {
+    // Reseta estado
+    estadoNovaVenda = {
+        cliente_id: '',
+        itens: [],
+        valor_total: 0,
+        numero_parcelas: 1,
+        frequencia: 30,
+        data_primeiro_vencimento: new Date().toISOString().split('T')[0]
+    };
+    
+    // Preenche select de clientes
+    const select = document.getElementById('select-cliente-venda');
+    select.innerHTML = '<option value="">Selecione um cliente...</option>';
+    
+    // Pega clientes únicos da rota
+    const clientes = [];
+    rotaDia.forEach(item => {
+        if (item.cliente && !clientes.find(c => c.id === item.cliente.id)) {
+            clientes.push(item.cliente);
+        }
+    });
+    
+    clientes.sort((a, b) => a.nome_completo.localeCompare(b.nome_completo))
+        .forEach(c => {
+            select.innerHTML += `<option value="${c.id}">${c.nome_completo}</option>`;
+        });
+
+    document.getElementById('venda-data-primeira').value = estadoNovaVenda.data_primeiro_vencimento;
+    document.getElementById('carrinho-venda').innerHTML = '';
+    document.getElementById('venda-total-label').textContent = 'R$ 0,00';
+    
+    document.getElementById('view-nova-venda').classList.remove('hidden');
+    document.getElementById('btn-abrir-nova-venda').classList.add('hidden');
+}
+
+function fecharNovaVenda() {
+    document.getElementById('view-nova-venda').classList.add('hidden');
+    document.getElementById('btn-abrir-nova-venda').classList.remove('hidden');
+}
+
+async function buscarProdutos(e) {
+    const q = e.target.value.trim();
+    const lista = document.getElementById('lista-busca-produtos');
+    
+    if (q.length < 2) {
+        lista.classList.add('hidden');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_ENDPOINTS.PRODUTO_BUSCA}?q=${q}&usuario_id=${obterUsuarioId()}`);
+        const data = await response.json();
+        
+        if (data.sucesso && data.produtos.length > 0) {
+            lista.innerHTML = '';
+            data.produtos.forEach(p => {
+                const item = document.createElement('div');
+                item.className = 'busca-resultado-item';
+                item.innerHTML = `
+                    <div class="flex flex-col">
+                        <span class="text-sm font-medium">${p.nome}</span>
+                        <span class="text-xs text-gray-500">${p.codigo || ''}</span>
+                    </div>
+                    <span class="text-blue-600 font-bold">${formatarMoeda(p.preco)}</span>
+                `;
+                item.onclick = () => adicionarProduto(p);
+                lista.appendChild(item);
+            });
+            lista.classList.remove('hidden');
+        } else {
+            lista.classList.add('hidden');
+        }
+    } catch (err) {
+        console.error('Erro na busca:', err);
+    }
+}
+
+function adicionarProduto(p) {
+    const existe = estadoNovaVenda.itens.find(i => i.produto_id === p.id);
+    if (existe) {
+        existe.quantidade++;
+    } else {
+        estadoNovaVenda.itens.push({
+            produto_id: p.id,
+            nome: p.nome,
+            preco_unitario: p.preco,
+            quantidade: 1
+        });
+    }
+    
+    document.getElementById('busca-produto').value = '';
+    document.getElementById('lista-busca-produtos').classList.add('hidden');
+    atualizarPreviaVenda();
+}
+
+function removerProduto(id) {
+    estadoNovaVenda.itens = estadoNovaVenda.itens.filter(i => i.produto_id !== id);
+    atualizarPreviaVenda();
+}
+
+function atualizarPreviaVenda() {
+    const container = document.getElementById('carrinho-venda');
+    container.innerHTML = '';
+    
+    let total = 0;
+    estadoNovaVenda.itens.forEach(item => {
+        total += item.preco_unitario * item.quantidade;
+        const div = document.createElement('div');
+        div.className = 'flex justify-between items-center bg-gray-50 p-2 rounded border';
+        div.innerHTML = `
+            <div class="flex flex-col">
+                <span class="text-xs font-bold">${item.nome}</span>
+                <span class="text-[10px] text-gray-500">${item.quantidade}x ${formatarMoeda(item.preco_unitario)}</span>
+            </div>
+            <button onclick="removerProduto('${item.produto_id}')" class="text-red-500 p-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+            </button>
+        `;
+        container.appendChild(div);
+    });
+    
+    estadoNovaVenda.valor_total = total;
+    document.getElementById('venda-total-label').textContent = formatarMoeda(total);
+}
+
+async function finalizarVenda() {
+    estadoNovaVenda.cliente_id = document.getElementById('select-cliente-venda').value;
+    
+    if (!estadoNovaVenda.cliente_id) {
+        mostrarToast('Selecione um cliente', 'error');
+        return;
+    }
+    if (estadoNovaVenda.itens.length === 0) {
+        mostrarToast('Adicione ao menos um produto', 'error');
+        return;
+    }
+
+    const payload = {
+        ...estadoNovaVenda,
+        cobrador_id: cobradorAtual.id,
+        usuario_id: obterUsuarioId()
+    };
+
+    try {
+        if (!estaOnline()) {
+            // Salvar para sincronizar depois
+            const idLocal = await adicionarVendaPendente(payload);
+            if (idLocal) {
+                mostrarToast('Venda salva offline. Será sincronizada automaticamente.', 'success');
+                fecharNovaVenda();
+                // Opcional: Adicionar localmente à rota para exibição imediata
+            } else {
+                throw new Error('Erro ao salvar venda offline');
+            }
+            return;
+        }
+
+        const response = await fetch(API_ENDPOINTS.REGISTRAR_VENDA, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            mostrarToast('Cartão emitido com sucesso!', 'success');
+            fecharNovaVenda();
+            await sincronizarRota();
+        } else {
+            throw new Error('Erro ao emitir cartão');
+        }
+    } catch (err) {
+        mostrarToast(err.message, 'error');
+    }
+}
+
+// Auxiliares
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        const context = this;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(context, args), wait);
+    };
+}
+
+// Injetar funções globais para o HTML
+window.removerProduto = removerProduto;
 
 /**
  * Sincroniza rota do dia
@@ -1372,25 +1601,47 @@ function renderizarCabecalhoFicha() {
     const container = document.getElementById('ficha-cabecalho');
     const cliente = clienteSelecionado;
     
+    // Calcula totais da venda atual exibida
+    const totalVenda = parcelasClienteSelecionado.reduce((acc, p) => acc + parseFloat(p.valor_parcela || 0), 0);
+    const totalPago = parcelasClienteSelecionado.reduce((acc, p) => acc + parseFloat(p.valor_pago || 0), 0);
+    const saldoDevedor = totalVenda - totalPago;
+
     container.innerHTML = `
-        <h2 class="text-xl font-bold text-gray-900 mb-3">FICHA DE PRESTAÇÃO</h2>
-        <div class="space-y-2 text-sm">
-            <div>
-                <span class="font-medium text-gray-700">Cliente:</span>
-                <span class="text-gray-900 ml-2">${cliente.nome || 'N/A'}</span>
-            </div>
-            <div>
-                <span class="font-medium text-gray-700">Endereço:</span>
-                <span class="text-gray-900 ml-2">
-                    ${[cliente.endereco, cliente.bairro, cliente.cidade, cliente.estado].filter(Boolean).join(', ')}
-                </span>
-            </div>
-            ${cliente.telefone ? `
+        <div class="ficha-digital-papel shadow-sm mb-4">
+            <div class="flex justify-between items-start border-b pb-2 mb-2">
                 <div>
-                    <span class="font-medium text-gray-700">Telefone:</span>
-                    <span class="text-gray-900 ml-2">${cliente.telefone}</span>
+                    <h2 class="text-blue-600 font-black text-lg leading-tight">MIQUEIAS UTILIDADES</h2>
+                    <p class="text-[10px] text-gray-500 uppercase font-bold">Móveis • Eletro • Celulares</p>
                 </div>
-            ` : ''}
+                <div class="text-right">
+                    <span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold uppercase">Digital</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-1 text-[11px]">
+                <div class="flex border-b border-dotted pb-1">
+                    <span class="font-bold text-gray-400 w-16 uppercase italic">Nome:</span>
+                    <span class="text-gray-900 font-bold uppercase">${cliente.nome_completo || cliente.nome || 'N/A'}</span>
+                </div>
+                <div class="flex border-b border-dotted pb-1">
+                    <span class="font-bold text-gray-400 w-16 uppercase italic">Endereço:</span>
+                    <span class="text-gray-900 uppercase truncate">${cliente.endereco_logradouro || cliente.endereco || 'N/A'}</span>
+                </div>
+                <div class="flex border-b border-dotted pb-1">
+                    <span class="font-bold text-gray-400 w-16 uppercase italic">Cidade:</span>
+                    <span class="text-gray-900 uppercase">${cliente.endereco_cidade || cliente.cidade || 'N/A'} - ${cliente.endereco_bairro || cliente.bairro || ''}</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 mt-1">
+                    <div class="text-center p-1 bg-gray-50 rounded">
+                        <span class="block text-[8px] text-gray-400 uppercase font-bold">Total Venda</span>
+                        <span class="block font-black text-blue-600">${formatarMoeda(totalVenda)}</span>
+                    </div>
+                    <div class="text-center p-1 bg-blue-600 rounded">
+                        <span class="block text-[8px] text-white/70 uppercase font-bold">Saldo Devedor</span>
+                        <span class="block font-black text-white">${formatarMoeda(saldoDevedor)}</span>
+                    </div>
+                </div>
+            </div>
         </div>
     `;
 }
@@ -1411,57 +1662,35 @@ function renderizarParcelasFichaVenda(venda) {
     const parcelasOrdenadas = [...parcelas].sort((a, b) => (a.numero_parcela || 0) - (b.numero_parcela || 0));
     
     let html = `
-        <div class="overflow-x-auto">
-            <table class="w-full text-xs border-collapse border border-gray-300">
+        <div class="ficha-digital-papel">
+            <table class="tabela-parcelas">
                 <thead>
-                    <tr class="bg-gray-100">
-                        <th class="text-center p-2 border border-gray-300 font-bold text-gray-700">PARCELA</th>
-                        <th class="text-center p-2 border border-gray-300 font-bold text-gray-700">VENCIMENTO</th>
-                        <th class="text-right p-2 border border-gray-300 font-bold text-gray-700">VL PARCELA</th>
-                        <th class="text-center p-2 border border-gray-300 font-bold text-gray-700">SITUACAO</th>
-                        <th class="text-center p-2 border border-gray-300 font-bold text-gray-700">AÇÃO</th>
+                    <tr>
+                        <th>DATA</th>
+                        <th>VALOR</th>
+                        <th>VISTO</th>
+                        <th>DATA</th>
+                        <th>VALOR</th>
+                        <th>VISTO</th>
                     </tr>
                 </thead>
                 <tbody>
     `;
     
-    parcelasOrdenadas.forEach((parcela) => {
-        const estaPaga = parcela.status_parcela_codigo === STATUS_PARCELA.PAGA;
-        const estaVencida = new Date(parcela.data_vencimento) < new Date() && !estaPaga;
-        const situacao = estaPaga ? 'PAGA' : (estaVencida ? 'VENCIDA' : 'PENDENTE');
-        const situacaoClass = estaPaga ? 'text-green-600' : (estaVencida ? 'text-red-600' : 'text-yellow-600');
-        const numeroParcela = String(parcela.numero_parcela || 0).padStart(2, '0');
-        const totalParcelas = String(parcelas.length).padStart(2, '0');
-        
-        // Verifica se pode pagar esta parcela
-        const podePagar = podePagarParcela(parcela, parcelasOrdenadas);
-        
-        html += `
-            <tr class="${estaPaga ? 'bg-green-50' : (estaVencida ? 'bg-red-50' : '')}">
-                <td class="p-2 border border-gray-300 text-center text-gray-900 font-medium">${numeroParcela}/${totalParcelas}</td>
-                <td class="p-2 border border-gray-300 text-center text-gray-900">${formatarData(parcela.data_vencimento)}</td>
-                <td class="p-2 border border-gray-300 text-right text-gray-900">${formatarMoeda(parcela.valor_parcela)}</td>
-                <td class="p-2 border border-gray-300 text-center ${situacaoClass} font-medium">${situacao}</td>
-                <td class="p-2 border border-gray-300 text-center">
-                    ${estaPaga ? '<span class="text-green-600 text-xs font-bold">✓</span>' : podePagar ? `
-                        <button class="bg-blue-600 text-white px-3 py-1 rounded text-xs font-medium hover:bg-blue-700 active:bg-blue-800" 
-                                onclick="event.stopPropagation(); window.abrirModalRecebimento('${parcela.id}')">
-                            PAGAR
-                        </button>
-                    ` : '<span class="text-gray-400 text-xs" title="Pague as parcelas anteriores primeiro">-</span>'}
-                </td>
-            </tr>
-        `;
-    });
+    html += renderizarLinhasParcelas(parcelasOrdenadas);
     
     html += `
                 </tbody>
             </table>
+            <div class="mt-2 p-2 bg-yellow-50 border border-yellow-100 rounded text-[10px] text-yellow-800 text-center italic">
+                * Toque em uma parcela para registrar o recebimento.
+            </div>
         </div>
     `;
-    
+
     container.innerHTML = html;
 }
+
 
 /**
  * Renderiza grid de parcelas (todas as vendas do cliente)

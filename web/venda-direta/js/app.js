@@ -1198,7 +1198,10 @@ window.buscarVendedor = async function() {
 };
 
 // 🔥 FUNÇÃO PRINCIPAL DE VENDA COM PIX ESTÁTICO INTEGRADO 🔥
+// 🔥 FUNÇÃO PRINCIPAL DE VENDA COM PIX ESTÁTICO INTEGRADO 🔥
+// 🔥 FUNÇÃO PRINCIPAL DE VENDA COM PIX ESTÁTICO INTEGRADO 🔥
 window.confirmarPedido = async function() {
+    
     const formaPagamentoId = document.getElementById('forma-pagamento')?.value;
     if (!formaPagamentoId) { alert('Selecione uma forma de pagamento.'); return; }
     
@@ -1299,9 +1302,18 @@ window.confirmarPedido = async function() {
                 const minuto = String(now.getMinutes()).padStart(2, '0');
                 const txId = `VendaDireta${dia}${mes}${ano}${hora}${minuto}`;
 
+                // Obtém dados do acréscimo
+                const acrescimo = getAcrescimo();
+                const dadosAcrescimo = {
+                    acrescimo_valor: acrescimo.valor || 0,
+                    acrescimo_tipo: acrescimo.tipo || null,
+                    observacao_acrescimo: acrescimo.observacao || null
+                };
+
                 // Abre o Modal PIX - NÃO limpa carrinho ainda, NÃO confirma recebimento
                 await mostrarModalPixEstatico(valorTotal, txId, {
                     ...dadosPedido,
+                    ...dadosAcrescimo, // ✅ Adiciona dados do acréscimo explicitamente
                     venda_id: vendaId,
                     itens: carrinho,
                     valorTotal: valorTotal
@@ -1322,9 +1334,18 @@ window.confirmarPedido = async function() {
                 
                 const valorTotal = calcularTotalCarrinho();
                 
+                // Obtém dados do acréscimo (se já não pegou)
+                const acrescimo = getAcrescimo();
+                const dadosAcrescimo = {
+                    acrescimo_valor: acrescimo.valor || 0,
+                    acrescimo_tipo: acrescimo.tipo || null,
+                    observacao_acrescimo: acrescimo.observacao || null
+                };
+
                 // Mostra modal de confirmação para dinheiro
                 await mostrarModalDinheiro(valorTotal, {
                     ...dadosPedido,
+                    ...dadosAcrescimo, // ✅ Adiciona dados do acréscimo explicitamente
                     venda_id: vendaId,
                     itens: carrinho,
                     valorTotal: valorTotal
@@ -1685,7 +1706,9 @@ async function verificarComprovantePosReload() {
         await new Promise(resolve => setTimeout(resolve, 500));
         
         // Importa função de comprovante
-        const { gerarComprovanteVenda } = await import('./pix.js');
+        // Importa função de comprovante (com cache bust)
+        const timestamp = new Date().getTime();
+        const { gerarComprovanteVenda } = await import(`./pix.js?v=${timestamp}`);
         
         // Gera e exibe o comprovante
         await gerarComprovanteVenda(dados.carrinho, {
@@ -1774,7 +1797,8 @@ window.confirmarRecebimentoDinheiro = async function() {
             throw new Error(`Erro ao confirmar recebimento: ${response.status} - ${errorText}`);
         }
 
-        const vendaConfirmada = await response.json();
+        const responseJson = await response.json();
+        const vendaConfirmada = responseJson.data || responseJson;
         console.log('[Dinheiro] ✅ Recebimento confirmado com sucesso!', vendaConfirmada);
         
         // Recupera carrinho
@@ -1828,6 +1852,70 @@ window.fecharModalDinheiro = function() {
         document.body.style.overflow = '';
     }
     window.dadosPedidoDinheiro = null;
+};
+
+/**
+ * Formata input como moeda (R$)
+ */
+window.formatarMoedaInput = function(input) {
+    let valor = input.value.replace(/\D/g, '');
+    if (!valor) {
+        input.value = '';
+        atualizarAcrescimo();
+        return;
+    }
+    valor = (parseInt(valor) / 100).toFixed(2) + '';
+    valor = valor.replace('.', ',');
+    valor = valor.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+    input.value = valor;
+    
+    // Atualiza o acréscimo no carrinho
+    atualizarAcrescimo();
+};
+
+/**
+ * Alterna visibilidade da seção de acréscimos
+ */
+window.toggleAcrescimos = function() {
+    const container = document.getElementById('container-acrescimos');
+    const seta = document.getElementById('seta-acrescimo');
+    
+    if (container.classList.contains('hidden')) {
+        container.classList.remove('hidden');
+        seta.style.transform = 'rotate(180deg)';
+    } else {
+        container.classList.add('hidden');
+        seta.style.transform = 'rotate(0deg)';
+    }
+};
+
+/**
+ * Atualiza dados do acréscimo no carrinho
+ */
+function atualizarAcrescimo() {
+    const valorInput = document.getElementById('input-acrescimo-valor')?.value || '0,00';
+    const tipo = document.getElementById('input-acrescimo-tipo')?.value || ''; // Verifica se o ID está correto
+    const obs = document.getElementById('input-acrescimo-obs')?.value || '';
+    
+    // Converte valor
+    let valor = valorInput.replace(/\./g, '').replace(',', '.');
+    valor = parseFloat(valor) || 0;
+    
+    setAcrescimo(valor, tipo, obs);
+    
+    // Atualiza total visualmente
+    const total = calcularTotalCarrinho();
+    const elTotal = document.getElementById('valor-total-carrinho');
+    if (elTotal) {
+        // Formata moeda
+        const valorFormatado = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        elTotal.textContent = valorFormatado;
+    }
+}
+
+// Exponha calcularTotalCarrinho para o HTML também, mas encapsulado para atualizar a UI
+window.calcularTotalCarrinho = function() {
+    atualizarAcrescimo();
 };
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
