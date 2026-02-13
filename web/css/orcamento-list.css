@@ -282,20 +282,3 @@ a:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
-
-/* ============== DARK MODE (Opcional) ============== */
-
-@media (prefers-color-scheme: dark) {
-  /* Mantém tema claro para impressão */
-  @media not print {
-    .orcamento-card {
-      background-color: #1f2937;
-      border-color: #374151;
-    }
-
-    .orcamento-card h3,
-    .orcamento-card p {
-      color: #f3f4f6;
-    }
-  }
-}

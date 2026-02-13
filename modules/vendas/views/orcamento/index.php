@@ -106,8 +106,8 @@ $this->params['breadcrumbs'][] = $this->title;
                             <!-- Header do Card -->
                             <div class="flex justify-between items-start mb-4">
                                 <div>
-                                    <h3 class="text-lg font-bold text-blue-700">Orçamento #<?= Html::encode($model->id) ?></h3>
-                                    <p class="text-sm text-gray-600 font-medium"><?= Yii::$app->formatter->asDate($model->data_criacao) ?></p>
+                                    <h3 class="text-lg font-black text-blue-900" style="color: #1e3a8a !important; opacity: 1 !important;">Orçamento #<?= Html::encode($model->id) ?></h3>
+                                    <p class="text-sm text-gray-900 font-bold" style="color: #111827 !important; opacity: 1 !important;"><?= Yii::$app->formatter->asDate($model->data_criacao) ?></p>
                                 </div>
                                 <span class="px-2 py-1 text-xs font-semibold rounded-full <?= $model->status === 'CONVERTIDO' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800' ?>">
                                     <?= Html::encode($model->status) ?>
@@ -116,16 +116,16 @@ $this->params['breadcrumbs'][] = $this->title;
 
                             <!-- Informações do Cliente -->
                             <div class="mb-4">
-                                <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Cliente:</p>
-                                <p class="text-base font-semibold text-gray-800">
+                                <p class="text-xs text-gray-900 uppercase font-black mb-1" style="color: #000000 !important; opacity: 1 !important;">Cliente:</p>
+                                <p class="text-base font-black text-black" style="color: #000000 !important; opacity: 1 !important;">
                                     <?= Html::encode($model->cliente ? ($model->cliente->nome_completo ?? $model->cliente->nome ?? 'Cliente não informado') : 'Cliente não informado') ?>
                                 </p>
                             </div>
 
                             <!-- Valor Total -->
-                            <div class="mb-4 pb-4 border-b border-gray-200">
-                                <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Valor Total:</p>
-                                <p class="text-2xl font-bold text-green-600">
+                            <div class="mb-4 pb-4 border-b border-gray-300">
+                                <p class="text-xs text-gray-900 uppercase font-black mb-1" style="color: #000000 !important; opacity: 1 !important;">Valor Total:</p>
+                                <p class="text-3xl font-black text-green-800" style="color: #065f46 !important; opacity: 1 !important;">
                                     R$ <?= Yii::$app->formatter->asDecimal($model->valor_total, 2) ?>
                                 </p>
                             </div>

@@ -55,9 +55,14 @@
         background: white;
     }
     .recibo-body {
-        width: 80mm; /* Padrão térmica se imprimir em A4 */
+        width: 100%;
+        max-width: 150mm; /* Espaçamento ideal para A4 sem espremer o texto */
         margin: 0 auto;
-        padding: 10px;
+        padding: 20px;
+        font-size: 11pt;
+    }
+    .recibo-body table th, .recibo-body table td {
+        font-size: 10pt;
     }
     /* Oculta botões do modal na impressão */
     #modal-comprovante button, 

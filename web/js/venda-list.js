@@ -145,7 +145,7 @@ function _renderHTMLRecibo(venda, empresa) {
     const dataHora = new Date(venda.data_criacao).toLocaleString('pt-BR');
     
     return `
-        <div class="recibo-body font-mono text-gray-900">
+        <div class="recibo-body font-sans text-gray-900 px-2">
             <!-- Cabeçalho -->
             <div class="text-center border-b border-gray-200 pb-4 mb-4">
                 <h2 class="text-xl font-bold uppercase">${empresa.nome_loja || empresa.nome}</h2>
@@ -173,10 +173,10 @@ function _renderHTMLRecibo(venda, empresa) {
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b border-gray-300">
-                            <th class="text-left py-1">Item</th>
-                            <th class="text-center py-1">Qt</th>
-                            <th class="text-right py-1">Vlr</th>
-                            <th class="text-right py-1">Total</th>
+                            <th class="text-left py-1 font-bold">Item</th>
+                            <th class="text-center py-1 font-bold">Qt</th>
+                            <th class="text-right py-1 font-bold">Vlr</th>
+                            <th class="text-right py-1 font-bold">Total</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -220,7 +220,11 @@ window.fecharModalComprovante = function() {
 }
 
 window.imprimirNormal = function() {
-    window.print();
+    if (!window.dadosVendaAtual) return;
+    const vendaId = window.dadosVendaAtual.id;
+    const baseUrl = window.BASE_URL || window.location.origin;
+    const url = `${baseUrl}/vendas/venda/imprimir?id=${vendaId}`;
+    window.open(url, '_blank');
 }
 
 window.imprimirTermica = async function() {
