@@ -89,24 +89,53 @@ class UsuarioController extends Controller
      * Retorna dados completos da loja para comprovantes
      * PRIORIZA: loja_configuracao (centralizado) > prest_usuarios (fallback)
      */
-    public function actionDadosLoja($usuario_id)
+    public function actionDadosLoja($usuario_id = null)
     {
         try {
-            if (empty($usuario_id)) {
-                Yii::$app->response->statusCode = 400;
-                return ['erro' => 'Parâmetro usuario_id é obrigatório'];
+            // ✅ IDENTIFICAÇÃO INTELIGENTE DO ID DA LOJA (OWNER)
+            $lojaId = $usuario_id;
+
+            // 1. Se o usuário logado for um colaborador, usamos o ID do DONO
+            $colaboradorLogado = \app\modules\vendas\models\Colaborador::getColaboradorLogado();
+            if ($colaboradorLogado) {
+                $lojaId = $colaboradorLogado->usuario_id;
+            }
+            // 2. Se não logado mas passou um ID, verifica se esse ID é de um colaborador
+            elseif (!empty($lojaId)) {
+                $checkColab = \app\modules\vendas\models\Colaborador::find()
+                    ->where(['prest_usuario_login_id' => $lojaId])
+                    ->one();
+                if ($checkColab) {
+                    $lojaId = $checkColab->usuario_id;
+                }
+            }
+            // 3. Fallback para o próprio usuário logado se for dono
+            elseif (!Yii::$app->user->isGuest) {
+                $lojaId = Yii::$app->user->id;
             }
 
-            // ✅ PRIORIDADE 1: Busca configuração centralizada
-            $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $usuario_id]);
+            if (empty($lojaId)) {
+                // Se ainda não temos um ID, tenta pegar qualquer loja configurada (fallback extremo)
+                $firstConfig = \app\modules\vendas\models\LojaConfiguracao::find()->one();
+                if ($firstConfig) {
+                    $lojaId = $firstConfig->usuario_id;
+                } else {
+                    Yii::$app->response->statusCode = 400;
+                    return ['erro' => 'Não foi possível identificar o ID da loja'];
+                }
+            }
+
+            // ✅ PRIORIDADE 1: Busca na tabela loja_configuracao (Configuração Centralizada)
+            $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $lojaId]);
 
             if ($lojaConfig) {
-                // Dados centralizados encontrados - usa eles!
                 return [
-                    'nome' => $lojaConfig->razao_social ?? $lojaConfig->nome_loja,
+                    'nome' => $lojaConfig->nome_loja,
                     'nome_loja' => $lojaConfig->nome_loja,
+                    'razao_social' => $lojaConfig->razao_social,
                     'cpf_cnpj' => $lojaConfig->cpf_cnpj,
                     'telefone' => $lojaConfig->telefone,
+                    'celular' => $lojaConfig->celular,
                     'email' => $lojaConfig->email,
                     'endereco' => $lojaConfig->logradouro . ($lojaConfig->numero ? ', ' . $lojaConfig->numero : ''),
                     'bairro' => $lojaConfig->bairro,
@@ -115,45 +144,34 @@ class UsuarioController extends Controller
                     'cep' => $lojaConfig->cep,
                     'endereco_completo' => $lojaConfig->getEnderecoCompleto(),
                     'logo_path' => $lojaConfig->logo_path,
-                    // Dados adicionais
                     'inscricao_estadual' => $lojaConfig->inscricao_estadual,
                     'inscricao_municipal' => $lojaConfig->inscricao_municipal,
-                    'celular' => $lojaConfig->celular,
                     'site' => $lojaConfig->site,
                 ];
             }
 
-            // ⚠️ FALLBACK: Se não tem config centralizada, busca de prest_usuarios (legado)
+            // ⚠️ FALLBACK: Busca em prest_usuarios (Configuração Legada)
             $sql = "
                 SELECT 
-                    id,
-                    nome,
-                    cpf,
-                    telefone,
-                    email,
-                    endereco,
-                    bairro,
-                    cidade,
-                    estado,
-                    logo_path
+                    id, nome, cpf, telefone, email, endereco, bairro, cidade, estado, logo_path
                 FROM prest_usuarios
                 WHERE id = :id::uuid
                 LIMIT 1
             ";
 
             $usuario = Yii::$app->db->createCommand($sql, [
-                ':id' => $usuario_id
+                ':id' => $lojaId
             ])->queryOne();
 
             if (!$usuario) {
                 Yii::$app->response->statusCode = 404;
-                return ['erro' => 'Usuário não encontrado'];
+                return ['erro' => 'Configuração da loja não encontrada'];
             }
 
-            // Busca configuração da loja (se existir)
-            $config = \app\modules\vendas\models\Configuracao::findOne(['usuario_id' => $usuario_id]);
+            // Busca configuração da loja secundária (se existir)
+            $config = \app\modules\vendas\models\Configuracao::findOne(['usuario_id' => $lojaId]);
 
-            // Monta endereço completo a partir dos campos individuais
+            // Monta endereço completo
             $enderecoPartes = array_filter([
                 $usuario['endereco'] ?? '',
                 $usuario['bairro'] ?? '',
@@ -162,16 +180,9 @@ class UsuarioController extends Controller
             ]);
             $enderecoCompleto = !empty($enderecoPartes) ? implode(', ', $enderecoPartes) : ($config->endereco_completo ?? '');
 
-            // Logo: prioriza prest_configuracoes, depois prest_usuarios
-            $logoPath = '';
-            if ($config && !empty($config->logo_path)) {
-                $logoPath = $config->logo_path;
-            } elseif (!empty($usuario['logo_path'])) {
-                $logoPath = $usuario['logo_path'];
-            }
-
             return [
                 'nome' => $usuario['nome'] ?? 'Loja',
+                'nome_loja' => $config->nome_loja ?? $usuario['nome'] ?? 'Loja',
                 'cpf_cnpj' => $usuario['cpf'] ?? '',
                 'telefone' => $usuario['telefone'] ?? '',
                 'email' => $usuario['email'] ?? '',
@@ -180,8 +191,7 @@ class UsuarioController extends Controller
                 'cidade' => $usuario['cidade'] ?? '',
                 'estado' => $usuario['estado'] ?? '',
                 'endereco_completo' => $enderecoCompleto,
-                'logo_path' => $logoPath,
-                'nome_loja' => $config ? ($config->nome_loja ?? $usuario['nome'] ?? 'Loja') : ($usuario['nome'] ?? 'Loja'),
+                'logo_path' => (!empty($config->logo_path)) ? $config->logo_path : ($usuario['logo_path'] ?? ''),
             ];
         } catch (\Exception $e) {
             Yii::$app->response->statusCode = 500;
@@ -221,22 +231,19 @@ class UsuarioController extends Controller
                 'colaborador' => null,
             ];
 
-            // Buscar colaborador associado ao usuário (se for vendedor)
-            $colaborador = Colaborador::find()
-                ->where(['usuario_id' => $usuario->id])
-                ->andWhere(['eh_vendedor' => true])
-                ->andWhere(['ativo' => true])
-                ->one();
+            // Buscar colaborador associado ao usuário logado (usando helper estático)
+            $colaborador = Colaborador::getColaboradorLogado();
 
             if ($colaborador) {
                 $dados['colaborador'] = [
                     'id' => $colaborador->id,
+                    'usuario_id' => $colaborador->usuario_id, // ID do Dono da Loja
                     'nome_completo' => $colaborador->nome_completo,
                     'cpf' => $colaborador->cpf,
                     'telefone' => $colaborador->telefone,
                     'email' => $colaborador->email,
-                    'eh_vendedor' => $colaborador->eh_vendedor,
-                    'percentual_comissao_venda' => $colaborador->percentual_comissao_venda,
+                    'eh_vendedor' => (bool)$colaborador->eh_vendedor,
+                    'percentual_comissao_venda' => (float)$colaborador->percentual_comissao_venda,
                 ];
             }
 

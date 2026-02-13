@@ -10,6 +10,7 @@ use yii\behaviors\TimestampBehavior;
 use app\modules\vendas\models\Cliente;
 use app\models\Usuario;
 use app\modules\vendas\models\OrcamentoItem;
+
 /**
  * ============================================================================================================
  * Model: Orcamento
@@ -47,7 +48,7 @@ class Orcamento extends ActiveRecord
      */
     public static function tableName()
     {
-        return 'prest_orcamentos';
+        return 'orcamentos';
     }
 
     /**

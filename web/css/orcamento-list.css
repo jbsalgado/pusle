@@ -1,0 +1,301 @@
+/**
+ * orcamento-list.css
+ * Estilos para visualizações Grid/Card e modal de comprovante
+ */
+
+/* ============== TOGGLE DE VISUALIZAÇÃO ============== */
+
+.view-toggle-btn {
+  color: #6b7280;
+  background-color: transparent;
+}
+
+.view-toggle-btn:hover {
+  color: #374151;
+  background-color: #f3f4f6;
+}
+
+.view-toggle-btn.active {
+  color: #ffffff;
+  background-color: #7c3aed;
+}
+
+.view-toggle-btn svg {
+  vertical-align: middle;
+}
+
+/* ============== CONTAINERS DE VISUALIZAÇÃO ============== */
+
+.view-container {
+  transition: opacity 0.2s ease-in-out;
+}
+
+.view-container.hidden {
+  display: none;
+}
+
+/* ============== CARDS DE ORÇAMENTO ============== */
+
+.orcamento-card {
+  transition: all 0.3s ease;
+  border: 1px solid #e5e7eb;
+}
+
+.orcamento-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* ============== MODAL DE COMPROVANTE ============== */
+
+#modal-comprovante {
+  backdrop-filter: blur(4px);
+}
+
+#modal-comprovante > div {
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============== COMPROVANTE ============== */
+
+#comprovante-container {
+  font-family: "Courier New", monospace;
+  line-height: 1.6;
+}
+
+#comprovante-container table {
+  border-collapse: collapse;
+}
+
+#comprovante-container th,
+#comprovante-container td {
+  padding: 0.5rem;
+}
+
+/* ============== RESPONSIVIDADE ============== */
+
+/* Mobile */
+@media (max-width: 640px) {
+  .view-toggle-btn {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .view-toggle-btn svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .orcamento-card {
+    padding: 1rem;
+  }
+}
+
+/* Tablet */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .orcamento-card {
+    padding: 1.25rem;
+  }
+}
+
+/* ============== ESTILOS DE IMPRESSÃO ============== */
+
+@media print {
+  /* Oculta elementos desnecessários */
+  body > *:not(#modal-comprovante) {
+    display: none !important;
+  }
+
+  #modal-comprovante {
+    position: static !important;
+    background: none !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  #modal-comprovante > div {
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* Oculta header e footer do modal */
+  #modal-comprovante .sticky {
+    display: none !important;
+  }
+
+  /* Ajusta container do comprovante */
+  #comprovante-container {
+    padding: 0 !important;
+  }
+
+  /* Remove bordas e sombras */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Força cores de texto para preto */
+  body,
+  #comprovante-container,
+  #comprovante-container * {
+    color: #000 !important;
+  }
+
+  /* Remove backgrounds */
+  #comprovante-container,
+  #comprovante-container * {
+    background: transparent !important;
+  }
+
+  /* Ajusta tamanho da página */
+  @page {
+    size: A4;
+    margin: 1cm;
+  }
+
+  /* Evita quebras de página indesejadas */
+  table,
+  tr,
+  td,
+  th {
+    page-break-inside: avoid;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    page-break-after: avoid;
+  }
+}
+
+/* ============== IMPRESSÃO TÉRMICA (80mm) ============== */
+
+@media print and (max-width: 80mm) {
+  @page {
+    size: 80mm auto;
+    margin: 5mm;
+  }
+
+  body {
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  #comprovante-container {
+    width: 70mm;
+    font-size: 12px;
+  }
+
+  #comprovante-container h2 {
+    font-size: 14px;
+  }
+
+  #comprovante-container h3 {
+    font-size: 13px;
+  }
+
+  #comprovante-container table {
+    font-size: 11px;
+  }
+}
+
+/* ============== ANIMAÇÕES ============== */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+/* ============== LOADING SPINNER ============== */
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* ============== UTILITÁRIOS ============== */
+
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.transition-colors {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.transition-shadow {
+  transition-property: box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* ============== ACESSIBILIDADE ============== */
+
+/* Foco visível para navegação por teclado */
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #7c3aed;
+  outline-offset: 2px;
+}
+
+/* Reduz movimento para usuários com preferência */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============== DARK MODE (Opcional) ============== */
+
+@media (prefers-color-scheme: dark) {
+  /* Mantém tema claro para impressão */
+  @media not print {
+    .orcamento-card {
+      background-color: #1f2937;
+      border-color: #374151;
+    }
+
+    .orcamento-card h3,
+    .orcamento-card p {
+      color: #f3f4f6;
+    }
+  }
+}

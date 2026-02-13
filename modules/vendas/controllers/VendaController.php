@@ -3,14 +3,18 @@
 namespace app\modules\vendas\controllers;
 
 use Yii;
-use app\modules\vendas\models\Orcamento;
+use app\modules\vendas\models\Venda;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\filters\VerbFilter;
 use yii\filters\AccessControl;
 use yii\data\ActiveDataProvider;
+use yii\web\Response;
 
-class OrcamentoController extends Controller
+/**
+ * Controller para listagem de vendas efetivadas
+ */
+class VendaController extends Controller
 {
     public function behaviors()
     {
@@ -33,25 +37,29 @@ class OrcamentoController extends Controller
         ];
     }
 
+    /**
+     * Listagem de vendas com Grid e Card
+     */
     public function actionIndex()
     {
+        $usuarioId = Yii::$app->user->id;
+
         $dataProvider = new ActiveDataProvider([
-            'query' => Orcamento::find()
-                ->where(['usuario_id' => Yii::$app->user->id])
-                ->with(['cliente', 'venda']),
+            'query' => Venda::find()
+                ->where(['usuario_id' => $usuarioId])
+                ->with(['cliente', 'formaPagamento']),
             'pagination' => ['pageSize' => 20],
             'sort' => ['defaultOrder' => ['data_criacao' => SORT_DESC]],
         ]);
 
-        // Registra CSS
+        // Registra assets específicos (serão criados)
         $this->view->registerCssFile(
-            '@web/css/orcamento-list.css',
+            '@web/css/venda-list.css',
             ['depends' => [\yii\web\YiiAsset::class]]
         );
 
-        // Registra JS
         $this->view->registerJsFile(
-            '@web/js/orcamento-list.js',
+            '@web/js/venda-list.js',
             ['depends' => [\yii\web\JqueryAsset::class]]
         );
 
@@ -61,64 +69,55 @@ class OrcamentoController extends Controller
     }
 
     /**
-     * Retorna detalhes completos de um orçamento para impressão
-     * @param int $id
-     * @return array JSON
+     * Retorna detalhes completos de uma venda para impressão (API JSON)
      */
     public function actionDetalhes($id)
     {
-        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+        Yii::$app->response->format = Response::FORMAT_JSON;
 
         $model = $this->findModel($id);
 
-        // Carrega itens com produtos
         $itens = [];
         foreach ($model->itens as $item) {
             $itens[] = [
                 'nome' => $item->produto ? $item->produto->nome : 'Produto',
                 'quantidade' => (float) $item->quantidade,
-                'preco' => (float) $item->preco_unitario,
-                'preco_final' => (float) $item->preco_unitario,
-                'subtotal' => (float) $item->subtotal, // orcamento_itens usa 'subtotal'
+                'preco' => (float) $item->preco_unitario_venda,
+                'subtotal' => (float) $item->valor_total_item,
             ];
         }
 
-        // Dados do cliente se houver
         $cliente = null;
         if ($model->cliente) {
             $cliente = [
-                'nome' => $model->cliente->nome_completo ?? $model->cliente->nome ?? '',
+                'nome' => $model->cliente->nome_completo ?? '',
                 'cpf' => $model->cliente->cpf ?? '',
                 'telefone' => $model->cliente->telefone ?? '',
-                'endereco' => $model->cliente->endereco_logradouro ?? $model->cliente->endereco ?? '',
-                'numero' => $model->cliente->endereco_numero ?? $model->cliente->numero ?? '',
-                'complemento' => $model->cliente->endereco_complemento ?? $model->cliente->complemento ?? '',
-                'bairro' => $model->cliente->endereco_bairro ?? $model->cliente->bairro ?? '',
-                'cidade' => $model->cliente->endereco_cidade ?? $model->cliente->cidade ?? '',
-                'estado' => $model->cliente->endereco_estado ?? $model->cliente->estado ?? '',
-                'cep' => $model->cliente->endereco_cep ?? $model->cliente->cep ?? '',
+                'endereco' => $model->cliente->endereco_logradouro ?? '',
+                'numero' => $model->cliente->endereco_numero ?? '',
+                'bairro' => $model->cliente->endereco_bairro ?? '',
+                'cidade' => $model->cliente->endereco_cidade ?? '',
+                'estado' => $model->cliente->endereco_estado ?? '',
             ];
         }
 
         return [
             'id' => $model->id,
-            'usuario_id' => $model->usuario_id, // ID do Dono da Loja
+            'usuario_id' => $model->usuario_id, // Identificador da loja
             'valor_total' => (float) $model->valor_total,
-            'status' => $model->status,
             'data_criacao' => $model->data_criacao,
-            'observacoes' => $model->observacoes,
+            'status' => $model->status_venda_codigo, // Ex: QUITADA
+            'forma_pagamento' => $model->formaPagamento ? $model->formaPagamento->nome : 'N/A',
             'cliente' => $cliente,
             'itens' => $itens,
-            'forma_pagamento' => 'A Combinar',
-            'numero_parcelas' => 1,
         ];
     }
 
     protected function findModel($id)
     {
-        if (($model = Orcamento::findOne(['id' => $id, 'usuario_id' => Yii::$app->user->id])) !== null) {
+        if (($model = Venda::findOne(['id' => $id, 'usuario_id' => Yii::$app->user->id])) !== null) {
             return $model;
         }
-        throw new NotFoundHttpException('A página solicitada não existe.');
+        throw new NotFoundHttpException('Venda não encontrada.');
     }
 }

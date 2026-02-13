@@ -32,7 +32,7 @@ class OrcamentoItem extends ActiveRecord
      */
     public static function tableName()
     {
-        return 'prest_orcamento_itens';
+        return 'orcamento_itens';
     }
 
     /**

@@ -1,0 +1,87 @@
+/**
+ * venda-list.css
+ * Estilos para visualização Grid/Card de Vendas
+ */
+
+/* Toggle de Visualização */
+#btn-view-grid.active, #btn-view-card.active {
+    background-color: white;
+    color: #7c3aed; /* purple-600 */
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+#btn-view-grid:not(.active), #btn-view-card:not(.active) {
+    color: #6b7280; /* gray-500 */
+}
+
+#btn-view-grid:hover:not(.active), #btn-view-card:hover:not(.active) {
+    color: #374151; /* gray-700 */
+}
+
+/* Transições de View */
+.view-container {
+    transition: opacity 0.3s ease-in-out;
+}
+
+.view-container.hidden {
+    display: none;
+    opacity: 0;
+}
+
+/* Customização GridView */
+.grid-view table th {
+    white-space: nowrap;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+}
+
+/* Estilos de Impressão */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #modal-comprovante, #modal-comprovante * {
+        visibility: visible;
+    }
+    #modal-comprovante {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        background: white;
+    }
+    .recibo-body {
+        width: 80mm; /* Padrão térmica se imprimir em A4 */
+        margin: 0 auto;
+        padding: 10px;
+    }
+    /* Oculta botões do modal na impressão */
+    #modal-comprovante button, 
+    #modal-comprovante .bg-gray-50.px-6.py-4 {
+        display: none !important;
+    }
+}
+
+/* Design dos Cards */
+#view-card .bg-white:hover {
+    border-color: #ddd6fe; /* purple-200 */
+}
+
+/* Scrollbar Smooth */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #f9fafb;
+}
+::-webkit-scrollbar-thumb {
+    background: #e5e7eb;
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #d1d5db;
+}
