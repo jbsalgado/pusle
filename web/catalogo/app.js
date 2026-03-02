@@ -232,8 +232,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     ` : ''}
 
-                    <div class="h-48 w-full overflow-hidden bg-gray-100 ${!temEstoque ? 'opacity-60' : ''}">
-                        <img src="${urlImagem}" alt="${produto.nome || 'Produto'}" class="w-full h-full object-contain" onerror="this.src='https://via.placeholder.com/300x300.png?text=Erro';">
+                    <div class="h-56 w-full flex items-center justify-center bg-gray-50 p-3 overflow-hidden ${!temEstoque ? 'opacity-60' : ''}">
+                        <img src="${urlImagem}" alt="${produto.nome || 'Produto'}" class="max-h-full max-w-full object-contain drop-shadow-sm transition-transform duration-300 hover:scale-105" onerror="this.src='https://via.placeholder.com/300x300.png?text=Erro';">
                     </div>
                     <div class="p-4 flex flex-col flex-grow">
                         <h3 class="text-lg font-semibold text-gray-800 truncate">${produto.nome || 'Produto'}</h3>
@@ -1065,7 +1065,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Objeto Pedido validado e pronto para salvar:", pedido);
 
         try {
-            await idbKeyval.set('pedido_pendente', pedido);
+            await idbKeyval.set('pedido_pendente_pwa', pedido);
             console.log("Pedido salvo no IndexedDB");
         } catch (err) {
             console.error('Erro ao salvar pedido no IndexedDB:', err);
