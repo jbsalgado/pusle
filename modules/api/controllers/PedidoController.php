@@ -25,6 +25,7 @@ class PedidoController extends BaseController
         // Usa 'except' para garantir que confirmar-recebimento não exija autenticação
         $behaviors['authenticator'] = [
             'class' => \yii\filters\auth\HttpBearerAuth::class,
+            'optional' => ['create', 'index', 'parcelas', 'confirmar-recebimento'],
         ];
         // VerbFilter já é tratado pelo rest\Controller se configurado, mas mantemos local se necessário
         return $behaviors;

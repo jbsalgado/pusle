@@ -116,8 +116,8 @@ const ID_USUARIO_LOJA = getLojaId();
 const API_PRODUTO_URL = `${URL_API}/api/produto?usuario_id=${ID_USUARIO_LOJA}`;
 const API_PEDIDO_URL = `${URL_API}/api/pedido`;
 
-// ✅ AJUSTE: Incrementado para v12 (para forçar atualização após correção do usuario_id)
-const CACHE_NAME = 'catalogo-cache-v12'; 
+// ✅ AJUSTE: Incrementado para v13 (para forçar atualização)
+const CACHE_NAME = 'catalogo-cache-v13'; 
 
 const APP_SHELL_FILES = [
     `${URL_BASE_WEB}/catalogo/index.html`,

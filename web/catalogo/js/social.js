@@ -98,11 +98,6 @@ export function toggleSelecaoProduto(produto) {
         estado.produtosSelecionados.delete(produto.id);
         estado.produtosDados.delete(produto.id);
     } else {
-        // Limite de produtos para Story (ex: 4 para ficar bonito)
-        if (estado.produtosSelecionados.size >= 4) {
-            alert('Selecione no máximo 4 produtos para gerar um Story otimizado.');
-            return;
-        }
         estado.produtosSelecionados.add(produto.id);
         estado.produtosDados.set(produto.id, produto);
     }
@@ -210,137 +205,112 @@ async function gerarStory() {
     btn.innerHTML = '<span class="animate-spin mr-2">⏳</span> Gerando...';
 
     try {
-        // Criar container temporário para o Story
-        const container = document.createElement('div');
-        container.id = 'story-container-temp';
-        container.style.position = 'fixed'; // Fixed para não afetar layout mas ser renderizável
-        container.style.top = '0';
-        container.style.left = '-9999px'; // Fora da tela
-        container.style.width = '1080px';
-        container.style.height = '1920px';
-        container.style.background = 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)';
-        container.style.zIndex = '-1';
-        container.style.display = 'flex';
-        container.style.flexDirection = 'column';
-        container.style.fontFamily = 'Inter, sans-serif'; 
+        // Array para armazenar as imagens geradas em base64
+        const imagensGeradas = [];
         
         // Buscar logo
         const logoSrc = document.getElementById('logo-empresa')?.src || '';
         
-        // Construir HTML do Story
         const produtosArray = Array.from(estado.produtosDados.values());
         
-        let gridTemplate = '';
-        if (produtosArray.length === 1) gridTemplate = 'grid-cols-1 grid-rows-1';
-        else if (produtosArray.length === 2) gridTemplate = 'grid-cols-1 grid-rows-2';
-        else if (produtosArray.length === 3) gridTemplate = 'grid-cols-1 grid-rows-3'; // Ajustar layout
-        else gridTemplate = 'grid-cols-2 grid-rows-2';
-
-        const produtosHtml = produtosArray.map(p => {
-             // Tratamento da imagem do produto
-             let imgUrl = 'https://dummyimage.com/600x600/cccccc/ffffff.png&text=Sem+Foto';
-             if (p.fotos && p.fotos.length > 0) {
-                 // Resolver caminho da imagem
-                 const path = p.fotos[0].arquivo_path.replace(/^\//, '');
-                 const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
-                 imgUrl = `${baseUrl}/${path}`;
-             }
-
-             return `
-                <div class="bg-white p-8 rounded-3xl shadow-xl flex flex-col items-center justify-center h-full border border-gray-100 relative overflow-hidden">
-                    <img src="${imgUrl}" crossorigin="anonymous" class="w-64 h-64 object-contain mb-6" style="max-height: 60%;">
-                    <h2 class="text-4xl font-bold text-gray-800 text-center mb-4 leading-tight line-clamp-2">${p.nome}</h2>
-                    <div class="bg-blue-600 text-white text-5xl font-extrabold px-8 py-4 rounded-full shadow-lg transform scale-100">
-                        ${formatarMoeda(p.preco_venda_sugerido)}
+        // Para cada produto, cria um container individual temporário e faz o canvas
+        for (const p of produtosArray) {
+            const container = document.createElement('div');
+            container.style.position = 'fixed';
+            container.style.top = '0';
+            container.style.left = '-9999px';
+            container.style.width = '1080px';
+            // Uma proporção menor (ex: 1080x1350) se assemelha mais ao post do instagram ou folheto unitário, mas mantendo 1920 fica story
+            container.style.height = '1920px'; 
+            container.style.background = 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)';
+            container.style.zIndex = '-1';
+            container.style.display = 'flex';
+            container.style.flexDirection = 'column';
+            container.style.fontFamily = 'Inter, sans-serif'; 
+            
+            // Tratamento da imagem
+            let imgUrl = 'https://dummyimage.com/600x600/cccccc/ffffff.png&text=Sem+Foto';
+            if (p.fotos && p.fotos.length > 0) {
+                const path = p.fotos[0].arquivo_path.replace(/^\//, '');
+                const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
+                imgUrl = `${baseUrl}/${path}`;
+            }
+            
+            container.innerHTML = `
+                <div class="p-12 h-full flex flex-col relative bg-gradient-to-br from-gray-50 to-gray-200">
+                    <!-- Header -->
+                    <div class="flex flex-col items-center mb-10 pt-4">
+                         ${logoSrc ? `<img src="${logoSrc}" crossorigin="anonymous" class="h-32 w-auto object-contain mb-4 drop-shadow-md">` : '<h1 class="text-5xl font-black text-blue-900 tracking-tighter uppercase">Ofertas</h1>'}
+                         <div class="h-1.5 w-32 bg-blue-500 rounded-full"></div>
                     </div>
-                </div>
-             `;
-        }).join('');
 
-        container.innerHTML = `
-            <div class="p-12 h-full flex flex-col relative bg-gradient-to-br from-gray-50 to-gray-200">
-                <!-- Header -->
-                <div class="flex flex-col items-center mb-10 pt-4">
-                     ${logoSrc ? `<img src="${logoSrc}" crossorigin="anonymous" class="h-32 w-auto object-contain mb-4 drop-shadow-md">` : '<h1 class="text-5xl font-black text-blue-900 tracking-tighter uppercase">Ofertas</h1>'}
-                     <div class="h-1.5 w-32 bg-blue-500 rounded-full"></div>
-                </div>
-
-                <!-- Grid Produtos -->
-                <div class="grid ${gridTemplate} gap-6 flex-1 w-full px-4">
-                    ${produtosArray.map(p => {
-                        // Tratamento da imagem
-                        let imgUrl = 'https://dummyimage.com/600x600/cccccc/ffffff.png&text=Sem+Foto';
-                        if (p.fotos && p.fotos.length > 0) {
-                            const path = p.fotos[0].arquivo_path.replace(/^\//, '');
-                            const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
-                            imgUrl = `${baseUrl}/${path}`;
-                        }
-                        
-                        return `
-                        <div class="bg-white p-5 rounded-[2rem] shadow-xl flex flex-col h-full border border-gray-100 overflow-hidden relative group">
+                    <!-- Cartão Centralizado do Produto -->
+                    <div class="flex-1 w-full flex items-center justify-center px-4">
+                        <div class="bg-white p-10 rounded-[3rem] shadow-2xl flex flex-col w-full h-[85%] border border-gray-100 overflow-hidden relative group">
                             <!-- Área da Imagem com fundo suave -->
-                            <div class="h-[55%] w-full bg-gray-50 rounded-2xl flex items-center justify-center p-6 mb-4 relative overflow-hidden">
+                            <div class="h-[60%] w-full bg-gray-50 rounded-3xl flex items-center justify-center p-8 mb-8 relative overflow-hidden shadow-inner">
                                 <img src="${imgUrl}" crossorigin="anonymous" class="w-full h-full object-contain transform transition-transform duration-300">
                             </div>
                             
                             <!-- Informações -->
-                            <div class="flex-1 flex flex-col items-center text-center justify-between py-2">
-                                <h2 class="text-xl font-bold text-gray-800 leading-tight line-clamp-3 px-1 mb-1 w-full h-20 flex items-center justify-center">
+                            <div class="flex-1 flex flex-col items-center text-center justify-between py-6">
+                                <h2 class="text-4xl font-bold text-gray-800 leading-tight line-clamp-4 px-4 w-full h-auto flex items-center justify-center flex-1">
                                     ${p.nome}
                                 </h2>
                                 
-                                <div class="w-full mt-1">
-                                    <div class="inline-block bg-blue-600 text-white text-3xl font-bold px-6 py-2 rounded-xl shadow-md border-b-4 border-blue-800">
+                                <div class="w-full mt-8">
+                                    <div class="inline-block bg-blue-600 text-white text-6xl font-black px-12 py-6 rounded-3xl shadow-xl border-b-8 border-blue-800 tracking-tight">
                                         ${formatarMoeda(p.preco_venda_sugerido)}
                                     </div>
                                     ${p.estoque_atual > 0 ? 
-                                        `<div class="text-green-600 font-medium text-sm mt-2 flex items-center justify-center gap-1">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Disponível
+                                        `<div class="text-green-600 font-bold text-2xl mt-6 flex items-center justify-center gap-3">
+                                            <span class="w-4 h-4 rounded-full bg-green-500 shadow-sm"></span> Disponível
                                          </div>` : ''}
                                 </div>
                             </div>
                         </div>
-                        `;
-                    }).join('')}
-                </div>
+                    </div>
 
-                <!-- Footer Compacto -->
-                <div class="mt-10 mb-6 mx-4">
-                    <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl shadow-lg border border-white/50 flex items-center justify-between gap-6">
-                        <div class="flex-1">
-                            <p class="text-3xl font-bold text-gray-800">Gostou?</p>
-                            <p class="text-xl text-blue-600 font-medium">Peça pelo Link na Bio</p>
-                        </div>
-                        <div class="bg-blue-100 p-3 rounded-full">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
+                    <!-- Footer Compacto -->
+                    <div class="mt-10 mb-6 mx-4">
+                        <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl shadow-lg border border-white/50 flex items-center justify-between gap-6">
+                            <div class="flex-1">
+                                <p class="text-3xl font-bold text-gray-800">Gostou?</p>
+                                <p class="text-xl text-blue-600 font-medium">Peça pelo Link na Bio</p>
+                            </div>
+                            <div class="bg-blue-100 p-3 rounded-full">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        `;
+            `;
 
-        document.body.appendChild(container);
+            document.body.appendChild(container);
 
-        // Aguardar carregamento das imagens (importante para html2canvas)
-        // Check simples de tempo por segurança, mas idealmente verificaria 'load' das imagens
-        await new Promise(resolve => setTimeout(resolve, 1500)); 
+            // Aguardar um instante para os assets (fontes/imagens) estabilizarem nessa iteração
+            await new Promise(resolve => setTimeout(resolve, 600)); 
 
-        // Gerar Canvas
-        const canvas = await html2canvas(container, {
-            useCORS: true, // Permitir imagens externas se configurado CORS corretamente
-            allowTaint: true,
-            scale: 1, // 1080p nativo
-            backgroundColor: null
-        });
+            // Gerar Canvas unitário
+            const canvas = await html2canvas(container, {
+                useCORS: true,
+                allowTaint: true,
+                scale: 1,
+                backgroundColor: null,
+                logging: false
+            });
 
-        // Remover container temporário
-        document.body.removeChild(container);
+            // Remover container temporário
+            document.body.removeChild(container);
+            
+            // Adicionar à lista
+            imagensGeradas.push(canvas.toDataURL('image/png'));
+        }
 
-        // Mostrar no Modal de Preview
-        const imgData = canvas.toDataURL('image/png');
-        mostrarModalPreview(imgData);
+        // Mostrar no Modal de Preview a série de imagens geradas
+        mostrarModalPreview(imagensGeradas);
 
     } catch (error) {
         console.error('[Social] Erro ao gerar story:', error);
@@ -354,10 +324,7 @@ async function gerarStory() {
 /**
  * Mostra modal com preview da imagem gerada
  */
-function mostrarModalPreview(imgData) {
-    // Reutilizar modal de comprovante modificando o conteúdo ou criar um novo
-    // Vamos criar/usar um modal específico injetado dinamicamente para simplificar
-    
+function mostrarModalPreview(imagensGeradas) {
     let modal = document.getElementById('modal-social-preview');
     if (!modal) {
         modal = document.createElement('div');
@@ -366,18 +333,15 @@ function mostrarModalPreview(imgData) {
             <div class="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
                 <div class="bg-white rounded-2xl max-w-sm w-full max-h-[90vh] flex flex-col overflow-hidden">
                     <div class="p-4 border-b flex justify-between items-center">
-                        <h3 class="font-bold text-lg">Preview do Story</h3>
+                        <h3 class="font-bold text-lg">Preview (${imagensGeradas.length} Cards)</h3>
                         <button onclick="document.getElementById('modal-social-preview').classList.add('hidden')" class="text-gray-500 text-2xl">&times;</button>
                     </div>
-                    <div class="flex-1 overflow-y-auto p-4 bg-gray-100 flex justify-center">
-                        <img id="img-social-preview" src="" class="max-w-full shadow-lg rounded-lg h-auto" style="max-height: 60vh;">
+                    <div id="container-imagens-preview" class="flex-1 overflow-y-auto p-4 bg-gray-100 flex flex-col items-center gap-6">
+                        <!-- Imagens injetadas via JS -->
                     </div>
-                    <div class="p-4 border-t bg-gray-50 grid grid-cols-2 gap-3">
-                         <button id="btn-social-baixar" class="bg-gray-800 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-black">
-                            📥 Baixar
-                         </button>
-                         <button id="btn-social-share" class="bg-green-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700">
-                            📲 Postar
+                    <div class="p-4 border-t bg-gray-50 flex flex-col gap-3">
+                         <button id="btn-social-baixar" class="w-full bg-gray-800 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-black">
+                            📥 Baixar Todos
                          </button>
                     </div>
                 </div>
@@ -386,33 +350,34 @@ function mostrarModalPreview(imgData) {
         document.body.appendChild(modal);
     }
     
-    const img = modal.querySelector('#img-social-preview');
-    img.src = imgData;
+    // Atualiza título com contagem
+    modal.querySelector('h3').textContent = `Preview (${imagensGeradas.length} Cards)`;
+    
+    const containerImagens = modal.querySelector('#container-imagens-preview');
+    containerImagens.innerHTML = ''; // Limpa pra não duplicar aberturas repetidas
+    
+    // Injeta as imagens em série
+    imagensGeradas.forEach((imgData, idx) => {
+        const imgEl = document.createElement('img');
+        imgEl.src = imgData;
+        imgEl.className = "max-w-full shadow-lg rounded-lg h-auto border border-gray-200";
+        imgEl.style.maxHeight = "60vh";
+        containerImagens.appendChild(imgEl);
+    });
     
     const btnBaixar = modal.querySelector('#btn-social-baixar');
-    btnBaixar.onclick = () => {
-        const link = document.createElement('a');
-        link.download = `story-catalogo-${Date.now()}.png`;
-        link.href = imgData;
-        link.click();
-    };
-    
-    const btnShare = modal.querySelector('#btn-social-share');
-    btnShare.onclick = async () => {
-        try {
-            const blob = await (await fetch(imgData)).blob();
-            const file = new File([blob], 'story.png', { type: 'image/png' });
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    files: [file],
-                    title: 'Confira nossas ofertas!',
-                    text: 'Ofertas especiais do catálogo'
-                });
-            } else {
-                alert('Seu navegador não suporta compartilhamento direto de imagem. Use a opção Baixar.');
-            }
-        } catch (e) {
-            console.error('Erro ao compartilhar:', e);
+    btnBaixar.onclick = async () => {
+        // Rotina para forçar o download em lote
+        for (let i = 0; i < imagensGeradas.length; i++) {
+            const link = document.createElement('a');
+            link.download = `story-card-${i + 1}-${Date.now()}.png`;
+            link.href = imagensGeradas[i];
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            // Pequeno delay entre downloads ajuda navegadores a não bloquearem como spam
+            await new Promise(r => setTimeout(r, 600));
         }
     };
     

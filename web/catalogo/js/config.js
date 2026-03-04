@@ -5,7 +5,25 @@ const isProduction = window.location.hostname !== 'localhost' && window.location
 const getLojaId = () => {
     const pathname = window.location.pathname;
     const segments = pathname.split('/').filter(p => p);
-    const lojaPath = segments[segments.length - 1];
+    
+    // Procura o segmento 'catalogo'
+    const catIndex = segments.indexOf('catalogo');
+    let lojaPath = 'catalogo';
+    
+    if (catIndex > 0) {
+        // Se existe algo antes de 'catalogo', esse é o slug da loja
+        lojaPath = segments[catIndex - 1];
+    } else if (catIndex === 0) {
+        // Se 'catalogo' é o primeiro, usamos ele mesmo
+        lojaPath = 'catalogo';
+    } else {
+        // Fallback: pega o último segmento que não termina em .html
+        const cleanSegments = segments.filter(s => !s.endsWith('.html'));
+        lojaPath = cleanSegments[cleanSegments.length - 1] || 'catalogo';
+    }
+    
+    // Remove qualquer extensão caso tenha sobrado
+    lojaPath = lojaPath.split('.')[0];
     
     const lojaMap = {
         'catalogo': '5e449fee-4486-4536-a64f-74aed38a6987', // Top Construções
@@ -19,46 +37,25 @@ const getLojaId = () => {
 
 /**
  * Detecta automaticamente o caminho base da API a partir da URL atual
- * Remove /catalogo ou /catalogo/index do pathname e garante /index.php no final
  */
 const detectApiBaseUrl = () => {
     const pathname = window.location.pathname;
     
-    // Remove /catalogo ou /catalogo/index do final do path (se existir)
-    let basePath = pathname.replace(/\/catalogo(\/index)?(\/)?$/, '');
+    // O base path é tudo o que vem ANTES de '/catalogo'
+    const parts = pathname.split('/catalogo');
+    let basePath = parts[0];
     
-    // Se o path contém index.php, extrai tudo até /index.php
+    // Se o path contém index.php dentro do basePath (ex: /pulse/web/index.php/catalogo)
     if (basePath.includes('/index.php')) {
-        // Pega tudo até /index.php (incluindo)
         const match = basePath.match(/^(.+\/index\.php)/);
-        if (match) {
-            basePath = match[1];
-        } else {
-            // Se não encontrou padrão, tenta pegar o diretório que contém index.php
-            const parts = basePath.split('/index.php');
-            basePath = parts[0] + '/index.php';
-        }
-    } else {
-        // Se não tem index.php no path, pode estar usando pretty URLs
-        // Tenta encontrar o caminho base removendo o controller/action
-        // Remove barra final se existir
-        basePath = basePath.replace(/\/$/, '');
-        
-        // Se o path está vazio ou é apenas /, usa /index.php
-        if (!basePath || basePath === '/') {
-            basePath = '/index.php';
-        } else {
-            // Adiciona /index.php ao final do caminho base
-            basePath = basePath + '/index.php';
-        }
+        if (match) return match[1];
     }
     
-    // Garante que comece com /
-    if (!basePath.startsWith('/')) {
-        basePath = '/' + basePath;
-    }
+    // Remove barra final se existir
+    basePath = basePath.replace(/\/$/, '');
     
-    return basePath;
+    // Adiciona /index.php ao final
+    return (basePath || '') + '/index.php';
 };
 
 /**
@@ -67,10 +64,11 @@ const detectApiBaseUrl = () => {
 const detectWebBaseUrl = () => {
     const pathname = window.location.pathname;
     
-    // Remove /catalogo ou /catalogo/index do final do path (se existir)
-    let basePath = pathname.replace(/\/catalogo(\/index)?\/?$/, '');
+    // O base path é tudo o que vem ANTES de '/catalogo'
+    const parts = pathname.split('/catalogo');
+    let basePath = parts[0];
     
-    // Remove /index.php se existir
+    // Remove /index.php se existir no base path
     basePath = basePath.replace(/\/index\.php.*$/, '');
     
     // Remove barra final se existir
@@ -81,7 +79,6 @@ const detectWebBaseUrl = () => {
         basePath = '/' + basePath;
     }
     
-    // Se estiver vazio, retorna /
     return basePath || '/';
 };
 

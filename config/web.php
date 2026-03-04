@@ -113,6 +113,9 @@ $config = [
                 // Regras REST específicas para pedido - POST vai para create
                 'POST api/pedido' => 'api/pedido/create',
                 'GET api/pedido' => 'api/pedido/index',
+                // Regras REST específicas para cliente
+                'POST api/cliente' => 'api/cliente/create',
+                'GET api/cliente' => 'api/cliente/index',
                 // Regras genéricas para módulo API - suporta hífens em actions
                 'api/<controller:\w+>/<action:[\w-]+>' => 'api/<controller>/<action>',
                 'api/<controller:\w+>' => 'api/<controller>/index',

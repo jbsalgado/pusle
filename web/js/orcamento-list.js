@@ -429,11 +429,22 @@ async function _gerarTextoComprovanteContent(orcamentoId) {
         const total = parseFloat(item.subtotal || 0);
         
         texto += row(`${qtd}x ${preco.toFixed(2)}`, `R$ ${total.toFixed(2)}`) + '\n';
+
+        if (item.observacoes) {
+            const obs = removerAcentos(item.observacoes).toUpperCase();
+            texto += ' Obs: ' + obs + '\n';
+        }
     });
     
     texto += linhaSeparadora + '\n';
     texto += row('TOTAL', `R$ ${parseFloat(valorTotal).toFixed(2)}`) + '\n';
     texto += row('PAGAMENTO', removerAcentos(dadosOrcamento.forma_pagamento || 'A COMBINAR').toUpperCase()) + '\n';
+
+    if (dadosOrcamento.observacoes) {
+        texto += linhaSeparadora + '\n';
+        texto += 'OBSERVACOES:\n';
+        texto += removerAcentos(dadosOrcamento.observacoes).toUpperCase() + '\n';
+    }
     
     // Rodapé
     texto += '\n\n' + center('OBRIGADO PELA PREFERENCIA!') + '\n';

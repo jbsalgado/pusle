@@ -1621,6 +1621,11 @@ function gerarTextoComprovante() {
 
     texto +=
       row(`${qtd}x ${preco.toFixed(2)}`, `R$ ${totalItem.toFixed(2)}`) + "\n";
+
+    if (item.observacoes || item.observacao) {
+        const obs = removerAcentos(item.observacoes || item.observacao).toUpperCase();
+        texto += ' Obs: ' + obs + '\n';
+    }
   });
 
   texto += linhaSeparadora + "\n";

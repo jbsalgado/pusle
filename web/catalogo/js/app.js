@@ -201,15 +201,37 @@ async function registrarServiceWorker() {
                 
                 newWorker.addEventListener('statechange', () => {
                     if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        console.log('[SW] 📦 Nova versão instalada, recarregando...');
+                        console.log('[SW] 📦 Nova versão instalada, aguardando ativação...');
                         
-                        // Notificar usuário
-                        if (confirm('Nova versão disponível! Deseja atualizar agora?')) {
-                            newWorker.postMessage({ type: 'SKIP_WAITING' });
-                            window.location.reload();
+                        // Salva o worker globalmente para forceSystemUpdate
+                        window.newServiceWorker = newWorker;
+                        
+                        // Mostra o banner de atualização
+                        const bannerAtualizacao = document.getElementById('banner-atualizacao');
+                        if (bannerAtualizacao) {
+                            bannerAtualizacao.classList.remove('hidden');
                         }
                     }
                 });
+            });
+            
+            // Função global para forçar atualização
+            window.forceSystemUpdate = function() {
+                if (window.newServiceWorker) {
+                    window.newServiceWorker.postMessage({ type: 'SKIP_WAITING' });
+                } else {
+                    // Fallback se não houver worker pendente, apenas recarrega
+                    window.location.reload();
+                }
+            };
+            
+            // Recarregar a página quando o novo SW assumir o controle (após SKIP_WAITING)
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!refreshing) {
+                    refreshing = true;
+                    window.location.reload();
+                }
             });
             
         } catch (error) {
@@ -408,8 +430,10 @@ let metadadosPaginacao = null;
  */
 async function carregarProdutos(pagina = 1, forcarRecarregar = false) {
     try {
-        // Verifica cache primeiro (a menos que seja forçado recarregar)
-        if (!forcarRecarregar && cacheProdutos.has(pagina)) {
+        const termoBusca = document.getElementById('busca-produto')?.value?.trim() || '';
+        
+        // Verifica cache primeiro (a menos que seja forçado recarregar, ou se houver pesquisa)
+        if (!forcarRecarregar && !termoBusca && cacheProdutos.has(pagina)) {
             console.log(`[App] 📦 Usando cache da página ${pagina}`);
             const dadosCache = cacheProdutos.get(pagina);
             produtos = dadosCache.produtos;
@@ -426,8 +450,11 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false) {
         console.log('[App] 📦 Carregando produtos (página', pagina, ')...');
         mostrarCarregando();
         
-        // Usa per-page padrão de 20 (configurado no backend)
-        const url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}&page=${pagina}&per-page=20`;
+        // Usa per-page padrão de 100 (configurado no backend)
+        let url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}&page=${pagina}&per-page=100`;
+        if (termoBusca) {
+            url += `&q=${encodeURIComponent(termoBusca)}`;
+        }
         const response = await fetch(url);
         
         if (!response.ok) {
@@ -460,9 +487,9 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false) {
                 // Formato padrão do Yii2
                 metadados = {
                     totalCount: data._meta.totalCount || data._meta.total || 0,
-                    pageCount: data._meta.pageCount || Math.ceil((data._meta.totalCount || 0) / (data._meta.perPage || 20)) || 1,
+                    pageCount: data._meta.pageCount || Math.ceil((data._meta.totalCount || 0) / (data._meta.perPage || 100)) || 1,
                     currentPage: data._meta.currentPage || data._meta.page || pagina,
-                    perPage: data._meta.perPage || data._meta.pageSize || 20
+                    perPage: data._meta.perPage || data._meta.pageSize || 100
                 };
             } else if (data._links) {
                 // Tenta extrair dos links
@@ -474,13 +501,13 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false) {
                         totalCount: data._meta?.totalCount || 0,
                         pageCount: lastPage,
                         currentPage: pagina,
-                        perPage: 20
+                        perPage: 100
                     };
                 }
             } else {
                 // Fallback: calcula baseado nos items retornados
                 // Se retornou menos que per-page, é a última página
-                const perPage = 20;
+                const perPage = 100;
                 const totalEstimado = produtosPagina.length < perPage 
                     ? (pagina - 1) * perPage + produtosPagina.length
                     : null; // Não sabemos o total exato
@@ -511,18 +538,20 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false) {
                 totalCount: 0,
                 pageCount: 1,
                 currentPage: 1,
-                perPage: 20
+                perPage: 100
             };
         }
         
         // DEBUG: Log dos metadados extraídos
         console.log('[App] 🔍 DEBUG - Metadados extraídos:', metadados);
         
-        // Salva no cache
-        cacheProdutos.set(pagina, {
-            produtos: produtosPagina,
-            metadados: metadados
-        });
+        // Salva no cache apenas se não houver pesquisa
+        if (!termoBusca) {
+            cacheProdutos.set(pagina, {
+                produtos: produtosPagina,
+                metadados: metadados
+            });
+        }
         
         // Atualiza variáveis globais
         produtos = produtosPagina; // Apenas produtos da página atual
@@ -533,8 +562,8 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false) {
         
         console.log(`[App] ✅ Página ${pagina} carregada: ${produtosPagina.length} produto(s) de ${metadados.totalCount} total`);
         
-        // Renderiza apenas os produtos da página atual
-        filtrarProdutos(); // Aplica filtro atual (se houver)
+        // Renderiza apenas os produtos da página atual aplicando filtros locais
+        aplicarFiltrosLocais();
         atualizarIndicadoresCarrinho();
         atualizarControlesPaginacao();
         ocultarCarregando();
@@ -700,15 +729,7 @@ window.navegarPagina = function(direcao) {
     }
 };
 
-function filtrarProdutos() {
-    const termoBusca = document.getElementById('busca-produto')?.value?.toLowerCase().trim() || '';
-    const btnLimpar = document.getElementById('btn-limpar-busca');
-    
-    // Mostra/oculta botão de limpar busca
-    if (btnLimpar) {
-        btnLimpar.classList.toggle('hidden', !!termoBusca);
-    }
-    
+function aplicarFiltrosLocais() {
     // Filtro base: todos os produtos da página atual
     let listaFiltrada = produtos;
 
@@ -719,137 +740,57 @@ function filtrarProdutos() {
             window.FILTRO_IDS_SOCIAL.includes(String(p.id))
         );
         
-        // Se filtrou e não sobrou nada, talvez devêssemos avisar ou tentar carregar mais?
-        // Por enquanto, mostra apenas o que tem na página que coincide.
+        // Se filtrou e não sobrou nada, apenas mostra o que coincidir na página.
     }
 
-    // 2. Filtro por Busca (Nome)
-    if (termoBusca) {
-        listaFiltrada = listaFiltrada.filter(produto => 
-            produto.nome.toLowerCase().includes(termoBusca)
-        );
-    }
-    
     produtosFiltrados = listaFiltrada;
     renderizarProdutos(produtosFiltrados);
+}
+
+function filtrarProdutos() {
+    const termoBusca = document.getElementById('busca-produto')?.value?.trim() || '';
+    const btnLimpar = document.getElementById('btn-limpar-busca');
+    
+    // Mostra/oculta botão de limpar busca
+    if (btnLimpar) {
+        btnLimpar.classList.toggle('hidden', !!termoBusca);
+    }
+    
+    // Busca no backend a página 1 usando o termo atual
+    carregarProdutos(1, true);
 }
 
 function inicializarBuscaProdutos() {
     const inputBusca = document.getElementById('busca-produto');
     if (!inputBusca) return;
     
-    // CORREÇÃO AGRESSIVA: Limpar o campo imediatamente e continuamente
-    const limparSeCPF = () => {
-        const valor = inputBusca.value;
-        const valorLimpo = valor.replace(/[^\d]/g, '');
-        
-        // Se o valor tem exatamente 11 dígitos (CPF), limpa imediatamente
-        if (valorLimpo.length === 11 && /^\d{11}$/.test(valorLimpo)) {
-            console.log('[App] ⚠️ CPF detectado no campo de busca. Limpando:', valor);
-            inputBusca.value = '';
-            filtrarProdutos();
-            return true;
-        }
-        
-        // Se o valor tem formato de CPF com pontos e traço (XXX.XXX.XXX-XX)
-        if (/^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(valor)) {
-            console.log('[App] ⚠️ CPF formatado detectado no campo de busca. Limpando:', valor);
-            inputBusca.value = '';
-            filtrarProdutos();
-            return true;
-        }
-        
-        return false;
-    };
-    
-    // Limpa imediatamente ao inicializar
-    if (inputBusca.value) {
-        if (!limparSeCPF()) {
-            // Se não é CPF mas tem valor, verifica se parece com CPF
-            const valorLimpo = inputBusca.value.replace(/[^\d]/g, '');
-            if (valorLimpo.length === 11) {
-                console.log('[App] ⚠️ Valor suspeito no campo de busca. Limpando:', inputBusca.value);
-                inputBusca.value = '';
-            }
-        }
-    }
-    
-    // Desabilita autocomplete do navegador de todas as formas possíveis
+    // Desabilita autocomplete do navegador
     inputBusca.setAttribute('autocomplete', 'off');
     inputBusca.setAttribute('autocapitalize', 'off');
     inputBusca.setAttribute('autocorrect', 'off');
     inputBusca.setAttribute('spellcheck', 'false');
-    inputBusca.setAttribute('data-lpignore', 'true');
-    inputBusca.setAttribute('data-form-type', 'other');
-    inputBusca.setAttribute('data-1p-ignore', 'true');
     
-    // Muda o tipo para 'search' que tem comportamento diferente de autocomplete
+    // Muda o tipo para 'search'
     if (inputBusca.type !== 'search') {
         inputBusca.type = 'search';
     }
     
-    // Monitora mudanças no valor do campo (incluindo autocomplete)
-    let ultimoValor = inputBusca.value;
-    const observer = new MutationObserver(() => {
-        if (inputBusca.value !== ultimoValor) {
-            ultimoValor = inputBusca.value;
-            if (inputBusca.value) {
-                limparSeCPF();
-            }
-        }
-    });
+    let timeoutId;
     
-    observer.observe(inputBusca, {
-        attributes: true,
-        attributeFilter: ['value'],
-        childList: false,
-        subtree: false
-    });
-    
-    // Monitora mudanças via eventos
+    // Filtra com debounce
     inputBusca.addEventListener('input', (e) => {
-        if (limparSeCPF()) {
-            return; // Se limpou, não processa
-        }
-        
         clearTimeout(timeoutId);
         timeoutId = setTimeout(() => {
             filtrarProdutos();
         }, 300);
     });
     
-    // Limpa ao focar se detectar CPF
-    inputBusca.addEventListener('focus', (e) => {
-        limparSeCPF();
-    });
-    
-    // Limpa ao receber foco do navegador (autocomplete)
-    inputBusca.addEventListener('change', (e) => {
-        limparSeCPF();
-    });
-    
-    // Limpa quando o campo é preenchido automaticamente
-    let timeoutId;
-    const verificarAutocomplete = setInterval(() => {
-        if (inputBusca.value && inputBusca.value !== ultimoValor) {
-            ultimoValor = inputBusca.value;
-            limparSeCPF();
-        }
-    }, 100); // Verifica a cada 100ms
-    
-    // Para o intervalo quando a página é descarregada
-    window.addEventListener('beforeunload', () => {
-        clearInterval(verificarAutocomplete);
-        observer.disconnect();
-    });
-    
     // Filtra ao pressionar Enter
     inputBusca.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            if (!limparSeCPF()) {
-                filtrarProdutos();
-            }
+            clearTimeout(timeoutId);
+            filtrarProdutos();
         }
     });
 }
@@ -912,7 +853,7 @@ function renderizarProdutos(listaProdutos) {
             
             <img src="${urlImagem}" 
                  alt="${produto.nome}"
-                 class="w-full h-48 object-cover"
+                 class="w-full h-48 object-contain"
                  onerror="this.src='https://dummyimage.com/300x200/cccccc/ffffff.png&text=Erro'">
             
             <div class="p-4">

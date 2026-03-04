@@ -283,8 +283,8 @@ $this->registerCss('
 
         let texto = '';
         texto += center("<?= Html::encode($nomeLoja) ?>").toUpperCase() + '\n';
-        <?php if ($configuracao && ($configuracao->cnpj || $configuracao->cpf)): ?>
-            texto += center("<?= $configuracao->cnpj ?: $configuracao->cpf ?>") + '\n';
+        <?php if ($configuracao && $configuracao->cnpj): ?>
+            texto += center("<?= $configuracao->cnpj ?>") + '\n';
         <?php endif; ?>
         texto += linhaSeparadora + '\n';
 

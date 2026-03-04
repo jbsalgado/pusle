@@ -36,9 +36,14 @@ export async function carregarProdutos(catalogoContainer, pagina = 1, forcarReca
         // Usar ID da loja do CONFIG (detectado pelo path)
         idUsuarioLoja = CONFIG.ID_USUARIO_LOJA;
         console.log('[Products] Carregando produtos para loja:', idUsuarioLoja, '(página', pagina, ')');
+        const termoBusca = document.getElementById('busca-produto')?.value?.trim() || '';
         
-        // Filtrar produtos por usuario_id com paginação (20 por página - padrão do backend)
-        const url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${idUsuarioLoja}&page=${pagina}&per-page=20`;
+        // Filtrar produtos por usuario_id com paginação (100 por página - alterado a pedido do cliente)
+        let url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${idUsuarioLoja}&page=${pagina}&per-page=100`;
+        if (termoBusca) {
+            url += `&q=${encodeURIComponent(termoBusca)}`;
+        }
+        
         const response = await fetch(url, { cache: 'no-cache' });
         
         if (!response.ok) throw new Error(`Erro: ${response.statusText}`);
@@ -56,7 +61,7 @@ export async function carregarProdutos(catalogoContainer, pagina = 1, forcarReca
                 totalCount: data._meta?.totalCount || 0,
                 pageCount: data._meta?.pageCount || 1,
                 currentPage: data._meta?.currentPage || pagina,
-                perPage: data._meta?.perPage || 20
+                perPage: data._meta?.perPage || 100
             };
         } else if (Array.isArray(data)) {
             // Formato direto (array) - fallback
@@ -74,7 +79,7 @@ export async function carregarProdutos(catalogoContainer, pagina = 1, forcarReca
                 totalCount: 0,
                 pageCount: 1,
                 currentPage: 1,
-                perPage: 20
+                perPage: 100
             };
         }
 
