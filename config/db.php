@@ -6,9 +6,11 @@ return [
     'username' => 'postgres',
     'password' => 'postgres',
     'charset' => 'utf8',
+    'on afterOpen' => function ($event) {
+        $event->sender->createCommand("SET TIME ZONE 'America/Recife'")->execute();
+    },
     // Schema cache options (for production environment)
     //'enableSchemaCache' => true,
     //'schemaCacheDuration' => 60,
     //'schemaCache' => 'cache',
 ];
-

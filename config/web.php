@@ -13,6 +13,7 @@ if (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/index.ph
 
 $config = [
     'id' => 'basic',
+    'timeZone' => 'America/Recife',
     'basePath' => dirname(__DIR__),
     'bootstrap' => ['log'],
     'aliases' => [
@@ -71,7 +72,7 @@ $config = [
         'formatter' => [
             'class' => 'yii\i18n\Formatter',
             'locale' => 'pt-BR',
-            'defaultTimeZone' => 'America/Sao_Paulo',
+            'defaultTimeZone' => 'America/Recife',
             'currencyCode' => 'BRL',
             'decimalSeparator' => ',',
             'thousandSeparator' => '.',
