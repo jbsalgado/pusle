@@ -31,6 +31,15 @@ export async function processarPagamento(dadosPedido, carrinho, cliente) {
  * - O vendedor recebe confirmação na tela
  */
 async function processarMercadoPago(dadosPedido, carrinho, cliente) {
+    // Verificar se é Point (Maquineta física)
+    const formasPagamento = window.formasPagamento || [];
+    const formaSelecionada = formasPagamento.find(f => f.id === dadosPedido.forma_pagamento_id);
+    const tipo = formaSelecionada ? formaSelecionada.tipo : '';
+
+    if (tipo === 'MP_POINT') {
+        return await processarMercadoPagoPoint(dadosPedido, carrinho, cliente);
+    }
+
     try {
         const payload = {
             usuario_id: CONFIG.ID_USUARIO_LOJA,
@@ -343,6 +352,148 @@ function mostrarModalPix(pixData, paymentId) {
         </div>
     `;
     
+    document.body.appendChild(modal);
+}
+
+/**
+ * MERCADO PAGO POINT - MAQUINETA FÍSICA
+ */
+async function processarMercadoPagoPoint(dadosPedido, carrinho, cliente) {
+    try {
+        console.log('[Point] 📟 Iniciando fluxo de maquineta física...');
+        
+        // 1. Buscar dispositivos disponíveis
+        const token = await getToken();
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const respDisp = await fetch(`${API_ENDPOINTS.MERCADOPAGO_LISTAR_DISPOSITIVOS}?tenant_id=${CONFIG.ID_USUARIO_LOJA}`, {
+            headers: headers
+        });
+        
+        const dataDisp = await respDisp.json();
+        const dispositivos = dataDisp.dispositivos || [];
+
+        if (dispositivos.length === 0) {
+            throw new Error('Nenhuma maquineta vinculada encontrada. Cadastre uma maquineta no sistema primeiro.');
+        }
+
+        // 2. Se houver apenas uma, seleciona direto. Se houver mais, mostra modal.
+        let dispositivoSelecionado = dispositivos[0];
+        
+        if (dispositivos.length > 1) {
+            dispositivoSelecionado = await mostrarModalSelecaoPoint(dispositivos);
+        }
+
+        if (!dispositivoSelecionado) {
+            throw new Error('Operação cancelada: Nenhuma maquineta selecionada.');
+        }
+
+        // 3. Criar o pedido no banco primeiro para ter um ID de referência
+        const { finalizarPedido } = await import('./order.js');
+        // Temporariamente desabilitamos o gateway para criar o registro do pedido
+        const backupHabilitado = GATEWAY_CONFIG.habilitado;
+        GATEWAY_CONFIG.habilitado = false; 
+        
+        const respPedido = await finalizarPedido(dadosPedido, carrinho);
+        GATEWAY_CONFIG.habilitado = backupHabilitado;
+
+        if (!respPedido.sucesso) {
+            throw new Error('Falha ao registrar pedido antes do pagamento: ' + (respPedido.erro || 'Erro desconhecido'));
+        }
+
+        const pedidoId = respPedido.dados?.id || respPedido.dados?.venda?.id;
+        const valorTotal = carrinho.reduce((t, i) => t + ((i.preco_final || i.preco_venda_sugerido) * i.quantidade), 0);
+
+        // 4. Enviar para a Maquineta
+        const respPoint = await fetch(API_ENDPOINTS.MERCADOPAGO_CRIAR_PAGAMENTO_POINT, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({
+                tenant_id: CONFIG.ID_USUARIO_LOJA,
+                device_id: dispositivoSelecionado.device_id,
+                amount: valorTotal,
+                order_id: pedidoId
+            })
+        });
+
+        if (!respPoint.ok) {
+            const erro = await respPoint.json();
+            throw new Error(erro.erro || 'Erro ao enviar para a maquineta');
+        }
+
+        const resultadoPoint = await respPoint.json();
+        
+        // 5. Mostrar modal de aguardando na maquineta
+        mostrarModalAguardandoPoint(dispositivoSelecionado.nome);
+
+        return {
+            sucesso: true,
+            gateway: 'mercadopago_point',
+            pedido_id: pedidoId,
+            intent_id: resultadoPoint.data?.id
+        };
+
+    } catch (error) {
+        console.error('[Point] ❌ Erro:', error);
+        throw error;
+    }
+}
+
+function mostrarModalSelecaoPoint(dispositivos) {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4';
+        modal.innerHTML = `
+            <div class="bg-white rounded-lg p-6 max-w-sm w-full">
+                <h3 class="text-xl font-bold mb-4">Selecione a Maquineta</h3>
+                <div class="space-y-3 mb-6">
+                    ${dispositivos.map(d => `
+                        <button class="w-full text-left p-4 border rounded-lg hover:bg-blue-50 hover:border-blue-500 transition-colors flex justify-between items-center" data-id="${d.id}">
+                            <span>${d.nome}</span>
+                            <span class="text-xs text-gray-400">${d.device_id}</span>
+                        </button>
+                    `).join('')}
+                </div>
+                <button id="btn-cancel-point" class="w-full py-2 text-gray-500 hover:text-gray-700">Cancelar</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.querySelectorAll('button[data-id]').forEach(btn => {
+            btn.onclick = () => {
+                const id = btn.getAttribute('data-id');
+                const disp = dispositivos.find(d => d.id == id);
+                modal.remove();
+                resolve(disp);
+            };
+        });
+
+        modal.querySelector('#btn-cancel-point').onclick = () => {
+            modal.remove();
+            resolve(null);
+        };
+    });
+}
+
+function mostrarModalAguardandoPoint(nomeMaquineta) {
+    const modal = document.createElement('div');
+    modal.id = 'modal-status-point';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-lg p-8 max-w-sm w-full text-center">
+            <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i class="fas fa-credit-card text-3xl text-blue-600 animate-pulse"></i>
+            </div>
+            <h3 class="text-2xl font-bold mb-2">Aguardando na Maquineta</h3>
+            <p class="text-gray-600 mb-6">Por favor, finalize o pagamento na <strong>${nomeMaquineta}</strong>.</p>
+            <div class="w-full bg-gray-200 rounded-full h-2 mb-4">
+                <div class="bg-blue-600 h-2 rounded-full animate-progress" style="width: 100%"></div>
+            </div>
+            <p class="text-sm text-gray-500">O Pulse atualizará a venda automaticamente assim que for aprovado.</p>
+            <button onclick="window.location.reload()" class="mt-8 text-blue-600 font-medium">Voltar para Início</button>
+        </div>
+    `;
     document.body.appendChild(modal);
 }
 

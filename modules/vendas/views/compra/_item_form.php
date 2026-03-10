@@ -29,6 +29,13 @@
                 autocomplete="off">
 
             <?= $form->field($item, "[$index]produto_id", ['template' => '{input}', 'enableClientValidation' => false])->hiddenInput(['class' => 'input-produto-id', 'required' => false]) ?>
+            <?= $form->field($item, "[$index]nome_produto_temp", ['template' => '{input}', 'enableClientValidation' => false])->hiddenInput(['class' => 'input-nome-produto-temp']) ?>
+            <?= $form->field($item, "[$index]codigo_referencia_temp", ['template' => '{input}', 'enableClientValidation' => false])->hiddenInput(['class' => 'input-codigo-referencia-temp']) ?>
+
+            <?= $form->field($item, "[$index]preco_venda_sugerido_temp", ['template' => '{input}'])->hiddenInput(['class' => 'input-preco-venda-sugerido-temp']) ?>
+            <?= $form->field($item, "[$index]estoque_minimo_temp", ['template' => '{input}'])->hiddenInput(['class' => 'input-estoque-minimo-temp']) ?>
+            <?= $form->field($item, "[$index]estoque_maximo_temp", ['template' => '{input}'])->hiddenInput(['class' => 'input-estoque-maximo-temp']) ?>
+            <?= $form->field($item, "[$index]ponto_corte_temp", ['template' => '{input}'])->hiddenInput(['class' => 'input-ponto-corte-temp']) ?>
 
             <div class="autocomplete-results hidden absolute z-50 w-full bg-white border border-gray-300 rounded-b-lg shadow-lg max-h-60 overflow-y-auto top-[70px]"></div>
         </div>
@@ -70,8 +77,32 @@
             </div>
         </div>
     </div>
-    <div class="mt-2 text-right">
-        <span class="text-sm text-gray-600">Subtotal: </span>
-        <span class="text-base font-semibold text-gray-900 item-subtotal">R$ 0,00</span>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+        <div class="sm:col-span-1 lg:col-span-2">
+            <?= $form->field($item, "[$index]codigo_barras", ['enableClientValidation' => false])->textInput([
+                'class' => 'input-codigo-barras w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'value' => $item->codigo_barras ?? '',
+                'placeholder' => 'EAN/GTIN'
+            ])->label('Cód. Barras') ?>
+        </div>
+        <div class="sm:col-span-1 lg:col-span-2">
+            <?= $form->field($item, "[$index]marca", ['enableClientValidation' => false])->textInput([
+                'class' => 'input-marca w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'value' => $item->marca ?? '',
+                'placeholder' => 'Marca do produto'
+            ])->label('Marca') ?>
+        </div>
+    </div>
+    <div class="mt-2 flex justify-between items-center">
+        <div class="preco-sugerido-container <?= empty($item->preco_venda_sugerido_temp) ? 'hidden' : '' ?>">
+            <span class="text-xs font-medium text-blue-600 uppercase tracking-wider">Sugestão de Venda: </span>
+            <span class="text-sm font-bold text-blue-700 span-preco-sugerido">
+                R$ <?= number_format($item->preco_venda_sugerido_temp ?? 0, 2, ',', '.') ?>
+            </span>
+        </div>
+        <div class="text-right">
+            <span class="text-sm text-gray-600">Subtotal: </span>
+            <span class="text-base font-semibold text-gray-900 item-subtotal">R$ 0,00</span>
+        </div>
     </div>
 </div>

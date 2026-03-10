@@ -137,6 +137,26 @@ if ($model->hasErrors()): ?>
             ])->label(false) ?>
         </div>
 
+        <!-- Código de Barras e Marca -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Código de Barras (EAN)</label>
+                <?= $form->field($model, 'codigo_barras')->textInput([
+                    'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
+                    'placeholder' => 'EAN-13, EAN-8, etc.',
+                    'id' => 'produto-codigo-barras'
+                ])->label(false) ?>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Marca</label>
+                <?= $form->field($model, 'marca')->textInput([
+                    'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
+                    'placeholder' => 'Marca do produto',
+                    'id' => 'produto-marca'
+                ])->label(false) ?>
+            </div>
+        </div>
+
         <!-- Descrição -->
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Descrição</label>
@@ -767,7 +787,20 @@ if ($model->hasErrors()): ?>
                     'placeholder' => '10',
                     'id' => 'produto-estoque-minimo'
                 ])->label(false) ?>
-                <p class="mt-1 text-xs text-gray-500">Alerta quando estoque ficar abaixo deste valor</p>
+                <p class="mt-1 text-xs text-gray-500">Alerta de reposição</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Estoque Máximo (un)</label>
+                <?= $form->field($model, 'estoque_maximo')->textInput([
+                    'type' => 'number',
+                    'min' => '0',
+                    'step' => '1',
+                    'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
+                    'placeholder' => '100',
+                    'id' => 'produto-estoque-maximo'
+                ])->label(false) ?>
+                <p class="mt-1 text-xs text-gray-500">Capacidade ideal de estoque</p>
             </div>
 
             <div>

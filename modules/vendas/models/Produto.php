@@ -32,6 +32,7 @@ use app\modules\vendas\helpers\PricingHelper;
  * @property float $markup_percentual
  * @property integer $estoque_atual
  * @property integer $estoque_minimo
+ * @property integer $estoque_maximo
  * @property integer $ponto_corte
  * @property string $localizacao
  * @property boolean $ativo
@@ -41,6 +42,8 @@ use app\modules\vendas\helpers\PricingHelper;
  * @property float $preco_promocional
  * @property string $data_inicio_promocao
  * @property string $data_fim_promocao
+ * @property string $codigo_barras
+ * @property string $marca
  *
  * @property Usuario $usuario
  * @property Categoria $categoria
@@ -87,11 +90,12 @@ class Produto extends ActiveRecord
             [['markup_percentual'], 'number', 'min' => 0], // ✅ Markup: sem limite máximo (pode ser qualquer valor positivo)
             // Validação: impedir prejuízo (margem negativa)
             [['preco_venda_sugerido'], 'validatePrejuizo'],
-            [['estoque_atual', 'estoque_minimo', 'ponto_corte'], 'integer', 'min' => 0, 'skipOnEmpty' => false],
+            [['estoque_atual', 'estoque_minimo', 'estoque_maximo', 'ponto_corte'], 'integer', 'min' => 0, 'skipOnEmpty' => false],
             [['estoque_atual'], 'default', 'value' => 0],
             [['estoque_minimo'], 'default', 'value' => 10],
             [['ponto_corte'], 'default', 'value' => 5],
-            [['estoque_atual', 'estoque_minimo', 'ponto_corte'], 'filter', 'filter' => function ($value) {
+            [['estoque_maximo'], 'default', 'value' => 0],
+            [['estoque_atual', 'estoque_minimo', 'estoque_maximo', 'ponto_corte'], 'filter', 'filter' => function ($value) {
                 // ✅ Converte string vazia para 0, mantém números inteiros
                 if ($value === '' || $value === null) {
                     return 0;
@@ -107,7 +111,8 @@ class Produto extends ActiveRecord
             [['data_inicio_promocao', 'data_fim_promocao'], 'safe'],
             [['estoque_atual', 'estoque_minimo', 'ponto_corte'], 'safe'], // ✅ Garante que os campos podem ser carregados via load()
             [['nome'], 'string', 'max' => 150],
-            [['codigo_referencia'], 'string', 'max' => 50],
+            [['codigo_referencia', 'codigo_barras'], 'string', 'max' => 50],
+            [['marca'], 'string', 'max' => 100],
             [['localizacao'], 'string', 'max' => 30],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
             [['categoria_id'], 'exist', 'skipOnError' => true, 'targetClass' => Categoria::class, 'targetAttribute' => ['categoria_id' => 'id']],
@@ -314,6 +319,7 @@ class Produto extends ActiveRecord
             'markup_percentual' => 'Markup (%)',
             'estoque_atual' => 'Estoque Atual',
             'estoque_minimo' => 'Estoque Mínimo',
+            'estoque_maximo' => 'Estoque Máximo',
             'ponto_corte' => 'Ponto de Corte',
             'localizacao' => 'Localização',
             'ativo' => 'Ativo',
@@ -323,6 +329,8 @@ class Produto extends ActiveRecord
             'preco_promocional' => 'Preço Promocional',
             'data_inicio_promocao' => 'Início da Promoção',
             'data_fim_promocao' => 'Fim da Promoção',
+            'codigo_barras' => 'Código de Barras (EAN)',
+            'marca' => 'Marca',
         ];
     }
 
@@ -595,7 +603,8 @@ class Produto extends ActiveRecord
         $tentativas = 0;
         $maxTentativas = 10000;
 
-        while (self::find()
+        while (
+            self::find()
             ->where(['usuario_id' => $usuarioId, 'codigo_referencia' => $codigo])
             ->exists() && $tentativas < $maxTentativas && $sequencial <= 9999
         ) {
@@ -622,6 +631,58 @@ class Produto extends ActiveRecord
         }
 
         return $codigo;
+    }
+
+    /**
+     * Gera um código de barras automático baseado no CNPJ do fornecedor e um sequencial
+     * Formato: PREFIXO_CNPJ(8) + SEQUENCIAL(4) = 12 dígitos
+     * 
+     * @param string $cnpj CNPJ do fornecedor (com ou sem formatação)
+     * @param string $usuarioId ID do usuário
+     * @return string Código de barras gerado
+     */
+    public static function gerarCodigoBarrasAuto($cnpj, $usuarioId)
+    {
+        // Limpa o CNPJ (apenas números)
+        $cnpjLimpo = preg_replace('/[^0-9]/', '', $cnpj);
+        if (strlen($cnpjLimpo) < 8) {
+            // Se o CNPJ for inválido ou curto demais, usa um prefixo genérico "99999999"
+            $prefixo = "99999999";
+        } else {
+            // Pega os primeiros 8 dígitos (CNPJ Raiz)
+            $prefixo = substr($cnpjLimpo, 0, 8);
+        }
+
+        // Busca o último código gerado com este prefixo para este usuário
+        $ultimoCodigo = self::find()
+            ->where(['usuario_id' => $usuarioId])
+            ->andWhere(['like', 'codigo_barras', $prefixo . '%', false])
+            ->orderBy(['codigo_barras' => SORT_DESC])
+            ->select('codigo_barras')
+            ->scalar();
+
+        $sequencial = 1;
+        if ($ultimoCodigo) {
+            // Extrai o sequencial (últimos 4 dígitos)
+            $seqStr = substr((string)$ultimoCodigo, -4);
+            if (is_numeric($seqStr)) {
+                $sequencial = (int)$seqStr + 1;
+            }
+        }
+
+        // Validação de unicidade e busca de gap
+        $codigoGerado = $prefixo . str_pad($sequencial, 4, '0', STR_PAD_LEFT);
+        if ($sequencial > 9999 || self::find()->where(['usuario_id' => $usuarioId, 'codigo_barras' => $codigoGerado])->exists()) {
+            for ($i = 1; $i <= 9999; $i++) {
+                $teste = $prefixo . str_pad($i, 4, '0', STR_PAD_LEFT);
+                if (!self::find()->where(['usuario_id' => $usuarioId, 'codigo_barras' => $teste])->exists()) {
+                    $codigoGerado = $teste;
+                    break;
+                }
+            }
+        }
+
+        return $codigoGerado;
     }
 
     /**

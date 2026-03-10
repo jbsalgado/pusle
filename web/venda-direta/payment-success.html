@@ -14,21 +14,17 @@
         </svg>
       </div>
       <h1 class="text-3xl font-bold text-gray-800 mb-2">Pagamento Aprovado!</h1>
-      <p class="text-gray-600 mb-8">Seu pedido foi confirmado e o pagamento recebido com sucesso. Agradecemos a preferência!</p>
-      
-      <div class="bg-gray-50 rounded-lg p-4 mb-8 text-sm text-gray-700">
-        <p class="mb-1">Guardamos os detalhes de sua compra.</p>
-        <p>Você já pode voltar para a página principal.</p>
-      </div>
+      <p class="text-gray-600 mb-8">O pagamento da venda foi recebido com sucesso. Os estoques e as finanças do sistema já foram atualizados.</p>
       
       <a href="index.html" class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition duration-200">
-        Voltar para a Loja
+        Nova Venda
       </a>
     </div>
 
     <script>
       localStorage.removeItem('mp_preference_id');
       localStorage.removeItem('mp_external_ref');
+      localStorage.removeItem('mp_venda_direta');
       localStorage.removeItem('carrinho_pwa');
       localStorage.removeItem('carrinho_venda_direta');
     </script>

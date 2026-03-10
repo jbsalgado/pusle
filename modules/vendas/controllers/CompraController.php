@@ -8,12 +8,15 @@ use app\modules\vendas\models\ItemCompra;
 use app\modules\vendas\models\Fornecedor;
 use app\modules\vendas\models\Produto;
 use app\modules\vendas\models\Categoria;
+use app\modules\vendas\models\DadosFinanceiros;
+use app\modules\vendas\helpers\PricingHelper;
 use yii\data\ActiveDataProvider;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\filters\VerbFilter;
 use yii\filters\AccessControl;
 use yii\db\Transaction;
+use yii\db\Expression;
 
 /**
  * CompraController implementa as ações CRUD para o model Compra.
@@ -148,8 +151,14 @@ class CompraController extends Controller
                                 $novoProduto->usuario_id = Yii::$app->user->id;
                                 $novoProduto->nome = $itemData['nome_produto_temp'];
                                 $novoProduto->categoria_id = !empty($itemData['categoria_id']) ? $itemData['categoria_id'] : null;
+                                $novoProduto->codigo_barras = !empty($itemData['codigo_barras']) ? $itemData['codigo_barras'] : null;
+                                $novoProduto->marca = !empty($itemData['marca']) ? $itemData['marca'] : null;
+                                $novoProduto->codigo_referencia = !empty($itemData['codigo_referencia_temp']) ? $itemData['codigo_referencia_temp'] : null;
                                 $novoProduto->preco_custo = $item->preco_unitario; // Usa preço da compra como base
-                                $novoProduto->preco_venda_sugerido = $item->preco_unitario * 1.5; // Sugestão básica +50%
+                                $novoProduto->preco_venda_sugerido = !empty($itemData['preco_venda_sugerido_temp']) ? $itemData['preco_venda_sugerido_temp'] : ($item->preco_unitario * 1.5);
+                                $novoProduto->estoque_minimo = !empty($itemData['estoque_minimo_temp']) ? (int)$itemData['estoque_minimo_temp'] : 0;
+                                $novoProduto->estoque_maximo = !empty($itemData['estoque_maximo_temp']) ? (int)$itemData['estoque_maximo_temp'] : 0;
+                                $novoProduto->ponto_corte = !empty($itemData['ponto_corte_temp']) ? (int)$itemData['ponto_corte_temp'] : 0;
                                 $novoProduto->estoque_atual = 0; // Vai ser acrescido ao concluir
                                 $novoProduto->ativo = true;
 
@@ -260,8 +269,14 @@ class CompraController extends Controller
                                 $novoProduto->usuario_id = Yii::$app->user->id;
                                 $novoProduto->nome = $itemData['nome_produto_temp'];
                                 $novoProduto->categoria_id = !empty($itemData['categoria_id']) ? $itemData['categoria_id'] : null;
+                                $novoProduto->codigo_barras = !empty($itemData['codigo_barras']) ? $itemData['codigo_barras'] : null;
+                                $novoProduto->marca = !empty($itemData['marca']) ? $itemData['marca'] : null;
+                                $novoProduto->codigo_referencia = !empty($itemData['codigo_referencia_temp']) ? $itemData['codigo_referencia_temp'] : null;
                                 $novoProduto->preco_custo = $item->preco_unitario; // Usa o preço da compra
-                                $novoProduto->preco_venda_sugerido = $item->preco_unitario * 1.5; // Sugestão 50%
+                                $novoProduto->preco_venda_sugerido = !empty($itemData['preco_venda_sugerido_temp']) ? $itemData['preco_venda_sugerido_temp'] : ($item->preco_unitario * 1.5);
+                                $novoProduto->estoque_minimo = !empty($itemData['estoque_minimo_temp']) ? (int)$itemData['estoque_minimo_temp'] : 0;
+                                $novoProduto->estoque_maximo = !empty($itemData['estoque_maximo_temp']) ? (int)$itemData['estoque_maximo_temp'] : 0;
+                                $novoProduto->ponto_corte = !empty($itemData['ponto_corte_temp']) ? (int)$itemData['ponto_corte_temp'] : 0;
                                 $novoProduto->estoque_atual = 0; // Acrescido ao concluir a nota
                                 $novoProduto->ativo = true;
 
@@ -616,17 +631,19 @@ class CompraController extends Controller
                     // Tenta encontrar Fornecedor no banco
                     $fornecedor = Fornecedor::find()
                         ->where(['usuario_id' => Yii::$app->user->id])
-                        // Busca exata pelo CNPJ (assumindo que no banco pode estar formatado ou não, 
-                        // idealmente deveríamos limpar a formatação do banco para comparar, 
-                        // mas aqui vou tentar buscar pelo valor limpo enviado no XML)
-                        ->andWhere(['cnpj' => $cnpjEmit])
+                        ->andWhere(['=', new \yii\db\Expression("REGEXP_REPLACE(cnpj, '[^0-9]', '', 'g')"), $cnpjEmit])
                         ->one();
 
-                    // Se não achou pelo CNPJ limpo, tenta buscar formatado se a função de formatação for consistente
+                    // Se não achou pelo CNPJ limpo, tenta busca normalizada (o que já estiver no banco)
                     if (!$fornecedor) {
-                        // Tenta regex simples para achar CNPJ
-                        // NOTA: O ideal seria ter stored procedure ou função de limpeza no BD
+                        $fornecedor = Fornecedor::find()
+                            ->where(['usuario_id' => Yii::$app->user->id])
+                            ->andWhere(['like', 'cnpj', $cnpjEmit])
+                            ->one();
                     }
+
+                    // Busca configuração financeira global para cálculo de preço sugerido
+                    $configFinanceira = DadosFinanceiros::getConfiguracaoGlobal(Yii::$app->user->id);
 
                     if ($fornecedor) {
                         $model->fornecedor_id = $fornecedor->id;
@@ -650,20 +667,62 @@ class CompraController extends Controller
                         $nome = (string)$prod->xProd;
                         $ean = (string)$prod->cEAN;
 
+                        // 1. Tenta encontrar produto existente por EAN (se válido)
+                        $produtoDb = null;
+                        if (!empty($ean) && $ean !== 'SEM GTIN') {
+                            $produtoDb = Produto::find()
+                                ->where(['usuario_id' => Yii::$app->user->id, 'codigo_barras' => $ean])
+                                ->one();
+                        }
+
+                        // 2. Se não achou por EAN, tenta por código de referência (cProd) ou nome
+                        if (!$produtoDb) {
+                            $produtoDb = Produto::find()
+                                ->where(['usuario_id' => Yii::$app->user->id])
+                                ->andWhere([
+                                    'OR',
+                                    ['codigo_referencia' => $codigo],
+                                    ['nome' => $nome]
+                                ])
+                                ->one();
+                        }
+
+                        // 3. Define o EAN final: prioriza o do banco, depois o do XML, ou gera um novo
+                        if ($produtoDb && !empty($produtoDb->codigo_barras)) {
+                            $eanFinal = $produtoDb->codigo_barras;
+                        } elseif (!empty($ean) && $ean !== 'SEM GTIN') {
+                            $eanFinal = $ean;
+                        } else {
+                            // Gera novo código apenas se for realmente um produto novo sem EAN
+                            $eanFinal = Produto::gerarCodigoBarrasAuto($cnpjEmit, Yii::$app->user->id);
+                        }
+
+                        // 4. Calcula Preço de Venda Sugerido (Markup Divisor Global)
+                        $precoSugerido = 0;
+                        try {
+                            $precoSugerido = $configFinanceira->calcularPrecoVendaSugerido($preco);
+                        } catch (\Exception $e) {
+                            $precoSugerido = $preco * 1.5; // Fallback se houver erro no cálculo
+                        }
+
+                        // 5. Calcula Níveis de Estoque (Baseados na Qtd comprada)
+                        $estoqueMin = ceil($qtd * 0.20);   // 20%
+                        $pontoCorte = ceil($qtd * 0.50);   // 50%
+                        $estoqueMax = ceil($qtd * 2.00);   // 200%
+
                         $item = new ItemCompra();
                         $item->quantidade = $qtd;
                         $item->preco_unitario = $preco;
-                        $item->nome_produto_temp = $nome; // Nome para a view
+                        $item->nome_produto_temp = $nome;
+                        $item->codigo_barras = $eanFinal;
+                        $item->codigo_referencia_temp = $codigo;
+                        $item->marca = $fantasiaEmit;
 
-                        // Tenta encontrar produto
-                        $produtoDb = Produto::find()
-                            ->where(['usuario_id' => Yii::$app->user->id])
-                            ->andWhere([
-                                'OR',
-                                ['codigo_referencia' => $codigo],
-                                ['nome' => $nome]
-                            ])
-                            ->one();
+                        // Transporta sugestões para a View e para o auto-cadastro
+                        $item->preco_venda_sugerido_temp = $precoSugerido;
+                        $item->estoque_minimo_temp = $estoqueMin;
+                        $item->ponto_corte_temp = $pontoCorte;
+                        $item->estoque_maximo_temp = $estoqueMax;
 
                         if ($produtoDb) {
                             $item->produto_id = $produtoDb->id;

@@ -3,22 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pagamento Aprovado</title>
+    <title>Pagamento Pendente</title>
     <script src="https://cdn.tailwindcss.com"></script>
   </head>
   <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
     <div class="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden text-center p-8">
-      <div class="mx-auto w-24 h-24 mb-6 bg-green-100 rounded-full flex items-center justify-center">
-        <svg class="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+      <div class="mx-auto w-24 h-24 mb-6 bg-yellow-100 rounded-full flex items-center justify-center">
+        <svg class="w-12 h-12 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
       </div>
-      <h1 class="text-3xl font-bold text-gray-800 mb-2">Pagamento Aprovado!</h1>
-      <p class="text-gray-600 mb-8">Seu pedido foi confirmado e o pagamento recebido com sucesso. Agradecemos a preferência!</p>
+      <h1 class="text-3xl font-bold text-gray-800 mb-2">Pagamento Pendente</h1>
+      <p class="text-gray-600 mb-8">Seu pagamento está em análise ou aguardando compensação (ex: Boleto ou PIX em processamento).</p>
       
       <div class="bg-gray-50 rounded-lg p-4 mb-8 text-sm text-gray-700">
-        <p class="mb-1">Guardamos os detalhes de sua compra.</p>
-        <p>Você já pode voltar para a página principal.</p>
+        <p class="mb-1">Assim que confirmado, seu pedido será liberado automaticamente.</p>
       </div>
       
       <a href="index.html" class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition duration-200">

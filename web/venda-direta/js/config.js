@@ -149,6 +149,8 @@ export const API_ENDPOINTS = {
     
     // Mercado Pago
     MERCADOPAGO_CRIAR_PREFERENCIA: `${CONFIG.URL_API}/api/mercado-pago/criar-preferencia`,
+    MERCADOPAGO_LISTAR_DISPOSITIVOS: `${CONFIG.URL_API}/api/mercado-pago/listar-dispositivos`,
+    MERCADOPAGO_CRIAR_PAGAMENTO_POINT: `${CONFIG.URL_API}/api/mercado-pago/criar-pagamento-point`,
     
     // Asaas
     ASAAS_CRIAR_COBRANCA: `${CONFIG.URL_API}/api/asaas/criar-cobranca`,

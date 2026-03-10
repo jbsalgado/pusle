@@ -156,7 +156,14 @@ use app\modules\vendas\models\ItemCompra;
         let itemIndex = <?= count($itens) ?>;
         const categorias = <?= json_encode($categorias) ?>;
         const produtos = <?= json_encode(array_map(function ($p) {
-                                return ['id' => $p->id, 'nome' => $p->nome, 'preco_custo' => $p->preco_custo, 'categoria_id' => $p->categoria_id];
+                                return [
+                                    'id' => $p->id,
+                                    'nome' => $p->nome,
+                                    'preco_custo' => $p->preco_custo,
+                                    'categoria_id' => $p->categoria_id,
+                                    'codigo_barras' => $p->codigo_barras,
+                                    'marca' => $p->marca
+                                ];
                             }, $produtos)) ?>;
 
         // Função de Máscara de Moeda (Right-to-Left)
@@ -217,6 +224,12 @@ use app\modules\vendas\models\ItemCompra;
                     
                     <input type="text" class="input-search w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Digite para buscar..." autocomplete="off">
                     <input type="hidden" name="ItemCompra[${itemIndex}][produto_id]" class="input-produto-id">
+                    <input type="hidden" name="ItemCompra[${itemIndex}][nome_produto_temp]" class="input-nome-produto-temp">
+                    <input type="hidden" name="ItemCompra[${itemIndex}][codigo_referencia_temp]" class="input-codigo-referencia-temp">
+                    <input type="hidden" name="ItemCompra[${itemIndex}][preco_venda_sugerido_temp]" class="input-preco-venda-sugerido-temp">
+                    <input type="hidden" name="ItemCompra[${itemIndex}][estoque_minimo_temp]" class="input-estoque-minimo-temp">
+                    <input type="hidden" name="ItemCompra[${itemIndex}][estoque_maximo_temp]" class="input-estoque-maximo-temp">
+                    <input type="hidden" name="ItemCompra[${itemIndex}][ponto_corte_temp]" class="input-ponto-corte-temp">
                     
                     <div class="autocomplete-results hidden absolute z-50 w-full bg-white border border-gray-300 rounded-b-lg shadow-lg max-h-60 overflow-y-auto top-[70px]"></div>
                 </div>
@@ -238,9 +251,25 @@ use app\modules\vendas\models\ItemCompra;
                     </div>
                 </div>
             </div>
-            <div class="mt-2 text-right">
-                <span class="text-sm text-gray-600">Subtotal: </span>
-                <span class="text-base font-semibold text-gray-900 item-subtotal">R$ 0,00</span>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                <div class="sm:col-span-1 lg:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Cód. Barras</label>
+                    <input type="text" name="ItemCompra[${itemIndex}][codigo_barras]" class="input-codigo-barras w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="EAN/GTIN">
+                </div>
+                <div class="sm:col-span-1 lg:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Marca</label>
+                    <input type="text" name="ItemCompra[${itemIndex}][marca]" class="input-marca w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Marca do produto">
+                </div>
+            </div>
+            <div class="mt-2 flex justify-between items-center">
+                <div class="preco-sugerido-container hidden">
+                    <span class="text-xs font-medium text-blue-600 uppercase tracking-wider">Sugestão de Venda: </span>
+                    <span class="text-sm font-bold text-blue-700 span-preco-sugerido">R$ 0,00</span>
+                </div>
+                <div class="text-right">
+                    <span class="text-sm text-gray-600">Subtotal: </span>
+                    <span class="text-base font-semibold text-gray-900 item-subtotal">R$ 0,00</span>
+                </div>
             </div>
         </div>
     `;
@@ -281,6 +310,16 @@ use app\modules\vendas\models\ItemCompra;
         function attachItemListeners(itemElement) {
             const inputSearch = itemElement.querySelector('.input-search');
             const inputId = itemElement.querySelector('.input-produto-id');
+            const inputNomeTemp = itemElement.querySelector('.input-nome-produto-temp');
+            const inputRefTemp = itemElement.querySelector('.input-codigo-referencia-temp');
+            const inputPrecoSugeridoTemp = itemElement.querySelector('.input-preco-venda-sugerido-temp');
+            const inputEstoqueMinTemp = itemElement.querySelector('.input-estoque-minimo-temp');
+            const inputEstoqueMaxTemp = itemElement.querySelector('.input-estoque-maximo-temp');
+            const inputPontoCorteTemp = itemElement.querySelector('.input-ponto-corte-temp');
+
+            const spanPrecoSugerido = itemElement.querySelector('.span-preco-sugerido');
+            const containerPrecoSugerido = itemElement.querySelector('.preco-sugerido-container');
+            const inputMarca = itemElement.querySelector('.input-marca');
             const resultsContainer = itemElement.querySelector('.autocomplete-results');
 
             const inputSearchCat = itemElement.querySelector('.input-search-categoria');
@@ -306,10 +345,10 @@ use app\modules\vendas\models\ItemCompra;
                 const term = this.value.toLowerCase();
                 resultsContainer.innerHTML = '';
 
-                if (term.length < 1) {
-                    resultsContainer.classList.add('hidden');
-                    return;
-                }
+                // Limpa ID ao digitar para forçar novo cadastro se não selecionar do autocomplete
+                inputId.value = '';
+                // Sincroniza nome temporário para o auto-cadastro no backend
+                if (inputNomeTemp) inputNomeTemp.value = term;
 
                 const filtered = produtos.filter(p => p.nome.toLowerCase().includes(term));
 
@@ -326,6 +365,9 @@ use app\modules\vendas\models\ItemCompra;
                         div.addEventListener('click', function() {
                             inputSearch.value = p.nome;
                             inputId.value = p.id;
+                            if (inputNomeTemp) inputNomeTemp.value = p.nome;
+                            if (inputCodigoBarras) inputCodigoBarras.value = p.codigo_barras || '';
+                            if (inputMarca) inputMarca.value = p.marca || '';
 
                             // Select category if product has one
                             if (inputIdCat && p.categoria_id && categorias[p.categoria_id]) {

@@ -1,5 +1,5 @@
 // app.js - Aplicação principal do VENDA DIRETA PWA
-import { CONFIG, API_ENDPOINTS, carregarConfigLoja } from './config.js';
+import { CONFIG, API_ENDPOINTS, carregarConfigLoja, GATEWAY_CONFIG } from './config.js';
 import { 
     getCarrinho, setCarrinho, adicionarAoCarrinho, removerDoCarrinho,
     aumentarQuantidadeItem, diminuirQuantidadeItem, calcularTotalCarrinho,
@@ -14,6 +14,7 @@ import { ELEMENTOS_CRITICOS } from './config.js';
 import { mostrarModalPixEstatico } from './pix.js'; // Importação do novo módulo
 import { verificarAutenticacao, getColaboradorData } from './auth.js'; // Importação do módulo de autenticação
 import { buscarClientePorCpf, cadastrarCliente, getClienteAtual, setClienteAtual } from './customer.js'; // Importação do módulo de cliente
+import { inicializarGerenciamentoMaquinetas } from './devices.js'; // Importação do gerenciamento de maquinetas
 
 // Variáveis Globais
 let produtos = [];
@@ -55,7 +56,14 @@ async function init() {
         await carregarProdutos();
         inicializarEventListeners();
         inicializarBuscaProdutos(); // Inicializa o filtro de busca
+        inicializarGerenciamentoMaquinetas(); // Inicializa botões e formulários de Point
         configurarListenerServiceWorker();
+        
+        // Exibir botão de maquinetas se Mercado Pago estiver habilitado
+        const btnMaquinetas = document.getElementById('btn-gerenciar-maquinetas');
+        if (btnMaquinetas && GATEWAY_CONFIG.habilitado && GATEWAY_CONFIG.gateway === 'mercadopago') {
+            btnMaquinetas.classList.remove('hidden');
+        }
         
         // ✅ Verifica se há comprovante para exibir após reload
         verificarComprovantePosReload();

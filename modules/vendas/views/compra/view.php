@@ -184,17 +184,15 @@ $this->params['breadcrumbs'][] = $this->title;
                     ['update', 'id' => $model->id],
                     ['class' => 'inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded-lg shadow-md transition duration-300']
                 ) ?>
-                <?= Html::a(
+                <?= Html::beginForm(['concluir', 'id' => $model->id], 'post', ['class' => 'inline']) ?>
+                <?= Html::submitButton(
                     '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>Concluir',
-                    ['concluir', 'id' => $model->id],
                     [
                         'class' => 'inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-300',
-                        'data' => [
-                            'confirm' => 'Tem certeza que deseja concluir esta compra? O estoque será atualizado.',
-                            'method' => 'post',
-                        ],
+                        'onclick' => 'return confirm("Tem certeza que deseja concluir esta compra? O estoque será atualizado.");'
                     ]
                 ) ?>
+                <?= Html::endForm() ?>
             <?php endif; ?>
             <?php if ($model->status_compra !== 'CANCELADA' && $model->status_compra !== 'CONCLUIDA'): ?>
                 <?= Html::beginForm(['cancelar', 'id' => $model->id], 'post', ['class' => 'inline']) ?>

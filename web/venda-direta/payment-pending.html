@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pagamento Pendente</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden text-center p-8">
+      <div class="mx-auto w-24 h-24 mb-6 bg-yellow-100 rounded-full flex items-center justify-center">
+        <svg class="w-12 h-12 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+      </div>
+      <h1 class="text-3xl font-bold text-gray-800 mb-2">Pagamento Pendente</h1>
+      <p class="text-gray-600 mb-4">O pagamento desta venda consta como Pendente de Confirmação no Mercado Pago.</p>
+      <p class="text-sm text-gray-500 mb-8">Assim que o valor for devidamente compensado, a venda será automaticamente sincronizada no sistema.</p>
+      
+      <a href="index.html" class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition duration-200">
+        Continuar Operando
+      </a>
+    </div>
+
+    <script>
+      localStorage.removeItem('mp_preference_id');
+      localStorage.removeItem('mp_external_ref');
+      localStorage.removeItem('mp_venda_direta');
+      localStorage.removeItem('carrinho_pwa');
+      localStorage.removeItem('carrinho_venda_direta');
+    </script>
+  </body>
+</html>

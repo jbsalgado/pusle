@@ -54,6 +54,13 @@ class ItemCompra extends ActiveRecord
      */
     public $nome_produto_temp;
     public $categoria_id;
+    public $codigo_barras;
+    public $marca;
+    public $codigo_referencia_temp;
+    public $preco_venda_sugerido_temp;
+    public $estoque_minimo_temp;
+    public $estoque_maximo_temp;
+    public $ponto_corte_temp;
 
     /**
      * {@inheritdoc}
@@ -62,13 +69,13 @@ class ItemCompra extends ActiveRecord
     {
         return [
             [['compra_id', 'produto_id', 'quantidade', 'preco_unitario'], 'required'],
-            [['compra_id', 'produto_id', 'nome_produto_temp', 'categoria_id'], 'string'],
+            [['compra_id', 'produto_id', 'nome_produto_temp', 'categoria_id', 'codigo_barras', 'marca'], 'string'],
             [['quantidade'], 'number', 'min' => 0.001],
             [['preco_unitario'], 'number', 'min' => 0],
             [['valor_total_item'], 'number', 'min' => 0],
             [['compra_id'], 'exist', 'skipOnError' => true, 'targetClass' => Compra::class, 'targetAttribute' => ['compra_id' => 'id']],
             [['produto_id'], 'exist', 'skipOnError' => true, 'targetClass' => Produto::class, 'targetAttribute' => ['produto_id' => 'id']],
-            [['nome_produto_temp', 'categoria_id'], 'safe'],
+            [['nome_produto_temp', 'categoria_id', 'codigo_barras', 'marca', 'codigo_referencia_temp', 'preco_venda_sugerido_temp', 'estoque_minimo_temp', 'estoque_maximo_temp', 'ponto_corte_temp'], 'safe'],
         ];
     }
 

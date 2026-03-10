@@ -24,6 +24,11 @@ use MercadoPago\Exceptions\MPApiException;
 class MercadoPagoController extends Controller
 {
     /**
+     * Taxa de comissão específica para o lojista atual.
+     */
+    private $taxaComissao = null;
+
+    /**
      * Desabilita verificação CSRF para APIs
      */
     public $enableCsrfValidation = false;
@@ -187,13 +192,14 @@ class MercadoPagoController extends Controller
                 return $this->errorResponse('application_fee não pode ser maior que o valor da transação.');
             }
 
-            MercadoPagoConfig::setAccessToken($accessToken);
+            // 1️⃣ INICIALIZAR SDK
+            $this->initSdk($usuario);
 
             $paymentData = [
                 'transaction_amount' => $amount,
                 'description' => $request['description'] ?? 'Pedido ' . $orderId,
                 'payment_method_id' => 'pix',
-                'notification_url' => $this->getBaseUrl() . '/pulse/web/index.php/api/mercado-pago/webhook',
+                'notification_url' => $this->getBaseUrl() . '/pulse/web/index.php/api/mercado-pago/webhook?tenant_id=' . $tenantId,
                 'external_reference' => $orderId,
                 'metadata' => [
                     'tenant_id' => $tenantId,
@@ -300,19 +306,8 @@ class MercadoPagoController extends Controller
                 ];
             }
 
-            // 3️⃣ CONFIGURAR SDK 3.7
-            MercadoPagoConfig::setAccessToken($usuario['mercadopago_access_token']);
-
-            // Configurar ambiente (sandbox ou produção)
-            if ($usuario['mercadopago_sandbox']) {
-                MercadoPagoConfig::setRuntimeEnviroment(MercadoPagoConfig::LOCAL);
-            }
-
-            Yii::info([
-                'action' => 'configuracao_sdk',
-                'usuario_id' => $usuario['id'],
-                'ambiente' => $usuario['mercadopago_sandbox'] ? 'SANDBOX' : 'PRODUÇÃO'
-            ], 'mercadopago');
+            // 3️⃣ INICIALIZAR SDK
+            $this->initSdk($usuario);
 
             // 4️⃣ PREPARAR ITENS DA PREFERÊNCIA
             $items = [];
@@ -363,7 +358,7 @@ class MercadoPagoController extends Controller
                 "auto_return" => "approved", // Força o retorno automático se aprovado
                 "external_reference" => $externalReference,
                 "statement_descriptor" => $statementDescriptor,
-                "notification_url" => "{$baseUrl}/index.php/api/mercado-pago/webhook",
+                "notification_url" => "{$baseUrl}/index.php/api/mercado-pago/webhook?tenant_id={$usuario['id']}",
                 "marketplace_fee" => $marketplaceFee, // ✅ ADICIONADO: Split Fee
                 "expires" => true,
                 "expiration_date_from" => date('c'),
@@ -500,8 +495,94 @@ class MercadoPagoController extends Controller
     }
 
     /**
-     * ========================================================================
-     * ENDPOINT: POST /api/mercado-pago/webhook
+     * ========================================================================    /**
+     * ENDPOINT: GET /api/mercado-pago/dispositivos
+     * Lista dispositivos de pagamento (maquinistas) vinculados ao tenant.
+     */
+    public function actionListarDispositivos($tenant_id = null)
+    {
+        $tenantId = $tenant_id ?? Yii::$app->request->get('tenant_id');
+
+        if (!$tenantId) {
+            return $this->errorResponse('tenant_id não informado');
+        }
+
+        $dispositivos = Yii::$app->db->createCommand("
+            SELECT id, nome, device_id, status FROM prest_dispositivos_pagamento
+            WHERE usuario_id = :usuario_id AND status = 'ativo'
+        ", [':usuario_id' => $tenantId])->queryAll();
+
+        return [
+            'sucesso' => true,
+            'dispositivos' => $dispositivos
+        ];
+    }
+
+    /**
+     * ENDPOINT: POST /api/mercado-pago/criar-pagamento-point
+     * Envia uma intenção de pagamento para uma maquineta física.
+     */
+    public function actionCriarPagamentoPoint()
+    {
+        $request = Yii::$app->request->post();
+        $tenantId = $request['tenant_id'] ?? null;
+        $deviceId = $request['device_id'] ?? null;
+        $orderId = $request['order_id'] ?? null;
+        $amount = (float)($request['amount'] ?? 0);
+
+        if (!$tenantId || !$deviceId || $amount <= 0) {
+            return $this->errorResponse('Parâmetros inválidos (tenant_id, device_id e amount são obrigatórios)');
+        }
+
+        $usuario = $this->buscarUsuarioPorId($tenantId);
+        if (!$usuario) return $this->errorResponse('Usuário não encontrado');
+
+        $this->initSdk($usuario);
+        $applicationFee = $this->calcularApplicationFee($amount);
+
+        try {
+            $client = new Client();
+            $response = $client->post("https://api.mercadopago.com/point/integration-api/devices/{$deviceId}/payment-intents", [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . ($usuario['mercadopago_access_token'] ?? $usuario['mp_access_token']),
+                    'Content-Type' => 'application/json',
+                    'x-test-scope' => ($usuario['mercadopago_sandbox'] ? 'sandbox' : '')
+                ],
+                'json' => [
+                    'amount' => (int)($amount * 100), // Em centavos para Point API
+                    'description' => "Pedido Pulse #{$orderId}",
+                    'payment' => [
+                        'installments' => 1,
+                        'type' => 'credit_card', // Pode ser dinâmico no futuro
+                    ],
+                    'additional_info' => [
+                        'external_reference' => $orderId, // Usamos o ID do pedido para o webhook
+                        'print_on_terminal' => true
+                    ],
+                    'application_fee' => (int)($applicationFee * 100)
+                ]
+            ]);
+
+            $result = json_decode($response->getBody()->getContents(), true);
+
+            Yii::info([
+                'action' => 'point_intent_criada',
+                'device_id' => $deviceId,
+                'intent_id' => $result['id'] ?? null
+            ], 'mercadopago');
+
+            return [
+                'sucesso' => true,
+                'data' => $result
+            ];
+        } catch (\Exception $e) {
+            Yii::error('Erro ao criar intent Point: ' . $e->getMessage(), 'mercadopago');
+            return $this->errorResponse('Erro na comunicação com o Mercado Pago Point: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * ENDPOINT: GET/POST /api/mercado-pago/webhook
      * ========================================================================
      */
     public function actionWebhook()
@@ -517,9 +598,18 @@ class MercadoPagoController extends Controller
                 'headers' => getallheaders()
             ], 'mercadopago');
 
-            // Validar tipo de notificação
-            if (!isset($data['type']) || $data['type'] !== 'payment') {
-                Yii::info('Notificação ignorada: tipo diferente de payment', 'mercadopago');
+            $type = $data['type'] ?? $data['topic'] ?? null;
+            $tenantId = Yii::$app->request->get('tenant_id');
+
+            // 🟢 TRATAMENTO PARA POINT (MAQUINETA)
+            if ($type === 'payment_intent') {
+                $intentId = $data['data']['id'] ?? $data['id'] ?? null;
+                return $this->processarWebhookPoint($intentId, $tenantId);
+            }
+
+            // Validar tipo de notificação padrão
+            if ($type !== 'payment') {
+                Yii::info('Notificação ignorada: tipo diferente de payment/payment_intent', 'mercadopago');
                 return ['status' => 'ok', 'message' => 'Tipo de notificação não processado'];
             }
 
@@ -558,7 +648,7 @@ class MercadoPagoController extends Controller
     private function consultarPagamentoMarketplace($paymentId, array $webhookData = [])
     {
         try {
-            $tenantId = $webhookData['data']['metadata']['tenant_id'] ?? ($webhookData['metadata']['tenant_id'] ?? null);
+            $tenantId = Yii::$app->request->get('tenant_id') ?? ($webhookData['data']['metadata']['tenant_id'] ?? ($webhookData['metadata']['tenant_id'] ?? null));
             $mpUserId = $webhookData['user_id'] ?? ($webhookData['data']['user_id'] ?? null);
 
             if ($tenantId && $this->validarUUID($tenantId)) {
@@ -615,7 +705,7 @@ class MercadoPagoController extends Controller
             return null;
         }
 
-        MercadoPagoConfig::setAccessToken($accessToken);
+        $this->initSdk(['mercadopago_access_token' => $accessToken]);
         $client = new PaymentClient();
         return $client->get($paymentId);
     }
@@ -736,7 +826,11 @@ class MercadoPagoController extends Controller
 
                 foreach ($usuariosMP as $usuario) {
                     try {
-                        MercadoPagoConfig::setAccessToken($usuario['mercadopago_access_token']);
+                        $this->initSdk([
+                            'mercadopago_access_token' => $usuario['access_token'],
+                            'mercadopago_sandbox' => $usuario['mercadopago_sandbox'],
+                            'id' => $usuario['id']
+                        ]);
                         $client = new PaymentClient();
                         $payment = $client->get($paymentId);
 
@@ -761,7 +855,7 @@ class MercadoPagoController extends Controller
 
             // Se a preferência foi encontrada, usa o token dela (fluxo de re-consulta)
             $usuario = $this->buscarUsuarioPorId($preferencia['usuario_id']);
-            MercadoPagoConfig::setAccessToken($usuario['mercadopago_access_token']);
+            $this->initSdk($usuario);
 
             $client = new PaymentClient();
             $payment = $client->get($paymentId);
@@ -784,7 +878,9 @@ class MercadoPagoController extends Controller
     private function buscarUsuariosComMpAtivo()
     {
         $sql = "
-            SELECT id, COALESCE(mp_access_token, mercadopago_access_token) AS access_token
+            SELECT id, 
+                   COALESCE(mp_access_token, mercadopago_access_token) AS access_token,
+                   mercadopago_sandbox
             FROM prest_usuarios
             WHERE api_de_pagamento = true
             AND gateway_pagamento = 'mercadopago'
@@ -830,8 +926,9 @@ class MercadoPagoController extends Controller
             $this->atualizarStatusPreferencia($externalReference, [
                 'status' => $status,
                 'payment_id' => $pagamento->id,
-                'status_detail' => $statusDetail,
-                'dados_pagamento' => json_encode($pagamento)
+                'payment_status' => $status,
+                'payment_type' => $pagamento->payment_type_id ?? null,
+                'transaction_amount' => $pagamento->transaction_amount ?? null
             ]);
         }
 
@@ -843,7 +940,12 @@ class MercadoPagoController extends Controller
                     $this->liberarPedido($tenantId, $orderId, $valorTotal, $pagamento->id);
                 } else {
                     // Fluxo legado baseado em preferência
-                    $this->criarPedidoNoSistema($externalReference, $pagamento);
+                    $pedidoId = $this->criarPedidoNoSistema($externalReference, $pagamento);
+                    if ($pedidoId) {
+                        $preferencia = $this->buscarPreferenciaPorExternalRef($externalReference);
+                        $this->registrarLogFinanceiro($preferencia['usuario_id'], $pedidoId, $pagamento->id, $valorTotal, $platformFee, 'approved');
+                        $this->liberarPedido($preferencia['usuario_id'], $pedidoId, $valorTotal, $pagamento->id);
+                    }
                 }
                 break;
 
@@ -874,12 +976,16 @@ class MercadoPagoController extends Controller
             }
 
             // Verificar se já existe pedido criado
-            if ($preferencia['pedido_id']) {
+            $vendaExistente = \app\modules\vendas\models\Venda::find()
+                ->where(['like', 'observacoes', "External Ref: {$externalReference}"])
+                ->one();
+
+            if ($vendaExistente) {
                 Yii::info([
                     'action' => 'pedido_ja_existe',
-                    'pedido_id' => $preferencia['pedido_id']
+                    'external_reference' => $externalReference
                 ], 'mercadopago');
-                return;
+                return $vendaExistente->id;
             }
 
             $dadosRequest = json_decode($preferencia['dados_request'], true);
@@ -887,26 +993,32 @@ class MercadoPagoController extends Controller
             // Obter forma de pagamento "Mercado Pago"
             $formaPagamentoId = $this->obterFormaPagamentoMercadoPago($preferencia['usuario_id']);
 
+            $obsCliente = !empty($dadosRequest['observacoes']) ? "Observações Cliente: {$dadosRequest['observacoes']}\n" : "";
+
             // Criar pedido
             $pedidoId = $this->criarPedido([
                 'usuario_id' => $preferencia['usuario_id'],
-                'cliente_id' => $preferencia['cliente_id'],
+                'cliente_id' => $dadosRequest['cliente_id'],
+                'colaborador_vendedor_id' => $dadosRequest['colaborador_vendedor_id'] ?? null,
                 'forma_pagamento_id' => $formaPagamentoId,
                 'data_venda' => $pagamento->date_approved ?? date('Y-m-d H:i:s'),
                 'valor_total' => $preferencia['valor_total'],
                 'itens' => $dadosRequest['itens'] ?? [],
-                'observacoes' => "Pedido via Mercado Pago\nPayment ID: {$pagamento->id}\nExternal Ref: {$externalReference}",
-                'status' => 'pago' // Ou 'confirmado'
+                'observacoes' => "{$obsCliente}Pedido via Mercado Pago\nPayment ID: {$pagamento->id}\nExternal Ref: {$externalReference}",
+                'status' => 'pago', // Ou 'confirmado'
+                'numero_parcelas' => $dadosRequest['numero_parcelas'] ?? 1,
+                'intervalo_dias_parcelas' => $dadosRequest['intervalo_dias_parcelas'] ?? 30,
+                'data_primeiro_pagamento' => $dadosRequest['data_primeiro_pagamento'] ?? null
             ]);
 
-            // Vincular pedido à preferência
-            $this->vincularPedidoPreferencia($preferencia['id'], $pedidoId);
 
             Yii::info([
                 'action' => 'pedido_criado',
                 'pedido_id' => $pedidoId,
                 'external_reference' => $externalReference
             ], 'mercadopago');
+
+            return $pedidoId;
         } catch (\Exception $e) {
             Yii::error([
                 'action' => 'erro_criar_pedido',
@@ -926,22 +1038,18 @@ class MercadoPagoController extends Controller
                 preference_id,
                 external_reference,
                 usuario_id,
-                cliente_id,
                 valor_total,
                 status,
                 dados_request,
-                ambiente,
                 created_at,
-                updated_at
+                ultima_atualizacao
             ) VALUES (
                 :preference_id,
                 :external_reference,
                 :usuario_id::uuid,
-                :cliente_id::uuid,
                 :valor_total,
                 :status,
                 :dados_request::jsonb,
-                :ambiente,
                 NOW(),
                 NOW()
             )
@@ -952,11 +1060,9 @@ class MercadoPagoController extends Controller
             ':preference_id' => $dados['preference_id'],
             ':external_reference' => $dados['external_reference'],
             ':usuario_id' => $dados['usuario_id'],
-            ':cliente_id' => $dados['cliente_id'],
             ':valor_total' => $dados['valor_total'],
             ':status' => $dados['status'],
-            ':dados_request' => json_encode($dados['dados_request']),
-            ':ambiente' => $dados['ambiente']
+            ':dados_request' => json_encode($dados['dados_request'])
         ])->queryScalar();
     }
 
@@ -970,37 +1076,23 @@ class MercadoPagoController extends Controller
             SET 
                 status = :status,
                 payment_id = :payment_id,
-                status_detail = :status_detail,
-                dados_pagamento = :dados_pagamento::jsonb,
-                updated_at = NOW()
+                payment_status = :payment_status,
+                payment_type = :payment_type,
+                transaction_amount = :transaction_amount,
+                ultima_atualizacao = NOW()
             WHERE external_reference = :external_ref
         ";
 
         Yii::$app->db->createCommand($sql, [
             ':status' => $dados['status'],
             ':payment_id' => $dados['payment_id'],
-            ':status_detail' => $dados['status_detail'],
-            ':dados_pagamento' => $dados['dados_pagamento'],
+            ':payment_status' => $dados['payment_status'],
+            ':payment_type' => $dados['payment_type'],
+            ':transaction_amount' => $dados['transaction_amount'],
             ':external_ref' => $externalReference
         ])->execute();
     }
 
-    /**
-     * Vincula pedido à preferência
-     */
-    private function vincularPedidoPreferencia($preferenciaId, $pedidoId)
-    {
-        $sql = "
-            UPDATE mercadopago_preferencias
-            SET pedido_id = :pedido_id::uuid
-            WHERE id = :id
-        ";
-
-        Yii::$app->db->createCommand($sql, [
-            ':pedido_id' => $pedidoId,
-            ':id' => $preferenciaId
-        ])->execute();
-    }
 
     /**
      * Cria pedido na tabela 'prest_vendas'
@@ -1015,21 +1107,27 @@ class MercadoPagoController extends Controller
                 INSERT INTO prest_vendas (
                     usuario_id,
                     cliente_id,
+                    colaborador_vendedor_id,
                     forma_pagamento_id,
                     data_venda,
                     valor_total,
                     observacoes,
-                    status,
-                    created_at,
-                    updated_at
+                    status_venda_codigo,
+                    numero_parcelas,
+                    data_primeiro_vencimento,
+                    data_criacao,
+                    data_atualizacao
                 ) VALUES (
                     :usuario_id::uuid,
                     :cliente_id::uuid,
+                    :colaborador_vendedor_id::uuid,
                     :forma_pagamento_id::uuid,
                     :data_venda,
                     :valor_total,
                     :observacoes,
                     :status,
+                    :numero_parcelas,
+                    :data_primeiro_vencimento,
                     NOW(),
                     NOW()
                 )
@@ -1039,30 +1137,31 @@ class MercadoPagoController extends Controller
             $vendaId = Yii::$app->db->createCommand($sqlVenda, [
                 ':usuario_id' => $dados['usuario_id'],
                 ':cliente_id' => $dados['cliente_id'],
+                ':colaborador_vendedor_id' => $dados['colaborador_vendedor_id'] ?? null,
                 ':forma_pagamento_id' => $dados['forma_pagamento_id'],
                 ':data_venda' => $dados['data_venda'] ?? date('Y-m-d H:i:s'),
                 ':valor_total' => $dados['valor_total'],
                 ':observacoes' => $dados['observacoes'],
-                ':status' => $dados['status']
+                ':status' => 'EM_ABERTO', // Criar como aberta para liberarPedido processar
+                ':numero_parcelas' => $dados['numero_parcelas'] ?? 1,
+                ':data_primeiro_vencimento' => $dados['data_primeiro_pagamento'] ?? date('Y-m-d')
             ])->queryScalar();
 
             // Criar itens
             foreach ($dados['itens'] as $item) {
                 $sqlItem = "
-                    INSERT INTO prest_itens_venda (
+                    INSERT INTO prest_venda_itens (
                         venda_id,
                         produto_id,
                         quantidade,
-                        preco_unitario,
-                        subtotal,
-                        created_at
+                        preco_unitario_venda,
+                        valor_total_item
                     ) VALUES (
                         :venda_id::uuid,
                         :produto_id::uuid,
                         :quantidade,
                         :preco_unitario,
-                        :subtotal,
-                        NOW()
+                        :subtotal
                     )
                 ";
 
@@ -1289,7 +1388,7 @@ class MercadoPagoController extends Controller
     private function obterFormaPagamentoMercadoPago($usuarioId)
     {
         $sql = "
-            SELECT id FROM forma_pagamento
+            SELECT id FROM prest_formas_pagamento
             WHERE usuario_id = :usuario_id::uuid
             AND LOWER(nome) LIKE '%mercado%pago%'
             LIMIT 1
@@ -1313,14 +1412,16 @@ class MercadoPagoController extends Controller
     private function criarFormaPagamentoMercadoPago($usuarioId)
     {
         $sql = "
-            INSERT INTO forma_pagamento (
+            INSERT INTO prest_formas_pagamento (
                 usuario_id,
                 nome,
+                tipo,
                 ativo,
-                created_at
+                data_criacao
             ) VALUES (
                 :usuario_id::uuid,
                 'Mercado Pago',
+                'OUTROS',
                 true,
                 NOW()
             )
@@ -1401,6 +1502,41 @@ class MercadoPagoController extends Controller
     }
 
     /**
+     * Inicializa o SDK do Mercado Pago com as credenciais do usuário e configura o ambiente.
+     */
+    private function initSdk($usuario)
+    {
+        $accessToken = $usuario['mercadopago_access_token'] ?? $usuario['mp_access_token'] ?? null;
+
+        if (!$accessToken) {
+            return;
+        }
+
+        MercadoPagoConfig::setAccessToken($accessToken);
+
+        // Verifica se é sandbox. Aceita tanto 'mercadopago_sandbox' quanto o valor vindo do banco.
+        $isSandbox = !empty($usuario['mercadopago_sandbox']);
+
+        if ($isSandbox) {
+            MercadoPagoConfig::setRuntimeEnviroment(MercadoPagoConfig::LOCAL);
+        } else {
+            // Garante que volta para produção caso tenha sido setado local anteriormente
+            // (O SDK mantém estado estático na classe MercadoPagoConfig)
+            MercadoPagoConfig::setRuntimeEnviroment(MercadoPagoConfig::SERVER);
+        }
+
+        // Armazena a taxa de comissão do usuário para uso no cálculo da fee
+        $this->taxaComissao = isset($usuario['taxa_comissao']) ? (float)$usuario['taxa_comissao'] : null;
+
+        Yii::info([
+            'message' => 'SDK Mercado Pago Inicializado',
+            'ambiente' => $isSandbox ? 'SANDBOX' : 'PRODUÇÃO',
+            'tenant_id' => $usuario['id'] ?? 'N/A',
+            'taxa_comissao' => $this->taxaComissao
+        ], 'mercadopago');
+    }
+
+    /**
      * Salva tokens OAuth no tenant.
      */
     private function salvarTokensOauth($tenantId, array $payload)
@@ -1476,7 +1612,10 @@ class MercadoPagoController extends Controller
             return 0;
         }
 
-        $percent = Yii::$app->params['pulse_platform_fee_percent'] ?? 0.005;
+        // Se o lojista tiver uma taxa de comissão específica no banco, usa ela.
+        // Caso contrário, usa a taxa padrão da plataforma definida no config/params.php.
+        $percent = $this->taxaComissao ?? (Yii::$app->params['pulse_platform_fee_percent'] ?? 0.005);
+
         $fee = round($valor * $percent, 2);
         return min($fee, $valor);
     }
@@ -1609,6 +1748,30 @@ class MercadoPagoController extends Controller
     }
 
     /**
+     * Remove (desvincula) um dispositivo de pagamento.
+     */
+    public function actionRemoverDispositivo($id)
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        try {
+            $model = \app\models\PrestDispositivosPagamento::findOne($id);
+
+            if (!$model) {
+                return ['sucesso' => false, 'erro' => 'Dispositivo não encontrado.'];
+            }
+
+            if ($model->delete()) {
+                return ['sucesso' => true, 'mensagem' => 'Dispositivo removido com sucesso.'];
+            }
+
+            return ['sucesso' => false, 'erro' => 'Falha ao remover dispositivo no banco.'];
+        } catch (\Exception $e) {
+            return ['sucesso' => false, 'erro' => $e->getMessage()];
+        }
+    }
+
+    /**
      * Formata resposta de erro
      */
     private function errorResponse($message, $code = 400)
@@ -1620,5 +1783,80 @@ class MercadoPagoController extends Controller
             'codigo' => $code,
             'timestamp' => date('c')
         ];
+    }
+
+    /**
+     * ENDPOINT: POST /api/mercado-pago/registrar-dispositivo
+     * Registra uma maquineta Point no banco de dados.
+     */
+    public function actionRegistrarDispositivo()
+    {
+        $request = Yii::$app->request->post();
+        $tenantId = $request['tenant_id'] ?? null;
+        $nome = $request['nome'] ?? 'Maquineta';
+        $deviceId = $request['device_id'] ?? null;
+
+        if (!$tenantId || !$deviceId) {
+            return $this->errorResponse('tenant_id e device_id são obrigatórios');
+        }
+
+        try {
+            Yii::$app->db->createCommand()->insert('prest_dispositivos_pagamento', [
+                'usuario_id' => $tenantId,
+                'nome' => $nome,
+                'device_id' => $deviceId,
+                'status' => 'ativo'
+            ])->execute();
+
+            return [
+                'sucesso' => true,
+                'mensagem' => 'Dispositivo registrado com sucesso'
+            ];
+        } catch (\Exception $e) {
+            return $this->errorResponse('Erro ao registrar dispositivo: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Processa webhook específico para Mercado Pago Point
+     */
+    private function processarWebhookPoint($intentId, $tenantId)
+    {
+        if (!$tenantId) {
+            Yii::error('Tenant ID não informado no webhook Point', 'mercadopago');
+            return ['status' => 'error', 'message' => 'tenant_id missing'];
+        }
+
+        $usuario = $this->buscarUsuarioPorId($tenantId);
+        if (!$usuario) return $this->errorResponse('Tenant não encontrado no webhook Point');
+
+        $this->initSdk($usuario);
+
+        try {
+            $client = new Client();
+            $response = $client->get("https://api.mercadopago.com/point/integration-api/payment-intents/{$intentId}", [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . ($usuario['mercadopago_access_token'] ?? $usuario['mp_access_token'])
+                ]
+            ]);
+
+            $intent = json_decode($response->getBody()->getContents(), true);
+
+            if (isset($intent['status']) && $intent['status'] === 'FINISHED') {
+                $orderId = $intent['additional_info']['external_reference'] ?? null;
+                $paymentId = $intent['payment']['id'] ?? null;
+                $amount = (float)($intent['amount'] / 100);
+
+                if ($orderId) {
+                    $this->liberarPedido($tenantId, $orderId, $amount, $paymentId);
+                    Yii::info("Pedido {$orderId} liberado via Webhook Point", 'mercadopago');
+                }
+            }
+
+            return ['status' => 'OK'];
+        } catch (\Exception $e) {
+            Yii::error('Erro ao processar webhook Point: ' . $e->getMessage(), 'mercadopago');
+            return ['status' => 'error', 'message' => $e->getMessage()];
+        }
     }
 }
