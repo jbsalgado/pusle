@@ -5,8 +5,8 @@
             Remover
         </button>
     </div>
-    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div class="sm:col-span-2 relative autocomplete-container">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="sm:col-span-1 lg:col-span-2 relative autocomplete-container">
             <label class="block text-sm font-medium text-gray-700 mb-2">Produto *</label>
 
             <?php
@@ -28,25 +28,46 @@
                 value="<?= \yii\helpers\Html::encode($nomeProduto) ?>"
                 autocomplete="off">
 
-            <?= $form->field($item, "[$index]produto_id", ['template' => '{input}'])->hiddenInput(['class' => 'input-produto-id']) ?>
+            <?= $form->field($item, "[$index]produto_id", ['template' => '{input}', 'enableClientValidation' => false])->hiddenInput(['class' => 'input-produto-id', 'required' => false]) ?>
 
             <div class="autocomplete-results hidden absolute z-50 w-full bg-white border border-gray-300 rounded-b-lg shadow-lg max-h-60 overflow-y-auto top-[70px]"></div>
         </div>
-        <div>
-            <?= $form->field($item, "[$index]quantidade")->textInput([
-                'type' => 'number',
-                'step' => '0.001',
-                'min' => '0.001',
-                'class' => 'input-quantidade w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'value' => $item->quantidade ?? ''
-            ])->label('Quantidade') ?>
+        <div class="relative autocomplete-container-categoria">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Categoria *</label>
+
+            <?php
+            $nomeCategoria = '';
+            if ($item->categoria_id && isset($categorias[$item->categoria_id])) {
+                $nomeCategoria = $categorias[$item->categoria_id];
+            }
+            ?>
+
+            <input type="text"
+                class="input-search-categoria w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Buscar categoria..."
+                value="<?= \yii\helpers\Html::encode($nomeCategoria) ?>"
+                autocomplete="off">
+
+            <?= $form->field($item, "[$index]categoria_id", ['template' => '{input}', 'enableClientValidation' => false])->hiddenInput(['class' => 'input-categoria-id', 'required' => false]) ?>
+
+            <div class="autocomplete-results-categoria hidden absolute z-50 w-full bg-white border border-gray-300 rounded-b-lg shadow-lg max-h-60 overflow-y-auto top-[70px]"></div>
         </div>
-        <div>
-            <?= $form->field($item, "[$index]preco_unitario")->textInput([
-                'class' => 'input-preco currency-input w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'value' => $item->preco_unitario ?? '',
-                'placeholder' => '0,00'
-            ])->label('Preço Unit.') ?>
+        <div class="grid grid-cols-2 gap-4 sm:col-span-1">
+            <div>
+                <?= $form->field($item, "[$index]quantidade", ['enableClientValidation' => false])->textInput([
+                    'type' => 'text',
+                    'inputmode' => 'decimal',
+                    'class' => 'input-quantidade w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                    'value' => $item->quantidade ?? ''
+                ])->label('Qtd.') ?>
+            </div>
+            <div>
+                <?= $form->field($item, "[$index]preco_unitario", ['enableClientValidation' => false])->textInput([
+                    'class' => 'input-preco currency-input w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                    'value' => $item->preco_unitario ?? '',
+                    'placeholder' => '0,00'
+                ])->label('Preço') ?>
+            </div>
         </div>
     </div>
     <div class="mt-2 text-right">

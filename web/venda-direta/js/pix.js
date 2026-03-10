@@ -1080,7 +1080,18 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
     </div>
     
     <div style="text-align: center; font-weight: bold; font-size: 12px; margin: 5px 0;">
-        VENDA Nº: ${String(dadosVenda.id || dadosPedido.venda_id || dadosPedido.id || dadosVenda.prest_vendas_id || dadosPedido.prest_vendas_id || '???').toUpperCase().substring(0, 8)}
+        VENDA Nº: ${(() => {
+            const idFinal = dadosVenda.id || 
+                            dadosPedido.venda_id || 
+                            dadosPedido.id || 
+                            dadosVenda.prest_vendas_id || 
+                            dadosPedido.prest_vendas_id || 
+                            (dadosVenda.data && dadosVenda.data.id) || 
+                            (dadosPedido.data && dadosPedido.data.id) || 
+                            (dadosVenda.venda && dadosVenda.venda.id) || 
+                            '???';
+            return String(idFinal).toUpperCase().substring(0, 8);
+        })()}
     </div>
     
     ${dadosPedido.cliente ? `
@@ -1174,6 +1185,13 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
         <div class="pagamento-tipo">FORMA DE PAGAMENTO: ${dadosPedido.forma_pagamento || dadosVenda.forma_pagamento_nome || 'Não informado'}</div>
         ${dadosPedido.numero_parcelas === 1 ? `<div>VALOR PAGO: ${valorFormatado}</div>` : `<div>${dadosPedido.numero_parcelas}x de ${formatarMoeda(valorTotal / dadosPedido.numero_parcelas)}</div>`}
     </div>
+
+    ${dadosPedido.observacoes ? `
+    <div style="margin: 8px 0; border-top: 1px dashed #000; padding-top: 5px;">
+        <div style="font-weight: bold; margin-bottom: 2px;">OBSERVAÇÕES:</div>
+        <div style="font-size: 10px; font-style: italic;">${dadosPedido.observacoes}</div>
+    </div>
+    ` : ''}
     
     ${(() => {
         const temParcelas = dadosPedido.parcelas && Array.isArray(dadosPedido.parcelas) && dadosPedido.parcelas.length > 0;
@@ -1434,7 +1452,17 @@ function gerarTextoComprovante() {
     texto += linhaSeparadora + '\n';
     
     // Info Venda
-    const idVenda = String(dadosVenda.id || dadosPedido.venda_id || dadosPedido.id || dadosVenda.prest_vendas_id || dadosPedido.prest_vendas_id || '???');
+    const idVendaBruto = dadosVenda.id || 
+                         dadosPedido.venda_id || 
+                         dadosPedido.id || 
+                         dadosVenda.prest_vendas_id || 
+                         dadosPedido.prest_vendas_id || 
+                         (dadosVenda.data && dadosVenda.data.id) || 
+                         (dadosPedido.data && dadosPedido.data.id) || 
+                         (dadosVenda.venda && dadosVenda.venda.id) || 
+                         '???';
+    
+    const idVenda = String(idVendaBruto);
     // Se for UUID, pega os primeiros 8 caracteres para caber na impressora
     const numVenda = idVenda.length > 20 ? idVenda.substring(0, 8).toUpperCase() : idVenda;
     
@@ -1475,6 +1503,13 @@ function gerarTextoComprovante() {
     texto += row("TOTAL", `R$ ${valorTotal.toFixed(2)}`) + '\n';
     const formaPgto = removerAcentos(dadosPedido.forma_pagamento || 'DINHEIRO').toUpperCase();
     texto += row("PAGAMENTO", formaPgto) + '\n';
+    
+    // Observações
+    if (dadosPedido.observacoes) {
+        texto += linhaSeparadora + '\n';
+        texto += "OBSERVACOES:\n";
+        texto += removerAcentos(dadosPedido.observacoes).toUpperCase() + '\n';
+    }
     
     // Rodapé
     texto += '\n\n' + center("OBRIGADO PELA PREFERENCIA!") + '\n\n\n';
@@ -1637,5 +1672,221 @@ function formatarTelefone(telefone) {
 
 // Exporta para garantir acesso no app.js
 window.mostrarModalPixEstatico = mostrarModalPixEstatico;
+
+/**
+ * Gera e abre o comprovante de venda em formato A4 para impressão ou download HTML
+ */
+window.gerarVendaA4 = function() {
+    if (!window.dadosComprovanteAtual) {
+        alert("Dados da venda não disponíveis.");
+        return;
+    }
+
+    const { carrinho, dadosPedido, dadosEmpresa, valorTotal, dataHora, acrescimoValor, totalDescontos } = window.dadosComprovanteAtual;
+    const dadosVenda = dadosPedido.venda || dadosPedido;
+
+    // Formatação de valores
+    const formatMoney = (val) => Number(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    // Itens da tabela
+    const itensHtml = carrinho.map((item, index) => {
+        const preco = parseFloat(item.preco_final || item.preco || item.preco_venda_sugerido || item.preco_unitario || item.preco_unitario_venda || 0);
+        const qtd = parseFloat(item.quantidade || 0);
+        const subtotal = preco * qtd;
+        
+        let desconto = 0;
+        if (item.descontoValor > 0) desconto = parseFloat(item.descontoValor);
+        else if (item.descontoPercentual > 0) desconto = subtotal * (parseFloat(item.descontoPercentual) / 100);
+        else if (item.desconto_valor > 0) desconto = parseFloat(item.desconto_valor);
+        else if (item.desconto_percentual > 0) desconto = subtotal * (parseFloat(item.desconto_percentual) / 100);
+        
+        const totalLiquido = Math.max(0, subtotal - desconto);
+        const nomeProduto = item.nome || item.descricao || item.nome_produto || (item.produto ? item.produto.nome : 'Produto');
+
+        return `
+            <tr class="${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} border-b">
+                <td class="px-4 py-2 text-sm text-gray-700">${nomeProduto}</td>
+                <td class="px-4 py-2 text-sm text-center text-gray-700">${qtd.toFixed(2)}</td>
+                <td class="px-4 py-2 text-sm text-right text-gray-700">${formatMoney(preco)}</td>
+                <td class="px-4 py-2 text-sm text-right text-gray-700 text-red-600">-${formatMoney(desconto)}</td>
+                <td class="px-4 py-2 text-sm text-right font-bold text-gray-800">${formatMoney(totalLiquido)}</td>
+            </tr>
+        `;
+    }).join("");
+
+    // AJEITAR ID: Prioriza ID do servidor (venda_id/id) com extração robusta
+    const idVenda = dadosVenda.id || 
+                    dadosPedido.venda_id || 
+                    dadosPedido.id || 
+                    dadosVenda.prest_vendas_id || 
+                    dadosPedido.prest_vendas_id || 
+                    (dadosVenda.data && dadosVenda.data.id) || 
+                    (dadosPedido.data && dadosPedido.data.id) || 
+                    (dadosVenda.venda && dadosVenda.venda.id) || 
+                    null;
+                    
+    let idExibicao = "???";
+    if (idVenda) {
+        const idStr = String(idVenda);
+        idExibicao = (!isNaN(idVenda) && idStr.length < 15) ? idStr : (idStr.length > 20 ? idStr.substring(0, 8).toUpperCase() : idStr);
+    }
+
+    // HTML Completo A4
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Comprovante de Venda #${idExibicao}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            @media print {
+                @page { size: A4; margin: 10mm; }
+                body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; }
+                .no-print { display: none !important; }
+                .break-inside-avoid { page-break-inside: avoid; }
+            }
+            body { font-family: 'Inter', sans-serif; background: #fff; color: #333; }
+        </style>
+    </head>
+    <body class="bg-gray-100 min-h-screen p-8">
+        
+        <!-- Botões de Ação (Não aparecem na impressão) -->
+        <div class="no-print fixed top-4 right-4 flex gap-2 z-50">
+            <button onclick="window.print()" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 font-bold flex items-center gap-2">
+                🖨️ Imprimir / Salvar PDF
+            </button>
+            <button onclick="downloadHtml()" class="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 font-bold flex items-center gap-2">
+                📥 Baixar Arquivo HTML
+            </button>
+        </div>
+
+        <!-- Folha A4 -->
+        <div class="max-w-[210mm] mx-auto bg-white shadow-lg p-[10mm] min-h-[297mm] relative">
+            
+            <!-- Cabeçalho -->
+            <div class="flex justify-between items-start border-b pb-6 mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800 uppercase">${dadosEmpresa.nome_loja || "NOME DA EMPRESA"}</h1>
+                    <div class="text-sm text-gray-600 mt-2 space-y-1">
+                        ${dadosEmpresa.cpf_cnpj ? `<p>CNPJ/CPF: ${formatarCpfCnpj(dadosEmpresa.cpf_cnpj)}</p>` : ''}
+                        ${dadosEmpresa.endereco ? `<p>${dadosEmpresa.endereco}, ${dadosEmpresa.cidade || ''}</p>` : ''}
+                        ${dadosEmpresa.telefone ? `<p>Fone: ${formatarTelefone(dadosEmpresa.telefone)}</p>` : ''}
+                    </div>
+                </div>
+                <div class="text-right">
+                    <h2 class="text-xl font-bold text-blue-800">COMPROVANTE DE VENDA</h2>
+                    <p class="text-gray-500 text-lg">#${idExibicao}</p>
+                    <p class="text-sm text-gray-400 mt-1">Emissão: ${dataHora}</p>
+                </div>
+            </div>
+
+            <!-- Dados do Cliente -->
+            ${dadosPedido.cliente ? `
+            <div class="bg-blue-50 p-4 rounded-lg mb-6 border border-blue-100 break-inside-avoid">
+                <h3 class="text-blue-800 font-bold mb-2 uppercase text-sm border-b border-blue-200 pb-1">Dados do Cliente</h3>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <p><span class="font-semibold">Nome:</span> ${dadosPedido.cliente.nome}</p>
+                        ${dadosPedido.cliente.cpf ? `<p><span class="font-semibold">CPF/CNPJ:</span> ${formatarCpfCnpj(dadosPedido.cliente.cpf)}</p>` : ''}
+                    </div>
+                    <div>
+                        ${dadosPedido.cliente.telefone ? `<p><span class="font-semibold">Telefone:</span> ${formatarTelefone(dadosPedido.cliente.telefone)}</p>` : ''}
+                        ${dadosPedido.cliente.endereco ? `<p><span class="font-semibold">Endereço:</span> ${dadosPedido.cliente.endereco}, ${dadosPedido.cliente.numero || 'S/N'}</p>` : ''}
+                    </div>
+                </div>
+            </div>` : ''}
+
+            <!-- Tabela de Itens -->
+            <table class="w-full mb-6 border-collapse">
+                <thead>
+                    <tr class="bg-gray-800 text-white uppercase text-xs">
+                        <th class="px-4 py-2 text-left rounded-tl-lg">Item / Descrição</th>
+                        <th class="px-4 py-2 text-center">Qtd.</th>
+                        <th class="px-4 py-2 text-right">Unitário</th>
+                        <th class="px-4 py-2 text-right">Desconto</th>
+                        <th class="px-4 py-2 text-right rounded-tr-lg">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itensHtml}
+                </tbody>
+            </table>
+
+            <!-- Totais e Pagamento -->
+            <div class="flex justify-end mb-6 break-inside-avoid">
+                <div class="w-1/2 bg-gray-50 p-4 rounded-lg border">
+                    <div class="flex justify-between text-sm mb-1 text-gray-600">
+                        <span>Subtotal:</span>
+                        <span>${formatMoney(valorTotal + (totalDescontos || 0) - (acrescimoValor || 0))}</span>
+                    </div>
+                    ${totalDescontos > 0 ? `
+                    <div class="flex justify-between text-sm mb-1 text-green-600">
+                        <span>Desconto Total:</span>
+                        <span>- ${formatMoney(totalDescontos)}</span>
+                    </div>` : ''}
+                    ${acrescimoValor > 0 ? `
+                    <div class="flex justify-between text-sm mb-1 text-blue-600">
+                        <span>Acréscimos:</span>
+                        <span>+ ${formatMoney(acrescimoValor)}</span>
+                    </div>` : ''}
+                    <div class="flex justify-between text-xl font-bold text-gray-900 border-t pt-2 mt-2">
+                        <span>TOTAL GERAL:</span>
+                        <span>${formatMoney(valorTotal)}</span>
+                    </div>
+                    
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                         <p class="text-sm font-semibold text-gray-700">Forma de Pagamento:</p>
+                         <p class="text-lg text-blue-700 font-bold uppercase">${dadosPedido.forma_pagamento || dadosVenda.forma_pagamento_nome || 'A Combinar'}</p>
+                         ${dadosPedido.numero_parcelas > 1 ? `<p class="text-xs text-gray-500 mt-1">${dadosPedido.numero_parcelas}x de ${formatMoney(valorTotal / dadosPedido.numero_parcelas)}</p>` : ''}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Observações -->
+            ${dadosPedido.observacoes ? `
+            <div class="border-t-2 border-dashed border-gray-300 pt-4 mb-6 break-inside-avoid">
+                <h4 class="font-bold text-gray-700 mb-1 uppercase text-sm">Observações:</h4>
+                <p class="text-sm text-gray-600 bg-yellow-50 p-3 rounded border border-yellow-100 italic">
+                    ${dadosPedido.observacoes}
+                </p>
+            </div>` : ''}
+
+            <!-- Rodapé -->
+            <div class="absolute bottom-10 left-0 w-full text-center text-xs text-gray-400">
+                <p>Documento gerado eletronicamente em ${dataHora}</p>
+                <p>${dadosEmpresa.nome_loja}</p>
+            </div>
+
+        </div>
+
+        <script>
+            function downloadHtml() {
+                const htmlContent = document.documentElement.outerHTML;
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'Comprovante_Venda_A4_${idVenda}.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        </script>
+    </body>
+    </html>
+    `;
+
+    // Abre em nova janela
+    const win = window.open('', '_blank');
+    if (win) {
+        win.document.write(htmlContent);
+        win.document.close();
+    } else {
+        alert("Permita popups para visualizar o comprovante A4.");
+    }
+};
+
 export { gerarComprovanteVenda };
 

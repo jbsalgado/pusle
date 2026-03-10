@@ -133,22 +133,20 @@ $this->params['breadcrumbs'][] = $this->title;
                             <?= Html::a('Ver Detalhes', ['view', 'id' => $model->id], ['class' => 'px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition duration-300 text-sm']) ?>
                             <?php if ($model->status_compra === 'PENDENTE'): ?>
                                 <?= Html::a('Editar', ['update', 'id' => $model->id], ['class' => 'px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded-lg transition duration-300 text-sm']) ?>
-                                <?= Html::a('Concluir', ['concluir', 'id' => $model->id], [
+                                <?= Html::beginForm(['concluir', 'id' => $model->id], 'post', ['class' => 'inline']) ?>
+                                <?= Html::submitButton('Concluir', [
                                     'class' => 'px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-300 text-sm',
-                                    'data' => [
-                                        'confirm' => 'Tem certeza que deseja concluir esta compra? O estoque será atualizado.',
-                                        'method' => 'post',
-                                    ],
+                                    'onclick' => 'return confirm("Tem certeza que deseja concluir esta compra? O estoque será atualizado.");'
                                 ]) ?>
+                                <?= Html::endForm() ?>
                             <?php endif; ?>
                             <?php if ($model->status_compra !== 'CANCELADA' && $model->status_compra !== 'CONCLUIDA'): ?>
-                                <?= Html::a('Cancelar', ['cancelar', 'id' => $model->id], [
+                                <?= Html::beginForm(['cancelar', 'id' => $model->id], 'post', ['class' => 'inline']) ?>
+                                <?= Html::submitButton('Cancelar', [
                                     'class' => 'px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition duration-300 text-sm',
-                                    'data' => [
-                                        'confirm' => 'Tem certeza que deseja cancelar esta compra?',
-                                        'method' => 'post',
-                                    ],
+                                    'onclick' => 'return confirm("Tem certeza que deseja cancelar esta compra?");'
                                 ]) ?>
+                                <?= Html::endForm() ?>
                             <?php endif; ?>
                         </div>
                     </div>

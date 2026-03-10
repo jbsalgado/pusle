@@ -9,7 +9,11 @@ use app\modules\vendas\models\ItemCompra;
 <div class="compra-form">
     <?php $form = ActiveForm::begin([
         'id' => 'compra-form',
-        'options' => ['class' => 'space-y-6 p-4 sm:p-6 lg:p-8'],
+        'action' => $model->isNewRecord ? ['create'] : ['update', 'id' => $model->id],
+        'options' => [
+            'class' => 'space-y-6 p-4 sm:p-6 lg:p-8',
+            'novalidate' => true, // Previne que o navegador bloqueie o envio por causa de hidden fields
+        ],
         'fieldConfig' => [
             'template' => "{label}\n{input}\n{hint}\n{error}",
             'labelOptions' => ['class' => 'block text-sm font-medium text-gray-700 mb-2'],
@@ -114,6 +118,7 @@ use app\modules\vendas\models\ItemCompra;
                         'item' => $item,
                         'index' => $index,
                         'produtos' => $produtos,
+                        'categorias' => $categorias,
                     ]) ?>
                 <?php endforeach; ?>
             <?php endif; ?>
@@ -131,7 +136,10 @@ use app\modules\vendas\models\ItemCompra;
     <div class="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-200">
         <?= Html::submitButton(
             '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>' . ($model->isNewRecord ? 'Cadastrar' : 'Atualizar'),
-            ['class' => 'w-full sm:flex-1 inline-flex items-center justify-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-300']
+            [
+                'id' => 'btn-submit-compra',
+                'class' => 'w-full sm:flex-1 inline-flex items-center justify-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-300'
+            ]
         ) ?>
         <?= Html::a(
             '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>Cancelar',
@@ -144,55 +152,58 @@ use app\modules\vendas\models\ItemCompra;
 </div>
 
 <script>
-    let itemIndex = <?= count($itens) ?>;
-    const produtos = <?= json_encode(array_map(function ($p) {
-                            return ['id' => $p->id, 'nome' => $p->nome, 'preco_custo' => $p->preco_custo];
-                        }, $produtos)) ?>;
+    document.addEventListener('DOMContentLoaded', function() {
+        let itemIndex = <?= count($itens) ?>;
+        const categorias = <?= json_encode($categorias) ?>;
+        const produtos = <?= json_encode(array_map(function ($p) {
+                                return ['id' => $p->id, 'nome' => $p->nome, 'preco_custo' => $p->preco_custo, 'categoria_id' => $p->categoria_id];
+                            }, $produtos)) ?>;
 
-    // Função de Máscara de Moeda (Right-to-Left)
-    function maskCurrency(event) {
-        let value = event.target.value.replace(/\D/g, "");
-        if (value === "") {
-            event.target.value = "";
-            return;
+        // Função de Máscara de Moeda (Right-to-Left)
+        function maskCurrency(event) {
+            let value = event.target.value.replace(/\D/g, "");
+            if (value === "") {
+                event.target.value = "";
+                return;
+            }
+
+            // Converte para número e divide por 100 para centavos
+            let numberValue = parseInt(value) / 100;
+
+            // Formata usando Intl nativo do navegador
+            event.target.value = new Intl.NumberFormat('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(numberValue);
+
+            // Recalcular total se for campo global
+            if (event.target.id === 'input-frete' || event.target.id === 'input-desconto') {
+                calcularTotal();
+            }
         }
 
-        // Converte para número e divide por 100 para centavos
-        let numberValue = parseInt(value) / 100;
-
-        // Formata usando Intl nativo do navegador
-        event.target.value = new Intl.NumberFormat('pt-BR', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(numberValue);
-
-        // Recalcular total se for campo global
-        if (event.target.id === 'input-frete' || event.target.id === 'input-desconto') {
-            calcularTotal();
+        // Função para desmascarar (1.234,56 -> 1234.56)
+        function unmaskCurrency(value) {
+            if (!value) return 0;
+            if (typeof value === 'number') return value;
+            return parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
         }
-    }
 
-    // Função para desmascarar (1.234,56 -> 1234.56)
-    function unmaskCurrency(value) {
-        if (!value) return 0;
-        if (typeof value === 'number') return value;
-        return parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
-    }
+        // Aplica máscara em inputs existentes
+        document.querySelectorAll('.currency-input').forEach(input => {
+            input.addEventListener('input', maskCurrency);
+            // Formata valor inicial se existir (e for numérico padrão do BD)
+            if (input.value && !input.value.includes(',')) {
+                input.value = new Intl.NumberFormat('pt-BR', {
+                    minimumFractionDigits: 2
+                }).format(parseFloat(input.value));
+            }
+        });
 
-    // Aplica máscara em inputs existentes
-    document.querySelectorAll('.currency-input').forEach(input => {
-        input.addEventListener('input', maskCurrency);
-        // Formata valor inicial se existir (e for numérico padrão do BD)
-        if (input.value && !input.value.includes(',')) {
-            input.value = new Intl.NumberFormat('pt-BR', {
-                minimumFractionDigits: 2
-            }).format(parseFloat(input.value));
-        }
-    });
+        document.getElementById('btn-adicionar-item').addEventListener('click', function() {
+            const container = document.getElementById('itens-container');
 
-    document.getElementById('btn-adicionar-item').addEventListener('click', function() {
-        const container = document.getElementById('itens-container');
-        const itemHtml = `
+            const itemHtml = `
         <div class="item-compra bg-gray-50 p-4 rounded-lg border border-gray-200" data-index="${itemIndex}">
             <div class="flex justify-between items-center mb-3">
                 <h4 class="font-semibold text-gray-900">Item ${itemIndex + 1}</h4>
@@ -200,22 +211,31 @@ use app\modules\vendas\models\ItemCompra;
                     Remover
                 </button>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <div class="sm:col-span-2 relative autocomplete-container">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="sm:col-span-1 lg:col-span-2 relative autocomplete-container">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Produto *</label>
                     
                     <input type="text" class="input-search w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Digite para buscar..." autocomplete="off">
-                    <input type="hidden" name="ItemCompra[${itemIndex}][produto_id]" class="input-produto-id" required>
+                    <input type="hidden" name="ItemCompra[${itemIndex}][produto_id]" class="input-produto-id">
                     
                     <div class="autocomplete-results hidden absolute z-50 w-full bg-white border border-gray-300 rounded-b-lg shadow-lg max-h-60 overflow-y-auto top-[70px]"></div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Quantidade *</label>
-                    <input type="number" name="ItemCompra[${itemIndex}][quantidade]" step="0.001" min="0.001" class="input-quantidade w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                <div class="relative autocomplete-container-categoria">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Categoria *</label>
+                    <input type="text" class="input-search-categoria w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Buscar categoria..." autocomplete="off">
+                    <input type="hidden" name="ItemCompra[${itemIndex}][categoria_id]" class="input-categoria-id">
+                    
+                    <div class="autocomplete-results-categoria hidden absolute z-50 w-full bg-white border border-gray-300 rounded-b-lg shadow-lg max-h-60 overflow-y-auto top-[70px]"></div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Preço Unit. *</label>
-                    <input type="text" name="ItemCompra[${itemIndex}][preco_unitario]" class="input-preco currency-input w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required placeholder="0,00">
+                <div class="grid grid-cols-2 gap-4 sm:col-span-1">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Quantidade *</label>
+                        <input type="text" inputmode="decimal" name="ItemCompra[${itemIndex}][quantidade]" class="input-quantidade w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Preço Unit. *</label>
+                        <input type="text" name="ItemCompra[${itemIndex}][preco_unitario]" class="input-preco currency-input w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required placeholder="0,00">
+                    </div>
                 </div>
             </div>
             <div class="mt-2 text-right">
@@ -224,144 +244,229 @@ use app\modules\vendas\models\ItemCompra;
             </div>
         </div>
     `;
-        container.insertAdjacentHTML('beforeend', itemHtml);
+            container.insertAdjacentHTML('beforeend', itemHtml);
 
-        // Remove mensagem de "nenhum item"
-        const emptyMsg = container.querySelector('.text-center');
-        if (emptyMsg) emptyMsg.remove();
+            // Remove mensagem de "nenhum item"
+            const emptyMsg = container.querySelector('.text-center');
+            if (emptyMsg) emptyMsg.remove();
 
-        // Adiciona listeners
-        const newItem = container.lastElementChild;
-        // Apply mask to new input
-        newItem.querySelector('.currency-input').addEventListener('input', maskCurrency);
+            // Adiciona listeners
+            const newItem = container.lastElementChild;
+            // Apply mask to new input
+            newItem.querySelector('.currency-input').addEventListener('input', maskCurrency);
 
-        attachItemListeners(newItem);
-        itemIndex++;
-    });
+            attachItemListeners(newItem);
+            itemIndex++;
+        });
 
-    // Remove item
-    document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('btn-remover-item')) {
-            e.target.closest('.item-compra').remove();
-            calcularTotal();
-        }
-    });
+        // Remove item
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('btn-remover-item')) {
+                e.target.closest('.item-compra').remove();
+                calcularTotal();
+            }
+        });
 
-    // Fecha resultados se clicar fora
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('.autocomplete-container')) {
-            document.querySelectorAll('.autocomplete-results').forEach(el => el.classList.add('hidden'));
-        }
-    });
+        // Fecha resultados se clicar fora
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.autocomplete-container')) {
+                document.querySelectorAll('.autocomplete-results').forEach(el => el.classList.add('hidden'));
+            }
+            if (!e.target.closest('.autocomplete-container-categoria')) {
+                document.querySelectorAll('.autocomplete-results-categoria').forEach(el => el.classList.add('hidden'));
+            }
+        });
 
-    // Listeners para cálculo e autocomplete
-    function attachItemListeners(itemElement) {
-        const inputSearch = itemElement.querySelector('.input-search');
-        const inputId = itemElement.querySelector('.input-produto-id');
-        const resultsContainer = itemElement.querySelector('.autocomplete-results');
-        const inputQuantidade = itemElement.querySelector('.input-quantidade');
-        const inputPreco = itemElement.querySelector('.input-preco');
-        const subtotalElement = itemElement.querySelector('.item-subtotal');
+        // Listeners para cálculo e autocomplete
+        function attachItemListeners(itemElement) {
+            const inputSearch = itemElement.querySelector('.input-search');
+            const inputId = itemElement.querySelector('.input-produto-id');
+            const resultsContainer = itemElement.querySelector('.autocomplete-results');
 
-        function calcularSubtotal() {
-            const quantidade = parseFloat(inputQuantidade.value) || 0;
-            const preco = unmaskCurrency(inputPreco.value); // Use unmask
-            const subtotal = quantidade * preco;
-            subtotalElement.textContent = 'R$ ' + new Intl.NumberFormat('pt-BR', {
-                minimumFractionDigits: 2
-            }).format(subtotal);
-            calcularTotal();
-        }
+            const inputSearchCat = itemElement.querySelector('.input-search-categoria');
+            const inputIdCat = itemElement.querySelector('.input-categoria-id');
+            const resultsContainerCat = itemElement.querySelector('.autocomplete-results-categoria');
 
-        // Autocomplete Logic
-        inputSearch.addEventListener('input', function() {
-            const term = this.value.toLowerCase();
-            resultsContainer.innerHTML = '';
+            const inputQuantidade = itemElement.querySelector('.input-quantidade');
+            const inputPreco = itemElement.querySelector('.input-preco');
+            const subtotalElement = itemElement.querySelector('.item-subtotal');
 
-            if (term.length < 1) {
-                resultsContainer.classList.add('hidden');
-                return;
+            function calcularSubtotal() {
+                const quantidade = parseFloat(inputQuantidade.value) || 0;
+                const preco = unmaskCurrency(inputPreco.value); // Use unmask
+                const subtotal = quantidade * preco;
+                subtotalElement.textContent = 'R$ ' + new Intl.NumberFormat('pt-BR', {
+                    minimumFractionDigits: 2
+                }).format(subtotal);
+                calcularTotal();
             }
 
-            const filtered = produtos.filter(p => p.nome.toLowerCase().includes(term));
+            // Product Autocomplete Logic
+            inputSearch.addEventListener('input', function() {
+                const term = this.value.toLowerCase();
+                resultsContainer.innerHTML = '';
 
-            if (filtered.length === 0) {
-                resultsContainer.innerHTML = '<div class="p-2 text-gray-500 text-sm">Nenhum produto encontrado</div>';
-            } else {
-                filtered.forEach(p => {
-                    const div = document.createElement('div');
-                    div.className = 'p-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0 text-sm';
-                    div.textContent = p.nome;
-                    div.dataset.id = p.id;
-                    div.dataset.preco = p.preco_custo;
+                if (term.length < 1) {
+                    resultsContainer.classList.add('hidden');
+                    return;
+                }
 
-                    div.addEventListener('click', function() {
-                        inputSearch.value = p.nome;
-                        inputId.value = p.id;
-                        if (p.preco_custo) {
-                            // Format price for display
-                            const precoFormatted = new Intl.NumberFormat('pt-BR', {
-                                minimumFractionDigits: 2
-                            }).format(parseFloat(p.preco_custo));
-                            inputPreco.value = precoFormatted;
-                            inputPreco.dispatchEvent(new Event('input')); // Trigger mask
-                        }
-                        resultsContainer.classList.add('hidden');
-                        calcularSubtotal();
+                const filtered = produtos.filter(p => p.nome.toLowerCase().includes(term));
+
+                if (filtered.length === 0) {
+                    resultsContainer.innerHTML = '<div class="p-2 text-gray-500 text-sm">Nenhum produto encontrado</div>';
+                } else {
+                    filtered.forEach(p => {
+                        const div = document.createElement('div');
+                        div.className = 'p-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0 text-sm';
+                        div.textContent = p.nome;
+                        div.dataset.id = p.id;
+                        div.dataset.preco = p.preco_custo;
+
+                        div.addEventListener('click', function() {
+                            inputSearch.value = p.nome;
+                            inputId.value = p.id;
+
+                            // Select category if product has one
+                            if (inputIdCat && p.categoria_id && categorias[p.categoria_id]) {
+                                inputIdCat.value = p.categoria_id;
+                                inputSearchCat.value = categorias[p.categoria_id];
+                            }
+
+                            if (p.preco_custo) {
+                                // Format price for display
+                                const precoFormatted = new Intl.NumberFormat('pt-BR', {
+                                    minimumFractionDigits: 2
+                                }).format(parseFloat(p.preco_custo));
+                                inputPreco.value = precoFormatted;
+                                inputPreco.dispatchEvent(new Event('input')); // Trigger mask
+                            }
+                            resultsContainer.classList.add('hidden');
+                            calcularSubtotal();
+                        });
+
+                        resultsContainer.appendChild(div);
                     });
+                }
 
-                    resultsContainer.appendChild(div);
-                });
+                resultsContainer.classList.remove('hidden');
+            });
+
+            // Category Autocomplete Logic
+            inputSearchCat.addEventListener('input', function() {
+                const term = this.value.toLowerCase();
+                resultsContainerCat.innerHTML = '';
+
+                if (term.length < 1) {
+                    resultsContainerCat.classList.add('hidden');
+                    return;
+                }
+
+                // Filter local categories object
+                const filtered = Object.entries(categorias).filter(([id, nome]) => nome.toLowerCase().includes(term));
+
+                if (filtered.length === 0) {
+                    resultsContainerCat.innerHTML = '<div class="p-2 text-gray-500 text-sm">Nenhuma categoria encontrada</div>';
+                } else {
+                    filtered.forEach(([id, nome]) => {
+                        const div = document.createElement('div');
+                        div.className = 'p-2 hover:bg-green-50 cursor-pointer border-b border-gray-100 last:border-0 text-sm';
+                        div.textContent = nome;
+
+                        div.addEventListener('click', function() {
+                            inputSearchCat.value = nome;
+                            inputIdCat.value = id;
+                            resultsContainerCat.classList.add('hidden');
+                        });
+
+                        resultsContainerCat.appendChild(div);
+                    });
+                }
+
+                resultsContainerCat.classList.remove('hidden');
+            });
+
+            inputSearch.addEventListener('focus', function() {
+                if (this.value.length >= 1) {
+                    this.dispatchEvent(new Event('input'));
+                }
+            });
+
+            inputSearchCat.addEventListener('focus', function() {
+                if (this.value.length >= 1) {
+                    this.dispatchEvent(new Event('input'));
+                }
+            });
+
+            inputQuantidade.addEventListener('input', calcularSubtotal);
+            inputPreco.addEventListener('input', calcularSubtotal);
+
+            // Dispara cálculo inicial se já houver valores preenchidos (ex: XML)
+            if (inputQuantidade.value || inputPreco.value) {
+                calcularSubtotal();
             }
+        }
 
-            resultsContainer.classList.remove('hidden');
+        // Calcula total geral
+        function calcularTotal() {
+            let total = 0;
+            document.querySelectorAll('.item-subtotal').forEach(function(el) {
+                const text = el.textContent.replace('R$ ', '').replace('R$', '').trim();
+                total += unmaskCurrency(text);
+            });
+
+            // Add Frete
+            const frete = unmaskCurrency(document.getElementById('input-frete').value);
+            total += frete;
+
+            // Subtract Discount
+            const desconto = unmaskCurrency(document.getElementById('input-desconto').value);
+            total -= desconto;
+
+            // Prevent negative total
+            if (total < 0) total = 0;
+
+            document.getElementById('total-compra').textContent = 'R$ ' + new Intl.NumberFormat('pt-BR', {
+                minimumFractionDigits: 2
+            }).format(total);
+        }
+
+        // Processamento seguro do formulário via Yii2
+        $('#compra-form').on('beforeSubmit', function(e) {
+            const btnSubmit = document.getElementById('btn-submit-compra');
+
+            if (btnSubmit.disabled) return false;
+
+            // Feedback visual
+            btnSubmit.disabled = true;
+            btnSubmit.classList.remove('bg-green-600', 'hover:bg-green-700');
+            btnSubmit.classList.add('bg-gray-400', 'cursor-not-allowed');
+            btnSubmit.innerHTML = `
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Processando...
+        `;
+
+            // Desmascara valores de moeda antes do envio final
+            document.querySelectorAll('.currency-input').forEach(input => {
+                input.value = unmaskCurrency(input.value);
+            });
+
+            return true; // Continua com o submit final
         });
 
-        inputSearch.addEventListener('focus', function() {
-            if (this.value.length >= 1) {
-                this.dispatchEvent(new Event('input'));
-            }
-        });
+        // Anexa listeners aos itens existentes e força cálculo inicial
+        try {
+            document.querySelectorAll('.item-compra').forEach(item => {
+                attachItemListeners(item);
+            });
 
-        inputQuantidade.addEventListener('input', calcularSubtotal);
-        inputPreco.addEventListener('input', calcularSubtotal); // Mask listener is already attached, this triggers calc
-        inputPreco.addEventListener('input', function() {
-            calcularSubtotal();
-        });
-    }
-
-    // Calcula total geral
-    function calcularTotal() {
-        let total = 0;
-        document.querySelectorAll('.item-subtotal').forEach(function(el) {
-            const text = el.textContent.replace('R$ ', '').replace('R$', '').trim();
-            total += unmaskCurrency(text);
-        });
-
-        // Add Frete
-        const frete = unmaskCurrency(document.getElementById('input-frete').value);
-        total += frete;
-
-        // Subtract Discount
-        const desconto = unmaskCurrency(document.getElementById('input-desconto').value);
-        total -= desconto;
-
-        // Prevent negative total
-        if (total < 0) total = 0;
-
-        document.getElementById('total-compra').textContent = 'R$ ' + new Intl.NumberFormat('pt-BR', {
-            minimumFractionDigits: 2
-        }).format(total);
-    }
-
-    // Process Submit: Unmask currency fields
-    document.getElementById('compra-form').addEventListener('submit', function() {
-        document.querySelectorAll('.currency-input').forEach(input => {
-            input.value = unmaskCurrency(input.value);
-        });
-    });
-
-    // Anexa listeners aos itens existentes
-    document.querySelectorAll('.item-compra').forEach(attachItemListeners);
-    calcularTotal();
+            // Cálculo final do total geral
+            calcularTotal();
+        } catch (e) {
+            console.error('Erro na inicialização dos itens:', e);
+        }
+    }); // Fim do DOMContentLoaded
 </script>

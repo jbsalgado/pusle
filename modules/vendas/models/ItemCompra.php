@@ -53,6 +53,7 @@ class ItemCompra extends ActiveRecord
      * {@inheritdoc}
      */
     public $nome_produto_temp;
+    public $categoria_id;
 
     /**
      * {@inheritdoc}
@@ -61,13 +62,13 @@ class ItemCompra extends ActiveRecord
     {
         return [
             [['compra_id', 'produto_id', 'quantidade', 'preco_unitario'], 'required'],
-            [['compra_id', 'produto_id', 'nome_produto_temp'], 'string'],
+            [['compra_id', 'produto_id', 'nome_produto_temp', 'categoria_id'], 'string'],
             [['quantidade'], 'number', 'min' => 0.001],
             [['preco_unitario'], 'number', 'min' => 0],
             [['valor_total_item'], 'number', 'min' => 0],
             [['compra_id'], 'exist', 'skipOnError' => true, 'targetClass' => Compra::class, 'targetAttribute' => ['compra_id' => 'id']],
             [['produto_id'], 'exist', 'skipOnError' => true, 'targetClass' => Produto::class, 'targetAttribute' => ['produto_id' => 'id']],
-            [['nome_produto_temp'], 'safe'],
+            [['nome_produto_temp', 'categoria_id'], 'safe'],
         ];
     }
 

@@ -7,6 +7,7 @@ use app\modules\vendas\models\Compra;
 use app\modules\vendas\models\ItemCompra;
 use app\modules\vendas\models\Fornecedor;
 use app\modules\vendas\models\Produto;
+use app\modules\vendas\models\Categoria;
 use yii\data\ActiveDataProvider;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
@@ -140,6 +141,25 @@ class CompraController extends Controller
                             $item = new ItemCompra();
                             $item->compra_id = $model->id;
                             $item->load(['ItemCompra' => $itemData]);
+
+                            // NOVO: Auto-cadastro de produto se não existir
+                            if (empty($item->produto_id) && !empty($itemData['nome_produto_temp'])) {
+                                $novoProduto = new Produto();
+                                $novoProduto->usuario_id = Yii::$app->user->id;
+                                $novoProduto->nome = $itemData['nome_produto_temp'];
+                                $novoProduto->categoria_id = !empty($itemData['categoria_id']) ? $itemData['categoria_id'] : null;
+                                $novoProduto->preco_custo = $item->preco_unitario; // Usa preço da compra como base
+                                $novoProduto->preco_venda_sugerido = $item->preco_unitario * 1.5; // Sugestão básica +50%
+                                $novoProduto->estoque_atual = 0; // Vai ser acrescido ao concluir
+                                $novoProduto->ativo = true;
+
+                                if ($novoProduto->save()) {
+                                    $item->produto_id = $novoProduto->id;
+                                } else {
+                                    throw new \Exception('Erro ao auto-cadastrar produto "' . $itemData['nome_produto_temp'] . '": ' . json_encode($novoProduto->errors));
+                                }
+                            }
+
                             if (!$item->save()) {
                                 throw new \Exception('Erro ao salvar item: ' . json_encode($item->errors));
                             }
@@ -182,6 +202,7 @@ class CompraController extends Controller
         }
 
         $fornecedores = Fornecedor::getListaDropdownArray(Yii::$app->user->id);
+        $categorias = Categoria::getListaDropdown();
         $produtos = Produto::find()
             ->where(['usuario_id' => Yii::$app->user->id, 'ativo' => true])
             ->orderBy('nome')
@@ -191,6 +212,7 @@ class CompraController extends Controller
             'model' => $model,
             'itens' => $itens,
             'fornecedores' => $fornecedores,
+            'categorias' => $categorias,
             'produtos' => $produtos,
         ]);
     }
@@ -231,6 +253,25 @@ class CompraController extends Controller
                             $item = new ItemCompra();
                             $item->compra_id = $model->id;
                             $item->load(['ItemCompra' => $itemData]);
+
+                            // NOVO: Auto-cadastro de produto se não existir
+                            if (empty($item->produto_id) && !empty($itemData['nome_produto_temp'])) {
+                                $novoProduto = new Produto();
+                                $novoProduto->usuario_id = Yii::$app->user->id;
+                                $novoProduto->nome = $itemData['nome_produto_temp'];
+                                $novoProduto->categoria_id = !empty($itemData['categoria_id']) ? $itemData['categoria_id'] : null;
+                                $novoProduto->preco_custo = $item->preco_unitario; // Usa o preço da compra
+                                $novoProduto->preco_venda_sugerido = $item->preco_unitario * 1.5; // Sugestão 50%
+                                $novoProduto->estoque_atual = 0; // Acrescido ao concluir a nota
+                                $novoProduto->ativo = true;
+
+                                if ($novoProduto->save()) {
+                                    $item->produto_id = $novoProduto->id;
+                                } else {
+                                    throw new \Exception('Erro ao auto-cadastrar produto "' . $itemData['nome_produto_temp'] . '": ' . json_encode($novoProduto->errors));
+                                }
+                            }
+
                             if (!$item->save()) {
                                 throw new \Exception('Erro ao salvar item: ' . json_encode($item->errors));
                             }
@@ -251,8 +292,9 @@ class CompraController extends Controller
             }
         }
 
-        $itens = $model->itens;
+        $itens = $model->itensCompra;
         $fornecedores = Fornecedor::getListaDropdownArray(Yii::$app->user->id);
+        $categorias = Categoria::getListaDropdown();
         $produtos = Produto::find()
             ->where(['usuario_id' => Yii::$app->user->id, 'ativo' => true])
             ->orderBy('nome')
@@ -262,6 +304,7 @@ class CompraController extends Controller
             'model' => $model,
             'itens' => $itens,
             'fornecedores' => $fornecedores,
+            'categorias' => $categorias,
             'produtos' => $produtos,
         ]);
     }
@@ -504,12 +547,23 @@ class CompraController extends Controller
 
             if ($uploadModel->file && $uploadModel->validate()) {
                 try {
+                    // Habilita captura de erros detalhados do XML
+                    libxml_use_internal_errors(true);
                     $xmlContent = file_get_contents($uploadModel->file->tempName);
-                    // Suprime erros de parsing do XML para tratar na exceção
-                    $xml = @simplexml_load_string($xmlContent);
+                    $xml = simplexml_load_string($xmlContent);
 
                     if ($xml === false) {
-                        throw new \Exception("O arquivo enviado não é um XML válido.");
+                        $errors = libxml_get_errors();
+                        $errorMsg = "O arquivo enviado não é um XML válido.";
+                        if (!empty($errors)) {
+                            $errorDetail = [];
+                            foreach ($errors as $error) {
+                                $errorDetail[] = "Linha {$error->line}: " . trim($error->message);
+                            }
+                            $errorMsg .= " Detalhes: " . implode(' | ', $errorDetail);
+                        }
+                        libxml_clear_errors();
+                        throw new \Exception($errorMsg);
                     }
 
                     // Namespace handling
@@ -576,9 +630,9 @@ class CompraController extends Controller
 
                     if ($fornecedor) {
                         $model->fornecedor_id = $fornecedor->id;
-                        Yii::$app->session->addFlash('success', "Fornecedor identificado: " . ($fornecedor->nome_fantasia ?: $fornecedor->razao_social));
+                        Yii::$app->session->setFlash('success', "Fornecedor identificado: " . ($fornecedor->nome_fantasia ?: $fornecedor->razao_social));
                     } else {
-                        Yii::$app->session->addFlash('warning', "Fornecedor CNPJ {$cnpjEmit} ({$fantasiaEmit}) não encontrado. Verifique o cadastro.");
+                        Yii::$app->session->setFlash('warning', "Fornecedor CNPJ {$cnpjEmit} ({$fantasiaEmit}) não encontrado. Verifique o cadastro.");
                     }
 
                     // =========================================================
@@ -618,10 +672,11 @@ class CompraController extends Controller
                         $itens[] = $item;
                     }
 
-                    Yii::$app->session->addFlash('info', "Leitura do XML concluída. Verifique os dados abaixo antes de salvar.");
+                    Yii::$app->session->setFlash('info', "Leitura do XML concluída. Verifique os dados abaixo antes de salvar.");
 
                     // Carrega listas para a view
                     $fornecedores = Fornecedor::getListaDropdownArray(Yii::$app->user->id);
+                    $categorias = Categoria::getListaDropdown();
                     $produtos = Produto::find()
                         ->where(['usuario_id' => Yii::$app->user->id, 'ativo' => true])
                         ->orderBy('nome')
@@ -632,6 +687,7 @@ class CompraController extends Controller
                         'model' => $model,
                         'itens' => $itens,
                         'fornecedores' => $fornecedores,
+                        'categorias' => $categorias,
                         'produtos' => $produtos,
                     ]);
                 } catch (\Exception $e) {

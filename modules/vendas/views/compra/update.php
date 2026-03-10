@@ -10,7 +10,7 @@ $this->params['breadcrumbs'][] = 'Editar';
 
 <div class="min-h-screen bg-gray-50 py-6 px-4 sm:px-6 lg:px-8">
     <div class="max-w-6xl mx-auto">
-        
+
         <!-- Header -->
         <div class="mb-6">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -29,10 +29,10 @@ $this->params['breadcrumbs'][] = 'Editar';
                 'model' => $model,
                 'itens' => $itens,
                 'fornecedores' => $fornecedores,
+                'categorias' => $categorias,
                 'produtos' => $produtos,
             ]) ?>
         </div>
 
     </div>
 </div>
-

@@ -301,7 +301,6 @@ class Compra extends ActiveRecord
             }
 
             $conta->status = 'PENDENTE';
-            $conta->categoria = 'COMPRA';
 
             // Observações
             if ($this->observacoes) {

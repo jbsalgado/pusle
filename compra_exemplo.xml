@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+    <NFe>
+        <infNFe versao="4.00" Id="NFe31230300000000000000550010000000011000000018">
+            <ide>
+                <cUF>31</cUF>
+                <natOp>VENDA DE MERCADORIA</natOp>
+                <mod>55</mod>
+                <serie>1</serie>
+                <nNF>12345</nNF>
+                <dhEmi>2026-03-09T14:30:00-03:00</dhEmi>
+                <tpNF>1</tpNF>
+                <idDest>1</idDest>
+                <cMunFG>3106200</cMunFG>
+                <tpImp>1</tpImp>
+                <tpEmis>1</tpEmis>
+                <tpAmb>1</tpAmb>
+                <finNFe>1</finNFe>
+                <indFinal>0</indFinal>
+                <indPres>1</indPres>
+                <procEmi>0</procEmi>
+                <verProc>4.0</verProc>
+            </ide>
+            <emit>
+                <CNPJ>12345678000195</CNPJ>
+                <xNome>FORNECEDOR DE EXEMPLO LTDA</xNome>
+                <xFant>FORNECEDOR EXEMPLO</xFant>
+            </emit>
+            <dest>
+                <CNPJ>00000000000000</CNPJ>
+                <xNome>SUA EMPRESA LTDA</xNome>
+            </dest>
+            <det nItem="1">
+                <prod>
+                    <cProd>P001</cProd>
+                    <cEAN>7890000000010</cEAN>
+                    <xProd>MARTELO DE UNHA PROFISSIONAL</xProd>
+                    <NCM>82052000</NCM>
+                    <CFOP>5102</CFOP>
+                    <uCom>UN</uCom>
+                    <qCom>10.0000</qCom>
+                    <vUnCom>45.5000</vUnCom>
+                    <vProd>455.00</vProd>
+                </prod>
+            </det>
+            <det nItem="2">
+                <prod>
+                    <cProd>P002</cProd>
+                    <cEAN>7890000000027</cEAN>
+                    <xProd>CHAVE DE FENDA 1/4X4</xProd>
+                    <NCM>82054000</NCM>
+                    <CFOP>5102</CFOP>
+                    <uCom>UN</uCom>
+                    <qCom>20.0000</qCom>
+                    <vUnCom>12.3000</vUnCom>
+                    <vProd>246.00</vProd>
+                </prod>
+            </det>
+            <det nItem="3">
+                <prod>
+                    <cProd>P003</cProd>
+                    <xProd>FURADEIRA IMPACTO 600W</xProd>
+                    <qCom>5.0000</qCom>
+                    <vUnCom>289.9000</vUnCom>
+                    <vProd>1449.50</vProd>
+                </prod>
+            </det>
+            <det nItem="4">
+                <prod>
+                    <cProd>P004</cProd>
+                    <xProd>TRENA METRICA 5M</xProd>
+                    <qCom>15.0000</qCom>
+                    <vUnCom>18.5000</vUnCom>
+                    <vProd>277.50</vProd>
+                </prod>
+            </det>
+            <det nItem="5">
+                <prod>
+                    <cProd>P005</cProd>
+                    <xProd>ALICATE UNIVERSAL 8 POL</xProd>
+                    <qCom>12.0000</qCom>
+                    <vUnCom>35.0000</vUnCom>
+                    <vProd>420.00</vProd>
+                </prod>
+            </det>
+            <det nItem="6">
+                <prod>
+                    <cProd>P006</cProd>
+                    <xProd>SERRA CIRCULAR 7.1/4</xProd>
+                    <qCom>2.0000</qCom>
+                    <vUnCom>450.0000</vUnCom>
+                    <vProd>900.00</vProd>
+                </prod>
+            </det>
+            <det nItem="7">
+                <prod>
+                    <cProd>P007</cProd>
+                    <xProd>NIVEL DE ALUMINIO 12 POL</xProd>
+                    <qCom>8.0000</qCom>
+                    <vUnCom>25.8000</vUnCom>
+                    <vProd>206.40</vProd>
+                </prod>
+            </det>
+            <det nItem="8">
+                <prod>
+                    <cProd>P008</cProd>
+                    <xProd>CAIXA DE FERRAMENTAS REFORCADA</xProd>
+                    <qCom>4.0000</qCom>
+                    <vUnCom>89.0000</vUnCom>
+                    <vProd>356.00</vProd>
+                </prod>
+            </det>
+            <det nItem="9">
+                <prod>
+                    <cProd>P009</cProd>
+                    <xProd>ESTILETE PROFISSIONAL 18MM</xProd>
+                    <qCom>25.0000</qCom>
+                    <vUnCom>7.5000</vUnCom>
+                    <vProd>187.50</vProd>
+                </prod>
+            </det>
+            <det nItem="10">
+                <prod>
+                    <cProd>P010</cProd>
+                    <xProd>BROCA ACO RAPIDO 6MM</xProd>
+                    <qCom>50.0000</qCom>
+                    <vUnCom>3.2000</vUnCom>
+                    <vProd>160.00</vProd>
+                </prod>
+            </det>
+            <total>
+                <ICMSTot>
+                    <vBC>0.00</vBC>
+                    <vICMS>0.00</vICMS>
+                    <vFrete>50.00</vFrete>
+                    <vDesc>25.00</vDesc>
+                    <vProd>4857.90</vProd>
+                    <vNF>4882.90</vNF>
+                </ICMSTot>
+            </total>
+        </infNFe>
+    </NFe>
+</nfeProc>
