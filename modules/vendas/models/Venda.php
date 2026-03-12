@@ -84,14 +84,14 @@ class Venda extends ActiveRecord
         return false;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function rules()
     {
         return [
+            [['cliente_id', 'colaborador_vendedor_id', 'forma_pagamento_id'], 'filter', 'filter' => function ($value) {
+                return (trim($value) === '') ? null : $value;
+            }],
             // VENDA DIRETA: cliente_id é opcional (pode ser null)
-            [['usuario_id', 'valor_total'], 'required'],
+            [['usuario_id', 'valor_total', 'forma_pagamento_id'], 'required'],
             [['usuario_id', 'cliente_id', 'colaborador_vendedor_id', 'status_venda_codigo', 'forma_pagamento_id'], 'string'],
             [['valor_total'], 'number', 'min' => 0],
             [['numero_parcelas'], 'integer', 'min' => 1],

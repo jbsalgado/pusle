@@ -50,24 +50,24 @@ class ProdutoController extends Controller
     protected function getLojaId()
     {
         $usuario = Yii::$app->user->identity;
-        
+
         if (!$usuario) {
             return null;
         }
-        
+
         // Se é dono da loja, retorna seu próprio ID
         if ($usuario->eh_dono_loja === true || $usuario->eh_dono_loja === 't' || $usuario->eh_dono_loja === 1) {
             return $usuario->id;
         }
-        
+
         // Se não é dono, busca o colaborador
         $colaborador = Colaborador::getColaboradorLogado();
-        
+
         if ($colaborador) {
             // Retorna o usuario_id do colaborador, que é o ID do dono da loja
             return $colaborador->usuario_id;
         }
-        
+
         // Fallback: retorna ID do usuário logado (caso não encontre colaborador)
         return $usuario->id;
     }
@@ -81,30 +81,30 @@ class ProdutoController extends Controller
     protected function isAdministrador()
     {
         $usuario = Yii::$app->user->identity;
-        
+
         if (!$usuario) {
             return false;
         }
-        
+
         // Se é dono da loja, tem acesso completo
         if ($usuario->eh_dono_loja === true || $usuario->eh_dono_loja === 't' || $usuario->eh_dono_loja === 1) {
             return true;
         }
-        
+
         // Se não é dono, verifica se é colaborador administrador
         $colaborador = Colaborador::getColaboradorLogado();
-        
+
         if (!$colaborador) {
             return false;
         }
-        
+
         // Converte valor boolean do PostgreSQL para PHP boolean
-        $ehAdmin = $colaborador->eh_administrador === true 
-            || $colaborador->eh_administrador === 't' 
-            || $colaborador->eh_administrador === '1' 
+        $ehAdmin = $colaborador->eh_administrador === true
+            || $colaborador->eh_administrador === 't'
+            || $colaborador->eh_administrador === '1'
             || $colaborador->eh_administrador === 1
             || (is_string($colaborador->eh_administrador) && strtolower(trim($colaborador->eh_administrador)) === 't');
-        
+
         return $ehAdmin;
     }
 
@@ -114,9 +114,9 @@ class ProdutoController extends Controller
         if (!$this->isAdministrador()) {
             throw new \yii\web\ForbiddenHttpException('Você não tem permissão para acessar esta página.');
         }
-        
+
         $lojaId = $this->getLojaId();
-        
+
         $query = Produto::find()
             ->where(['usuario_id' => $lojaId])
             ->with(['categoria', 'fotos']);
@@ -180,19 +180,19 @@ class ProdutoController extends Controller
         if (!$this->isAdministrador()) {
             throw new \yii\web\ForbiddenHttpException('Você não tem permissão para acessar esta página.');
         }
-        
+
         $lojaId = $this->getLojaId();
-        
+
         // Carrega o produto com fotos e categoria usando eager loading
         $model = Produto::find()
             ->where(['id' => $id, 'usuario_id' => $lojaId])
             ->with(['fotos', 'categoria'])
             ->one();
-        
+
         if (!$model) {
             throw new NotFoundHttpException('Produto não encontrado.');
         }
-        
+
         return $this->render('view', [
             'model' => $model,
         ]);
@@ -204,9 +204,9 @@ class ProdutoController extends Controller
         if (!$this->isAdministrador()) {
             throw new \yii\web\ForbiddenHttpException('Você não tem permissão para criar produtos.');
         }
-        
+
         $lojaId = $this->getLojaId();
-        
+
         $model = new Produto();
         $model->usuario_id = $lojaId; // Registra na loja do dono
         $model->ativo = true;
@@ -229,32 +229,34 @@ class ProdutoController extends Controller
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
             // Salva dados financeiros se foram informados
             $postDadosFinanceiros = Yii::$app->request->post('DadosFinanceiros', []);
-            if (!empty($postDadosFinanceiros['taxa_fixa_percentual']) || 
-                !empty($postDadosFinanceiros['taxa_variavel_percentual']) || 
-                !empty($postDadosFinanceiros['lucro_liquido_percentual'])) {
-                
+            if (
+                !empty($postDadosFinanceiros['taxa_fixa_percentual']) ||
+                !empty($postDadosFinanceiros['taxa_variavel_percentual']) ||
+                !empty($postDadosFinanceiros['lucro_liquido_percentual'])
+            ) {
+
                 // Verifica se deve criar configuração específica ou usar global
                 $usarConfiguracaoEspecifica = !empty($postDadosFinanceiros['usar_configuracao_especifica']);
-                
+
                 if ($usarConfiguracaoEspecifica) {
                     // Cria ou atualiza configuração específica do produto
                     $dadosFinanceirosProduto = DadosFinanceiros::find()
                         ->where(['produto_id' => $model->id, 'usuario_id' => $model->usuario_id])
                         ->one();
-                    
+
                     if (!$dadosFinanceirosProduto) {
                         $dadosFinanceirosProduto = new DadosFinanceiros();
                         $dadosFinanceirosProduto->usuario_id = $model->usuario_id;
                         $dadosFinanceirosProduto->produto_id = $model->id;
                     }
-                    
+
                     $dadosFinanceirosProduto->taxa_fixa_percentual = $postDadosFinanceiros['taxa_fixa_percentual'] ?? 0;
                     $dadosFinanceirosProduto->taxa_variavel_percentual = $postDadosFinanceiros['taxa_variavel_percentual'] ?? 0;
                     $dadosFinanceirosProduto->lucro_liquido_percentual = $postDadosFinanceiros['lucro_liquido_percentual'] ?? 0;
                     $dadosFinanceirosProduto->save();
                 }
             }
-            
+
             // Upload de fotos (sempre executa, mesmo se houver erros anteriores)
             try {
                 $this->processUploadFotos($model);
@@ -263,7 +265,7 @@ class ProdutoController extends Controller
                 Yii::error('Stack trace: ' . $e->getTraceAsString(), __METHOD__);
                 // Não interrompe o fluxo, apenas loga o erro
             }
-            
+
             Yii::$app->session->setFlash('success', 'Produto cadastrado com sucesso!');
             return $this->redirect(['view', 'id' => $model->id]);
         }
@@ -273,48 +275,48 @@ class ProdutoController extends Controller
             'dadosFinanceiros' => $dadosFinanceiros,
         ]);
     }
-    
+
     /**
      * Gera código de referência sugerido baseado na categoria
      */
     public function actionGerarCodigoReferencia()
     {
         Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
-        
+
         if (!$this->isAdministrador()) {
             return ['success' => false, 'message' => 'Você não tem permissão para acessar esta funcionalidade.'];
         }
-        
+
         $categoriaId = Yii::$app->request->get('categoria_id');
         $lojaId = $this->getLojaId();
-        
+
         if (!$categoriaId) {
             return ['success' => false, 'message' => 'Categoria não informada'];
         }
-        
+
         $codigo = Produto::gerarCodigoReferencia($categoriaId, $lojaId);
-        
+
         return [
             'success' => true,
             'codigo' => $codigo
         ];
     }
-    
+
     /**
      * Verifica se o código de referência já existe (para validação em tempo real)
      */
     public function actionVerificarCodigoReferencia()
     {
         Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
-        
+
         if (!$this->isAdministrador()) {
             return ['success' => false, 'disponivel' => false, 'message' => 'Você não tem permissão para acessar esta funcionalidade.'];
         }
-        
+
         $codigo = Yii::$app->request->get('codigo');
         $produtoId = Yii::$app->request->get('produto_id'); // Para edição, excluir o próprio produto
         $lojaId = $this->getLojaId();
-        
+
         if (empty($codigo)) {
             return [
                 'success' => true,
@@ -322,17 +324,17 @@ class ProdutoController extends Controller
                 'message' => ''
             ];
         }
-        
+
         $query = Produto::find()
             ->where(['usuario_id' => $lojaId, 'codigo_referencia' => $codigo]);
-        
+
         // Se estiver editando, exclui o próprio produto da verificação
         if ($produtoId) {
             $query->andWhere(['!=', 'id', $produtoId]);
         }
-        
+
         $existe = $query->exists();
-        
+
         return [
             'success' => true,
             'disponivel' => !$existe,
@@ -357,34 +359,36 @@ class ProdutoController extends Controller
             Yii::info('Estoque no POST: ' . ($postData['estoque_atual'] ?? 'não encontrado'), __METHOD__);
             Yii::info('Estoque no model após load: ' . $model->estoque_atual, __METHOD__);
             Yii::info('Model attributes após load: ' . json_encode($model->attributes), __METHOD__);
-            
+
             if ($model->save()) {
                 // Salva dados financeiros se foram informados
                 $postDadosFinanceiros = Yii::$app->request->post('DadosFinanceiros', []);
-                if (!empty($postDadosFinanceiros['taxa_fixa_percentual']) || 
-                    !empty($postDadosFinanceiros['taxa_variavel_percentual']) || 
-                    !empty($postDadosFinanceiros['lucro_liquido_percentual'])) {
-                    
+                if (
+                    !empty($postDadosFinanceiros['taxa_fixa_percentual']) ||
+                    !empty($postDadosFinanceiros['taxa_variavel_percentual']) ||
+                    !empty($postDadosFinanceiros['lucro_liquido_percentual'])
+                ) {
+
                     $usarConfiguracaoEspecifica = !empty($postDadosFinanceiros['usar_configuracao_especifica']);
-                    
+
                     if ($usarConfiguracaoEspecifica) {
                         $dadosFinanceirosProduto = DadosFinanceiros::find()
                             ->where(['produto_id' => $model->id, 'usuario_id' => $model->usuario_id])
                             ->one();
-                        
+
                         if (!$dadosFinanceirosProduto) {
                             $dadosFinanceirosProduto = new DadosFinanceiros();
                             $dadosFinanceirosProduto->usuario_id = $model->usuario_id;
                             $dadosFinanceirosProduto->produto_id = $model->id;
                         }
-                        
+
                         $dadosFinanceirosProduto->taxa_fixa_percentual = $postDadosFinanceiros['taxa_fixa_percentual'] ?? 0;
                         $dadosFinanceirosProduto->taxa_variavel_percentual = $postDadosFinanceiros['taxa_variavel_percentual'] ?? 0;
                         $dadosFinanceirosProduto->lucro_liquido_percentual = $postDadosFinanceiros['lucro_liquido_percentual'] ?? 0;
                         $dadosFinanceirosProduto->save();
                     }
                 }
-                
+
                 Yii::info('Produto salvo com sucesso. Estoque final: ' . $model->estoque_atual, __METHOD__);
                 // Upload de fotos (sempre executa, mesmo se houver erros anteriores)
                 try {
@@ -394,19 +398,19 @@ class ProdutoController extends Controller
                     Yii::error('Stack trace: ' . $e->getTraceAsString(), __METHOD__);
                     // Não interrompe o fluxo, apenas loga o erro
                 }
-                
+
                 Yii::$app->session->setFlash('success', 'Produto atualizado com sucesso!');
                 return $this->redirect(['view', 'id' => $model->id]);
             } else {
                 // ✅ CORREÇÃO: Mostra erros de validação
                 $erros = $model->getErrors();
                 Yii::error('Erros de validação ao atualizar produto: ' . json_encode($erros), __METHOD__);
-                
+
                 $mensagemErro = 'Erro ao atualizar produto. Verifique os campos:';
                 foreach ($erros as $campo => $mensagens) {
                     $mensagemErro .= "\n- " . $model->getAttributeLabel($campo) . ': ' . implode(', ', $mensagens);
                 }
-                
+
                 Yii::$app->session->setFlash('error', $mensagemErro);
             }
         }
@@ -423,15 +427,41 @@ class ProdutoController extends Controller
     public function actionDelete($id)
     {
         $model = $this->findModel($id);
-        
-        // Deletar fotos físicas
-        foreach ($model->fotos as $foto) {
-            $this->deleteFotoFile($foto);
-            $foto->delete();
+
+        // Verifica se existem registros relacionados que impedem a exclusão física
+        $temItensCompra = \app\modules\vendas\models\ItemCompra::find()->where(['produto_id' => $id])->exists();
+        $temItensVenda = \app\modules\vendas\models\VendaItem::find()->where(['produto_id' => $id])->exists();
+        $temMovimentacoes = \app\modules\vendas\models\EstoqueMovimentacoes::find()->where(['produto_id' => $id])->exists();
+
+        if ($temItensCompra || $temItensVenda || $temMovimentacoes) {
+            // Se houver histórico, apenas inativa o produto
+            $model->ativo = false;
+            if ($model->save(false, ['ativo'])) {
+                Yii::$app->session->setFlash('warning', "O produto '{$model->nome}' possui histórico de compras, vendas ou movimentações e não pode ser excluído fisicamente. Ele foi INATIVADO com sucesso.");
+            } else {
+                Yii::$app->session->setFlash('error', 'Erro ao inativar o produto.');
+            }
+        } else {
+            // Se NÃO houver vínculos, prossegue com a exclusão física
+
+            // Deletar fotos físicas
+            foreach ($model->fotos as $foto) {
+                $this->deleteFotoFile($foto);
+                $foto->delete();
+            }
+
+            // Deletar dados financeiros específicos se existirem
+            $dadosFinanceiros = \app\modules\vendas\models\DadosFinanceiros::findOne(['produto_id' => $id]);
+            if ($dadosFinanceiros) {
+                $dadosFinanceiros->delete();
+            }
+
+            if ($model->delete()) {
+                Yii::$app->session->setFlash('success', 'Produto excluído fisicamente com sucesso!');
+            } else {
+                Yii::$app->session->setFlash('error', 'Erro ao excluir o produto.');
+            }
         }
-        
-        $model->delete();
-        Yii::$app->session->setFlash('success', 'Produto excluído com sucesso!');
 
         return $this->redirect(['index']);
     }
@@ -439,26 +469,26 @@ class ProdutoController extends Controller
     public function actionDeleteFoto($id)
     {
         $produtoId = null;
-        
+
         try {
             if (!$this->isAdministrador()) {
                 throw new \yii\web\ForbiddenHttpException('Você não tem permissão para excluir fotos.');
             }
-            
+
             $lojaId = $this->getLojaId();
-            
+
             $foto = ProdutoFoto::findOne($id);
-            
+
             if (!$foto) {
                 throw new NotFoundHttpException('Foto não encontrada.');
             }
 
             $produto = $foto->produto;
-            
+
             if (!$produto) {
                 throw new NotFoundHttpException('Produto não encontrado para esta foto.');
             }
-            
+
             // Verificar se o produto pertence à loja (dono)
             if ($produto->usuario_id !== $lojaId) {
                 throw new NotFoundHttpException('Acesso negado.');
@@ -472,7 +502,7 @@ class ProdutoController extends Controller
             $totalFotos = ProdutoFoto::find()->where(['produto_id' => $produto->id])->count();
             if ($totalFotos <= 1) {
                 Yii::$app->session->setFlash('error', 'Não é possível excluir a única foto do produto. Adicione outra foto antes de excluir esta.');
-                
+
                 // Redirecionar de volta para a página de origem (update ou view)
                 $redirectTo = Yii::$app->request->get('redirect') ?: Yii::$app->request->post('redirect', 'update');
                 if (!in_array($redirectTo, ['update', 'view'])) {
@@ -483,11 +513,11 @@ class ProdutoController extends Controller
 
             // Excluir o arquivo físico primeiro
             $this->deleteFotoFile($foto);
-            
+
             // Excluir o registro do banco
             $fotoId = $foto->id;
             $deleteResult = $foto->delete();
-            
+
             if (!$deleteResult) {
                 $errors = $foto->getFirstErrors();
                 $errorMsg = !empty($errors) ? implode(', ', $errors) : 'Erro desconhecido ao excluir a foto.';
@@ -505,7 +535,7 @@ class ProdutoController extends Controller
                     ->where(['produto_id' => $produtoId])
                     ->orderBy(['ordem' => SORT_ASC])
                     ->one();
-                
+
                 if ($outraFoto) {
                     $outraFoto->eh_principal = true;
                     $outraFoto->save(false);
@@ -513,10 +543,9 @@ class ProdutoController extends Controller
             }
 
             Yii::$app->session->setFlash('success', 'Foto excluída com sucesso!');
-            
         } catch (\Exception $e) {
             Yii::$app->session->setFlash('error', 'Erro ao excluir foto: ' . $e->getMessage());
-            
+
             // Se conseguirmos o produto, redirecionar para ele
             if (isset($produto) && $produto) {
                 $redirectTo = Yii::$app->request->get('redirect') ?: Yii::$app->request->post('redirect', 'update');
@@ -525,17 +554,17 @@ class ProdutoController extends Controller
                 }
                 return $this->redirect([$redirectTo, 'id' => $produto->id]);
             }
-            
+
             // Caso contrário, redirecionar para a lista
             return $this->redirect(['index']);
         }
-        
+
         // Verificar se temos o produtoId antes de redirecionar
         if (!$produtoId) {
             Yii::$app->session->setFlash('error', 'Erro ao identificar o produto. Redirecionando para a lista.');
             return $this->redirect(['index']);
         }
-        
+
         // Redirecionar de volta para a página de origem (update ou view)
         // Tentar pegar o parâmetro redirect do GET ou POST, padrão é 'update'
         $redirectTo = Yii::$app->request->get('redirect');
@@ -545,7 +574,7 @@ class ProdutoController extends Controller
         if (!$redirectTo || !in_array($redirectTo, ['update', 'view'])) {
             $redirectTo = 'update'; // Padrão sempre é update
         }
-        
+
         // Redirecionar usando array direto (funciona dentro do mesmo controller)
         return $this->redirect([$redirectTo, 'id' => $produtoId]);
     }
@@ -555,17 +584,17 @@ class ProdutoController extends Controller
         if (!$this->isAdministrador()) {
             throw new \yii\web\ForbiddenHttpException('Você não tem permissão para definir foto principal.');
         }
-        
+
         $lojaId = $this->getLojaId();
-        
+
         $foto = ProdutoFoto::findOne($id);
-        
+
         if (!$foto) {
             throw new NotFoundHttpException('Foto não encontrada.');
         }
 
         $produto = $foto->produto;
-        
+
         if ($produto->usuario_id !== $lojaId) {
             throw new NotFoundHttpException('Acesso negado.');
         }
@@ -581,7 +610,7 @@ class ProdutoController extends Controller
         $foto->save(false);
 
         Yii::$app->session->setFlash('success', 'Foto principal definida!');
-        
+
         // Redirecionar de volta para a página de origem (update ou view)
         $redirectTo = Yii::$app->request->get('redirect', 'view');
         return $this->redirect([$redirectTo, 'id' => $produto->id]);
@@ -590,11 +619,11 @@ class ProdutoController extends Controller
     protected function processUploadFotos($model)
     {
         $uploadPath = Yii::getAlias('@webroot/uploads/produtos/' . $model->id);
-        
+
         // 🔍 DEBUG: Log do caminho de upload
         Yii::info('Caminho de upload: ' . $uploadPath, __METHOD__);
         Yii::info('@webroot resolve para: ' . Yii::getAlias('@webroot'), __METHOD__);
-        
+
         if (!is_dir($uploadPath)) {
             $created = @mkdir($uploadPath, 0755, true);
             if (!$created) {
@@ -610,7 +639,7 @@ class ProdutoController extends Controller
         } else {
             Yii::info('Diretório já existe: ' . $uploadPath, __METHOD__);
         }
-        
+
         // Verifica se o diretório é gravável
         if (!is_writable($uploadPath)) {
             Yii::error('Diretório não é gravável: ' . $uploadPath, __METHOD__);
@@ -624,20 +653,22 @@ class ProdutoController extends Controller
         }
 
         $files = UploadedFile::getInstancesByName('fotos');
-        
+
         // 🔍 DEBUG: Log para verificar se as fotos estão sendo recebidas
         Yii::info('Processando upload de fotos para produto: ' . $model->id, __METHOD__);
         Yii::info('Número de arquivos recebidos: ' . ($files ? count($files) : 0), __METHOD__);
-        
+
         if ($files && count($files) > 0) {
-            Yii::info('Arquivos recebidos: ' . json_encode(array_map(function($f) { return $f->name; }, $files)), __METHOD__);
+            Yii::info('Arquivos recebidos: ' . json_encode(array_map(function ($f) {
+                return $f->name;
+            }, $files)), __METHOD__);
             $ordem = ProdutoFoto::find()->where(['produto_id' => $model->id])->count();
-            
+
             foreach ($files as $file) {
                 $tempPath = $file->tempName;
                 $filename = uniqid() . '.jpg'; // Sempre salva como JPG otimizado
                 $filePath = $uploadPath . '/' . $filename;
-                
+
                 // Otimiza a imagem antes de salvar
                 if ($this->optimizeImage($tempPath, $filePath)) {
                     $foto = new ProdutoFoto();
@@ -645,12 +676,12 @@ class ProdutoController extends Controller
                     $foto->arquivo_nome = $file->name;
                     $foto->arquivo_path = 'uploads/produtos/' . $model->id . '/' . $filename;
                     $foto->ordem = $ordem++;
-                    
+
                     // Se for a primeira foto, marcar como principal
                     if (ProdutoFoto::find()->where(['produto_id' => $model->id])->count() == 0) {
                         $foto->eh_principal = true;
                     }
-                    
+
                     // 🔍 DEBUG: Log antes de salvar
                     Yii::info('Tentando salvar foto: ' . json_encode([
                         'produto_id' => $foto->produto_id,
@@ -659,7 +690,7 @@ class ProdutoController extends Controller
                         'ordem' => $foto->ordem,
                         'eh_principal' => $foto->eh_principal,
                     ]), __METHOD__);
-                    
+
                     if ($foto->save()) {
                         Yii::info('Foto salva com sucesso. ID: ' . $foto->id, __METHOD__);
                     } else {
@@ -676,7 +707,7 @@ class ProdutoController extends Controller
             }
         }
     }
-    
+
     /**
      * Otimiza imagem: redimensiona e comprime para tamanho entre 50-200KB
      * 
@@ -693,17 +724,17 @@ class ProdutoController extends Controller
         if (!file_exists($sourcePath)) {
             return false;
         }
-        
+
         // Detecta o tipo da imagem
         $imageInfo = @getimagesize($sourcePath);
         if ($imageInfo === false) {
             return false;
         }
-        
+
         $mimeType = $imageInfo['mime'];
         $originalWidth = $imageInfo[0];
         $originalHeight = $imageInfo[1];
-        
+
         // Cria imagem resource baseado no tipo
         // Usa namespace global explícito para evitar problemas
         switch ($mimeType) {
@@ -739,22 +770,22 @@ class ProdutoController extends Controller
                 Yii::warning("Tipo de imagem não suportado: {$mimeType}", __METHOD__);
                 return false;
         }
-        
+
         if ($sourceImage === false) {
             return false;
         }
-        
+
         // Calcula novas dimensões mantendo proporção
         $ratio = min($maxWidth / $originalWidth, $maxHeight / $originalHeight);
         $newWidth = (int)($originalWidth * $ratio);
         $newHeight = (int)($originalHeight * $ratio);
-        
+
         // Se a imagem já é menor que o máximo, mantém o tamanho original
         if ($originalWidth <= $maxWidth && $originalHeight <= $maxHeight) {
             $newWidth = $originalWidth;
             $newHeight = $originalHeight;
         }
-        
+
         // Cria nova imagem redimensionada
         if (!function_exists('imagecreatetruecolor')) {
             Yii::error('Função imagecreatetruecolor não está disponível. Verifique se a extensão GD está instalada.', __METHOD__);
@@ -762,7 +793,7 @@ class ProdutoController extends Controller
             return false;
         }
         $newImage = \imagecreatetruecolor($newWidth, $newHeight);
-        
+
         // Preserva transparência para PNG
         if ($mimeType === 'image/png') {
             \imagealphablending($newImage, false);
@@ -770,18 +801,18 @@ class ProdutoController extends Controller
             $transparent = \imagecolorallocatealpha($newImage, 255, 255, 255, 127);
             \imagefilledrectangle($newImage, 0, 0, $newWidth, $newHeight, $transparent);
         }
-        
+
         // Redimensiona a imagem
         \imagecopyresampled($newImage, $sourceImage, 0, 0, 0, 0, $newWidth, $newHeight, $originalWidth, $originalHeight);
-        
+
         // Libera memória da imagem original
         \imagedestroy($sourceImage);
-        
+
         // Tenta diferentes qualidades para atingir o tamanho desejado
         $quality = 85;
         $attempts = 0;
         $maxAttempts = 10;
-        
+
         do {
             // Salva como JPEG (sempre converte para JPEG para melhor compressão)
             if (!function_exists('imagejpeg')) {
@@ -790,17 +821,17 @@ class ProdutoController extends Controller
                 return false;
             }
             $success = @\imagejpeg($newImage, $destinationPath, $quality);
-            
+
             if ($success) {
                 $fileSize = filesize($destinationPath);
                 $sizeKB = $fileSize / 1024;
-                
+
                 // Se está dentro do range desejado, sucesso
                 if ($sizeKB >= $minSizeKB && $sizeKB <= $maxSizeKB) {
                     \imagedestroy($newImage);
                     return true;
                 }
-                
+
                 // Se está muito grande, reduz qualidade
                 if ($sizeKB > $maxSizeKB && $quality > 30) {
                     $quality = max(30, $quality - 10);
@@ -817,10 +848,10 @@ class ProdutoController extends Controller
                 \imagedestroy($newImage);
                 return false;
             }
-            
+
             $attempts++;
         } while ($attempts < $maxAttempts);
-        
+
         \imagedestroy($newImage);
         return true;
     }
@@ -839,31 +870,31 @@ class ProdutoController extends Controller
         if (!$this->isAdministrador()) {
             throw new \yii\web\ForbiddenHttpException('Você não tem permissão para acessar este produto.');
         }
-        
+
         $lojaId = $this->getLojaId();
-        
+
         // 🔍 DEBUG: Log para identificar o problema
         Yii::info('Buscando produto com ID: ' . $id, __METHOD__);
         Yii::info('Loja ID: ' . $lojaId, __METHOD__);
-        
+
         if (empty($id)) {
             Yii::error('ID do produto está vazio', __METHOD__);
             throw new NotFoundHttpException('ID do produto não fornecido.');
         }
-        
+
         // Primeiro tenta buscar apenas pelo ID para verificar se existe
         $produto = Produto::findOne($id);
         if (!$produto) {
             Yii::error('Produto não encontrado com ID: ' . $id, __METHOD__);
             throw new NotFoundHttpException('O produto solicitado não existe.');
         }
-        
+
         // Depois verifica se pertence à loja (dono)
         if ($produto->usuario_id !== $lojaId) {
             Yii::error('Produto pertence a outra loja. Produto usuario_id: ' . $produto->usuario_id . ', Loja ID: ' . $lojaId, __METHOD__);
             throw new NotFoundHttpException('Você não tem permissão para acessar este produto.');
         }
-        
+
         Yii::info('Produto encontrado com sucesso: ' . $produto->nome, __METHOD__);
         return $produto;
     }

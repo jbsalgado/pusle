@@ -19,11 +19,12 @@ function validarDadosPedido(dadosPedido, carrinho) {
     // VENDA DIRETA: cliente_id pode ser null
     // Não valida cliente_id aqui
 
+    if (!dadosPedido.forma_pagamento_id) {
+        throw new Error('Por favor, selecione a forma de pagamento.');
+    }
+
     // Validações específicas para fluxo interno (quando não usa gateway)
     if (!GATEWAY_CONFIG.habilitado || GATEWAY_CONFIG.gateway === 'nenhum') {
-        if (!dadosPedido.forma_pagamento_id) {
-            throw new Error('Por favor, selecione a forma de pagamento.');
-        }
 
         let numeroParcelas = parseInt(dadosPedido.numero_parcelas, 10) || 1;
         

@@ -797,7 +797,7 @@ if ($model->hasErrors()): ?>
                     'min' => '0',
                     'step' => '1',
                     'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
-                    'placeholder' => '100',
+                    'placeholder' => 'Opcional',
                     'id' => 'produto-estoque-maximo'
                 ])->label(false) ?>
                 <p class="mt-1 text-xs text-gray-500">Capacidade ideal de estoque</p>

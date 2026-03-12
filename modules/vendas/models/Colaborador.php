@@ -108,6 +108,9 @@ class Colaborador extends ActiveRecord
             // Validação de Acesso ao Sistema
             [['acesso_sistema'], 'boolean'],
             [['senha_usuario'], 'string', 'min' => 6],
+            [['prest_usuario_login_id'], 'filter', 'filter' => function ($value) {
+                return $value === '' ? null : $value;
+            }],
             ['senha_usuario', 'required', 'when' => function ($model) {
                 // Obrigatório se marcou acesso e é um novo registro OU se marcou acesso e não tem login vinculado ainda
                 return $model->acesso_sistema && ($model->isNewRecord || !$model->prest_usuario_login_id);

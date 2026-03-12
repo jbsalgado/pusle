@@ -76,13 +76,13 @@ class Produto extends ActiveRecord
         ];
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function rules()
     {
         return [
-            [['usuario_id', 'nome', 'preco_venda_sugerido'], 'required'],
+            [['categoria_id'], 'filter', 'filter' => function ($value) {
+                return (trim($value) === '') ? null : $value;
+            }],
+            [['usuario_id', 'nome', 'preco_venda_sugerido', 'categoria_id'], 'required'],
             [['usuario_id', 'categoria_id'], 'string'],
             [['descricao'], 'string'],
             [['preco_custo', 'valor_frete', 'preco_venda_sugerido', 'preco_promocional'], 'number', 'min' => 0],
@@ -90,17 +90,21 @@ class Produto extends ActiveRecord
             [['markup_percentual'], 'number', 'min' => 0], // ✅ Markup: sem limite máximo (pode ser qualquer valor positivo)
             // Validação: impedir prejuízo (margem negativa)
             [['preco_venda_sugerido'], 'validatePrejuizo'],
-            [['estoque_atual', 'estoque_minimo', 'estoque_maximo', 'ponto_corte'], 'integer', 'min' => 0, 'skipOnEmpty' => false],
+            [['estoque_atual', 'estoque_minimo', 'ponto_corte'], 'integer', 'min' => 0, 'skipOnEmpty' => false],
+            [['estoque_maximo'], 'integer', 'min' => 0, 'skipOnEmpty' => true],
             [['estoque_atual'], 'default', 'value' => 0],
             [['estoque_minimo'], 'default', 'value' => 10],
             [['ponto_corte'], 'default', 'value' => 5],
-            [['estoque_maximo'], 'default', 'value' => 0],
-            [['estoque_atual', 'estoque_minimo', 'estoque_maximo', 'ponto_corte'], 'filter', 'filter' => function ($value) {
+            [['estoque_maximo'], 'default', 'value' => null],
+            [['estoque_atual', 'estoque_minimo', 'ponto_corte'], 'filter', 'filter' => function ($value) {
                 // ✅ Converte string vazia para 0, mantém números inteiros
                 if ($value === '' || $value === null) {
                     return 0;
                 }
                 return (int) $value;
+            }],
+            [['estoque_maximo'], 'filter', 'filter' => function ($value) {
+                return ($value === '' || $value === null) ? null : (int) $value;
             }],
             // Validação: ponto_corte deve ser maior ou igual a estoque_minimo
             [['ponto_corte'], 'compare', 'compareAttribute' => 'estoque_minimo', 'operator' => '>=', 'skipOnEmpty' => false, 'message' => 'O ponto de corte deve ser maior ou igual ao estoque mínimo.'],
@@ -109,7 +113,7 @@ class Produto extends ActiveRecord
             [['ativo'], 'default', 'value' => true],
             [['permite_parcelamento'], 'default', 'value' => false],
             [['data_inicio_promocao', 'data_fim_promocao'], 'safe'],
-            [['estoque_atual', 'estoque_minimo', 'ponto_corte'], 'safe'], // ✅ Garante que os campos podem ser carregados via load()
+            [['estoque_atual', 'estoque_minimo', 'estoque_maximo', 'ponto_corte'], 'safe'], // ✅ Garante que os campos podem ser carregados via load()
             [['nome'], 'string', 'max' => 150],
             [['codigo_referencia', 'codigo_barras'], 'string', 'max' => 50],
             [['marca'], 'string', 'max' => 100],

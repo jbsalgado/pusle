@@ -79,6 +79,9 @@ class ComissaoConfig extends ActiveRecord
             [['tipo_comissao'], 'in', 'range' => [self::TIPO_VENDA, self::TIPO_COBRANCA]],
             [['data_inicio', 'data_fim'], 'date', 'format' => 'php:Y-m-d'],
             [['observacoes'], 'string'],
+            [['categoria_id'], 'filter', 'filter' => function ($value) {
+                return $value === '' ? null : $value;
+            }],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
             [['colaborador_id'], 'exist', 'skipOnError' => true, 'targetClass' => Colaborador::class, 'targetAttribute' => ['colaborador_id' => 'id']],
             [['categoria_id'], 'exist', 'skipOnError' => true, 'targetClass' => Categoria::class, 'targetAttribute' => ['categoria_id' => 'id']],
@@ -210,11 +213,13 @@ class ComissaoConfig extends ActiveRecord
                     'categoria_id' => $categoriaId,
                     'ativo' => true,
                 ])
-                ->andWhere(['or',
+                ->andWhere([
+                    'or',
                     ['data_inicio' => null],
                     ['<=', 'data_inicio', $hoje]
                 ])
-                ->andWhere(['or',
+                ->andWhere([
+                    'or',
                     ['data_fim' => null],
                     ['>=', 'data_fim', $hoje]
                 ])
@@ -234,11 +239,13 @@ class ComissaoConfig extends ActiveRecord
                 'categoria_id' => null,
                 'ativo' => true,
             ])
-            ->andWhere(['or',
+            ->andWhere([
+                'or',
                 ['data_inicio' => null],
                 ['<=', 'data_inicio', $hoje]
             ])
-            ->andWhere(['or',
+            ->andWhere([
+                'or',
                 ['data_fim' => null],
                 ['>=', 'data_fim', $hoje]
             ])
@@ -251,7 +258,7 @@ class ComissaoConfig extends ActiveRecord
     public static function getListaDropdown($usuarioId = null, $colaboradorId = null)
     {
         $usuarioId = $usuarioId ?: Yii::$app->user->id;
-        
+
         $query = self::find()
             ->where(['usuario_id' => $usuarioId, 'ativo' => true])
             ->with(['colaborador', 'categoria']);
@@ -270,4 +277,3 @@ class ComissaoConfig extends ActiveRecord
         return $lista;
     }
 }
-

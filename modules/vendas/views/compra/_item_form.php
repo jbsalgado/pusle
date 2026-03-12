@@ -55,7 +55,7 @@
                 value="<?= \yii\helpers\Html::encode($nomeCategoria) ?>"
                 autocomplete="off">
 
-            <?= $form->field($item, "[$index]categoria_id", ['template' => '{input}', 'enableClientValidation' => false])->hiddenInput(['class' => 'input-categoria-id', 'required' => false]) ?>
+            <?= $form->field($item, "[$index]categoria_id", ['template' => '{input}', 'enableClientValidation' => true])->hiddenInput(['class' => 'input-categoria-id', 'required' => true]) ?>
 
             <div class="autocomplete-results-categoria hidden absolute z-50 w-full bg-white border border-gray-300 rounded-b-lg shadow-lg max-h-60 overflow-y-auto top-[70px]"></div>
         </div>
