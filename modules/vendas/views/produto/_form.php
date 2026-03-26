@@ -763,39 +763,58 @@ if ($model->hasErrors()): ?>
         </div>
 
         <!-- Estoque -->
+        <!-- Configurações de Venda -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+            <div class="flex items-center">
+                <?= $form->field($model, 'venda_fracionada')->checkbox([
+                    'class' => 'w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500',
+                    'labelOptions' => ['class' => 'ml-2 text-sm font-medium text-gray-700']
+                ]) ?>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Unidade de Medida</label>
+                <?= $form->field($model, 'unidade_medida')->textInput([
+                    'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
+                    'placeholder' => 'Ex: UN, KG, M, L',
+                    'maxlength' => 10
+                ])->label(false) ?>
+            </div>
+        </div>
+
+        <!-- Estoque -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Estoque Atual (un)</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Estoque Atual</label>
                 <?= $form->field($model, 'estoque_atual')->textInput([
                     'type' => 'number',
                     'min' => '0',
-                    'step' => '1',
+                    'step' => '0.001',
                     'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
-                    'placeholder' => '0',
+                    'placeholder' => '0.000',
                     'id' => 'produto-estoque-atual'
                 ])->label(false) ?>
                 <p class="mt-1 text-xs text-gray-500">Quantidade atual em estoque</p>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Estoque Mínimo (un)</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Estoque Mínimo</label>
                 <?= $form->field($model, 'estoque_minimo')->textInput([
                     'type' => 'number',
                     'min' => '0',
-                    'step' => '1',
+                    'step' => '0.001',
                     'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
-                    'placeholder' => '10',
+                    'placeholder' => '10.000',
                     'id' => 'produto-estoque-minimo'
                 ])->label(false) ?>
                 <p class="mt-1 text-xs text-gray-500">Alerta de reposição</p>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Estoque Máximo (un)</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Estoque Máximo</label>
                 <?= $form->field($model, 'estoque_maximo')->textInput([
                     'type' => 'number',
                     'min' => '0',
-                    'step' => '1',
+                    'step' => '0.001',
                     'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
                     'placeholder' => 'Opcional',
                     'id' => 'produto-estoque-maximo'
@@ -804,17 +823,18 @@ if ($model->hasErrors()): ?>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Ponto de Corte (un)</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Ponto de Corte</label>
                 <?= $form->field($model, 'ponto_corte')->textInput([
                     'type' => 'number',
                     'min' => '0',
-                    'step' => '1',
+                    'step' => '0.001',
                     'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
-                    'placeholder' => '5',
+                    'placeholder' => '5.000',
                     'id' => 'produto-ponto-corte'
                 ])->label(false) ?>
-                <p class="mt-1 text-xs text-gray-500">Resuprimento urgente quando chegar neste valor</p>
+                <p class="mt-1 text-xs text-gray-500">Ponto crítico para novas compras</p>
             </div>
+
         </div>
 
         <!-- Localização -->

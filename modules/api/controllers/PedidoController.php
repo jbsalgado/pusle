@@ -216,7 +216,7 @@ class PedidoController extends BaseController
                     throw new Exception("Item #{$index} tem dados incompletos.");
                 }
                 $produtoId = $itemData['produto_id'];
-                $quantidadePedida = (int)$itemData['quantidade'];
+                $quantidadePedida = (float)$itemData['quantidade'];
                 $precoUnitario = (float)$itemData['preco_unitario'];
 
                 // Novos campos de desconto
@@ -355,7 +355,7 @@ class PedidoController extends BaseController
                 $item = new VendaItem();
                 $item->venda_id = $venda->id;
                 $item->produto_id = $produto->id;
-                $item->quantidade = (int)$itemData['quantidade'];
+                $item->quantidade = (float)$itemData['quantidade'];
                 $item->preco_unitario_venda = (float)$itemData['preco_unitario'];
 
                 // Processa descontos

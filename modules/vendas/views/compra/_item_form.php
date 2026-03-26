@@ -36,6 +36,8 @@
             <?= $form->field($item, "[$index]estoque_minimo_temp", ['template' => '{input}'])->hiddenInput(['class' => 'input-estoque-minimo-temp']) ?>
             <?= $form->field($item, "[$index]estoque_maximo_temp", ['template' => '{input}'])->hiddenInput(['class' => 'input-estoque-maximo-temp']) ?>
             <?= $form->field($item, "[$index]ponto_corte_temp", ['template' => '{input}'])->hiddenInput(['class' => 'input-ponto-corte-temp']) ?>
+            <?= $form->field($item, "[$index]venda_fracionada_temp", ['template' => '{input}'])->hiddenInput(['class' => 'input-venda-fracionada-temp']) ?>
+            <?= $form->field($item, "[$index]unidade_medida_temp", ['template' => '{input}'])->hiddenInput(['class' => 'input-unidade-medida-temp']) ?>
 
             <div class="autocomplete-results hidden absolute z-50 w-full bg-white border border-gray-300 rounded-b-lg shadow-lg max-h-60 overflow-y-auto top-[70px]"></div>
         </div>
@@ -94,11 +96,19 @@
         </div>
     </div>
     <div class="mt-2 flex justify-between items-center">
-        <div class="preco-sugerido-container <?= empty($item->preco_venda_sugerido_temp) ? 'hidden' : '' ?>">
-            <span class="text-xs font-medium text-blue-600 uppercase tracking-wider">Sugestão de Venda: </span>
-            <span class="text-sm font-bold text-blue-700 span-preco-sugerido">
-                R$ <?= number_format($item->preco_venda_sugerido_temp ?? 0, 2, ',', '.') ?>
-            </span>
+        <div class="preco-sugerido-container <?= empty($item->preco_venda_sugerido_temp) ? 'hidden' : '' ?> flex flex-col gap-1">
+            <div>
+                <span class="text-xs font-medium text-blue-600 uppercase tracking-wider">Sugestão de Venda: </span>
+                <span class="text-sm font-bold text-blue-700 span-preco-sugerido">
+                    R$ <?= number_format($item->preco_venda_sugerido_temp ?? 0, 2, ',', '.') ?>
+                </span>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-[10px] text-gray-501 font-semibold uppercase">Unidade: <span class="text-blue-600"><?= \yii\helpers\Html::encode($item->unidade_medida_temp ?? 'UN') ?></span></span>
+                <?php if ($item->venda_fracionada_temp): ?>
+                    <span class="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded">FRACIONADO</span>
+                <?php endif; ?>
+            </div>
         </div>
         <div class="text-right">
             <span class="text-sm text-gray-600">Subtotal: </span>

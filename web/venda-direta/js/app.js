@@ -9,7 +9,7 @@ import {
 import { carregarCarrinho, limparDadosLocaisPosSinc, carregarFormasPagamentoCache } from './storage.js';
 import { finalizarPedido } from './order.js';
 import { carregarFormasPagamento } from './payment.js';
-import { validarCPF, maskCPF, maskPhone, maskCEP, formatarMoeda, formatarCPF, verificarElementosCriticos } from './utils.js';
+import { validarCPF, maskCPF, maskPhone, maskCEP, formatarMoeda, formatarQuantidade, formatarCPF, verificarElementosCriticos } from './utils.js';
 import { ELEMENTOS_CRITICOS } from './config.js';
 import { mostrarModalPixEstatico } from './pix.js'; // Importação do novo módulo
 import { verificarAutenticacao, getColaboradorData } from './auth.js'; // Importação do módulo de autenticação
@@ -254,7 +254,7 @@ function renderizarCarrinho() {
                     <p class="cart-item-price">${formatarMoeda(precoUnitario)} un.${emPromocao && item.preco_venda_sugerido ? ` <span class="text-xs text-gray-500 line-through">${formatarMoeda(item.preco_venda_sugerido)}</span>` : ''}</p>
                     <div class="cart-item-controls">
                         <button onclick="diminuirQtd('${item.id}')" class="qty-btn">−</button>
-                        <span class="qty-value">${item.quantidade}</span>
+                        <span class="qty-value">${formatarQuantidade(item.quantidade, item.venda_fracionada)}</span>
                         <button onclick="aumentarQtd('${item.id}')" class="qty-btn">+</button>
                     </div>
                     
@@ -790,6 +790,22 @@ async function filtrarProdutos() {
         // Com busca: recarrega da API (vai buscar em todas as páginas, não apenas na atual)
         console.log('[App] 🔍 Buscando produtos na API com termo:', termoBusca);
         await carregarProdutos(1, true, termoBusca); // Sempre começa na página 1 quando busca
+        
+        // --- OTIMIZAÇÃO PARA SCANNER ---
+        // Se após a busca tivermos exatamente 1 produto AND
+        // (o termo de busca for exatamente o código de barras ou referência)
+        // Então abre o modal de quantidade automaticamente
+        if (produtosFiltrados.length === 1) {
+            const p = produtosFiltrados[0];
+            const t = termoBusca.toLowerCase();
+            if (
+                (p.codigo_barras && p.codigo_barras.toLowerCase() === t) ||
+                (p.codigo_referencia && p.codigo_referencia.toLowerCase() === t)
+            ) {
+                console.log('[Scanner] Correspondência exata encontrada! Abrindo modal de quantidade...');
+                abrirModalQuantidade(p.id);
+            }
+        }
     }
 }
 
@@ -874,7 +890,11 @@ function renderizarProdutos(listaProdutos) {
                 <img src="${urlImagem}" alt="${produto.nome}" class="w-full h-full object-contain">
             </div>
             <div class="p-4">
-                <h3 class="text-lg font-bold text-gray-800 mb-2">${produto.nome}</h3>
+                <div class="text-[9px] text-gray-400 font-mono mb-0.5 truncate" title="Código de Barras / Ref">
+                    ${produto.codigo_barras ? `EAN: ${produto.codigo_barras}` : ''} 
+                    ${produto.codigo_referencia ? `Ref: ${produto.codigo_referencia}` : ''}
+                </div>
+                <h3 class="text-lg font-bold text-gray-800 mb-2 truncate" title="${produto.nome}">${produto.nome}</h3>
                 <div class="flex items-center justify-between mb-4">
                     <div class="flex flex-col">
                         ${emPromocao && precoOriginal ? `
@@ -885,7 +905,7 @@ function renderizarProdutos(listaProdutos) {
                         `}
                     </div>
                     <span class="text-xs ${produto.estoque_atual > 0 ? 'text-green-600' : 'text-red-600'} font-semibold">
-                        ${produto.estoque_atual > 0 ? `${produto.estoque_atual} em estoque` : 'Sem estoque'}
+                        ${produto.estoque_atual > 0 ? `${formatarQuantidade(produto.estoque_atual, produto.venda_fracionada)} em estoque` : 'Sem estoque'}
                     </span>
                 </div>
                 <button onclick="abrirModalQuantidade('${produto.id}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg" ${produto.estoque_atual <= 0 ? 'disabled opacity-50' : ''}>
@@ -902,15 +922,22 @@ window.abrirModalQuantidade = function(produtoId) {
     
     const inputQtd = document.getElementById('input-quantidade');
     document.getElementById('nome-produto-modal').textContent = produto.nome;
-    // ✅ CORREÇÃO: Usar preço promocional se disponível
     const precoExibido = produto.preco_final || produto.preco_venda_sugerido;
     document.getElementById('preco-produto-modal').textContent = formatarMoeda(precoExibido);
-    inputQtd.value = 1;
+    
+    // Configura input para fracionados
+    const permiteFracionado = !!produto.venda_fracionada;
+    inputQtd.value = permiteFracionado ? "1,000" : "1";
+    inputQtd.step = permiteFracionado ? "0.001" : "1";
     inputQtd.max = produto.estoque_atual;
     
+    // Máscara visual para fracionados se necessário (opcional, type=number cuida de parte disso)
+    
     document.getElementById('btn-confirmar-adicionar').onclick = () => {
-        const quantidade = parseInt(inputQtd.value, 10);
-        if (quantidade > 0 && quantidade <= produto.estoque_atual) {
+        const valorRaw = inputQtd.value.replace(',', '.');
+        const quantidade = parseFloat(valorRaw);
+        
+        if (quantidade > 0 && quantidade <= parseFloat(produto.estoque_atual)) {
             const arquivoPath = produto.fotos?.[0]?.arquivo_path?.replace(/^\//, '') || '';
             const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
             const produtoComImagem = { ...produto, imagem: arquivoPath ? `${baseUrl}/${arquivoPath}` : null };
@@ -920,7 +947,7 @@ window.abrirModalQuantidade = function(produtoId) {
                 fecharModal('modal-quantidade');
             }
         } else {
-            alert(`Quantidade inválida. Máximo: ${produto.estoque_atual}`);
+            alert(`Quantidade inválida. Máximo: ${formatarQuantidade(produto.estoque_atual, permiteFracionado)}`);
         }
     };
     abrirModal('modal-quantidade');
@@ -1920,6 +1947,134 @@ function atualizarAcrescimo() {
         elTotal.textContent = valorFormatado;
     }
 }
+
+// ==========================================================================
+// SUPORTE A CÓDIGO DE BARRAS / SCANNER
+// ==========================================================================
+
+let html5QrCode = null;
+
+/**
+ * Abre o modal e inicia o scanner da câmera
+ */
+window.abrirScannerCamera = function() {
+    const modal = document.getElementById('modal-scanner');
+    if (!modal) return;
+    
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    
+    const feedback = document.getElementById('scanner-feedback');
+    if (feedback) feedback.classList.add('hidden');
+
+    if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode("reader");
+    }
+    
+    const config = { 
+        fps: 10, 
+        qrbox: { width: 250, height: 150 },
+        aspectRatio: 1.0
+    };
+
+    html5QrCode.start(
+        { facingMode: "environment" }, 
+        config, 
+        onScanSuccess
+    ).catch(err => {
+        console.error("[Scanner] Erro ao iniciar câmera:", err);
+        alert("Não foi possível acessar a câmera. Verifique as permissões.");
+        window.fecharScannerCamera();
+    });
+};
+
+/**
+ * Fecha o modal e para o scanner
+ */
+window.fecharScannerCamera = function() {
+    const modal = document.getElementById('modal-scanner');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+    
+    if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().catch(err => console.error("[Scanner] Erro ao parar:", err));
+    }
+};
+
+/**
+ * Callback quando um código é lido com sucesso pela câmera
+ */
+async function onScanSuccess(decodedText, decodedResult) {
+    console.log(`[Scanner] Código detectado: ${decodedText}`);
+    
+    // Feedback visual
+    const feedback = document.getElementById('scanner-feedback');
+    if (feedback) {
+        feedback.textContent = `Lido: ${decodedText}`;
+        feedback.classList.remove('hidden', 'text-red-500');
+        feedback.classList.add('text-green-600');
+    }
+
+    // Para o scanner e fecha o modal
+    window.fecharScannerCamera();
+    
+    // Preenche a busca e dispara a filtragem
+    const inputBusca = document.getElementById('busca-produto');
+    if (inputBusca) {
+        inputBusca.value = decodedText;
+        await filtrarProdutos();
+    }
+}
+
+/**
+ * Listener global para leitores de código de barras (USB/Bluetooth)
+ * que funcionam como emuladores de teclado.
+ */
+function inicializarLeitorUSB() {
+    let barcodeAccumulator = "";
+    let lastKeyTime = Date.now();
+
+    window.addEventListener("keydown", (e) => {
+        const currentTime = Date.now();
+        
+        // Se o tempo entre as teclas for muito curto, provavelmente é um leitor de código de barras
+        // (Seres humanos não digitam 13 dígitos em menos de 100ms)
+        if (currentTime - lastKeyTime > 100) {
+            barcodeAccumulator = "";
+        }
+
+        // Ignora teclas de controle, exceto Enter
+        if (e.key.length === 1) {
+            barcodeAccumulator += e.key;
+            lastKeyTime = currentTime;
+        }
+
+        // Se pressionar Enter e tivermos algo acumulado
+        if (e.key === "Enter" && barcodeAccumulator.length >= 3) {
+            const potentialBarcode = barcodeAccumulator.trim();
+            console.log("[Scanner USB] Identificado código:", potentialBarcode);
+            
+            // Se não estivermos focados em nenhum input ou se estivermos na busca
+            const activeEl = document.activeElement;
+            const isInput = activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA";
+            
+            if (!isInput || activeEl.id === "busca-produto") {
+                e.preventDefault();
+                const inputBusca = document.getElementById('busca-produto');
+                if (inputBusca) {
+                    inputBusca.value = potentialBarcode;
+                    filtrarProdutos();
+                }
+                barcodeAccumulator = "";
+            }
+        }
+    });
+}
+
+// Inicializa o leitor USB ao carregar
+inicializarLeitorUSB();
 
 // Exponha calcularTotalCarrinho para o HTML também, mas encapsulado para atualizar a UI
 window.calcularTotalCarrinho = function() {

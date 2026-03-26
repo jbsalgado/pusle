@@ -37,6 +37,7 @@ import {
     maskCPF, 
     maskPhone,
     formatarMoeda,
+    formatarQuantidade,
     verificarElementosCriticos
 } from './utils.js';
 import { ELEMENTOS_CRITICOS } from './config.js';
@@ -355,7 +356,7 @@ function renderizarCarrinho() {
                     
                     <div class="cart-item-controls">
                         <button onclick="diminuirQtd('${item.id}')" class="qty-btn">−</button>
-                        <span class="qty-value">${item.quantidade}</span>
+                        <span class="qty-value">${formatarQuantidade(item.quantidade, item.venda_fracionada)}</span>
                         <button onclick="aumentarQtd('${item.id}')" class="qty-btn">+</button>
                     </div>
                     
@@ -870,7 +871,7 @@ function renderizarProdutos(listaProdutos) {
                     
                     ${produto.estoque_atual > 0 ? `
                         <span class="text-xs text-green-600 font-semibold">
-                            ${produto.estoque_atual} em estoque
+                            ${formatarQuantidade(produto.estoque_atual, produto.venda_fracionada)} em estoque
                         </span>
                     ` : `
                         <span class="text-xs text-red-600 font-semibold">
@@ -943,14 +944,19 @@ window.abrirModalQuantidade = function(produtoId) {
     nomeProduto.textContent = produto.nome;
     // ✅ CORREÇÃO: Usando 'preco_venda_sugerido'
     precoProduto.textContent = formatarMoeda(produto.preco_venda_sugerido);
-    inputQtd.value = 1;
+    
+    // Configura input para fracionados
+    const permiteFracionado = !!produto.venda_fracionada;
+    inputQtd.value = permiteFracionado ? "1,000" : "1";
+    inputQtd.step = permiteFracionado ? "0.001" : "1";
      // ✅ CORREÇÃO: Usando 'estoque_atual'
     inputQtd.max = produto.estoque_atual;
     
     btnConfirmar.onclick = () => {
-        const quantidade = parseInt(inputQtd.value, 10);
+        const valorRaw = inputQtd.value.replace(',', '.');
+        const quantidade = parseFloat(valorRaw);
         
-        if (quantidade > 0 && quantidade <= produto.estoque_atual) {
+        if (quantidade > 0 && quantidade <= parseFloat(produto.estoque_atual)) {
             // Preparar produto com imagem para adicionar ao carrinho
             const produtoComImagem = {
                 ...produto,
@@ -972,7 +978,7 @@ window.abrirModalQuantidade = function(produtoId) {
                 mostrarNotificacao(`${produto.nome} adicionado ao carrinho!`);
             }
         } else {
-            alert(`Quantidade inválida. Máximo disponível: ${produto.estoque_atual}`);
+            alert(`Quantidade inválida. Máximo disponível: ${formatarQuantidade(produto.estoque_atual, permiteFracionado)}`);
         }
     };
     

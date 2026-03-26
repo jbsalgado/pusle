@@ -90,7 +90,7 @@ $this->params['breadcrumbs'][] = $this->title;
                     <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                         <dt class="text-sm font-medium text-gray-500">Fornecedor</dt>
                         <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                            <?= $model->fornecedor ? Html::encode($model->fornecedor->nome) : '<span class="text-gray-400 italic">Não informado / Despesa Avulsa</span>' ?>
+                            <?= $model->fornecedor ? Html::encode($model->fornecedor->getNomeCompleto()) : '<span class="text-gray-400 italic">Não informado / Despesa Avulsa</span>' ?>
                         </dd>
                     </div>
 

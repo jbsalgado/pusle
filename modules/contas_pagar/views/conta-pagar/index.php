@@ -123,9 +123,7 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                                 <h3 class="text-base font-bold text-gray-900 truncate" title="<?= Html::encode($model->descricao) ?>">
                                     <?= Html::encode($model->descricao) ?>
                                 </h3>
-                                <div class="text-xs text-gray-500 mt-1">
-                                    <?= $model->fornecedor ? Html::encode($model->fornecedor->nome) : 'Sem Fornecedor' ?>
-                                </div>
+                                <?= $model->fornecedor ? Html::encode($model->fornecedor->getNomeCompleto()) : 'Sem Fornecedor' ?>
                             </div>
                             <span class="px-2 py-1 <?= $statusBg ?> <?= $statusText ?> text-xs font-semibold rounded-full ml-2">
                                 <?= Html::encode($model->status) ?>
@@ -212,9 +210,7 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                                         <?php endif; ?>
                                     </td>
                                     <td class="px-3 sm:px-6 py-4 hidden md:table-cell">
-                                        <div class="text-sm text-gray-900">
-                                            <?= $model->fornecedor ? Html::encode($model->fornecedor->nome) : '-' ?>
-                                        </div>
+                                        <?= $model->fornecedor ? Html::encode($model->fornecedor->getNomeCompleto()) : '-' ?>
                                     </td>
                                     <td class="px-3 sm:px-6 py-4 text-right">
                                         <span class="text-sm font-bold text-gray-900"><?= Yii::$app->formatter->asCurrency($model->valor) ?></span>

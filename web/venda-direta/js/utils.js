@@ -195,6 +195,18 @@ export function formatarMoeda(valor) {
 }
 
 /**
+ * Formata quantidade condicionalmente (3 casas para fracionados, 0 para inteiros)
+ * Usa vírgula como separador decimal (formato BRL)
+ */
+export function formatarQuantidade(valor, vendaFracionada) {
+    const qtd = parseFloat(valor || 0);
+    if (vendaFracionada) {
+        return qtd.toFixed(3).replace('.', ',');
+    }
+    return Math.floor(qtd).toString();
+}
+
+/**
  * Verifica elementos críticos do DOM
  */
 export function verificarElementosCriticos(elementosIds) {
@@ -314,7 +326,7 @@ export async function forceSystemUpdate() {
  */
 export async function checkForUpdates() {
     try {
-        const response = await fetch('/venda-direta/version.json?' + Date.now());
+        const response = await fetch('./version.json?' + Date.now());
         const serverVersion = await response.json();
         
         const localVersion = localStorage.getItem('app_version');

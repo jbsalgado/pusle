@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Venda Direta</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="stylesheet" href="style.css" />
     <link rel="manifest" href="manifest.json" />
@@ -221,9 +222,20 @@
           <input
             type="text"
             id="busca-produto"
-            placeholder="🔍 Buscar produto por nome..."
-            class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm text-gray-900 bg-white placeholder-gray-400"
+            placeholder="🔍 Buscar por nome ou código de barras..."
+            class="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm text-gray-900 bg-white placeholder-gray-400"
           />
+          <button
+            id="btn-scan-camera"
+            class="absolute right-10 top-1/2 transform -translate-y-1/2 text-blue-500 hover:text-blue-700 p-1"
+            title="Escanear com a câmera"
+            onclick="window.abrirScannerCamera()"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
           <svg
             class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400"
             fill="none"
@@ -1401,6 +1413,34 @@
     <script src="js/idb-keyval.js"></script>
     <script type="module" src="js/imagePlaceholder.js"></script>
     <script type="module" src="js/utils.js?v=20260211_v2"></script>
+    <!-- Modal Scanner de Câmera -->
+    <div id="modal-scanner" class="fixed inset-0 bg-black bg-opacity-80 z-[60] flex flex-col items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl relative">
+            <div class="p-4 border-b flex justify-between items-center bg-gray-50">
+                <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2m4-4H8m13 4a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Escanear Código de Barras
+                </h3>
+                <button onclick="window.fecharScannerCamera()" class="text-gray-400 hover:text-gray-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-0 relative bg-black aspect-square sm:aspect-video flex items-center justify-center">
+                <div id="reader" class="w-full"></div>
+                <div class="absolute inset-x-0 top-1/2 border-t-2 border-red-500 opacity-50 shadow-[0_0_8px_rgba(239,68,68,0.5)] pointer-events-none"></div>
+            </div>
+            <div class="p-4 bg-gray-50 text-center">
+                <p class="text-sm text-gray-600">Posicione o código de barras no centro da câmera</p>
+                <div id="scanner-feedback" class="mt-2 text-xs font-medium hidden"></div>
+            </div>
+        </div>
+        <p class="text-white text-xs mt-4 opacity-75">Certifique-se de que há boa iluminação</p>
+    </div>
+
     <script type="module" src="js/app.js?v=20260211_v2"></script>
     <script src="https://sdk.mercadopago.com/js/v2"></script>
 
@@ -1690,17 +1730,14 @@
               banner.classList.remove("hidden");
             }
 
-            // Se force_update = true, atualiza automaticamente após 3 segundos
+            // Se force_update = true, atualiza automaticamente após 2 segundos
             if (newVersion.force_update) {
+              const changelog = document.getElementById("banner-changelog");
+              if (changelog) changelog.innerHTML = "<strong>CRÍTICO:</strong> O sistema será reiniciado em instantes para aplicar atualizações obrigatórias.";
+              
               setTimeout(() => {
-                if (
-                  confirm(
-                    "Atualização crítica disponível. O sistema será atualizado agora.",
-                  )
-                ) {
-                  window.forceSystemUpdate();
-                }
-              }, 3000);
+                window.forceSystemUpdate();
+              }, 2000);
             }
 
             // Salvar versão atual

@@ -130,7 +130,8 @@ $this->registerCss('
                                     <?= Html::encode($produto ? $produto->nome : 'Produto não encontrado') ?>
                                 </p>
                                 <p class="text-base text-gray-700">
-                                    <?= $item->quantidade ?> x R$ <?= number_format($item->preco_unitario_venda, 2, ',', '.') ?>
+                                    <?php $decimais = ($produto && $produto->venda_fracionada) ? 3 : 0; ?>
+                                    <?= number_format($item->quantidade, $decimais, ',', '.') ?> x R$ <?= number_format($item->preco_unitario_venda, 2, ',', '.') ?>
                                 </p>
                                 <?php if ($item->desconto_valor > 0): ?>
                                     <p class="text-sm text-red-600">
@@ -294,7 +295,8 @@ $this->registerCss('
 
         <?php foreach ($venda->itens as $item): ?>
             texto += removerAcentos("<?= $item->produto ? Html::encode($item->produto->nome) : 'PRODUTO' ?>").substring(0, largura).toUpperCase() + '\n';
-            texto += row("<?= $item->quantidade ?>x <?= number_format($item->preco_unitario_venda, 2, '.', '') ?>", "R$ <?= number_format($item->valor_total_item ?? ($item->quantidade * $item->preco_unitario_venda - ($item->desconto_valor ?? 0)), 2, '.', '') ?>") + '\n';
+            <?php $decimais = ($item->produto && $item->produto->venda_fracionada) ? 3 : 0; ?>
+            texto += row("<?= number_format($item->quantidade, $decimais, ',', '') ?>x <?= number_format($item->preco_unitario_venda, 2, ',', '') ?>", "R$ <?= number_format($item->valor_total_item ?? ($item->quantidade * $item->preco_unitario_venda - ($item->desconto_valor ?? 0)), 2, ',', '') ?>") + '\n';
             <?php if ($item->desconto_valor > 0): ?>
                 texto += row("  DESCONTO ITEM", "-R$ <?= number_format($item->desconto_valor, 2, '.', '') ?>") + '\n';
             <?php endif; ?>

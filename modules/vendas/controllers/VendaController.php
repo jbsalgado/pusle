@@ -174,7 +174,8 @@ class VendaController extends Controller
 
             // Detalhes (Quantidade x Preço e Total na direita)
             $pdf->SetFont('Courier', '', 9);
-            $detalhes = number_format($item->quantidade, 2, ',', '.') . ' x R$ ' . number_format($item->preco_unitario_venda, 2, ',', '.');
+            $decimais = ($item->produto && $item->produto->venda_fracionada) ? 3 : 0;
+            $detalhes = number_format($item->quantidade, $decimais, ',', '.') . ' x R$ ' . number_format($item->preco_unitario_venda, 2, ',', '.');
             $totalItem = 'R$ ' . number_format($item->valor_total_item, 2, ',', '.');
 
             $pdf->Cell(40, 4, $detalhes, 0, 0, 'L');

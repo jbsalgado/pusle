@@ -81,7 +81,8 @@ export function aumentarQuantidadeItem(produtoId) {
   const item = carrinho.find((i) => i.id === produtoId);
   if (item) {
     // ✅ CORREÇÃO: Garantir que é número
-    item.quantidade = (parseInt(item.quantidade, 10) || 0) + 1;
+    // ✅ CORREÇÃO: Usar parseFloat para suportar decimais
+    item.quantidade = (parseFloat(item.quantidade) || 0) + 1;
     salvarCarrinho(carrinho);
     return true;
   }
@@ -96,7 +97,8 @@ export function diminuirQuantidadeItem(produtoId) {
   const item = carrinho.find((i) => i.id === produtoId);
   if (item && item.quantidade > 1) {
     // ✅ CORREÇÃO: Garantir que é número
-    item.quantidade = (parseInt(item.quantidade, 10) || 0) - 1;
+    // ✅ CORREÇÃO: Usar parseFloat para suportar decimais
+    item.quantidade = (parseFloat(item.quantidade) || 0) - 1;
     salvarCarrinho(carrinho);
     return true;
   }
@@ -132,8 +134,8 @@ export function calcularTotalCarrinho() {
   const totalItens = carrinho.reduce((total, item) => {
     // ✅ CORREÇÃO: Usar preço promocional se disponível (preco_final), senão usar preco_venda_sugerido
     const preco = parseFloat(item.preco_final || item.preco_venda_sugerido || 0);
-    // ✅ CORREÇÃO: Garantir que é número
-    const qtd = parseInt(item.quantidade || 0, 10);
+    // ✅ CORREÇÃO: Garantir que é número (suporta decimais)
+    const qtd = parseFloat(item.quantidade || 0);
 
     let subtotal = preco * qtd;
 
@@ -183,7 +185,7 @@ export function aplicarDescontoItem(produtoId, tipo, valor) {
 export function calcularTotalItens() {
   // ✅ CORREÇÃO: Garantir que é número
   return carrinho.reduce(
-    (acc, item) => acc + (parseInt(item.quantidade, 10) || 0),
+    (acc, item) => acc + (parseFloat(item.quantidade) || 0),
     0
   );
 }

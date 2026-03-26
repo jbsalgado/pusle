@@ -3,6 +3,7 @@
 import { API_ENDPOINTS, CONFIG } from './config.js';
 import { produtoEstaNoCarrinho } from './cart.js';
 import { abrirGaleria, produtoTemMultiplasFotos, contarFotosProduto } from './gallery.js';
+import { formatarMoeda, formatarQuantidade } from './utils.js';
 
 let idUsuarioLoja = null;
 
@@ -133,7 +134,9 @@ function criarCardProduto(produto) {
         urlImagem = `${CONFIG.URL_BASE_WEB}/${arquivoPath}`;
     }
 
-    const estoque = parseInt(produto.estoque_atual || 0);
+    const permiteFracionado = !!produto.venda_fracionada;
+    const unidadeMedida = produto.unidade_medida || 'un';
+    const estoque = permiteFracionado ? parseFloat(produto.estoque_atual || 0) : parseInt(produto.estoque_atual || 0);
     const temEstoque = estoque > 0;
     const estaNoCarrinho = produtoEstaNoCarrinho(produto.id);
     const temMultiplasFotos = produtoTemMultiplasFotos(produto);
@@ -183,28 +186,32 @@ function criarCardProduto(produto) {
             <p class="text-sm text-gray-500 mb-2 truncate">${produto.descricao || 'Sem descrição'}</p>
             
             <p class="text-xs ${temEstoque ? 'text-green-600' : 'text-red-600'} mb-2">
-                ${temEstoque ? `${estoque} unidade(s) disponível` : 'Indisponível'}
+                ${temEstoque ? `${formatarQuantidade(estoque, permiteFracionado)} ${unidadeMedida} disponível` : 'Indisponível'}
             </p>
             
-            <p class="text-2xl font-bold text-blue-600 mb-4 mt-auto">R$ ${parseFloat(produto.preco_venda_sugerido || 0).toFixed(2)}</p>
+            <p class="text-2xl font-bold text-blue-600 mb-4 mt-auto">${formatarMoeda(produto.preco_venda_sugerido || 0)}</p>
             
             <div class="flex items-center gap-2">
                 <input 
                     type="number" 
                     id="qty-produto-${produto.id}" 
-                    class="w-16 p-2 border border-gray-300 rounded-lg text-center ${!temEstoque ? 'bg-gray-100 cursor-not-allowed' : ''}" 
-                    value="1" 
-                    min="1"
+                    class="w-20 p-2 border border-gray-300 rounded-lg text-center ${!temEstoque ? 'bg-gray-100 cursor-not-allowed' : ''}" 
+                    value="${permiteFracionado ? '1.000' : '1'}" 
+                    step="${permiteFracionado ? '0.001' : '1'}"
+                    min="${permiteFracionado ? '0.001' : '1'}"
                     max="${estoque}"
                     aria-label="Quantidade"
                     ${!temEstoque ? 'disabled' : ''}
                 >
+                <div class="text-[10px] text-gray-400 font-bold uppercase mt-1 text-center">${unidadeMedida}</div>
                 <button 
                     data-id="${produto.id}" 
                     data-nome="${produto.nome || 'Produto'}" 
                     data-preco="${produto.preco_venda_sugerido || 0}" 
                     data-img="${urlImagem}" 
                     data-estoque="${estoque}"
+                    data-fracionado="${permiteFracionado ? '1' : '0'}"
+                    data-unidade="${unidadeMedida}"
                     class="btn-adicionar-carrinho w-full p-2 rounded-lg font-semibold transition-colors
                         ${!temEstoque ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}"
                     ${!temEstoque ? 'disabled' : ''}

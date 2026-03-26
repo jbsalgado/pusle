@@ -75,14 +75,23 @@ class ProdutoController extends BaseController
             $termoBuscaComWildcards = '%' . $termoBuscaEscapado . '%';
 
             if (\Yii::$app->db->driverName === 'pgsql') {
-                // PostgreSQL: usa ILIKE para busca case-insensitive
-                // O terceiro parâmetro false indica que o valor já está escapado e não precisa de escape adicional
-                $query->andWhere(['ilike', 'nome', $termoBuscaComWildcards, false]);
+                // PostgreSQL: busca em nome, codigo_barras ou codigo_referencia
+                $query->andWhere([
+                    'or',
+                    ['ilike', 'nome', $termoBuscaComWildcards, false],
+                    ['ilike', 'codigo_barras', $termoBuscaComWildcards, false],
+                    ['ilike', 'codigo_referencia', $termoBuscaComWildcards, false]
+                ]);
             } else {
-                // Outros bancos: usa LIKE com LOWER para busca case-insensitive
-                $query->andWhere(['like', new \yii\db\Expression('LOWER(nome)'), strtolower($termoBuscaComWildcards), false]);
+                // Outros bancos
+                $query->andWhere([
+                    'or',
+                    ['like', new \yii\db\Expression('LOWER(nome)'), strtolower($termoBuscaComWildcards), false],
+                    ['like', new \yii\db\Expression('LOWER(codigo_barras)'), strtolower($termoBuscaComWildcards), false],
+                    ['like', new \yii\db\Expression('LOWER(codigo_referencia)'), strtolower($termoBuscaComWildcards), false]
+                ]);
             }
-            \Yii::info("Aplicando filtro de busca: {$termoBusca}", 'api');
+            \Yii::info("Aplicando filtro de busca (Nome/EAN/Ref): {$termoBusca}", 'api');
         }
 
         $dataProvider = new ActiveDataProvider([

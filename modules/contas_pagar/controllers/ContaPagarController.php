@@ -111,7 +111,7 @@ class ContaPagarController extends Controller
                 number_format($model->valor, 2, ',', '.'),
                 date('d/m/Y', strtotime($model->data_vencimento)),
                 $model->status,
-                $model->fornecedor ? $model->fornecedor->nome : '-',
+                $model->fornecedor ? $model->fornecedor->getNomeCompleto() : '-',
                 $model->data_pagamento ? date('d/m/Y', strtotime($model->data_pagamento)) : '-',
                 $model->observacoes
             ]);

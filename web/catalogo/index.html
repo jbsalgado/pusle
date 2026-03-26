@@ -1495,13 +1495,14 @@
                     banner.classList.remove('hidden');
                 }
                 
-                // Se force_update = true, atualiza automaticamente após 3 segundos
+                // Se force_update = true, atualiza automaticamente após 2 segundos
                 if (newVersion.force_update) {
+                    const changelog = document.getElementById('banner-changelog');
+                    if (changelog) changelog.innerHTML = '<strong>CRÍTICO:</strong> O sistema será reiniciado em instantes para aplicar atualizações obrigatórias.';
+                    
                     setTimeout(() => {
-                        if (confirm('Atualização crítica disponível. O sistema será atualizado agora.')) {
-                            window.forceSystemUpdate();
-                        }
-                    }, 3000);
+                        window.forceSystemUpdate();
+                    }, 2000);
                 }
                 
                 // Salvar versão atual

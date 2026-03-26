@@ -128,7 +128,7 @@ $this->params['breadcrumbs'][] = $this->title;
                                 <?php foreach ($model->itens as $item): ?>
                                     <tr>
                                         <td class="px-4 py-3 text-sm text-gray-900"><?= Html::encode($item->produto->nome) ?></td>
-                                        <td class="px-4 py-3 text-sm text-right text-gray-900"><?= number_format($item->quantidade, 3, ',', '.') ?></td>
+                                        <td class="px-4 py-3 text-sm text-right text-gray-900"><?= number_format($item->quantidade, $item->produto->venda_fracionada ? 3 : 0, ',', '.') ?></td>
                                         <td class="px-4 py-3 text-sm text-right text-gray-900">R$ <?= number_format($item->preco_unitario, 2, ',', '.') ?></td>
                                         <td class="px-4 py-3 text-sm text-right font-semibold text-gray-900">R$ <?= number_format($item->valor_total_item, 2, ',', '.') ?></td>
                                     </tr>

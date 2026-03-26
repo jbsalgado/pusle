@@ -107,7 +107,12 @@ class Compra extends ActiveRecord
             // Converte formato BRL (1.234,56) para float (1234.56)
             foreach (['valor_frete', 'valor_desconto'] as $attribute) {
                 if (!empty($this->$attribute) && is_string($this->$attribute)) {
-                    $this->$attribute = str_replace(',', '.', str_replace('.', '', $this->$attribute));
+                    // Se tiver vírgula, tratamos como formato BRL
+                    if (strpos($this->$attribute, ',') !== false) {
+                        $this->$attribute = str_replace(',', '.', str_replace('.', '', $this->$attribute));
+                    }
+                    // Se não tiver vírgula mas tiver ponto, mantemos como está (já é float)
+                    // Se não tiver nenhum dos dois, é inteiro, mantemos como está.
                 }
             }
             return true;

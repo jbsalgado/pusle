@@ -35,10 +35,10 @@ use app\modules\vendas\helpers\PricingHelper;
  * @property integer $estoque_maximo
  * @property integer $ponto_corte
  * @property string $localizacao
- * @property boolean $ativo
- * @property string $data_criacao
  * @property string $data_atualizacao
  * @property boolean $permite_parcelamento
+ * @property boolean $venda_fracionada
+ * @property string $unidade_medida
  * @property float $preco_promocional
  * @property string $data_inicio_promocao
  * @property string $data_fim_promocao
@@ -90,28 +90,29 @@ class Produto extends ActiveRecord
             [['markup_percentual'], 'number', 'min' => 0], // ✅ Markup: sem limite máximo (pode ser qualquer valor positivo)
             // Validação: impedir prejuízo (margem negativa)
             [['preco_venda_sugerido'], 'validatePrejuizo'],
-            [['estoque_atual', 'estoque_minimo', 'ponto_corte'], 'integer', 'min' => 0, 'skipOnEmpty' => false],
-            [['estoque_maximo'], 'integer', 'min' => 0, 'skipOnEmpty' => true],
+            [['estoque_atual', 'estoque_minimo', 'ponto_corte', 'estoque_maximo'], 'number', 'min' => 0],
             [['estoque_atual'], 'default', 'value' => 0],
             [['estoque_minimo'], 'default', 'value' => 10],
             [['ponto_corte'], 'default', 'value' => 5],
             [['estoque_maximo'], 'default', 'value' => null],
             [['estoque_atual', 'estoque_minimo', 'ponto_corte'], 'filter', 'filter' => function ($value) {
-                // ✅ Converte string vazia para 0, mantém números inteiros
+                // ✅ Converte string vazia para 0, mantém números decimais
                 if ($value === '' || $value === null) {
                     return 0;
                 }
-                return (int) $value;
+                return (float) $value;
             }],
             [['estoque_maximo'], 'filter', 'filter' => function ($value) {
-                return ($value === '' || $value === null) ? null : (int) $value;
+                return ($value === '' || $value === null) ? null : (float) $value;
             }],
             // Validação: ponto_corte deve ser maior ou igual a estoque_minimo
             [['ponto_corte'], 'compare', 'compareAttribute' => 'estoque_minimo', 'operator' => '>=', 'skipOnEmpty' => false, 'message' => 'O ponto de corte deve ser maior ou igual ao estoque mínimo.'],
             [['valor_frete'], 'default', 'value' => 0],
-            [['ativo', 'permite_parcelamento'], 'boolean'],
+            [['ativo', 'permite_parcelamento', 'venda_fracionada'], 'boolean'],
             [['ativo'], 'default', 'value' => true],
-            [['permite_parcelamento'], 'default', 'value' => false],
+            [['permite_parcelamento', 'venda_fracionada'], 'default', 'value' => false],
+            [['unidade_medida'], 'string', 'max' => 10],
+            [['unidade_medida'], 'default', 'value' => 'UN'],
             [['data_inicio_promocao', 'data_fim_promocao'], 'safe'],
             [['estoque_atual', 'estoque_minimo', 'estoque_maximo', 'ponto_corte'], 'safe'], // ✅ Garante que os campos podem ser carregados via load()
             [['nome'], 'string', 'max' => 150],
@@ -330,6 +331,8 @@ class Produto extends ActiveRecord
             'data_criacao' => 'Data de Cadastro',
             'data_atualizacao' => 'Última Atualização',
             'permite_parcelamento' => 'Permite Parcelamento',
+            'venda_fracionada' => 'Venda Fracionada',
+            'unidade_medida' => 'Unidade de Medida',
             'preco_promocional' => 'Preço Promocional',
             'data_inicio_promocao' => 'Início da Promoção',
             'data_fim_promocao' => 'Fim da Promoção',
@@ -353,6 +356,8 @@ class Produto extends ActiveRecord
         // Adiciona campos calculados
         $fields['em_promocao'] = 'emPromocao';
         $fields['preco_final'] = 'precoFinal';
+        $fields['venda_fracionada'] = 'venda_fracionada';
+        $fields['unidade_medida'] = 'unidade_medida';
 
         // Descomente a linha abaixo se quiser incluir a categoria por padrão também
         // $fields['categoria'] = 'categoria';

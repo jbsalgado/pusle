@@ -1,4 +1,5 @@
 // receipt.js - Geração de comprovante de venda para impressora térmica
+import { formatarQuantidade } from './utils.js';
 // Adaptado do venda-direta para o catálogo
 
 /**
@@ -305,7 +306,7 @@ export async function gerarComprovanteVenda(carrinho, dadosPedido) {
         <div class="item">
             <div class="item-descricao">${nomeProduto}</div>
             <div class="item-detalhes">
-                <span>${qtd.toFixed(2)} x ${formatarValor(preco)}</span>
+                <span>${formatarQuantidade(qtd, item.venda_fracionada)} x ${formatarValor(preco)}</span>
                 <span>${formatarValor(subtotal)}</span>
             </div>
         </div>

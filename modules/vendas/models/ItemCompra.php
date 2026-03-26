@@ -61,6 +61,8 @@ class ItemCompra extends ActiveRecord
     public $estoque_minimo_temp;
     public $estoque_maximo_temp;
     public $ponto_corte_temp;
+    public $venda_fracionada_temp;
+    public $unidade_medida_temp;
 
     /**
      * {@inheritdoc}
@@ -75,7 +77,7 @@ class ItemCompra extends ActiveRecord
             [['valor_total_item'], 'number', 'min' => 0],
             [['compra_id'], 'exist', 'skipOnError' => true, 'targetClass' => Compra::class, 'targetAttribute' => ['compra_id' => 'id']],
             [['produto_id'], 'exist', 'skipOnError' => true, 'targetClass' => Produto::class, 'targetAttribute' => ['produto_id' => 'id']],
-            [['nome_produto_temp', 'categoria_id', 'codigo_barras', 'marca', 'codigo_referencia_temp', 'preco_venda_sugerido_temp', 'estoque_minimo_temp', 'estoque_maximo_temp', 'ponto_corte_temp'], 'safe'],
+            [['nome_produto_temp', 'categoria_id', 'codigo_barras', 'marca', 'codigo_referencia_temp', 'preco_venda_sugerido_temp', 'estoque_minimo_temp', 'estoque_maximo_temp', 'ponto_corte_temp', 'venda_fracionada_temp', 'unidade_medida_temp'], 'safe'],
         ];
     }
 
@@ -154,7 +156,7 @@ class ItemCompra extends ActiveRecord
         try {
             // Adiciona a quantidade comprada ao estoque atual
             $quantidadeAnterior = $this->produto->estoque_atual;
-            $this->produto->estoque_atual += (int)$this->quantidade;
+            $this->produto->estoque_atual += $this->quantidade;
 
             // Atualiza o preço de custo com o preço unitário da compra
             $this->produto->preco_custo = $this->preco_unitario;
@@ -186,7 +188,7 @@ class ItemCompra extends ActiveRecord
         try {
             // Remove a quantidade comprada do estoque atual
             $quantidadeAnterior = $this->produto->estoque_atual;
-            $this->produto->estoque_atual -= (int)$this->quantidade;
+            $this->produto->estoque_atual -= $this->quantidade;
 
             // Garante que o estoque não fique negativo
             if ($this->produto->estoque_atual < 0) {

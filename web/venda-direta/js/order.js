@@ -177,6 +177,7 @@ async function tentarEnvioDireto(pedido) {
             
             return {
                 sucesso: false,
+                status: response.status,
                 erro: `Erro ${response.status}: ${responseText}`
             };
         }
@@ -341,14 +342,19 @@ export async function finalizarPedido(dadosPedido, carrinho) {
             
             return {
                 sucesso: true,
-                dados: resultadoDireto.dados, // ✅ CORREÇÃO: Retorna os dados completos incluindo parcelas
+                dados: resultadoDireto.dados, 
                 mensagem: `Venda realizada com sucesso!\n\nNúmero: ${resultadoDireto.dados?.id || resultadoDireto.dados?.venda?.id || 'N/A'}\nValor Total: R$ ${resultadoDireto.dados?.valor_total || resultadoDireto.dados?.venda?.valor_total || '0.00'}`
             };
         }
         
-        // Envio falhou - salvar localmente
-        console.warn('[Order] ⚠️ Envio direto falhou, salvando para sincronização...');
-        console.warn('[Order] Motivo:', resultadoDireto.erro);
+        // Se houve erro de servidor (4xx ou 5xx) que não seja timeout/rede, não salvamos offline
+        if (resultadoDireto.status && resultadoDireto.status >= 400 && resultadoDireto.status < 600) {
+            console.error('[Order] ❌ Erro permanente do servidor detectado:', resultadoDireto.status);
+            throw new Error(resultadoDireto.erro || `Erro do servidor (${resultadoDireto.status}). Verifique os dados e tente novamente.`);
+        }
+
+        // Envio falhou por motivo de rede/conexão - salvar localmente
+        console.warn('[Order] ⚠️ Falha de conexão detectada, salvando para sincronização...');
         
         const salvou = await salvarPedidoPendente(pedido);
         if (!salvou) {
@@ -359,19 +365,13 @@ export async function finalizarPedido(dadosPedido, carrinho) {
         
         const syncRegistrado = await registrarSyncPedido();
         
-        if (syncRegistrado) {
-            return {
-                sucesso: true,
-                offline: true,
-                mensagem: 'Conexão instável. Venda salva localmente e será enviada automaticamente assim que a conexão melhorar.'
-            };
-        } else {
-            return {
-                sucesso: true,
-                offline: true,
-                mensagem: 'Venda salva localmente. Será enviada automaticamente quando a conexão for restaurada. Mantenha esta aba aberta.'
-            };
-        }
+        return {
+            sucesso: true,
+            offline: true,
+            mensagem: syncRegistrado 
+                ? 'Conexão instável. Venda salva localmente e será enviada automaticamente assim que a conexão melhorar.'
+                : 'Venda salva localmente. Será enviada automaticamente quando a conexão for restaurada. Mantenha esta aba aberta.'
+        };
         
     } catch (error) {
         console.error('[Order] ❌ Erro ao finalizar venda:', error);
