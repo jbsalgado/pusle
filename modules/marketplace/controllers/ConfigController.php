@@ -153,6 +153,34 @@ class ConfigController extends Controller
     }
 
     /**
+     * Inicia fluxo de autorização do marketplace
+     * @param string $m Código do marketplace (ML, SHOPEE)
+     */
+    public function actionAuth($m)
+    {
+        $usuarioId = Yii::$app->user->id;
+
+        // Simulação de redirecionamento para o Provedor OAuth
+        // Na vida real, redirecionaríamos para: https://auth.mercadolivre.com.br/...
+
+        $mercado = '';
+        switch ($m) {
+            case 'ML':
+                $mercado = 'Mercado Livre';
+                break;
+            case 'SHOPEE':
+                $mercado = 'Shopee';
+                break;
+            default:
+                throw new NotFoundHttpException('Marketplace inválido.');
+        }
+
+        Yii::$app->session->setFlash('info', "Fluxo de autorização iniciado para $mercado. Em um ambiente real, você seria redirecionado para a página oficial do marketplace agora.");
+
+        return $this->redirect(['/marketplace/dashboard/index']);
+    }
+
+    /**
      * Encontra model por ID
      * @param string $id
      * @return MarketplaceConfig

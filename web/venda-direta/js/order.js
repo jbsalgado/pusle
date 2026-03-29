@@ -2,6 +2,7 @@
 // VERSÃO MODIFICADA PARA VENDA DIRETA
 
 import { CONFIG, API_ENDPOINTS, GATEWAY_CONFIG } from './config.js';
+import { fetchWithAuth } from './api.js';
 import { salvarPedidoPendente, getToken } from './storage.js';
 import { validarUUID } from './utils.js';
 import { getAcrescimo } from './cart.js?v=surcharge_fix';
@@ -86,6 +87,7 @@ function prepararObjetoPedido(dadosPedido, carrinho) {
         numero_parcelas: parseInt(dadosPedido.numero_parcelas, 10) || 1,
         forma_pagamento_id: dadosPedido.forma_pagamento_id,
         is_venda_direta: true, // ✅ MARCADOR: Identifica que é venda direta (loja física)
+        emitir_fiscal: document.getElementById('emitir-fiscal')?.checked || false, // ✅ NOVO: Flag para NFe
         itens: carrinho.map(item => ({
             produto_id: item.produto_id || item.id,
             quantidade: item.quantidade,
@@ -129,21 +131,8 @@ async function tentarEnvioDireto(pedido) {
         console.log('[Order] 📦 Pedido:', JSON.stringify(pedido, null, 2));
         console.log('[Order] 🎯 URL:', API_ENDPOINTS.PEDIDO_CREATE);
         
-        const token = await getToken();
-        console.log('[Order] 🔑 Token obtido para envio:', token ? 'Sim (mascarado: ' + token.substring(0, 10) + '...)' : 'Não');
-        
-        const headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        };
-        
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-
-        const response = await fetch(API_ENDPOINTS.PEDIDO_CREATE, {
+        const response = await fetchWithAuth(API_ENDPOINTS.PEDIDO_CREATE, {
             method: 'POST',
-            headers: headers,
             body: JSON.stringify(pedido),
             signal: AbortSignal.timeout(10000)
         });
@@ -223,30 +212,45 @@ function configurarSincronizacaoManual() {
         const { STORAGE_KEYS } = await import('./config.js');
         
         try {
-            const pedidoPendente = await idbKeyval.get(STORAGE_KEYS.PEDIDO_PENDENTE);
+            const pedidosPendentes = await idbKeyval.get(STORAGE_KEYS.PEDIDO_PENDENTE);
             
-            if (pedidoPendente) {
-                console.log('[Order] 📦 Venda pendente encontrada, tentando reenviar...');
+            if (pedidosPendentes && Array.isArray(pedidosPendentes) && pedidosPendentes.length > 0) {
+                console.log(`[Order] 📦 ${pedidosPendentes.length} vendas pendentes encontradas, tentando reenviar...`);
                 
-                const resultado = await tentarEnvioDireto(pedidoPendente);
+                const pedidosRestantes = [...pedidosPendentes];
+                let sucessos = 0;
+
+                for (const pedido of pedidosPendentes) {
+                    const resultado = await tentarEnvioDireto(pedido);
+                    if (resultado.sucesso) {
+                        sucessos++;
+                        const index = pedidosRestantes.findIndex(p => p.id_local === pedido.id_local);
+                        if (index > -1) pedidosRestantes.splice(index, 1);
+                    }
+                }
                 
-                if (resultado.sucesso) {
-                    console.log('[Order] ✅ Venda pendente enviada com sucesso!');
+                if (sucessos > 0) {
+                    console.log(`[Order] ✅ ${sucessos} vendas enviadas com sucesso!`);
                     
-                    await idbKeyval.del(STORAGE_KEYS.PEDIDO_PENDENTE);
-                    
-                    if ('Notification' in window && Notification.permission === 'granted') {
-                        new Notification('Venda Enviada', {
-                            body: 'Sua venda offline foi enviada com sucesso!',
-                            icon: '/favicon.ico'
-                        });
+                    if (pedidosRestantes.length === 0) {
+                        await idbKeyval.del(STORAGE_KEYS.PEDIDO_PENDENTE);
                     } else {
-                        alert('Venda offline enviada com sucesso!');
+                        await idbKeyval.set(STORAGE_KEYS.PEDIDO_PENDENTE, pedidosRestantes);
                     }
                     
-                    setTimeout(() => window.location.reload(), 2000);
-                } else {
-                    console.error('[Order] ❌ Falha ao reenviar venda pendente:', resultado.erro);
+                    const msg = sucessos === pedidosPendentes.length 
+                        ? 'Todas as vendas offline foram enviadas com sucesso!' 
+                        : `${sucessos} vendas offline enviadas. ${pedidosRestantes.length} ainda pendentes.`;
+
+                    if ('Notification' in window && Notification.permission === 'granted') {
+                        new Notification('Vendas Enviadas', { body: msg, icon: '/favicon.ico' });
+                    } else {
+                        alert(msg);
+                    }
+                    
+                    if (sucessos === pedidosPendentes.length) {
+                        setTimeout(() => window.location.reload(), 2000);
+                    }
                 }
             } else {
                 console.log('[Order] ℹ️ Nenhuma venda pendente para sincronizar');
@@ -385,7 +389,7 @@ export async function finalizarPedido(dadosPedido, carrinho) {
  */
 export async function cancelarPedido(pedidoId) {
     try {
-        const response = await fetch(`${API_ENDPOINTS.PEDIDO}/${pedidoId}`, {
+        const response = await fetchWithAuth(`${API_ENDPOINTS.PEDIDO}/${pedidoId}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json'

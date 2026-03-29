@@ -143,6 +143,9 @@ export const API_ENDPOINTS = {
 
     // ✅ NOVO ENDPOINT DE CONSULTA PARA POLLING (ADICIONADO)
     ASAAS_CONSULTAR_STATUS: `${CONFIG.URL_API}/api/asaas/consultar-status`,
+
+    // ✅ NOVO: Endpoint genérico para consulta de status de pedido/venda
+    PEDIDO_STATUS: `${CONFIG.URL_API}/api/pedido/status`,
     
     // ✅ NOVO: Endpoint para buscar parcelas de uma venda
     PEDIDO_PARCELAS: `${CONFIG.URL_API}/api/pedido/parcelas`,

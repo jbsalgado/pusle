@@ -85,7 +85,7 @@ const API_PRODUTO_URL = `${URL_API}/api/produto?usuario_id=${ID_USUARIO_LOJA}`;
 const API_PEDIDO_URL = `${URL_API}/api/pedido`;
 
 // 🔥 ATUALIZAÇÃO IMPORTANTE: Versão v4 para forçar nova loja e limpar cache antigo
-const CACHE_NAME = 'venda-direta-cache-v4'; 
+const CACHE_NAME = 'venda-direta-cache-v5'; 
 
 const APP_SHELL_FILES = [
     `${URL_BASE_WEB}/venda-direta/index.html`,
@@ -210,33 +210,66 @@ self.addEventListener('sync', event => {
 });
 
 async function enviarPedidosPendentes() {
-    let pedidoPendente;
+    let pedidos;
     try {
-        pedidoPendente = await idbKeyval.get(PEDIDO_PENDENTE_KEY);
+        pedidos = await idbKeyval.get(PEDIDO_PENDENTE_KEY);
     } catch (err) { return; }
 
-    if (pedidoPendente) {
-        try {
-            const response = await fetch(API_PEDIDO_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify(pedidoPendente)
-            });
+    if (pedidos && Array.isArray(pedidos) && pedidos.length > 0) {
+        console.log(`[SW] 🔄 Sincronizando ${pedidos.length} pedidos pendentes...`);
+        
+        const pedidosRestantes = [...pedidos];
+        const processadosComSucesso = [];
+        const erros = [];
 
-            if (response.ok) {
-                const responseData = await response.json();
-                await idbKeyval.del(PEDIDO_PENDENTE_KEY);
-                const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-                clients.forEach(client => client.postMessage({ type: 'SYNC_SUCCESS', pedido: responseData }));
-            } else {
-                const responseBody = await response.text();
-                const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-                clients.forEach(client => client.postMessage({ type: 'SYNC_ERROR', error: `Erro ${response.status}` }));
+        for (const pedido of pedidos) {
+            try {
+                const response = await fetch(API_PEDIDO_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify(pedido)
+                });
+
+                if (response.ok) {
+                    const responseData = await response.json();
+                    processadosComSucesso.push(pedido.id_local);
+                    
+                    // Remove do array de controle
+                    const index = pedidosRestantes.findIndex(p => p.id_local === pedido.id_local);
+                    if (index > -1) pedidosRestantes.splice(index, 1);
+                    
+                    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+                    clients.forEach(client => client.postMessage({ type: 'SYNC_SUCCESS', pedido: responseData, id_local: pedido.id_local }));
+                } else {
+                    const errorText = await response.text();
+                    erros.push({ id_local: pedido.id_local, error: errorText });
+                }
+            } catch (error) {
+                erros.push({ id_local: pedido.id_local, error: error.message });
             }
-        } catch (error) {
-            const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-            clients.forEach(client => client.postMessage({ type: 'SYNC_ERROR', error: error.message }));
         }
+
+        // Atualiza a lista no IndexedDB (apenas os que falharam continuam lá)
+        if (pedidosRestantes.length === 0) {
+            await idbKeyval.del(PEDIDO_PENDENTE_KEY);
+        } else {
+            await idbKeyval.set(PEDIDO_PENDENTE_KEY, pedidosRestantes);
+        }
+
+        if (erros.length > 0) {
+            const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+            clients.forEach(client => client.postMessage({ 
+                type: 'SYNC_PARTIAL_ERROR', 
+                total: pedidos.length, 
+                sucesso: processadosComSucesso.length, 
+                erros: erros.length 
+            }));
+        }
+    } else if (pedidos && !Array.isArray(pedidos)) {
+        // Fallback para versão anterior (objeto único)
+        const lista = [pedidos];
+        await idbKeyval.set(PEDIDO_PENDENTE_KEY, lista);
+        return enviarPedidosPendentes();
     }
 }
 

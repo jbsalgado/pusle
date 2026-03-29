@@ -69,8 +69,9 @@ export async function verificarAutenticacao() {
             // Se tinha token, ele é inválido
             if (token) await removerToken();
             
-            // Redireciona para login
-            window.location.href = `${CONFIG.URL_API}/auth/login`;
+            // Redireciona para login com redirect_url para voltar ao PWA com token
+            const redirectUrl = encodeURIComponent(window.location.href);
+            window.location.href = `${CONFIG.URL_API}/auth/login?redirect_url=${redirectUrl}`;
             return null;
         }
 

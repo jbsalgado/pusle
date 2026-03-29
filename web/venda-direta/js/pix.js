@@ -1,4 +1,5 @@
 // pix.js - Geração de QR Code PIX Estático (CORRIGIDO)
+import { fetchWithAuth } from './api.js';
 // Baseado na especificação EMV QR Code do Banco Central
 
 // Cache de configuração PIX (carregado da API)
@@ -37,14 +38,7 @@ export async function carregarConfigPix(usuarioId) {
         
         const url = `${urlApi}/api/usuario/dados-loja?usuario_id=${usuarioId}`;
         
-        // Importa getToken dinamicamente
-        const { getToken } = await import('./storage.js');
-        const token = await getToken();
-        
-        const headers = { 'Accept': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-        
-        const response = await fetch(url, { headers });
+        const response = await fetchWithAuth(url, { });
         
         if (!response.ok) {
             throw new Error(`Erro ao carregar dados PIX: ${response.status}`);
@@ -593,23 +587,13 @@ window.confirmarRecebimentoPix = async function() {
     console.log('[PIX] 🔄 Confirmando recebimento da venda:', vendaId);
     
     try {
-        const { API_ENDPOINTS } = await import('./config.js');
-        const { getToken } = await import('./storage.js');
-        const token = await getToken();
-        
-        const headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        };
-        
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        const response = await fetch(API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO, {
+        console.log('[Pix] Confirmando recebimento no backend...');
+        const response = await fetchWithAuth(API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO, {
             method: 'POST',
-            headers: headers,
-            body: JSON.stringify({ venda_id: vendaId })
+            body: JSON.stringify({ 
+                venda_id: vendaId,
+                emitir_fiscal: dadosPedidoPix.emitir_fiscal || false // ✅ NOVO: Repassa flag para emissão fiscal
+            })
         });
 
         if (!response.ok) {
@@ -622,7 +606,7 @@ window.confirmarRecebimentoPix = async function() {
         console.log('[PIX] ✅ Recebimento confirmado com sucesso!', vendaConfirmada);
         
     // Importa funções necessárias dinamicamente
-    const { getCarrinho, calcularTotalCarrinho } = await import('./cart.js');
+    const { getCarrinho, limparCarrinho } = await import('./cart.js');
     
     // Busca dados do carrinho (se ainda estiverem disponíveis)
     let carrinho = [];
@@ -650,13 +634,7 @@ window.confirmarRecebimentoPix = async function() {
         let parcelas = vendaConfirmada.parcelas || null;
         if (!parcelas && dadosPedidoPix.numero_parcelas > 1) {
         try {
-            const { CONFIG, API_ENDPOINTS } = await import('./config.js');
-            const { getToken } = await import('./storage.js');
-            const token = await getToken();
-            const headers = { 'Accept': 'application/json' };
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-            
-                const response = await fetch(`${API_ENDPOINTS.PEDIDO_PARCELAS}?venda_id=${vendaId}`, { headers });
+                const response = await fetchWithAuth(`${API_ENDPOINTS.PEDIDO_PARCELAS}?venda_id=${vendaId}`, {});
             if (response.ok) {
                 const dadosParcelas = await response.json();
                 parcelas = dadosParcelas.parcelas || null;
@@ -670,13 +648,7 @@ window.confirmarRecebimentoPix = async function() {
     let dadosCliente = null;
     if (dadosPedidoPix.cliente_id) {
         try {
-            const { API_ENDPOINTS } = await import('./config.js');
-            const { getToken } = await import('./storage.js');
-            const token = await getToken();
-            const headers = { 'Accept': 'application/json' };
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-            
-            const response = await fetch(`${API_ENDPOINTS.CLIENTE}/${dadosPedidoPix.cliente_id}`, { headers });
+            const response = await fetchWithAuth(`${API_ENDPOINTS.CLIENTE}/${dadosPedidoPix.cliente_id}`, { });
             if (response.ok) {
                 const cliente = await response.json();
                 dadosCliente = {
@@ -707,8 +679,7 @@ window.confirmarRecebimentoPix = async function() {
         }));
         
         // Limpa carrinho
-        const { limparCarrinho } = await import('./cart.js');
-        limparCarrinho();
+        await limparCarrinho();
     
     // Fecha o modal
     fecharModalPixEstatico();
@@ -754,7 +725,7 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
         // Importa CONFIG dinamicamente
         const { CONFIG, API_ENDPOINTS } = await import('./config.js');
         
-        const response = await fetch(`${API_ENDPOINTS.USUARIO_DADOS_LOJA}?usuario_id=${CONFIG.ID_USUARIO_LOJA}`);
+        const response = await fetchWithAuth(`${API_ENDPOINTS.USUARIO_DADOS_LOJA}?usuario_id=${CONFIG.ID_USUARIO_LOJA}`);
         if (response.ok) {
             const dadosLoja = await response.json();
             dadosEmpresa = {
@@ -1672,6 +1643,7 @@ function formatarTelefone(telefone) {
 
 // Exporta para garantir acesso no app.js
 window.mostrarModalPixEstatico = mostrarModalPixEstatico;
+window.gerarComprovanteVenda = gerarComprovanteVenda;
 
 /**
  * Gera e abre o comprovante de venda em formato A4 para impressão ou download HTML

@@ -85,6 +85,31 @@ class PedidoController extends BaseController
     }
 
     /**
+     * Consulta apenas o status de uma venda (Lightweight)
+     * GET /api/pedido/status?venda_id=XXX
+     */
+    public function actionStatus($venda_id)
+    {
+        if (!$venda_id) {
+            throw new BadRequestHttpException('venda_id é obrigatório');
+        }
+
+        $venda = Venda::find()->where(['id' => $venda_id])->one();
+
+        if (!$venda) {
+            throw new NotFoundHttpException('Venda não encontrada');
+        }
+
+        return [
+            'sucesso' => true,
+            'venda_id' => $venda->id,
+            'status' => $venda->status_venda_codigo,
+            'pago' => ($venda->status_venda_codigo === 'QUITADA' || $venda->status_venda_codigo === 'PAGO'),
+            'data_atualizacao' => $venda->data_atualizacao
+        ];
+    }
+
+    /**
      * Cria novo pedido
      * POST /api/pedido
      */
@@ -420,6 +445,15 @@ class PedidoController extends BaseController
             $transaction->commit();
             Yii::error("✅ Transação commitada com sucesso!", 'api');
 
+            // ===== TELEGRAM ALERT (Novo Pedido) =====
+            try {
+                $msg = \app\components\TelegramHelper::formatVendaAlerta($venda);
+                $msg = "🔔 *[PEDIDO REALIZADO]*\n" . $msg;
+                \app\components\TelegramHelper::sendMessage($msg);
+            } catch (\Exception $e) {
+                Yii::error("Erro ao enviar alerta Telegram (Novo Pedido): " . $e->getMessage());
+            }
+
             Yii::$app->response->statusCode = 201;
             $venda->refresh();
 
@@ -589,6 +623,38 @@ class PedidoController extends BaseController
                     }
 
                     $transaction->commit();
+
+                    // === TELEGRAM ALERT (Pagamento Confirmado) ===
+                    try {
+                        $msg = \app\components\TelegramHelper::formatVendaAlerta($venda);
+                        if ($isOrcamentoOriginal) {
+                            $msg = "📄 *[ORÇAMENTO CONFIRMADO]*\n" . $msg;
+                        } else {
+                            $msg = "✅ *[PAGAMENTO CONFIRMADO]*\n" . $msg;
+                        }
+                        \app\components\TelegramHelper::sendMessage($msg);
+                    } catch (\Exception $e) {
+                        Yii::error("Erro ao enviar alerta Telegram (Confirmação): " . $e->getMessage());
+                    }
+
+                    // === INTEGRAÇÃO FISCAL (OPCIONAL) ===
+                    // Se solicitado no request, tenta emitir NFCe
+                    if (isset($data['emitir_fiscal']) && $data['emitir_fiscal'] === true && !$isOrcamentoOriginal) {
+                        try {
+                            Yii::info("🚀 Iniciando emissão fiscal automática para Venda ID {$venda->id}", 'api');
+                            $fiscalService = new \app\components\NFwService();
+                            $resultadoFiscal = $fiscalService->emitirCupom($venda->id);
+
+                            if ($resultadoFiscal['success']) {
+                                Yii::info("✅ NFCe emitida com sucesso: " . ($resultadoFiscal['cupom_id'] ?? ''), 'api');
+                            } else {
+                                Yii::error("❌ Falha na emissão fiscal automática: " . ($resultadoFiscal['message'] ?? 'Erro desconhecido'), 'api');
+                                // Não lançamos exception para não invalidar a venda já confirmada
+                            }
+                        } catch (\Exception $e) {
+                            Yii::error("❌ Erro crítico no serviço fiscal: " . $e->getMessage(), 'api');
+                        }
+                    }
                 } catch (\Exception $e) {
                     $transaction->rollBack();
                     throw $e;

@@ -38,6 +38,7 @@ class MarketplaceConfig extends ActiveRecord
     const MARKETPLACE_SHOPEE = 'SHOPEE';
     const MARKETPLACE_MAGAZINE_LUIZA = 'MAGAZINE_LUIZA';
     const MARKETPLACE_AMAZON = 'AMAZON';
+    const MARKETPLACE_IFOOD = 'IFOOD';
 
     /**
      * {@inheritdoc}
@@ -81,6 +82,7 @@ class MarketplaceConfig extends ActiveRecord
                 self::MARKETPLACE_SHOPEE,
                 self::MARKETPLACE_MAGAZINE_LUIZA,
                 self::MARKETPLACE_AMAZON,
+                self::MARKETPLACE_IFOOD,
             ]],
             [['client_id', 'client_secret'], 'string', 'max' => 255],
             [['access_token', 'refresh_token'], 'string'],
@@ -133,6 +135,7 @@ class MarketplaceConfig extends ActiveRecord
             self::MARKETPLACE_SHOPEE => 'Shopee',
             self::MARKETPLACE_MAGAZINE_LUIZA => 'Magazine Luiza',
             self::MARKETPLACE_AMAZON => 'Amazon',
+            self::MARKETPLACE_IFOOD => 'iFood',
         ];
 
         return $nomes[$this->marketplace] ?? $this->marketplace;

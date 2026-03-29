@@ -28,7 +28,7 @@ class Module extends \yii\base\Module
         parent::init();
 
         // Configurações personalizadas do módulo
-        $this->layout = 'main';
+        $this->layout = '@app/views/layouts/main';
     }
 
     /**

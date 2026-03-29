@@ -12,6 +12,16 @@ class AuthController extends BaseController
 {
     public $enableCsrfValidation = false;
 
+    public function behaviors()
+    {
+        $behaviors = parent::behaviors();
+
+        // Permite acesso público a estas ações (não exige JWT)
+        $behaviors['authenticator']['except'] = ['login'];
+
+        return $behaviors;
+    }
+
     public function actionLogin()
     {
         $request = Yii::$app->request;

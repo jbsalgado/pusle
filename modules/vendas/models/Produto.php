@@ -12,6 +12,7 @@ use app\modules\vendas\models\VendaItem;
 use app\modules\vendas\models\ProdutoFoto;
 use app\modules\vendas\models\DadosFinanceiros;
 use app\modules\vendas\helpers\PricingHelper;
+use app\modules\marketplace\components\MarketplaceSyncManager;
 
 /**
  * ============================================================================================================
@@ -339,6 +340,24 @@ class Produto extends ActiveRecord
             'codigo_barras' => 'Código de Barras (EAN)',
             'marca' => 'Marca',
         ];
+    }
+
+    /**
+     * Hook após salvar para disparar sincronização de estoque com marketplaces
+     */
+    public function afterSave($insert, $changedAttributes)
+    {
+        parent::afterSave($insert, $changedAttributes);
+
+        // Se o estoque atual foi alterado, dispara sincronização global
+        if (isset($changedAttributes['estoque_atual'])) {
+            try {
+                $syncManager = new MarketplaceSyncManager();
+                $syncManager->syncEstoqueGlobal($this->usuario_id, $this->id, $this->estoque_atual);
+            } catch (\Exception $e) {
+                Yii::error("Falha ao disparar sincronização automática de estoque: " . $e->getMessage(), 'marketplace');
+            }
+        }
     }
 
     /**

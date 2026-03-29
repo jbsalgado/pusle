@@ -17,6 +17,7 @@ class ProdutoApiController extends BaseController
     {
         $behaviors = parent::behaviors();
         $behaviors['contentNegotiator']['formats']['application/json'] = Response::FORMAT_JSON;
+        $behaviors['authenticator']['optional'] = ['buscar'];
         return $behaviors;
     }
 

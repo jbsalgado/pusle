@@ -1,4 +1,5 @@
 <?php
+
 namespace app\modules\vendas\models;
 
 
@@ -34,6 +35,7 @@ use app\modules\vendas\models\CarteiraCobranca;
  * @property string $forma_pagamento_id
  * @property string $cobrador_id
  * @property string $carteira_cobranca_id
+ * @property string $id_integracao_externa
  * 
  * @property Venda $venda
  * @property Usuario $usuario
@@ -59,7 +61,7 @@ class Parcela extends ActiveRecord
     {
         return [
             [['venda_id', 'usuario_id', 'numero_parcela', 'valor_parcela', 'data_vencimento'], 'required'],
-            [['venda_id', 'usuario_id', 'status_parcela_codigo', 'forma_pagamento_id', 'cobrador_id', 'carteira_cobranca_id'], 'string'],
+            [['venda_id', 'usuario_id', 'status_parcela_codigo', 'forma_pagamento_id', 'cobrador_id', 'carteira_cobranca_id', 'id_integracao_externa'], 'string'],
             [['numero_parcela'], 'integer', 'min' => 1],
             [['valor_parcela', 'valor_pago'], 'number', 'min' => 0],
             [['data_vencimento', 'data_pagamento'], 'date', 'format' => 'php:Y-m-d'],
@@ -119,14 +121,14 @@ class Parcela extends ActiveRecord
         if ($this->status_parcela_codigo == StatusParcela::PAGA) {
             return 0;
         }
-        
+
         $hoje = new \DateTime();
         $vencimento = new \DateTime($this->data_vencimento);
-        
+
         if ($vencimento < $hoje) {
             return $hoje->diff($vencimento)->days;
         }
-        
+
         return 0;
     }
 
@@ -146,17 +148,17 @@ class Parcela extends ActiveRecord
         $this->valor_pago = $valorPago;
         $this->data_pagamento = date('Y-m-d');
         $this->status_parcela_codigo = StatusParcela::PAGA;
-        
+
         if ($cobradorId) {
             $this->cobrador_id = $cobradorId;
         }
-        
+
         if ($formaPagamentoId) {
             $this->forma_pagamento_id = $formaPagamentoId;
         }
-        
+
         $saved = $this->save();
-        
+
         // ===== INTEGRAÇÃO COM CAIXA =====
         // Registra entrada no caixa quando parcela é paga (apenas se salvou com sucesso)
         if ($saved) {
@@ -167,7 +169,7 @@ class Parcela extends ActiveRecord
                     $this->forma_pagamento_id,
                     $this->usuario_id
                 );
-                
+
                 if ($movimentacao) {
                     Yii::info("✅ Entrada registrada no caixa para Parcela ID {$this->id}", 'Parcela');
                 } else {
@@ -179,7 +181,7 @@ class Parcela extends ActiveRecord
                 Yii::error("Erro ao registrar entrada no caixa (não crítico): " . $e->getMessage(), 'Parcela');
             }
         }
-        
+
         return $saved;
     }
 

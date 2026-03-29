@@ -1,5 +1,5 @@
-// app.js - Aplicação principal do VENDA DIRETA PWA
-import { CONFIG, API_ENDPOINTS, carregarConfigLoja, GATEWAY_CONFIG } from './config.js';
+import { carregarConfigLoja, GATEWAY_CONFIG, CONFIG, API_ENDPOINTS, ELEMENTOS_CRITICOS } from './config.js';
+import { fetchWithAuth } from './api.js';
 import { 
     getCarrinho, setCarrinho, adicionarAoCarrinho, removerDoCarrinho,
     aumentarQuantidadeItem, diminuirQuantidadeItem, calcularTotalCarrinho,
@@ -10,7 +10,6 @@ import { carregarCarrinho, limparDadosLocaisPosSinc, carregarFormasPagamentoCach
 import { finalizarPedido } from './order.js';
 import { carregarFormasPagamento } from './payment.js';
 import { validarCPF, maskCPF, maskPhone, maskCEP, formatarMoeda, formatarQuantidade, formatarCPF, verificarElementosCriticos } from './utils.js';
-import { ELEMENTOS_CRITICOS } from './config.js';
 import { mostrarModalPixEstatico } from './pix.js'; // Importação do novo módulo
 import { verificarAutenticacao, getColaboradorData } from './auth.js'; // Importação do módulo de autenticação
 import { buscarClientePorCpf, cadastrarCliente, getClienteAtual, setClienteAtual } from './customer.js'; // Importação do módulo de cliente
@@ -58,6 +57,7 @@ async function init() {
         inicializarBuscaProdutos(); // Inicializa o filtro de busca
         inicializarGerenciamentoMaquinetas(); // Inicializa botões e formulários de Point
         configurarListenerServiceWorker();
+        configurarListenerAuth(); // ✅ NOVO: Listener para falhas de autenticação
         
         // Exibir botão de maquinetas se Mercado Pago estiver habilitado
         const btnMaquinetas = document.getElementById('btn-gerenciar-maquinetas');
@@ -68,6 +68,7 @@ async function init() {
         // ✅ Verifica se há comprovante para exibir após reload
         verificarComprovantePosReload();
         atualizarBadgeCarrinho();
+        atualizarBadgeSincronizacao(); // ✅ NOVO: Atualiza badge de sincronização no início
         inicializarMonitoramentoRede();
         
         console.log('[App] ✅ Aplicação inicializada!');
@@ -86,7 +87,7 @@ async function carregarLogoEmpresa() {
             return;
         }
         
-        const response = await fetch(`${API_ENDPOINTS.USUARIO_DADOS_LOJA}?usuario_id=${CONFIG.ID_USUARIO_LOJA}`);
+        const response = await fetchWithAuth(`${API_ENDPOINTS.USUARIO_DADOS_LOJA}?usuario_id=${CONFIG.ID_USUARIO_LOJA}`);
         console.log('[App] 📡 Resposta da API dados-loja:', response.status);
         
         if (response.ok) {
@@ -144,6 +145,19 @@ async function carregarLogoEmpresa() {
     }
 }
 
+// ✅ NOVO: Listener de Autenticação
+function configurarListenerAuth() {
+    window.addEventListener('auth:unauthorized', async (event) => {
+        console.warn('[App] 🔐 Sessão expirada ou inválida. Redirecionando para login...', event.detail);
+        
+        const { limparDadosUsuario } = await import('./auth.js');
+        // Pequeno delay para o usuário ver o aviso se houver
+        setTimeout(() => {
+            limparDadosUsuario();
+        }, 1000);
+    });
+}
+
 // Service Worker Registration
 async function registrarServiceWorker() {
     if ('serviceWorker' in navigator) {
@@ -169,18 +183,50 @@ async function registrarServiceWorker() {
 function configurarListenerServiceWorker() {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.addEventListener('message', async (event) => {
-            const { type, pedido, error } = event.data;
+            const { type, pedido, error, total, sucesso, erros, id_local } = event.data;
+            
             if (type === 'SYNC_SUCCESS') {
-                await limparDadosLocaisPosSinc();
-                await carregarCarrinhoInicial();
-                atualizarBadgeCarrinho();
-                renderizarCarrinho();
-                alert('Venda offline enviada com sucesso!');
-                fecharModal('modal-cliente-pedido');
+                console.log(`[App] ✅ Pedido sincronizado com sucesso: ${id_local}`);
+                // Se for o último (ou único), limpa tudo
+                const pedidosPendentes = await idbKeyval.get(CONFIG.STORAGE_KEYS?.PEDIDO_PENDENTE || 'pedido_pendente_venda_direta');
+                if (!pedidosPendentes || pedidosPendentes.length === 0) {
+                    await limparDadosLocaisPosSinc();
+                    await carregarCarrinhoInicial();
+                    atualizarBadgeCarrinho();
+                    renderizarCarrinho();
+                    fecharModal('modal-cliente-pedido');
+                }
+                atualizarBadgeSincronizacao();
+            } else if (type === 'SYNC_PARTIAL_ERROR') {
+                alert(`Sincronização concluída com avisos:\n${sucesso} enviados com sucesso.\n${erros} falharam.`);
+                atualizarBadgeSincronizacao();
             } else if (type === 'SYNC_ERROR') {
                 alert(`Erro ao enviar venda: ${error}`);
+                atualizarBadgeSincronizacao();
             }
         });
+    }
+}
+
+async function atualizarBadgeSincronizacao() {
+    const badge = document.getElementById('contador-sincronizacao');
+    if (!badge) return;
+
+    try {
+        const pedidos = await idbKeyval.get('pedido_pendente_venda_direta') || [];
+        const count = Array.isArray(pedidos) ? pedidos.length : (pedidos ? 1 : 0);
+        
+        if (count > 0) {
+            badge.textContent = count;
+            badge.classList.remove('hidden');
+            // Animação sutil para chamar atenção
+            badge.classList.add('animate-pulse');
+        } else {
+            badge.classList.add('hidden');
+            badge.classList.remove('animate-pulse');
+        }
+    } catch (err) {
+        console.error('[App] Erro ao atualizar badge de sinc:', err);
     }
 }
 
@@ -430,7 +476,7 @@ window.formatarEntradaDesconto = function(input) {
 async function carregarCategorias() {
     try {
         console.log('[App] 📂 Carregando categorias...');
-        const response = await fetch(`${API_ENDPOINTS.CATEGORIA}?usuario_id=${CONFIG.ID_USUARIO_LOJA}`);
+        const response = await fetchWithAuth(`${API_ENDPOINTS.CATEGORIA}?usuario_id=${CONFIG.ID_USUARIO_LOJA}`);
         
         if (!response.ok) throw new Error('Falha ao carregar categorias');
         
@@ -541,7 +587,7 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false, termoBusca
         if (categoriaSelecionada && categoriaSelecionada !== 'todos') {
             url += `&categoria_id=${categoriaSelecionada}`;
         }
-        const response = await fetch(url);
+        const response = await fetchWithAuth(url);
         
         if (!response.ok) {
             throw new Error(`Erro ${response.status}: ${response.statusText}`);
@@ -1219,7 +1265,8 @@ window.buscarVendedor = async function() {
     if (!cpf) { colaboradorAtual = null; document.getElementById('info-vendedor').classList.add('hidden'); return; }
     
     try {
-        const response = await fetch(`${API_ENDPOINTS.COLABORADOR_BUSCA_CPF}?cpf=${cpf}&usuario_id=${CONFIG.ID_USUARIO_LOJA}`);
+        const cpfLimp = cpf.replace(/[^\d]/g, '');
+        const response = await fetchWithAuth(`${API_ENDPOINTS.COLABORADOR_BUSCA_CPF}?cpf=${cpfLimp}&usuario_id=${CONFIG.ID_USUARIO_LOJA}`);
         if (response.ok) {
             const data = await response.json();
             if (data.existe && data.colaborador) {
@@ -1350,6 +1397,7 @@ window.confirmarPedido = async function() {
                     ...dadosPedido,
                     ...dadosAcrescimo, // ✅ Adiciona dados do acréscimo explicitamente
                     venda_id: vendaId,
+                    emitir_fiscal: document.getElementById('emitir-fiscal')?.checked || false, // ✅ NOVO: Repassa flag para o modal
                     itens: carrinho,
                     valorTotal: valorTotal
                 }, CONFIG.ID_USUARIO_LOJA);
@@ -1382,6 +1430,7 @@ window.confirmarPedido = async function() {
                     ...dadosPedido,
                     ...dadosAcrescimo, // ✅ Adiciona dados do acréscimo explicitamente
                     venda_id: vendaId,
+                    emitir_fiscal: document.getElementById('emitir-fiscal')?.checked || false, // ✅ NOVO: Repassa flag para o modal
                     itens: carrinho,
                     valorTotal: valorTotal
                 });
@@ -1416,7 +1465,10 @@ window.confirmarPedido = async function() {
                 const response = await fetch(API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO, {
                     method: 'POST',
                     headers: headers,
-                    body: JSON.stringify({ venda_id: vendaId })
+                    body: JSON.stringify({ 
+                        venda_id: vendaId,
+                        emitir_fiscal: document.getElementById('emitir-fiscal')?.checked || false // ✅ NOVO: Envia flag para emissão fiscal
+                    })
                 });
 
                 if (!response.ok) {
@@ -1439,7 +1491,7 @@ window.confirmarPedido = async function() {
                 }));
                 
                 // Limpa carrinho antes do reload
-                limparCarrinho();
+                await limparCarrinho();
                 fecharModal('modal-cliente-pedido');
                 
                 // Recarrega página imediatamente
@@ -1455,6 +1507,8 @@ window.confirmarPedido = async function() {
         } else if (resultado.sucesso && resultado.offline) {
             // Offline: venda salva localmente
             alert(resultado.mensagem || 'Venda salva localmente. Será enviada quando a conexão for restaurada.');
+            atualizarBadgeSincronizacao(); // ✅ NOVO: Atualiza badge após salvar offline
+            limparCarrinho();
             fecharModal('modal-cliente-pedido');
             btnConfirmar.disabled = false;
             btnConfirmar.textContent = '✅ Confirmar Venda';
@@ -1527,6 +1581,39 @@ function inicializarEventListeners() {
             }
         });
     }
+
+    // ✅ NOVO: Listener para pagamentos confirmados via Polling (PIX/Point)
+    window.addEventListener('pagamentoConfirmado', async (event) => {
+        const { pedidoId, gateway, originalDadosPedido } = event.detail || {};
+        console.log(`[App] 🔔 Evento de pagamento confirmado recebido: ${pedidoId} (${gateway})`);
+        
+        try {
+            // 1. Limpa carrinho
+            limparCarrinho();
+            atualizarBadgeCarrinho();
+            renderizarCarrinho();
+            
+            // 2. Fecha modal de pedido (o modal de status já foi fechado pelo polling)
+            if (typeof fecharModal === 'function') {
+                fecharModal('modal-cliente-pedido');
+            } else {
+                document.getElementById('modal-cliente-pedido')?.classList.add('hidden');
+            }
+
+            // 3. Gera e exibe o comprovante
+            const itensComprovante = originalDadosPedido?.itens || originalDadosPedido?.carrinho || [];
+            
+            if (window.gerarComprovanteVenda) {
+                console.log('[App] 📄 Abrindo comprovante automático...');
+                await window.gerarComprovanteVenda(itensComprovante, originalDadosPedido || { id: pedidoId });
+            } else {
+                console.warn('[App] ⚠️ Função gerarComprovanteVenda não encontrada no window');
+                alert('Venda confirmada! Por favor, recarregue a página para ver o comprovante.');
+            }
+        } catch (error) {
+            console.error('[App] Erro ao processar confirmação automática:', error);
+        }
+    });
 }
 
 // ==========================================================================
@@ -1812,19 +1899,15 @@ window.confirmarRecebimentoDinheiro = async function() {
         const { getToken } = await import('./storage.js');
         const token = await getToken();
         
-        const headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        };
-        
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        const response = await fetch(API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO, {
+        // Confirmação via API
+        const response = await fetchWithAuth(API_ENDPOINTS.PEDIDO_CONFIRMAR_RECEBIMENTO, {
             method: 'POST',
-            headers: headers,
-            body: JSON.stringify({ venda_id: vendaId })
+            body: JSON.stringify({
+                venda_id: vendaId,
+                emitir_fiscal: window.dadosPedidoDinheiro.emitir_fiscal || false, // ✅ NOVO: Repassa flag para emissão fiscal
+                forma_pagamento_id: window.dadosPedidoDinheiro.forma_pagamento_id,
+                valor_pago: window.dadosPedidoDinheiro.valorTotal
+            })
         });
 
         if (!response.ok) {
@@ -1853,7 +1936,7 @@ window.confirmarRecebimentoDinheiro = async function() {
         
         // Limpa carrinho
         const { limparCarrinho } = await import('./cart.js');
-        limparCarrinho();
+        await limparCarrinho();
         
         // Fecha modal
         const modal = document.getElementById('modal-dinheiro');

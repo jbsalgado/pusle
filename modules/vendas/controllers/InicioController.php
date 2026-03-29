@@ -293,6 +293,15 @@ class InicioController extends Controller
 
             $transaction->commit();
 
+            // === TELEGRAM ALERT (Confirmado via Dashboard) ===
+            try {
+                $msg = \app\components\TelegramHelper::formatVendaAlerta($venda);
+                $msg = "🏦 *[PGTO CONFIRMADO VIA PAINEL]*\n" . $msg;
+                \app\components\TelegramHelper::sendMessage($msg);
+            } catch (\Exception $e) {
+                Yii::error("Erro ao enviar alerta Telegram (Dashboard): " . $e->getMessage());
+            }
+
             // ✅ Redireciona para a página de comprovante após confirmação
             return $this->redirect(['comprovante', 'id' => $venda->id]);
         } catch (\Exception $e) {

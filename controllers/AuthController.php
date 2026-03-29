@@ -24,7 +24,20 @@ class AuthController extends Controller
 
         // Processa o formulário de login se for POST
         if ($model->load(Yii::$app->request->post()) && $model->login()) {
-            // Após login bem-sucedido, redireciona para o dashboard
+            $redirectUrl = Yii::$app->request->get('redirect_url');
+
+            if ($redirectUrl) {
+                // Se houver uma URL de redirecionamento (ex: vindo do PWA),
+                // gera um token JWT e anexa à URL
+                $usuario = Yii::$app->user->identity;
+                $token = $usuario->generateJwt();
+
+                // Verifica se a URL já tem parâmetros
+                $separator = (strpos($redirectUrl, '?') === false) ? '?' : '&';
+                return $this->redirect($redirectUrl . $separator . 'token=' . $token);
+            }
+
+            // Após login bem-sucedido, redireciona para o dashboard (fluxo padrão)
             return $this->redirect(['/vendas/dashboard']);
         }
 

@@ -9,6 +9,10 @@ return [
     'pulse_asaas_wallet_id' => null, // ID da Carteira Asaas dos proprietários do PULSE
     'pulse_platform_fee_percent' => 0.005, // Taxa do PULSE (padrão 0.5%)
 
+    // Telegram Alerts Configuration
+    'telegram_bot_token' => '', // TODO: Inserir token do Bot (ex: 123456:ABC-DEF)
+    'telegram_chat_id' => '',   // TODO: Inserir ID do Chat/Grupo (ex: -100123456)
+
     // Marketplace Integration Configuration
     'marketplace' => [
         'enabled' => false, // Desabilitado por padrão - habilitar quando estiver pronto para uso

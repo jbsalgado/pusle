@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PULSE - Guia de Integrações</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #10b981;
+            --accent: #f59e0b;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --white: #ffffff;
+            --glass: rgba(255, 255, 255, 0.8);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            scroll-behavior: smooth;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            height: 100vh;
+            background: var(--white);
+            position: fixed;
+            left: 0;
+            top: 0;
+            border-right: 1px solid #e2e8f0;
+            padding: 2rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-item {
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: var(--text-light);
+            font-weight: 500;
+            border-radius: 12px;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            background: var(--primary);
+            color: var(--white);
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 280px;
+            padding: 3rem;
+            max-width: 1000px;
+        }
+
+        header {
+            margin-bottom: 4rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .lead {
+            font-size: 1.1rem;
+            color: var(--text-light);
+        }
+
+        section {
+            margin-bottom: 5rem;
+        }
+
+        .section-tag {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: #e0e7ff;
+            color: var(--primary);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .card {
+            background: var(--white);
+            border-radius: 24px;
+            border: 1px solid #e2e8f0;
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            margin-bottom: 2rem;
+        }
+
+        .step-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .step-item {
+            display: flex;
+            gap: 1.25rem;
+        }
+
+        .step-number {
+            width: 32px;
+            height: 32px;
+            min-width: 32px;
+            background: var(--primary);
+            color: var(--white);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .step-content h4 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .step-content p {
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        .code-block {
+            background: #1e293b;
+            color: #f8fafc;
+            padding: 1rem;
+            border-radius: 12px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+            position: relative;
+            overflow-x: auto;
+        }
+
+        .badge {
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-info { background: #dbeafe; color: #1e40af; }
+
+        .tip-box {
+            background: #fffbeb;
+            border-left: 4px solid var(--accent);
+            padding: 1.5rem;
+            border-radius: 0 12px 12px 0;
+            margin: 2rem 0;
+            display: flex;
+            gap: 1rem;
+        }
+
+        .tip-box i {
+            color: var(--accent);
+            font-size: 1.25rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar { width: 100%; height: auto; position: relative; border-right: none; border-bottom: 1px solid #e2e8f0; }
+            .main-content { margin-left: 0; padding: 2rem 1rem; }
+            h1 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">
+            <i class="fas fa-bolt"></i> PULSE
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a href="#intro" class="nav-link active"><i class="fas fa-home"></i> Introdução</a>
+            </li>
+            <li class="nav-item">
+                <a href="#mercado-pago" class="nav-link"><i class="fas fa-credit-card"></i> Mercado Pago</a>
+            </li>
+            <li class="nav-item">
+                <a href="#point" class="nav-link"><i class="fas fa-mobile-alt"></i> Point (Maquineta)</a>
+            </li>
+            <li class="nav-item">
+                <a href="#provider" class="nav-link"><i class="fas fa-server"></i> Admin: Split Fees</a>
+            </li>
+            <li class="nav-item">
+                <a href="#marketplaces" class="nav-link"><i class="fas fa-store"></i> Marketplaces</a>
+            </li>
+            <li class="nav-item">
+                <a href="#sefaz" class="nav-link"><i class="fas fa-file-invoice-dollar"></i> SEFAZ Fiscal</a>
+            </li>
+            <li class="nav-item">
+                <a href="#env-switch" class="nav-link"><i class="fas fa-toggle-on"></i> Testes vs Produção</a>
+            </li>
+            <li class="nav-item">
+                <a href="#webhooks" class="nav-link"><i class="fas fa-link"></i> Webhooks</a>
+            </li>
+        </ul>
+    </div>
+
+    <div class="main-content">
+        <header id="intro">
+            <h1>Guia de Integrações</h1>
+            <p class="lead">Tudo o que você precisa saber para conectar o Pulse ao mundo real e automatizar suas vendas.</p>
+        </header>
+
+        <section id="mercado-pago">
+            <span class="section-tag">Pagamentos Online</span>
+            <h2><i class="fab fa-cc-mastercard"></i> Mercado Pago Checkout & PIX</h2>
+            <div class="card">
+                <p style="margin-bottom: 2rem;">A integração com o Mercado Pago permite que você receba por Cartão de Crédito e PIX diretamente no seu catálogo online ou venda direta, com baixa automática de estoque.</p>
+                
+                <ul class="step-list">
+                    <li class="step-item">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h4>Obter Credenciais</h4>
+                            <p>Acesse o <a href="https://www.mercadopago.com.br/developers/panel" target="_blank">Painel do Desenvolvedor</a>, crie uma aplicação e copie sua <strong>Public Key</strong> e <strong>Access Token</strong>.</p>
+                        </div>
+                    </li>
+                    <li class="step-item">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h4>Configurar no Pulse</h4>
+                            <p>No menu lateral, acesse <strong>Configuração</strong> (ícone de engrenagem). Lá você encontrará as seções para Pagamentos, Fiscal e Redes Sociais.</p>
+                            <span class="badge badge-warning"><i class="fas fa-vial"></i> Dica: Use o modo Sandbox para testes iniciais.</span>
+                        </div>
+                    </li>
+                    <li class="step-item">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h4>Conexão OAuth (Opcional - Para Taxas)</h4>
+                            <p>Se você deseja usar o sistema de split (taxa de plataforma de 0,5%), é necessário conectar sua conta via OAuth acessando:</p>
+                            <div class="code-block">/api/mercado-pago/connect-url?tenant_id=SEU_ID</div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="point">
+            <span class="section-tag">Pagamentos Físicos</span>
+            <h2><i class="fas fa-cash-register"></i> Mercado Pago Point (Maquineta)</h2>
+            <div class="card">
+                <p style="margin-bottom: 2rem;">Transforme sua maquineta física em uma extensão do Pulse. O valor da venda é enviado automaticamente para o terminal.</p>
+                
+                <ul class="step-list">
+                    <li class="step-item">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h4>Identificar o Device ID</h4>
+                            <p>Nas configurações da sua maquineta Point, localize o ID do dispositivo (Device ID).</p>
+                        </div>
+                    </li>
+                    <li class="step-item">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h4>Cadastrar no Sistema</h4>
+                            <p>O administrador deve cadastrar o dispositivo na tabela de dispositivos de pagamento vinculada ao seu usuário.</p>
+                        </div>
+                    </li>
+                    <li class="step-item">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h4>Vender</h4>
+                            <p>Na Venda Direta, ao escolher "Maquineta", o Pulse enviará o comando de cobrança para o terminal. O sistema aguardará o retorno de sucesso para baixar a venda.</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="marketplaces">
+            <span class="section-tag">Vendas Multicanal</span>
+            <h2><i class="fas fa-globe"></i> Hub de Marketplaces</h2>
+            <div class="card">
+                <p style="margin-bottom: 2rem;">O Pulse centraliza seu estoque. Quando você vende em um marketplace, o estoque do Pulse e de todos os outros canais diminui automaticamente.</p>
+                
+                <div class="tip-box">
+                    <i class="fas fa-lightbulb"></i>
+                    <p>O Webhook de estoque é disparado em cada alteração de produto no Pulse. Certifique-se de que o SKU do produto no Marketplace seja igual ao ID ou SKU no Pulse.</p>
+                </div>
+
+                <ul class="step-list">
+                    <li class="step-item">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h4>iFood</h4>
+                            <p>Configure seu <strong>Merchant ID</strong>, <strong>Client ID</strong> e <strong>Secret</strong>. O Pulse receberá pedidos novos e atualizará o status automaticamente.</p>
+                        </div>
+                    </li>
+                    <li class="step-item">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h4>Mercado Livre & Shopee</h4>
+                            <p>Utilize a conexão por clique (OAuth) na Dashboard de Marketplace. Uma vez autorizado, o sistema começará a monitorar anúncios e estoque.</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="sefaz">
+            <span class="section-tag">Fiscal & Tributário</span>
+            <h2><i class="fas fa-file-invoice-dollar"></i> SEFAZ (NF-e / NFC-e)</h2>
+            <div class="card">
+                <p style="margin-bottom: 2rem;">O Pulse está preparado para emissão de Notas Fiscais Eletrônicas utilizando a biblioteca NFePHP, seguindo todos os padrões da SEFAZ 4.0.</p>
+                
+                <div class="tip-box" style="background: #fef2f2; border-left-color: var(--danger);">
+                    <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
+                    <p style="color: #991b1b;"><strong>Atenção:</strong> Comece sempre pelo ambiente de Homologação para evitar emissões reais indevidas durante os testes.</p>
+                </div>
+
+                <ul class="step-list">
+                    <li class="step-item">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h4>Ambientes de Emissão</h4>
+                            <p><strong>Homologação:</strong> Testes sem valor fiscal. Use para validar dados.</p>
+                            <p><strong>Produção:</strong> Notas reais enviadas para a Receita. Requer credenciamento prévio na SEFAZ do seu estado.</p>
+                        </div>
+                    </li>
+                    <li class="step-item">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h4>Certificado Digital A1</h4>
+                            <p>O Pulse suporta certificados do Tipo A1 (arquivo `.pfx`). No painel de configuração, faça o upload do arquivo e informe a senha. O certificado é armazenado de forma segura no banco de dados.</p>
+                        </div>
+                    </li>
+                    <li class="step-item">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h4>Token CSC (NFC-e)</h4>
+                            <p>Para emitir Notas de Consumidor (NFC-e), você deve obter o <strong>CSC (Código de Segurança do Contribuinte)</strong> e o <strong>ID do Token</strong> no portal da SEFAZ estadual e preencher no painel.</p>
+                        </div>
+                    </li>
+                    <li class="step-item">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h4>Configuração do Emitente</h4>
+                            <p>Certifique-se de que a Razão Social, CNPJ e Inscrição Estadual estejam corretos. O sistema gera o XML automaticamente com base nesses dados.</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="webhooks">
+            <span class="section-tag">Configuração Técnica</span>
+            <h2><i class="fas fa-network-wired"></i> Webhooks de Retorno</h2>
+            <div class="card">
+                <p style="margin-bottom: 2rem;">Para que as confirmações sejam automáticas, você deve configurar as URLs de Webhook nos painéis parceiros.</p>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Serviço</th>
+                            <th>Endpoint de Webhook</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Mercado Pago</td>
+                            <td><code>/api/mercado-pago/webhook?tenant_id=ID</code></td>
+                        </tr>
+                        <tr>
+                            <td>iFood</td>
+                            <td><code>/marketplace/webhook/ifood</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p style="font-size: 0.85rem; color: var(--text-light); margin-top: 1rem;">Substitua <code>ID</code> pelo seu ID de usuário único no Pulse.</p>
+            </div>
+        </section>
+
+        <section id="provider">
+            <span class="section-tag">Administrador do Sistema</span>
+            <h2><i class="fas fa-server"></i> Configuração do Provedor (Ganhar Comissões)</h2>
+            <div class="card">
+                <p style="margin-bottom: 2rem;">Se você é o provedor do sistema (quem instala o Pulse na VPS para o cliente), siga estes passos para garantir que sua comissão caia na sua conta em cada venda.</p>
+                
+                <ul class="step-list">
+                    <li class="step-item">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h4>Criar sua Aplicação no Mercado Pago</h4>
+                            <p>Acesse o <a href="https://www.mercadopago.com.br/developers/panel" target="_blank">Painel do Desenvolvedor</a> com a <strong>sua conta</strong> (a que vai receber a comissão). Crie uma nova aplicação para o Pulse.</p>
+                        </div>
+                    </li>
+                    <li class="step-item">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h4>Configurar Credenciais na VPS</h4>
+                            <p>No arquivo de ambiente (`.env`) ou na configuração da sua VPS, você deve definir as credenciais da <strong>sua aplicação</strong>:</p>
+                            <div class="code-block">
+MP_APP_ID=SEU_APP_ID<br>
+MP_CLIENT_SECRET=SEU_CLIENT_SECRET<br>
+MP_REDIRECT_URI=https://dominio-do-cliente.com/api/mercado-pago/oauth-callback
+                            </div>
+                        </div>
+                    </li>
+                    <li class="step-item">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h4>Definir a Taxa (Split)</h4>
+                            <p>A taxa padrão é de <strong>0,5% (0.005)</strong>. Você pode alterar esse valor no arquivo <code>config/params.php</code>:</p>
+                            <div class="code-block">'pulse_platform_fee_percent' => 0.005,</div>
+                        </div>
+                    </li>
+                    <li class="step-item">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h4>Como funciona o recebimento?</h4>
+                            <p>Quando o seu cliente (dono da loja) conecta a conta dele via OAuth no Pulse, ele autoriza o <strong>seu app</strong> a processar os pagamentos. O Mercado Pago então entende que a venda é do cliente, mas a tecnologia é sua, e transfere automaticamente o percentual definido (Split) para a sua conta no momento da aprovação.</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="env-switch">
+            <span class="section-tag">Dica de Especialista</span>
+            <h2><i class="fas fa-toggle-on"></i> Testes vs. Produção: O que muda?</h2>
+            <div class="card" style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);">
+                <div class="cards-grid">
+                    <div class="card" style="margin-bottom: 0;">
+                        <h4><i class="fas fa-flask"></i> Modo Testes (Sandbox/Homologação)</h4>
+                        <ul style="margin-top: 1rem; color: var(--text-light); font-size: 0.9rem;">
+                            <li>Simula transações reais sem custo.</li>
+                            <li>Notas fiscais sem valor jurídico.</li>
+                            <li>Ideal para treinar a equipe e validar fluxos.</li>
+                            <li><strong>Mudança:</strong> Selecione "Homologação" ou "Sandbox" no menu lateral <strong>Configuração</strong>.</li>
+                        </ul>
+                    </div>
+                    <div class="card" style="margin-bottom: 0; border-color: var(--secondary);">
+                        <h4><i class="fas fa-rocket"></i> Modo Produção (Real)</h4>
+                        <ul style="margin-top: 1rem; color: var(--text-light); font-size: 0.9rem;">
+                            <li>Transações financeiras reais (dinheiro entra na conta).</li>
+                            <li>Notas fiscais válidas com envio imediato à Receita.</li>
+                            <li><strong>Mudança:</strong> Altere para "Produção" no menu <strong>Configuração</strong> e certifique-se de que as chaves/certificados de produção estejam preenchidos.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer style="margin-top: 5rem; text-align: center; color: var(--text-light);">
+            <p>&copy; 2026 Pulse ERP - Manual de Integrações v1.0</p>
+        </footer>
+    </div>
+
+    <script>
+        // Smooth scroll implementation
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+                
+                // Active link handling
+                document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

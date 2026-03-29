@@ -20,6 +20,22 @@ use yii\helpers\Url;
 $this->title = 'Dashboard - ' . $usuario->getPrimeiroNome();
 // ✅ Gera token JWT para SSO
 $tokenJwt = $usuario->generateJwt();
+
+/**
+ * ✅ HELPER: Formatação de Quantidade (Inteiro vs Fracionado com Vírgula)
+ */
+if (!function_exists('formatQtd')) {
+    function formatQtd($valor, $isFracionado)
+    {
+        if (!$isFracionado) {
+            return number_format($valor, 0, '', '');
+        }
+        // Para fracionados, usa vírgula e 2 casas decimais
+        // Remove zeros desnecessários (ex: 10,50 -> 10,5)
+        $fmt = number_format($valor, 2, ',', '.');
+        return rtrim(rtrim($fmt, '0'), ',');
+    }
+}
 ?>
 
 <div class="space-y-6">
@@ -362,7 +378,7 @@ $tokenJwt = $usuario->generateJwt();
                                         </div>
                                         <div class="text-right ml-4">
                                             <p class="text-lg font-bold <?= $corTexto ?>">
-                                                <?= $produto->estoque_atual ?>
+                                                <?= formatQtd($produto->estoque_atual, $produto->venda_fracionada) ?>
                                             </p>
                                             <p class="text-xs text-gray-500">unidades</p>
                                         </div>
@@ -373,14 +389,14 @@ $tokenJwt = $usuario->generateJwt();
                                     <div class="flex items-center justify-between text-xs">
                                         <div class="flex items-center space-x-4">
                                             <span class="text-gray-600">
-                                                <span class="font-semibold">Atual:</span> <?= $produto->estoque_atual ?> un.
+                                                <span class="font-semibold">Atual:</span> <?= formatQtd($produto->estoque_atual, $produto->venda_fracionada) ?> <?= $produto->unidade_medida ?>
                                             </span>
                                             <span class="text-gray-500">
-                                                <span class="font-semibold">Mínimo:</span> <?= $estoqueMinimo ?> un.
+                                                <span class="font-semibold">Mínimo:</span> <?= formatQtd($estoqueMinimo, $produto->venda_fracionada) ?> <?= $produto->unidade_medida ?>
                                             </span>
                                             <?php if ($pontoCorte > 0): ?>
                                                 <span class="text-red-600">
-                                                    <span class="font-semibold">Ponto Corte:</span> <?= $pontoCorte ?> un.
+                                                    <span class="font-semibold">Ponto Corte:</span> <?= formatQtd($pontoCorte, $produto->venda_fracionada) ?> <?= $produto->unidade_medida ?>
                                                 </span>
                                             <?php endif; ?>
                                         </div>
@@ -462,8 +478,8 @@ $tokenJwt = $usuario->generateJwt();
                                         </p>
                                     </div>
                                     <div class="text-right">
-                                        <p class="text-lg font-bold text-green-600"><?= $produto['quantidade_total'] ?></p>
-                                        <p class="text-xs text-gray-500">vendidos</p>
+                                        <p class="text-lg font-bold text-green-600"><?= formatQtd($produto['quantidade_total'], $produto['venda_fracionada']) ?></p>
+                                        <p class="text-xs text-gray-500"><?= Html::encode($produto['unidade_medida'] ?? 'un.') ?> vendidos</p>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
@@ -563,13 +579,49 @@ $tokenJwt = $usuario->generateJwt();
                 ) ?>
 
                 <?= Html::a(
-                    '<svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826 3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg><span>Configurações</span>',
+                    '<svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826 3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg><span>Configurações</span>',
                     ['/vendas/configuracao/index'],
                     ['class' => 'bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg p-4 text-center transition flex flex-col items-center justify-center']
                 ) ?>
+
+                <a href="javascript:void(0)" onclick="realizarBackup()" class="bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg p-4 text-center transition flex flex-col items-center justify-center">
+                    <svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                    </svg>
+                    <span>Backup do Sistema</span>
+                </a>
             </div>
         </div>
     <?php endif; ?>
+
+    <script>
+        function realizarBackup() {
+            if (!confirm('Deseja gerar um backup do banco de dados agora?')) return;
+
+            const btn = event.currentTarget;
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<svg class="animate-spin h-6 w-6 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>Gerando...</span>';
+            btn.classList.add('pointer-events-none', 'opacity-50');
+
+            fetch('<?= Url::to(['/backup/criar']) ?>')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.sucesso) {
+                        alert('Backup concluído com sucesso! Arquivo salvo em: ' + data.arquivo);
+                    } else {
+                        alert('Erro ao realizar backup: ' + data.erro);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Ocorreu um erro inesperado ao solicitar o backup.');
+                })
+                .finally(() => {
+                    btn.innerHTML = originalContent;
+                    btn.classList.remove('pointer-events-none', 'opacity-50');
+                });
+        }
+    </script>
 
 </div>
 

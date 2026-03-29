@@ -64,97 +64,81 @@ let currentPaymentId = null; // Guardar o payment_id atual
 // }
 
 
-async function verificarStatusPagamento(paymentId) {
-    console.log(`[Gateway] 🔍 polling... (tentativa ${pollingAttempts})`);
+/**
+ * CONSULTA STATUS GENÉRICO (PIX OU CARTÃO)
+ */
+async function verificarStatusVenda(vendaId) {
+    console.log(`[Gateway] 🔍 Verificando status da venda ${vendaId}... (tentativa ${pollingAttempts})`);
     
-    const statusText = document.getElementById('pix-status-text');
-    if (statusText) {
-        statusText.textContent = `Aguardando confirmação... (Verificação ${pollingAttempts})`;
-    }
-
+    // Mostra status no modal se existir
+    const statusText = document.getElementById('pix-status-text') || document.getElementById('mp-status-text');
+    
     try {
-        const url = `${API_ENDPOINTS.ASAAS_CONSULTAR_STATUS}?payment_id=${paymentId}&usuario_id=${CONFIG.ID_USUARIO_LOJA}`;
+        const url = `${API_ENDPOINTS.PEDIDO_STATUS}?venda_id=${vendaId}&usuario_id=${CONFIG.ID_USUARIO_LOJA}`;
         
         const response = await fetch(url, {
             method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            // ✅✅✅ INÍCIO DA CORREÇÃO (CLIENT-SIDE) ✅✅✅
-            // Esta linha força o navegador a buscar os dados do servidor
-            // em TODAS as tentativas, ignorando o cache.
+            headers: { 'Accept': 'application/json' },
             cache: 'no-store'
-            // ✅✅✅ FIM DA CORREÇÃO (CLIENT-SIDE) ✅✅✅
         });
         
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            console.error('[Gateway] ❌ Resposta não é JSON:', await response.text());
-            return { status: 'pendente' };
-        }
+        if (!response.ok) return { status: 'pendente' };
         
-        if (!response.ok) {
-            console.warn('[Gateway] ⚠️ Servidor respondeu com erro', response.status);
-            return { status: 'pendente' };
-        }
+        const res = await response.json();
+        const data = res.data || res;
         
-        const responseJson = await response.json();
-        console.log('[Gateway] 📡 Status recebido:', responseJson);
-        
-        const resultado = responseJson.data || responseJson;
-        const sucesso = responseJson.success || responseJson.sucesso || false;
-        
-        const statusPago = ['pago', 'RECEIVED', 'CONFIRMED', 'received', 'confirmed', 'QUITADA'];
-        const statusAsaas = (resultado.status_asaas || '').toUpperCase();
-        const statusLocal = (resultado.status || '').toLowerCase();
-        
-        if (sucesso && (statusPago.includes(statusLocal) || statusPago.includes(statusAsaas))) {
+        // Status "QUITADA" significa sucesso no Pulse
+        if (res.sucesso && (data.pago || data.status === 'QUITADA')) {
             return { 
                 status: 'pago', 
-                pedido_id: resultado.pedido_id,
-                dados: resultado
+                pedido_id: vendaId,
+                dados: data
             };
         }
         
         if (statusText) {
-            statusText.textContent = `Status: ${statusAsaas || statusLocal || 'PENDENTE'}`;
+            statusText.textContent = `Status: ${data.status || 'PROCESSANDO...'}`;
         }
         return { status: 'pendente' };
 
     } catch (error) {
         console.error('[Gateway] ❌ Erro no polling:', error);
-        if (statusText) statusText.textContent = 'Erro de rede. Verificando...';
         return { status: 'pendente' };
     }
 }
 
-function tratarPagamentoConfirmado(pedidoId, dados) {
+function tratarPagamentoConfirmado(pedidoId, dados, gateway = 'asaas') {
     if (pollingIntervalId) {
         clearInterval(pollingIntervalId);
         pollingIntervalId = null;
     }
     
+    // Fecha modais de aguardando (PIX ou MP)
     const modalPix = document.getElementById('modal-pix-asaas');
     if (modalPix) modalPix.remove();
     
-    console.log('[Gateway] ✅ Pagamento confirmado! Pedido:', pedidoId);
+    const overlayMP = document.getElementById('mp-verificando-overlay');
+    if (overlayMP) overlayMP.remove();
+    
+    console.log(`[Gateway] ✅ Pagamento confirmado (${gateway})! Pedido:`, pedidoId);
     
     window.dispatchEvent(new CustomEvent('pagamentoConfirmado', {
         detail: {
             pedidoId: pedidoId,
-            gateway: 'asaas',
+            gateway: gateway,
             dados: dados
         }
     }));
 }
 
-function iniciarPollingStatusPagamento(paymentId) {
+/**
+ * INICIA MONITORAMENTO DE QUALQUER VENDA
+ */
+export function iniciarPollingStatusVenda(vendaId, gateway = 'asaas') {
     if (pollingIntervalId) {
         clearInterval(pollingIntervalId);
     }
     
-    currentPaymentId = paymentId;
     pollingAttempts = 0;
     
     pollingIntervalId = setInterval(async () => {
@@ -163,20 +147,13 @@ function iniciarPollingStatusPagamento(paymentId) {
         if (pollingAttempts > maxPollingAttempts) {
             clearInterval(pollingIntervalId);
             pollingIntervalId = null;
-            const statusText = document.getElementById('pix-status-text');
-            if (statusText) {
-                statusText.textContent = 'Tempo esgotado. Verifique seu pedido mais tarde.';
-                statusText.classList.add('text-red-500');
-            }
-            console.warn('[Gateway] ⏱️ Polling: Tempo máximo atingido.');
             return;
         }
 
-        const resultado = await verificarStatusPagamento(paymentId);
+        const resultado = await verificarStatusVenda(vendaId);
         
         if (resultado.status === 'pago') {
-            console.log('[Gateway] ✅ Pagamento confirmado via polling!');
-            tratarPagamentoConfirmado(resultado.pedido_id, resultado.dados);
+            tratarPagamentoConfirmado(vendaId, resultado.dados, gateway);
         }
         
     }, 5000);
@@ -222,17 +199,17 @@ window.simularPagamentoSandbox = async function() {
     }
 }
 
-export async function processarPagamento(dadosPedido, carrinho, cliente) {
+export async function processarPagamento(dadosPedido, carrinho, cliente, pedidoId = null) {
     const gateway = GATEWAY_CONFIG.gateway;
     
-    console.log('[Gateway] 💳 Processando pagamento via:', gateway);
+    console.log('[Gateway] 💳 Processando pagamento via:', gateway, 'PedidoID:', pedidoId);
     
     switch (gateway) {
         case 'mercadopago':
-            return await processarMercadoPago(dadosPedido, carrinho, cliente);
+            return await processarMercadoPago(dadosPedido, carrinho, cliente, pedidoId);
             
         case 'asaas':
-            return await processarAsaas(dadosPedido, carrinho, cliente);
+            return await processarAsaas(dadosPedido, carrinho, cliente, pedidoId);
             
         case 'nenhum':
         default:
@@ -240,11 +217,12 @@ export async function processarPagamento(dadosPedido, carrinho, cliente) {
     }
 }
 
-async function processarMercadoPago(dadosPedido, carrinho, cliente) {
+async function processarMercadoPago(dadosPedido, carrinho, cliente, pedidoId = null) {
     try {
         const payload = {
             usuario_id: CONFIG.ID_USUARIO_LOJA,
             cliente_id: dadosPedido.cliente_id,
+            venda_id: pedidoId, // ✅ Passa o ID da venda já criada
             itens: carrinho.map(item => ({
                 produto_id: item.produto_id || item.id || null,
                 nome: item.nome || 'Produto',
@@ -294,7 +272,7 @@ async function processarMercadoPago(dadosPedido, carrinho, cliente) {
     }
 }
 
-async function processarAsaas(dadosPedido, carrinho, cliente) {
+async function processarAsaas(dadosPedido, carrinho, cliente, pedidoId = null) {
     try {
         const valorTotal = carrinho.reduce((total, item) => 
             total + ((item.preco_venda_sugerido || 0) * (item.quantidade || 1)), 0
@@ -308,6 +286,7 @@ async function processarAsaas(dadosPedido, carrinho, cliente) {
             metodo_pagamento: 'PIX',
             vencimento: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             colaborador_id: dadosPedido.colaborador_vendedor_id || null,
+            external_reference: pedidoId, // ✅ Vincula ao pedido já criado no Pulse
             
             itens: carrinho.map(item => ({
                 produto_id: item.produto_id || item.id || null,
@@ -350,7 +329,8 @@ async function processarAsaas(dadosPedido, carrinho, cliente) {
         
         if (resultado.pix) {
             mostrarModalPix(resultado.pix, resultado.payment_id);
-            iniciarPollingStatusPagamento(resultado.payment_id);
+            // Inicia polling usando o pedidoId (external_reference) se disponível, senão usa payment_id
+            iniciarPollingStatusVenda(pedidoId || resultado.payment_id, 'asaas');
             
             return {
                 sucesso: true,

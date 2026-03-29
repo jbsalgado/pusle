@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PULSE - Status do Projeto</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); }
+        .card-hover:hover { transform: translateY(-4px); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .gradient-text { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .pulse-animation { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-900">
+    <!-- Navbar -->
+    <nav class="sticky top-0 z-50 glass border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-2">
+                    <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <span class="text-xl font-bold tracking-tight">PULSE <span class="text-indigo-600">ERP</span></span>
+                </div>
+                <div class="hidden sm:flex gap-6 text-sm font-medium text-slate-600">
+                    <a href="#overview" class="hover:text-indigo-600 transition-colors">Geral</a>
+                    <a href="#modules" class="hover:text-indigo-600 transition-colors">Módulos</a>
+                    <a href="#roadmap" class="hover:text-indigo-600 transition-colors">Roadmap</a>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="hidden md:inline-flex items-center px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-100 italic">
+                        <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-2 pulse-animation"></span>
+                        Atualizado em tempo real
+                    </span>
+                    <button onclick="window.print()" class="p-2 text-slate-400 hover:text-indigo-600 transition-colors">
+                        <i class="fas fa-print"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <!-- Hero Section -->
+        <header id="overview" class="mb-12">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+                <div>
+                    <h1 class="text-4xl font-extrabold tracking-tight text-slate-900 mb-2">Status da <span class="gradient-text">Implementação</span></h1>
+                    <p class="text-slate-500 text-lg max-w-2xl">Acompanhamento detalhado das funcionalidades, módulos e integrações do sistema ERP Pulse.</p>
+                </div>
+                <div class="flex flex-col items-end">
+                    <div class="text-4xl font-bold text-slate-900 mb-1">~72%</div>
+                    <div class="text-sm font-medium text-slate-400 uppercase tracking-widest">Progresso Total</div>
+                </div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><i class="fas fa-check-double text-xl"></i></div>
+                        <span class="text-xs font-bold text-emerald-600 uppercase">Estável</span>
+                    </div>
+                    <div class="text-2xl font-bold text-slate-900">4 / 6</div>
+                    <div class="text-sm text-slate-500 mt-1">Módulos Principais</div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl"><i class="fas fa-code-branch text-xl"></i></div>
+                        <span class="text-xs font-bold text-indigo-600 uppercase">Implementado</span>
+                    </div>
+                    <div class="text-2xl font-bold text-slate-900">100%</div>
+                    <div class="text-sm text-slate-500 mt-1">Vendas & Caixa</div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="p-3 bg-amber-50 text-amber-600 rounded-xl"><i class="fas fa-file-invoice-dollar text-xl"></i></div>
+                        <span class="text-xs font-bold text-amber-600 uppercase">Finalizando</span>
+                    </div>
+                    <div class="text-2xl font-bold text-slate-900">99%</div>
+                    <div class="text-sm text-slate-500 mt-1">Contas a Pagar</div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="p-3 bg-rose-50 text-rose-600 rounded-xl"><i class="fas fa-microchip text-xl"></i></div>
+                        <span class="text-xs font-bold text-rose-600 uppercase">Em Foco</span>
+                    </div>
+                    <div class="text-2xl font-bold text-slate-900">Ativa</div>
+                    <div class="text-sm text-slate-500 mt-1">Sincronização PWA</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Modules Section -->
+        <section id="modules" class="mb-16">
+            <div class="flex items-center gap-4 mb-8">
+                <h2 class="text-2xl font-bold text-slate-900">Módulos e <span class="text-indigo-600">Componentes</span></h2>
+                <div class="flex-1 h-px bg-slate-200"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Module: Vendas -->
+                <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm card-hover relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-bl-full -mr-10 -mt-10 opacity-50"></div>
+                    <div class="flex items-center gap-4 mb-6">
+                        <div class="w-12 h-12 bg-white shadow-md border border-slate-100 rounded-2xl flex items-center justify-center text-indigo-600">
+                            <i class="fas fa-shopping-cart text-lg"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-lg">Vendas & Orçamentos</h3>
+                            <span class="text-xs font-semibold text-emerald-500">CONCLUÍDO</span>
+                        </div>
+                    </div>
+                    <div class="space-y-4 mb-6">
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-slate-500">Progresso</span>
+                            <span class="font-bold">100%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div class="bg-emerald-500 h-full rounded-full" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <ul class="text-sm text-slate-600 space-y-3">
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Fluxo completo de orçamentos</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Gestão de produtos e fotos</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Catálogo interativo (web/catalogo)</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Suporte offline (PWA)</li>
+                    </ul>
+                </div>
+
+                <!-- Module: Caixa -->
+                <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm card-hover">
+                    <div class="flex items-center gap-4 mb-6">
+                        <div class="w-12 h-12 bg-white shadow-md border border-slate-100 rounded-2xl flex items-center justify-center text-blue-600">
+                            <i class="fas fa-cash-register text-lg"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-lg">Gestão de Caixa</h3>
+                            <span class="text-xs font-semibold text-emerald-500">CONCLUÍDO</span>
+                        </div>
+                    </div>
+                    <div class="space-y-4 mb-6">
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-slate-500">Progresso</span>
+                            <span class="font-bold">100%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div class="bg-blue-500 h-full rounded-full" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <ul class="text-sm text-slate-600 space-y-3">
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Abertura e fechamento diário</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Movimentações integradas</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Sincronização automática de vendas</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Histórico de auditoria</li>
+                    </ul>
+                </div>
+
+                <!-- Module: Contas a Pagar -->
+                <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm card-hover">
+                    <div class="flex items-center gap-4 mb-6">
+                        <div class="w-12 h-12 bg-white shadow-md border border-slate-100 rounded-2xl flex items-center justify-center text-amber-600">
+                            <i class="fas fa-file-invoice text-lg"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-lg">Contas a Pagar</h3>
+                            <span class="text-xs font-semibold text-amber-500">EM VALIDAÇÃO</span>
+                        </div>
+                    </div>
+                    <div class="space-y-4 mb-6">
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-slate-500">Progresso</span>
+                            <span class="font-bold">99%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div class="bg-amber-500 h-full rounded-full" style="width: 99%"></div>
+                        </div>
+                    </div>
+                    <ul class="text-sm text-slate-600 space-y-3">
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> CRUD e Gestão de Comprovantes</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Relatórios PDF/CSV completos</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Notificações automáticas de e-mail</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-spinner fa-spin text-amber-500"></i> Testes finais em produção</li>
+                    </ul>
+                </div>
+
+                <!-- Module: Fiscal -->
+                <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm card-hover">
+                    <div class="flex items-center gap-4 mb-6">
+                        <div class="w-12 h-12 bg-white shadow-md border border-slate-100 rounded-2xl flex items-center justify-center text-rose-600">
+                            <i class="fas fa-landmark text-lg"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-lg">Módulo Fiscal (NFe)</h3>
+                            <span class="text-xs font-semibold text-rose-500">DESENVOLVIMENTO</span>
+                        </div>
+                    </div>
+                    <div class="space-y-4 mb-6">
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-slate-500">Progresso</span>
+                            <span class="font-bold">85%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div class="bg-rose-500 h-full rounded-full" style="width: 85%"></div>
+                        </div>
+                    </div>
+                    <ul class="text-sm text-slate-600 space-y-3">
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Integração NFwService OK</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Geração de DANFE (PDF) funcional</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Interface Central Fiscal baseada</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-spinner fa-spin text-rose-500"></i> Integração final no Checkout</li>
+                    </ul>
+                </div>
+
+                <!-- Module: Pagamentos -->
+                <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm card-hover">
+                    <div class="flex items-center gap-4 mb-6">
+                        <div class="w-12 h-12 bg-white shadow-md border border-slate-100 rounded-2xl flex items-center justify-center text-violet-600">
+                            <i class="fas fa-credit-card text-lg"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-lg">Split & Gateways</h3>
+                            <span class="text-xs font-semibold text-emerald-500">CONCLUÍDO</span>
+                        </div>
+                    </div>
+                    <div class="space-y-4 mb-6">
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-slate-500">Progresso</span>
+                            <span class="font-bold">100%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div class="bg-violet-500 h-full rounded-full" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <ul class="text-sm text-slate-600 space-y-3">
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Integração Mercado Pago & Asaas</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Lógica de Split SaaS configurada</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Dashboard de taxas e métricas</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Conciliação de checkout PWA</li>
+                    </ul>
+                </div>
+
+                <!-- Module: API -->
+                <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm card-hover">
+                    <div class="flex items-center gap-4 mb-6">
+                        <div class="w-12 h-12 bg-white shadow-md border border-slate-100 rounded-2xl flex items-center justify-center text-cyan-600">
+                            <i class="fas fa-network-wired text-lg"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-lg">API Central (REST)</h3>
+                            <span class="text-xs font-semibold text-cyan-500">CONCLUÍDO</span>
+                        </div>
+                    </div>
+                    <div class="space-y-4 mb-6">
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-slate-500">Progresso</span>
+                            <span class="font-bold">100%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div class="bg-cyan-500 h-full rounded-full" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <ul class="text-sm text-slate-600 space-y-3">
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Endpoints para PWA (Produtos/Pedidos)</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Autenticação via Token</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Padronização de respostas JSON</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-500"></i> Registro unificado de atividades</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Roadmap / Backlog -->
+        <section id="roadmap" class="mb-16">
+            <div class="flex items-center gap-4 mb-8">
+                <h2 class="text-2xl font-bold text-slate-900">Roadmap de <span class="text-indigo-600">Futuras Melhorias</span></h2>
+                <div class="flex-1 h-px bg-slate-200"></div>
+            </div>
+
+            <div class="bg-slate-900 rounded-3xl p-10 text-white relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500 opacity-5 -mr-32 -mt-32 rounded-full blur-3xl"></div>
+                <div class="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500 opacity-5 -ml-32 -mb-32 rounded-full blur-3xl"></div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 relative z-10">
+                    <div class="space-y-6">
+                        <div class="text-indigo-400 font-bold tracking-widest text-xs uppercase">Curto Prazo</div>
+                        <div class="space-y-4">
+                            <div class="flex items-start gap-4">
+                                <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-300 flex-shrink-0"><i class="fas fa-bell"></i></div>
+                                <div>
+                                    <h4 class="font-bold text-sm">Alertas Telegram/WA</h4>
+                                    <p class="text-xs text-slate-400 mt-1">Notificações instantâneas de vendas</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-4">
+                                <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-300 flex-shrink-0"><i class="fas fa-database"></i></div>
+                                <div>
+                                    <h4 class="font-bold text-sm">Backup Automático</h4>
+                                    <p class="text-xs text-slate-400 mt-1">Dumps diários automatizados</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div class="text-cyan-400 font-bold tracking-widest text-xs uppercase">Médio Prazo</div>
+                        <div class="space-y-4">
+                            <div class="flex items-start gap-4">
+                                <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-300 flex-shrink-0"><i class="fas fa-boxes"></i></div>
+                                <div>
+                                    <h4 class="font-bold text-sm">Estoque Avançado</h4>
+                                    <p class="text-xs text-slate-400 mt-1">Múltiplos depósitos e lotes</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-4">
+                                <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-300 flex-shrink-0"><i class="fas fa-users"></i></div>
+                                <div>
+                                    <h4 class="font-bold text-sm">CRM Integrado</h4>
+                                    <p class="text-xs text-slate-400 mt-1">Funil de vendas e interações</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div class="text-emerald-400 font-bold tracking-widest text-xs uppercase">Expansão</div>
+                        <div class="space-y-4">
+                            <div class="flex items-start gap-4">
+                                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-300 flex-shrink-0"><i class="fas fa-mobile-alt"></i></div>
+                                <div>
+                                    <h4 class="font-bold text-sm">App Mobile Nativo</h4>
+                                    <p class="text-xs text-slate-400 mt-1">iOS/Android para vendedores</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-4">
+                                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-300 flex-shrink-0"><i class="fas fa-shield-alt"></i></div>
+                                <div>
+                                    <h4 class="font-bold text-sm">Segurança MFA</h4>
+                                    <p class="text-xs text-slate-400 mt-1">Dois fatores de autenticação</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6 text-center">
+                        <div class="text-slate-400 font-bold tracking-widest text-xs uppercase">Conclusão Prevista</div>
+                        <div class="mt-8">
+                            <div class="inline-flex items-center justify-center w-24 h-24 rounded-full border-4 border-slate-800 text-slate-300 font-bold mb-4">
+                                ~3 meses
+                            </div>
+                            <p class="text-xs text-slate-500">Para conclusão de todas as fases opcionais.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Technical Health -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="bg-indigo-600 rounded-3xl p-8 text-white shadow-xl shadow-indigo-100 flex items-center justify-between">
+                <div>
+                    <h3 class="text-xl font-bold mb-2">Saúde Técnica</h3>
+                    <p class="text-indigo-100 text-sm opacity-80">Refatoração e padrões de código.</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-3xl font-bold">Excelente</div>
+                    <div class="text-xs text-indigo-200 mt-1 uppercase tracking-widest font-semibold">9.5 / 10</div>
+                </div>
+            </div>
+            <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <h3 class="text-xl font-bold mb-2 text-slate-900">Documentação</h3>
+                    <p class="text-slate-500 text-sm">Análise e guias técnicos.</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-3xl font-bold text-indigo-600">Completa</div>
+                    <div class="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">+80 arquivos</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-slate-50 border-t border-slate-200 py-12 mt-12 text-center text-slate-500 text-sm">
+        <p class="font-bold text-slate-900 mb-2 tracking-tight">ERP PULSE &copy; 2026</p>
+        <p>Dashboard de Status de Projeto Interno - Acesso Restrito</p>
+    </footer>
+
+    <script>
+        // Adicionar interatividade leve nos cards
+        document.querySelectorAll('.card-hover').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.classList.add('shadow-xl', 'border-indigo-100');
+            });
+            card.addEventListener('mouseleave', () => {
+                card.classList.remove('shadow-xl', 'border-indigo-100');
+            });
+        });
+    </script>
+</body>
+</html>

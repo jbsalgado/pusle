@@ -9,6 +9,13 @@ use yii\web\BadRequestHttpException;
 
 class CategoriaController extends BaseController
 {
+    public function behaviors()
+    {
+        $behaviors = parent::behaviors();
+        $behaviors['authenticator']['optional'] = ['index'];
+        return $behaviors;
+    }
+
     /**
      * @inheritdoc
      */

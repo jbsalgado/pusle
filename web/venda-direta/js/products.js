@@ -1,6 +1,7 @@
 // products.js - Gerenciamento de produtos e catálogo
 
 import { API_ENDPOINTS, CONFIG } from './config.js';
+import { fetchWithAuth } from './api.js';
 import { produtoEstaNoCarrinho } from './cart.js';
 import { abrirGaleria, produtoTemMultiplasFotos, contarFotosProduto } from './gallery.js';
 import { formatarMoeda, formatarQuantidade } from './utils.js';
@@ -37,7 +38,7 @@ export async function carregarProdutos(catalogoContainer) {
         
         // Filtrar produtos por usuario_id
         const url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${idUsuarioLoja}`;
-        const response = await fetch(url, { cache: 'no-cache' });
+        const response = await fetchWithAuth(url, { cache: 'no-cache' });
         
         if (!response.ok) throw new Error(`Erro: ${response.statusText}`);
 

@@ -3,14 +3,16 @@
 use yii\helpers\Html;
 use yii\widgets\ActiveForm;
 use yii\helpers\Url;
-use Yii;
 
 ?>
 
 <div class="configuracao-form">
     <?php $form = ActiveForm::begin([
         'id' => 'configuracao-form',
-        'options' => ['class' => 'space-y-6 p-4 sm:p-6 lg:p-8'],
+        'options' => [
+            'class' => 'space-y-6 p-4 sm:p-6 lg:p-8',
+            'enctype' => 'multipart/form-data'
+        ],
         'fieldConfig' => [
             'template' => "{label}\n{input}\n{hint}\n{error}",
             'labelOptions' => ['class' => 'block text-sm font-medium text-gray-700 mb-2'],
@@ -201,6 +203,61 @@ use Yii;
                     'rows' => 4,
                     'placeholder' => 'Mensagem de boas-vindas para os clientes...'
                 ]) ?>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuração Fiscal (SEFAZ) -->
+    <div class="border-b border-gray-200 pb-6 mb-6">
+        <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Configuração Fiscal (SEFAZ)
+        </h2>
+        <p class="text-sm text-gray-600 mb-4">Configure os dados para emissão de NFC-e (Nota Fiscal de Consumidor Eletrônica).</p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+            <div class="sm:col-span-1">
+                <?= $form->field($model, 'nfe_ambiente')->dropDownList([
+                    1 => 'Produção (Real)',
+                    2 => 'Homologação (Testes)'
+                ])->hint('⚠️ Comece sempre pelo ambiente de Homologação.') ?>
+            </div>
+
+            <div class="sm:col-span-1">
+                <?= $form->field($model, 'crt')->dropDownList([
+                    1 => 'Simples Nacional',
+                    2 => 'Simples Nacional (Excesso sublimite)',
+                    3 => 'Regime Normal'
+                ]) ?>
+            </div>
+
+            <div>
+                <?= $form->field($model, 'razao_social')->textInput(['maxlength' => true, 'placeholder' => 'Razão Social da Empresa']) ?>
+            </div>
+
+            <div>
+                <?= $form->field($model, 'cnpj')->textInput(['maxlength' => true, 'placeholder' => '00.000.000/0000-00']) ?>
+            </div>
+
+            <div>
+                <?= $form->field($model, 'nfce_csc')->textInput(['maxlength' => true, 'placeholder' => 'Token CSC (ex: ABC123...)']) ?>
+            </div>
+
+            <div>
+                <?= $form->field($model, 'nfce_csc_id')->textInput(['maxlength' => true, 'placeholder' => 'ID do CSC (ex: 000001)']) ?>
+            </div>
+
+            <div>
+                <?= $form->field($model, 'certificado_arquivo')->fileInput([
+                    'accept' => '.pfx',
+                    'class' => 'w-full px-3 py-2 border border-gray-300 rounded-lg bg-white'
+                ])->hint($model->certificado_pfx ? '✅ Certificado já enviado. Suba um novo para substituir.' : 'Arquivo .pfx do certificado digital (Tipo A1)') ?>
+            </div>
+
+            <div>
+                <?= $form->field($model, 'certificado_senha')->passwordInput(['placeholder' => 'Senha do Certificado']) ?>
             </div>
         </div>
     </div>

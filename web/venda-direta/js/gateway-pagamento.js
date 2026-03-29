@@ -1,5 +1,6 @@
 // gateway-pagamento.js - Gateway de pagamento para VENDA-DIRETA
 import { GATEWAY_CONFIG, API_ENDPOINTS, CONFIG } from './config.js';
+import { fetchWithAuth } from './api.js';
 import { getToken } from './storage.js';
 
 /**
@@ -41,7 +42,7 @@ async function processarMercadoPago(dadosPedido, carrinho, cliente) {
     }
 
     try {
-        const payload = {
+        const pedidoGateway = {
             usuario_id: CONFIG.ID_USUARIO_LOJA,
             cliente_id: dadosPedido.cliente_id,
             itens: carrinho.map(item => ({
@@ -71,14 +72,11 @@ async function processarMercadoPago(dadosPedido, carrinho, cliente) {
             intervalo_dias_parcelas: dadosPedido.intervalo_dias_parcelas || 30
         };
         
-        const token = await getToken();
-        const headers = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
-        const response = await fetch(API_ENDPOINTS.MERCADOPAGO_CRIAR_PREFERENCIA, {
+        console.log('[Gateway] Criando preferência no backend...', JSON.stringify(pedidoGateway, null, 2));
+        
+        const response = await fetchWithAuth(API_ENDPOINTS.MERCADOPAGO_CRIAR_PREFERENCIA, {
             method: 'POST',
-            headers: headers,
-            body: JSON.stringify(payload)
+            body: JSON.stringify(pedidoGateway)
         });
         
         if (!response.ok) {
@@ -121,7 +119,7 @@ async function processarAsaas(dadosPedido, carrinho, cliente) {
             total + ((item.preco_venda_sugerido || 0) * (item.quantidade || 1)), 0
         );
         
-        const payload = {
+        const pedidoAsaas = {
             usuario_id: CONFIG.ID_USUARIO_LOJA || null,
             cliente_id: dadosPedido.cliente_id || null,
             valor: valorTotal || 0,
@@ -155,14 +153,11 @@ async function processarAsaas(dadosPedido, carrinho, cliente) {
             observacoes: dadosPedido.observacoes || null
         };
         
-        const token = await getToken();
-        const headers = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
-        const response = await fetch(API_ENDPOINTS.ASAAS_CRIAR_COBRANCA, {
+        console.log('[Gateway] Criando cobrança Asaas no backend...');
+        
+        const response = await fetchWithAuth(API_ENDPOINTS.ASAAS_CRIAR_COBRANCA, {
             method: 'POST',
-            headers: headers,
-            body: JSON.stringify(payload)
+            body: JSON.stringify(pedidoAsaas)
         });
         
         if (!response.ok) {
@@ -222,16 +217,8 @@ async function verificarStatusPagamento(paymentId) {
     try {
         const url = `${API_ENDPOINTS.ASAAS_CONSULTAR_STATUS}?payment_id=${paymentId}&usuario_id=${CONFIG.ID_USUARIO_LOJA}`;
         
-        const token = await getToken();
-        const headers = {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-        };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
-        const response = await fetch(url, {
+        const response = await fetchWithAuth(url, {
             method: 'GET',
-            headers: headers,
             cache: 'no-store'
         });
         
@@ -363,12 +350,9 @@ async function processarMercadoPagoPoint(dadosPedido, carrinho, cliente) {
         console.log('[Point] 📟 Iniciando fluxo de maquineta física...');
         
         // 1. Buscar dispositivos disponíveis
-        const token = await getToken();
-        const headers = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
-        const respDisp = await fetch(`${API_ENDPOINTS.MERCADOPAGO_LISTAR_DISPOSITIVOS}?tenant_id=${CONFIG.ID_USUARIO_LOJA}`, {
-            headers: headers
+        console.log('[Gateway] 📦 Buscando maquinetas Point disponíveis...');
+        const respDisp = await fetchWithAuth(`${API_ENDPOINTS.MERCADOPAGO_LISTAR_DISPOSITIVOS}?tenant_id=${CONFIG.ID_USUARIO_LOJA}`, {
+            method: 'GET'
         });
         
         const dataDisp = await respDisp.json();
@@ -406,9 +390,8 @@ async function processarMercadoPagoPoint(dadosPedido, carrinho, cliente) {
         const valorTotal = carrinho.reduce((t, i) => t + ((i.preco_final || i.preco_venda_sugerido) * i.quantidade), 0);
 
         // 4. Enviar para a Maquineta
-        const respPoint = await fetch(API_ENDPOINTS.MERCADOPAGO_CRIAR_PAGAMENTO_POINT, {
+        const respPoint = await fetchWithAuth(API_ENDPOINTS.MERCADOPAGO_CRIAR_PAGAMENTO_POINT, {
             method: 'POST',
-            headers: headers,
             body: JSON.stringify({
                 tenant_id: CONFIG.ID_USUARIO_LOJA,
                 device_id: dispositivoSelecionado.device_id,
@@ -424,8 +407,9 @@ async function processarMercadoPagoPoint(dadosPedido, carrinho, cliente) {
 
         const resultadoPoint = await respPoint.json();
         
-        // 5. Mostrar modal de aguardando na maquineta
+        // 5. Mostrar modal de aguardando na maquineta e iniciar polling
         mostrarModalAguardandoPoint(dispositivoSelecionado.nome);
+        iniciarPollingStatusPoint(pedidoId, dadosPedido);
 
         return {
             sucesso: true,
@@ -495,6 +479,66 @@ function mostrarModalAguardandoPoint(nomeMaquineta) {
         </div>
     `;
     document.body.appendChild(modal);
+}
+
+/**
+ * POLLING PARA POINT (MAQUINETA)
+ */
+async function iniciarPollingStatusPoint(pedidoId, originalDadosPedido = null) {
+    if (pollingIntervalId) {
+        clearInterval(pollingIntervalId);
+    }
+    
+    pollingAttempts = 0;
+    console.log(`[Point] 🔄 Iniciando polling para pedido: ${pedidoId}`);
+    
+    pollingIntervalId = setInterval(async () => {
+        pollingAttempts++;
+        
+        if (pollingAttempts > maxPollingAttempts) {
+            clearInterval(pollingIntervalId);
+            pollingIntervalId = null;
+            const statusText = document.querySelector('#modal-status-point p.text-gray-600');
+            if (statusText) {
+                statusText.innerHTML = '<span class="text-red-500 font-bold">Tempo esgotado.</span> Verifique o status na maquineta.';
+            }
+            return;
+        }
+
+        try {
+            const url = `${API_ENDPOINTS.PEDIDO_STATUS}?venda_id=${pedidoId}`;
+            const response = await fetchWithAuth(url, { }); // fetchWithAuth will handle headers
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.sucesso && data.pago) {
+                    console.log('[Point] ✅ Pagamento confirmado via polling!');
+                    
+                    // Limpar polling
+                    if (pollingIntervalId) {
+                        clearInterval(pollingIntervalId);
+                        pollingIntervalId = null;
+                    }
+
+                    // Fechar modal de espera
+                    const modal = document.getElementById('modal-status-point');
+                    if (modal) modal.remove();
+
+                    // Disparar evento de finalização (abre o comprovante)
+                    window.dispatchEvent(new CustomEvent('pagamentoConfirmado', {
+                        detail: {
+                            pedidoId: pedidoId,
+                            gateway: 'mercadopago_point',
+                            dados: data,
+                            originalDadosPedido: originalDadosPedido // Passa os dados para o comprovante
+                        }
+                    }));
+                }
+            }
+        } catch (error) {
+            console.error('[Point] Erro no polling:', error);
+        }
+    }, 4000); // Polling a cada 4 segundos
 }
 
 window.cancelarPollingPix = function() {

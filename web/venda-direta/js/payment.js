@@ -1,6 +1,7 @@
 // payment.js - Gerenciamento de formas de pagamento e parcelas
 
 import { API_ENDPOINTS, CONFIG } from './config.js';
+import { fetchWithAuth } from './api.js';
 import { salvarFormasPagamento, carregarFormasPagamentoCache } from './storage.js';
 
 /**
@@ -17,7 +18,7 @@ export async function carregarFormasPagamento(idUsuarioLoja) {
     // Se estiver online, tenta carregar da API
     if (estaOnline) {
         try {
-            const response = await fetch(`${API_ENDPOINTS.FORMA_PAGAMENTO}?usuario_id=${idUsuarioLoja}`);
+            const response = await fetchWithAuth(`${API_ENDPOINTS.FORMA_PAGAMENTO}?usuario_id=${idUsuarioLoja}`);
             
             if (!response.ok) {
                 throw new Error(`Status: ${response.status}`);
@@ -76,7 +77,7 @@ export async function calcularParcelas(valorBase, numeroParcelas, idUsuarioLoja)
     }
 
     const url = `${API_ENDPOINTS.CALCULO_PARCELA}?valor_base=${valorBase}&numero_parcelas=${numeroParcelas}&usuario_id=${idUsuarioLoja}`;
-    const response = await fetch(url);
+    const response = await fetchWithAuth(url);
     
     if (!response.ok) {
         throw new Error(`Erro ${response.status} ao calcular parcelas`);

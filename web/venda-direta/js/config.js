@@ -163,6 +163,8 @@ export const API_ENDPOINTS = {
     PEDIDO_PARCELAS: `${CONFIG.URL_API}/api/pedido/parcelas`,
     // ✅ NOVO: Endpoint para confirmar recebimento (processa estoque, caixa, etc)
     PEDIDO_CONFIRMAR_RECEBIMENTO: `${CONFIG.URL_API}/api/pedido/confirmar-recebimento`,
+    // ✅ NOVO: Endpoint para checar status simplificado (Polling Point)
+    PEDIDO_STATUS: `${CONFIG.URL_API}/api/pedido/status`,
 };
 
 export const STORAGE_KEYS = {

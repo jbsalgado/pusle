@@ -9,6 +9,7 @@ use yii\web\NotFoundHttpException;
 use yii\filters\VerbFilter;
 use yii\filters\AccessControl;
 use yii\db\Expression;
+use yii\web\UploadedFile;
 
 class ConfiguracaoController extends Controller
 {
@@ -60,9 +61,18 @@ class ConfiguracaoController extends Controller
     {
         $model = Configuracao::getConfiguracaoAtual();
 
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Configurações atualizadas com sucesso!');
-            return $this->redirect(['view']);
+        if ($model->load(Yii::$app->request->post())) {
+            $model->certificado_arquivo = UploadedFile::getInstance($model, 'certificado_arquivo');
+
+            if ($model->certificado_arquivo) {
+                $pfxContent = file_get_contents($model->certificado_arquivo->tempName);
+                $model->certificado_pfx = base64_encode($pfxContent);
+            }
+
+            if ($model->save()) {
+                Yii::$app->session->setFlash('success', 'Configurações atualizadas com sucesso!');
+                return $this->redirect(['view']);
+            }
         }
 
         return $this->render('update', [
@@ -76,7 +86,7 @@ class ConfiguracaoController extends Controller
     public function actionCreate()
     {
         $usuarioId = Yii::$app->user->id;
-        
+
         // Verifica se já existe
         $existing = Configuracao::findOne(['usuario_id' => $usuarioId]);
         if ($existing) {
@@ -91,9 +101,18 @@ class ConfiguracaoController extends Controller
         $model->catalogo_publico = false;
         $model->aceita_orcamentos = true;
 
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Configurações criadas com sucesso!');
-            return $this->redirect(['view']);
+        if ($model->load(Yii::$app->request->post())) {
+            $model->certificado_arquivo = UploadedFile::getInstance($model, 'certificado_arquivo');
+
+            if ($model->certificado_arquivo) {
+                $pfxContent = file_get_contents($model->certificado_arquivo->tempName);
+                $model->certificado_pfx = base64_encode($pfxContent);
+            }
+
+            if ($model->save()) {
+                Yii::$app->session->setFlash('success', 'Configurações criadas com sucesso!');
+                return $this->redirect(['view']);
+            }
         }
 
         return $this->render('create', [
@@ -101,4 +120,3 @@ class ConfiguracaoController extends Controller
         ]);
     }
 }
-

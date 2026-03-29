@@ -499,7 +499,9 @@ class DashboardController extends Controller
                 SELECT 
                     p.id,
                     p.nome,
-                    p.preco_venda_sugerido, -- ✅ CAMPO ADICIONADO
+                    p.preco_venda_sugerido, 
+                    p.venda_fracionada,      
+                    p.unidade_medida,        -- ✅ NOVO: Para exibir unidade correta
                     COUNT(vi.id) as total_vendas,
                     SUM(vi.quantidade) as quantidade_total,
                     COALESCE(SUM(vi.valor_total_item), 0) as receita_total
@@ -507,7 +509,7 @@ class DashboardController extends Controller
                 INNER JOIN prest_venda_itens vi ON vi.produto_id = p.id
                 INNER JOIN prest_vendas v ON v.id = vi.venda_id
                 WHERE p.usuario_id = :usuario_id
-                GROUP BY p.id, p.nome, p.preco_venda_sugerido -- ✅ CAMPO ADICIONADO
+                GROUP BY p.id, p.nome, p.preco_venda_sugerido, p.venda_fracionada, p.unidade_medida
                 ORDER BY quantidade_total DESC
                 LIMIT :limit
             ";

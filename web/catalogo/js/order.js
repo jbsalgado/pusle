@@ -364,9 +364,31 @@ export async function finalizarPedido(dadosPedido, carrinho) {
             if (!cliente || !cliente.id) {
                 throw new Error('Dados do cliente não disponíveis para processamento do pagamento');
             }
+
+            // ✅ NOVO: Registrar o pedido no Pulse ANTES de ir para o pagamento
+            // Isso garante que tenhamos o registro da venda mesmo se o cliente abandonar o checkout
+            console.log('[Order] 💾 Registrando pedido preventivo no Pulse...');
+            const pedidoPre = prepararObjetoPedido(dadosPedido, carrinho);
+            
+            // Força a forma de pagamento no registro inicial se disponível
+            if (dadosPedido.forma_pagamento_id) {
+                pedidoPre.forma_pagamento_id = dadosPedido.forma_pagamento_id;
+            }
+
+            let pedidoId = null;
+            try {
+                const resultadoRegistro = await tentarEnvioDireto(pedidoPre);
+                if (resultadoRegistro.sucesso) {
+                    pedidoId = resultadoRegistro.dados.venda?.id || resultadoRegistro.dados.id;
+                    console.log('[Order] ✅ Pedido preventivo registrado ID:', pedidoId);
+                }
+            } catch (err) {
+                console.warn('[Order] ⚠️ Falha ao registrar pedido preventivo (prosseguindo apenas com gateway):', err);
+            }
             
             // Processar via gateway (redireciona ou mostra modal)
-            return await processarPagamento(dadosPedido, carrinho, cliente);
+            // Passamos o pedidoId (opcional) para o gateway vincular o pagamento
+            return await processarPagamento(dadosPedido, carrinho, cliente, pedidoId);
             
         } else {
             // ============================================

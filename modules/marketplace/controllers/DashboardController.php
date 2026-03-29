@@ -72,6 +72,21 @@ class DashboardController extends Controller
                 ->count(),
         ];
 
+        // Performance por Marketplace (Últimos 30 dias)
+        $performance = MarketplacePedido::find()
+            ->select(['marketplace', 'SUM(valor_total) as valor_total', 'COUNT(*) as total_pedidos'])
+            ->where(['usuario_id' => $usuarioId])
+            ->andWhere(['>=', 'data_pedido', date('Y-m-d H:i:s', strtotime('-30 days'))])
+            ->groupBy('marketplace')
+            ->asArray()
+            ->all();
+
+        // Encontrar valor máximo para cálculo de barra de progresso
+        $maxVendas = 0;
+        foreach ($performance as $p) {
+            if ($p['valor_total'] > $maxVendas) $maxVendas = (float) $p['valor_total'];
+        }
+
         // Últimos logs de sincronização
         $ultimosLogs = MarketplaceSyncLog::find()
             ->where(['usuario_id' => $usuarioId])
@@ -91,6 +106,8 @@ class DashboardController extends Controller
             'stats' => $stats,
             'ultimosLogs' => $ultimosLogs,
             'pedidosPendentes' => $pedidosPendentes,
+            'performance' => $performance,
+            'maxVendas' => $maxVendas,
         ]);
     }
 

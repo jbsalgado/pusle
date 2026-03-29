@@ -105,12 +105,62 @@ async function init() {
         // 🔟 Inicializar monitoramento de rede (status online/offline)
         // 11️⃣ Inicializar módulo social
         inicializarSocial();
+
+        // 12️⃣ Verificar se retornou do checkout (Mercado Pago / Asaas)
+        await verificarRetornoCheckout();
         
         console.log('[App] ✅ Aplicação inicializada com sucesso!');
         
     } catch (error) {
         console.error('[App] ❌ Erro na inicialização:', error);
         mostrarErro('Erro ao inicializar a aplicação. Por favor, recarregue a página.');
+    }
+}
+
+/**
+ * ✅ NOVO: Verifica se o usuário retornou de um checkout externo
+ */
+async function verificarRetornoCheckout() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const status = urlParams.get('status');
+    const externalRef = urlParams.get('external_reference');
+    const paymentId = urlParams.get('payment_id') || urlParams.get('collection_id');
+
+    if (externalRef && (status || paymentId)) {
+        console.log('[App] 💳 Retorno de checkout detectado:', { status, externalRef, paymentId });
+        
+        // Se o status for "approved", "pending" ou apenas tivermos a referência
+        if (['approved', 'pending', 'in_process'].includes(status) || !status) {
+            
+            // Cria um overlay de "Verificando Pagamento"
+            const overlay = document.createElement('div');
+            overlay.id = 'mp-verificando-overlay';
+            overlay.className = 'fixed inset-0 bg-white bg-opacity-90 flex flex-col items-center justify-center z-[100] p-6 text-center';
+            overlay.innerHTML = `
+                <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <h2 class="text-xl font-bold mb-2">Verificando seu pagamento...</h2>
+                <p class="text-gray-600 mb-4">Aguarde um instante enquanto confirmamos a transação com o Mercado Pago.</p>
+                <p id="mp-status-text" class="text-sm font-medium text-blue-600">Status: PROCESSANDO</p>
+            `;
+            document.body.appendChild(overlay);
+
+            // Inicia o polling usando a função exportada de gateway-pagamento.js
+            const { iniciarPollingStatusVenda } = await import('./gateway-pagamento.js');
+            iniciarPollingStatusVenda(externalRef, 'mercadopago');
+            
+            // Limpa a URL para não processar novamente se der refresh
+            const url = new URL(window.location);
+            url.searchParams.delete('status');
+            url.searchParams.delete('collection_id');
+            url.searchParams.delete('collection_status');
+            url.searchParams.delete('external_reference');
+            url.searchParams.delete('payment_id');
+            url.searchParams.delete('preference_id');
+            url.searchParams.delete('site_id');
+            url.searchParams.delete('processing_mode');
+            url.searchParams.delete('merchant_account_id');
+            window.history.replaceState({}, document.title, url);
+        }
     }
 }
 
@@ -1686,7 +1736,12 @@ window.confirmarPedido = async function() {
             forma_pagamento_id: formaPagamentoId, // Usar a variável validada
             numero_parcelas: numeroParcelas,
             data_primeiro_pagamento: permiteParcelamento && numeroParcelas > 1 ? document.getElementById('data-primeiro-pagamento')?.value || null : null,
-            intervalo_dias_parcelas: permiteParcelamento && numeroParcelas > 1 ? parseInt(document.getElementById('intervalo-dias')?.value || 30, 10) : null
+            intervalo_dias_parcelas: permiteParcelamento && numeroParcelas > 1 ? parseInt(document.getElementById('intervalo-dias')?.value || 30, 10) : null,
+            
+            // ✅ MAPEAMENTO DE LOGÍSTICA PARA CAMPOS PADRÃO DO PULSE
+            acrescimo_valor: parseFloat(document.getElementById('taxa-entrega')?.value || 0),
+            acrescimo_tipo: 'FIXO',
+            observacao_acrescimo: `Entrega: ${document.querySelector('input[name="tipo_entrega"]:checked')?.value || 'RETIRADA'}`
         };
         
         const carrinho = getCarrinho();
@@ -2036,6 +2091,22 @@ if (document.readyState === 'loading') {
 } else {
     init();
 }
+
+/**
+ * ✅ NOVO: Alterna visibilidade do campo de taxa de entrega
+ */
+window.toggleTaxaEntrega = function(show) {
+    const container = document.getElementById('container-taxa-entrega');
+    const input = document.getElementById('taxa-entrega');
+    if (container) {
+        if (show) {
+            container.classList.remove('hidden');
+        } else {
+            container.classList.add('hidden');
+            if (input) input.value = '0.00';
+        }
+    }
+};
 
 // Exportar funções para uso em outros módulos
 export { init, carregarProdutos, abrirModal, fecharModal };

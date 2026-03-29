@@ -92,13 +92,21 @@ export async function limparCarrinho() {
 export async function salvarPedidoPendente(pedido) {
     try {
         if (pedido === null) {
-            // CORREÇÃO: Usar del para remover a chave
             await idbKeyval.del(STORAGE_KEYS.PEDIDO_PENDENTE); 
-            console.log('[Storage] Pedido pendente removido');
+            console.log('[Storage] Todos os pedidos pendentes removidos');
             return true;
         }
-        await idbKeyval.set(STORAGE_KEYS.PEDIDO_PENDENTE, pedido);
-        console.log('[Storage] Pedido pendente salvo');
+        
+        // Carrega pedidos existentes ou cria novo array
+        const pedidosExistentes = await idbKeyval.get(STORAGE_KEYS.PEDIDO_PENDENTE) || [];
+        const listaPedidos = Array.isArray(pedidosExistentes) ? pedidosExistentes : [pedidosExistentes];
+        
+        // Adiciona o novo pedido com um ID temporário local
+        pedido.id_local = Date.now() + Math.random().toString(36).substr(2, 9);
+        listaPedidos.push(pedido);
+        
+        await idbKeyval.set(STORAGE_KEYS.PEDIDO_PENDENTE, listaPedidos);
+        console.log(`[Storage] Pedido pendente salvo (${listaPedidos.length} no total)`);
         return true;
     } catch (err) {
         console.error('[Storage] Erro ao salvar pedido:', err);

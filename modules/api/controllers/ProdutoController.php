@@ -23,7 +23,9 @@ class ProdutoController extends BaseController
 
     public function behaviors()
     {
-        return parent::behaviors();
+        $behaviors = parent::behaviors();
+        $behaviors['authenticator']['optional'] = ['index', 'view'];
+        return $behaviors;
     }
 
     /**

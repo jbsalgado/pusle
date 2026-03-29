@@ -1,4 +1,5 @@
 import { API_ENDPOINTS, CONFIG } from './config.js';
+import { fetchWithAuth } from './api.js';
 import { getToken } from './storage.js';
 
 /**
@@ -42,7 +43,7 @@ export async function listarMaquinetas() {
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
 
-        const response = await fetch(`${API_ENDPOINTS.MERCADOPAGO_LISTAR_DISPOSITIVOS}?tenant_id=${CONFIG.ID_USUARIO_LOJA}`, {
+        const response = await fetchWithAuth(`${API_ENDPOINTS.MERCADOPAGO_LISTAR_DISPOSITIVOS}?tenant_id=${CONFIG.ID_USUARIO_LOJA}`, {
             headers: headers
         });
 
@@ -100,7 +101,7 @@ async function salvarNovaMaquineta() {
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
 
-        const response = await fetch(API_ENDPOINTS.MERCADOPAGO_CRIAR_PAGAMENTO_POINT.replace('criar-pagamento-point', 'registrar-dispositivo'), {
+        const response = await fetchWithAuth(API_ENDPOINTS.MERCADOPAGO_CRIAR_PAGAMENTO_POINT.replace('criar-pagamento-point', 'registrar-dispositivo'), {
             method: 'POST',
             headers: headers,
             body: JSON.stringify({
@@ -144,7 +145,7 @@ window.excluirMaquineta = async function(id) {
         // Como o backend ainda não tem ação Delete específica, vamos deixar o placeholder da URL
         // Por enquanto, o backend tem Registrar. Vou assumir que o usuário quer apenas desvincular do Pulse.
         
-        const response = await fetch(`${CONFIG.URL_API}/api/mercado-pago/remover-dispositivo?id=${id}`, {
+        const response = await fetchWithAuth(`${CONFIG.URL_API}/api/mercado-pago/remover-dispositivo?id=${id}`, {
             method: 'DELETE',
             headers: headers
         });

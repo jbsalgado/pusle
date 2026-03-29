@@ -96,7 +96,7 @@ function getColorByPerformance($valor, $atributos, $polaridade)
                         <div>
                             <p class="text-xs font-bold text-slate-400 uppercase tracking-wider"><?= Html::encode($data['definicao']['nome_indicador']) ?></p>
                             <h4 class="text-2xl font-black text-slate-800 mt-1">
-                                <?= number_format($valor, 1, ',', '.') ?> <span class="text-xs font-normal text-slate-400"><?= Html::encode($unidade) ?></span>
+                                <?= (floor($valor) == $valor) ? number_format($valor, 0, ',', '.') : number_format($valor, 1, ',', '.') ?> <span class="text-xs font-normal text-slate-400"><?= Html::encode($unidade) ?></span>
                             </h4>
                         </div>
                         <div class="p-2 rounded-xl bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
@@ -135,7 +135,7 @@ function getColorByPerformance($valor, $atributos, $polaridade)
         <div class="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-100">
             <div class="p-8 text-center">
                 <p class="text-slate-400 text-sm font-bold uppercase tracking-widest mb-2">Vendas Totais</p>
-                <p class="text-3xl font-black text-slate-800"><?= $kpis['qtd_vendas_mes'] ?></p>
+                <p class="text-3xl font-black text-slate-800"><?= (floor($kpis['qtd_vendas_mes']) == $kpis['qtd_vendas_mes']) ? number_format($kpis['qtd_vendas_mes'], 0, ',', '.') : number_format($kpis['qtd_vendas_mes'], 1, ',', '.') ?></p>
             </div>
             <div class="p-8 text-center">
                 <p class="text-slate-400 text-sm font-bold uppercase tracking-widest mb-2">Ticket Médio</p>

@@ -2,6 +2,7 @@
 // Adaptado do catálogo para uso em vendas parceladas
 
 import { API_ENDPOINTS, CONFIG } from './config.js';
+import { fetchWithAuth } from './api.js';
 import { validarCPF, formatarCPF } from './utils.js';
 
 let clienteAtual = null;
@@ -38,7 +39,7 @@ export async function buscarClientePorCpf(cpf, idUsuarioLoja) {
         const url = `${API_ENDPOINTS.CLIENTE_BUSCA_CPF}?cpf=${cpfLimpo}&usuario_id=${idUsuarioLoja}`;
         console.log('[Customer] Buscando cliente com CPF:', cpfLimpo);
         
-        const response = await fetch(url);
+        const response = await fetchWithAuth(url);
         
         if (response.status === 404) {
             console.log('[Customer] Cliente não encontrado (404)');
@@ -111,7 +112,7 @@ export async function cadastrarCliente(dadosCliente) {
 
     console.log('[Customer] Cadastrando cliente com CPF:', dadosLimpos.cpf);
 
-    const response = await fetch(API_ENDPOINTS.CLIENTE, {
+    const response = await fetchWithAuth(API_ENDPOINTS.CLIENTE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dadosLimpos)

@@ -40,6 +40,11 @@ use app\models\Usuario;
 class Configuracao extends ActiveRecord
 {
     /**
+     * @var \yii\web\UploadedFile Atributo virtual para o upload do certificado
+     */
+    public $certificado_arquivo;
+
+    /**
      * {@inheritdoc}
      */
     public static function tableName()
@@ -84,6 +89,7 @@ class Configuracao extends ActiveRecord
             [['crt', 'nfe_ambiente'], 'integer'],
             [['usuario_id'], 'unique'],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
+            [['certificado_arquivo'], 'file', 'extensions' => 'pfx', 'skipOnEmpty' => true],
         ];
     }
 

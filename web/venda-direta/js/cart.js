@@ -193,9 +193,9 @@ export function calcularTotalItens() {
 /**
  * Limpa o carrinho
  */
-export function limparCarrinho() {
+export async function limparCarrinho() {
   carrinho = [];
-  salvarCarrinho(carrinho); // Salva o array vazio no IndexedDB
+  await salvarCarrinho(carrinho); // ✅ CORREÇÃO: Aguarda salvar o array vazio no IndexedDB
 
   // NOVO: Atualiza visualmente todos os cards para remover o indicador 'no carrinho'
   const todosCards = document.querySelectorAll(`[data-produto-card]`);

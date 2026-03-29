@@ -7,6 +7,9 @@ use app\modules\vendas\models\Categoria;
 use app\modules\vendas\models\DadosFinanceiros;
 use kartik\select2\Select2;
 
+// ✅ Carrega biblioteca para leitura de código de barras
+echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>';
+
 // Carrega dados financeiros (global ou específico do produto)
 // Se não foi passado pelo controller, detecta automaticamente o ID correto da loja
 if (!isset($dadosFinanceiros)) {
@@ -141,11 +144,21 @@ if ($model->hasErrors()): ?>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Código de Barras (EAN)</label>
-                <?= $form->field($model, 'codigo_barras')->textInput([
-                    'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
-                    'placeholder' => 'EAN-13, EAN-8, etc.',
-                    'id' => 'produto-codigo-barras'
-                ])->label(false) ?>
+                <div class="flex gap-2">
+                    <?= $form->field($model, 'codigo_barras', [
+                        'options' => ['class' => 'flex-1 mb-0'], // Remove margem inferior padrão
+                    ])->textInput([
+                        'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
+                        'placeholder' => 'EAN-13, EAN-8, etc.',
+                        'id' => 'produto-codigo-barras'
+                    ])->label(false) ?>
+                    <button type="button" onclick="abrirScannerCamera()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm" title="Escanear com a câmera">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </button>
+                </div>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Marca</label>
@@ -1010,6 +1023,35 @@ if ($model->hasErrors()): ?>
 
     </div>
 
+    <!-- Modal de Scanner de Código de Barras -->
+    <div id="modal-scanner-ean" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h2M4 8h16M4 16h16M4 20h4M4 4h4" />
+                    </svg>
+                    Escanear Código de Barras
+                </h3>
+                <button type="button" onclick="fecharScannerCamera()" class="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-4 bg-gray-900 relative aspect-video flex items-center justify-center">
+                <div id="reader-ean" class="w-full"></div>
+                <div class="absolute inset-x-8 inset-y-8 border-2 border-blue-500 border-dashed rounded-lg pointer-events-none opacity-50"></div>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 flex flex-col gap-3">
+                <div id="scanner-ean-feedback" class="hidden text-center py-2 px-3 rounded-lg text-sm font-medium"></div>
+                <button type="button" onclick="fecharScannerCamera()" class="w-full py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-lg transition-colors">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <?php ActiveForm::end(); ?>
 
 </div>
@@ -1017,6 +1059,83 @@ if ($model->hasErrors()): ?>
 <script>
     // 🔍 DEBUG IMEDIATO: Executa antes do DOMContentLoaded
     console.log('🔍 Script carregado');
+
+    // ==========================================
+    // LÓGICA DO SCANNER DE CÓDIGO DE BARRAS
+    // ==========================================
+    let html5QrCodeEan = null;
+
+    window.abrirScannerCamera = function() {
+        const modal = document.getElementById('modal-scanner-ean');
+        if (!modal) return;
+
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+
+        const feedback = document.getElementById('scanner-ean-feedback');
+        if (feedback) feedback.classList.add('hidden');
+
+        if (!html5QrCodeEan) {
+            html5QrCodeEan = new Html5Qrcode("reader-ean");
+        }
+
+        const config = {
+            fps: 10,
+            qrbox: {
+                width: 250,
+                height: 150
+            },
+            aspectRatio: 1.0
+        };
+
+        html5QrCodeEan.start({
+                facingMode: "environment"
+            },
+            config,
+            onScanEanSuccess
+        ).catch(err => {
+            console.error("[Scanner] Erro ao iniciar câmera:", err);
+            alert("Não foi possível acessar a câmera. Verifique as permissões de vídeo no navegador.");
+            window.fecharScannerCamera();
+        });
+    };
+
+    window.fecharScannerCamera = function() {
+        const modal = document.getElementById('modal-scanner-ean');
+        if (modal) {
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        if (html5QrCodeEan && html5QrCodeEan.isScanning) {
+            html5QrCodeEan.stop().catch(err => console.error("[Scanner] Erro ao parar:", err));
+        }
+    };
+
+    function onScanEanSuccess(decodedText, decodedResult) {
+        console.log(`[Scanner] Código detectado: ${decodedText}`);
+
+        const feedback = document.getElementById('scanner-ean-feedback');
+        if (feedback) {
+            feedback.textContent = `Lido: ${decodedText}`;
+            feedback.classList.remove('hidden', 'bg-red-100', 'text-red-700');
+            feedback.classList.add('bg-green-100', 'text-green-700');
+        }
+
+        const eanInput = document.getElementById('produto-codigo-barras');
+        if (eanInput) {
+            eanInput.value = decodedText;
+            eanInput.dispatchEvent(new Event('input', {
+                bubbles: true
+            }));
+            eanInput.dispatchEvent(new Event('change', {
+                bubbles: true
+            }));
+        }
+
+        setTimeout(window.fecharScannerCamera, 500);
+    }
+    // ==========================================
 
     // Calcular margem e markup em tempo real
     document.addEventListener('DOMContentLoaded', function() {

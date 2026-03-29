@@ -189,6 +189,11 @@
                   d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                 />
               </svg>
+              <span
+                id="contador-sincronizacao"
+                class="absolute -top-1 -right-1 bg-orange-500 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center hidden"
+                >0</span
+              >
             </button>
 
             <button
@@ -849,6 +854,15 @@
               <p class="mt-1 text-xs text-gray-500">
                 ⏱️ Informe quantos dias entre cada parcela (padrão: 30 dias)
               </p>
+            </div>
+            <div class="pt-2">
+              <label class="flex items-center gap-2 cursor-pointer p-2 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
+                <input type="checkbox" id="emitir-fiscal" name="emitir_fiscal" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500">
+                <div class="flex flex-col">
+                  <span class="text-sm font-bold text-gray-800">Emitir Nota Fiscal (NFC-e)</span>
+                  <span class="text-xs text-gray-500">Gera o cupom fiscal eletrônico automaticamente</span>
+                </div>
+              </label>
             </div>
           </div>
 

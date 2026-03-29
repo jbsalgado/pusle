@@ -13,12 +13,19 @@ class BaseController extends Controller
     public function behaviors()
     {
         $behaviors = parent::behaviors();
+
         $behaviors['contentNegotiator'] = [
             'class' => \yii\filters\ContentNegotiator::class,
             'formats' => [
                 'application/json' => Response::FORMAT_JSON,
             ],
         ];
+
+        // ✅ Adiciona autenticação JWT (Bearer Token)
+        $behaviors['authenticator'] = [
+            'class' => \yii\filters\auth\HttpBearerAuth::class,
+        ];
+
         return $behaviors;
     }
 
