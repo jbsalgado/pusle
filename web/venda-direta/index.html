@@ -1455,7 +1455,7 @@
         <p class="text-white text-xs mt-4 opacity-75">Certifique-se de que há boa iluminação</p>
     </div>
 
-    <script type="module" src="js/app.js?v=20260211_v2"></script>
+    <script type="module" src="js/app.js?v=20260330_v1"></script>
     <script src="https://sdk.mercadopago.com/js/v2"></script>
 
     <script>
@@ -1750,7 +1750,7 @@
               if (changelog) changelog.innerHTML = "<strong>CRÍTICO:</strong> O sistema será reiniciado em instantes para aplicar atualizações obrigatórias.";
               
               setTimeout(() => {
-                window.forceSystemUpdate();
+                window.forceSystemUpdate(newVersion.version);
               }, 2000);
             }
 

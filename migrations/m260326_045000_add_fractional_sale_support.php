@@ -18,8 +18,8 @@ class m260326_045000_add_fractional_sale_support extends Migration
         $this->alterColumn('prest_produtos', 'estoque_maximo', $this->decimal(12, 3));
         $this->alterColumn('prest_produtos', 'ponto_corte', $this->decimal(12, 3)->defaultValue(0));
 
-        $this->addColumn('prest_produtos', 'venda_fracionada', $this->boolean()->defaultValue(false)->after('ativo'));
-        $this->addColumn('prest_produtos', 'unidade_medida', $this->string(10)->defaultValue('UN')->after('venda_fracionada'));
+        $this->addColumn('prest_produtos', 'venda_fracionada', $this->boolean()->defaultValue(false));
+        $this->addColumn('prest_produtos', 'unidade_medida', $this->string(10)->defaultValue('UN'));
 
         // 2. Ajustes na tabela prest_venda_itens
         $this->alterColumn('prest_venda_itens', 'quantidade', $this->decimal(12, 3)->notNull());

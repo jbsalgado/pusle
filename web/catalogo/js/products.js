@@ -182,8 +182,20 @@ function criarCardProduto(produto) {
             ` : ''}
         </div>
         <div class="p-4 flex flex-col flex-grow">
-            <h3 class="text-lg font-semibold text-gray-800 truncate">${produto.nome || 'Produto'}</h3>
-            <p class="text-sm text-gray-500 mb-2 truncate">${produto.descricao || 'Sem descrição'}</p>
+            <div class="text-[9px] text-gray-400 font-mono mb-0.5 truncate flex items-center gap-1" title="Código de Barras / Ref">
+                <span class="flex-grow truncate">
+                    ${produto.codigo_barras ? `EAN: ${produto.codigo_barras}` : ''} 
+                    ${produto.codigo_referencia ? `Ref: ${produto.codigo_referencia}` : ''}
+                </span>
+            </div>
+            <h3 class="text-[13px] font-semibold text-gray-800 mb-1 leading-tight" title="${produto.nome || 'Produto'}">
+                ${produto.nome || 'Produto'}
+                ${produto.com_nota ? `
+                    <span class="inline-flex items-center px-1 rounded-[2px] text-[9px] font-bold bg-blue-100 text-blue-700 border border-blue-200 shrink-0 ml-1" title="Última compra com Nota Fiscal">
+                        NF
+                    </span>
+                ` : ''}
+            </h3>
             
             <p class="text-xs ${temEstoque ? 'text-green-600' : 'text-red-600'} mb-2">
                 ${temEstoque ? `${formatarQuantidade(estoque, permiteFracionado)} ${unidadeMedida} disponível` : 'Indisponível'}

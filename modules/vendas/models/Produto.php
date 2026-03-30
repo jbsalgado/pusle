@@ -109,9 +109,9 @@ class Produto extends ActiveRecord
             // Validação: ponto_corte deve ser maior ou igual a estoque_minimo
             [['ponto_corte'], 'compare', 'compareAttribute' => 'estoque_minimo', 'operator' => '>=', 'skipOnEmpty' => false, 'message' => 'O ponto de corte deve ser maior ou igual ao estoque mínimo.'],
             [['valor_frete'], 'default', 'value' => 0],
-            [['ativo', 'permite_parcelamento', 'venda_fracionada'], 'boolean'],
+            [['ativo', 'permite_parcelamento', 'venda_fracionada', 'com_nota'], 'boolean'],
             [['ativo'], 'default', 'value' => true],
-            [['permite_parcelamento', 'venda_fracionada'], 'default', 'value' => false],
+            [['permite_parcelamento', 'venda_fracionada', 'com_nota'], 'default', 'value' => false],
             [['unidade_medida'], 'string', 'max' => 10],
             [['unidade_medida'], 'default', 'value' => 'UN'],
             [['data_inicio_promocao', 'data_fim_promocao'], 'safe'],
@@ -339,6 +339,7 @@ class Produto extends ActiveRecord
             'data_fim_promocao' => 'Fim da Promoção',
             'codigo_barras' => 'Código de Barras (EAN)',
             'marca' => 'Marca',
+            'com_nota' => 'Vendido com Nota (Última Compra)',
         ];
     }
 
@@ -377,6 +378,7 @@ class Produto extends ActiveRecord
         $fields['preco_final'] = 'precoFinal';
         $fields['venda_fracionada'] = 'venda_fracionada';
         $fields['unidade_medida'] = 'unidade_medida';
+        $fields['com_nota'] = 'com_nota';
 
         // Descomente a linha abaixo se quiser incluir a categoria por padrão também
         // $fields['categoria'] = 'categoria';

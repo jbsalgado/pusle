@@ -202,10 +202,20 @@ $viewMode = Yii::$app->request->get('view', 'cards');
 
                         <!-- Conteúdo -->
                         <div class="p-4">
-                            <h3 class="text-lg font-semibold text-gray-800 truncate mb-1">
+                            <div class="text-[10px] text-gray-400 font-mono mb-0.5 truncate flex items-center gap-1" title="Código de Barras / Ref">
+                                <span class="flex-grow truncate">
+                                    <?= $model->codigo_barras ? 'EAN: ' . Html::encode($model->codigo_barras) : '' ?>
+                                    <?= $model->codigo_referencia ? ' Ref: ' . Html::encode($model->codigo_referencia) : '' ?>
+                                </span>
+                                <?php if ($model->com_nota): ?>
+                                    <span class="inline-flex items-center px-1 rounded-[2px] text-[9px] font-bold bg-blue-100 text-blue-700 border border-blue-200 shrink-0" title="Última compra com Nota Fiscal">
+                                        NF
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+                            <h3 class="text-base font-semibold text-gray-800 mb-1 leading-tight" title="<?= Html::encode($model->nome) ?>">
                                 <?= Html::encode($model->nome) ?>
                             </h3>
-                            <p class="text-xs text-gray-500 mb-2"><?= Html::encode($model->codigo_referencia) ?></p>
 
                             <?php if ($model->categoria): ?>
                                 <span class="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full mb-3">
@@ -362,7 +372,15 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                                             <?php endif; ?>
                                             <div>
                                                 <div class="text-sm font-medium text-gray-900"><?= Html::encode($model->nome) ?></div>
-                                                <div class="text-xs text-gray-500"><?= Html::encode($model->codigo_referencia) ?></div>
+                                                <div class="text-xs text-gray-500 flex items-center">
+                                                    <?= $model->codigo_barras ? 'EAN: ' . Html::encode($model->codigo_barras) : '' ?>
+                                                    <?= $model->codigo_referencia ? ' Ref: ' . Html::encode($model->codigo_referencia) : '' ?>
+                                                    <?php if ($model->com_nota): ?>
+                                                        <span class="inline-flex items-center px-1 rounded-[2px] text-[8px] font-bold bg-blue-100 text-blue-700 border border-blue-200 ml-1" title="Última compra com Nota Fiscal">
+                                                            NF
+                                                        </span>
+                                                    <?php endif; ?>
+                                                </div>
                                             </div>
                                         </div>
                                     </td>

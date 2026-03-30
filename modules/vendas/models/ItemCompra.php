@@ -161,7 +161,10 @@ class ItemCompra extends ActiveRecord
             // Atualiza o preço de custo com o preço unitário da compra
             $this->produto->preco_custo = $this->preco_unitario;
 
-            if (!$this->produto->save(false, ['estoque_atual', 'preco_custo'])) {
+            // Sincroniza o status de nota fiscal da compra (NF-e)
+            $this->produto->com_nota = (bool)$this->compra->com_nota;
+
+            if (!$this->produto->save(false, ['estoque_atual', 'preco_custo', 'com_nota'])) {
                 Yii::error("ItemCompra {$this->id}: Erro ao salvar produto após atualizar estoque", __METHOD__);
                 return false;
             }

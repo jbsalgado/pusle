@@ -82,6 +82,13 @@ use app\modules\vendas\models\ItemCompra;
                     ['class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent']
                 ) ?>
             </div>
+
+            <div class="flex items-center h-full pt-6">
+                <?= $form->field($model, 'com_nota')->checkbox([
+                    'class' => 'h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2',
+                    'labelOptions' => ['class' => 'text-sm font-medium text-gray-700 flex items-center cursor-pointer']
+                ]) ?>
+            </div>
         </div>
 
         <div class="mt-4">

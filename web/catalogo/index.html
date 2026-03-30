@@ -1547,7 +1547,7 @@
                     if (changelog) changelog.innerHTML = '<strong>CRÍTICO:</strong> O sistema será reiniciado em instantes para aplicar atualizações obrigatórias.';
                     
                     setTimeout(() => {
-                        window.forceSystemUpdate();
+                        window.forceSystemUpdate(newVersion.version);
                     }, 2000);
                 }
                 

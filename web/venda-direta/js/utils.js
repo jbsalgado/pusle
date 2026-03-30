@@ -237,8 +237,9 @@ export function verificarElementosCriticos(elementosIds) {
 /**
  * Força atualização completa do sistema
  * Remove Service Workers, Cache API, IndexedDB e Storage
+ * @param {string|null} newVersion - Se fornecido, salva esta versão após a limpeza
  */
-export async function forceSystemUpdate() {
+export async function forceSystemUpdate(newVersion = null) {
     console.log('🔄 Iniciando atualização forçada do sistema...');
     
     // Feedback visual imediato
@@ -300,7 +301,13 @@ export async function forceSystemUpdate() {
 
         // 5. Salvar flags de controle
         localStorage.setItem('system_just_updated', 'true');
-        localStorage.setItem('app_version', 'forcing_update');
+        
+        if (newVersion) {
+            localStorage.setItem('app_version', newVersion);
+            console.log(`✅ Versão ${newVersion} registrada após limpeza`);
+        } else {
+            localStorage.setItem('app_version', 'forcing_update');
+        }
         
         // 6. Hard Reload furando cache do servidor e do navegador
         console.log('🔄 Recarregando página com cache-busting...');

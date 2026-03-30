@@ -1,6 +1,6 @@
 {
-  "version": "1.1.0",
-  "updated_at": "2026-03-26T06:50:00-03:00",
+  "version": "1.1.1",
+  "updated_at": "2026-03-30T10:35:00-03:00",
   "force_update": true,
-  "changelog": "Novas funcionalidades de Código de Barras e Melhorias de Desempenho. Atualização obrigatória."
+  "changelog": "Ajustes no layout dos cards (nomes completos e selo NF) e correções de cache. Atualização obrigatória."
 }

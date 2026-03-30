@@ -929,32 +929,41 @@ function renderizarProdutos(listaProdutos) {
         const precoOriginal = emPromocao ? produto.preco_venda_sugerido : null;
         
         return `
-        <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl relative" data-produto-card="${produto.id}">
-            <div class="badge-no-carrinho hidden absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full z-10">✓ No Carrinho</div>
-            ${emPromocao ? '<div class="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded z-10">PROMOÇÃO</div>' : ''}
-            <div class="w-full h-48 bg-gray-50 overflow-hidden">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl flex flex-col relative" data-produto-card="${produto.id}">
+            <div class="badge-no-carrinho hidden absolute top-2 right-2 bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-full z-10 shadow-sm">✓ No Carrinho</div>
+            ${emPromocao ? '<div class="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded z-10 shadow-sm">PROMOÇÃO</div>' : ''}
+            <div class="w-full h-48 bg-gray-50 overflow-hidden relative">
                 <img src="${urlImagem}" alt="${produto.nome}" class="w-full h-full object-contain">
             </div>
-            <div class="p-4">
-                <div class="text-[9px] text-gray-400 font-mono mb-0.5 truncate" title="Código de Barras / Ref">
-                    ${produto.codigo_barras ? `EAN: ${produto.codigo_barras}` : ''} 
-                    ${produto.codigo_referencia ? `Ref: ${produto.codigo_referencia}` : ''}
+            <div class="p-4 flex flex-col flex-grow">
+                <div class="text-[9px] text-gray-400 font-mono mb-0.5 truncate flex items-center gap-1" title="Código de Barras / Ref">
+                    <span class="flex-grow truncate">
+                        ${produto.codigo_barras ? `EAN: ${produto.codigo_barras}` : ''} 
+                        ${produto.codigo_referencia ? `Ref: ${produto.codigo_referencia}` : ''}
+                    </span>
+                    ${produto.com_nota ? `
+                        <span class="inline-flex items-center px-1 rounded-[2px] text-[9px] font-bold bg-blue-100 text-blue-700 border border-blue-200 shrink-0" title="Última compra com Nota Fiscal">
+                            NF
+                        </span>
+                    ` : ''}
                 </div>
-                <h3 class="text-lg font-bold text-gray-800 mb-2 truncate" title="${produto.nome}">${produto.nome}</h3>
-                <div class="flex items-center justify-between mb-4">
+                <h3 class="text-base font-semibold text-gray-800 mb-1 leading-tight" title="${produto.nome}">
+                    ${produto.nome}
+                </h3>
+                <div class="flex items-center justify-between mb-4 mt-auto">
                     <div class="flex flex-col">
                         ${emPromocao && precoOriginal ? `
-                            <span class="text-sm text-gray-500 line-through">${formatarMoeda(precoOriginal)}</span>
-                            <span class="text-2xl font-bold text-red-600">${formatarMoeda(precoExibido)}</span>
+                            <span class="text-[10px] text-gray-500 line-through">${formatarMoeda(precoOriginal)}</span>
+                            <span class="text-xl font-bold text-red-600">${formatarMoeda(precoExibido)}</span>
                         ` : `
-                            <span class="text-2xl font-bold text-blue-600">${formatarMoeda(precoExibido)}</span>
+                            <span class="text-xl font-bold text-blue-600">${formatarMoeda(precoExibido)}</span>
                         `}
                     </div>
-                    <span class="text-xs ${produto.estoque_atual > 0 ? 'text-green-600' : 'text-red-600'} font-semibold">
+                    <span class="text-[10px] ${produto.estoque_atual > 0 ? 'text-green-600' : 'text-red-600'} font-semibold">
                         ${produto.estoque_atual > 0 ? `${formatarQuantidade(produto.estoque_atual, produto.venda_fracionada)} em estoque` : 'Sem estoque'}
                     </span>
                 </div>
-                <button onclick="abrirModalQuantidade('${produto.id}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg" ${produto.estoque_atual <= 0 ? 'disabled opacity-50' : ''}>
+                <button onclick="abrirModalQuantidade('${produto.id}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors" ${produto.estoque_atual <= 0 ? 'disabled opacity-50' : ''}>
                     🛒 Adicionar
                 </button>
             </div>

@@ -634,6 +634,7 @@ class CompraController extends Controller
                     $model->data_compra = substr($dataEmissao, 0, 10);
                     $model->data_vencimento = date('Y-m-d', strtotime('+30 days')); // Default
                     $model->status_compra = Compra::STATUS_PENDENTE;
+                    $model->com_nota = true; // Importação de XML de NFe sempre tem nota
 
                     // Totals
                     if (isset($infNFe->total->ICMSTot)) {
