@@ -1,6 +1,6 @@
 {
-  "version": "1.1.0",
-  "updated_at": "2026-03-26T06:50:00-03:00",
+  "version": "1.1.2",
+  "updated_at": "2026-03-30T17:59:00-03:00",
   "force_update": true,
-  "changelog": "Sincronização com as novas funcionalidades do PDV. Atualização obrigatória."
+  "changelog": "Descrição completa dos produtos no catálogo."
 }

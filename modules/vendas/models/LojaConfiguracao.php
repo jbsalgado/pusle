@@ -31,6 +31,9 @@ use yii\db\Expression;
  * @property string $estado
  * @property string $codigo_municipio_ibge
  * @property string $logo_path
+ * @property string $pix_chave
+ * @property string $pix_nome
+ * @property string $pix_cidade
  * @property string $created_at
  * @property string $updated_at
  */
@@ -75,6 +78,7 @@ class LojaConfiguracao extends ActiveRecord
             [['estado'], 'string', 'max' => 2],
             [['codigo_municipio_ibge'], 'string', 'max' => 7],
             [['logo_path'], 'string', 'max' => 500],
+            [['pix_chave', 'pix_nome', 'pix_cidade'], 'string', 'max' => 255],
             [['usuario_id'], 'unique'],
 
             // Validação de CPF/CNPJ
@@ -118,6 +122,9 @@ class LojaConfiguracao extends ActiveRecord
             'estado' => 'Estado',
             'codigo_municipio_ibge' => 'Código IBGE',
             'logo_path' => 'Logo',
+            'pix_chave' => 'Chave PIX',
+            'pix_nome' => 'Nome (Recebedor PIX)',
+            'pix_cidade' => 'Cidade (Recebedor PIX)',
             'created_at' => 'Criado em',
             'updated_at' => 'Atualizado em',
         ];

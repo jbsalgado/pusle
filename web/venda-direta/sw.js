@@ -85,7 +85,7 @@ const API_PRODUTO_URL = `${URL_API}/api/produto?usuario_id=${ID_USUARIO_LOJA}`;
 const API_PEDIDO_URL = `${URL_API}/api/pedido`;
 
 // 🔥 ATUALIZAÇÃO IMPORTANTE: Versão v4 para forçar nova loja e limpar cache antigo
-const CACHE_NAME = 'venda-direta-cache-v6'; 
+const CACHE_NAME = 'venda-direta-cache-v7'; 
 
 const APP_SHELL_FILES = [
     `${URL_BASE_WEB}/venda-direta/index.html`,

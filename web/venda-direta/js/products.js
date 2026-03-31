@@ -144,6 +144,9 @@ function criarCardProduto(produto) {
                     </span>
                 ` : ''}
             </h3>
+            ${produto.descricao && produto.descricao !== produto.nome ? `
+            <p class="text-[10px] text-gray-500 mb-1 leading-tight break-words">${produto.descricao}</p>
+            ` : ''}
             <p class="text-xs ${temEstoque ? 'text-green-600' : 'text-red-600'} mb-2">
                 ${temEstoque ? `${formatarQuantidade(estoque, permiteFracionado)} ${unidadeMedida} disponível` : 'Indisponível'}
             </p>

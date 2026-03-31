@@ -267,6 +267,46 @@ $this->params['breadcrumbs'][] = $this->title;
             </div>
         </div>
 
+        <!-- Card: Dados de PIX -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-red-500 to-red-600 px-4 sm:px-6 py-4">
+                <h2 class="text-lg font-semibold text-white flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Configuração de PIX (QR Code Estático)
+                </h2>
+            </div>
+            <div class="p-4 sm:p-6 space-y-4">
+                <p class="text-sm text-gray-600 italic">
+                    Esses dados são usados para gerar o QR Code PIX nos pedidos. Forneça o nome e cidade exatamente como registrados no seu banco.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <?= $form->field($model, 'pix_chave')->textInput([
+                            'maxlength' => true,
+                            'placeholder' => 'Email, CPF, Telefone ou Chave Aleatória',
+                            'class' => 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors'
+                        ]) ?>
+                    </div>
+                    <div>
+                        <?= $form->field($model, 'pix_nome')->textInput([
+                            'maxlength' => true,
+                            'placeholder' => 'Nome do recebedor',
+                            'class' => 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors'
+                        ]) ?>
+                    </div>
+                    <div>
+                        <?= $form->field($model, 'pix_cidade')->textInput([
+                            'maxlength' => true,
+                            'placeholder' => 'Cidade do recebedor',
+                            'class' => 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors'
+                        ]) ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Botão Salvar -->
         <div class="flex flex-col sm:flex-row gap-3 sm:justify-end">
             <?= Html::submitButton('Salvar Configuração', [

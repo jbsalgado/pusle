@@ -147,13 +147,17 @@ class UsuarioController extends Controller
                     'inscricao_estadual' => $lojaConfig->inscricao_estadual,
                     'inscricao_municipal' => $lojaConfig->inscricao_municipal,
                     'site' => $lojaConfig->site,
+                    'pix_chave' => $lojaConfig->pix_chave,
+                    'pix_nome' => $lojaConfig->pix_nome,
+                    'pix_cidade' => $lojaConfig->pix_cidade,
                 ];
             }
 
             // ⚠️ FALLBACK: Busca em prest_usuarios (Configuração Legada)
             $sql = "
                 SELECT 
-                    id, nome, cpf, telefone, email, endereco, bairro, cidade, estado, logo_path
+                    id, nome, cpf, telefone, email, endereco, bairro, cidade, estado, logo_path,
+                    pix_chave, pix_nome, pix_cidade
                 FROM prest_usuarios
                 WHERE id = :id::uuid
                 LIMIT 1
@@ -192,6 +196,9 @@ class UsuarioController extends Controller
                 'estado' => $usuario['estado'] ?? '',
                 'endereco_completo' => $enderecoCompleto,
                 'logo_path' => (!empty($config->logo_path)) ? $config->logo_path : ($usuario['logo_path'] ?? ''),
+                'pix_chave' => $usuario['pix_chave'] ?? null,
+                'pix_nome' => $usuario['pix_nome'] ?? null,
+                'pix_cidade' => $usuario['pix_cidade'] ?? null,
             ];
         } catch (\Exception $e) {
             Yii::$app->response->statusCode = 500;

@@ -1,5 +1,6 @@
 // pix.js - Geração de QR Code PIX Estático (CORRIGIDO)
 import { fetchWithAuth } from './api.js';
+import { API_ENDPOINTS, CONFIG } from './config.js';
 // Baseado na especificação EMV QR Code do Banco Central
 
 // Cache de configuração PIX (carregado da API)
@@ -722,9 +723,6 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
     };
     
     try {
-        // Importa CONFIG dinamicamente
-        const { CONFIG, API_ENDPOINTS } = await import('./config.js');
-        
         const response = await fetchWithAuth(`${API_ENDPOINTS.USUARIO_DADOS_LOJA}?usuario_id=${CONFIG.ID_USUARIO_LOJA}`);
         if (response.ok) {
             const dadosLoja = await response.json();
