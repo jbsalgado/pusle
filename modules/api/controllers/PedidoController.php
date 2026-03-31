@@ -443,13 +443,13 @@ class PedidoController extends BaseController
 
             // ===== AUTO-CONFIRMAÇÃO (OPCIONAL) PARA VENDA DIRETA =====
             $confirmarImediato = isset($data['confirmar_imediato']) && $data['confirmar_imediato'] === true;
-            
+
             // Se for DINHEIRO ou PIX_ESTATICO e venda direta, auto-confirma por padrão
             // Isso evita que vendas de balcão fiquem presas em EM_ABERTO por falha de rede na segunda chamada
             if ($isVendaDireta && !$confirmarImediato && !$isOrcamento) {
                 $fp = \app\modules\vendas\models\FormaPagamento::findOne($formaPagamentoId);
                 if ($fp && in_array($fp->tipo, [
-                    \app\modules\vendas\models\FormaPagamento::TIPO_DINHEIRO, 
+                    \app\modules\vendas\models\FormaPagamento::TIPO_DINHEIRO,
                     \app\modules\vendas\models\FormaPagamento::TIPO_PIX_ESTATICO
                 ])) {
                     $confirmarImediato = true;
@@ -575,7 +575,7 @@ class PedidoController extends BaseController
                 if (!$venda->alterarStatus(\app\modules\vendas\models\StatusVenda::QUITADA)) {
                     throw new Exception('Erro ao confirmar recebimento da venda.');
                 }
-                
+
                 Yii::info("✅ Venda {$vendaId} confirmada via API", 'api');
             }
 
@@ -599,47 +599,11 @@ class PedidoController extends BaseController
                     if ($resultadoFiscal['success']) {
                         Yii::info("✅ NFCe emitida com sucesso: " . ($resultadoFiscal['cupom_id'] ?? ''), 'api');
                     } else {
-                        }
-                    } catch (\Exception $e) {
-                        Yii::error("Erro ao registrar entrada no caixa na confirmação (não crítico): " . $e->getMessage(), 'api');
-                    }
-
-                    $transaction->commit();
-
-                    // === TELEGRAM ALERT (Pagamento Confirmado) ===
-                    try {
-                        $msg = \app\components\TelegramHelper::formatVendaAlerta($venda);
-                        if ($isOrcamentoOriginal) {
-                            $msg = "📄 *[ORÇAMENTO CONFIRMADO]*\n" . $msg;
-                        } else {
-                            $msg = "✅ *[PAGAMENTO CONFIRMADO]*\n" . $msg;
-                        }
-                        \app\components\TelegramHelper::sendMessage($msg);
-                    } catch (\Exception $e) {
-                        Yii::error("Erro ao enviar alerta Telegram (Confirmação): " . $e->getMessage());
-                    }
-
-                    // === INTEGRAÇÃO FISCAL (OPCIONAL) ===
-                    // Se solicitado no request, tenta emitir NFCe
-                    if (isset($data['emitir_fiscal']) && $data['emitir_fiscal'] === true && !$isOrcamentoOriginal) {
-                        try {
-                            Yii::info("🚀 Iniciando emissão fiscal automática para Venda ID {$venda->id}", 'api');
-                            $fiscalService = new \app\components\NFwService();
-                            $resultadoFiscal = $fiscalService->emitirCupom($venda->id);
-
-                            if ($resultadoFiscal['success']) {
-                                Yii::info("✅ NFCe emitida com sucesso: " . ($resultadoFiscal['cupom_id'] ?? ''), 'api');
-                            } else {
-                                Yii::error("❌ Falha na emissão fiscal automática: " . ($resultadoFiscal['message'] ?? 'Erro desconhecido'), 'api');
-                                // Não lançamos exception para não invalidar a venda já confirmada
-                            }
-                        } catch (\Exception $e) {
-                            Yii::error("❌ Erro crítico no serviço fiscal: " . $e->getMessage(), 'api');
-                        }
+                        Yii::error("❌ Falha na emissão fiscal automática: " . ($resultadoFiscal['message'] ?? 'Erro desconhecido'), 'api');
+                        // Não lançamos exception para não invalidar a venda já confirmada
                     }
                 } catch (\Exception $e) {
-                    $transaction->rollBack();
-                    throw $e;
+                    Yii::error("❌ Erro crítico no serviço fiscal: " . $e->getMessage(), 'api');
                 }
             }
 
