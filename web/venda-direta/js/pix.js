@@ -368,8 +368,8 @@ export async function gerarQRCodeVisual(codigoPix, container) {
     }
 }
 
-// Armazena dados do pedido para gerar comprovante
-let dadosPedidoPix = null;
+// Variável foi substituída por window.dadosPedidoPix para garantir persistência contra closures
+
 
 /**
  * Abre o Modal com os dados preenchidos
@@ -381,8 +381,7 @@ let dadosPedidoPix = null;
 export async function mostrarModalPixEstatico(valor, txId, dadosPedido = null, usuarioId = null) {
     console.log('[PIX] Abrindo modal para:', valor, txId);
     
-    // Armazena dados do pedido para gerar comprovante depois
-    dadosPedidoPix = dadosPedido || null;
+    window.dadosPedidoPix = dadosPedido || null;
     
     const modal = document.getElementById('modal-pix-estatico');
     if (!modal) {
@@ -572,13 +571,13 @@ window.fecharModalPixEstatico = function() {
  * Confirma recebimento do PIX e gera comprovante
  */
 window.confirmarRecebimentoPix = async function() {
-    if (!dadosPedidoPix) {
+    if (!window.dadosPedidoPix) {
         alert('Erro: Dados do pedido não encontrados. Por favor, recarregue a página.');
         return;
     }
     
     // ✅ NOVO FLUXO: Confirma recebimento no backend (já foi criado, só precisa confirmar)
-    const vendaId = dadosPedidoPix.venda_id;
+    const vendaId = window.dadosPedidoPix.venda_id;
     
     if (!vendaId) {
         alert('Erro: ID da venda não encontrado. A venda pode não ter sido criada corretamente.');
@@ -593,7 +592,7 @@ window.confirmarRecebimentoPix = async function() {
             method: 'POST',
             body: JSON.stringify({ 
                 venda_id: vendaId,
-                emitir_fiscal: dadosPedidoPix.emitir_fiscal || false // ✅ NOVO: Repassa flag para emissão fiscal
+                emitir_fiscal: window.dadosPedidoPix.emitir_fiscal || false // ✅ NOVO: Repassa flag para emissão fiscal
             })
         });
 
@@ -622,8 +621,8 @@ window.confirmarRecebimentoPix = async function() {
     }
     
     // Se não tiver carrinho, usa dados do pedido
-    if (carrinho.length === 0 && dadosPedidoPix.itens) {
-        carrinho = dadosPedidoPix.itens;
+    if (carrinho.length === 0 && window.dadosPedidoPix.itens) {
+        carrinho = window.dadosPedidoPix.itens;
     }
     
     if (carrinho.length === 0) {
@@ -633,7 +632,7 @@ window.confirmarRecebimentoPix = async function() {
     
         // Busca parcelas se houver (usa dados da venda confirmada)
         let parcelas = vendaConfirmada.parcelas || null;
-        if (!parcelas && dadosPedidoPix.numero_parcelas > 1) {
+        if (!parcelas && window.dadosPedidoPix.numero_parcelas > 1) {
         try {
                 const response = await fetchWithAuth(`${API_ENDPOINTS.PEDIDO_PARCELAS}?venda_id=${vendaId}`, {});
             if (response.ok) {
@@ -647,9 +646,9 @@ window.confirmarRecebimentoPix = async function() {
     
     // Busca dados do cliente se houver (para vendas parceladas)
     let dadosCliente = null;
-    if (dadosPedidoPix.cliente_id) {
+    if (window.dadosPedidoPix.cliente_id) {
         try {
-            const response = await fetchWithAuth(`${API_ENDPOINTS.CLIENTE}/${dadosPedidoPix.cliente_id}`, { });
+            const response = await fetchWithAuth(`${API_ENDPOINTS.CLIENTE}/${window.dadosPedidoPix.cliente_id}`, { });
             if (response.ok) {
                 const cliente = await response.json();
                 dadosCliente = {
@@ -674,7 +673,7 @@ window.confirmarRecebimentoPix = async function() {
         const { formatarMoeda } = await import('./utils.js');
         sessionStorage.setItem('venda_confirmada_comprovante', JSON.stringify({
             venda: vendaConfirmada,
-            dadosPedido: dadosPedidoPix,
+            dadosPedido: window.dadosPedidoPix,
             carrinho: carrinho,
             formaPagamento: 'PIX'
         }));
@@ -686,7 +685,7 @@ window.confirmarRecebimentoPix = async function() {
     fecharModalPixEstatico();
     
     // Limpa dados
-    dadosPedidoPix = null;
+    window.dadosPedidoPix = null;
         
         // ✅ Reload da página PRIMEIRO, comprovante será exibido após reload
         console.log('[PIX] 🔄 Recarregando página para atualizar estoques...');

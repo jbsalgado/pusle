@@ -1837,9 +1837,7 @@ async function verificarComprovantePosReload() {
         await new Promise(resolve => setTimeout(resolve, 500));
         
         // Importa função de comprovante
-        // Importa função de comprovante (com cache bust)
-        const timestamp = new Date().getTime();
-        const { gerarComprovanteVenda } = await import(`./pix.js?v=${timestamp}`);
+        const { gerarComprovanteVenda } = await import('./pix.js');
         
         // Gera e exibe o comprovante
         await gerarComprovanteVenda(dados.carrinho, {
