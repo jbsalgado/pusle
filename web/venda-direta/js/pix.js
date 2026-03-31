@@ -1112,7 +1112,7 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
             <div class="item-descricao">${nomeProduto}</div>
             <div class="item-detalhes">
                 <span>${qtd.toFixed(2)} x ${formatarValor(preco)}</span>
-                <span>${formatarValor(subtotalLiquido)}</span>
+                <span>${formatarValor(subtotalBruto)}</span>
             </div>
             ${valorDesconto > 0 ? `
             <div class="item-detalhes" style="color: #444; font-size: 9px; margin-top: 1px;">

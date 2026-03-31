@@ -266,12 +266,31 @@ function _renderHTMLRecibo(venda, empresa) {
                                 <td class="py-1">${i.nome}</td>
                                 <td class="text-center py-1">${i.quantidade}</td>
                                 <td class="text-right py-1">${i.preco.toFixed(2)}</td>
-                                <td class="text-right py-1 font-bold">${i.subtotal.toFixed(2)}</td>
+                                <td class="text-right py-1 font-bold">${(i.quantidade * i.preco).toFixed(2)}</td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
             </div>
+            
+            ${(() => {
+                const somaBruta = venda.itens.reduce((acc, i) => acc + (i.quantidade * i.preco), 0);
+                const diff = somaBruta - venda.valor_total;
+                if (diff > 0.01) {
+                    return `
+                    <div class="border-t border-gray-300 pt-2 space-y-1 pb-2">
+                        <div class="flex justify-between text-sm text-gray-600">
+                            <span>SUBTOTAL:</span>
+                            <span>R$ ${somaBruta.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                        </div>
+                        <div class="flex justify-between text-sm text-red-600">
+                            <span>DESCONTO:</span>
+                            <span>-R$ ${diff.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                        </div>
+                    </div>`;
+                }
+                return '';
+            })()}
             
             <!-- Totais -->
             <div class="border-t border-gray-300 pt-2 space-y-1">
@@ -342,10 +361,18 @@ window.imprimirTermica = async function() {
         
         v.itens.forEach(i => {
             t += rA(i.nome).substring(0, col) + '\n';
-            t += row(`${i.quantidade}x ${i.preco.toFixed(2)}`, i.subtotal.toFixed(2)) + '\n';
+            t += row(`${i.quantidade}x ${i.preco.toFixed(2)}`, (i.quantidade * i.preco).toFixed(2)) + '\n';
         });
         
         t += div + '\n';
+        
+        const somaBruta = v.itens.reduce((acc, i) => acc + (i.quantidade * i.preco), 0);
+        const desc = somaBruta - v.valor_total;
+        if (desc > 0.01) {
+            t += row('SUBTOTAL', 'R$ ' + somaBruta.toFixed(2)) + '\n';
+            t += row('DESCONTO', '-R$ ' + desc.toFixed(2)) + '\n';
+        }
+        
         t += row('TOTAL RECEBIDO', 'R$ ' + v.valor_total.toFixed(2)) + '\n';
         t += row('PAGAMENTO', rA(v.forma_pagamento)) + '\n';
         t += div + '\n';
