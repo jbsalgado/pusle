@@ -131,7 +131,8 @@ function criarCardProduto(produto) {
     let urlImagem = 'https://via.placeholder.com/300x300.png?text=Sem+Foto';
     if (produto.fotos && produto.fotos.length > 0 && produto.fotos[0].arquivo_path) {
         const arquivoPath = produto.fotos[0].arquivo_path.replace(/^\//, '');
-        urlImagem = `${CONFIG.URL_BASE_WEB}/${arquivoPath}`;
+        const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
+        urlImagem = `${baseUrl}/${arquivoPath}`;
     }
 
     const permiteFracionado = !!produto.venda_fracionada;

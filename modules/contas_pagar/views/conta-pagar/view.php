@@ -200,27 +200,6 @@ function abrirModalPagamento() {
         }
     });
 }
-
-// Submissão do formulário via AJAX
-$(document).on('submit', '#form-pagar-conta', function(e) {
-    e.preventDefault();
-    
-    var form = $(this);
-    var formData = form.serialize();
-    
-    $.ajax({
-        url: form.attr('action'),
-        type: 'POST',
-        data: formData,
-        success: function(response) {
-            // Recarrega a página para mostrar as alterações
-            location.reload();
-        },
-        error: function(xhr) {
-            alert('Erro ao processar pagamento. Verifique os dados e tente novamente.');
-        }
-    });
-});
 JS
 );
 ?>

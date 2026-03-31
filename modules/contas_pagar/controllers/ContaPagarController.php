@@ -34,7 +34,6 @@ class ContaPagarController extends Controller
                 'class' => VerbFilter::class,
                 'actions' => [
                     'delete' => ['POST'],
-                    'pagar' => ['POST'],
                     'cancelar' => ['POST'],
                 ],
             ],
@@ -294,8 +293,13 @@ class ContaPagarController extends Controller
             }
         }
 
-        // Se for GET, mostra o formulário modal
-        return $this->renderAjax('_form_pagar', [
+        // Se for GET, mostra o formulário (modal se AJAX, página inteira se não)
+        if (Yii::$app->request->isAjax) {
+            return $this->renderAjax('_form_pagar', [
+                'model' => $model,
+            ]);
+        }
+        return $this->render('pagar', [
             'model' => $model,
         ]);
     }

@@ -165,13 +165,11 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                             ) ?>
 
                             <?php if (!$model->isPaga() && $model->status !== ContaPagar::STATUS_CANCELADA): ?>
-                                <?= Html::a('Pagar', ['pagar', 'id' => $model->id], [
-                                    'class' => 'flex-1 text-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded transition duration-300',
-                                    'data' => [
-                                        'method' => 'post',
-                                        'confirm' => 'Confirmar pagamento desta conta?'
-                                    ]
-                                ]) ?>
+                                <button type="button"
+                                    onclick="abrirModalPagamento('<?= $model->id ?>')"
+                                    class="flex-1 text-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded transition duration-300">
+                                    Pagar
+                                </button>
                             <?php endif; ?>
 
                             <?= Html::a(
@@ -237,13 +235,11 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                                             <?= Html::a('Ver', ['view', 'id' => $model->id], ['class' => 'text-blue-600 hover:text-blue-900']) ?>
 
                                             <?php if (!$model->isPaga() && $model->status !== ContaPagar::STATUS_CANCELADA): ?>
-                                                <?= Html::a('Pagar', ['pagar', 'id' => $model->id], [
-                                                    'class' => 'text-green-600 hover:text-green-900',
-                                                    'data' => [
-                                                        'method' => 'post',
-                                                        'confirm' => 'Confirmar pagamento?'
-                                                    ]
-                                                ]) ?>
+                                                <button type="button"
+                                                    onclick="abrirModalPagamento('<?= $model->id ?>')"
+                                                    class="text-green-600 hover:text-green-900">
+                                                    Pagar
+                                                </button>
                                             <?php endif; ?>
 
                                             <?= Html::a('Editar', ['update', 'id' => $model->id], [
@@ -275,3 +271,53 @@ $viewMode = Yii::$app->request->get('view', 'cards');
 
     </div>
 </div>
+
+<!-- Modal de Pagamento -->
+<div class="modal fade" id="modal-pagar" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-green-50 border-b border-green-200">
+                <h5 class="modal-title text-green-900 font-bold">
+                    <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    Registrar Pagamento
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="modal-pagar-content">
+                <!-- Conteúdo carregado via AJAX -->
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="sr-only">Carregando...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<?php
+$this->registerJs(
+    <<<JS
+function abrirModalPagamento(id) {
+    $('#modal-pagar').modal('show');
+    $('#modal-pagar-content').html('<div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="sr-only">Carregando...</span></div></div>');
+    
+    // Carrega o formulário via AJAX
+    $.ajax({
+        url: '<?= \yii\helpers\Url::to(['pagar', 'id' => 'PLACEHOLDER']) ?>'.replace('PLACEHOLDER', id),
+        type: 'GET',
+        success: function(data) {
+            $('#modal-pagar-content').html(data);
+        },
+        error: function() {
+            $('#modal-pagar-content').html('<div class="alert alert-danger">Erro ao carregar formulário.</div>');
+        }
+    });
+}
+JS
+);
+?>
