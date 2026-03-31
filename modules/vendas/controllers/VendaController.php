@@ -69,6 +69,43 @@ class VendaController extends Controller
     }
 
     /**
+     * Visualiza detalhes de uma venda
+     */
+    public function actionView($id)
+    {
+        $model = $this->findModel($id);
+
+        return $this->render('view', [
+            'model' => $model,
+        ]);
+    }
+
+    /**
+     * Altera o status de uma venda via AJAX
+     */
+    public function actionAlterarStatus($id)
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        $vendaId = Yii::$app->request->post('venda_id') ?: $id;
+        $novoStatus = Yii::$app->request->post('status');
+
+        if (!$novoStatus) {
+            return ['success' => false, 'message' => 'Novo status não informado.'];
+        }
+
+        try {
+            $model = $this->findModel($vendaId);
+            if ($model->alterarStatus($novoStatus)) {
+                return ['success' => true, 'message' => 'Status alterado com sucesso!'];
+            }
+            return ['success' => false, 'message' => 'Erro ao alterar status.'];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
      * Retorna detalhes completos de uma venda para impressão (API JSON)
      */
     public function actionDetalhes($id)

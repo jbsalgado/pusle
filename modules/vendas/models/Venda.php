@@ -300,6 +300,136 @@ class Venda extends ActiveRecord
 
 
     /**
+     * Altera o status da venda e garante todas as consequências (estoque, financeiro)
+     * 
+     * @param string $novoStatus Novo código de status (ex: QUITADA, CANCELADA)
+     * @return bool
+     * @throws \Exception
+     */
+    public function alterarStatus($novoStatus)
+    {
+        $statusAtual = $this->status_venda_codigo;
+
+        // Bloqueia alteração se já estiver QUITADA ou CANCELADA (para garantir integridade)
+        $statusBloqueados = [StatusVenda::QUITADA, StatusVenda::CANCELADA];
+        if (in_array($statusAtual, $statusBloqueados) && $novoStatus !== $statusAtual) {
+            throw new \Exception("Esta venda está com status '{$statusAtual}' e não pode ser alterada para garantir a integridade dos registros.");
+        }
+
+        if ($statusAtual === $novoStatus) {
+            return true;
+        }
+
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            // --- CONTEXTO: TRANSICIONANDO PARA QUITADA ---
+            if ($novoStatus === StatusVenda::QUITADA) {
+                // 1. Verifica se era um ORÇAMENTO (geralmente orçamentos não têm parcelas salvas ou estoque baixado)
+                $foiOrcamento = ($statusAtual === StatusVenda::ORCAMENTO);
+
+                // 2. Valida estoque antecipadamente
+                if (!$foiOrcamento) {
+                    foreach ($this->itens as $item) {
+                        $produto = $item->produto;
+                        if ($produto) {
+                            $produto->refresh();
+                            if (!$produto->temEstoque($item->quantidade)) {
+                                throw new \Exception("Estoque insuficiente para o produto {$produto->nome}.");
+                            }
+                        }
+                    }
+                }
+
+                // 3. Atualiza status da Venda
+                $this->status_venda_codigo = StatusVenda::QUITADA;
+                $this->data_atualizacao = new Expression('NOW()');
+                if (!$this->save(false, ['status_venda_codigo', 'data_atualizacao'])) {
+                    throw new \Exception("Erro ao atualizar status da venda.");
+                }
+
+                // 4. Marca parcelas como pagas e baixa estoque
+                if (!$foiOrcamento) {
+                    // Baixa estoque
+                    foreach ($this->itens as $item) {
+                        $produto = $item->produto;
+                        if ($produto) {
+                            $produto->estoque_atual -= $item->quantidade;
+                            if (!$produto->save(false, ['estoque_atual'])) {
+                                throw new \Exception("Erro ao atualizar estoque do produto {$produto->nome}.");
+                            }
+                        }
+                    }
+
+                    // Marca parcelas como pagas (triggering financial entry)
+                    foreach ($this->parcelas as $parcela) {
+                        if ($parcela->status_parcela_codigo !== StatusParcela::PAGA) {
+                            // Usamos registrarPagamento para garantir a entrada no caixa via CaixaHelper
+                            if (!$parcela->registrarPagamento($parcela->valor_parcela, null, $this->forma_pagamento_id)) {
+                                throw new \Exception("Erro ao registrar pagamento da parcela {$parcela->numero_parcela}.");
+                            }
+                        }
+                    }
+                }
+            }
+            // --- CONTEXTO: TRANSICIONANDO PARA CANCELADA ---
+            elseif ($novoStatus === StatusVenda::CANCELADA) {
+                // 1. Se estava QUITADA, precisa retornar o estoque e estornar financeiro
+                if ($statusAtual === StatusVenda::QUITADA) {
+                    // Retorna estoque
+                    foreach ($this->itens as $item) {
+                        $produto = $item->produto;
+                        if ($produto) {
+                            $produto->refresh();
+                            $produto->estoque_atual += $item->quantidade;
+                            if (!$produto->save(false, ['estoque_atual'])) {
+                                throw new \Exception("Erro ao retornar estoque do produto {$produto->nome}.");
+                            }
+                        }
+                    }
+
+                    // Estorna financeiro no caixa (deleta as movimentações associadas às parcelas)
+                    foreach ($this->parcelas as $parcela) {
+                        \app\modules\caixa\models\CaixaMovimentacao::deleteAll(['parcela_id' => $parcela->id]);
+                    }
+                    // Também deleta movimentação direta da venda se houver
+                    \app\modules\caixa\models\CaixaMovimentacao::deleteAll(['venda_id' => $this->id]);
+                }
+
+                // 2. Marca todas as parcelas como CANCELADAS
+                foreach ($this->parcelas as $parcela) {
+                    $parcela->status_parcela_codigo = StatusParcela::CANCELADA;
+                    if (!$parcela->save(false, ['status_parcela_codigo'])) {
+                        throw new \Exception("Erro ao cancelar parcela {$parcela->numero_parcela}.");
+                    }
+                }
+
+                // 3. Atualiza status da Venda
+                $this->status_venda_codigo = StatusVenda::CANCELADA;
+                $this->data_atualizacao = new Expression('NOW()');
+                if (!$this->save(false, ['status_venda_codigo', 'data_atualizacao'])) {
+                    throw new \Exception("Erro ao cancelar a venda.");
+                }
+            }
+            // --- CONTEXTO: OUTROS STATUS (Simplificado) ---
+            else {
+                $this->status_venda_codigo = $novoStatus;
+                $this->data_atualizacao = new Expression('NOW()');
+                if (!$this->save(false, ['status_venda_codigo', 'data_atualizacao'])) {
+                    throw new \Exception("Erro ao atualizar status da venda.");
+                }
+            }
+
+            $transaction->commit();
+            return true;
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+            Yii::error("Erro ao alterar status da venda: " . $e->getMessage(), 'Venda');
+            throw $e;
+        }
+    }
+
+
+    /**
      * Calcula valor já pago
      */
     public function getValorPago()

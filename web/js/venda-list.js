@@ -106,6 +106,87 @@ async function buscarDadosEmpresa(forcedUsuarioId = null) {
     }
 }
 
+// ============== ALTERAÇÃO DE STATUS ==============
+
+/**
+ * Exibe um alerta temporário (Toast) na tela
+ */
+window.showToast = function(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `fixed top-4 right-4 z-[100] animate-slide-in-right`;
+    
+    const bg = type === 'success' ? 'bg-green-500' : (type === 'error' ? 'bg-red-500' : 'bg-blue-500');
+    
+    toast.innerHTML = `
+        <div class="${bg} text-white px-6 py-3 rounded-xl shadow-2xl flex items-center space-x-3">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span class="font-bold text-sm">${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.transition = 'opacity 0.5s, transform 0.5s';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => toast.remove(), 500);
+    }, 3000);
+}
+
+/**
+ * Altera o status da venda via AJAX
+ * @param {string} vendaId 
+ * @param {string} novoStatus 
+ */
+window.alterarStatusVenda = async function(vendaId, novoStatus) {
+    if (!novoStatus) return;
+    
+    if (!confirm(`Deseja realmente alterar o status desta venda para ${novoStatus}?`)) {
+        location.reload(); 
+        return;
+    }
+    
+    // Feedback visual imediato
+    const select = document.querySelector(`select[data-venda-id="${vendaId}"]`);
+    if (select) {
+        select.disabled = true;
+        select.classList.add('opacity-50', 'cursor-wait');
+    }
+    
+    showToast('Processando alteração...', 'info');
+    
+    try {
+        const baseUrl = window.BASE_URL || window.location.origin;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        
+        const response = await fetch(`${baseUrl}/vendas/venda/alterar-status?id=${vendaId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRF-Token': csrfToken
+            },
+            body: `status=${encodeURIComponent(novoStatus)}`
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast('Sucesso! Atualizando...', 'success');
+            setTimeout(() => location.reload(), 800);
+        } else {
+            showToast('Erro: ' + result.message, 'error');
+            setTimeout(() => location.reload(), 2000);
+        }
+    } catch (error) {
+        console.error('[Venda] Erro ao alterar status:', error);
+        showToast('Erro na conexão', 'error');
+        setTimeout(() => location.reload(), 2000);
+    }
+}
+
 // ============== GERAÇÃO DE COMPROVANTE ==============
 
 /**
@@ -278,3 +359,33 @@ window.imprimirTermica = async function() {
         alert('Erro na impressão térmica: ' + error.message);
     }
 }
+
+// ============== EVENT LISTENERS (DELEGATION) ==============
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('[Venda List] Inicializando listeners de eventos...');
+
+    // Listener para Select de Status
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.classList.contains('js-venda-status-select')) {
+            const vendaId = e.target.getAttribute('data-venda-id');
+            const novoStatus = e.target.value;
+            console.log('[Venda List] Alteração de status detectada:', vendaId, novoStatus);
+            if (typeof window.alterarStatusVenda === 'function') {
+                window.alterarStatusVenda(vendaId, novoStatus);
+            }
+        }
+    });
+
+    // Listener para Botão de Impressão
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.js-venda-imprimir-btn');
+        if (btn) {
+            const vendaId = btn.getAttribute('data-venda-id');
+            console.log('[Venda List] Solicitação de impressão detectada:', vendaId);
+            if (typeof window.imprimirVenda === 'function') {
+                window.imprimirVenda(vendaId);
+            }
+        }
+    });
+});

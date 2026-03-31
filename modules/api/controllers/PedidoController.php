@@ -441,6 +441,29 @@ class PedidoController extends BaseController
             // Entrada no caixa será registrada apenas após confirmação de recebimento
             Yii::info("⏳ Entrada no caixa será registrada após confirmação de recebimento", 'api');
 
+            // ===== AUTO-CONFIRMAÇÃO (OPCIONAL) PARA VENDA DIRETA =====
+            $confirmarImediato = isset($data['confirmar_imediato']) && $data['confirmar_imediato'] === true;
+            
+            // Se for DINHEIRO ou PIX_ESTATICO e venda direta, auto-confirma por padrão
+            // Isso evita que vendas de balcão fiquem presas em EM_ABERTO por falha de rede na segunda chamada
+            if ($isVendaDireta && !$confirmarImediato && !$isOrcamento) {
+                $fp = \app\modules\vendas\models\FormaPagamento::findOne($formaPagamentoId);
+                if ($fp && in_array($fp->tipo, [
+                    \app\modules\vendas\models\FormaPagamento::TIPO_DINHEIRO, 
+                    \app\modules\vendas\models\FormaPagamento::TIPO_PIX_ESTATICO
+                ])) {
+                    $confirmarImediato = true;
+                }
+            }
+
+            if ($confirmarImediato && !$isOrcamento) {
+                Yii::info("🚀 AUTO-CONFIRMANDO Venda ID {$venda->id}", 'api');
+                // Usa a lógica centralizada que já trata estoque e parcelas
+                if (!$venda->alterarStatus(\app\modules\vendas\models\StatusVenda::QUITADA)) {
+                    throw new Exception('Erro ao auto-confirmar venda.');
+                }
+            }
+
             // ===== COMMIT =====
             $transaction->commit();
             Yii::error("✅ Transação commitada com sucesso!", 'api');
@@ -538,85 +561,44 @@ class PedidoController extends BaseController
             // Verifica se a venda já está quitada
             if ($venda->status_venda_codigo === \app\modules\vendas\models\StatusVenda::QUITADA) {
                 Yii::info("Venda {$vendaId} já está quitada", 'api');
-                // Retorna dados da venda mesmo se já estiver quitada
             } else {
-                $transaction = Yii::$app->db->beginTransaction();
+                // Se for PAGAR_AO_ENTREGADOR e foi informada forma de pagamento na entrega
+                if ($venda->formaPagamento && $venda->formaPagamento->tipo === 'PAGAR_AO_ENTREGADOR') {
+                    if (!empty($data['forma_pagamento_entrega'])) {
+                        // Atualiza a forma de pagamento para a escolhida na entrega
+                        $venda->forma_pagamento_id = $data['forma_pagamento_entrega'];
+                        $venda->save(false, ['forma_pagamento_id']);
+                    }
+                }
 
+                // ✅ Usa a lógica centralizada no model Venda
+                if (!$venda->alterarStatus(\app\modules\vendas\models\StatusVenda::QUITADA)) {
+                    throw new Exception('Erro ao confirmar recebimento da venda.');
+                }
+                
+                Yii::info("✅ Venda {$vendaId} confirmada via API", 'api');
+            }
+
+            // === TELEGRAM ALERT (Pagamento Confirmado) ===
+            try {
+                $msg = \app\components\TelegramHelper::formatVendaAlerta($venda);
+                $msg = "✅ *[PAGAMENTO CONFIRMADO]*\n" . $msg;
+                \app\components\TelegramHelper::sendMessage($msg);
+            } catch (\Exception $e) {
+                Yii::error("Erro ao enviar alerta Telegram (Confirmação): " . $e->getMessage());
+            }
+
+            // === INTEGRAÇÃO FISCAL (OPCIONAL) ===
+            // Se solicitado no request, tenta emitir NFCe
+            if (isset($data['emitir_fiscal']) && $data['emitir_fiscal'] === true) {
                 try {
-                    // ✅ CORREÇÃO CRÍTICA: Captura o status ORIGINAL antes de atualizar para QUITADA
-                    // Isso é necessário para saber se era um ORÇAMENTO (e não baixar estoque)
-                    $statusOriginal = $venda->status_venda_codigo;
-                    $isOrcamentoOriginal = ($statusOriginal === \app\modules\vendas\models\StatusVenda::ORCAMENTO);
+                    Yii::info("🚀 Iniciando emissão fiscal automática para Venda ID {$venda->id}", 'api');
+                    $fiscalService = new \app\components\NFwService();
+                    $resultadoFiscal = $fiscalService->emitirCupom($venda->id);
 
-                    // Atualiza status para QUITADA
-                    $venda->status_venda_codigo = \app\modules\vendas\models\StatusVenda::QUITADA;
-                    $venda->data_atualizacao = new \yii\db\Expression('NOW()');
-
-                    // Se for PAGAR_AO_ENTREGADOR e foi informada forma de pagamento na entrega
-                    if ($venda->formaPagamento && $venda->formaPagamento->tipo === 'PAGAR_AO_ENTREGADOR') {
-                        if (!empty($data['forma_pagamento_entrega'])) {
-                            // Atualiza a forma de pagamento para a escolhida na entrega
-                            $venda->forma_pagamento_id = $data['forma_pagamento_entrega'];
-                        }
-                    }
-
-                    if (!$venda->save(false, ['status_venda_codigo', 'forma_pagamento_id', 'data_atualizacao'])) {
-                        throw new Exception('Erro ao atualizar status da venda.');
-                    }
-
-                    // Baixa estoque dos itens (se ainda não foi baixado)
-                    // ✅ CORREÇÃO: Não baixa estoque se for ORÇAMENTO (baseado no status original)
-                    if (!$isOrcamentoOriginal) {
-                        foreach ($venda->itens as $item) {
-                            $produto = $item->produto;
-                            if ($produto) {
-                                // Verifica se o estoque já foi baixado (comparando com quantidade do item)
-                                // Se não, baixa agora
-                                $produto->refresh();
-                                // Baixa estoque
-                                $produto->estoque_atual -= $item->quantidade;
-                                if (!$produto->save(false, ['estoque_atual'])) {
-                                    Yii::error("❌ FALHA ao atualizar estoque do produto {$produto->id} na confirmação", 'api');
-                                    throw new Exception("Erro ao atualizar estoque do produto '{$produto->nome}'.");
-                                }
-                                Yii::info("✅ Estoque de '{$produto->nome}' baixado para {$produto->estoque_atual} na confirmação", 'api');
-                            }
-                        }
+                    if ($resultadoFiscal['success']) {
+                        Yii::info("✅ NFCe emitida com sucesso: " . ($resultadoFiscal['cupom_id'] ?? ''), 'api');
                     } else {
-                        Yii::info("ℹ️ Venda {$venda->id} era um ORÇAMENTO. Estoque não foi alterado.", 'api');
-                    }
-
-                    // ✅ Marca parcelas como pagas (para vendas diretas)
-                    foreach ($venda->parcelas as $parcela) {
-                        if ($parcela->status_parcela_codigo !== 'PAGA') {
-                            $parcela->status_parcela_codigo = 'PAGA';
-                            $parcela->data_pagamento = date('Y-m-d H:i:s');
-                            if (!$parcela->save(false, ['status_parcela_codigo', 'data_pagamento'])) {
-                                Yii::warning("⚠️ Não foi possível marcar parcela {$parcela->numero_parcela} como paga", 'api');
-                            } else {
-                                Yii::info("✅ Parcela {$parcela->numero_parcela} marcada como paga", 'api');
-                            }
-                        }
-                    }
-
-                    // Registra entrada no caixa
-                    try {
-                        // ✅ CORREÇÃO: Não registra no caixa se for ORÇAMENTO (baseado no status original)
-                        if (!$isOrcamentoOriginal) {
-                            $movimentacao = \app\modules\caixa\helpers\CaixaHelper::registrarEntradaVenda(
-                                $venda->id,
-                                $venda->valor_total,
-                                $venda->forma_pagamento_id,
-                                $venda->usuario_id
-                            );
-
-                            if ($movimentacao) {
-                                Yii::info("✅ Entrada registrada no caixa para Venda ID {$venda->id} na confirmação", 'api');
-                            } else {
-                                Yii::warning("⚠️ Não foi possível registrar entrada no caixa para Venda ID {$venda->id} (caixa pode não estar aberto)", 'api');
-                            }
-                        } else {
-                            Yii::info("ℹ️ Venda {$venda->id} era um ORÇAMENTO. Não houve movimentação de caixa.", 'api');
                         }
                     } catch (\Exception $e) {
                         Yii::error("Erro ao registrar entrada no caixa na confirmação (não crítico): " . $e->getMessage(), 'api');

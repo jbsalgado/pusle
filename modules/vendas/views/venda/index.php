@@ -61,8 +61,6 @@ $this->title = 'Vendas Efetivadas';
                     'dataProvider' => $dataProvider,
                     'summary' => false,
                     'layout' => '{items}',
-                    'tableOptions' => ['class' => 'min-w-full divide-y divide-gray-200'],
-                    'headerRowOptions' => ['class' => 'bg-gray-50'],
                     'options' => ['class' => 'overflow-x-auto'],
                     'columns' => [
                         [
@@ -100,18 +98,47 @@ $this->title = 'Vendas Efetivadas';
                             'format' => 'raw',
                             'value' => function ($model) {
                                 $status = $model->status_venda_codigo;
-                                $class = 'bg-blue-100 text-blue-800';
-                                if ($status === 'QUITADA') $class = 'bg-green-100 text-green-800';
-                                if ($status === 'CANCELADA') $class = 'bg-red-100 text-red-800';
-                                return "<span class='px-2 py-1 text-xs font-semibold rounded-full $class'>$status</span>";
+                                $listaStatus = \app\modules\vendas\models\StatusVenda::find()->all();
+
+                                $bgClass = 'bg-blue-100 text-blue-800 border-blue-200';
+                                if ($status === 'QUITADA') $bgClass = 'bg-green-100 text-green-800 border-green-200';
+                                if ($status === 'CANCELADA') $bgClass = 'bg-red-100 text-red-800 border-red-200';
+                                if ($status === 'ORCAMENTO') $bgClass = 'bg-amber-100 text-amber-800 border-amber-200';
+
+                                // Se já estiver QUITADA ou CANCELADA, não permite mudar (apenas exibe label)
+                                if (in_array($status, ['QUITADA', 'CANCELADA'])) {
+                                    return "<div class='text-center'>
+                                                <span class='px-3 py-1.5 text-xs font-black rounded-lg border-2 $bgClass uppercase tracking-widest'>
+                                                    $status
+                                                </span>
+                                            </div>";
+                                }
+
+                                $html = "<div class='relative inline-block w-full min-w-[140px]'>";
+                                $html .= "<select data-venda-id='{$model->id}'
+                                            class='js-venda-status-select w-full appearance-none px-3 py-1.5 text-xs font-bold rounded-lg border-2 transition-all cursor-pointer $bgClass focus:outline-none focus:ring-2 focus:ring-offset-1'>";
+
+                                foreach ($listaStatus as $s) {
+                                    $selected = ($s->codigo === $status) ? 'selected' : '';
+                                    $html .= "<option value='{$s->codigo}' $selected>{$s->descricao}</option>";
+                                }
+
+                                $html .= "</select>";
+                                // Ícone de seta customizado
+                                $html .= "<div class='pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-current opacity-60'>
+                                            <svg class='h-3 w-3 fill-current' viewBox='0 0 20 20'><path d='M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z'/></svg>
+                                          </div>";
+                                $html .= "</div>";
+
+                                return $html;
                             },
-                            'contentOptions' => ['class' => 'px-6 py-4 text-sm'],
+                            'contentOptions' => ['class' => 'px-6 py-4'],
                         ],
                         [
                             'label' => 'Ações',
                             'format' => 'raw',
                             'value' => function ($model) {
-                                return "<button onclick='imprimirVenda(\"{$model->id}\")' class='inline-flex items-center px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded-md transition-colors shadow-sm'>
+                                return "<button data-venda-id='{$model->id}' class='js-venda-imprimir-btn inline-flex items-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm'>
                                     <svg class='w-3.5 h-3.5 mr-1.5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                                         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2-2v4h10z'/>
                                     </svg>
@@ -129,49 +156,89 @@ $this->title = 'Vendas Efetivadas';
         <div id="view-card" class="view-container hidden">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <?php foreach ($dataProvider->getModels() as $venda): ?>
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-300">
+                    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-2xl hover:border-indigo-100 transition-all duration-500 group flex flex-col h-full">
                         <!-- Header do Card -->
-                        <div class="px-5 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-                            <span class="text-xs font-bold text-gray-500 tracking-wider">VENDA #<?= substr($venda->id, 0, 8) ?></span>
+                        <div class="px-5 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between">
+                            <div class="flex flex-col">
+                                <span class="text-[9px] font-black text-indigo-400 tracking-widest uppercase italic">Pulse System</span>
+                                <span class="text-[11px] font-black text-gray-900 tracking-tighter uppercase">VENDA #<?= substr($venda->id, 0, 8) ?></span>
+                            </div>
                             <?php
                             $status = $venda->status_venda_codigo;
-                            $statusClass = 'bg-blue-100 text-blue-800';
-                            if ($status === 'QUITADA') $statusClass = 'bg-green-100 text-green-800';
-                            if ($status === 'CANCELADA') $statusClass = 'bg-red-100 text-red-800';
+                            $statusClass = 'bg-blue-50 text-blue-700 border-blue-200';
+                            if ($status === 'QUITADA') $statusClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                            if ($status === 'CANCELADA') $statusClass = 'bg-rose-50 text-rose-700 border-rose-200';
+                            if ($status === 'ORCAMENTO') $statusClass = 'bg-amber-50 text-amber-700 border-amber-200';
+
+                            $listaStatus = \app\modules\vendas\models\StatusVenda::find()->all();
                             ?>
-                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full cursor-default <?= $statusClass ?>"><?= $status ?></span>
+                            <div class="relative inline-block w-32">
+                                <?php if (in_array($status, ['QUITADA', 'CANCELADA'])): ?>
+                                    <span class="block w-full text-center px-3 py-1.5 text-[10px] font-black rounded-full border-2 <?= $statusClass ?> uppercase tracking-widest">
+                                        <?= $status ?>
+                                    </span>
+                                <?php else: ?>
+                                    <select data-venda-id="<?= $venda->id ?>"
+                                        class='js-venda-status-select w-full appearance-none px-3 py-1.5 text-[10px] font-black rounded-full border-2 transition-all cursor-pointer <?= $statusClass ?> focus:outline-none focus:ring-2 focus:ring-indigo-500/20'>
+                                        <?php foreach ($listaStatus as $s): ?>
+                                            <option value="<?= $s->codigo ?>" <?= $s->codigo === $status ? 'selected' : '' ?>><?= $s->descricao ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <div class='pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-current opacity-40 uppercase'>
+                                        <svg class='h-2.5 w-2.5 fill-current' viewBox='0 0 20 20'>
+                                            <path d='M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z' />
+                                        </svg>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
                         </div>
 
                         <!-- Corpo do Card -->
-                        <div class="p-5 space-y-4">
+                        <div class="p-6 flex-grow space-y-5">
                             <div>
-                                <h3 class="text-base font-bold text-gray-900 line-clamp-1">
-                                    <?= $venda->cliente ? ($venda->cliente->nome_completo ?? $venda->cliente->nome) : 'Venda Direta / Não Informado' ?>
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Cliente</span>
+                                    <span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold uppercase"><?= count($venda->itens) ?> <?= count($venda->itens) === 1 ? 'Item' : 'Itens' ?></span>
+                                </div>
+                                <h3 class="text-lg font-black text-gray-900 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                                    <?= $venda->cliente ? ($venda->cliente->nome_completo ?? $venda->cliente->nome) : 'Consumidor Final' ?>
                                 </h3>
-                                <div class="flex items-center text-xs text-gray-500 mt-1">
-                                    <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                <div class="flex items-center text-[10px] text-indigo-300 font-black mt-1 uppercase tracking-widest">
+                                    <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
-                                    <?= date('d/m/Y H:i', strtotime($venda->data_criacao)) ?>
+                                    <?= date('d M, Y \à\s H:i', strtotime($venda->data_criacao)) ?>
                                 </div>
                             </div>
 
-                            <div class="flex items-center justify-between pt-2">
-                                <span class="text-xs text-gray-500 font-medium">Forma: <?= $venda->formaPagamento ? $venda->formaPagamento->nome : 'N/A' ?></span>
+                            <div class="flex items-center justify-between pt-4 border-t border-gray-50">
+                                <div class="flex flex-col">
+                                    <span class="text-[9px] text-gray-400 font-black uppercase tracking-widest leading-none mb-1.5">Méto. Pagamento</span>
+                                    <div class="flex items-center">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-indigo-500 mr-2"></div>
+                                        <span class="text-xs text-gray-900 font-black uppercase tracking-tight"><?= $venda->formaPagamento ? $venda->formaPagamento->nome : 'N/A' ?></span>
+                                    </div>
+                                </div>
                                 <div class="text-right">
-                                    <p class="text-xs text-gray-400 font-medium uppercase tracking-tight">Total</p>
-                                    <p class="text-lg font-black text-gray-900 leading-none">R$ <?= number_format($venda->valor_total, 2, ',', '.') ?></p>
+                                    <p class="text-[9px] text-indigo-400 font-black uppercase tracking-widest leading-none mb-1.5">Total Líquido</p>
+                                    <p class="text-2xl font-black text-gray-900 tabular-nums tracking-tighter">R$ <?= number_format($venda->valor_total, 2, ',', '.') ?></p>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Footer do Card -->
-                        <div class="px-5 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end">
-                            <button onclick='imprimirVenda("<?= $venda->id ?>")' class="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-lg transition-colors shadow-sm">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="px-5 py-4 bg-gray-50/30 flex items-center justify-between border-t border-gray-50/50">
+                            <a href="<?= Url::to(['view', 'id' => $venda->id]) ?>" class="text-[10px] font-black text-gray-400 hover:text-indigo-600 uppercase tracking-widest flex items-center transition-all">
+                                Detalhes
+                                <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </a>
+                            <button data-venda-id="<?= $venda->id ?>" class="js-venda-imprimir-btn inline-flex items-center px-5 py-2.5 bg-indigo-600 hover:bg-black text-white text-[10px] font-black rounded-2xl transition-all shadow-lg hover:shadow-indigo-200 active:scale-95 uppercase tracking-widest">
+                                <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2-2v4h10z" />
                                 </svg>
-                                Imprimir Recibo
+                                Imprimir Cupom
                             </button>
                         </div>
                     </div>
@@ -180,13 +247,13 @@ $this->title = 'Vendas Efetivadas';
         </div>
 
         <!-- Paginação -->
-        <div class="mt-8 flex justify-center">
+        <div class="mt-12 flex justify-center">
             <?= \yii\widgets\LinkPager::widget([
                 'pagination' => $dataProvider->pagination,
-                'options' => ['class' => 'flex space-x-2'],
-                'linkOptions' => ['class' => 'px-3 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700'],
-                'activePageCssClass' => 'bg-purple-600 border-purple-600 text-white',
-                'disabledPageCssClass' => 'opacity-50 cursor-not-allowed',
+                'options' => ['class' => 'flex items-center space-x-1.5'],
+                'linkOptions' => ['class' => 'px-4 py-2 bg-white border-2 border-gray-100 rounded-2xl hover:border-indigo-600 hover:text-indigo-600 transition-all text-xs font-black text-gray-500 uppercase tracking-widest'],
+                'activePageCssClass' => 'bg-indigo-600 border-indigo-600 text-white',
+                'disabledPageCssClass' => 'opacity-30 cursor-not-allowed',
                 'firstPageLabel' => '<<',
                 'lastPageLabel' => '>>',
                 'prevPageLabel' => '<',
@@ -197,6 +264,10 @@ $this->title = 'Vendas Efetivadas';
 </div>
 
 <!-- Modal Comprovante -->
+<?php
+// Registra o script necessário
+$this->registerJsFile('@web/js/venda-list.js', ['depends' => [\yii\web\JqueryAsset::class]]);
+?>
 <div id="modal-comprovante" class="fixed inset-0 z-[100] hidden overflow-y-auto">
     <!-- Overlay -->
     <div class="fixed inset-0 bg-gray-900/75 backdrop-blur-sm transition-opacity"></div>
