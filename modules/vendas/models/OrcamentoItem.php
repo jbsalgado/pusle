@@ -20,7 +20,7 @@ use app\modules\vendas\models\Orcamento;
  * @property string $produto_id
  * @property integer $quantidade
  * @property float $preco_unitario
- * @property float $valor_total
+ * @property float $subtotal
  * 
  * @property Orcamento $orcamento
  * @property Produto $produto
@@ -41,10 +41,10 @@ class OrcamentoItem extends ActiveRecord
     public function rules()
     {
         return [
-            [['orcamento_id', 'produto_id', 'quantidade', 'preco_unitario', 'valor_total'], 'required'],
+            [['orcamento_id', 'produto_id', 'quantidade', 'preco_unitario', 'subtotal'], 'required'],
             [['orcamento_id', 'produto_id'], 'string'],
             [['quantidade'], 'integer', 'min' => 1],
-            [['preco_unitario', 'valor_total'], 'number', 'min' => 0],
+            [['preco_unitario', 'subtotal'], 'number', 'min' => 0],
             [['orcamento_id'], 'exist', 'skipOnError' => true, 'targetClass' => Orcamento::class, 'targetAttribute' => ['orcamento_id' => 'id']],
             [['produto_id'], 'exist', 'skipOnError' => true, 'targetClass' => Produto::class, 'targetAttribute' => ['produto_id' => 'id']],
         ];
@@ -61,7 +61,7 @@ class OrcamentoItem extends ActiveRecord
             'produto_id' => 'Produto',
             'quantidade' => 'Quantidade',
             'preco_unitario' => 'Preço Unitário',
-            'valor_total' => 'Valor Total',
+            'subtotal' => 'Subtotal',
         ];
     }
 
@@ -71,7 +71,7 @@ class OrcamentoItem extends ActiveRecord
     public function beforeSave($insert)
     {
         if (parent::beforeSave($insert)) {
-            $this->valor_total = $this->quantidade * $this->preco_unitario;
+            $this->subtotal = $this->quantidade * $this->preco_unitario;
             return true;
         }
         return false;

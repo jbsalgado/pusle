@@ -23,6 +23,7 @@ let formasPagamento = [];
 let usuarioData = null;
 let clienteAtual = null; // Cliente para vendas parceladas
 let categoriaSelecionada = 'todos'; // Categoria atual (todos = null na API)
+let orcamentoIdAtual = null; // ✅ NOVO: Armazena ID do orçamento carregado
 
 // Cache de páginas já carregadas (melhora performance)
 const cacheProdutos = new Map();
@@ -58,6 +59,15 @@ async function init() {
         inicializarGerenciamentoMaquinetas(); // Inicializa botões e formulários de Point
         configurarListenerServiceWorker();
         configurarListenerAuth(); // ✅ NOVO: Listener para falhas de autenticação
+
+        // ✅ NOVO: Verifica se há orçamento para carregar no carrinho
+        const urlParams = new URLSearchParams(window.location.search);
+        const orcamentoId = urlParams.get('orcamento_id');
+        if (orcamentoId) {
+            await carregarOrcamentoNoCarrinho(orcamentoId);
+            // Remove o parâmetro da URL para evitar recarregamento ao dar refresh (pós-venda)
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
         
         // Exibir botão de maquinetas se Mercado Pago estiver habilitado
         const btnMaquinetas = document.getElementById('btn-gerenciar-maquinetas');
@@ -1334,7 +1344,8 @@ window.confirmarPedido = async function() {
             forma_pagamento_id: formaPagamentoId,
             numero_parcelas: numeroParcelas,
             data_primeiro_pagamento: permiteParcelamento && numeroParcelas > 1 ? document.getElementById('data-primeiro-pagamento')?.value || null : null,
-            intervalo_dias_parcelas: permiteParcelamento && numeroParcelas > 1 ? parseInt(document.getElementById('intervalo-dias')?.value || 30, 10) : null
+            intervalo_dias_parcelas: permiteParcelamento && numeroParcelas > 1 ? parseInt(document.getElementById('intervalo-dias')?.value || 30, 10) : null,
+            orcamento_id: orcamentoIdAtual // ✅ NOVO: Vincula venda ao orçamento
         };
         
         const carrinho = getCarrinho();
@@ -2170,6 +2181,85 @@ inicializarLeitorUSB();
 window.calcularTotalCarrinho = function() {
     atualizarAcrescimo();
 };
+
+/**
+ * Busca dados de um orçamento e carrega no carrinho
+ * @param {string} id UUID do orçamento
+ */
+async function carregarOrcamentoNoCarrinho(id) {
+    try {
+        console.log(`[App] 💸 Carregando orçamento ${id} no carrinho...`);
+        orcamentoIdAtual = id; // ✅ Armazena ID globalmente
+        
+        // Exibe loader
+        mostrarCarregando();
+        
+        const response = await fetchWithAuth(`${CONFIG.URL_API}/vendas/orcamento/detalhes?id=${id}`);
+        
+        if (!response.ok) {
+            throw new Error('Não foi possível carregar os detalhes do orçamento.');
+        }
+        
+        const orcamento = await response.json();
+        console.log('[App] 📋 Dados do orçamento recebidos:', orcamento);
+        
+        // 1. Limpa o carrinho atual
+        await limparCarrinho();
+        
+        // 2. Adiciona itens ao carrinho
+        if (orcamento.itens && Array.isArray(orcamento.itens)) {
+            for (const item of orcamento.itens) {
+                // Adiciona ao carrinho usando a estrutura esperada
+                // item já vem formatado do controller
+                adicionarAoCarrinho(item, item.quantidade);
+            }
+        }
+        
+        // 3. Define cliente se houver
+        if (orcamento.cliente) {
+            // Busca cliente completo para garantir consistência
+            const resultadoCliente = await buscarClientePorCpf(orcamento.cliente.cpf, CONFIG.ID_USUARIO_LOJA);
+            if (resultadoCliente.existe && resultadoCliente.cliente) {
+                clienteAtual = resultadoCliente.cliente;
+                setClienteAtual(resultadoCliente.cliente);
+                
+                // Preenche UI se o modal for aberto futuramente
+                const inputClienteId = document.getElementById('cliente_id');
+                if (inputClienteId) inputClienteId.value = clienteAtual.id;
+                
+                const nomeInfo = document.getElementById('nome-cliente-info');
+                if (nomeInfo) {
+                    nomeInfo.textContent = clienteAtual.nome_completo || clienteAtual.nome;
+                    document.getElementById('info-cliente')?.classList.remove('hidden');
+                }
+            }
+        }
+        
+        // 4. Aplica observações
+        const inputObs = document.getElementById('input-acrescimo-obs');
+        if (inputObs && orcamento.observacoes) {
+            inputObs.value = orcamento.observacoes;
+        }
+        
+        // 5. Atualiza UI do carrinho
+        renderizarCarrinho();
+        atualizarBadgeCarrinho();
+        atualizarIndicadoresCarrinho();
+        
+        // 6. Abre o modal do carrinho automaticamente
+        setTimeout(() => {
+            window.abrirCarrinho();
+        }, 800);
+        
+        console.log('[App] ✅ Orçamento carregado com sucesso!');
+        
+    } catch (error) {
+        console.error('[App] ❌ Erro ao carregar orçamento:', error);
+        alert('Erro ao carregar orçamento: ' + error.message);
+    } finally {
+        ocultarCarregando();
+    }
+}
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 export { init, carregarProdutos, abrirModal, fecharModal };

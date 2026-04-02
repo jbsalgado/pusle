@@ -40,6 +40,48 @@ $this->params['breadcrumbs'][] = $this->title;
             </div>
         </div>
 
+        <!-- Filtros Progressivos -->
+        <div class="mb-8 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="p-6">
+                <?php $form = \yii\widgets\ActiveForm::begin([
+                    'action' => ['index'],
+                    'method' => 'get',
+                    'options' => ['class' => 'grid grid-cols-1 md:grid-cols-4 gap-6'],
+                ]); ?>
+
+                <div class="col-span-1">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Cliente</label>
+                    <?= $form->field($searchModel, 'cliente_id')->dropDownList(
+                        \app\modules\vendas\models\Cliente::getListaDropdown(),
+                        ['prompt' => 'Todos os Clientes', 'class' => 'w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-all']
+                    )->label(false) ?>
+                </div>
+
+                <div class="col-span-1">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                    <?= $form->field($searchModel, 'status')->dropDownList(
+                        ['PENDENTE' => 'Pendente', 'APROVADO' => 'Aprovado', 'CONVERTIDO' => 'Convertido', 'CANCELADO' => 'Cancelado'],
+                        ['prompt' => 'Todos os Status', 'class' => 'w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-all']
+                    )->label(false) ?>
+                </div>
+
+                <div class="col-span-2">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Período</label>
+                    <div class="flex gap-2 items-center">
+                        <?= $form->field($searchModel, 'data_inicio')->input('date', ['class' => 'w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500'])->label(false) ?>
+                        <span class="text-gray-400">até</span>
+                        <?= $form->field($searchModel, 'data_fim')->input('date', ['class' => 'w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500'])->label(false) ?>
+                    </div>
+                </div>
+
+                <div class="col-span-1 md:col-span-4 flex justify-end gap-3 mt-2">
+                    <?= Html::a('Limpar', ['index'], ['class' => 'px-6 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-all']) ?>
+                    <?= Html::submitButton('Filtrar Resultados', ['class' => 'px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold shadow-lg shadow-blue-200 transition-all']) ?>
+                </div>
+                <?php \yii\widgets\ActiveForm::end(); ?>
+            </div>
+        </div>
+
         <!-- Visualização Grid (Tabela) -->
         <div id="view-grid" class="view-container bg-white rounded-lg shadow-md overflow-hidden">
             <div class="overflow-x-auto">
@@ -75,13 +117,27 @@ $this->params['breadcrumbs'][] = $this->title;
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         <?= Yii::$app->formatter->asDate($model->data_criacao) ?>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-center">
-                                        <button onclick="imprimirOrcamento(<?= $model->id ?>)" class="inline-flex items-center px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-md transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap text-center space-x-2">
+                                        <button onclick="imprimirOrcamento(<?= $model->id ?>)" class="inline-flex items-center px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-md transition-colors shadow-sm">
                                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                                             </svg>
                                             Imprimir
                                         </button>
+
+                                        <?php if ($model->status !== 'CONVERTIDO'): ?>
+                                            <?= Html::a(
+                                                '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>Converter em Venda',
+                                                ['converter', 'id' => $model->id],
+                                                [
+                                                    'class' => 'inline-flex items-center px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-md transition-colors shadow-sm',
+                                                    'data' => [
+                                                        'confirm' => 'Deseja converter este orçamento em uma venda direta?',
+                                                        'method' => 'post',
+                                                    ],
+                                                ]
+                                            ) ?>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -130,13 +186,29 @@ $this->params['breadcrumbs'][] = $this->title;
                                 </p>
                             </div>
 
-                            <!-- Botão de Ação -->
-                            <button onclick="imprimirOrcamento(<?= $model->id ?>)" class="w-full inline-flex items-center justify-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors">
-                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                                </svg>
-                                Imprimir Comprovante
-                            </button>
+                            <!-- Botões de Ação -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <button onclick="imprimirOrcamento(<?= $model->id ?>)" class="w-full inline-flex items-center justify-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors shadow-sm">
+                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                    </svg>
+                                    Imprimir
+                                </button>
+
+                                <?php if ($model->status !== 'CONVERTIDO'): ?>
+                                    <?= Html::a(
+                                        '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>Converter',
+                                        ['converter', 'id' => $model->id],
+                                        [
+                                            'class' => 'inline-flex items-center justify-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors shadow-sm',
+                                            'data' => [
+                                                'confirm' => 'Deseja converter este orçamento em uma venda direta?',
+                                                'method' => 'post',
+                                            ],
+                                        ]
+                                    ) ?>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     <?php endforeach; ?>
                 <?php else: ?>

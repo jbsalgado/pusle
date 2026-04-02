@@ -99,7 +99,8 @@ function prepararObjetoPedido(dadosPedido, carrinho) {
         // Adiciona dados do acréscimo
         acrescimo_valor: parseFloat(acrescimo.valor) || 0,
         acrescimo_tipo: acrescimo.tipo || null,
-        observacao_acrescimo: acrescimo.observacao || null
+        observacao_acrescimo: acrescimo.observacao || null,
+        orcamento_id: dadosPedido.orcamento_id || null // Link para orçamento convertido
     };
 
     // Só incluir campos de parcelamento se realmente houver parcelas

@@ -8,7 +8,8 @@ use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\filters\VerbFilter;
 use yii\filters\AccessControl;
-use yii\data\ActiveDataProvider;
+use app\modules\vendas\search\OrcamentoSearch;
+use yii\helpers\Url;
 
 class OrcamentoController extends Controller
 {
@@ -35,13 +36,9 @@ class OrcamentoController extends Controller
 
     public function actionIndex()
     {
-        $dataProvider = new ActiveDataProvider([
-            'query' => Orcamento::find()
-                ->where(['usuario_id' => Yii::$app->user->id])
-                ->with(['cliente', 'venda']),
-            'pagination' => ['pageSize' => 20],
-            'sort' => ['defaultOrder' => ['data_criacao' => SORT_DESC]],
-        ]);
+        $searchModel = new OrcamentoSearch();
+        $searchModel->usuario_id = Yii::$app->user->id;
+        $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
 
         // Registra CSS
         $this->view->registerCssFile(
@@ -56,8 +53,29 @@ class OrcamentoController extends Controller
         );
 
         return $this->render('index', [
+            'searchModel' => $searchModel,
             'dataProvider' => $dataProvider,
         ]);
+    }
+
+    /**
+     * Redireciona para o módulo de Venda Direta carregando o orçamento no carrinho
+     * @param string $id UUID do orçamento
+     */
+    public function actionConverter($id)
+    {
+        $model = $this->findModel($id);
+
+        if ($model->status === Orcamento::STATUS_CONVERTIDO) {
+            Yii::$app->session->setFlash('warning', 'Este orçamento já foi convertido em venda.');
+            return $this->redirect(['index']);
+        }
+
+        // Constrói URL para o PWA de Venda Direta
+        // Usa o alias @web para garantir que aponte para a pasta web/venda-direta/index.html
+        $urlVendaDireta = Url::to("@web/venda-direta/index.html", true) . "?orcamento_id=" . $id;
+
+        return $this->redirect($urlVendaDireta);
     }
 
     /**
@@ -75,11 +93,15 @@ class OrcamentoController extends Controller
         $itens = [];
         foreach ($model->itens as $item) {
             $itens[] = [
+                'id' => $item->produto_id, // ID do produto para o PWA
                 'nome' => $item->produto ? $item->produto->nome : 'Produto',
                 'quantidade' => (float) $item->quantidade,
-                'preco' => (float) $item->preco_unitario,
+                'preco_venda_sugerido' => (float) $item->preco_unitario, // Para compatibilidade com cart.js
                 'preco_final' => (float) $item->preco_unitario,
-                'subtotal' => (float) $item->subtotal, // orcamento_itens usa 'subtotal'
+                'subtotal' => (float) $item->subtotal,
+                'unidade_medida' => $item->produto ? $item->produto->unidade_medida : 'un',
+                'venda_fracionada' => $item->produto ? (bool)$item->produto->venda_fracionada : false,
+                'fotos' => $item->produto && $item->produto->fotos ? $item->produto->fotos : [],
             ];
         }
 

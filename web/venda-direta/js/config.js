@@ -27,8 +27,8 @@ const getLojaId = () => {
 const detectApiBaseUrl = () => {
     const pathname = window.location.pathname;
     
-    // Remove /venda-direta ou /venda-direta/index do final do path
-    let basePath = pathname.replace(/\/venda-direta(\/index)?(\/)?$/, '');
+    // Remove /venda-direta ou /venda-direta/index ou /venda-direta/index.html do final do path
+    let basePath = pathname.replace(/\/venda-direta(\/index(\.html)?)?(\/)?$/, '');
     
     // Se o path contém index.php, extrai tudo até /index.php
     if (basePath.includes('/index.php')) {
@@ -71,8 +71,8 @@ const detectWebBaseUrl = () => {
     const pathname = window.location.pathname;
     const origin = window.location.origin;
     
-    // Remove /venda-direta ou /venda-direta/index do final do path
-    let basePath = pathname.replace(/\/venda-direta(\/index)?\/?$/, '');
+    // Remove /venda-direta ou /venda-direta/index ou /venda-direta/index.html do final do path
+    let basePath = pathname.replace(/\/venda-direta(\/index(\.html)?)?\/?$/, '');
     
     // Remove /index.php se existir
     basePath = basePath.replace(/\/index\.php.*$/, '');

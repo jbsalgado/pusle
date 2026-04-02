@@ -7,6 +7,7 @@ use yii\rest\Controller;
 use app\modules\vendas\models\Venda;
 use app\modules\vendas\models\VendaItem;
 use app\modules\vendas\models\Produto;
+use app\modules\vendas\models\Orcamento;
 use yii\data\ActiveDataProvider;
 use yii\web\Response;
 use yii\web\BadRequestHttpException;
@@ -461,6 +462,23 @@ class PedidoController extends BaseController
                 // Usa a lógica centralizada que já trata estoque e parcelas
                 if (!$venda->alterarStatus(\app\modules\vendas\models\StatusVenda::QUITADA)) {
                     throw new Exception('Erro ao auto-confirmar venda.');
+                }
+            }
+
+            // ===== ATUALIZAR ORÇAMENTO (Se houver) =====
+            $orcamentoId = $data['orcamento_id'] ?? null;
+            if ($orcamentoId) {
+                $orcamento = Orcamento::findOne($orcamentoId);
+                if ($orcamento && $orcamento->usuario_id === $usuarioId) {
+                    $orcamento->status = Orcamento::STATUS_CONVERTIDO;
+                    $orcamento->venda_id = (string)$venda->id;
+                    if (!$orcamento->save()) {
+                        Yii::error("❌ FALHA ao atualizar Orcamento {$orcamentoId}: " . print_r($orcamento->errors, true), 'api');
+                        // Não lançamos exception para não dar rollback na venda, pois a venda é mais importante
+                        // mas registramos o erro.
+                    } else {
+                        Yii::info("✅ Orçamento {$orcamentoId} marcado como CONVERTIDO e vinculado à Venda {$venda->id}", 'api');
+                    }
                 }
             }
 
