@@ -15,9 +15,9 @@ use app\modules\vendas\models\OrcamentoItem;
  * ============================================================================================================
  * Model: Orcamento
  * ============================================================================================================
- * Tabela: prest_orcamentos
+ * Tabela: orcamentos
  * 
- * @property string $id
+ * @property int $id
  * @property string $usuario_id
  * @property string $cliente_id
  * @property float $valor_total
@@ -45,7 +45,7 @@ class Orcamento extends ActiveRecord
      */
     public static function tableName()
     {
-        return 'prest_orcamentos';
+        return 'orcamentos';
     }
 
     /**

@@ -289,7 +289,7 @@ class OrcamentoController extends Controller
         if (ob_get_length()) ob_end_clean();
 
         header('Content-Type: application/pdf');
-        header('Content-Disposition: inline; filename="Orcamento_' . substr($model->id, 0, 8) . '.pdf"');
+        header('Content-Disposition: inline; filename="Orcamento_' . $model->id . '.pdf"');
         header('Content-Length: ' . strlen($pdfData));
         header('Cache-Control: private, max-age=0, must-revalidate');
         header('Pragma: public');
@@ -328,7 +328,7 @@ class OrcamentoController extends Controller
 
         // Título e Dados do Orçamento
         $pdf->SetFont('Arial', 'B', 12);
-        $pdf->Cell(95, 8, utf8_decode("ORÇAMENTO Nº: " . strtoupper(substr($model->id, 0, 8))), 0, 0);
+        $pdf->Cell(95, 8, utf8_decode("ORÇAMENTO Nº: " . strtoupper($model->id)), 0, 0);
         $pdf->SetFont('Arial', '', 10);
         $pdf->Cell(95, 8, utf8_decode("Data: " . date('d/m/Y H:i', strtotime($model->data_criacao))), 0, 1, 'R');
         $pdf->Ln(2);
@@ -440,7 +440,7 @@ class OrcamentoController extends Controller
 
         Yii::$app->response->format = \yii\web\Response::FORMAT_RAW;
         Yii::$app->response->headers->add('Content-Type', 'application/pdf');
-        return $pdf->Output('I', 'Orcamento_' . substr($model->id, 0, 8) . '.pdf');
+        return $pdf->Output('I', 'Orcamento_' . $model->id . '.pdf');
     }
 
     protected function findModel($id)

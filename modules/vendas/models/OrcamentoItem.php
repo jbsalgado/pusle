@@ -10,8 +10,8 @@ use app\modules\vendas\models\Produto;
 use app\modules\vendas\models\Orcamento;
 
 /**
- * @property string $id
- * @property string $orcamento_id
+ * @property int $id
+ * @property int $orcamento_id
  * @property string $produto_id
  * @property float $quantidade
  * @property float $preco_unitario
@@ -29,7 +29,7 @@ class OrcamentoItem extends ActiveRecord
      */
     public static function tableName()
     {
-        return 'prest_orcamento_itens';
+        return 'orcamento_itens';
     }
 
     /**
@@ -39,7 +39,8 @@ class OrcamentoItem extends ActiveRecord
     {
         return [
             [['orcamento_id', 'produto_id', 'quantidade', 'preco_unitario'], 'required'],
-            [['orcamento_id', 'produto_id'], 'string'],
+            [['produto_id'], 'string'],
+            [['orcamento_id'], 'integer'],
             [['quantidade'], 'number', 'min' => 0.001],
             [['preco_unitario', 'valor_total', 'desconto_valor', 'desconto_percentual'], 'number', 'min' => 0],
             [['orcamento_id'], 'exist', 'skipOnError' => true, 'targetClass' => Orcamento::class, 'targetAttribute' => ['orcamento_id' => 'id']],
