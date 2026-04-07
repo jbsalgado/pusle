@@ -471,13 +471,12 @@ class PedidoController extends BaseController
                 $orcamento = Orcamento::findOne($orcamentoId);
                 if ($orcamento && $orcamento->usuario_id === $usuarioId) {
                     $orcamento->status = Orcamento::STATUS_CONVERTIDO;
-                    $orcamento->venda_id = (string)$venda->id;
                     if (!$orcamento->save()) {
                         Yii::error("❌ FALHA ao atualizar Orcamento {$orcamentoId}: " . print_r($orcamento->errors, true), 'api');
                         // Não lançamos exception para não dar rollback na venda, pois a venda é mais importante
                         // mas registramos o erro.
                     } else {
-                        Yii::info("✅ Orçamento {$orcamentoId} marcado como CONVERTIDO e vinculado à Venda {$venda->id}", 'api');
+                        Yii::info("✅ Orçamento {$orcamentoId} marcado como CONVERTIDO para Venda {$venda->id}", 'api');
                     }
                 }
             }
