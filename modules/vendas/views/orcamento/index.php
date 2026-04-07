@@ -79,6 +79,45 @@ $this->params['breadcrumbs'][] = $this->title;
                     <?= Html::submitButton('Filtrar Resultados', ['class' => 'px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold shadow-lg shadow-blue-200 transition-all']) ?>
                 </div>
                 <?php \yii\widgets\ActiveForm::end(); ?>
+
+                <!-- Dashboard de Resumo -->
+                <div id="orcamento-dashboard" class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center">
+                        <div class="p-3 bg-purple-100 rounded-lg mr-4">
+                            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium">Orçamentos Hoje</p>
+                            <p id="dash-hoje-valor" class="text-2xl font-bold text-gray-900">R$ 0,00</p>
+                            <p id="dash-hoje-qtd" class="text-xs text-gray-400">0 orçamentos</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center">
+                        <div class="p-3 bg-yellow-100 rounded-lg mr-4">
+                            <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium">Total Pendente</p>
+                            <p id="dash-pendente-valor" class="text-2xl font-bold text-gray-900">R$ 0,00</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center">
+                        <div class="p-3 bg-red-100 rounded-lg mr-4">
+                            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium">Vencendo Amanhã</p>
+                            <p id="dash-vencendo-qtd" class="text-2xl font-bold text-gray-900">0</p>
+                            <p class="text-xs text-gray-400">orçamentos p/ fechar</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -92,8 +131,9 @@ $this->params['breadcrumbs'][] = $this->title;
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
                             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Valor Total</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data</th>
-                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ações</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Validade</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -116,6 +156,17 @@ $this->params['breadcrumbs'][] = $this->title;
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         <?= Yii::$app->formatter->asDate($model->data_criacao) ?>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <?php if ($model->data_validade): ?>
+                                            <?php $vencido = strtotime($model->data_validade) < time(); ?>
+                                            <span class="text-xs font-bold <?= $vencido ? 'text-red-500' : 'text-gray-600' ?>">
+                                                <?= Yii::$app->formatter->asDate($model->data_validade) ?>
+                                                <?= $vencido ? ' (Vencido)' : '' ?>
+                                            </span>
+                                        <?php else: ?>
+                                            -
+                                        <?php endif; ?>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-center space-x-2">
                                         <button onclick="imprimirOrcamento(<?= $model->id ?>)" class="inline-flex items-center px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-md transition-colors shadow-sm">
@@ -186,14 +237,17 @@ $this->params['breadcrumbs'][] = $this->title;
                                 </p>
                             </div>
 
-                            <!-- Botões de Ação -->
+
+                            <!-- Tabela de Orçamentos -->
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <button onclick="imprimirOrcamento(<?= $model->id ?>)" class="w-full inline-flex items-center justify-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors shadow-sm">
-                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                                    </svg>
-                                    Imprimir
-                                </button>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button onclick="imprimirOrcamento('<?= $model->id ?>')" class="w-full inline-flex items-center justify-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors shadow-sm">
+                                        Visualizar
+                                    </button>
+                                    <a href="<?= Url::to(['imprimir', 'id' => $model->id]) ?>" target="_blank" class="w-full inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors shadow-sm">
+                                        PDF
+                                    </a>
+                                </div>
 
                                 <?php if ($model->status !== 'CONVERTIDO'): ?>
                                     <?= Html::a(
@@ -251,24 +305,12 @@ $this->params['breadcrumbs'][] = $this->title;
             <!-- Conteúdo do comprovante será inserido aqui via JavaScript -->
         </div>
 
-        <div class="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-center gap-3">
-            <button onclick="imprimirNormal()" class="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-colors">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-                Imprimir
-            </button>
-            <button onclick="imprimirTermica()" class="inline-flex items-center px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg shadow-md transition-colors">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-                Imprimir (Térmica)
-            </button>
-        </div>
     </div>
+</div>
 </div>
 
 <?php
 // Passa URL base para o JavaScript
 $this->registerJs("window.BASE_URL = '" . Url::base(true) . "';", \yii\web\View::POS_HEAD);
+$this->registerJsFile('@web/js/orcamento-list.js?v=5', ['depends' => [\yii\web\JqueryAsset::class]]);
 ?>

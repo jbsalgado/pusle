@@ -23,7 +23,7 @@ use app\modules\vendas\models\OrcamentoItem;
  * @property float $valor_total
  * @property string $status
  * @property string $venda_id
- * @property string $data_validade
+ * @property string $validade_ate
  * @property string $observacoes
  * @property string $data_criacao
  * @property string $data_atualizacao
@@ -45,7 +45,7 @@ class Orcamento extends ActiveRecord
      */
     public static function tableName()
     {
-        return 'orcamentos';
+        return 'prest_orcamentos';
     }
 
     /**
@@ -58,9 +58,24 @@ class Orcamento extends ActiveRecord
                 'class' => TimestampBehavior::class,
                 'createdAtAttribute' => 'data_criacao',
                 'updatedAtAttribute' => 'data_atualizacao',
-                'value' => new Expression('NOW()'),
+                'value' => new \yii\db\Expression('NOW()'),
             ],
         ];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function beforeSave($insert)
+    {
+        if (parent::beforeSave($insert)) {
+            // Se não houver data de validade, define para +7 dias por padrão
+            if ($insert && empty($this->validade_ate)) {
+                $this->validade_ate = date('Y-m-d', strtotime('+7 days'));
+            }
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -80,7 +95,7 @@ class Orcamento extends ActiveRecord
                 self::STATUS_CONVERTIDO
             ]],
             [['status'], 'default', 'value' => self::STATUS_PENDENTE],
-            [['data_validade'], 'date', 'format' => 'php:Y-m-d'],
+            [['validade_ate'], 'date', 'format' => 'php:Y-m-d'],
             [['observacoes'], 'string'],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
             [['cliente_id'], 'exist', 'skipOnError' => true, 'targetClass' => Cliente::class, 'targetAttribute' => ['cliente_id' => 'id']],
@@ -100,7 +115,7 @@ class Orcamento extends ActiveRecord
             'valor_total' => 'Valor Total',
             'status' => 'Status',
             'venda_id' => 'Venda Gerada',
-            'data_validade' => 'Válido Até',
+            'validade_ate' => 'Válido Até',
             'observacoes' => 'Observações',
             'data_criacao' => 'Data de Criação',
             'data_atualizacao' => 'Última Atualização',
@@ -112,8 +127,8 @@ class Orcamento extends ActiveRecord
      */
     public function getEstaVencido()
     {
-        if (!$this->data_validade) return false;
-        return strtotime($this->data_validade) < time();
+        if (!$this->validade_ate) return false;
+        return strtotime($this->validade_ate) < time();
     }
 
     public function getUsuario()

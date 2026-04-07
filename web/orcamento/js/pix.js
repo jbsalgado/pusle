@@ -766,7 +766,7 @@ window.confirmarRecebimentoPix = async function () {
     sessionStorage.setItem(
       "orcamento_confirmado_comprovante",
       JSON.stringify({
-        venda: vendaConfirmada,
+        orçamento: vendaConfirmada,
         dadosPedido: dadosPedidoPix,
         carrinho: carrinho,
         formaPagamento: "PIX",
@@ -928,66 +928,63 @@ async function gerarComprovanteOrcamento(carrinho, dadosPedido) {
     cidade = enderecoPartes.slice(1).join(", ").trim() || "";
   }
 
-  // ✅ CORREÇÃO: Priorizar valor total da venda salva no banco (já inclui todos os descontos e acréscimos)
-  // Primeiro tenta buscar do objeto venda dentro de dadosPedido (se existir), senão busca direto em dadosPedido
-  const dadosVenda = dadosPedido.venda || dadosPedido;
+  // Primeiro tenta buscar do objeto orçamento ou venda dentro de dadosPedido (se existir), senão busca direto em dadosPedido
+  const dadosVenda = dadosPedido.orçamento || dadosPedido.venda || dadosPedido;
 
-  // Tenta usar o valor total da venda salva no banco (mais confiável)
-  let valorTotal = parseFloat(
-    dadosVenda.valor_total ||
-      dadosPedido.valorTotal ||
-      dadosPedido.valor_total ||
-      0,
-  );
+  // Calcula totais detalhados para exibição (Subtotal e Descontos)
+  let subtotalGeral = 0;
+  let totalDescontos = 0;
 
-  // Se não houver valor total da venda, recalcula a partir do carrinho
-  if (!valorTotal || valorTotal <= 0) {
-    valorTotal = carrinho.reduce((total, item) => {
-      // Normalização de campos
-      // ✅ CORREÇÃO: Priorizar preço promocional (preco_final) se disponível
-      const preco = parseFloat(
-        item.preco_final ||
-          item.preco ||
-          item.preco_venda_sugerido ||
-          item.preco_unitario ||
-          item.preco_unitario_venda ||
-          0,
-      );
-      const qtd = parseFloat(item.quantidade || 0);
-      const subtotalBruto = preco * qtd;
-
-      // Processa desconto
-      let descontoValor = parseFloat(
-        item.descontoValor || item.desconto_valor || 0,
-      );
-      let descontoPercentual = parseFloat(
-        item.descontoPercentual || item.desconto_percentual || 0,
-      );
-
-      let valorDesconto = 0;
-      if (descontoValor > 0) {
-        valorDesconto = descontoValor;
-      } else if (descontoPercentual > 0) {
-        valorDesconto = subtotalBruto * (descontoPercentual / 100);
-      }
-
-      // Total Líquido
-      const subtotalLiquido = Math.max(0, subtotalBruto - valorDesconto);
-
-      return total + subtotalLiquido;
-    }, 0);
-
-    // Adiciona acréscimo se houver (compatível com snake_case do backend ou JS puro)
-    const acrescimoValor = parseFloat(
-      dadosVenda.acrescimo_valor || dadosPedido.acrescimo_valor || 0,
+  carrinho.forEach((item) => {
+    // Normalização de campos
+    const preco = parseFloat(
+      item.preco_final ||
+        item.preco ||
+        item.preco_venda_sugerido ||
+        item.preco_unitario ||
+        item.preco_unitario_venda ||
+        0,
     );
-    valorTotal += acrescimoValor;
-  }
+    const qtd = parseFloat(item.quantidade || 0);
+    const subtotalBruto = preco * qtd;
+    subtotalGeral += subtotalBruto;
 
-  // Busca dados do acréscimo para exibição (mesmo que já esteja no valor total)
+    // Processa desconto
+    let descontoValor = parseFloat(
+      item.descontoValor || item.desconto_valor || 0,
+    );
+    let descontoPercentual = parseFloat(
+      item.descontoPercentual || item.desconto_percentual || 0,
+    );
+
+    let valorDesconto = 0;
+    if (descontoValor > 0) {
+      valorDesconto = descontoValor;
+    } else if (descontoPercentual > 0) {
+      valorDesconto = subtotalBruto * (descontoPercentual / 100);
+    }
+    totalDescontos += valorDesconto;
+  });
+
+  // Busca dados do acréscimo
   const acrescimoValor = parseFloat(
     dadosVenda.acrescimo_valor || dadosPedido.acrescimo_valor || 0,
   );
+
+  // ✅ CORREÇÃO: Define valorTotal (estava faltando e causando ReferenceError)
+  let valorTotal = parseFloat(
+    dadosVenda.valor_total || dadosPedido.valorTotal || 0,
+  );
+
+  // Recalcula valor total se parecer inconsistente ou se não veio do banco
+  const totalCalculado = subtotalGeral - totalDescontos + acrescimoValor;
+
+  if (!valorTotal || valorTotal <= 0 || Math.abs(valorTotal - totalCalculado) > 0.01) {
+    console.warn(`[PIX] ⚠️ Ajustando total para consistência visual: Banco=${valorTotal}, Calculado=${totalCalculado}`);
+    valorTotal = totalCalculado;
+  }
+
+  // Busca dados do acréscimo para exibição (mesmo que já esteja no valor total)
   const acrescimoTipo =
     dadosVenda.acrescimo_tipo || dadosPedido.acrescimo_tipo || "";
   const acrescimoObs =
@@ -1258,20 +1255,25 @@ async function gerarComprovanteOrcamento(carrinho, dadosPedido) {
       .join("")}
     
     <div class="separador">--------------------------------</div>
-
-    ${
-      acrescimoValor > 0
-        ? `
-    <div class="item" style="margin-top: 5px; border-bottom: 1px dotted #ccc; padding-bottom: 5px;">
-        <div class="item-detalhes" style="font-weight: bold;">
-            <span>${acrescimoTipo || "ACRÉSCIMO"}</span>
-            <span>+${formatarValor(acrescimoValor)}</span>
+    
+    <div style="font-size: 11px; margin-bottom: 5px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+            <span>SUBTOTAL:</span>
+            <span>${formatarMoeda(subtotalGeral)}</span>
         </div>
-        ${acrescimoObs ? `<div style="font-size: 9px; color: #555; margin-top: 2px;">Obs: ${acrescimoObs}</div>` : ""}
+        ${totalDescontos > 0 ? `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 2px; color: #444;">
+            <span>DESCONTOS:</span>
+            <span>-${formatarMoeda(totalDescontos)}</span>
+        </div>` : ''}
+        ${acrescimoValor > 0 ? `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+             <span>${acrescimoTipo || 'ACRÉSCIMO'}:</span>
+             <span>+${formatarValor(acrescimoValor)}</span>
+        </div>
+        ${acrescimoObs ? `<div style="font-size: 9px; color: #555; text-align: right; margin-bottom: 2px;">(${acrescimoObs})</div>` : ''}
+        ` : ''}
     </div>
-    `
-        : ""
-    }
     
     <div class="total">
         TOTAL: ${valorFormatado}
@@ -1279,7 +1281,7 @@ async function gerarComprovanteOrcamento(carrinho, dadosPedido) {
     
     <div class="pagamento">
         <div class="pagamento-tipo">FORMA DE PAGAMENTO: ${dadosPedido.forma_pagamento || dadosVenda.forma_pagamento_nome || "Não informado"}</div>
-        ${dadosPedido.numero_parcelas === 1 ? `<div>VALOR DO ORÇAMENTO: ${valorFormatado}</div>` : `<div>${dadosPedido.numero_parcelas}x de ${formatarMoeda(valorTotal / dadosPedido.numero_parcelas)}</div>`}
+        ${(!dadosPedido.numero_parcelas || dadosPedido.numero_parcelas <= 1) ? `<div>VALOR DO ORÇAMENTO: ${valorFormatado}</div>` : `<div>${dadosPedido.numero_parcelas}x de ${formatarMoeda(valorTotal / dadosPedido.numero_parcelas)}</div>`}
     </div>
 
     ${dadosPedido.observacoes ? `
@@ -1489,7 +1491,8 @@ async function gerarComprovanteOrcamento(carrinho, dadosPedido) {
             valorTotal,
             dataHora,
             acrescimoValor,
-            descontoTotal: dadosPedido.descontoTotal || 0, // Ajuste conforme estrutura real se necessário
+            descontoTotal: totalDescontos, // Agora usando o valor real calculado
+            subtotalGeral: subtotalGeral,
           };
 
           // Abre o modal
@@ -1541,8 +1544,10 @@ async function gerarComprovanteOrcamento(carrinho, dadosPedido) {
 function gerarTextoComprovante() {
   if (!window.dadosComprovanteAtual) return "";
 
-  const { carrinho, dadosPedido, dadosEmpresa, valorTotal, dataHora } =
-    window.dadosComprovanteAtual;
+  const { 
+    carrinho, dadosPedido, dadosEmpresa, valorTotal, dataHora,
+    subtotalGeral, totalDescontos, acrescimoValor, acrescimoTipo, acrescimoObs 
+  } = window.dadosComprovanteAtual;
   const largura = 32; // Colunas (padrão 58mm)
   const linhaSeparadora = "-".repeat(largura);
 
@@ -1631,6 +1636,15 @@ function gerarTextoComprovante() {
   texto += linhaSeparadora + "\n";
 
   // Totais
+  if (subtotalGeral && subtotalGeral > 0) texto += row("SUBTOTAL", `R$ ${parseFloat(subtotalGeral).toFixed(2)}`) + "\n";
+  if (totalDescontos && totalDescontos > 0) texto += row("DESCONTOS", `-R$ ${parseFloat(totalDescontos).toFixed(2)}`) + "\n";
+  
+  if (acrescimoValor > 0) {
+    const labelAcr = (acrescimoTipo || 'ACRESCIMO').toUpperCase().substring(0, 18);
+    texto += row(labelAcr, `+R$ ${parseFloat(acrescimoValor).toFixed(2)}`) + "\n";
+    if (acrescimoObs) texto += center(`(${acrescimoObs})`) + "\n";
+  }
+
   texto += row("TOTAL", `R$ ${valorTotal.toFixed(2)}`) + "\n";
   const formaPgto = removerAcentos(
     dadosPedido.forma_pagamento || "DINHEIRO",

@@ -10,17 +10,14 @@ use app\modules\vendas\models\Produto;
 use app\modules\vendas\models\Orcamento;
 
 /**
- * ============================================================================================================
- * Model: OrcamentoItem
- * ============================================================================================================
- * Tabela: prest_orcamento_itens
- * 
  * @property string $id
  * @property string $orcamento_id
  * @property string $produto_id
- * @property integer $quantidade
+ * @property float $quantidade
  * @property float $preco_unitario
- * @property float $subtotal
+ * @property float $desconto_valor
+ * @property float $desconto_percentual
+ * @property float $valor_total
  * 
  * @property Orcamento $orcamento
  * @property Produto $produto
@@ -32,7 +29,7 @@ class OrcamentoItem extends ActiveRecord
      */
     public static function tableName()
     {
-        return 'orcamento_itens';
+        return 'prest_orcamento_itens';
     }
 
     /**
@@ -41,10 +38,10 @@ class OrcamentoItem extends ActiveRecord
     public function rules()
     {
         return [
-            [['orcamento_id', 'produto_id', 'quantidade', 'preco_unitario', 'subtotal'], 'required'],
+            [['orcamento_id', 'produto_id', 'quantidade', 'preco_unitario'], 'required'],
             [['orcamento_id', 'produto_id'], 'string'],
-            [['quantidade'], 'integer', 'min' => 1],
-            [['preco_unitario', 'subtotal'], 'number', 'min' => 0],
+            [['quantidade'], 'number', 'min' => 0.001],
+            [['preco_unitario', 'valor_total', 'desconto_valor', 'desconto_percentual'], 'number', 'min' => 0],
             [['orcamento_id'], 'exist', 'skipOnError' => true, 'targetClass' => Orcamento::class, 'targetAttribute' => ['orcamento_id' => 'id']],
             [['produto_id'], 'exist', 'skipOnError' => true, 'targetClass' => Produto::class, 'targetAttribute' => ['produto_id' => 'id']],
         ];
@@ -61,7 +58,9 @@ class OrcamentoItem extends ActiveRecord
             'produto_id' => 'Produto',
             'quantidade' => 'Quantidade',
             'preco_unitario' => 'Preço Unitário',
-            'subtotal' => 'Subtotal',
+            'desconto_valor' => 'Desconto (R$)',
+            'desconto_percentual' => 'Desconto (%)',
+            'valor_total' => 'Subtotal',
         ];
     }
 
@@ -71,7 +70,7 @@ class OrcamentoItem extends ActiveRecord
     public function beforeSave($insert)
     {
         if (parent::beforeSave($insert)) {
-            $this->subtotal = $this->quantidade * $this->preco_unitario;
+            $this->valor_total = $this->quantidade * $this->preco_unitario;
             return true;
         }
         return false;

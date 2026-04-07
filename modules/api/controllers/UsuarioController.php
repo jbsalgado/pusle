@@ -128,6 +128,9 @@ class UsuarioController extends Controller
             // ✅ PRIORIDADE 1: Busca na tabela loja_configuracao (Configuração Centralizada)
             $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $lojaId]);
 
+            // ✅ BUSCA TAMBÉM EM prest_configuracoes (Configuração Principal onde costumam estar os dados de PIX)
+            $config = \app\modules\vendas\models\Configuracao::findOne(['usuario_id' => $lojaId]);
+
             if ($lojaConfig) {
                 return [
                     'nome' => $lojaConfig->nome_loja,
@@ -147,17 +150,17 @@ class UsuarioController extends Controller
                     'inscricao_estadual' => $lojaConfig->inscricao_estadual,
                     'inscricao_municipal' => $lojaConfig->inscricao_municipal,
                     'site' => $lojaConfig->site,
-                    'pix_chave' => $lojaConfig->pix_chave,
-                    'pix_nome' => $lojaConfig->pix_nome,
-                    'pix_cidade' => $lojaConfig->pix_cidade,
+                    // ✅ PRIORIZA: prest_configuracoes para PIX se preenchido, senão usa loja_configuracao
+                    'pix_chave' => $config->pix_chave ?? $lojaConfig->pix_chave,
+                    'pix_nome' => $config->pix_nome ?? $lojaConfig->pix_nome,
+                    'pix_cidade' => $config->pix_cidade ?? $lojaConfig->pix_cidade,
                 ];
             }
 
             // ⚠️ FALLBACK: Busca em prest_usuarios (Configuração Legada)
             $sql = "
                 SELECT 
-                    id, nome, cpf, telefone, email, endereco, bairro, cidade, estado, logo_path,
-                    pix_chave, pix_nome, pix_cidade
+                    id, nome, cpf, telefone, email, endereco, bairro, cidade, estado, logo_path
                 FROM prest_usuarios
                 WHERE id = :id::uuid
                 LIMIT 1
@@ -172,9 +175,6 @@ class UsuarioController extends Controller
                 return ['erro' => 'Configuração da loja não encontrada'];
             }
 
-            // Busca configuração da loja secundária (se existir)
-            $config = \app\modules\vendas\models\Configuracao::findOne(['usuario_id' => $lojaId]);
-
             // Monta endereço completo
             $enderecoPartes = array_filter([
                 $usuario['endereco'] ?? '',
@@ -182,6 +182,7 @@ class UsuarioController extends Controller
                 $usuario['cidade'] ?? '',
                 $usuario['estado'] ?? ''
             ]);
+            // Se tiver $config (prest_configuracoes), usa o endereço dela se o outro estiver vazio
             $enderecoCompleto = !empty($enderecoPartes) ? implode(', ', $enderecoPartes) : ($config->endereco_completo ?? '');
 
             return [
@@ -196,9 +197,10 @@ class UsuarioController extends Controller
                 'estado' => $usuario['estado'] ?? '',
                 'endereco_completo' => $enderecoCompleto,
                 'logo_path' => (!empty($config->logo_path)) ? $config->logo_path : ($usuario['logo_path'] ?? ''),
-                'pix_chave' => $usuario['pix_chave'] ?? null,
-                'pix_nome' => $usuario['pix_nome'] ?? null,
-                'pix_cidade' => $usuario['pix_cidade'] ?? null,
+                // ✅ PEGA SEMPRE DE prest_configuracoes (Configuracao) para PIX no fallback
+                'pix_chave' => $config->pix_chave ?? null,
+                'pix_nome' => $config->pix_nome ?? null,
+                'pix_cidade' => $config->pix_cidade ?? null,
             ];
         } catch (\Exception $e) {
             Yii::$app->response->statusCode = 500;

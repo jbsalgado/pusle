@@ -1674,15 +1674,16 @@ async function verificarComprovantePosReload() {
         const { gerarComprovanteOrcamento } = await import('./pix.js?v=fix_routing');
         
         // Gera e exibe o comprovante
+        const orcamento = dados.orçamento || dados.venda || {};
         await gerarComprovanteOrcamento(dados.carrinho, {
             ...dados.dadosPedido,
-            orçamento: dados.orçamento, // Passa objeto completo
-            venda_id: dados.orçamento?.id || dados.orçamento?.data?.id || dados.orçamento?.dados?.id, // ID Robustez
+            orçamento: orcamento, 
+            venda_id: orcamento?.id || orcamento?.data?.id || orcamento?.dados?.id || dados.dadosPedido?.venda_id,
             itens: dados.carrinho,
-            valorTotal: dados.orçamento.valor_total,
-            forma_pagamento: dados.formaPagamento,
-            parcelas: dados.orçamento.parcelas || null,
-            cliente: dados.orçamento.cliente || null
+            valorTotal: orcamento?.valor_total || dados.dadosPedido?.valorTotal || 0,
+            forma_pagamento: dados.formaPagamento || orcamento?.forma_pagamento_nome || 'Não informado',
+            parcelas: orcamento?.parcelas || null,
+            cliente: orcamento?.cliente || null
         });
         
     } catch (error) {

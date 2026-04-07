@@ -240,7 +240,15 @@ function _renderHTMLRecibo(venda, empresa) {
             <div class="text-center mb-4">
                 <h3 class="text-lg font-bold">RECIBO DE VENDA</h3>
                 <p class="text-sm">Nº: ${venda.id.substring(0, 8).toUpperCase()}</p>
-                <p class="text-xs text-gray-500">${dataHora}</p>
+                ${venda.orcamento_id ? `
+                    <p class="text-[10px] italic text-blue-600">ORIGEM: ORÇAMENTO #${venda.orcamento_id}</p>
+                    ${venda.orcamento_valor_original && Math.abs(venda.orcamento_valor_original - venda.valor_total) > 0.01 ? `
+                        <div class="mt-1 px-2 py-1 bg-yellow-50 border border-yellow-200 rounded text-[10px] text-yellow-700 font-bold">
+                            ⚠️ DIVERGÊNCIA: Valor alterado após conversão (Original: R$ ${venda.orcamento_valor_original.toLocaleString('pt-BR', {minimumFractionDigits: 2})})
+                        </div>
+                    ` : ''}
+                ` : ''}
+                <p class="text-xs text-gray-500 mt-1">${dataHora}</p>
             </div>
             
             <!-- Cliente -->
@@ -252,62 +260,123 @@ function _renderHTMLRecibo(venda, empresa) {
             <!-- Itens -->
             <div class="mb-4">
                 <table class="w-full text-sm">
-                    <thead>
-                        <tr class="border-b border-gray-300">
-                            <th class="text-left py-1 font-bold">Item</th>
-                            <th class="text-center py-1 font-bold">Qt</th>
-                            <th class="text-right py-1 font-bold">Vlr</th>
-                            <th class="text-right py-1 font-bold">Total</th>
+                    <thead class="border-b-2 border-gray-300">
+                        <tr>
+                            <th class="text-left py-2 font-bold">Item</th>
+                            <th class="text-center py-2 font-bold">Qt</th>
+                            <th class="text-right py-2 font-bold">Vlr</th>
+                            <th class="text-right py-2 font-bold">Total</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${venda.itens.map(i => `
+                        ${venda.itens.map(i => {
+                            const subtotalBruto = i.quantidade * i.preco;
+                            const descontoItem = i.desconto_valor || 0;
+                            return `
                             <tr>
                                 <td class="py-1">${i.nome}</td>
                                 <td class="text-center py-1">${i.quantidade}</td>
                                 <td class="text-right py-1">${i.preco.toFixed(2)}</td>
-                                <td class="text-right py-1 font-bold">${(i.quantidade * i.preco).toFixed(2)}</td>
+                                <td class="text-right py-1 font-bold">${subtotalBruto.toFixed(2)}</td>
                             </tr>
-                        `).join('')}
+                            ${descontoItem > 0 ? `
+                            <tr class="text-[10px] text-gray-500 italic">
+                                <td colspan="3" class="py-0 pl-4">
+                                    (-) Desconto ${i.desconto_percentual > 0 ? i.desconto_percentual.toFixed(2) + '%' : ''}
+                                </td>
+                                <td class="text-right py-0">- ${descontoItem.toFixed(2)}</td>
+                            </tr>
+                            ` : ''}
+                        `;}).join('')}
                     </tbody>
                 </table>
             </div>
             
             ${(() => {
                 const somaBruta = venda.itens.reduce((acc, i) => acc + (i.quantidade * i.preco), 0);
-                const diff = somaBruta - venda.valor_total;
-                if (diff > 0.01) {
-                    return `
-                    <div class="border-t border-gray-300 pt-2 space-y-1 pb-2">
+                const totalDescontosItems = venda.itens.reduce((acc, i) => acc + (i.desconto_valor || 0), 0);
+                const acrescimo = venda.acrescimo_valor || 0;
+                
+                const totalPecas = venda.itens.reduce((acc, i) => acc + (parseFloat(i.quantidade) || 0), 0);
+                
+                let html = '<div class="border-t border-gray-300 pt-2 space-y-1 pb-2">';
+                
+                // Sempre mostra subtotal se houver descontos ou acréscimos para clareza
+                if (totalDescontosItems > 0 || acrescimo > 0) {
+                    html += `
                         <div class="flex justify-between text-sm text-gray-600">
-                            <span>SUBTOTAL:</span>
+                            <span>SUBTOTAL BRUTO:</span>
                             <span>R$ ${somaBruta.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
                         </div>
-                        <div class="flex justify-between text-sm text-red-600">
-                            <span>DESCONTO:</span>
-                            <span>-R$ ${diff.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-                        </div>
-                    </div>`;
+                    `;
                 }
-                return '';
+
+                if (totalDescontosItems > 0) {
+                    html += `
+                        <div class="flex justify-between text-sm text-red-600 font-medium">
+                            <span>TOTAL DESCONTOS:</span>
+                            <span>-R$ ${totalDescontosItems.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                        </div>
+                    `;
+                }
+
+                if (acrescimo > 0) {
+                    html += `
+                        <div class="flex justify-between text-sm text-blue-600 font-medium">
+                            <span>ACRÉSCIMO${venda.acrescimo_tipo ? ' (' + venda.acrescimo_tipo + ')' : ''}:</span>
+                            <span>+R$ ${acrescimo.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                        </div>
+                    `;
+                }
+
+                html += `
+                    <div class="flex justify-between pt-1 border-t border-gray-50 text-[11px] text-gray-500 font-bold">
+                        <span>TOTAL DE ITENS:</span>
+                        <span>${totalPecas}</span>
+                    </div>
+                `;
+
+                html += '</div>';
+                return html;
             })()}
             
             <!-- Totais -->
             <div class="border-t border-gray-300 pt-2 space-y-1">
-                <div class="flex justify-between text-base font-bold">
-                    <span>TOTAL:</span>
-                    <span>R$ ${venda.valor_total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                    <span>PAGAMENTO:</span>
-                    <span class="font-medium uppercase">${venda.forma_pagamento}</span>
+                <div class="flex justify-between mt-2 pt-2 border-t border-gray-100">
+                    <span class="text-base font-bold text-gray-900 uppercase">Total Líquido:</span>
+                    <span class="text-xl font-bold text-green-600">R$ ${venda.valor_total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
                 </div>
             </div>
-            
+
+            <!-- Detalhamento de Pagamentos -->
+            ${venda.pagamentos && venda.pagamentos.length > 0 ? `
+            <div class="mt-4 border-t border-gray-200 pt-2 no-print">
+                <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Detalhamento de Pagamentos:</p>
+                ${venda.pagamentos.map(p => `
+                    <div class="flex justify-between text-xs text-gray-600 mb-1">
+                        <span>${p.nome}:</span>
+                        <span class="font-bold">${p.valor.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span>
+                    </div>
+                `).join('')}
+            </div>
+            ` : ''}
+
             <!-- Rodapé -->
-            <div class="text-center mt-6 pt-4 border-t border-dashed border-gray-300">
-                <p class="text-sm italic">Obrigado pela preferência!</p>
-                <p class="text-[10px] text-gray-400 mt-2 uppercase">Recibo para fins de conferência</p>
+            <div class="text-center mt-6 pt-4 border-t border-gray-300">
+                <p class="text-sm text-gray-600">Obrigado pela preferência!</p>
+            </div>
+            
+            <!-- Botões de Ação -->
+            <div class="flex flex-wrap gap-2 mt-6 no-print">
+                <button onclick="imprimirNormal()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors">Cupom 80mm</button>
+                <button onclick="imprimirCupomPresente('${venda.id}')" class="flex-1 bg-pink-600 text-white py-2 rounded-lg font-bold hover:bg-pink-700 transition-colors">Vale-Presente</button>
+                <button onclick="imprimirVendaA4('${venda.id}')" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold hover:bg-indigo-700 transition-colors">Pedido A4</button>
+                ${venda.cliente && venda.cliente.telefone ? `
+                    <button onclick="compartilharWhatsApp('${venda.id}', '${venda.cliente.telefone}')" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition-colors" title="Compartilhar WhatsApp">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.542 2.317 2.357-.546c1.021.575 1.914.911 3.127.912h.001c3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.586-5.766-5.767-5.767zm3.391 8.221c-.142.405-.815.739-1.121.78-.306.04-.685.074-1.747-.356-1.207-.492-2.198-1.554-2.718-2.223-.06-.078-.105-.139-.136-.188-.28-.399-.497-.707-.497-1.112 0-.441.228-.68.32-.78l.069-.074c.056-.063.155-.121.274-.121.117 0 .225.011.302.012.077.001.144.02.212.182.107.258.351.854.382.918.031.064.051.139.011.22-.04.082-.06.139-.121.21-.061.071-.129.158-.184.214-.059.06-.121.124-.052.245.069.121.306.505.657.817.452.401.832.525.952.585.12.06.192.051.264-.03s.306-.356.387-.478c.081-.121.162-.102.274-.061.112.041.711.335.832.396.121.06.202.09.232.141.03.05.03.295-.112.699zM12 1c-6.075 0-11 4.925-11 11s4.925 11 11 11 11-4.925 11-11-4.925-11-11-11zm0 2c4.97 0 9 4.03 9 9s-4.03 9-9 9-9-4.03-9-9 4.03-9 9-9z"/></svg>
+                    </button>
+                ` : ''}
+                <button onclick="fecharModalComprovante()" class="flex-1 bg-gray-200 text-gray-800 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">Fechar</button>
             </div>
         </div>
     `;
@@ -392,6 +461,15 @@ window.imprimirTermica = async function() {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('[Venda List] Inicializando listeners de eventos...');
 
+    // Inicializa tooltips
+    // Inicializa tooltips de forma segura
+    if (typeof $.fn.tooltip === 'function') {
+        $('.has-tooltip').tooltip();
+    }
+    
+    // Inicializa Dashboard
+    initDashboard();
+
     // Listener para Select de Status
     document.addEventListener('change', function(e) {
         if (e.target && e.target.classList.contains('js-venda-status-select')) {
@@ -404,15 +482,53 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Listener para Botão de Impressão
+    // Listener para Botão de Imprimir (Ações e Cards)
     document.addEventListener('click', function(e) {
         const btn = e.target.closest('.js-venda-imprimir-btn');
         if (btn) {
             const vendaId = btn.getAttribute('data-venda-id');
-            console.log('[Venda List] Solicitação de impressão detectada:', vendaId);
+            console.log('[Venda List] Solicitação de impressão:', vendaId);
             if (typeof window.imprimirVenda === 'function') {
                 window.imprimirVenda(vendaId);
             }
         }
     });
 });
+
+async function initDashboard() {
+    try {
+        const baseUrl = window.BASE_URL || window.location.origin;
+        const response = await fetch(`${baseUrl}/vendas/venda/resumo`);
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        
+        const valorHoje = document.getElementById('dash-hoje-valor');
+        const qtdHoje = document.getElementById('dash-hoje-qtd');
+        
+        if (valorHoje && data.hoje_valor !== undefined) {
+            valorHoje.innerText = data.hoje_valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+        if (qtdHoje && data.hoje_qtd !== undefined) {
+            qtdHoje.innerText = data.hoje_qtd;
+        }
+    } catch (e) {
+        console.error('Erro ao carregar dashboard:', e);
+    }
+}
+
+function compartilharWhatsApp(vendaId, telefone) {
+    const url = `${window.location.origin}/vendas/venda/imprimir?id=${vendaId}`;
+    const texto = encodeURIComponent(`Olá! Segue o recibo da sua compra:\n${url}`);
+    
+    const telLimpo = telefone.replace(/\D/g, '');
+    const whatsAppUrl = `https://wa.me/${telLimpo.startsWith('55') ? telLimpo : '55' + telLimpo}?text=${texto}`;
+    
+    window.open(whatsAppUrl, '_blank');
+}
+function imprimirVendaA4(vendaId) {
+    window.open(`/vendas/venda/imprimir-a4?id=${vendaId}`, '_blank');
+}
+function imprimirCupomPresente(vendaId) {
+    window.open(`/vendas/venda/imprimir?id=${vendaId}&gift=1`, '_blank');
+}

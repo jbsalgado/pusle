@@ -31,7 +31,8 @@
         "yiisoft/yii2-symfonymailer": "^4.0",
         "mercadopago/dx-php": "^3.7",
         "guzzlehttp/guzzle": "^7.0",
-        "nfephp-org/sped-da": "^1.1"
+        "nfephp-org/sped-da": "^1.1",
+        "setasign/fpdf": "^1.8"
     },
     "require-dev": {
         "yiisoft/yii2-debug": "^2.1",

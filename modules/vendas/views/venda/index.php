@@ -1,14 +1,19 @@
 <?php
 
+use yii\helpers\Html;
+use yii\helpers\Url;
+use yii\grid\GridView;
+use yii\widgets\ActiveForm;
+use app\modules\vendas\models\StatusVenda;
+use app\modules\vendas\models\Colaborador;
+use app\modules\vendas\models\FormaPagamento;
+
 /**
  * View: Listagem de Vendas - Grid e Card
  * @var yii\web\View $this
  * @var yii\data\ActiveDataProvider $dataProvider
+ * @var app\modules\vendas\search\VendaSearch $searchModel
  */
-
-use yii\helpers\Html;
-use yii\helpers\Url;
-use yii\grid\GridView;
 
 $this->title = 'Vendas Efetivadas';
 ?>
@@ -53,6 +58,106 @@ $this->title = 'Vendas Efetivadas';
 
     <!-- Conteúdo -->
     <div class="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
+
+        <!-- Filtros de Pesquisa -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+            <div class="flex items-center space-x-2 mb-6">
+                <div class="bg-indigo-100 p-2 rounded-lg">
+                    <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    </svg>
+                </div>
+                <h2 class="text-lg font-bold text-gray-900 leading-none">Filtros de Pesquisa</h2>
+            </div>
+
+            <?php $form = ActiveForm::begin([
+                'action' => ['index'],
+                'method' => 'get',
+                'options' => ['class' => 'grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6'],
+            ]); ?>
+
+            <div class="space-y-1">
+                <?= $form->field($searchModel, 'id')->textInput([
+                    'placeholder' => 'Ex: d99915e7',
+                    'class' => 'w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm'
+                ])->label('Nº Venda', ['class' => 'text-xs font-black text-gray-400 uppercase tracking-widest block mb-1']) ?>
+            </div>
+
+            <div class="space-y-1">
+                <?= $form->field($searchModel, 'cliente_nome')->textInput([
+                    'placeholder' => 'Nome do cliente...',
+                    'class' => 'w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm'
+                ])->label('Cliente', ['class' => 'text-xs font-black text-gray-400 uppercase tracking-widest block mb-1']) ?>
+            </div>
+
+            <div class="space-y-1">
+                <?= $form->field($searchModel, 'status_venda_codigo')->dropDownList(StatusVenda::getListaDropdown(), [
+                    'prompt' => 'Todos os Status',
+                    'class' => 'w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm appearance-none'
+                ])->label('Status', ['class' => 'text-xs font-black text-gray-400 uppercase tracking-widest block mb-1']) ?>
+            </div>
+
+            <div class="space-y-1">
+                <?= $form->field($searchModel, 'colaborador_vendedor_id')->dropDownList(Colaborador::getListaVendedores(), [
+                    'prompt' => 'Todos os Vendedores',
+                    'class' => 'w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm appearance-none'
+                ])->label('Vendedor', ['class' => 'text-xs font-black text-gray-400 uppercase tracking-widest block mb-1']) ?>
+            </div>
+
+            <div class="space-y-1">
+                <?= $form->field($searchModel, 'forma_pagamento_id')->dropDownList(FormaPagamento::getListaDropdown(), [
+                    'prompt' => 'Todas as Formas',
+                    'class' => 'w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm appearance-none'
+                ])->label('Pagamento', ['class' => 'text-xs font-black text-gray-400 uppercase tracking-widest block mb-1']) ?>
+            </div>
+
+            <div class="space-y-1">
+                <?= $form->field($searchModel, 'data_inicio')->textInput([
+                    'type' => 'date',
+                    'class' => 'w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm'
+                ])->label('Data Início', ['class' => 'text-xs font-black text-gray-400 uppercase tracking-widest block mb-1']) ?>
+            </div>
+
+            <div class="space-y-1">
+                <?= $form->field($searchModel, 'data_fim')->textInput([
+                    'type' => 'date',
+                    'class' => 'w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm'
+                ])->label('Data Fim', ['class' => 'text-xs font-black text-gray-400 uppercase tracking-widest block mb-1']) ?>
+            </div>
+
+            <div class="flex items-end space-x-2 pb-[1px]">
+                <?= Html::submitButton('Filtrar', ['class' => 'flex-1 bg-indigo-600 hover:bg-black text-white px-6 py-2.5 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all shadow-md active:scale-95']) ?>
+                <a href="<?= Url::to(['index']) ?>" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2.5 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 text-center">Limpar</a>
+            </div>
+
+            <?php ActiveForm::end(); ?>
+        </div>
+
+        <!-- Dashboard de Resumo -->
+        <div id="venda-dashboard" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center">
+                <div class="p-3 bg-green-100 rounded-lg mr-4">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 font-medium">Vendas Hoje</p>
+                    <p id="dash-hoje-valor" class="text-2xl font-bold text-gray-900">R$ 0,00</p>
+                </div>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center">
+                <div class="p-3 bg-blue-100 rounded-lg mr-4">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 font-medium">Quantidade Hoje</p>
+                    <p id="dash-hoje-qtd" class="text-2xl font-bold text-gray-900">0</p>
+                </div>
+            </div>
+        </div>
 
         <!-- View Grid (Tabela) -->
         <div id="view-grid" class="view-container">
@@ -266,7 +371,7 @@ $this->title = 'Vendas Efetivadas';
 <!-- Modal Comprovante -->
 <?php
 // Registra o script necessário
-$this->registerJsFile('@web/js/venda-list.js', ['depends' => [\yii\web\JqueryAsset::class]]);
+$this->registerJsFile('@web/js/venda-list.js?v=5', ['depends' => [\yii\web\JqueryAsset::class]]);
 ?>
 <div id="modal-comprovante" class="fixed inset-0 z-[100] hidden overflow-y-auto">
     <!-- Overlay -->
@@ -275,6 +380,8 @@ $this->registerJsFile('@web/js/venda-list.js', ['depends' => [\yii\web\JqueryAss
     <!-- Modal Content -->
     <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
         <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
+
+            <!-- Tabela de Vendas -->
             <!-- Header Modal -->
             <div class="bg-gray-50 px-6 py-4 flex items-center justify-between border-b border-gray-100">
                 <div class="flex items-center">
@@ -297,24 +404,6 @@ $this->registerJsFile('@web/js/venda-list.js', ['depends' => [\yii\web\JqueryAss
                 <!-- Conteúdo via JS -->
             </div>
 
-            <!-- Ações Modal -->
-            <div class="bg-gray-50 px-6 py-4 flex flex-col sm:flex-row-reverse gap-3 border-t border-gray-100">
-                <button type="button" onclick="imprimirNormal()" class="inline-flex w-full sm:w-auto justify-center rounded-xl bg-purple-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-purple-700 transition-all focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2-2v4h10z" />
-                    </svg>
-                    Imprimir Normal
-                </button>
-                <button type="button" onclick="imprimirTermica()" class="inline-flex w-full sm:w-auto justify-center rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1zM11 10a1 1 0 11-2 0 1 1 0 012 0z" />
-                    </svg>
-                    Imprimir Térmica
-                </button>
-                <button type="button" onclick="fecharModalComprovante()" class="inline-flex w-full sm:w-auto justify-center rounded-xl bg-white px-6 py-2.5 text-sm font-bold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-all sm:ml-auto">
-                    Fechar
-                </button>
-            </div>
         </div>
     </div>
 </div>

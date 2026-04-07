@@ -207,8 +207,42 @@ $this->title = 'Detalhes da Venda #' . substr($model->id, 0, 8);
     </div>
 </div>
 
+<!-- Modal Comprovante -->
+<div id="modal-comprovante" class="fixed inset-0 z-[100] hidden overflow-y-auto">
+    <!-- Overlay -->
+    <div class="fixed inset-0 bg-gray-900/75 backdrop-blur-sm transition-opacity"></div>
+
+    <!-- Modal Content -->
+    <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+        <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
+
+            <!-- Header Modal -->
+            <div class="bg-gray-50 px-6 py-4 flex items-center justify-between border-b border-gray-100">
+                <div class="flex items-center">
+                    <div class="bg-purple-100 rounded-full p-2 mr-3">
+                        <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2-2v4h10z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900">Comprovante de Venda</h3>
+                </div>
+                <button onclick="fecharModalComprovante()" class="text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-lg transition-colors p-1">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Comprovante Renderizado -->
+            <div id="comprovante-container" class="px-6 py-8 max-h-[70vh] overflow-y-auto bg-white">
+                <!-- Conteúdo via JS -->
+            </div>
+
+        </div>
+    </div>
+</div>
+
 <?php
-// Registra scripts necessários para impressão (reaproveitando do index se necessário)
-$this->registerJsFile('@web/js/venda-list.js', ['depends' => [\yii\web\JqueryAsset::class]]);
+$this->registerJsFile('@web/js/venda-list.js?v=5', ['depends' => [\yii\web\JqueryAsset::class]]);
 $this->registerJs("window.BASE_URL = '" . Url::base(true) . "';", \yii\web\View::POS_HEAD);
 ?>
