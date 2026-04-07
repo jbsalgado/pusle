@@ -102,8 +102,8 @@ class OrcamentoController extends Controller
                 'preco_venda_sugerido' => (float) $item->preco_unitario, // Para compatibilidade com cart.js
                 'preco_final' => (float) $item->preco_unitario,
                 'desconto_valor' => (float) ($item->desconto_valor ?? 0),
-                'desconto_percentual' => (float) ($item->desconto_percentual ?? 0),
-                'subtotal' => (float) $item->valor_total,
+                'desconto_percentual' => 0,
+                'subtotal' => (float) $item->subtotal,
                 'unidade_medida' => $item->produto ? $item->produto->unidade_medida : 'un',
                 'venda_fracionada' => $item->produto ? (bool)$item->produto->venda_fracionada : false,
                 'fotos' => $item->produto && $item->produto->fotos ? $item->produto->fotos : [],
@@ -138,7 +138,7 @@ class OrcamentoController extends Controller
             'acrescimo_tipo' => $model->acrescimo_tipo ?? '',
             'status' => $model->status,
             'data_criacao' => $model->data_criacao,
-            'data_validade' => $model->validade_ate,
+            'data_validade' => $model->data_validade,
             'esta_vencido' => $model->EstaVencido,
             'observacoes' => $model->observacoes,
             'cliente' => $cliente,
@@ -469,8 +469,8 @@ class OrcamentoController extends Controller
         $vencendoAmanha = (int)Orcamento::find()
             ->where(['status' => Orcamento::STATUS_PENDENTE])
             ->andWhere(['usuario_id' => $usuario_id])
-            ->andWhere(['>=', 'validade_ate', date('Y-m-d')])
-            ->andWhere(['<=', 'validade_ate', date('Y-m-d', strtotime('+1 day'))])
+            ->andWhere(['>=', 'data_validade', date('Y-m-d')])
+            ->andWhere(['<=', 'data_validade', date('Y-m-d', strtotime('+1 day'))])
             ->count();
 
         return [

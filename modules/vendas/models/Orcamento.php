@@ -21,16 +21,20 @@ use app\modules\vendas\models\OrcamentoItem;
  * @property string $usuario_id
  * @property string $cliente_id
  * @property float $valor_total
+ * @property float $desconto_valor
+ * @property float $acrescimo_valor
+ * @property string $acrescimo_tipo
+ * @property string $observacao_acrescimo
+ * @property string $forma_pagamento_id
+ * @property string $colaborador_vendedor_id
  * @property string $status
- * @property string $venda_id
- * @property string $validade_ate
+ * @property string $data_validade
  * @property string $observacoes
  * @property string $data_criacao
  * @property string $data_atualizacao
  * 
  * @property Usuario $usuario
  * @property Cliente $cliente
- * @property Venda $venda
  * @property OrcamentoItem[] $itens
  */
 class Orcamento extends ActiveRecord
@@ -70,8 +74,8 @@ class Orcamento extends ActiveRecord
     {
         if (parent::beforeSave($insert)) {
             // Se não houver data de validade, define para +7 dias por padrão
-            if ($insert && empty($this->validade_ate)) {
-                $this->validade_ate = date('Y-m-d', strtotime('+7 days'));
+            if ($insert && empty($this->data_validade)) {
+                $this->data_validade = date('Y-m-d', strtotime('+7 days'));
             }
             return true;
         }
@@ -85,8 +89,8 @@ class Orcamento extends ActiveRecord
     {
         return [
             [['usuario_id', 'valor_total'], 'required'],
-            [['usuario_id', 'cliente_id', 'venda_id'], 'string'],
-            [['valor_total'], 'number', 'min' => 0],
+            [['usuario_id', 'cliente_id', 'colaborador_vendedor_id', 'forma_pagamento_id'], 'string'],
+            [['valor_total', 'desconto_valor', 'acrescimo_valor'], 'number', 'min' => 0],
             [['status'], 'string', 'max' => 20],
             [['status'], 'in', 'range' => [
                 self::STATUS_PENDENTE,
@@ -95,11 +99,10 @@ class Orcamento extends ActiveRecord
                 self::STATUS_CONVERTIDO
             ]],
             [['status'], 'default', 'value' => self::STATUS_PENDENTE],
-            [['validade_ate'], 'date', 'format' => 'php:Y-m-d'],
-            [['observacoes'], 'string'],
+            [['data_validade'], 'date', 'format' => 'php:Y-m-d'],
+            [['observacoes', 'acrescimo_tipo', 'observacao_acrescimo'], 'string'],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
             [['cliente_id'], 'exist', 'skipOnError' => true, 'targetClass' => Cliente::class, 'targetAttribute' => ['cliente_id' => 'id']],
-            [['venda_id'], 'exist', 'skipOnError' => true, 'targetClass' => Venda::class, 'targetAttribute' => ['venda_id' => 'id']],
         ];
     }
 
@@ -114,8 +117,7 @@ class Orcamento extends ActiveRecord
             'cliente_id' => 'Cliente',
             'valor_total' => 'Valor Total',
             'status' => 'Status',
-            'venda_id' => 'Venda Gerada',
-            'validade_ate' => 'Válido Até',
+            'data_validade' => 'Válido Até',
             'observacoes' => 'Observações',
             'data_criacao' => 'Data de Criação',
             'data_atualizacao' => 'Última Atualização',
@@ -127,8 +129,8 @@ class Orcamento extends ActiveRecord
      */
     public function getEstaVencido()
     {
-        if (!$this->validade_ate) return false;
-        return strtotime($this->validade_ate) < time();
+        if (!$this->data_validade) return false;
+        return strtotime($this->data_validade) < time();
     }
 
     public function getUsuario()
@@ -139,11 +141,6 @@ class Orcamento extends ActiveRecord
     public function getCliente()
     {
         return $this->hasOne(Cliente::class, ['id' => 'cliente_id']);
-    }
-
-    public function getVenda()
-    {
-        return $this->hasOne(Venda::class, ['id' => 'venda_id']);
     }
 
     public function getItens()

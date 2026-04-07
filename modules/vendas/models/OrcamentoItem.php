@@ -16,8 +16,8 @@ use app\modules\vendas\models\Orcamento;
  * @property float $quantidade
  * @property float $preco_unitario
  * @property float $desconto_valor
- * @property float $desconto_percentual
- * @property float $valor_total
+ * @property float $subtotal
+ * @property string $observacoes
  * 
  * @property Orcamento $orcamento
  * @property Produto $produto
@@ -42,7 +42,8 @@ class OrcamentoItem extends ActiveRecord
             [['produto_id'], 'string'],
             [['orcamento_id'], 'integer'],
             [['quantidade'], 'number', 'min' => 0.001],
-            [['preco_unitario', 'valor_total', 'desconto_valor', 'desconto_percentual'], 'number', 'min' => 0],
+            [['preco_unitario', 'subtotal', 'desconto_valor'], 'number', 'min' => 0],
+            [['observacoes'], 'string'],
             [['orcamento_id'], 'exist', 'skipOnError' => true, 'targetClass' => Orcamento::class, 'targetAttribute' => ['orcamento_id' => 'id']],
             [['produto_id'], 'exist', 'skipOnError' => true, 'targetClass' => Produto::class, 'targetAttribute' => ['produto_id' => 'id']],
         ];
@@ -60,8 +61,8 @@ class OrcamentoItem extends ActiveRecord
             'quantidade' => 'Quantidade',
             'preco_unitario' => 'Preço Unitário',
             'desconto_valor' => 'Desconto (R$)',
-            'desconto_percentual' => 'Desconto (%)',
-            'valor_total' => 'Subtotal',
+            'subtotal' => 'Subtotal',
+            'observacoes' => 'Observações',
         ];
     }
 
@@ -71,7 +72,7 @@ class OrcamentoItem extends ActiveRecord
     public function beforeSave($insert)
     {
         if (parent::beforeSave($insert)) {
-            $this->valor_total = $this->quantidade * $this->preco_unitario;
+            $this->subtotal = $this->quantidade * $this->preco_unitario;
             return true;
         }
         return false;
