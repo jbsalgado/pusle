@@ -931,7 +931,7 @@ class ProdutoController extends Controller
                 'SUM(vi.quantidade * vi.preco_unitario_venda - COALESCE(vi.desconto_valor, 0)) as total_receita',
                 'MAX(v.data_venda) as ultima_venda'
             ])
-            ->innerJoin('prest_venda v', 'v.id = vi.venda_id')
+            ->innerJoin(\app\modules\vendas\models\Venda::tableName() . ' v', 'v.id = vi.venda_id')
             ->where(['not', ['vi.nome_item_manual' => null]])
             ->andWhere(['v.usuario_id' => $lojaId])
             ->groupBy('vi.nome_item_manual')

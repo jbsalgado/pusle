@@ -1,0 +1,5 @@
+- [x] Analisar erro de banco de dados e localizar arquivo problemático
+- [x] Criar arquivo de tarefas (`TASK_CORRECAO_VENDA.md`)
+- [x] Corrigir erro de digitação no `ProdutoController.php`
+- [ ] Verificar acesso ao relatório de Itens Avulsos
+- [ ] Criar walkthrough de conclusão
