@@ -1312,10 +1312,14 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
                         <div class="flex flex-col gap-3">
                             <img src="${imageUrl}" alt="Comprovante" class="max-w-full h-auto rounded-lg shadow-md mx-auto" style="width: 100%; max-width: 600px;">
                             
-                            <div class="flex justify-center mt-2">
-                                <button onclick="window.imprimirComprovanteTexto()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2 shadow-sm transition-colors">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                                    Imprimir (Termica)
+                            <div class="flex flex-wrap justify-center mt-2 gap-2">
+                                <button onclick="window.imprimirComprovanteTexto()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2 shadow-sm transition-colors text-sm sm:text-base">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                    Imprimir
+                                </button>
+                                <button onclick="window.compartilharComprovanteImagem()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2 shadow-sm transition-colors text-sm sm:text-base">
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.438 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884 0 2.225.569 3.808 1.565 5.405l-.992 3.613 3.916-.905zm12.639-5.183c-.266-.134-1.577-.779-1.821-.867-.244-.089-.422-.134-.599.134-.177.266-.688.867-.843 1.045-.155.178-.311.2-.577.067-.266-.134-1.124-.415-2.141-1.321-.791-.705-1.325-1.576-1.48-1.843-.155-.266-.017-.411.117-.544.121-.119.266-.312.4-.467.133-.156.177-.266.266-.444.089-.178.044-.334-.022-.467-.066-.134-.599-1.445-.821-1.979-.216-.52-.435-.45-.599-.458-.155-.008-.333-.01-.511-.01-.177 0-.466.067-.71.334-.244.267-.932.912-.932 2.224 0 1.312.954 2.579 1.088 2.757.133.178 1.877 2.867 4.547 4.018.635.274 1.131.438 1.517.561.637.202 1.215.174 1.673.105.51-.077 1.577-.645 1.8-1.235.222-.59.222-1.09.155-1.198-.066-.109-.244-.178-.51-.312z"></path></svg>
+                                    WhatsApp
                                 </button>
                             </div>
                         </div>`;
@@ -1560,20 +1564,55 @@ window.compartilharComprovanteImagem = async function() {
     }
     
     try {
+        // Verifica se está rodando dentro do App Pulse (Android)
+        const isPulseApp = window.flutter_inappwebview !== undefined;
+        
+        if (isPulseApp) {
+            console.log('[Share] 📱 Detectado App Pulse. Usando ponte nativa...');
+            
+            // Converte Blob para Base64
+            const reader = new FileReader();
+            reader.readAsDataURL(window.comprovanteImagem.blob);
+            reader.onloadend = function() {
+                const base64data = reader.result;
+                
+                // Envia para o Flutter via ponte
+                window.flutter_inappwebview.callHandler('PulseBridge', 'shareImage', {
+                    base64: base64data,
+                    fileName: 'comprovante_venda.png'
+                }).then(function(result) {
+                    console.log('[Share] ✅ Resposta da ponte nativa:', result);
+                    if (result && !result.success) {
+                        alert('Erro ao compartilhar via App: ' + result.error);
+                    }
+                });
+            };
+            return;
+        }
+
+        // Fallback para Navegador Web comum
         if (navigator.share) {
+            console.log('[Share] 🌐 Usando Web Share API...');
             const file = new File([window.comprovanteImagem.blob], 'comprovante.png', { type: 'image/png' });
             
             await navigator.share({
                 title: 'Comprovante de Venda',
-                text: 'Segue comprovante da venda.',
+                text: 'Segue o seu comprovante de venda. Obrigado pela preferência!',
                 files: [file]
             });
-            console.log('[Share] ✅ Compartilhado com sucesso');
+            console.log('[Share] ✅ Compartilhado via Web Share');
         } else {
-            alert('Seu navegador não suporta compartilhamento direto. Pressione e segure na imagem para salvar/compartilhar.');
+            // Se não suportar share, oferece download
+            const url = window.comprovanteImagem.url;
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'comprovante_venda.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            alert('Compartilhamento direto não suportado neste navegador. O comprovante foi baixado. Você pode enviá-lo manualmente pelo WhatsApp.');
         }
     } catch (e) {
-        // Ignora AbortError (usuário cancelou)
         if (e.name !== 'AbortError') {
              console.error('[Share] ❌ Erro:', e);
              alert('Erro ao compartilhar: ' + e.message);
