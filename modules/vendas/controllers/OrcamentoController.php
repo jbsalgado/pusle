@@ -308,8 +308,7 @@ class OrcamentoController extends Controller
         $lojaConfig = LojaConfiguracao::findOne(['usuario_id' => $usuario->id]);
         $config = Configuracao::findOne(['usuario_id' => $usuario->id]);
 
-        // Carrega FPDF
-        require_once(Yii::getAlias('@vendor') . '/setasign/fpdf/fpdf.php');
+        // Carrega FPDF (Autoloaded via Composer)
 
         $pdf = new \FPDF('P', 'mm', 'A4');
         $pdf->AddPage();
