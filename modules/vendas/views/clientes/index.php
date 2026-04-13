@@ -131,9 +131,13 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                             <h3 class="text-center text-base sm:text-lg font-bold truncate px-1">
                                 <?= Html::encode($model->nome_completo) ?>
                             </h3>
-                            <?php if ($model->cpf): ?>
+                            <?php if ($model->tipo_pessoa === 'J'): ?>
                                 <p class="text-center text-xs text-indigo-100 mt-1">
-                                    CPF: <?= Yii::$app->formatter->format($model->cpf, ['decimal', 0]) ?>
+                                    CNPJ: <?= preg_replace('/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/', "$1.$2.$3/$4-$5", $model->cnpj) ?>
+                                </p>
+                            <?php elseif ($model->cpf): ?>
+                                <p class="text-center text-xs text-indigo-100 mt-1">
+                                    CPF: <?= preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', "$1.$2.$3-$4", $model->cpf) ?>
                                 </p>
                             <?php endif; ?>
                         </div>
@@ -249,8 +253,10 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                                             </div>
                                             <div class="min-w-0">
                                                 <div class="text-sm font-medium text-gray-900 truncate"><?= Html::encode($model->nome_completo) ?></div>
-                                                <?php if ($model->cpf): ?>
-                                                    <div class="text-xs text-gray-500 font-mono"><?= Yii::$app->formatter->format($model->cpf, ['decimal', 0]) ?></div>
+                                                <?php if ($model->tipo_pessoa === 'J'): ?>
+                                                    <div class="text-xs text-gray-500 font-mono"><?= preg_replace('/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/', "$1.$2.$3/$4-$5", $model->cnpj) ?></div>
+                                                <?php elseif ($model->cpf): ?>
+                                                    <div class="text-xs text-gray-500 font-mono"><?= preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', "$1.$2.$3-$4", $model->cpf) ?></div>
                                                 <?php endif; ?>
                                             </div>
                                         </div>

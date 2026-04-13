@@ -67,20 +67,32 @@ class Clientes extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['id', 'usuario_id', 'regiao_id', 'ponto_referencia', 'observacoes', 'senha_hash', 'senha'], 'string'],
-            [['regiao_id'], 'filter', 'filter' => function($value) { return $value === '' ? null : $value; }],
+            [['regiao_id', 'id', 'usuario_id'], 'filter', 'filter' => function($value) { return $value === '' ? null : $value; }],
+            [['id', 'usuario_id', 'tipo_pessoa', 'cnpj', 'razao_social', 'inscricao_estadual', 'indicador_ie', 'nome_responsavel', 'inscricao_municipal', 'ponto_referencia', 'observacoes', 'senha_hash', 'senha'], 'string'],
+            [['tipo_pessoa'], 'default', 'value' => 'F'],
+            [['indicador_ie'], 'default', 'value' => '9'],
             [['ativo'], 'default', 'value' => 1],
-            [['usuario_id', 'nome_completo'], 'required'],
+            [['usuario_id', 'nome_completo', 'tipo_pessoa'], 'required'],
+            
+            // Validações condicionais
+            [['cpf'], 'required', 'when' => function($model) { return $model->tipo_pessoa === 'F'; }, 'whenClient' => "function (attribute, value) { return $('#clientes-tipo_pessoa').val() === 'F'; }"],
+            [['cnpj', 'razao_social'], 'required', 'when' => function($model) { return $model->tipo_pessoa === 'J'; }, 'whenClient' => "function (attribute, value) { return $('#clientes-tipo_pessoa').val() === 'J'; }"],
+            
             [['ativo'], 'boolean'],
             [['data_criacao', 'data_atualizacao'], 'safe'],
-            [['nome_completo'], 'string', 'max' => 150],
+            [['nome_completo', 'razao_social', 'nome_responsavel'], 'string', 'max' => 150],
             [['cpf'], 'string', 'max' => 11],
-            [['telefone', 'endereco_numero'], 'string', 'max' => 20],
+            [['cnpj'], 'string', 'max' => 14],
+            [['telefone', 'endereco_numero', 'inscricao_estadual', 'inscricao_municipal'], 'string', 'max' => 20],
             [['email', 'endereco_complemento', 'endereco_bairro', 'endereco_cidade'], 'string', 'max' => 100],
             [['endereco_logradouro', 'senha_hash'], 'string', 'max' => 255],
-            [['endereco_estado'], 'string', 'max' => 2],
+            [['endereco_estado', 'tipo_pessoa', 'indicador_ie'], 'string', 'max' => 2],
             [['endereco_cep'], 'string', 'max' => 8],
-            [['cpf'], 'unique', 'targetAttribute' => ['cpf', 'usuario_id'], 'message' => 'Este CPF já está cadastrado para esta loja.'],
+            
+            // Unicidade
+            [['cpf'], 'unique', 'targetAttribute' => ['cpf', 'usuario_id'], 'message' => 'Este CPF já está cadastrado para esta loja.', 'when' => function($model) { return !empty($model->cpf); }],
+            [['cnpj'], 'unique', 'targetAttribute' => ['cnpj', 'usuario_id'], 'message' => 'Este CNPJ já está cadastrado para esta loja.', 'when' => function($model) { return !empty($model->cnpj); }],
+            
             [['id'], 'unique'],
             [['regiao_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => Regioes::class, 'targetAttribute' => ['regiao_id' => 'id']],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuarios::class, 'targetAttribute' => ['usuario_id' => 'id']],
@@ -114,15 +126,30 @@ class Clientes extends \yii\db\ActiveRecord
             'regiao_id' => 'Regiao ID',
             'senha' => 'Senha (acesso PWA)',
             'senha_hash' => 'Senha Hash',
+            'tipo_pessoa' => 'Tipo de Pessoa',
+            'cnpj' => 'CNPJ',
+            'razao_social' => 'Razão Social',
+            'inscricao_estadual' => 'Inscrição Estadual',
+            'indicador_ie' => 'Contribuinte ICMS',
+            'nome_responsavel' => 'Nome do Responsável',
+            'inscricao_municipal' => 'Inscrição Municipal',
         ];
     }
 
     /**
-     * Antes de salvar, criptografa a senha se fornecida
+     * Antes de salvar, criptografa a senha se fornecida e limpa documentos
      */
     public function beforeSave($insert)
     {
         if (parent::beforeSave($insert)) {
+            // Limpar documentos
+            if ($this->cpf) {
+                $this->cpf = preg_replace('/[^0-9]/', '', $this->cpf);
+            }
+            if ($this->cnpj) {
+                $this->cnpj = preg_replace('/[^0-9]/', '', $this->cnpj);
+            }
+            
             // Se senha foi fornecida, gera hash
             if (!empty($this->senha)) {
                 $this->senha_hash = Yii::$app->security->generatePasswordHash($this->senha);

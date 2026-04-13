@@ -57,7 +57,9 @@ class ClientesController extends Controller
         if ($busca) {
             $query->andFilterWhere(['or',
                 ['like', 'nome_completo', $busca],
+                ['like', 'razao_social', $busca],
                 ['like', 'cpf', $busca],
+                ['like', 'cnpj', $busca],
                 ['like', 'telefone', $busca],
                 ['like', 'email', $busca],
             ]);

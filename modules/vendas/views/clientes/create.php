@@ -42,31 +42,97 @@ $this->params['breadcrumbs'][] = $this->title;
                 ],
             ]); ?>
 
-            <!-- Seção: Dados Pessoais -->
+            <!-- Seção: Identificação e Dados Fiscais -->
             <div class="border-b border-gray-200 pb-6">
                 <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center">
                     <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                     </svg>
-                    Dados Pessoais
+                    Identificação do Cliente
                 </h2>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     
+                    <div class="sm:col-span-2 space-y-4">
+                        <label class="block text-sm font-medium text-gray-700">Tipo de Cliente</label>
+                        <div class="flex p-1 bg-gray-100 rounded-xl w-full sm:w-72">
+                            <button type="button" id="btn-pf" class="flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all duration-200 focus:outline-none">
+                                Pessoa Física
+                            </button>
+                            <button type="button" id="btn-pj" class="flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all duration-200 focus:outline-none">
+                                Pessoa Jurídica
+                            </button>
+                        </div>
+                        <?= $form->field($model, 'tipo_pessoa')->hiddenInput(['id' => 'clientes-tipo_pessoa'])->label(false) ?>
+                    </div>
+
+                    <!-- Nome: Adaptativo (Nome Completo ou Fantasia) -->
                     <div class="sm:col-span-2">
                         <?= $form->field($model, 'nome_completo')->textInput([
                             'maxlength' => true,
-                            'placeholder' => 'Nome completo do cliente',
+                            'id' => 'field-nome_completo',
+                            'placeholder' => 'Nome completo ou Razão Social',
                             'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base'
-                        ]) ?>
+                        ])->label('Nome Completo / Nome Fantasia') ?>
                     </div>
 
-                    <div>
-                        <?= $form->field($model, 'cpf')->textInput([
-                            'maxlength' => true,
-                            'placeholder' => '00000000000',
-                            'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base'
-                        ])->hint('Apenas números, sem pontos ou traços') ?>
+                    <!-- Campos Específicos de Pessoa Física -->
+                    <div id="container-pf" class="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                        <div>
+                            <?= $form->field($model, 'cpf')->textInput([
+                                'maxlength' => true,
+                                'placeholder' => '000.000.000-00',
+                                'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base mask-cpf'
+                            ]) ?>
+                        </div>
+                    </div>
+
+                    <!-- Campos Específicos de Pessoa Jurídica -->
+                    <div id="container-pj" class="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 hidden">
+                        <div class="sm:col-span-2">
+                            <?= $form->field($model, 'razao_social')->textInput([
+                                'maxlength' => true,
+                                'placeholder' => 'Razão Social Completa (Fiscal)',
+                                'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base'
+                            ]) ?>
+                        </div>
+                        <div>
+                            <?= $form->field($model, 'cnpj')->textInput([
+                                'maxlength' => true,
+                                'placeholder' => '00.000.000/0000-00',
+                                'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base mask-cnpj'
+                            ]) ?>
+                        </div>
+                        <div>
+                            <?= $form->field($model, 'nome_responsavel')->textInput([
+                                'maxlength' => true,
+                                'placeholder' => 'Contato na empresa',
+                                'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base'
+                            ]) ?>
+                        </div>
+                        <div>
+                            <?= $form->field($model, 'indicador_ie')->dropDownList([
+                                '1' => 'Contribuinte ICMS',
+                                '2' => 'Isento de Inscrição',
+                                '9' => 'Não Contribuinte'
+                            ], [
+                                'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base'
+                            ]) ?>
+                        </div>
+                        <div>
+                            <?= $form->field($model, 'inscricao_estadual')->textInput([
+                                'maxlength' => true,
+                                'placeholder' => 'IE (Somente números)',
+                                'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base'
+                            ]) ?>
+                        </div>
+                        <div>
+                            <?= $form->field($model, 'inscricao_municipal')->textInput([
+                                'maxlength' => true,
+                                'placeholder' => 'IM (Opcional)',
+                                'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base'
+                            ]) ?>
+                        </div>
                     </div>
 
                     <div>
@@ -92,7 +158,6 @@ $this->params['breadcrumbs'][] = $this->title;
                 </h2>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                    
                     <div>
                         <?= $form->field($model, 'telefone')->textInput([
                             'maxlength' => true,
@@ -100,7 +165,6 @@ $this->params['breadcrumbs'][] = $this->title;
                             'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base'
                         ]) ?>
                     </div>
-
                     <div>
                         <?= $form->field($model, 'email')->textInput([
                             'maxlength' => true,
@@ -109,7 +173,6 @@ $this->params['breadcrumbs'][] = $this->title;
                             'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base'
                         ]) ?>
                     </div>
-
                 </div>
             </div>
 
@@ -124,7 +187,6 @@ $this->params['breadcrumbs'][] = $this->title;
                 </h2>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                    
                     <div class="sm:col-span-1 lg:col-span-1">
                         <?= $form->field($model, 'endereco_cep')->textInput([
                             'maxlength' => true,
@@ -132,7 +194,6 @@ $this->params['breadcrumbs'][] = $this->title;
                             'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base'
                         ])->hint('Apenas números') ?>
                     </div>
-
                     <div class="sm:col-span-2 lg:col-span-3">
                         <?= $form->field($model, 'endereco_logradouro')->textInput([
                             'maxlength' => true,
@@ -140,7 +201,6 @@ $this->params['breadcrumbs'][] = $this->title;
                             'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base'
                         ]) ?>
                     </div>
-
                     <div class="sm:col-span-1">
                         <?= $form->field($model, 'endereco_numero')->textInput([
                             'maxlength' => true,
@@ -148,7 +208,6 @@ $this->params['breadcrumbs'][] = $this->title;
                             'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base'
                         ]) ?>
                     </div>
-
                     <div class="sm:col-span-1">
                         <?= $form->field($model, 'endereco_complemento')->textInput([
                             'maxlength' => true,
@@ -156,7 +215,6 @@ $this->params['breadcrumbs'][] = $this->title;
                             'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base'
                         ]) ?>
                     </div>
-
                     <div class="sm:col-span-2">
                         <?= $form->field($model, 'endereco_bairro')->textInput([
                             'maxlength' => true,
@@ -164,7 +222,6 @@ $this->params['breadcrumbs'][] = $this->title;
                             'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base'
                         ]) ?>
                     </div>
-
                     <div class="sm:col-span-1">
                         <?= $form->field($model, 'endereco_cidade')->textInput([
                             'maxlength' => true,
@@ -172,15 +229,13 @@ $this->params['breadcrumbs'][] = $this->title;
                             'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base'
                         ]) ?>
                     </div>
-
                     <div class="sm:col-span-1">
                         <?= $form->field($model, 'endereco_estado')->textInput([
                             'maxlength' => 2,
                             'placeholder' => 'UF',
                             'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base uppercase'
-                        ])->hint('Ex: SP, RJ, MG') ?>
+                        ]) ?>
                     </div>
-
                     <div class="sm:col-span-2 lg:col-span-4">
                         <?= $form->field($model, 'ponto_referencia')->textarea([
                             'rows' => 2,
@@ -188,7 +243,6 @@ $this->params['breadcrumbs'][] = $this->title;
                             'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm sm:text-base'
                         ]) ?>
                     </div>
-
                 </div>
             </div>
 
@@ -200,15 +254,12 @@ $this->params['breadcrumbs'][] = $this->title;
                     </svg>
                     Informações Adicionais
                 </h2>
-
                 <div class="space-y-4">
-                    
                     <?= $form->field($model, 'observacoes')->textarea([
                         'rows' => 4,
                         'placeholder' => 'Observações sobre o cliente...',
                         'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm sm:text-base'
                     ]) ?>
-
                     <div class="bg-gray-50 rounded-lg p-4">
                         <div class="flex items-start">
                             <div class="flex items-center h-5">
@@ -225,7 +276,6 @@ $this->params['breadcrumbs'][] = $this->title;
                             </div>
                         </div>
                     </div>
-
                 </div>
             </div>
 
@@ -240,29 +290,82 @@ $this->params['breadcrumbs'][] = $this->title;
                     ['index'],
                     ['class' => 'w-full sm:flex-1 inline-flex items-center justify-center px-6 py-3 bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold rounded-lg transition duration-300 text-sm sm:text-base']
                 ) ?>
-                <?= Html::a(
-                    '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>Produtos',
-                    ['/vendas/produto/index'],
-                    ['class' => 'w-full sm:flex-1 inline-flex items-center justify-center px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition duration-300 text-sm sm:text-base']
-                ) ?>
             </div>
 
             <?php ActiveForm::end(); ?>
-
         </div>
-
     </div>
 </div>
 
 <script>
-// Busca CEP via API ViaCEP
+// Busca CEP via API ViaCEP e Controle de PF/PJ
 document.addEventListener('DOMContentLoaded', function() {
     const cepInput = document.querySelector('input[name="Clientes[endereco_cep]"]');
-    
+    const tipoPessoaInput = document.getElementById('clientes-tipo_pessoa');
+    const btnPF = document.getElementById('btn-pf');
+    const btnPJ = document.getElementById('btn-pj');
+    const containerPF = document.getElementById('container-pf');
+    const containerPJ = document.getElementById('container-pj');
+    const fieldNomeCompletoLabel = document.querySelector('label[for="field-nome_completo"]');
+
+    function updateUI(tipo) {
+        tipoPessoaInput.value = tipo;
+        if (tipo === 'F') {
+            btnPF.classList.add('bg-white', 'shadow-sm', 'text-indigo-600');
+            btnPF.classList.remove('text-gray-500');
+            btnPJ.classList.remove('bg-white', 'shadow-sm', 'text-indigo-600');
+            btnPJ.classList.add('text-gray-500');
+            containerPF.classList.remove('hidden');
+            containerPJ.classList.add('hidden');
+            fieldNomeCompletoLabel.textContent = 'Nome Completo';
+        } else {
+            btnPJ.classList.add('bg-white', 'shadow-sm', 'text-indigo-600');
+            btnPJ.classList.remove('text-gray-500');
+            btnPF.classList.remove('bg-white', 'shadow-sm', 'text-indigo-600');
+            btnPF.classList.add('text-gray-500');
+            containerPJ.classList.remove('hidden');
+            containerPF.classList.add('hidden');
+            fieldNomeCompletoLabel.textContent = 'Nome Fantasia / Nome da Empresa';
+        }
+    }
+
+    if (btnPF && btnPJ) {
+        btnPF.addEventListener('click', () => updateUI('F'));
+        btnPJ.addEventListener('click', () => updateUI('J'));
+        // Inicializar UI
+        updateUI(tipoPessoaInput.value || 'F');
+    }
+
+    // Máscaras Simples
+    function applyMask(selector, maskFunc) {
+        document.querySelectorAll(selector).forEach(input => {
+            input.addEventListener('input', (e) => {
+                const val = e.target.value.replace(/\D/g, '');
+                e.target.value = maskFunc(val);
+            });
+        });
+    }
+
+    applyMask('.mask-cpf', val => {
+        let v = val.substring(0, 11);
+        if (v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+        else if (v.length > 6) v = v.replace(/(\d{3})(\d{3})(\d{0,3})/, "$1.$2.$3");
+        else if (v.length > 3) v = v.replace(/(\d{3})(\d{0,3})/, "$1.$2");
+        return v;
+    });
+
+    applyMask('.mask-cnpj', val => {
+        let v = val.substring(0, 14);
+        if (v.length > 12) v = v.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+        else if (v.length > 8) v = v.replace(/(\d{2})(\d{3})(\d{3})(\d{0,4})/, "$1.$2.$3/$4");
+        else if (v.length > 5) v = v.replace(/(\d{2})(\d{3})(\d{0,3})/, "$1.$2.$3");
+        else if (v.length > 2) v = v.replace(/(\d{2})(\d{0,3})/, "$1.$2");
+        return v;
+    });
+
     if (cepInput) {
         cepInput.addEventListener('blur', function() {
             const cep = this.value.replace(/\D/g, '');
-            
             if (cep.length === 8) {
                 fetch(`https://viacep.com.br/ws/${cep}/json/`)
                     .then(response => response.json())
