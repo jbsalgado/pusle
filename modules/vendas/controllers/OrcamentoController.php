@@ -308,7 +308,10 @@ class OrcamentoController extends Controller
         $lojaConfig = LojaConfiguracao::findOne(['usuario_id' => $usuario->id]);
         $config = Configuracao::findOne(['usuario_id' => $usuario->id]);
 
-        // Carrega FPDF (Autoloaded via Composer)
+        // Carrega FPDF manualmente para evitar problemas de alias/autoloader em caminhos virtuais
+        if (!class_exists('FPDF')) {
+            require_once __DIR__ . '/../../../vendor/setasign/fpdf/fpdf.php';
+        }
 
         $pdf = new \FPDF('P', 'mm', 'A4');
         $pdf->AddPage();
