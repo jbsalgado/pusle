@@ -37,6 +37,11 @@ function formatarMoedaLocal($valor) {
             </div>
             <div class="flex gap-3">
                 <?= Html::a(
+                    '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>Imprimir Pendências',
+                    ['imprimir-itens-avulsos'],
+                    ['class' => 'inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500', 'target' => '_blank']
+                ) ?>
+                <?= Html::a(
                     '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>Voltar',
                     ['inicio/index'],
                     ['class' => 'inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500']
@@ -102,11 +107,22 @@ function formatarMoedaLocal($valor) {
                                 <td class="px-6 py-4 whitespace-nowrap text-center text-xs text-gray-500">
                                     <?= date('d/m/Y H:i', strtotime($model['ultima_venda'])) ?>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                <td class="px-6 py-4 whitespace-nowrap text-center flex justify-center gap-2">
                                     <?= Html::a(
                                         'Cadastrar Produto',
                                         ['create', 'nome_manual' => $model['nome_item_manual']],
                                         ['class' => 'inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-bold rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all']
+                                    ) ?>
+                                    <?= Html::a(
+                                        '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>Resolver',
+                                        ['resolver-item-avulso', 'nome_manual' => $model['nome_item_manual']],
+                                        [
+                                            'class' => 'inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-bold rounded-lg shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all',
+                                            'data' => [
+                                                'confirm' => 'Marcar este item como resolvido? Ele não aparecerá mais nesta lista, mas o histórico de vendas será mantido.',
+                                                'method' => 'post',
+                                            ],
+                                        ]
                                     ) ?>
                                 </td>
                             </tr>

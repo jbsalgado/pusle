@@ -22,6 +22,7 @@ use app\modules\vendas\models\Produto;
  * @property float $preco_unitario_venda
  * @property float $valor_total_item
  * @property string $nome_item_manual
+ * @property boolean $avulso_resolvido
  * 
  * @property Venda $venda
  * @property Produto $produto
@@ -46,6 +47,7 @@ class VendaItem extends ActiveRecord
             [['venda_id', 'produto_id', 'quantidade', 'preco_unitario_venda'], 'required'],
             [['venda_id', 'produto_id', 'nome_item_manual'], 'string'],
             [['quantidade'], 'number', 'min' => 0.001],
+            [['avulso_resolvido'], 'boolean'],
             [['preco_unitario_venda', 'valor_total_item', 'desconto_percentual', 'desconto_valor'], 'number', 'min' => 0],
             [['venda_id'], 'exist', 'skipOnError' => true, 'targetClass' => Venda::class, 'targetAttribute' => ['venda_id' => 'id']],
             [['produto_id'], 'exist', 'skipOnError' => true, 'targetClass' => Produto::class, 'targetAttribute' => ['produto_id' => 'id']],
@@ -67,6 +69,7 @@ class VendaItem extends ActiveRecord
             'desconto_percentual' => 'Desconto (%)',
             'desconto_valor' => 'Desconto (R$)',
             'nome_item_manual' => 'Nome (Item Avulso)',
+            'avulso_resolvido' => 'Resolvido',
         ];
     }
 

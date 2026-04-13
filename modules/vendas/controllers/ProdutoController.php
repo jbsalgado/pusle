@@ -35,6 +35,7 @@ class ProdutoController extends Controller
                 'actions' => [
                     'delete' => ['POST'],
                     'delete-foto' => ['POST'],
+                    'resolver-item-avulso' => ['POST', 'GET'],
                 ],
             ],
         ];
@@ -934,6 +935,7 @@ class ProdutoController extends Controller
             ->innerJoin(\app\modules\vendas\models\Venda::tableName() . ' v', 'v.id = vi.venda_id')
             ->where(['not', ['vi.nome_item_manual' => null]])
             ->andWhere(['v.usuario_id' => $lojaId])
+            ->andWhere(['vi.avulso_resolvido' => false])
             ->groupBy('vi.nome_item_manual')
             ->orderBy(['total_vendas' => SORT_DESC]);
 
@@ -949,6 +951,78 @@ class ProdutoController extends Controller
 
         return $this->render('itens-avulsos', [
             'dataProvider' => $dataProvider,
+        ]);
+    }
+
+    /**
+     * Marca todos os itens avulsos com um determinado nome como resolvidos.
+     */
+    public function actionResolverItemAvulso($nome_manual)
+    {
+        if (!$this->isAdministrador()) {
+            throw new \yii\web\ForbiddenHttpException('Acesso negado.');
+        }
+
+        $lojaId = $this->getLojaId();
+
+        // Busca registros de VendaItem daquela loja com o nome manual e que não estejam resolvidos
+        $itens = \app\modules\vendas\models\VendaItem::find()
+            ->alias('vi')
+            ->innerJoin(\app\modules\vendas\models\Venda::tableName() . ' v', 'v.id = vi.venda_id')
+            ->where(['vi.nome_item_manual' => $nome_manual])
+            ->andWhere(['v.usuario_id' => $lojaId])
+            ->andWhere(['vi.avulso_resolvido' => false])
+            ->all();
+
+        if (empty($itens)) {
+            Yii::$app->session->setFlash('warning', 'Nenhum item pendente encontrado com este nome.');
+            return $this->redirect(['itens-avulsos']);
+        }
+
+        $count = 0;
+        foreach ($itens as $item) {
+            $item->avulso_resolvido = true;
+            if ($item->save(false)) {
+                $count++;
+            }
+        }
+
+        Yii::$app->session->setFlash('success', "Sucesso! {$count} itens foram marcados como resolvidos e não aparecerão mais no relatório.");
+        return $this->redirect(['itens-avulsos']);
+    }
+
+    /**
+     * Gera relatório de impressão dos itens avulsos pendentes.
+     */
+    public function actionImprimirItensAvulsos()
+    {
+        if (!$this->isAdministrador()) {
+            throw new \yii\web\ForbiddenHttpException('Acesso negado.');
+        }
+
+        $lojaId = $this->getLojaId();
+
+        $query = \app\modules\vendas\models\VendaItem::find()
+            ->alias('vi')
+            ->select([
+                'vi.nome_item_manual',
+                'COUNT(*) as total_vendas',
+                'SUM(vi.quantidade) as total_quantidade',
+                'SUM(vi.quantidade * vi.preco_unitario_venda - COALESCE(vi.desconto_valor, 0)) as total_receita',
+                'MAX(v.data_venda) as ultima_venda'
+            ])
+            ->innerJoin(\app\modules\vendas\models\Venda::tableName() . ' v', 'v.id = vi.venda_id')
+            ->where(['not', ['vi.nome_item_manual' => null]])
+            ->andWhere(['v.usuario_id' => $lojaId])
+            ->andWhere(['vi.avulso_resolvido' => false])
+            ->groupBy('vi.nome_item_manual')
+            ->orderBy(['total_vendas' => SORT_DESC]);
+
+        $dados = $query->asArray()->all();
+
+        return $this->renderPartial('imprimir-itens-avulsos', [
+            'dados' => $dados,
+            'lojaNome' => Yii::$app->user->identity->username ?? 'Minha Loja'
         ]);
     }
 }
