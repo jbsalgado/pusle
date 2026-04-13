@@ -257,7 +257,7 @@ $this->params['breadcrumbs'][] = $this->title;
 <script>
 // Busca CEP via API ViaCEP
 document.addEventListener('DOMContentLoaded', function() {
-    const cepInput = document.querySelector('input[name="PrestClientes[endereco_cep]"]');
+    const cepInput = document.querySelector('input[name="Clientes[endereco_cep]"]');
     
     if (cepInput) {
         cepInput.addEventListener('blur', function() {
@@ -268,11 +268,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(response => response.json())
                     .then(data => {
                         if (!data.erro) {
-                            document.querySelector('input[name="PrestClientes[endereco_logradouro]"]').value = data.logradouro || '';
-                            document.querySelector('input[name="PrestClientes[endereco_bairro]"]').value = data.bairro || '';
-                            document.querySelector('input[name="PrestClientes[endereco_cidade]"]').value = data.localidade || '';
-                            document.querySelector('input[name="PrestClientes[endereco_estado]"]').value = data.uf || '';
-                            document.querySelector('input[name="PrestClientes[endereco_complemento]"]').focus();
+                            document.querySelector('input[name="Clientes[endereco_logradouro]"]').value = data.logradouro || '';
+                            document.querySelector('input[name="Clientes[endereco_bairro]"]').value = data.bairro || '';
+                            document.querySelector('input[name="Clientes[endereco_cidade]"]').value = data.localidade || '';
+                            document.querySelector('input[name="Clientes[endereco_estado]"]').value = data.uf || '';
+                            document.querySelector('input[name="Clientes[endereco_complemento]"]').focus();
                         }
                     })
                     .catch(error => console.error('Erro ao buscar CEP:', error));

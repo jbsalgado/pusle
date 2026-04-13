@@ -3,6 +3,8 @@
 namespace app\modules\vendas\models;
 
 use Yii;
+use yii\db\Expression;
+use yii\behaviors\TimestampBehavior;
 
 /**
  * This is the model class for table "prest_clientes".
@@ -38,11 +40,22 @@ use Yii;
  */
 class Clientes extends \yii\db\ActiveRecord
 {
-
+    public $senha; // Campo virtual para receber senha em texto plano
 
     /**
      * {@inheritdoc}
      */
+    public function behaviors()
+    {
+        return [
+            [
+                'class' => TimestampBehavior::class,
+                'createdAtAttribute' => 'data_criacao',
+                'updatedAtAttribute' => 'data_atualizacao',
+                'value' => new Expression('NOW()'),
+            ],
+        ];
+    }
     public static function tableName()
     {
         return 'prest_clientes';
@@ -54,11 +67,10 @@ class Clientes extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['cpf', 'telefone', 'email', 'endereco_logradouro', 'endereco_numero', 'endereco_complemento', 'endereco_bairro', 'endereco_cidade', 'endereco_estado', 'endereco_cep', 'ponto_referencia', 'observacoes', 'senha_hash'], 'default', 'value' => null],
-            [['regiao_id'], 'default', 'value' => null],
+            [['id', 'usuario_id', 'regiao_id', 'ponto_referencia', 'observacoes', 'senha_hash', 'senha'], 'string'],
+            [['regiao_id'], 'filter', 'filter' => function($value) { return $value === '' ? null : $value; }],
             [['ativo'], 'default', 'value' => 1],
-            [['id', 'usuario_id', 'nome_completo'], 'required'],
-            [['id', 'usuario_id', 'ponto_referencia', 'observacoes', 'regiao_id'], 'string'],
+            [['usuario_id', 'nome_completo'], 'required'],
             [['ativo'], 'boolean'],
             [['data_criacao', 'data_atualizacao'], 'safe'],
             [['nome_completo'], 'string', 'max' => 150],
@@ -100,8 +112,24 @@ class Clientes extends \yii\db\ActiveRecord
             'data_criacao' => 'Data Criacao',
             'data_atualizacao' => 'Data Atualizacao',
             'regiao_id' => 'Regiao ID',
+            'senha' => 'Senha (acesso PWA)',
             'senha_hash' => 'Senha Hash',
         ];
+    }
+
+    /**
+     * Antes de salvar, criptografa a senha se fornecida
+     */
+    public function beforeSave($insert)
+    {
+        if (parent::beforeSave($insert)) {
+            // Se senha foi fornecida, gera hash
+            if (!empty($this->senha)) {
+                $this->senha_hash = Yii::$app->security->generatePasswordHash($this->senha);
+            }
+            return true;
+        }
+        return false;
     }
 
     /**
