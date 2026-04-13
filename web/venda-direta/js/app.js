@@ -1047,7 +1047,15 @@ window.abrirModalQuantidade = function(produtoId) {
     
     // Configura input para fracionados
     const permiteFracionado = !!produto.venda_fracionada;
-    inputQtd.value = formatarQuantidade(1, permiteFracionado);
+    
+    // ✅ NOVO: Inicia com a primeira faixa da escala se existir
+    let qtdInicial = 1;
+    const qtdEscala1 = parseFloat(produto.qtd_escala_1 || 0);
+    if (qtdEscala1 > 0) {
+        qtdInicial = qtdEscala1;
+    }
+    
+    inputQtd.value = formatarQuantidade(qtdInicial, permiteFracionado);
     
     // Atualiza o subtotal inicial
     window.atualizarPrecoModal();

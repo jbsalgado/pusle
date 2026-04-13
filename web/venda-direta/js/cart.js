@@ -257,27 +257,62 @@ export function atualizarIndicadoresCarrinho() {
 }
 
 /**
- * Retorna o preço unitário correto com base na quantidade (Escala)
+ * Retorna o preço unitário correto com base na quantidade (Escala Inteligente - Lógica 1)
+ * Agora suporta teto de preço para evitar que quantidades menores custem mais que as maiores.
  * @param {Object} item - O item do carrinho
  * @param {number} quantidade - A nova quantidade
  */
 export function getPrecoVigente(item, quantidade) {
-  // Preço base é o preço de venda normal
-  let precoFinal = parseFloat(item.preco_venda_sugerido || 0);
+  const q = parseFloat(quantidade) || 0;
+  if (q <= 0) return parseFloat(item.preco_venda_sugerido || 0);
 
-  // Percorre as 5 escalas (da maior quantidade para a menor)
-  // Isso garante que se a pessoa atingir a escala 3, ela pegue o preço da 3 e não o da 1.
-  for (let i = 5; i >= 1; i--) {
-    const qtdEscala = parseFloat(item[`qtd_escala_${i}`] || 0);
-    const precoEscala = parseFloat(item[`preco_escala_${i}`] || 0);
-
-    if (qtdEscala > 0 && precoEscala > 0 && quantidade >= qtdEscala) {
-      precoFinal = precoEscala;
-      break; // Encontrou a maior escala atingida
+  // 1. Extrair todas as escalas válidas
+  const escalas = [];
+  for (let i = 1; i <= 5; i++) {
+    const qtd = parseFloat(item[`qtd_escala_${i}`] || 0);
+    const preco = parseFloat(item[`preco_escala_${i}`] || 0); // Preço TOTAL daquela qtd
+    if (qtd > 0 && preco > 0) {
+      escalas.push({ qtd, preco, unitario: preco / qtd });
     }
   }
 
-  return precoFinal;
+  // Se não houver escalas, retorna o preço sugerido (unitário)
+  if (escalas.length === 0) {
+    return parseFloat(item.preco_venda_sugerido || 0);
+  }
+
+  // Ordenar escalas por quantidade crescente
+  escalas.sort((a, b) => a.qtd - b.qtd);
+
+  // 2. Encontrar a faixa atingida
+  let faixaAtingida = null;
+  let proximaFaixa = null;
+
+  for (let i = 0; i < escalas.length; i++) {
+    if (q >= escalas[i].qtd) {
+      faixaAtingida = escalas[i];
+    } else {
+      proximaFaixa = escalas[i];
+      break;
+    }
+  }
+
+  // Se estiver abaixo da primeira faixa, usamos o valor unitário da primeira faixa
+  if (!faixaAtingida) {
+    faixaAtingida = escalas[0];
+    proximaFaixa = escalas[1] || null; // O 0 já é o atingido virtual
+  }
+
+  // 3. Calcular preço base (Qtd * Unitário da Faixa)
+  let precoBase = q * faixaAtingida.unitario;
+
+  // 4. Aplicar TETO (Lógica 1): Se o preço base ultrapassar o preço total da próxima faixa, usamos o da próxima
+  if (proximaFaixa && precoBase > proximaFaixa.preco) {
+    precoBase = proximaFaixa.preco;
+  }
+
+  // Retornamos um "Unitário Virtual" que resulte no preço base correto quando multiplicado no app.js
+  return precoBase / q;
 }
 
 /**
@@ -287,29 +322,32 @@ export function getPrecoVigente(item, quantidade) {
  */
 function aplicarRegrasEscala(item) {
   const quantidade = parseFloat(item.quantidade || 0);
+  if (quantidade <= 0) return;
+
   const precoSugerido = parseFloat(item.preco_venda_sugerido || 0);
+  
+  // O motor de escala agora retorna o unitário virtual já considerando o teto
   const precoEscala = getPrecoVigente(item, quantidade);
 
-  // Cenário A: Preço de Escala < Preço Sugerido (DESCONTO AUTOMÁTICO)
-  if (precoEscala > 0 && precoEscala < precoSugerido) {
-    const totalSemDesconto = precoSugerido * quantidade;
-    const totalComEscala = precoEscala * quantidade;
-    
-    // Injeta a diferença no campo de desconto (ex: 6 * 180 - 1000 = 80)
-    item.descontoValor = Math.round((totalSemDesconto - totalComEscala) * 100) / 100;
-    item.descontoPercentual = 0;
-    item.preco_final = precoSugerido; // Mantém preço base no display
-    item.isFilteredScale = true; // Identifica que é um desconto de volume
-  } 
-  // Cenário B: Preço de Escala > Preço Sugerido (ACRÉSCIMO/AJUSTE DE TABELA)
-  else if (precoEscala > precoSugerido) {
-    item.preco_final = precoEscala; // Ajusta o unitário (ex: 0.5 M3 -> 200)
-    item.descontoValor = 0;
-    item.descontoPercentual = 0;
-    item.isFilteredScale = false;
-  }
-  // Cenário C: Fora de escala ou Preço Sugerido (RESETA SE ERA AUTOMÁTICO)
-  else {
+  // Cenário: Preço de Escala Total difere do Sugerido * Qtd
+  // Note: precoEscala é um unitário virtual.
+  const totalSugerido = precoSugerido * quantidade;
+  const totalReal = precoEscala * quantidade;
+
+  if (Math.abs(totalReal - totalSugerido) > 0.01) {
+    // Se o preço total for menor que o sugerido, aplicamos como desconto para o ERP entender
+    if (totalReal < totalSugerido) {
+      item.descontoValor = Math.round((totalSugerido - totalReal) * 100) / 100;
+      item.descontoPercentual = 0;
+      item.preco_final = precoSugerido;
+    } else {
+      // Se for maior (ex: primeira faixa tem valor unitário superior ao sugerido)
+      item.preco_final = precoEscala;
+      item.descontoValor = 0;
+      item.descontoPercentual = 0;
+    }
+    item.isFilteredScale = true; 
+  } else {
     item.preco_final = precoSugerido;
     if (item.isFilteredScale) {
         item.descontoValor = 0;
