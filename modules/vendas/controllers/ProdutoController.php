@@ -131,14 +131,17 @@ class ProdutoController extends Controller
             $query->andWhere(['categoria_id' => $categoriaId]);
         }
 
-        if ($busca) {
-            // Busca case-insensitive usando ILIKE (PostgreSQL)
-            // Funciona tanto para maiúsculas quanto minúsculas
-            $query->andWhere([
-                'or',
-                ['ilike', 'nome', $busca],
-                ['ilike', 'codigo_referencia', $busca]
-            ]);
+        if ($busca && trim($busca) !== '') {
+            $palavras = explode(' ', trim($busca));
+            foreach ($palavras as $palavra) {
+                if (trim($palavra) === '') continue;
+                $termo = '%' . $palavra . '%';
+                // Busca insensível a ACENTOS e CASE (usando unaccent + ILIKE)
+                $query->andWhere(new \yii\db\Expression(
+                    "unaccent(nome) ILIKE unaccent(:p) OR unaccent(codigo_referencia) ILIKE unaccent(:p) OR codigo_barras ILIKE :p",
+                    [':p' => $termo]
+                ));
+            }
         }
 
         if ($estoque === 'com') {
@@ -210,6 +213,12 @@ class ProdutoController extends Controller
         $model = new Produto();
         $model->usuario_id = $lojaId; // Registra na loja do dono
         $model->ativo = true;
+
+        // ✅ NOVO: Pré-preenche o nome se vier via GET (Vindo da gestão de itens avulsos)
+        $nomeManual = Yii::$app->request->get('nome_manual');
+        if ($nomeManual) {
+            $model->nome = $nomeManual;
+        }
 
         // Pré-preenche categoria se vier via GET (ex: vindo da view de outro produto)
         $categoriaId = Yii::$app->request->get('categoria_id');
@@ -498,7 +507,8 @@ class ProdutoController extends Controller
             $ehPrincipal = $foto->eh_principal;
             $produtoId = $produto->id;
 
-            // Verificar se é a única foto do produto
+            /* 
+            // Comentado para permitir excluir a última foto conforme solicitado pelo usuário
             $totalFotos = ProdutoFoto::find()->where(['produto_id' => $produto->id])->count();
             if ($totalFotos <= 1) {
                 Yii::$app->session->setFlash('error', 'Não é possível excluir a única foto do produto. Adicione outra foto antes de excluir esta.');
@@ -510,6 +520,7 @@ class ProdutoController extends Controller
                 }
                 return $this->redirect([$redirectTo, 'id' => $produtoId]);
             }
+            */
 
             // Excluir o arquivo físico primeiro
             $this->deleteFotoFile($foto);
@@ -897,5 +908,47 @@ class ProdutoController extends Controller
 
         Yii::info('Produto encontrado com sucesso: ' . $produto->nome, __METHOD__);
         return $produto;
+    }
+
+    /**
+     * Relatório de Itens Avulsos: Lista produtos vendidos manualmente para o gestor oficializar.
+     */
+    public function actionItensAvulsos()
+    {
+        if (!$this->isAdministrador()) {
+            throw new \yii\web\ForbiddenHttpException('Acesso negado.');
+        }
+
+        $lojaId = $this->getLojaId();
+
+        // Query para buscar itens avulsos agrupados por nome
+        $query = \app\modules\vendas\models\VendaItem::find()
+            ->alias('vi')
+            ->select([
+                'vi.nome_item_manual',
+                'COUNT(*) as total_vendas',
+                'SUM(vi.quantidade) as total_quantidade',
+                'SUM(vi.quantidade * vi.preco_unitario_venda - COALESCE(vi.desconto_valor, 0)) as total_receita',
+                'MAX(v.data_venda) as ultima_venda'
+            ])
+            ->innerJoin('prest_venda v', 'v.id = vi.venda_id')
+            ->where(['not', ['vi.nome_item_manual' => null]])
+            ->andWhere(['v.usuario_id' => $lojaId])
+            ->groupBy('vi.nome_item_manual')
+            ->orderBy(['total_vendas' => SORT_DESC]);
+
+        $dataProvider = new \yii\data\ArrayDataProvider([
+            'allModels' => $query->asArray()->all(),
+            'pagination' => [
+                'pageSize' => 50,
+            ],
+            'sort' => [
+                'attributes' => ['nome_item_manual', 'total_vendas', 'total_receita', 'ultima_venda'],
+            ],
+        ]);
+
+        return $this->render('itens-avulsos', [
+            'dataProvider' => $dataProvider,
+        ]);
     }
 }

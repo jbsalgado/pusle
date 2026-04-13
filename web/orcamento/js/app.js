@@ -18,6 +18,96 @@ import { buscarClientePorCpf, cadastrarCliente, getClienteAtual, setClienteAtual
 // Variáveis Globais
 let produtos = [];
 let produtosFiltrados = []; // Produtos filtrados pela busca
+
+// ==========================================================================
+// CÓDIGO DE BARRAS E SCANNER WEBCAM (Garantindo disponibilidade global)
+// ==========================================================================
+let barcodeAccumulator = "";
+let barcodeTimeoutId = null;
+let html5QrCode = null;
+
+/**
+ * Inicializa o listener para leitor de código de barras físico (teclado)
+ */
+function inicializarLeitorFisico() {
+    console.log('[App] 🔍 Inicializando listener de código de barras físico...');
+    document.addEventListener('keydown', (e) => {
+        const target = e.target;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+            if (target.id !== 'busca-produto') return;
+        }
+        if (e.key === 'Enter') {
+            if (barcodeAccumulator.length >= 3) {
+                executarBuscaPorCodigo(barcodeAccumulator);
+                barcodeAccumulator = "";
+            }
+            return;
+        }
+        if (e.key.length === 1) {
+            barcodeAccumulator += e.key;
+            clearTimeout(barcodeTimeoutId);
+            barcodeTimeoutId = setTimeout(() => { barcodeAccumulator = ""; }, 100);
+        }
+    });
+}
+
+/**
+ * Executa a busca baseada no código lido
+ */
+async function executarBuscaPorCodigo(codigo) {
+    const inputBusca = document.getElementById('busca-produto');
+    if (inputBusca) {
+        inputBusca.value = codigo;
+        // Importante: filtrarProdutos é assíncrona e está definida abaixo, 
+        // mas em módulos JS o hoisting de function statements funciona.
+        await filtrarProdutos();
+        if (navigator.vibrate) navigator.vibrate(100);
+    }
+}
+
+window.abrirScannerWebcam = function() {
+    const modal = document.getElementById('modal-scanner');
+    if (modal) modal.classList.remove('hidden');
+    if (typeof Html5Qrcode === 'undefined') {
+        alert("Erro: Biblioteca de scanner não carregada.");
+        return;
+    }
+    if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
+    const config = { fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 };
+    html5QrCode.start(
+        { facingMode: "environment" }, 
+        config,
+        (decodedText) => {
+            window.pararScannerWebcam();
+            executarBuscaPorCodigo(decodedText);
+        },
+        (errorMessage) => {}
+    ).catch((err) => {
+        console.error("[Scanner] ❌ Erro ao iniciar câmera:", err);
+        alert("Não foi possível acessar a câmera. Verifique as permissões.");
+        window.pararScannerWebcam();
+    });
+};
+
+window.pararScannerWebcam = function() {
+    const modal = document.getElementById('modal-scanner');
+    if (modal) modal.classList.add('hidden');
+    if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().catch(err => console.warn(err));
+    }
+};
+
+window.fecharScanner = window.pararScannerWebcam;
+
+// Inicializa o leitor físico
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(inicializarLeitorFisico, 1000));
+} else {
+    setTimeout(inicializarLeitorFisico, 1000);
+}
+
+// ==========================================================================
+
 let colaboradorAtual = null;
 let formasPagamento = [];
 let usuarioData = null;
@@ -498,7 +588,7 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false, termoBusca
         mostrarCarregando();
         
         // Constrói URL com parâmetros de busca se houver
-        let url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}&page=${pagina}&per-page=20`;
+        let url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}&page=${pagina}&per-page=100`;
         if (termoBusca && termoBusca.trim() !== '') {
             url += `&q=${encodeURIComponent(termoBusca.trim())}`;
         }
@@ -522,13 +612,13 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false, termoBusca
             if (data._meta) {
                 metadados = {
                     totalCount: data._meta.totalCount || data._meta.total || 0,
-                    pageCount: data._meta.pageCount || Math.ceil((data._meta.totalCount || 0) / (data._meta.perPage || 20)) || 1,
+                    pageCount: data._meta.pageCount || Math.ceil((data._meta.totalCount || 0) / (data._meta.perPage || 100)) || 1,
                     currentPage: data._meta.currentPage || data._meta.page || pagina,
-                    perPage: data._meta.perPage || data._meta.pageSize || 20
+                    perPage: data._meta.perPage || data._meta.pageSize || 100
                 };
             } else {
                 // Fallback: calcula baseado nos items retornados
-                const perPage = 20;
+                const perPage = 100;
                 const totalEstimado = produtosPagina.length < perPage 
                     ? (pagina - 1) * perPage + produtosPagina.length
                     : null;
@@ -559,7 +649,7 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false, termoBusca
                 totalCount: 0,
                 pageCount: 1,
                 currentPage: 1,
-                perPage: 20
+                perPage: 100
             };
         }
         
@@ -1883,3 +1973,5 @@ if ('serviceWorker' in navigator) {
         }
     });
 }
+
+

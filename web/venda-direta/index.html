@@ -241,6 +241,16 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </button>
+          <button
+            id="btn-item-avulso"
+            class="absolute right-2 top-1/2 transform -translate-y-1/2 text-green-600 hover:text-green-800 p-1"
+            title="Adicionar Item Avulso (não cadastrado)"
+            onclick="window.abrirModalItemAvulso()"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
           <svg
             class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400"
             fill="none"
@@ -1455,6 +1465,38 @@
         <p class="text-white text-xs mt-4 opacity-75">Certifique-se de que há boa iluminação</p>
     </div>
 
+    <!-- Modal Item Avulso -->
+    <div id="modal-item-avulso" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-300">
+        <div class="flex justify-between items-center p-4 border-b">
+          <h2 class="text-xl font-bold text-gray-800">Novo Item Avulso</h2>
+          <button onclick="fecharModal('modal-item-avulso')" class="text-gray-400 hover:text-gray-600">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div class="p-6 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nome/Descrição do Item *</label>
+            <input type="text" id="avulso-nome" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: Item não cadastrado">
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Preço unitário *</label>
+              <input type="text" id="avulso-preco" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="0,00" oninput="formatarMoedaInput(this)">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Quantidade *</label>
+              <input type="number" id="avulso-qtd" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value="1" step="0.01">
+            </div>
+          </div>
+        </div>
+        <div class="p-4 bg-gray-50 flex gap-3">
+          <button onclick="fecharModal('modal-item-avulso')" class="flex-1 py-2 text-gray-600 font-medium hover:bg-gray-200 rounded-lg">Cancelar</button>
+          <button onclick="window.confirmarItemAvulso()" class="flex-1 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700">Adicionar</button>
+        </div>
+      </div>
+    </div>
+
     <script type="module" src="js/app.js?v=20260330_v1"></script>
     <script src="https://sdk.mercadopago.com/js/v2"></script>
 
@@ -1549,6 +1591,28 @@
           return;
         }
 
+        // --- NOVO: Solicita o número do WhatsApp ---
+        let telefone = prompt(
+          "Digite o número de WhatsApp do cliente (com DDD):\nEx: 11999999999",
+          "",
+        );
+        if (telefone === null) return; // Usuário cancelou
+
+        // Sanitização do número
+        let numeroLimpo = telefone.replace(/\D/g, "");
+        if (numeroLimpo.length === 0) {
+          alert("O número de telefone é obrigatório.");
+          return;
+        }
+
+        // Adiciona 55 (Brasil) se o usuário não tiver colocado o código do país
+        if (numeroLimpo.length <= 11) {
+          numeroLimpo = "55" + numeroLimpo;
+        }
+
+        const msgTexto = "Segue o seu comprovante de venda. Obrigado pela preferência!";
+        const textEncoded = encodeURIComponent(msgTexto);
+
         // Tenta usar Web Share API se disponível (mobile)
         if (navigator.share && navigator.canShare) {
           try {
@@ -1560,24 +1624,27 @@
             if (navigator.canShare({ files: [file] })) {
               await navigator.share({
                 title: "Comprovante de Venda",
-                text: "Comprovante de venda",
+                text: msgTexto,
                 files: [file],
               });
+              
+              // Após compartilhar a imagem, sugere abrir a conversa para dar oi
+              if (confirm("Deseja abrir o chat do cliente no WhatsApp agora?")) {
+                 window.open(`https://api.whatsapp.com/send?phone=${numeroLimpo}&text=${textEncoded}`, "_blank");
+              }
               return;
             }
           } catch (error) {
             if (error.name !== "AbortError") {
-              console.warn(
-                "Web Share API não disponível, usando fallback:",
-                error,
-              );
+              console.warn("Web Share API falhou, usando fallback:", error);
             } else {
-              return; // Usuário cancelou
+              return;
             }
           }
         }
 
-        // Fallback: baixa a imagem e abre WhatsApp
+        // Fallback para PC: Abre o link direto com o número
+        // Primeiro baixa a imagem para o vendedor poder anexar
         const url = window.comprovanteImagem.url;
         const link = document.createElement("a");
         link.href = url;
@@ -1586,14 +1653,11 @@
         link.click();
         document.body.removeChild(link);
 
-        // Abre WhatsApp Web ou app
-        const text = encodeURIComponent("Comprovante de venda");
-        const whatsappUrl = `https://wa.me/?text=${text}`;
+        const whatsappUrl = `https://api.whatsapp.com/send?phone=${numeroLimpo}&text=${textEncoded}`;
         window.open(whatsappUrl, "_blank");
 
-        // Notifica o usuário
         setTimeout(() => {
-          alert("Imagem baixada! Agora você pode anexá-la no WhatsApp.");
+          alert("Imagem baixada! Agora basta colá-la (Ctrl+V) na conversa do WhatsApp que acabamos de abrir.");
         }, 500);
       };
 

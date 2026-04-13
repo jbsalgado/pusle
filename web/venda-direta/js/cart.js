@@ -22,8 +22,7 @@ export function setCarrinho(novoCarrinho) {
  * Verifica se produto está no carrinho
  */
 export function produtoEstaNoCarrinho(produtoId) {
-  // ✅ CORREÇÃO: O produto no carrinho agora terá 'id' e não 'produto_id'
-  return carrinho.some((item) => item.id === produtoId);
+  return carrinho.some((item) => item.id === produtoId && !item.is_avulso);
 }
 
 /**
@@ -35,8 +34,12 @@ export function adicionarAoCarrinho(produto, quantidade) {
     return false;
   }
 
-  // ✅ CORREÇÃO: Buscar por 'id'
-  const itemExistente = carrinho.find((item) => item.id === produto.id);
+  const itemExistente = carrinho.find((item) => {
+    if (produto.is_avulso) {
+      return item.id === produto.id && item.nome === produto.nome;
+    }
+    return item.id === produto.id;
+  });
 
   if (itemExistente) {
     alert("Este item já está no seu carrinho.");
@@ -82,7 +85,12 @@ export function aumentarQuantidadeItem(produtoId) {
   if (item) {
     // ✅ CORREÇÃO: Garantir que é número
     // ✅ CORREÇÃO: Usar parseFloat para suportar decimais
-    item.quantidade = (parseFloat(item.quantidade) || 0) + 1;
+    const novaQtd = (parseFloat(item.quantidade) || 0) + 1;
+    item.quantidade = novaQtd;
+    
+    // ✅ Aplica preço de escala automaticamente (Sugestão automática)
+    item.preco_final = getPrecoVigente(item, novaQtd);
+    
     salvarCarrinho(carrinho);
     return true;
   }
@@ -98,7 +106,12 @@ export function diminuirQuantidadeItem(produtoId) {
   if (item && item.quantidade > 1) {
     // ✅ CORREÇÃO: Garantir que é número
     // ✅ CORREÇÃO: Usar parseFloat para suportar decimais
-    item.quantidade = (parseFloat(item.quantidade) || 0) - 1;
+    const novaQtd = (parseFloat(item.quantidade) || 0) - 1;
+    item.quantidade = novaQtd;
+    
+    // ✅ Aplica preço de escala automaticamente (Sugestão automática)
+    item.preco_final = getPrecoVigente(item, novaQtd);
+    
     salvarCarrinho(carrinho);
     return true;
   }
@@ -227,6 +240,30 @@ export function atualizarIndicadoresCarrinho() {
       }
     }
   });
+}
+
+/**
+ * Retorna o preço unitário correto com base na quantidade (Escala)
+ * @param {Object} item - O item do carrinho
+ * @param {number} quantidade - A nova quantidade
+ */
+function getPrecoVigente(item, quantidade) {
+  // Preço base é o preço de venda normal
+  let precoFinal = parseFloat(item.preco_venda_sugerido || 0);
+
+  // Percorre as 5 escalas (da maior quantidade para a menor)
+  // Isso garante que se a pessoa atingir a escala 3, ela pegue o preço da 3 e não o da 1.
+  for (let i = 5; i >= 1; i--) {
+    const qtdEscala = parseFloat(item[`qtd_escala_${i}`] || 0);
+    const precoEscala = parseFloat(item[`preco_escala_${i}`] || 0);
+
+    if (qtdEscala > 0 && precoEscala > 0 && quantidade >= qtdEscala) {
+      precoFinal = precoEscala;
+      break; // Encontrou a maior escala atingida
+    }
+  }
+
+  return precoFinal;
 }
 
 /**

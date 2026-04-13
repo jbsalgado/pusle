@@ -115,7 +115,12 @@ class Produto extends ActiveRecord
             [['unidade_medida'], 'string', 'max' => 10],
             [['unidade_medida'], 'default', 'value' => 'UN'],
             [['data_inicio_promocao', 'data_fim_promocao'], 'safe'],
-            [['estoque_atual', 'estoque_minimo', 'estoque_maximo', 'ponto_corte'], 'safe'], // ✅ Garante que os campos podem ser carregados via load()
+            [['estoque_atual', 'estoque_minimo', 'estoque_maximo', 'ponto_corte'], 'safe'], 
+            
+            // ✅ NOVOS CAMPOS: Escalas de Preço
+            [['qtd_escala_1', 'qtd_escala_2', 'qtd_escala_3', 'qtd_escala_4', 'qtd_escala_5'], 'number', 'min' => 0],
+            [['preco_escala_1', 'preco_escala_2', 'preco_escala_3', 'preco_escala_4', 'preco_escala_5'], 'number', 'min' => 0],
+            
             [['nome'], 'string', 'max' => 150],
             [['codigo_referencia', 'codigo_barras'], 'string', 'max' => 50],
             [['marca'], 'string', 'max' => 100],
@@ -340,6 +345,17 @@ class Produto extends ActiveRecord
             'codigo_barras' => 'Código de Barras (EAN)',
             'marca' => 'Marca',
             'com_nota' => 'Vendido com Nota (Última Compra)',
+            'localizacao' => 'Localização no Estoque',
+            'qtd_escala_1' => 'Escala 1 (Qtd)',
+            'preco_escala_1' => 'Escala 1 (Preço)',
+            'qtd_escala_2' => 'Escala 2 (Qtd)',
+            'preco_escala_2' => 'Escala 2 (Preço)',
+            'qtd_escala_3' => 'Escala 3 (Qtd)',
+            'preco_escala_3' => 'Escala 3 (Preço)',
+            'qtd_escala_4' => 'Escala 4 (Qtd)',
+            'preco_escala_4' => 'Escala 4 (Preço)',
+            'qtd_escala_5' => 'Escala 5 (Qtd)',
+            'preco_escala_5' => 'Escala 5 (Preço)',
         ];
     }
 

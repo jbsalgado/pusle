@@ -127,7 +127,7 @@ $this->registerCss('
                         <div class="flex justify-between items-start py-2 border-b border-gray-100">
                             <div class="flex-1">
                                 <p class="text-lg font-bold text-gray-900">
-                                    <?= Html::encode($produto ? $produto->nome : 'Produto não encontrado') ?>
+                                    <?= Html::encode($item->nome_item_manual ?: ($produto ? $produto->nome : 'Produto não encontrado')) ?>
                                 </p>
                                 <p class="text-base text-gray-700">
                                     <?php $decimais = ($produto && $produto->venda_fracionada) ? 3 : 0; ?>
@@ -294,7 +294,7 @@ $this->registerCss('
         texto += linhaSeparadora + '\n';
 
         <?php foreach ($venda->itens as $item): ?>
-            texto += removerAcentos("<?= $item->produto ? Html::encode($item->produto->nome) : 'PRODUTO' ?>").substring(0, largura).toUpperCase() + '\n';
+            texto += removerAcentos("<?= Html::encode($item->nome_item_manual ?: ($item->produto ? $item->produto->nome : 'PRODUTO')) ?>").substring(0, largura).toUpperCase() + '\n';
             <?php $decimais = ($item->produto && $item->produto->venda_fracionada) ? 3 : 0; ?>
             texto += row("<?= number_format($item->quantidade, $decimais, ',', '') ?>x <?= number_format($item->preco_unitario_venda, 2, ',', '') ?>", "R$ <?= number_format($item->valor_total_item ?? ($item->quantidade * $item->preco_unitario_venda - ($item->desconto_valor ?? 0)), 2, ',', '') ?>") + '\n';
             <?php if ($item->desconto_valor > 0): ?>

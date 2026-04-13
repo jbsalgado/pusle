@@ -227,6 +227,54 @@ if ($model->hasErrors()): ?>
             </div>
         </div>
 
+        <!-- ============================================
+             SEÇÃO: PREÇOS POR ESCALA (ATACADO)
+             ============================================ -->
+        <div class="bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl p-4 sm:p-6 mt-6">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="bg-amber-100 p-2 rounded-lg">
+                    <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800">Tabela de Preços por Escala (Atacado)</h3>
+                    <p class="text-xs text-gray-500">Defina até 5 níveis de preços baseados na quantidade vendida.</p>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4 font-bold text-xs text-gray-500 uppercase tracking-wider px-2">
+                    <div>A partir de (Qtd)</div>
+                    <div>Preço Unitário (R$)</div>
+                </div>
+
+                <?php for ($i = 1; $i <= 5; $i++): ?>
+                    <div class="grid grid-cols-2 gap-4 items-center bg-white p-2 rounded-lg shadow-sm border border-gray-100">
+                        <div>
+                            <?= $form->field($model, "qtd_escala_$i")->textInput([
+                                'type' => 'number',
+                                'step' => '0.001',
+                                'class' => 'w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-amber-500',
+                                'placeholder' => 'Ex: 100.00'
+                            ])->label(false) ?>
+                        </div>
+                        <div>
+                            <?= $form->field($model, "preco_escala_$i")->textInput([
+                                'type' => 'number',
+                                'step' => '0.01',
+                                'class' => 'w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-amber-500',
+                                'placeholder' => 'R$ 0,00'
+                            ])->label(false) ?>
+                        </div>
+                    </div>
+                <?php endfor; ?>
+            </div>
+            <p class="mt-3 text-xs text-gray-500 italic">
+                * Na Venda Direta, o sistema sugerirá automaticamente o preço se a quantidade atingir esses valores.
+            </p>
+        </div>
+
 
         <!-- Campos ocultos para salvar margem e markup calculados -->
         <?= $form->field($model, 'margem_lucro_percentual')->hiddenInput(['id' => 'margem-lucro-percentual'])->label(false) ?>
@@ -981,7 +1029,7 @@ if ($model->hasErrors()): ?>
                             <?= Html::a('✕', $deleteUrl, [
                                 'class' => 'absolute top-2 right-2 w-6 h-6 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300',
                                 'data' => [
-                                    'confirm' => $foto->eh_principal ? 'Esta é a foto principal. Ao excluir, outra foto será definida como principal automaticamente. Deseja continuar?' : 'Tem certeza que deseja excluir esta foto?',
+                                    'confirm' => $foto->eh_principal ? (count($model->fotos) > 1 ? 'Esta é a foto principal. Ao excluir, outra foto será definida como principal automaticamente. Deseja continuar?' : 'Esta é a única foto do produto. Deseja excluí-la?') : 'Tem certeza que deseja excluir esta foto?',
                                     'method' => 'post',
                                 ],
                             ]) ?>

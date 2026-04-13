@@ -94,7 +94,8 @@ function prepararObjetoPedido(dadosPedido, carrinho) {
             // ✅ CORREÇÃO: Usar preço promocional se disponível (preco_final), senão usar preco_venda_sugerido
             preco_unitario: item.preco_final || item.preco_venda_sugerido,
             desconto_percentual: item.descontoPercentual || 0,
-            desconto_valor: item.descontoValor || 0
+            desconto_valor: item.descontoValor || 0,
+            nome_item_manual: item.nome_item_manual || null
         })),
         // Adiciona dados do acréscimo
         acrescimo_valor: parseFloat(acrescimo.valor) || 0,

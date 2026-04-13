@@ -66,34 +66,23 @@ class ProdutoController extends BaseController
             \Yii::info("Filtrando produtos por categoria_id: {$categoriaId}", 'api');
         }
 
-        // Suporte a busca por nome do produto
+        // Suporte a busca inteligente por palavras (Tokenizada)
         $busca = \Yii::$app->request->get('q') ?: \Yii::$app->request->get('busca');
         if ($busca && trim($busca) !== '') {
-            $termoBusca = trim($busca);
-            // Busca case-insensitive usando ILIKE (PostgreSQL)
-            // Adiciona wildcards manualmente para buscar em qualquer parte do nome
-            // Escapa caracteres especiais do SQL LIKE/ILIKE (% e _)
-            $termoBuscaEscapado = str_replace(['%', '_', '\\'], ['\%', '\_', '\\\\'], $termoBusca);
-            $termoBuscaComWildcards = '%' . $termoBuscaEscapado . '%';
+            $palavras = explode(' ', trim($busca));
+            foreach ($palavras as $palavra) {
+                if (trim($palavra) === '') continue;
+                
+                // Escapa caracteres especiais e adiciona wildcards
+                $palavraEscapada = str_replace(['%', '_', '\\'], ['\%', '\_', '\\\\'], trim($palavra));
+                $termo = '%' . $palavraEscapada . '%';
 
-            if (\Yii::$app->db->driverName === 'pgsql') {
-                // PostgreSQL: busca em nome, codigo_barras ou codigo_referencia
-                $query->andWhere([
-                    'or',
-                    ['ilike', 'nome', $termoBuscaComWildcards, false],
-                    ['ilike', 'codigo_barras', $termoBuscaComWildcards, false],
-                    ['ilike', 'codigo_referencia', $termoBuscaComWildcards, false]
-                ]);
-            } else {
-                // Outros bancos
-                $query->andWhere([
-                    'or',
-                    ['like', new \yii\db\Expression('LOWER(nome)'), strtolower($termoBuscaComWildcards), false],
-                    ['like', new \yii\db\Expression('LOWER(codigo_barras)'), strtolower($termoBuscaComWildcards), false],
-                    ['like', new \yii\db\Expression('LOWER(codigo_referencia)'), strtolower($termoBuscaComWildcards), false]
-                ]);
+                $query->andWhere(new \yii\db\Expression(
+                    "unaccent(nome) ILIKE unaccent(:p) OR unaccent(codigo_referencia) ILIKE unaccent(:p) OR codigo_barras ILIKE :p",
+                    [':p' => $termo]
+                ));
             }
-            \Yii::info("Aplicando filtro de busca (Nome/EAN/Ref): {$termoBusca}", 'api');
+            \Yii::info("Aplicando busca inteligente por palavras: " . implode(', ', $palavras), 'api');
         }
 
         $dataProvider = new ActiveDataProvider([

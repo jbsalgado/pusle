@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="style.css" />
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#16a34a" />
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <!-- Tailwind CSS via CDN (apenas para desenvolvimento) -->
     <!-- Para produção, instale via npm: npm install -D tailwindcss -->
     <!-- <script src="https://cdn.tailwindcss.com"></script> -->
@@ -205,13 +206,13 @@
             </button>
           </div>
         </div>
-        <!-- Campo de Busca -->
-        <div class="relative">
+        <!-- Barra de Busca Otimizada -->
+        <div class="relative group">
           <input
             type="text"
             id="busca-produto"
-            placeholder="🔍 Buscar produto por nome..."
-            class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm text-gray-900 bg-white placeholder-gray-400"
+            placeholder="Buscar por nome, código ou barra..."
+            class="w-full px-4 py-2 pl-10 pr-20 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm text-gray-900 bg-white placeholder-gray-400"
           />
           <svg
             class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400"
@@ -226,25 +227,29 @@
               d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
             ></path>
           </svg>
-          <button
-            id="btn-limpar-busca"
-            class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hidden"
-            onclick="limparBusca()"
-          >
-            <svg
-              class="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div class="absolute inset-y-0 right-0 flex items-center pr-2 gap-1">
+            <!-- Botão Escanear -->
+            <button 
+                onclick="window.abrirScannerWebcam()"
+                title="Escanear Código de Barras"
+                class="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors"
+                type="button"
             >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              ></path>
-            </svg>
-          </button>
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v-3m0 0h.01M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+            </button>
+            <button
+                id="btn-limpar-busca"
+                class="hidden text-gray-400 hover:text-gray-600 p-1"
+                onclick="limparBusca()"
+                type="button"
+            >
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+          </div>
         </div>
       </nav>
     </header>
@@ -1346,6 +1351,17 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Modal Scanner -->
+    <div id="modal-scanner" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="font-bold text-lg">Escanear Código</h3>
+                <button onclick="window.fecharScanner()" class="text-gray-500 hover:text-gray-800 text-xl">&times;</button>
+            </div>
+            <div id="reader" class="w-full"></div>
+        </div>
     </div>
 
     <!-- Scripts -->

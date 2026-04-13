@@ -216,17 +216,20 @@ class PedidoController extends BaseController
             Yii::info("Data do primeiro pagamento: {$dataPrimeiroPagamento}", 'api');
         }
 
-        // Identificar usuário da loja
-        $primeiroProdutoId = $data['itens'][0]['produto_id'] ?? null;
-        if (!$primeiroProdutoId) {
-            throw new BadRequestHttpException('ID do primeiro produto inválido.');
-        }
-        $primeiroProduto = Produto::findOne($primeiroProdutoId);
-        if (!$primeiroProduto) {
-            throw new BadRequestHttpException('Produto não encontrado.');
-        }
-        $usuarioId = $primeiroProduto->usuario_id;
+        // Identificar usuário da loja (Prioridade para o usuario_id enviado pelo PWA)
+        $usuarioId = $data['usuario_id'] ?? null;
+
         if (!$usuarioId) {
+            // Fallback: Tentar identificar pelo primeiro produto se não for avulso
+            $primeiroProdutoId = $data['itens'][0]['produto_id'] ?? null;
+            if ($primeiroProdutoId && $primeiroProdutoId !== '00000000-0000-0000-0000-000000000000') {
+                $primeiroProduto = Produto::findOne($primeiroProdutoId);
+                $usuarioId = $primeiroProduto ? $primeiroProduto->usuario_id : null;
+            }
+        }
+
+        if (!$usuarioId) {
+            Yii::error('Não foi possível identificar o usuário da loja (usuario_id ausente).', 'api');
             throw new ServerErrorHttpException('Não foi possível identificar o usuário da loja.');
         }
 
@@ -257,13 +260,32 @@ class PedidoController extends BaseController
                 }
 
                 $produto = Produto::findOne($produtoId);
+
+                // ✅ TRATAMENTO PARA ITEM AVULSO: Criar o produto genérico se ele não existir
+                if (!$produto && $produtoId === '00000000-0000-0000-0000-000000000000') {
+                    Yii::info("Criando produto genérico para itens avulsos...", "api");
+                    $produto = new Produto();
+                    $produto->id = $produtoId;
+                    $produto->nome = 'ITEM AVULSO / DIVERSOS';
+                    $produto->usuario_id = $usuarioId;
+                    $produto->preco_venda_sugerido = 0;
+                    $produto->estoque_atual = 999999;
+                    $produto->ativo = true;
+                    $produto->estoque_minimo = 0; // Evita erro de constraint
+                    $produto->ponto_corte = 0;    // Evita erro de constraint
+                    if (!$produto->save()) {
+                        Yii::error("Falha ao criar produto genérico: " . print_r($produto->errors, true), "api");
+                        throw new Exception("Falha ao inicializar sistema de itens avulsos.");
+                    }
+                }
+
                 if (!$produto || $produto->usuario_id !== $usuarioId) {
                     throw new Exception("Item #{$index}: produto inválido ou não pertence à loja.");
                 }
 
-                // Pula validação de estoque se for orçamento
+                // Pula validação de estoque se for orçamento ou se for o produto genérico
                 $isOrcamento = isset($data['is_orcamento']) && $data['is_orcamento'] === true;
-                if (!$isOrcamento && !$produto->temEstoque($quantidadePedida)) {
+                if (!$isOrcamento && $produtoId !== '00000000-0000-0000-0000-000000000000' && !$produto->temEstoque($quantidadePedida)) {
                     throw new Exception("Produto '{$produto->nome}' sem estoque suficiente.");
                 }
 
@@ -402,6 +424,7 @@ class PedidoController extends BaseController
 
                 $item->desconto_percentual = $descontoPercentual;
                 $item->desconto_valor = $descontoValor;
+                $item->nome_item_manual = $itemData['nome_item_manual'] ?? null;
 
                 Yii::error("Tentando salvar item #{$index}: " . print_r($item->attributes, true), 'api');
                 if (!$item->save()) {

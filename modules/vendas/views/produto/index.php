@@ -6,8 +6,10 @@ use yii\widgets\LinkPager;
 
 $this->title = 'Produtos';
 $this->params['breadcrumbs'][] = $this->title;
-
 $viewMode = Yii::$app->request->get('view', 'cards');
+
+// ✅ Carrega biblioteca para leitura de código de barras via webcam
+echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>';
 ?>
 
 <div class="min-h-screen bg-gray-50 py-6 px-4 sm:px-6 lg:px-8">
@@ -42,10 +44,18 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                     <!-- Busca -->
                     <div class="lg:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Buscar</label>
-                        <input type="text" name="busca"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Nome ou código..."
-                            value="<?= Html::encode(Yii::$app->request->get('busca', '')) ?>">
+                        <div class="flex gap-2">
+                            <input type="text" name="busca" id="busca-produto-index"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Nome ou código..."
+                                value="<?= Html::encode(Yii::$app->request->get('busca', '')) ?>">
+                            <button type="button" onclick="abrirScannerCamera()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm" title="Escanear com a câmera">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Categoria -->
@@ -438,6 +448,35 @@ $viewMode = Yii::$app->request->get('view', 'cards');
     </div>
 </div>
 
+<!-- Modal de Scanner de Código de Barras (Webcam) -->
+<div id="modal-scanner-ean-index" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h2M4 8h16M4 16h16M4 20h4M4 4h4" />
+                </svg>
+                Escanear Código de Barras
+            </h3>
+            <button type="button" onclick="fecharScannerCamera()" class="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div class="p-4 bg-gray-900 relative aspect-video flex items-center justify-center">
+            <div id="reader-ean-index" class="w-full"></div>
+            <div class="absolute inset-x-8 inset-y-8 border-2 border-blue-500 border-dashed rounded-lg pointer-events-none opacity-50"></div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 flex flex-col gap-3">
+            <div id="scanner-ean-feedback-index" class="hidden text-center py-2 px-3 rounded-lg text-sm font-medium"></div>
+            <button type="button" onclick="fecharScannerCamera()" class="w-full py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-lg transition-colors">
+                Cancelar
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
     function confirmDelete(id) {
         if (confirm('Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita.')) {
@@ -541,4 +580,135 @@ $viewMode = Yii::$app->request->get('view', 'cards');
         `);
         printWindow.document.close();
     }
+
+    // --- SUPORTE A LEITOR DE CÓDIGO DE BARRAS (USB/Scanner) ---
+    (function() {
+        let barcodeAccumulator = "";
+        let lastKeyTime = Date.now();
+
+        window.addEventListener("keydown", (e) => {
+            const currentTime = Date.now();
+            
+            // Se o tempo entre as teclas for muito curto (< 100ms), provavelmente é um leitor
+            if (currentTime - lastKeyTime > 100) {
+                barcodeAccumulator = "";
+            }
+
+            // Ignora teclas de controle, exceto Enter
+            if (e.key.length === 1) {
+                barcodeAccumulator += e.key;
+                lastKeyTime = currentTime;
+            }
+
+            // Se pressionar Enter e tivermos algo acumulado
+            if (e.key === "Enter" && barcodeAccumulator.length >= 3) {
+                const potentialBarcode = barcodeAccumulator.trim();
+                
+                // Se não estivermos focados em nenhum input ou se estivermos na busca
+                const activeEl = document.activeElement;
+                const isInput = activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA";
+                
+                if (!isInput || activeEl.id === "busca-produto-index") {
+                    e.preventDefault();
+                    const inputBusca = document.getElementById('busca-produto-index');
+                    if (inputBusca) {
+                        inputBusca.value = potentialBarcode;
+                        inputBusca.form.submit(); // Submete a busca automaticamente
+                    }
+                    barcodeAccumulator = "";
+                }
+            }
+        });
+        console.log("[Scanner] Leitor USB inicializado no índice de produtos.");
+    })();
+
+    // --- SUPORTE A SCANNER VIA WEBCAM ---
+    let html5QrCodeIndex = null;
+
+    window.abrirScannerCamera = function() {
+        const modal = document.getElementById('modal-scanner-ean-index');
+        if (!modal) return;
+
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+
+        const feedback = document.getElementById('scanner-ean-feedback-index');
+        if (feedback) feedback.classList.add('hidden');
+
+        if (!html5QrCodeIndex) {
+            html5QrCodeIndex = new Html5Qrcode("reader-ean-index");
+        }
+
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 150 },
+            aspectRatio: 1.0
+        };
+
+        html5QrCodeIndex.start(
+            { facingMode: "environment" },
+            config,
+            onScanSuccessIndex
+        ).catch(err => {
+            console.error("[Scanner] Erro ao iniciar câmera:", err);
+            alert("Não foi possível acessar a câmera.");
+            window.fecharScannerCamera();
+        });
+    };
+
+    window.fecharScannerCamera = function() {
+        const modal = document.getElementById('modal-scanner-ean-index');
+        if (modal) {
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        if (html5QrCodeIndex && html5QrCodeIndex.isScanning) {
+            html5QrCodeIndex.stop().catch(err => console.error("[Scanner] Erro ao parar:", err));
+        }
+    };
+
+    function onScanSuccessIndex(decodedText, decodedResult) {
+        console.log(`[Scanner] Código detectado: ${decodedText}`);
+
+        const feedback = document.getElementById('scanner-ean-feedback-index');
+        if (feedback) {
+            feedback.textContent = `Lido: ${decodedText}`;
+            feedback.classList.remove('hidden', 'bg-red-100', 'text-red-700');
+            feedback.classList.add('bg-green-100', 'text-green-700');
+        }
+
+        const inputBusca = document.getElementById('busca-produto-index');
+        if (inputBusca) {
+            inputBusca.value = decodedText;
+            setTimeout(() => {
+                inputBusca.form.submit();
+            }, 500);
+        }
+
+        setTimeout(window.fecharScannerCamera, 500);
+    }
+    // --- MODAL DO SCANNER (Webcam) ---
+    echo '
+    <div id="modal-scanner-ean-index" class="fixed inset-0 z-[100] hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="fecharScannerCamera()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">Escanear Código de Barras</h3>
+                        <button type="button" onclick="fecharScannerCamera()" class="text-gray-400 hover:text-gray-500">
+                            <span class="sr-only">Fechar</span>
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                    <div id="reader-ean-index" style="width: 100%; min-height: 300px; background: #000; border-radius: 8px; overflow: hidden;"></div>
+                    <div id="scanner-ean-feedback-index" class="mt-4 p-2 text-center rounded hidden"></div>
+                    <p class="mt-4 text-xs text-center text-gray-500">Aponte o código de barras para a câmera</p>
+                </div>
+            </div>
+        </div>
+    </div>';
+    ?>
 </script>

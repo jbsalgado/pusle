@@ -585,8 +585,8 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false, termoBusca
         mostrarCarregando();
         
         // Constrói URL com parâmetros
-        // ✅ UPDATE: Aumentado para 50 itens por página
-        let url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}&page=${pagina}&per-page=50`;
+        // ✅ UPDATE: Aumentado para 100 itens por página
+        let url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}&page=${pagina}&per-page=100`;
         
         // Adiciona busca
         if (termoBusca && termoBusca.trim() !== '') {
@@ -617,13 +617,13 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false, termoBusca
             if (data._meta) {
                 metadados = {
                     totalCount: data._meta.totalCount || data._meta.total || 0,
-                    pageCount: data._meta.pageCount || Math.ceil((data._meta.totalCount || 0) / (data._meta.perPage || 20)) || 1,
+                    pageCount: data._meta.pageCount || Math.ceil((data._meta.totalCount || 0) / (data._meta.perPage || 100)) || 1,
                     currentPage: data._meta.currentPage || data._meta.page || pagina,
-                    perPage: data._meta.perPage || data._meta.pageSize || 20
+                    perPage: data._meta.perPage || data._meta.pageSize || 100
                 };
             } else {
                 // Fallback: calcula baseado nos items retornados
-                const perPage = 20;
+                const perPage = 100;
                 const totalEstimado = produtosPagina.length < perPage 
                     ? (pagina - 1) * perPage + produtosPagina.length
                     : null;
@@ -973,8 +973,8 @@ function renderizarProdutos(listaProdutos) {
                         ${produto.estoque_atual > 0 ? `${formatarQuantidade(produto.estoque_atual, produto.venda_fracionada)} em estoque` : 'Sem estoque'}
                     </span>
                 </div>
-                <button onclick="abrirModalQuantidade('${produto.id}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors" ${produto.estoque_atual <= 0 ? 'disabled opacity-50' : ''}>
-                    🛒 Adicionar
+                <button onclick="abrirModalQuantidade('${produto.id}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors">
+                    🛒 ${produto.estoque_atual <= 0 ? 'Vender sem estoque' : 'Adicionar'}
                 </button>
             </div>
         </div>`;
@@ -1002,7 +1002,7 @@ window.abrirModalQuantidade = function(produtoId) {
         const valorRaw = inputQtd.value.replace(',', '.');
         const quantidade = parseFloat(valorRaw);
         
-        if (quantidade > 0 && quantidade <= parseFloat(produto.estoque_atual)) {
+        if (quantidade > 0) {
             const arquivoPath = produto.fotos?.[0]?.arquivo_path?.replace(/^\//, '') || '';
             const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
             const produtoComImagem = { ...produto, imagem: arquivoPath ? `${baseUrl}/${arquivoPath}` : null };
@@ -1012,13 +1012,51 @@ window.abrirModalQuantidade = function(produtoId) {
                 fecharModal('modal-quantidade');
             }
         } else {
-            alert(`Quantidade inválida. Máximo: ${formatarQuantidade(produto.estoque_atual, permiteFracionado)}`);
+            alert(`Quantidade inválida.`);
         }
     };
     abrirModal('modal-quantidade');
 };
 
 window.abrirCarrinho = function() { renderizarCarrinho(); abrirModal('modal-carrinho'); };
+
+// --- LÓGICA DE ITEM AVULSO ---
+window.abrirModalItemAvulso = function() {
+    document.getElementById('avulso-nome').value = '';
+    document.getElementById('avulso-preco').value = '';
+    document.getElementById('avulso-qtd').value = '1';
+    abrirModal('modal-item-avulso');
+};
+
+window.confirmarItemAvulso = function() {
+    const nome = document.getElementById('avulso-nome').value.trim();
+    const precoRaw = document.getElementById('avulso-preco').value.replace(/\./g, '').replace(',', '.');
+    const qtd = parseFloat(document.getElementById('avulso-qtd').value) || 0;
+    const preco = parseFloat(precoRaw) || 0;
+
+    if (!nome || preco <= 0 || qtd <= 0) {
+        alert("Por favor, preencha nome, preço e quantidade corretamente.");
+        return;
+    }
+
+    // Produto Âncora
+    const produtoAvulso = {
+        id: '00000000-0000-0000-0000-000000000000',
+        nome: nome,
+        preco_venda_sugerido: preco,
+        preco_final: preco,
+        quantidade: qtd,
+        nome_item_manual: nome, // Campo para o backend
+        is_avulso: true
+    };
+
+    if (adicionarAoCarrinho(produtoAvulso, qtd)) {
+        atualizarBadgeCarrinho();
+        fecharModal('modal-item-avulso');
+        renderizarCarrinho();
+        window.mostrarToast?.("Item avulso adicionado!");
+    }
+};
 
 function popularFormasPagamento(formas, usandoCache = false) {
     const select = document.getElementById('forma-pagamento');
