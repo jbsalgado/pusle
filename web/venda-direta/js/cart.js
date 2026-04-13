@@ -55,6 +55,9 @@ export function adicionarAoCarrinho(produto, quantidade) {
     quantidade: quantidade,
   };
 
+  // ✅ Aplica regras de escala/desconto imediatamente
+  aplicarRegrasEscala(itemParaAdicionar);
+
   carrinho.push(itemParaAdicionar);
 
   salvarCarrinho(carrinho);
@@ -83,13 +86,15 @@ export function aumentarQuantidadeItem(produtoId) {
   // ✅ CORREÇÃO: Buscar por 'id'
   const item = carrinho.find((i) => i.id === produtoId);
   if (item) {
-    // ✅ CORREÇÃO: Garantir que é número
-    // ✅ CORREÇÃO: Usar parseFloat para suportar decimais
-    const novaQtd = (parseFloat(item.quantidade) || 0) + 1;
-    item.quantidade = novaQtd;
+    // Define o passo (0.1 para fracionados, 1 para normais)
+    const passo = item.venda_fracionada ? 0.1 : 1;
     
-    // ✅ Aplica preço de escala automaticamente (Sugestão automática)
-    item.preco_final = getPrecoVigente(item, novaQtd);
+    // ✅ CORREÇÃO: Usar parseFloat e arredondamento para evitar erros de ponto flutuante
+    let novaQtd = (parseFloat(item.quantidade) || 0) + passo;
+    item.quantidade = Math.round(novaQtd * 1000) / 1000;
+    
+    // ✅ Aplica motor dinâmico de precificação/desconto
+    aplicarRegrasEscala(item);
     
     salvarCarrinho(carrinho);
     return true;
@@ -103,17 +108,22 @@ export function aumentarQuantidadeItem(produtoId) {
 export function diminuirQuantidadeItem(produtoId) {
   // ✅ CORREÇÃO: Buscar por 'id'
   const item = carrinho.find((i) => i.id === produtoId);
-  if (item && item.quantidade > 1) {
-    // ✅ CORREÇÃO: Garantir que é número
-    // ✅ CORREÇÃO: Usar parseFloat para suportar decimais
-    const novaQtd = (parseFloat(item.quantidade) || 0) - 1;
-    item.quantidade = novaQtd;
+  
+  if (item) {
+    const passo = item.venda_fracionada ? 0.1 : 1;
+    const qtdAtual = parseFloat(item.quantidade) || 0;
     
-    // ✅ Aplica preço de escala automaticamente (Sugestão automática)
-    item.preco_final = getPrecoVigente(item, novaQtd);
-    
-    salvarCarrinho(carrinho);
-    return true;
+    // Só diminui se for maior que o passo mínimo
+    if (qtdAtual > passo) {
+      let novaQtd = qtdAtual - passo;
+      item.quantidade = Math.round(novaQtd * 1000) / 1000;
+      
+      // ✅ Aplica motor dinâmico de precificação/desconto
+      aplicarRegrasEscala(item);
+      
+      salvarCarrinho(carrinho);
+      return true;
+    }
   }
   return false;
 }
@@ -179,6 +189,10 @@ export function calcularTotalCarrinho() {
 export function aplicarDescontoItem(produtoId, tipo, valor) {
   const item = carrinho.find((i) => i.id === produtoId);
   if (!item) return false;
+
+  // Se o usuário aplicar um desconto manual, removemos a flag de automático
+  // para que a quantidade não sobrescreva a escolha do usuário imediatamente (opcional)
+  item.isFilteredScale = false; 
 
   if (tipo === "valor") {
     item.descontoValor = parseFloat(valor);
@@ -247,7 +261,7 @@ export function atualizarIndicadoresCarrinho() {
  * @param {Object} item - O item do carrinho
  * @param {number} quantidade - A nova quantidade
  */
-function getPrecoVigente(item, quantidade) {
+export function getPrecoVigente(item, quantidade) {
   // Preço base é o preço de venda normal
   let precoFinal = parseFloat(item.preco_venda_sugerido || 0);
 
@@ -264,6 +278,44 @@ function getPrecoVigente(item, quantidade) {
   }
 
   return precoFinal;
+}
+
+/**
+ * Motor Dinâmico de Precificação por Volume
+ * Aplica lógica de desconto informado para escalas menores que o preço sugerido
+ * e ajuste de preço unitário para escalas maiores (acréscimos).
+ */
+function aplicarRegrasEscala(item) {
+  const quantidade = parseFloat(item.quantidade || 0);
+  const precoSugerido = parseFloat(item.preco_venda_sugerido || 0);
+  const precoEscala = getPrecoVigente(item, quantidade);
+
+  // Cenário A: Preço de Escala < Preço Sugerido (DESCONTO AUTOMÁTICO)
+  if (precoEscala > 0 && precoEscala < precoSugerido) {
+    const totalSemDesconto = precoSugerido * quantidade;
+    const totalComEscala = precoEscala * quantidade;
+    
+    // Injeta a diferença no campo de desconto (ex: 6 * 180 - 1000 = 80)
+    item.descontoValor = Math.round((totalSemDesconto - totalComEscala) * 100) / 100;
+    item.descontoPercentual = 0;
+    item.preco_final = precoSugerido; // Mantém preço base no display
+    item.isFilteredScale = true; // Identifica que é um desconto de volume
+  } 
+  // Cenário B: Preço de Escala > Preço Sugerido (ACRÉSCIMO/AJUSTE DE TABELA)
+  else if (precoEscala > precoSugerido) {
+    item.preco_final = precoEscala; // Ajusta o unitário (ex: 0.5 M3 -> 200)
+    item.descontoValor = 0;
+    item.descontoPercentual = 0;
+    item.isFilteredScale = false;
+  }
+  // Cenário C: Fora de escala ou Preço Sugerido (RESETA SE ERA AUTOMÁTICO)
+  else {
+    item.preco_final = precoSugerido;
+    if (item.isFilteredScale) {
+        item.descontoValor = 0;
+        item.isFilteredScale = false;
+    }
+  }
 }
 
 /**

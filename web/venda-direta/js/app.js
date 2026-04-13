@@ -4,7 +4,8 @@ import {
     getCarrinho, setCarrinho, adicionarAoCarrinho, removerDoCarrinho,
     aumentarQuantidadeItem, diminuirQuantidadeItem, calcularTotalCarrinho,
     calcularTotalItens, limparCarrinho, atualizarIndicadoresCarrinho,
-    atualizarBadgeProduto, aplicarDescontoItem, getAcrescimo, setAcrescimo
+    atualizarBadgeProduto, aplicarDescontoItem, getAcrescimo, setAcrescimo,
+    getPrecoVigente
 } from './cart.js?v=surcharge_fix';
 import { carregarCarrinho, limparDadosLocaisPosSinc, carregarFormasPagamentoCache } from './storage.js';
 import { finalizarPedido } from './order.js';
@@ -299,6 +300,7 @@ function renderizarCarrinho() {
         }
         const totalItem = Math.max(0, subtotal - valorDesconto);
         const emPromocao = item.em_promocao || false;
+        const temAjusteVolume = item.preco_final > item.preco_venda_sugerido;
 
         return `
         <div class="cart-item">
@@ -307,7 +309,11 @@ function renderizarCarrinho() {
                 <img src="${urlImagem}" alt="${item.nome}" class="cart-item-image">
                 <div class="cart-item-info">
                     <h3 class="cart-item-name">${item.nome}${emPromocao ? ' <span class="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded">PROMOÇÃO</span>' : ''}</h3>
-                    <p class="cart-item-price">${formatarMoeda(precoUnitario)} un.${emPromocao && item.preco_venda_sugerido ? ` <span class="text-xs text-gray-500 line-through">${formatarMoeda(item.preco_venda_sugerido)}</span>` : ''}</p>
+                    <p class="cart-item-price ${temAjusteVolume ? 'text-orange-600 font-bold' : ''}">
+                        ${formatarMoeda(precoUnitario)} un.
+                        ${(emPromocao || temAjusteVolume) && item.preco_venda_sugerido ? ` <span class="text-xs text-gray-500 line-through">${formatarMoeda(item.preco_venda_sugerido)}</span>` : ''}
+                        ${temAjusteVolume ? '<span class="text-[10px] block text-orange-500 mt-[-2px]">Ajuste p/ baixo volume</span>' : ''}
+                    </p>
                     <div class="cart-item-controls">
                         <button onclick="diminuirQtd('${item.id}')" class="qty-btn">−</button>
                         <span class="qty-value">${formatarQuantidade(item.quantidade, item.venda_fracionada)}</span>
@@ -315,9 +321,11 @@ function renderizarCarrinho() {
                     </div>
                     
                     <!-- Área de Desconto -->
-                    <div class="mt-2 p-2 bg-gray-50 rounded text-sm">
+                    <div class="mt-2 p-2 ${item.isFilteredScale ? 'bg-blue-50 border border-blue-100' : 'bg-gray-50'} rounded text-sm">
                         <div class="flex items-center justify-between mb-1">
-                            <label class="text-xs text-gray-500">Desconto:</label>
+                            <label class="text-xs ${item.isFilteredScale ? 'text-blue-700 font-bold' : 'text-gray-500'}">
+                                ${item.isFilteredScale ? '✨ Desconto Volume:' : 'Desconto:'}
+                            </label>
                             <select onchange="alterarTipoDesconto('${item.id}', this.value)" class="text-xs border rounded p-0.5 bg-white">
                                 <option value="valor" ${item.descontoValor > 0 ? 'selected' : ''}>R$</option>
                                 <option value="porcentagem" ${item.descontoPercentual > 0 ? 'selected' : ''}>%</option>
@@ -328,8 +336,9 @@ function renderizarCarrinho() {
                             data-desconto-item="${item.id}"
                             oninput="formatarEntradaDesconto(this)"
                             onchange="aplicarDesconto('${item.id}', this.value)" 
-                            class="w-full border rounded p-1 text-right text-xs" 
-                            placeholder="0,00">
+                            class="w-full border rounded p-1 text-right text-xs ${item.isFilteredScale ? 'bg-blue-100 border-blue-300 font-bold text-blue-800' : ''}" 
+                            placeholder="0,00"
+                            ${item.isFilteredScale ? 'title="Desconto aplicado automaticamente pelo volume"' : ''}>
                     </div>
 
                     <div class="cart-item-total mt-2">
@@ -981,10 +990,56 @@ function renderizarProdutos(listaProdutos) {
     }).join('');
 }
 
+// --- LÓGICA DO MODAL DE QUANTIDADE ---
+window.produtoAtualModal = null;
+
+window.atualizarPrecoModal = function() {
+    const inputQtd = document.getElementById('input-quantidade');
+    const subtotalElement = document.getElementById('subtotal-modal');
+    if (!inputQtd || !subtotalElement || !window.produtoAtualModal) return;
+
+    let qtd = parseFloat(inputQtd.value.replace(',', '.')) || 0;
+    
+    // ✅ CORREÇÃO: Busca o preço dinâmico baseado na escala (0.5m3 -> 200, 1.0m3 -> 180)
+    const precoVigente = getPrecoVigente(window.produtoAtualModal, qtd);
+    
+    // O subtotal agora reflete exatamente a escala atingida
+    const subtotal = qtd * precoVigente;
+    subtotalElement.textContent = formatarMoeda(subtotal);
+};
+
+window.incrementarModal = function() {
+    const inputQtd = document.getElementById('input-quantidade');
+    if (!inputQtd || !window.produtoAtualModal) return;
+    
+    const passo = window.produtoAtualModal.venda_fracionada ? 0.1 : 1;
+    let qtd = parseFloat(inputQtd.value.replace(',', '.')) || 0;
+    
+    qtd = Math.round((qtd + passo) * 1000) / 1000;
+    inputQtd.value = formatarQuantidade(qtd, window.produtoAtualModal.venda_fracionada);
+    window.atualizarPrecoModal();
+};
+
+window.decrementarModal = function() {
+    const inputQtd = document.getElementById('input-quantidade');
+    if (!inputQtd || !window.produtoAtualModal) return;
+    
+    const passo = window.produtoAtualModal.venda_fracionada ? 0.1 : 1;
+    let qtd = parseFloat(inputQtd.value.replace(',', '.')) || 0;
+    
+    if (qtd > passo) {
+        qtd = Math.round((qtd - passo) * 1000) / 1000;
+        inputQtd.value = formatarQuantidade(qtd, window.produtoAtualModal.venda_fracionada);
+        window.atualizarPrecoModal();
+    }
+};
+
 window.abrirModalQuantidade = function(produtoId) {
     const produto = produtos.find(p => p.id === produtoId);
     if (!produto) return;
     
+    window.produtoAtualModal = produto;
+
     const inputQtd = document.getElementById('input-quantidade');
     document.getElementById('nome-produto-modal').textContent = produto.nome;
     const precoExibido = produto.preco_final || produto.preco_venda_sugerido;
@@ -992,11 +1047,10 @@ window.abrirModalQuantidade = function(produtoId) {
     
     // Configura input para fracionados
     const permiteFracionado = !!produto.venda_fracionada;
-    inputQtd.value = permiteFracionado ? "1,000" : "1";
-    inputQtd.step = permiteFracionado ? "0.001" : "1";
-    inputQtd.max = produto.estoque_atual;
+    inputQtd.value = formatarQuantidade(1, permiteFracionado);
     
-    // Máscara visual para fracionados se necessário (opcional, type=number cuida de parte disso)
+    // Atualiza o subtotal inicial
+    window.atualizarPrecoModal();
     
     document.getElementById('btn-confirmar-adicionar').onclick = () => {
         const valorRaw = inputQtd.value.replace(',', '.');

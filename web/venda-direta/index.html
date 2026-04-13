@@ -6,12 +6,44 @@
     <title>Venda Direta</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <link rel="stylesheet" href="style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=premium_ui" />
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#007BFF" />
-    <!-- Tailwind CSS via CDN (apenas para desenvolvimento) -->
-    <!-- Para produção, instale via npm: npm install -D tailwindcss -->
-    <!-- <script src="https://cdn.tailwindcss.com"></script> -->
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: '#f0f7ff',
+                100: '#e0effe',
+                200: '#bae0fd',
+                300: '#7cc8fb',
+                400: '#38aaf7',
+                500: '#0e8ce9',
+                600: '#026ec7',
+                700: '#0358a1',
+                800: '#074b85',
+                900: '#0c3f6e',
+                950: '#082849',
+              },
+            },
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+            },
+            borderRadius: {
+              '3xl': '1.5rem',
+              '4xl': '2rem',
+            }
+          }
+        }
+      }
+    </script>
     <script>
       // Suprime o aviso do console sobre Tailwind CDN
       if (typeof console !== "undefined" && console.warn) {
@@ -893,9 +925,9 @@
     <!-- ✅ MODAL QUANTIDADE (ADICIONADO) -->
     <div
       id="modal-quantidade"
-      class="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center p-4 hidden"
+      class="fixed inset-0 bg-black/40 backdrop-blur-md z-40 flex justify-center items-center p-4 hidden"
     >
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-xs">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-[380px] overflow-hidden transform transition-all">
         <div class="flex justify-between items-center border-b p-4">
           <h2 class="text-lg font-semibold">Adicionar ao Carrinho</h2>
           <button
@@ -905,37 +937,74 @@
             &times;
           </button>
         </div>
-        <div class="p-4 space-y-3">
-          <p class="text-center font-medium" id="nome-produto-modal">
+        <div class="p-6 text-center border-b border-gray-50">
+          <p class="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mb-1" id="categoria-modal">VENDA DIRETA</p>
+          <h3 class="text-xl font-extrabold text-gray-900 leading-tight mb-2" id="nome-produto-modal">
             [Nome do Produto]
-          </p>
-          <p
-            class="text-center text-xl font-bold text-blue-600"
-            id="preco-produto-modal"
-          >
-            [Preço]
-          </p>
-          <div>
-            <label
-              for="input-quantidade"
-              class="block text-sm font-medium text-gray-700 mb-1"
-              >Quantidade</label
-            >
-            <input
-              type="number"
-              id="input-quantidade"
-              value="1"
-              min="1"
-              class="w-full p-2 border border-gray-300 rounded-md text-center"
-            />
+          </h3>
+          <div class="inline-flex items-center px-4 py-1 bg-blue-50 rounded-full">
+            <span class="text-2xl font-black text-blue-600" id="preco-produto-modal">R$ 0,00</span>
+            <span class="ml-1.5 text-[10px] font-bold text-blue-400 uppercase">UNID</span>
           </div>
         </div>
-        <div class="border-t p-4 bg-gray-50 rounded-b-lg">
+          <div class="px-8 pb-8 pt-4">
+            <label
+              for="input-quantidade"
+              class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 text-center"
+              >Quantidade desejada</label
+            >
+            <div class="flex items-center justify-center gap-4 mb-8">
+              <button 
+                type="button"
+                onclick="window.decrementarModal()" 
+                class="w-14 h-14 flex items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-2xl transition-all active:scale-95 shadow-sm border border-gray-100"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M20 12H4" />
+                </svg>
+              </button>
+              
+              <div class="relative flex-1 max-w-[140px]">
+                <input
+                    type="tel"
+                    id="input-quantidade"
+                    value="1"
+                    class="w-full h-14 bg-gray-50 border-none rounded-2xl text-center font-black text-2xl text-gray-800 focus:ring-2 focus:ring-blue-500 transition-all"
+                    oninput="window.atualizarPrecoModal()"
+                />
+              </div>
+              
+              <button 
+                type="button"
+                onclick="window.incrementarModal()" 
+                class="w-14 h-14 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-2xl transition-all active:scale-95 shadow-lg shadow-blue-200"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Resumo de Valor -->
+            <div class="p-6 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl shadow-xl shadow-blue-100 relative overflow-hidden">
+               <div class="absolute top-0 right-0 p-4 opacity-10">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+               </div>
+               <div class="relative z-10 flex flex-col items-center">
+                  <span class="text-[10px] font-bold text-blue-200 uppercase tracking-widest mb-1.5 opacity-80">Total do Item</span>
+                  <span id="subtotal-modal" class="text-3xl font-black text-white">R$ 0,00</span>
+               </div>
+            </div>
+          </div>
+        </div>
+        <div class="p-6 bg-gray-50/50">
           <button
             id="btn-confirmar-adicionar"
-            class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white h-14 rounded-2xl font-black text-lg shadow-lg shadow-blue-200 transition-all active:scale-[0.98]"
           >
-            Confirmar
+            Adicionar ao Pedido
           </button>
         </div>
       </div>
