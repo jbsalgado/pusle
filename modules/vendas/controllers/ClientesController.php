@@ -54,15 +54,22 @@ class ClientesController extends Controller
 
         // Aplicar filtros
         $busca = Yii::$app->request->get('busca');
+        $buscaLimpa = preg_replace('/[^0-9]/', '', $busca ?? '');
+
         if ($busca) {
-            $query->andFilterWhere(['or',
+            $orConditions = ['or',
                 ['like', 'nome_completo', $busca],
                 ['like', 'razao_social', $busca],
-                ['like', 'cpf', $busca],
-                ['like', 'cnpj', $busca],
                 ['like', 'telefone', $busca],
                 ['like', 'email', $busca],
-            ]);
+            ];
+
+            if ($buscaLimpa !== '') {
+                $orConditions[] = ['like', 'cpf', $buscaLimpa];
+                $orConditions[] = ['like', 'cnpj', $buscaLimpa];
+            }
+
+            $query->andFilterWhere($orConditions);
         }
 
         $regiaoId = Yii::$app->request->get('regiao_id');

@@ -81,13 +81,13 @@ class Clientes extends \yii\db\ActiveRecord
             [['ativo'], 'boolean'],
             [['data_criacao', 'data_atualizacao'], 'safe'],
             [['nome_completo', 'razao_social', 'nome_responsavel'], 'string', 'max' => 150],
-            [['cpf'], 'string', 'max' => 11],
-            [['cnpj'], 'string', 'max' => 14],
+            [['cpf'], 'string', 'max' => 14], // Permite máscara 000.000.000-00
+            [['cnpj'], 'string', 'max' => 18], // Permite máscara 00.000.000/0000-00
             [['telefone', 'endereco_numero', 'inscricao_estadual', 'inscricao_municipal'], 'string', 'max' => 20],
             [['email', 'endereco_complemento', 'endereco_bairro', 'endereco_cidade'], 'string', 'max' => 100],
             [['endereco_logradouro', 'senha_hash'], 'string', 'max' => 255],
             [['endereco_estado', 'tipo_pessoa', 'indicador_ie'], 'string', 'max' => 2],
-            [['endereco_cep'], 'string', 'max' => 8],
+            [['endereco_cep'], 'string', 'max' => 10], // Permite máscara 00000-000
             
             // Unicidade
             [['cpf'], 'unique', 'targetAttribute' => ['cpf', 'usuario_id'], 'message' => 'Este CPF já está cadastrado para esta loja.', 'when' => function($model) { return !empty($model->cpf); }],
