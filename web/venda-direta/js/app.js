@@ -1070,6 +1070,12 @@ window.abrirModalQuantidade = function(produtoId) {
         }
     };
     abrirModal('modal-quantidade');
+    
+    // Foco automático no input de quantidade após o modal abrir (com pequeno delay para animação)
+    setTimeout(() => {
+        inputQtd.focus();
+        inputQtd.select();
+    }, 350);
 };
 
 window.abrirCarrinho = function() { renderizarCarrinho(); abrirModal('modal-carrinho'); };

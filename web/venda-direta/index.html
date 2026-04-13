@@ -922,89 +922,95 @@
       </div>
     </div>
 
-    <!-- ✅ MODAL QUANTIDADE (ADICIONADO) -->
+    <!-- ✅ MODAL QUANTIDADE (MARGENS REDUZIDAS PARA 5PX) -->
     <div
       id="modal-quantidade"
-      class="fixed inset-0 bg-black/40 backdrop-blur-md z-40 flex justify-center items-center p-4 hidden"
+      class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex justify-center items-center p-[5px] hidden"
     >
-      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-[380px] overflow-hidden transform transition-all">
-        <div class="flex justify-between items-center border-b p-4">
-          <h2 class="text-lg font-semibold">Adicionar ao Carrinho</h2>
+      <div class="bg-white rounded-[32px] shadow-2xl w-full max-w-[650px] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-300">
+        <!-- Header -->
+        <div class="flex justify-between items-center py-6 px-[5px] border-b border-gray-100">
+          <h2 class="text-xl font-black text-gray-800 tracking-tighter pl-2">Adicionar ao Carrinho</h2>
           <button
             onclick="fecharModal('modal-quantidade')"
-            class="text-gray-500 hover:text-gray-800 text-2xl"
+            class="w-12 h-12 flex items-center justify-center rounded-2xl bg-gray-50 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shadow-sm"
           >
-            &times;
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
-        <div class="p-6 text-center border-b border-gray-50">
-          <p class="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mb-1" id="categoria-modal">VENDA DIRETA</p>
-          <h3 class="text-xl font-extrabold text-gray-900 leading-tight mb-2" id="nome-produto-modal">
-            [Nome do Produto]
-          </h3>
-          <div class="inline-flex items-center px-4 py-1 bg-blue-50 rounded-full">
-            <span class="text-2xl font-black text-blue-600" id="preco-produto-modal">R$ 0,00</span>
-            <span class="ml-1.5 text-[10px] font-bold text-blue-400 uppercase">UNID</span>
+
+        <div class="flex-1 overflow-y-auto py-8 px-[5px] flex flex-col items-center">
+          <!-- Produto Info -->
+          <div class="text-center mb-8 w-full px-[5px]">
+            <span class="text-[10px] font-black text-blue-600 uppercase tracking-[0.3em] bg-blue-50 px-4 py-1 rounded-full inline-block mb-4 shadow-sm shadow-blue-50" id="categoria-modal">VENDA DIRETA</span>
+            <h3 class="text-3xl font-black text-gray-900 leading-tight mb-2" id="nome-produto-modal">[Nome do Produto]</h3>
+            <div class="flex items-baseline justify-center gap-2">
+              <span class="text-4xl font-black text-blue-600" id="preco-produto-modal">R$ 0,00</span>
+              <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">/ UNIDADE</span>
+            </div>
           </div>
-        </div>
-          <div class="px-8 pb-8 pt-4">
-            <label
-              for="input-quantidade"
-              class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 text-center"
-              >Quantidade desejada</label
-            >
-            <div class="flex items-center justify-center gap-4 mb-8">
+
+          <!-- Controle de Quantidade -->
+          <div class="w-full max-w-[600px] px-[5px]">
+            <p class="text-[11px] font-bold text-gray-400 uppercase tracking-[0.3em] text-center mb-4">Quantidade Desejada</p>
+            <div class="flex items-center justify-between gap-2 bg-gray-50 p-2 rounded-[32px] border border-gray-100 mb-8 shadow-inner">
               <button 
                 type="button"
                 onclick="window.decrementarModal()" 
-                class="w-14 h-14 flex items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-2xl transition-all active:scale-95 shadow-sm border border-gray-100"
+                class="w-14 h-14 flex items-center justify-center bg-white text-gray-400 hover:text-blue-600 rounded-2xl transition-all active:scale-90 shadow-md border border-gray-50 flex-shrink-0"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M20 12H4" />
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3.5" d="M20 12H4" />
                 </svg>
               </button>
               
-              <div class="relative flex-1 max-w-[140px]">
-                <input
-                    type="tel"
-                    id="input-quantidade"
-                    value="1"
-                    class="w-full h-14 bg-gray-50 border-none rounded-2xl text-center font-black text-2xl text-gray-800 focus:ring-2 focus:ring-blue-500 transition-all"
-                    oninput="window.atualizarPrecoModal()"
-                />
-              </div>
+              <input
+                  type="text"
+                  inputmode="decimal"
+                  id="input-quantidade"
+                  value="1"
+                  class="flex-1 min-w-0 bg-transparent border-none text-center font-black text-4xl text-gray-900 focus:ring-0 p-0"
+                  oninput="window.atualizarPrecoModal()"
+              />
               
               <button 
                 type="button"
                 onclick="window.incrementarModal()" 
-                class="w-14 h-14 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-2xl transition-all active:scale-95 shadow-lg shadow-blue-200"
+                class="w-14 h-14 flex items-center justify-center bg-blue-600 text-white rounded-2xl transition-all active:scale-90 shadow-xl shadow-blue-200 flex-shrink-0"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4" />
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3.5" d="M12 4v16m8-8H4" />
                 </svg>
               </button>
             </div>
 
-            <!-- Resumo de Valor -->
-            <div class="p-6 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl shadow-xl shadow-blue-100 relative overflow-hidden">
-               <div class="absolute top-0 right-0 p-4 opacity-10">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-               </div>
-               <div class="relative z-10 flex flex-col items-center">
-                  <span class="text-[10px] font-bold text-blue-200 uppercase tracking-widest mb-1.5 opacity-80">Total do Item</span>
-                  <span id="subtotal-modal" class="text-3xl font-black text-white">R$ 0,00</span>
-               </div>
+            <!-- Resumo Total -->
+            <div class="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[32px] py-6 px-[5px] text-center shadow-2xl shadow-blue-200 relative overflow-hidden">
+              <div class="absolute top-0 right-0 p-4 opacity-10">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                 </svg>
+              </div>
+              <div class="relative z-10">
+                <p class="text-[10px] font-bold text-blue-100 uppercase tracking-[0.4em] mb-1 opacity-80">Subtotal do Item</p>
+                <div id="subtotal-modal" class="text-4xl font-black text-white">R$ 0,00</div>
+              </div>
             </div>
           </div>
         </div>
-        <div class="p-6 bg-gray-50/50">
+
+        <!-- Rodapé / Botão Confirmar -->
+        <div class="p-6 bg-gray-50 border-t border-gray-100">
           <button
             id="btn-confirmar-adicionar"
-            class="w-full bg-blue-600 hover:bg-blue-700 text-white h-14 rounded-2xl font-black text-lg shadow-lg shadow-blue-200 transition-all active:scale-[0.98]"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white h-16 rounded-[24px] font-black text-lg shadow-xl shadow-blue-200 transition-all active:scale-[0.97] flex items-center justify-center gap-4"
           >
-            Adicionar ao Pedido
+            <span>Confirmar e Adicionar</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+            </svg>
           </button>
         </div>
       </div>
