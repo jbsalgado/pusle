@@ -935,13 +935,20 @@ function renderizarProdutos(listaProdutos) {
                             <span class="text-2xl font-bold text-blue-600">${formatarMoeda(precoExibido)}</span>
                         `}
                     </div>
-                    <span class="text-xs ${produto.estoque_atual > 0 ? 'text-green-600' : 'text-red-600'} font-semibold">
-                        ${produto.estoque_atual > 0 ? `${produto.estoque_atual} em estoque` : 'Sem estoque'}
+                    <span class="text-xs ${produto.estoque_atual > 0 || produto.possui_grade ? 'text-green-600' : 'text-red-600'} font-semibold">
+                        ${produto.possui_grade ? 'Várias opções' : (produto.estoque_atual > 0 ? `${produto.estoque_atual} em estoque` : 'Sem estoque')}
                     </span>
                 </div>
-                <button onclick="abrirModalQuantidade('${produto.id}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg" ${produto.estoque_atual <= 0 ? 'disabled opacity-50' : ''}>
-                    🛒 Adicionar
-                </button>
+                
+                ${produto.possui_grade ? `
+                    <button onclick="abrirModalVariacoes('${produto.id}')" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                        🏷️ Escolher Opções
+                    </button>
+                ` : `
+                    <button onclick="abrirModalQuantidade('${produto.id}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg" ${produto.estoque_atual <= 0 ? 'disabled opacity-50' : ''}>
+                        🛒 Adicionar
+                    </button>
+                `}
             </div>
         </div>`;
     }).join('');
@@ -1959,19 +1966,94 @@ async function atualizarIndicadorPendentes(count = null) {
     }
 }
 
-// Listener para atualiza\u00e7\u00e3o da fila (disparado pelo storage.js)
-window.addEventListener('fila-pedidos-atualizada', (e) => {
-    atualizarIndicadorPendentes(e.detail.count);
-});
+// --- LÓGICA DE VARIAÇÕES (GRADE) - ESTILO SHOPEE ---
+// --- LÓGICA DE VARIAÇÕES (GRADE) - ESTILO SHOPEE ---
+window.abrirModalVariacoes = async function(produtoId) {
+    const modal = document.getElementById('modal-variacoes');
+    const container = document.getElementById('variacoes-lista');
+    const titulo = document.getElementById('modal-variacoes-titulo');
+    const subtitulo = document.getElementById('modal-variacoes-subtitulo');
+    
+    if (!modal || !container) return;
 
-// Listener para mensagens do Service Worker
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.addEventListener('message', async (event) => {
-        if (event.data && event.data.type === 'SYNC_SUCCESS') {
-            console.log('[App] \ud83d\udce4 Sincroniza\u00e7\u00e3o autom\u00e1tica via SW bem-sucedida!');
-            await atualizarIndicadorPendentes();
+    // Mostra modal com loading
+    modal.classList.remove('hidden');
+    container.innerHTML = `
+        <div class="text-center py-12">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+            <p class="text-sm text-gray-500 mt-4 font-medium">Buscando opções...</p>
+        </div>
+    `;
+
+    try {
+        const produtoMestre = produtos.find(p => p.id === produtoId);
+        if (titulo) titulo.textContent = produtoMestre ? produtoMestre.nome : 'Opções Disponíveis';
+        if (subtitulo) subtitulo.textContent = 'Escolha o tamanho e cor desejada para o orçamento.';
+
+        // Busca variações reais da API com expand=variacoes
+        const response = await fetch(`${API_ENDPOINTS.PRODUTO}/${produtoId}?expand=variacoes`);
+        if (!response.ok) throw new Error('Erro ao buscar variações');
+        
+        const data = await response.json();
+        const produtoFull = data.data || data;
+        const variacoes = produtoFull.variacoes || [];
+
+        if (variacoes.length === 0) {
+            container.innerHTML = `<div class="p-6 text-center text-gray-500">Nenhuma variação disponível no momento.</div>`;
+            return;
         }
-    });
-}
+
+        container.innerHTML = variacoes.map(v => `
+            <div onclick="adicionarVariacaoDireto('${v.id}', '${produtoId}')" class="flex justify-between items-center p-4 border border-gray-200 rounded-xl hover:border-green-300 hover:bg-green-50 cursor-pointer transition-all active:scale-[0.98] group bg-white shadow-sm">
+                <div class="flex flex-col">
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-bold rounded uppercase">${v.tamanho || 'U'}</span>
+                        <span class="font-bold text-gray-800">${v.cor || 'Única'}</span>
+                    </div>
+                    <span class="text-[10px] text-gray-400 mt-1">Código: ${v.codigo_referencia || 'N/A'}</span>
+                </div>
+                <div class="flex flex-col items-end">
+                    <span class="text-lg font-bold text-green-600">${formatarMoeda(v.preco_venda_sugerido)}</span>
+                    <span class="text-[9px] ${v.estoque_atual > 0 ? 'text-green-500' : 'text-red-400'}">
+                        Estoque: ${v.estoque_atual || 0}
+                    </span>
+                </div>
+            </div>
+        `).join('');
+
+    } catch (error) {
+        console.error('[App] Erro ao carregar variações:', error);
+        container.innerHTML = `<div class="p-6 text-center text-red-500 font-medium">Falha ao carregar opções. Tente novamente.</div>`;
+    }
+};
+
+window.adicionarVariacaoDireto = async function(idVariacao, idMestre) {
+    try {
+        mostrarCarregando();
+        // Busca os dados completos da variação
+        const response = await fetch(`${API_ENDPOINTS.PRODUTO}/${idVariacao}`);
+        if (!response.ok) throw new Error('Não foi possível carregar dados da variação');
+        
+        const resJson = await response.json();
+        const variacao = resJson.data || resJson;
+        
+        // Adiciona ao carrinho (quantidade 1 por padrão no seletor rápido)
+        if (adicionarAoCarrinho(variacao, 1)) {
+            fecharModal('modal-variacoes');
+            atualizarIndicadoresCarrinho();
+            
+            // Feedback visual no card mestre se existir
+            const card = document.querySelector(`[data-produto-card="${idMestre}"]`);
+            if (card) {
+                const badge = card.querySelector('.badge-no-carrinho');
+                if (badge) badge.classList.remove('hidden');
+            }
+        }
+    } catch (error) {
+        alert('Erro ao adicionar variação: ' + error.message);
+    } finally {
+        ocultarCarregando();
+    }
+};
 
 

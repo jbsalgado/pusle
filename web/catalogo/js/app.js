@@ -856,6 +856,7 @@ window.limparBusca = function() {
 };
 
 function renderizarProdutos(listaProdutos) {
+    console.log(`[App] 🎨 Renderizando ${listaProdutos.length} produtos...`, listaProdutos);
     const container = document.getElementById('catalogo-produtos');
     
     if (!container) {
@@ -919,22 +920,23 @@ function renderizarProdutos(listaProdutos) {
                         ${formatarMoeda(produto.preco_venda_sugerido)}
                     </span>
                     
-                    ${produto.estoque_atual > 0 ? `
-                        <span class="text-xs text-green-600 font-semibold">
-                            ${formatarQuantidade(produto.estoque_atual, produto.venda_fracionada)} em estoque
-                        </span>
-                    ` : `
-                        <span class="text-xs text-red-600 font-semibold">
-                            Sem estoque
-                        </span>
-                    `}
+                    <span class="text-xs ${produto.estoque_atual > 0 || !!produto.possui_grade ? 'text-green-600' : 'text-red-600'} font-semibold">
+                        ${!!produto.possui_grade ? 'Várias opções' : (produto.estoque_atual > 0 ? `${formatarQuantidade(produto.estoque_atual, produto.venda_fracionada)} em estoque` : 'Sem estoque')}
+                    </span>
                 </div>
                 
-                <button onclick="abrirModalQuantidade('${produto.id}')"
-                        class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 ${produto.estoque_atual <= 0 ? 'opacity-50 cursor-not-allowed' : ''}"
-                        ${produto.estoque_atual <= 0 ? 'disabled' : ''}>
-                    🛒 Adicionar ao Carrinho
-                </button>
+                ${!!produto.possui_grade ? `
+                    <button onclick="abrirModalVariacoes('${produto.id}')"
+                            class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition duration-200">
+                        🏷️ Escolher Opções
+                    </button>
+                ` : `
+                    <button onclick="abrirModalQuantidade('${produto.id}')"
+                            class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 ${produto.estoque_atual <= 0 ? 'opacity-50 cursor-not-allowed' : ''}"
+                            ${produto.estoque_atual <= 0 ? 'disabled' : ''}>
+                        🛒 Adicionar ao Carrinho
+                    </button>
+                `}
             </div>
             
             <!-- Overlay de Seleção Social -->
@@ -1452,6 +1454,27 @@ window.buscarCliente = async function() {
         document.getElementById('nome-cliente-info').textContent = nomeCliente;
         document.getElementById('info-cliente').classList.remove('hidden');
         
+        // CORREÇÃO: Preencher campos de endereço para cálculo de frete
+        const camposEnd = {
+            'cadastro-cep': cliente.cep,
+            'cadastro-bairro': cliente.bairro,
+            'cadastro-cidade': cliente.cidade,
+            'cadastro-logradouro': cliente.logradouro,
+            'cadastro-numero': cliente.numero
+        };
+        
+        for (const [id, valor] of Object.entries(camposEnd)) {
+            const el = document.getElementById(id);
+            if (el && valor) {
+                el.value = valor;
+            }
+        }
+
+        // Se houver endereço, atualizar o frete automaticamente
+        if (cliente.cep || cliente.bairro || cliente.cidade) {
+            window.atualizarFrete();
+        }
+
         // Armazenar o ID do cliente no input hidden
         const clienteId = cliente.id;
         const inputClienteId = document.getElementById('cliente_id');
@@ -1459,7 +1482,7 @@ window.buscarCliente = async function() {
             inputClienteId.value = clienteId;
         }
         
-        console.log('[App] ✅ Cliente encontrado:', clienteAtual);
+        console.log('[App] ✅ Cliente encontrado e endereço preenchido:', clienteAtual);
 
         // CORREÇÃO: Habilitar o botão de confirmar
         const btnConfirmar = document.getElementById('btn-confirmar-pedido');
@@ -2101,12 +2124,251 @@ window.toggleTaxaEntrega = function(show) {
     if (container) {
         if (show) {
             container.classList.remove('hidden');
+            // NOVO: Calcular frete ao mostrar o campo
+            if (typeof window.atualizarFrete === 'function') {
+                window.atualizarFrete();
+            }
         } else {
             container.classList.add('hidden');
-            if (input) input.value = '0.00';
+            if (input) {
+                input.value = '0.00';
+                // Notificar mudança para atualizar totais
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
         }
     }
 };
 
 // Exportar funções para uso em outros módulos
+// --- LÓGICA DE VARIAÇÕES (GRADE) - ESTILO SHOPEE ---
+window.abrirModalVariacoes = async function(produtoId) {
+    const modal = document.getElementById('modal-variacoes');
+    const container = document.getElementById('variacoes-lista');
+    const titulo = document.getElementById('modal-variacoes-titulo');
+    const subtitulo = document.getElementById('modal-variacoes-subtitulo');
+    
+    if (!modal || !container) return;
+
+    // Mostra modal com loading
+    modal.classList.remove('hidden');
+    container.innerHTML = `
+        <div class="text-center py-12">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+            <p class="text-sm text-gray-500 mt-4 font-medium">Buscando opções...</p>
+        </div>
+    `;
+
+    try {
+        const produtoMestre = produtos.find(p => p.id === produtoId);
+        if (titulo) titulo.textContent = produtoMestre ? produtoMestre.nome : 'Opções Disponíveis';
+        if (subtitulo) subtitulo.textContent = 'Este item possui diferentes tamanhos e cores.';
+
+        // Busca variações reais da API com expand=variacoes
+        const response = await fetch(`${API_ENDPOINTS.PRODUTO}/${produtoId}?expand=variacoes`);
+        if (!response.ok) throw new Error('Erro ao buscar variações');
+        
+        const data = await response.json();
+        const produtoFull = data.data || data;
+        const variacoes = produtoFull.variacoes || [];
+
+        if (variacoes.length === 0) {
+            container.innerHTML = `<div class="p-6 text-center text-gray-500">Nenhuma variação disponível no momento.</div>`;
+            return;
+        }
+
+        container.innerHTML = variacoes.map(v => `
+            <div onclick="adicionarVariacaoDireto('${v.id}', '${produtoId}')" class="flex justify-between items-center p-4 border border-gray-100 rounded-xl hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all active:scale-[0.98] group bg-white shadow-sm">
+                <div class="flex flex-col">
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-bold rounded uppercase">${v.tamanho || 'U'}</span>
+                        <span class="font-bold text-gray-800">${v.cor || 'Única'}</span>
+                    </div>
+                    <span class="text-[10px] text-gray-400 mt-1">Ref: ${v.codigo_referencia || 'N/A'}</span>
+                </div>
+                <div class="flex flex-col items-end">
+                    <span class="text-lg font-bold text-blue-600">${formatarMoeda(v.preco_venda_sugerido)}</span>
+                    <span class="text-[9px] ${v.estoque_atual > 0 ? 'text-green-500' : 'text-red-400'}">
+                        Estoque: ${v.estoque_atual || 0}
+                    </span>
+                </div>
+            </div>
+        `).join('');
+
+    } catch (error) {
+        console.error('[App] Erro ao carregar variações:', error);
+        container.innerHTML = `<div class="p-6 text-center text-red-500 font-medium">Falha ao carregar opções. Tente novamente.</div>`;
+    }
+};
+
+window.adicionarVariacaoDireto = async function(idVariacao, idMestre) {
+    try {
+        mostrarCarregando();
+        // Busca os dados completos da variação
+        const response = await fetch(`${API_ENDPOINTS.PRODUTO}/${idVariacao}`);
+        if (!response.ok) throw new Error('Não foi possível carregar dados da variação');
+        
+        const resJson = await response.json();
+        const variacao = resJson.data || resJson;
+        
+        // Constrói imagem conforme lógica do catálogo
+        const variacaoComImagem = {
+            ...variacao,
+            imagem: variacao.fotos && variacao.fotos.length > 0 && variacao.fotos[0].arquivo_path
+                ? (() => {
+                    const arquivoPath = variacao.fotos[0].arquivo_path.replace(/^\//, '');
+                    const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
+                    return `${baseUrl}/${arquivoPath}`;
+                })()
+                : 'https://dummyimage.com/300x200/cccccc/ffffff.png&text=Sem+Imagem'
+        };
+
+        // Adiciona ao carrinho (quantidade 1 por padrão no seletor rápido)
+        if (adicionarAoCarrinho(variacaoComImagem, 1)) {
+            fecharModal('modal-variacoes');
+            atualizarBadgeCarrinho();
+            
+            // Feedback visual no card mestre
+            atualizarBadgeProduto(idMestre, true);
+            
+            // Feedback visual
+            if (typeof mostrarNotificacao === 'function') {
+                mostrarNotificacao(`${variacao.nome || 'Item'} adicionado ao carrinho!`);
+            }
+        }
+    } catch (error) {
+        alert('Erro ao adicionar variação: ' + error.message);
+    } finally {
+        ocultarCarregando();
+    }
+};
+
 export { init, carregarProdutos, abrirModal, fecharModal };
+// ==========================================================================
+// LÓGICA DE FRETE CENTRALIZADO
+// ==========================================================================
+
+/**
+ * Consulta a API de frete e atualiza o campo de taxa de entrega
+ */
+window.atualizarFrete = async function() {
+    console.log('[Frete] 🚚 Calculando frete...');
+    
+    // Verifica se é entrega ou retirada
+    const tipoEntrega = document.querySelector('input[name="tipo_entrega"]:checked')?.value;
+    const campoTaxa = document.getElementById('taxa-entrega');
+    
+    if (tipoEntrega === 'RETIRADA') {
+        if (campoTaxa) {
+            campoTaxa.value = '0.00';
+            // Disparar evento change para atualizar totais (se houver listener)
+            campoTaxa.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        return;
+    }
+
+    // Se for ENTREGA, busca os valores dos campos
+    // Pode vir tanto da modal de "Finalizar" quanto da modal de "Cadastro" se estiver aberta
+    const cep = (document.getElementById('cadastro-cep')?.value || '').trim();
+    const bairro = (document.getElementById('cadastro-bairro')?.value || '').trim();
+    const cidade = (document.getElementById('cadastro-cidade')?.value || '').trim();
+
+    // Só busca se tiver pelo menos um dado relevante
+    if (!cep && !bairro && !cidade) {
+        console.log('[Frete] ⚠️ Nenhum dado de endereço para calcular frete.');
+        return;
+    }
+
+    // Busca o maior porte presente no carrinho
+    const identificarMaiorPorte = () => {
+        const itens = typeof getCarrinho === 'function' ? getCarrinho() : [];
+        if (!itens.length) return 'P';
+        
+        const pesos = { 'X': 4, 'G': 3, 'M': 2, 'P': 1 };
+        let maior = 'P';
+        
+        itens.forEach(item => {
+            const porteItem = (item.porte || 'P').toUpperCase();
+            if (pesos[porteItem] > pesos[maior]) {
+                maior = porteItem;
+            }
+        });
+        return maior;
+    };
+
+    const maiorPorte = identificarMaiorPorte();
+    console.log(`[Frete] 📦 Maior porte detectado no carrinho: ${maiorPorte}`);
+
+    try {
+        const url = `${CONFIG.URL_API}/api/frete/calcular?usuario_id=${CONFIG.ID_USUARIO_LOJA}&cep=${encodeURIComponent(cep)}&bairro=${encodeURIComponent(bairro)}&cidade=${encodeURIComponent(cidade)}&porte=${maiorPorte}`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.success) {
+            let valorFrete = parseFloat(data.valor || 0);
+            const msgFrete = document.getElementById('mensagem-frete-gratis');
+            
+            // Lógica de Frete Grátis por Ticket Médio
+            if (data.valor_minimo_frete_gratis) {
+                const subtotal = typeof window.calcularTotalCarrinho === 'function' ? window.calcularTotalCarrinho() : 0;
+                const minParaGratis = parseFloat(data.valor_minimo_frete_gratis);
+                
+                if (subtotal >= minParaGratis) {
+                    console.log(`[Frete] 🎁 Ticket atingido (R$ ${subtotal} >= R$ ${minParaGratis}). Frete Grátis!`);
+                    valorFrete = 0;
+                    if (msgFrete) {
+                        msgFrete.textContent = '✅ Frete Grátis aplicado ao seu pedido!';
+                        msgFrete.className = 'mt-1 text-xs font-semibold text-green-600';
+                        msgFrete.classList.remove('hidden');
+                    }
+                } else {
+                    const falta = minParaGratis - subtotal;
+                    if (msgFrete) {
+                        msgFrete.textContent = `🎁 Compre mais R$ ${falta.toFixed(2).replace('.', ',')} para ganhar Frete Grátis!`;
+                        msgFrete.className = 'mt-1 text-xs font-semibold text-blue-600';
+                        msgFrete.classList.remove('hidden');
+                    }
+                }
+            } else if (msgFrete) {
+                msgFrete.classList.add('hidden');
+            }
+
+            console.log(`[Frete] ✅ Ajustado para: R$ ${valorFrete}`);
+            if (campoTaxa) {
+                campoTaxa.value = valorFrete.toFixed(2);
+                // Forçar recálculo do total do pedido
+                if (typeof window.atualizarTotaisPedido === 'function') {
+                    window.atualizarTotaisPedido();
+                } else {
+                    campoTaxa.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+        }
+    } catch (error) {
+        console.error('[Frete] ❌ Erro ao calcular frete:', error);
+    }
+};
+
+/**
+ * Inicializa ouvintes nos campos de endereço para cálculo de frete
+ */
+function inicializarOuvintesFrete() {
+    const campos = ['cadastro-cep', 'cadastro-bairro', 'cadastro-cidade'];
+    campos.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', () => window.atualizarFrete());
+            // Para CEP, também dispara após preencher via consulta automática se houver
+            el.addEventListener('blur', () => window.atualizarFrete());
+        }
+    });
+
+    // Também ouve a mudança do tipo de entrega
+    const radios = document.querySelectorAll('input[name="tipo_entrega"]');
+    radios.forEach(r => {
+        r.addEventListener('change', () => window.atualizarFrete());
+    });
+}
+
+// Chamar inicialização no final ou no init()
+setTimeout(inicializarOuvintesFrete, 1000);

@@ -774,6 +774,34 @@
       </div>
     </div>
 
+    <!-- Modal de Variações (Grade) - Lógica Estilo Shopee -->
+    <div id="modal-variacoes" class="fixed inset-0 bg-black bg-opacity-50 z-[60] flex justify-center items-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center border-b p-4 bg-gray-50">
+                <div>
+                    <h2 id="modal-variacoes-titulo" class="text-lg font-bold text-gray-800">Opções Disponíveis</h2>
+                    <p id="modal-variacoes-subtitulo" class="text-xs text-gray-500"></p>
+                </div>
+                <button onclick="fecharModal('modal-variacoes')" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            
+            <div id="modal-variacoes-corpo" class="p-4 sm:p-6 overflow-y-auto">
+                <!-- Populado via JS: Lista de botões/cards por variação -->
+                <div id="variacoes-lista" class="grid grid-cols-1 gap-3">
+                    <div class="text-center py-8">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                        <p class="text-sm text-gray-500 mt-2">Buscando variações...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t p-4 flex justify-between items-center bg-gray-50">
+                <button onclick="fecharModal('modal-variacoes')" class="text-gray-600 font-bold px-4 py-2 hover:bg-gray-100 rounded-lg">Cancelar</button>
+                <div class="text-xs text-gray-400 italic">Selecione uma opção para adicionar</div>
+            </div>
+        </div>
+    </div>
+
     <!-- ✅ MODAL QUANTIDADE (ADICIONADO) -->
     <div
       id="modal-quantidade"

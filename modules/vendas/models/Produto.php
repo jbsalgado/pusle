@@ -45,12 +45,19 @@ use app\modules\marketplace\components\MarketplaceSyncManager;
  * @property string $data_fim_promocao
  * @property string $codigo_barras
  * @property string $marca
+ * @property string $parent_id
+ * @property string $cor
+ * @property string $tamanho
+ * @property boolean $eh_kit
  *
  * @property Usuario $usuario
  * @property Categoria $categoria
  * @property ProdutoFoto[] $fotos
  * @property VendaItem[] $vendaItens
  * @property DadosFinanceiros|null $dadosFinanceiros
+ * @property Produto $pai
+ * @property Produto[] $variacoes
+ * @property ProdutoKitItem[] $kitItens
  */
 class Produto extends ActiveRecord
 {
@@ -83,7 +90,7 @@ class Produto extends ActiveRecord
             [['categoria_id'], 'filter', 'filter' => function ($value) {
                 return (trim($value) === '') ? null : $value;
             }],
-            [['usuario_id', 'nome', 'preco_venda_sugerido', 'categoria_id'], 'required'],
+            [['usuario_id', 'nome', 'preco_custo', 'preco_venda_sugerido', 'categoria_id'], 'required'],
             [['usuario_id', 'categoria_id'], 'string'],
             [['descricao'], 'string'],
             [['preco_custo', 'valor_frete', 'preco_venda_sugerido', 'preco_promocional'], 'number', 'min' => 0],
@@ -93,8 +100,8 @@ class Produto extends ActiveRecord
             [['preco_venda_sugerido'], 'validatePrejuizo'],
             [['estoque_atual', 'estoque_minimo', 'ponto_corte', 'estoque_maximo'], 'number', 'min' => 0],
             [['estoque_atual'], 'default', 'value' => 0],
-            [['estoque_minimo'], 'default', 'value' => 10],
-            [['ponto_corte'], 'default', 'value' => 5],
+            [['estoque_minimo'], 'default', 'value' => 0],
+            [['ponto_corte'], 'default', 'value' => 0],
             [['estoque_maximo'], 'default', 'value' => null],
             [['estoque_atual', 'estoque_minimo', 'ponto_corte'], 'filter', 'filter' => function ($value) {
                 // ✅ Converte string vazia para 0, mantém números decimais
@@ -117,35 +124,30 @@ class Produto extends ActiveRecord
             [['data_inicio_promocao', 'data_fim_promocao'], 'safe'],
             [['estoque_atual', 'estoque_minimo', 'estoque_maximo', 'ponto_corte'], 'safe'], 
             
-            // ✅ NOVOS CAMPOS: Escalas de Preço
-            [['qtd_escala_1', 'qtd_escala_2', 'qtd_escala_3', 'qtd_escala_4', 'qtd_escala_5'], 'number', 'min' => 0],
-            [['preco_escala_1', 'preco_escala_2', 'preco_escala_3', 'preco_escala_4', 'preco_escala_5'], 'number', 'min' => 0],
-            
-            [['nome'], 'string', 'max' => 150],
-            [['codigo_referencia', 'codigo_barras'], 'string', 'max' => 50],
-            [['marca'], 'string', 'max' => 100],
-            [['localizacao'], 'string', 'max' => 30],
-            [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
-            [['categoria_id'], 'exist', 'skipOnError' => true, 'targetClass' => Categoria::class, 'targetAttribute' => ['categoria_id' => 'id']],
-            // Código de referência único por usuário (validação customizada)
-            [['codigo_referencia'], 'validateCodigoReferenciaUnico'],
-            // Validação de promoção: se tem preço promocional, deve ter datas
-            ['preco_promocional', 'validatePromocao'],
+            // ✅ NOVOS CAMPOS: Grade e Kits
+            [['parent_id'], 'string'],
+            [['eh_kit'], 'boolean'],
+            [['eh_kit'], 'default', 'value' => false],
+            [['cor'], 'string', 'max' => 50],
+            [['tamanho'], 'string', 'max' => 20],
+            [['porte'], 'string', 'max' => 1],
+            [['porte'], 'default', 'value' => 'P'],
+            [['parent_id'], 'exist', 'skipOnError' => true, 'targetClass' => Produto::class, 'targetAttribute' => ['parent_id' => 'id']],
         ];
     }
 
+
     /**
-     * Validação customizada: alerta sobre prejuízo (não bloqueia cadastro)
-     * NOTA: Esta validação foi modificada para NÃO bloquear o cadastro quando há prejuízo.
-     * Os alertas visuais no frontend continuam funcionando para informar o usuário.
-     * O usuário tem autonomia para decidir se deseja vender com prejuízo ou não.
+     * Lista de portes disponíveis
      */
-    public function validatePrejuizo($attribute, $params)
+    public static function getPortesList()
     {
-        // Validação removida: não bloqueia mais o cadastro quando há prejuízo
-        // Os alertas visuais no frontend continuam informando o usuário sobre possíveis prejuízos
-        // O usuário tem autonomia para decidir se deseja prosseguir com o cadastro mesmo com prejuízo
-        return true;
+        return [
+            'P' => 'Pequeno (Envelope, Acessórios)',
+            'M' => 'Médio (Calçados, Caixas padrão)',
+            'G' => 'Grande (Eletros pequenos, Volumes)',
+            'X' => 'Especial (Móveis, Cargas pesadas)',
+        ];
     }
 
     /**
@@ -210,6 +212,72 @@ class Produto extends ActiveRecord
             $this->margem_lucro_percentual = null;
             $this->markup_percentual = null;
         }
+    }
+
+    /**
+     * @return \yii\db\ActiveQuery
+     */
+    public function getPai()
+    {
+        return $this->hasOne(Produto::class, ['id' => 'parent_id']);
+    }
+
+    /**
+     * @return \yii\db\ActiveQuery
+     */
+    public function getVariacoes()
+    {
+        return $this->hasMany(Produto::class, ['parent_id' => 'id'])->orderBy(['tamanho' => SORT_ASC, 'cor' => SORT_ASC]);
+    }
+
+    /**
+     * @return \yii\db\ActiveQuery
+     */
+    public function getKitItens()
+    {
+        return $this->hasMany(ProdutoKitItem::class, ['kit_id' => 'id']);
+    }
+
+    /**
+     * Verifica se o produto possui variações (é um mestre de grade)
+     */
+    public function getPossuiGrade()
+    {
+        return $this->getVariacoes()->exists();
+    }
+
+    /**
+     * Método centralizado para baixar estoque, tratando Kits e Itens Simples
+     * Este método garante que se for um kit, os componentes sejam baixados proporcionalmente.
+     * 
+     * @param float $quantidade Quantidade vendida
+     * @return bool Sucesso na operação
+     */
+    public function baixarEstoque($quantidade)
+    {
+        if ($this->eh_kit) {
+            $itens = $this->kitItens;
+            if (empty($itens)) {
+                Yii::warning("Tentativa de baixar estoque de Kit vazio (ID: {$this->id})", __METHOD__);
+                return false;
+            }
+
+            foreach ($itens as $item) {
+                $produtoComponente = $item->produto;
+                if ($produtoComponente) {
+                    $qtdParaBaixar = $quantidade * $item->quantidade;
+                    if (!$produtoComponente->baixarEstoque($qtdParaBaixar)) {
+                        throw new \Exception("Erro ao baixar estoque do componente '{$produtoComponente->nome}' do kit '{$this->nome}'.");
+                    }
+                }
+            }
+            return true;
+        }
+
+        // Item Simples ou Variação
+        $this->refresh();
+        $this->estoque_atual -= $quantidade;
+        return $this->save(false, ['estoque_atual']);
     }
 
     /**
@@ -326,6 +394,7 @@ class Produto extends ActiveRecord
             'preco_custo' => 'Preço de Custo',
             'valor_frete' => 'Valor do Frete',
             'preco_venda_sugerido' => 'Preço de Venda',
+            'porte' => 'Porte/Volume do Produto',
             'margem_lucro_percentual' => 'Margem de Lucro (%)',
             'markup_percentual' => 'Markup (%)',
             'estoque_atual' => 'Estoque Atual',
@@ -360,6 +429,30 @@ class Produto extends ActiveRecord
     }
 
     /**
+     * Recalcula o estoque total do produto mestre baseado na soma de suas variações
+     * @return bool Retorna true se atualizou com sucesso
+     */
+    public function recalculateStockSum()
+    {
+        // Força consulta direta ao banco com cast explícito para UUID se necessário
+        $total = self::getDb()->createCommand(
+            "SELECT SUM(estoque_atual) FROM prest_produtos WHERE parent_id = :pid::uuid",
+            [':pid' => (string)$this->id]
+        )->queryScalar();
+
+        // Só atualiza se houver variações (ou se o total for 0)
+        // Se a busca retornar NULL e não houver registros, talvez não deva zerar se for um produto simples
+        $existeGrade = self::find()->where(['parent_id' => $this->id])->exists();
+
+        if ($existeGrade) {
+            $this->estoque_atual = (float)($total ?: 0);
+            return $this->save(false, ['estoque_atual']);
+        }
+
+        return false;
+    }
+
+    /**
      * Hook após salvar para disparar sincronização de estoque com marketplaces
      */
     public function afterSave($insert, $changedAttributes)
@@ -386,7 +479,6 @@ class Produto extends ActiveRecord
         $fields = parent::fields(); // Pega os campos padrão (colunas da tabela)
 
         // Adiciona a relação 'fotos' aos campos padrão
-        // Isso garante que a relação seja incluída no JSON se carregada com ->with('fotos')
         $fields['fotos'] = 'fotos';
 
         // Adiciona campos calculados
@@ -395,9 +487,9 @@ class Produto extends ActiveRecord
         $fields['venda_fracionada'] = 'venda_fracionada';
         $fields['unidade_medida'] = 'unidade_medida';
         $fields['com_nota'] = 'com_nota';
-
-        // Descomente a linha abaixo se quiser incluir a categoria por padrão também
-        // $fields['categoria'] = 'categoria';
+        $fields['possui_grade'] = function ($model) {
+            return $model->possuiGrade;
+        };
 
         return $fields;
     }
@@ -413,8 +505,13 @@ class Produto extends ActiveRecord
      */
     public function extraFields()
     {
-        // 'fotos' foi movido para fields(), então só deixamos 'categoria' aqui
-        return ['categoria'];
+        return [
+            'variacoes',
+            'pai',
+            'kitItens',
+            'fotos',
+            'categoria'
+        ];
     }
 
 
@@ -780,7 +877,7 @@ class Produto extends ActiveRecord
      * @param string $string
      * @return string
      */
-    protected static function removeAcentos($string)
+    public static function removeAcentos($string)
     {
         $acentos = [
             'À' => 'A',

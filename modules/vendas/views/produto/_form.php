@@ -92,10 +92,40 @@ if ($model->hasErrors()): ?>
 
     <div class="space-y-4 sm:space-y-6">
 
-        <!-- Categoria (Primeiro campo) -->
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Categoria *</label>
-            <?= $form->field($model, 'categoria_id')->widget(Select2::class, [
+    <!-- Navegação por Abas (Tailwind/Mobile First) -->
+    <div class="mb-6 border-b border-gray-200 overflow-x-auto whitespace-nowrap scrollbar-hide -mx-4 sm:mx-0 px-4 sm:px-0">
+        <nav class="flex space-x-6 sm:space-x-8" aria-label="Tabs">
+            <button type="button" onclick="switchTab('basico')" data-tab="basico" class="tab-btn active border-blue-600 text-blue-600 border-b-2 py-4 px-1 text-sm font-bold transition-all duration-200 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                Básico
+            </button>
+            <button type="button" onclick="switchTab('financeiro')" data-tab="financeiro" class="tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 text-sm font-medium transition-all duration-200 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Financeiro
+            </button>
+            <button type="button" onclick="switchTab('estoque')" data-tab="estoque" class="tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 text-sm font-medium transition-all duration-200 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+                Estoque
+            </button>
+            <button type="button" onclick="switchTab('grade')" data-tab="grade" class="tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 text-sm font-medium transition-all duration-200 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+                Grade
+            </button>
+            <button type="button" onclick="switchTab('kit')" data-tab="kit" class="tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 text-sm font-medium transition-all duration-200 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                Kit
+            </button>
+        </nav>
+    </div>
+
+    <!-- Conteúdo das Abas -->
+    <div id="tab-content">
+        <!-- ABA BÁSICO -->
+        <div id="content-basico" class="tab-pane space-y-4 sm:space-y-6">
+            <!-- Categoria -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Categoria *</label>
+                <?= $form->field($model, 'categoria_id')->widget(Select2::class, [
                 'data' => Categoria::getListaDropdown(),
                 'options' => [
                     'placeholder' => 'Selecione ou pesquise uma categoria...',
@@ -141,8 +171,8 @@ if ($model->hasErrors()): ?>
         </div>
 
         <!-- Código de Barras e Marca -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="sm:col-span-1">
                 <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Código de Barras (EAN)</label>
                 <div class="flex gap-2">
                     <?= $form->field($model, 'codigo_barras', [
@@ -160,13 +190,43 @@ if ($model->hasErrors()): ?>
                     </button>
                 </div>
             </div>
-            <div>
+            <div class="sm:col-span-2">
                 <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Marca</label>
                 <?= $form->field($model, 'marca')->textInput([
                     'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
                     'placeholder' => 'Marca do produto',
                     'id' => 'produto-marca'
                 ])->label(false) ?>
+            </div>
+        </div>
+
+        <!-- Configurações de Venda (Unidade, Porte e Fracionamento) -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Unidade de Medida *</label>
+                <?= $form->field($model, 'unidade_medida')->widget(Select2::class, [
+                    'data' => \app\modules\vendas\models\UnidadeMedidaVolume::getListaDropdown(),
+                    'options' => [
+                        'placeholder' => 'Busque a unidade...',
+                        'id' => 'unidade-medida-select'
+                    ],
+                    'pluginOptions' => [
+                        'allowClear' => true,
+                        'minimumInputLength' => 0,
+                    ],
+                ])->label(false) ?>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Porte/Volume (Logística)</label>
+                <?= $form->field($model, 'porte')->dropDownList(\app\modules\vendas\models\Produto::getPortesList(), [
+                    'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
+                ])->label(false) ?>
+            </div>
+            <div class="flex items-center pt-2 sm:pt-6">
+                <?= $form->field($model, 'venda_fracionada')->checkbox([
+                    'class' => 'w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500',
+                    'labelOptions' => ['class' => 'ml-2 text-sm font-medium text-gray-700']
+                ]) ?>
             </div>
         </div>
 
@@ -182,10 +242,30 @@ if ($model->hasErrors()): ?>
             <p class="mt-1.5 text-xs text-gray-500">Descreva detalhadamente o produto.</p>
         </div>
 
-        <!-- Preços, Frete e Estoque -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        </div><!-- /content-basico -->
+
+        <!-- ABA FINANCEIRO -->
+        <div id="content-financeiro" class="tab-pane hidden">
+            <!-- Navegação de Sub-Abas -->
+            <div class="mb-6 flex space-x-2 bg-gray-100 p-1.5 rounded-xl overflow-x-auto whitespace-nowrap scrollbar-hide">
+                <button type="button" onclick="switchSubTab('fin-basica')" data-subtab="fin-basica" class="subtab-btn active flex-1 py-2 px-4 text-xs sm:text-sm font-bold rounded-lg transition-all duration-200 bg-white text-blue-600 shadow-sm border border-transparent">
+                    💰 Precificação & Escala
+                </button>
+                <button type="button" onclick="switchSubTab('fin-markup')" data-subtab="fin-markup" class="subtab-btn flex-1 py-2 px-4 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 text-gray-600 hover:bg-white/50 border border-transparent">
+                    🧠 Markup & Inteligência
+                </button>
+                <button type="button" onclick="switchSubTab('fin-promos')" data-subtab="fin-promos" class="subtab-btn flex-1 py-2 px-4 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 text-gray-600 hover:bg-white/50 border border-transparent">
+                    🏷️ Ofertas & Promoções
+                </button>
+            </div>
+
+            <div id="subtabs-financeiro-content" class="space-y-4 sm:space-y-6">
+                <!-- SUB-ABA 1: BÁSICA & ESCALA -->
+                <div id="subcontent-fin-basica" class="subtab-pane space-y-4 sm:space-y-6">
+            <!-- Preços e Frete -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Preço de Custo (R$)</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Preço de Custo (R$) *</label>
                 <?= $form->field($model, 'preco_custo')->textInput([
                     'type' => 'number',
                     'step' => '0.01',
@@ -212,13 +292,13 @@ if ($model->hasErrors()): ?>
                 ])->label(false) ?>
             </div>
 
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Preço de Venda (R$) *</label>
+            <div class="lg:col-span-2">
+                <label class="block text-sm font-bold text-gray-800 mb-1.5 sm:mb-2">Preço de Venda (R$) *</label>
                 <?= $form->field($model, 'preco_venda_sugerido')->textInput([
                     'type' => 'number',
                     'step' => '0.01',
                     'min' => '0',
-                    'class' => 'money-auto w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
+                    'class' => 'money-auto w-full px-3 py-2.5 sm:px-4 sm:py-2 text-base sm:text-xl font-black border-2 border-blue-200 rounded-lg focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-blue-700',
                     'placeholder' => '0.00',
                     'id' => 'preco-venda',
                     'inputmode' => 'numeric',
@@ -280,33 +360,23 @@ if ($model->hasErrors()): ?>
         <?= $form->field($model, 'margem_lucro_percentual')->hiddenInput(['id' => 'margem-lucro-percentual'])->label(false) ?>
         <?= $form->field($model, 'markup_percentual')->hiddenInput(['id' => 'markup-percentual'])->label(false) ?>
 
-        <!-- ============================================
-             SEÇÃO: CÁLCULOS DE PRECIFICAÇÃO
-             ============================================ -->
+                </div><!-- /subcontent-fin-basica -->
 
-        <!-- Margem e Markup (calculados automaticamente dos preços acima) -->
-        <div id="margem-markup-container" class="mt-4 sm:mt-6" style="display: none;">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <span class="text-sm font-medium text-gray-700 block">Margem de Lucro</span>
-                            <span class="text-xs text-gray-500">(sobre o preço de venda)</span>
+                <!-- SUB-ABA 2: MARKUP & INTELIGÊNCIA -->
+                <div id="subcontent-fin-markup" class="subtab-pane hidden space-y-4 sm:space-y-6">
+                    <!-- Cálculos de Precificação (Markup/Margem calculados) -->
+                    <div id="margem-markup-container-v2" class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                                <span class="text-sm font-bold text-gray-700">Margem (Venda)</span>
+                                <span id="margem-valor-v2" class="text-xl font-black text-blue-600">0.00%</span>
+                            </div>
+                            <div class="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                                <span class="text-sm font-bold text-gray-700">Markup (Custo)</span>
+                                <span id="markup-valor-v2" class="text-xl font-black text-green-600">0.00%</span>
+                            </div>
                         </div>
-                        <span id="margem-valor" class="text-lg sm:text-xl font-bold text-blue-600">0.00%</span>
                     </div>
-                </div>
-                <div class="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <span class="text-sm font-medium text-gray-700 block">Markup</span>
-                            <span class="text-xs text-gray-500">(sobre o custo)</span>
-                        </div>
-                        <span id="markup-valor" class="text-lg sm:text-xl font-bold text-green-600">0.00%</span>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <!-- ============================================
              PRECIFICAÇÃO INTELIGENTE (MARKUP DIVISOR)
@@ -631,9 +701,10 @@ if ($model->hasErrors()): ?>
             </div>
         </div>
 
-        <!-- ============================================
-             PROMOÇÕES E OFERTAS
-             ============================================ -->
+                </div><!-- /subcontent-fin-markup -->
+
+                <!-- SUB-ABA 3: OFERTAS & PROMOÇÕES -->
+                <div id="subcontent-fin-promos" class="subtab-pane hidden space-y-4 sm:space-y-6">
         <div class="bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-200 rounded-lg p-4 sm:p-6 mt-4 sm:mt-6">
             <div class="flex items-start sm:items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
                 <div class="bg-red-600 rounded-lg p-2 flex-shrink-0">
@@ -823,38 +894,37 @@ if ($model->hasErrors()): ?>
             </div>
         </div>
 
-        <!-- Estoque -->
-        <!-- Configurações de Venda -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
-            <div class="flex items-center">
-                <?= $form->field($model, 'venda_fracionada')->checkbox([
-                    'class' => 'w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500',
-                    'labelOptions' => ['class' => 'ml-2 text-sm font-medium text-gray-700']
-                ]) ?>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Unidade de Medida</label>
-                <?= $form->field($model, 'unidade_medida')->textInput([
-                    'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
-                    'placeholder' => 'Ex: UN, KG, M, L',
-                    'maxlength' => 10
-                ])->label(false) ?>
-            </div>
-        </div>
+                </div><!-- /subcontent-fin-promos -->
+            </div><!-- /subtabs-financeiro-content -->
+        </div><!-- /content-financeiro -->
 
-        <!-- Estoque -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Estoque Atual</label>
+        <!-- ABA ESTOQUE -->
+        <div id="content-estoque" class="tab-pane hidden space-y-4 sm:space-y-6">
+            <!-- Estoque -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div class="lg:col-span-2">
+                <label class="block text-sm font-bold text-gray-800 mb-1.5 sm:mb-2">Estoque Atual *</label>
                 <?= $form->field($model, 'estoque_atual')->textInput([
                     'type' => 'number',
                     'min' => '0',
                     'step' => '0.001',
-                    'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors',
+                    'class' => 'w-full px-3 py-2.5 sm:px-4 sm:py-2 text-base sm:text-xl font-black border-2 border-blue-200 rounded-lg focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-blue-800',
                     'placeholder' => '0.000',
                     'id' => 'produto-estoque-atual'
                 ])->label(false) ?>
                 <p class="mt-1 text-xs text-gray-500">Quantidade atual em estoque</p>
+                
+                <?php if ($model->possuiGrade): ?>
+                    <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3 shadow-sm transition-all duration-300">
+                        <svg class="w-5 h-5 text-blue-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div class="space-y-1">
+                            <span class="text-xs text-blue-800 font-bold block">Sincronização Ativa</span>
+                            <span class="text-[11px] text-blue-700 leading-tight block">Este produto possui variações. O estoque total será recalculado automaticamente pela soma da Grade ao salvar.</span>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
 
             <div>
@@ -908,6 +978,7 @@ if ($model->hasErrors()): ?>
             ])->label(false) ?>
             <p class="mt-1.5 text-xs text-gray-500">Onde o produto está armazenado fisicamente</p>
         </div>
+    </div><!-- /content-estoque -->
 
         <!-- Aviso sobre ponto de corte -->
         <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4 mt-2">
@@ -918,38 +989,192 @@ if ($model->hasErrors()): ?>
         </div>
 
         <!-- Upload de Fotos -->
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Fotos do Produto</label>
-
-            <!-- Botões de ação -->
-            <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-3 sm:mb-4">
-                <button type="button" id="btn-camera" class="w-full sm:flex-1 px-4 py-2.5 sm:py-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-semibold rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm sm:text-base">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="mt-4 sm:mt-6 p-4 sm:p-6 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <div class="text-center">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="mt-4 flex text-sm text-gray-600 justify-center">
+                        <label for="fotos-input" class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                            <span>Selecionar Fotos</span>
+                            <input id="fotos-input" name="Produto[fotos][]" type="file" class="sr-only" multiple accept="image/*">
+                        </label>
+                        <p class="pl-1">ou arraste e solte</p>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">PNG, JPG até 5MB</p>
+                </div>
+                
+                <div class="hidden sm:block h-12 border-l border-gray-300 mx-2"></div>
+                
+                <button type="button" id="btn-camera" class="inline-flex items-center px-6 py-3 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 gap-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    <span>Capturar da Câmera</span>
+                    Tirar Foto
                 </button>
-                <label class="w-full sm:flex-1 cursor-pointer">
-                    <span class="w-full px-4 py-2.5 sm:py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold rounded-lg inline-block transition-colors duration-200 flex items-center justify-center gap-2 text-sm sm:text-base">
-                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </div>
+            
+            <div id="preview-container" class="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+        </div>
+    </div><!-- /content-basico -->
+
+    <!-- ABA GRADE (Variações) -->
+    <div id="content-grade" class="tab-pane hidden space-y-4 sm:space-y-6">
+        <?php if ($model->isNewRecord): ?>
+            <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
                         </svg>
-                        <span>Fazer Upload</span>
-                    </span>
-                    <input type="file" name="fotos[]" multiple accept="image/*" class="hidden" id="fotos-input">
-                </label>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700 font-medium">
+                            Salve o produto básico primeiro para poder gerar uma grade de variações (cores e tamanhos).
+                        </p>
+                    </div>
+                </div>
+            </div>
+        <?php else: ?>
+            <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <div class="p-4 sm:p-6 bg-gray-50 border-b border-gray-200">
+                    <h3 class="text-lg font-bold text-gray-800">Gerador de Grade (Cores x Tamanhos)</h3>
+                    <p class="text-xs text-gray-500">Crie centenas de variações de uma só vez informando os atributos abaixo separados por vírgula.</p>
+                </div>
+                <div class="p-4 sm:p-6 space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Cores (Separe por vírgula)</label>
+                            <input type="text" id="grade-cores" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500" placeholder="Ex: Azul, Preto, Branco, Verde">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Tamanhos (Separe por vírgula)</label>
+                            <input type="text" id="grade-tamanhos" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500" placeholder="Ex: P, M, G, GG, XG">
+                        </div>
+                    </div>
+                    <div class="flex justify-end pt-2">
+                        <button type="button" id="btn-previa-grade" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition-all flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                            Gerar Grade Abaixo
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <!-- Área de preview -->
-            <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center hover:border-blue-500 transition-colors duration-200">
-                <svg class="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <p class="text-xs text-gray-500 mt-2">PNG, JPG, JPEG até 5MB cada</p>
+            <!-- Tabela de Variações -->
+            <div class="mt-6 bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <div class="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                    <h4 class="font-bold text-gray-700">Variações Geradas/Existentes</h4>
+                    <span id="grade-count" class="px-2 py-1 bg-gray-200 text-gray-600 text-xs font-bold rounded-full">0 itens</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Cor</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tam.</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase w-48">EAN/Barras</th>
+                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase w-32">Estoque</th>
+                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase w-40">Preço (R$)</th>
+                                <th class="px-4 py-2"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="grade-items-body" class="bg-white divide-y divide-gray-200">
+                            <!-- Inserido via JS -->
+                            <?php foreach ($model->variacoes as $variante): ?>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-4 py-2 text-sm text-gray-900"><?= Html::encode($variante->cor) ?></td>
+                                    <td class="px-4 py-2 text-sm text-gray-900"><?= Html::encode($variante->tamanho) ?></td>
+                                    <td class="px-4 py-2">
+                                        <input type="text" name="Variacoes[<?= $variante->id ?>][ean]" value="<?= Html::encode($variante->codigo_barras) ?>" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" placeholder="EAN...">
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <input type="number" name="Variacoes[<?= $variante->id ?>][estoque]" value="<?= $variante->estoque_atual ?>" class="w-28 px-2 py-1 border border-gray-200 rounded text-sm text-right ml-auto block">
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <input type="number" name="Variacoes[<?= $variante->id ?>][preco]" value="<?= $variante->preco_venda_sugerido ?>" step="0.01" class="w-36 px-2 py-1 border border-gray-200 rounded text-sm text-right ml-auto block text-blue-600">
+                                    </td>
+                                    <td class="px-4 py-2 text-center text-red-500 hover:text-red-700 cursor-pointer">
+                                        <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div id="preview-container" class="mt-3 sm:mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4"></div>
+        <?php endif; ?>
+    </div>
+
+    <!-- ABA KIT (Composição) -->
+    <div id="content-kit" class="tab-pane hidden space-y-4 sm:space-y-6">
+        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            <div class="p-4 sm:p-6 bg-purple-50 border-b border-purple-100 flex items-center gap-4">
+                <div class="bg-purple-600 p-2 rounded-lg">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-purple-900">Composição do Kit</h3>
+                    <p class="text-xs text-purple-700">O estoque deste produto será calculado automaticamente com base nos componentes abaixo.</p>
+                </div>
+            </div>
+            
+            <div class="p-4 sm:p-6 space-y-4">
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Adicionar Componente</label>
+                    <div class="flex gap-2">
+                        <div class="flex-1">
+                            <?= Select2::widget([
+                                'name' => 'kit_componente_busca',
+                                'id' => 'kit-componente-busca',
+                                'options' => ['placeholder' => 'Pesquise um produto para adicionar ao kit...'],
+                                'pluginOptions' => [
+                                    'allowClear' => true,
+                                    'ajax' => [
+                                        'url' => Url::to(['produto/get-produtos-lista']),
+                                        'dataType' => 'json',
+                                        'data' => new \yii\web\JsExpression('function(params) { return {q:params.term}; }')
+                                    ],
+                                ],
+                            ]) ?>
+                        </div>
+                        <input type="number" id="kit-qtd-temp" placeholder="Qtd" value="1" class="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        <button type="button" id="btn-add-componente" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 active:bg-purple-800 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Componentes do Kit</h4>
+                    <ul id="kit-items-list" class="divide-y divide-gray-100 border border-gray-100 rounded-lg bg-white">
+                        <!-- Itens via JS -->
+                        <?php if (!$model->isNewRecord): ?>
+                            <?php foreach ($model->kitItens as $item): ?>
+                                <li class="p-3 flex justify-between items-center hover:bg-gray-50">
+                                    <div class="flex flex-col">
+                                        <span class="text-sm font-medium text-gray-900"><?= Html::encode($item->produto->nome) ?></span>
+                                        <span class="text-xs text-gray-500">Ref: <?= Html::encode($item->produto->codigo_referencia) ?></span>
+                                    </div>
+                                    <div class="flex items-center gap-4">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs text-gray-500">Qtd:</span>
+                                            <input type="number" name="Kit[<?= $item->produto_id ?>][qtd]" value="<?= $item->quantidade ?>" class="w-16 px-2 py-1 border border-gray-200 rounded text-xs text-center">
+                                        </div>
+                                        <button type="button" class="text-red-400 hover:text-red-600">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                        </button>
+                                    </div>
+                                </li>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </ul>
+                </div>
+            </div>
         </div>
+    </div>
 
         <!-- Modal da Câmera -->
         <div id="camera-modal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-75 flex items-center justify-center p-2 sm:p-4">
@@ -1743,23 +1968,22 @@ if ($model->hasErrors()): ?>
                 const margem = calcularMargemLucro(custoTotal, venda);
                 const markup = calcularMarkup(custoTotal, venda);
 
-                if (margemValor) margemValor.textContent = margem.toFixed(2) + '%';
-                if (markupValor) markupValor.textContent = markup.toFixed(2) + '%';
+                // Atualizar displays (V2 na nova aba)
+                const mv2 = document.getElementById('margem-valor-v2');
+                const mkv2 = document.getElementById('markup-valor-v2');
+                if (mv2) mv2.textContent = margem.toFixed(2) + '%';
+                if (mkv2) mkv2.textContent = markup.toFixed(2) + '%';
 
                 // Atualizar campos ocultos
                 if (margemLucroPercentualInput) margemLucroPercentualInput.value = margem;
                 if (markupPercentualInput) markupPercentualInput.value = markup;
 
-                // Mostra sempre que houver valores
-                if (margemMarkupContainer) {
-                    margemMarkupContainer.style.display = 'block';
-                }
             } else {
-                if (margemMarkupContainer) {
-                    margemMarkupContainer.style.display = 'none';
-                }
-                if (margemValor) margemValor.textContent = '0.00%';
-                if (markupValor) markupValor.textContent = '0.00%';
+                const mv2 = document.getElementById('margem-valor-v2');
+                const mkv2 = document.getElementById('markup-valor-v2');
+                if (mv2) mv2.textContent = '0.00%';
+                if (mkv2) mkv2.textContent = '0.00%';
+                
                 if (margemLucroPercentualInput) margemLucroPercentualInput.value = '';
                 if (markupPercentualInput) markupPercentualInput.value = '';
             }
@@ -2570,6 +2794,140 @@ if ($model->hasErrors()): ?>
         // Inicializa cálculos ao carregar
         if (taxaFixaInput && taxaVariavelInput && lucroLiquidoInput && custoInput) {
             atualizarPrecificacaoInteligente();
+        }
+
+        // --- LÓGICA DE ABAS (PULSE) ---
+        window.switchTab = function(tabId) {
+            // Esconde todos os conteúdos
+            document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
+            
+            // Mostra o selecionado
+            const activePane = document.getElementById('content-' + tabId);
+            if (activePane) activePane.classList.remove('hidden');
+
+            // Atualiza visual dos botões
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active', 'border-blue-600', 'text-blue-600', 'font-bold');
+                btn.classList.add('border-transparent', 'text-gray-500', 'font-medium');
+            });
+
+            const activeBtn = document.querySelector(`[data-tab="${tabId}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('active', 'border-blue-600', 'text-blue-600', 'font-bold');
+                activeBtn.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
+            }
+
+            // Scroll suave para o topo do formulário ao trocar de aba (melhor UX no mobile)
+            if (window.innerWidth < 640) {
+                document.querySelector('.tab-btn').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        };
+
+        window.switchSubTab = function(subtabId) {
+            // Esconde todos os sub-conteúdos
+            document.querySelectorAll('.subtab-pane').forEach(el => el.classList.add('hidden'));
+
+            // Mostra o selecionado
+            const activePane = document.getElementById('subcontent-' + subtabId);
+            if (activePane) activePane.classList.remove('hidden');
+
+            // Atualiza visual dos botões de sub-aba
+            document.querySelectorAll('.subtab-btn').forEach(btn => {
+                btn.classList.remove('active', 'bg-white', 'text-blue-600', 'shadow-sm', 'font-bold');
+                btn.classList.add('text-gray-600', 'font-medium');
+            });
+
+            const activeBtn = document.querySelector(`[data-subtab="${subtabId}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('active', 'bg-white', 'text-blue-600', 'shadow-sm', 'font-bold');
+                activeBtn.classList.remove('text-gray-600', 'font-medium');
+            }
+        };
+
+        // --- LÓGICA DE GERADOR DE GRADE ---
+        const btnPreviaGrade = document.getElementById('btn-previa-grade');
+        if (btnPreviaGrade) {
+            btnPreviaGrade.addEventListener('click', function() {
+                const coresStr = document.getElementById('grade-cores').value;
+                const tamanhosStr = document.getElementById('grade-tamanhos').value;
+                
+                if (!coresStr && !tamanhosStr) {
+                    alert('Informe ao menos uma cor ou um tamanho para gerar a grade.');
+                    return;
+                }
+
+                const cores = coresStr ? coresStr.split(',').map(s => s.trim()).filter(s => s !== '') : ['U'];
+                const tamanhos = tamanhosStr ? tamanhosStr.split(',').map(s => s.trim()).filter(s => s !== '') : ['U'];
+                const tbody = document.getElementById('grade-items-body');
+                const gradeCount = document.getElementById('grade-count');
+                
+                let count = tbody.querySelectorAll('tr').length;
+                
+                cores.forEach(cor => {
+                    tamanhos.forEach(tam => {
+                        count++;
+                        const tempId = 'new_' + Math.random().toString(36).substr(2, 9);
+                        const row = `
+                            <tr class="hover:bg-gray-50 transition-colors bg-blue-50/20">
+                                <td class="px-4 py-2 text-sm text-gray-900 font-medium">${cor} <input type="hidden" name="NewVariacoes[${tempId}][cor]" value="${cor}"></td>
+                                <td class="px-4 py-2 text-sm text-gray-900 font-medium">${tam} <input type="hidden" name="NewVariacoes[${tempId}][tamanho]" value="${tam}"></td>
+                                <td class="px-4 py-2">
+                                    <input type="text" name="NewVariacoes[${tempId}][ean]" placeholder="EAN..." class="w-full px-2 py-1 border border-gray-200 rounded text-sm">
+                                </td>
+                                <td class="px-4 py-2 text-right">
+                                    <input type="number" name="NewVariacoes[${tempId}][estoque]" value="0" class="w-28 px-2 py-1 border border-gray-200 rounded text-sm text-right ml-auto block">
+                                </td>
+                                <td class="px-4 py-2 text-right">
+                                    <input type="number" name="NewVariacoes[${tempId}][preco]" value="${document.getElementById('preco-venda').value || 0}" step="0.01" class="w-36 px-2 py-1 border border-gray-200 rounded text-sm text-right ml-auto block text-blue-600">
+                                </td>
+                                <td class="px-4 py-2 text-center text-red-500 hover:text-red-700 cursor-pointer" onclick="this.closest('tr').remove()">
+                                    <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </td>
+                            </tr>
+                        `;
+                        tbody.insertAdjacentHTML('beforeend', row);
+                    });
+                });
+                
+                gradeCount.textContent = tbody.querySelectorAll('tr').length + ' itens';
+                alert('Grade gerada com sucesso! Não esqueça de Salvar o produto para gravar as variações.');
+            });
+        }
+
+        // --- LÓGICA DE KIT ---
+        const btnAddComp = document.getElementById('btn-add-componente');
+        if (btnAddComp) {
+            btnAddComp.addEventListener('click', function() {
+                const select = jQuery('#kit-componente-busca');
+                const data = select.select2('data')[0];
+                const qtd = document.getElementById('kit-qtd-temp').value || 1;
+                
+                if (!data || !data.id) {
+                    alert('Selecione um produto para adicionar.');
+                    return;
+                }
+
+                const list = document.getElementById('kit-items-list');
+                const row = `
+                    <li class="p-3 flex justify-between items-center hover:bg-gray-50 bg-purple-50/10">
+                        <div class="flex flex-col">
+                            <span class="text-sm font-medium text-gray-900">${data.text}</span>
+                            <span class="text-xs text-gray-500">Novo Componente</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-gray-500">Qtd:</span>
+                                <input type="number" name="NewKit[${data.id}][qtd]" value="${qtd}" step="0.001" class="w-16 px-2 py-1 border border-gray-200 rounded text-xs text-center">
+                            </div>
+                            <button type="button" class="text-red-400 hover:text-red-600" onclick="this.closest('li').remove()">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                    </li>
+                `;
+                list.insertAdjacentHTML('beforeend', row);
+                select.val(null).trigger('change');
+            });
         }
 
         // Corrige problema do Select2 - garante que está inicializado corretamente

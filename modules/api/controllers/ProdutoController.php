@@ -57,32 +57,45 @@ class ProdutoController extends BaseController
 
         $query = Produto::find()
             ->where(['ativo' => true, 'usuario_id' => $usuarioId])
+            ->andWhere(['parent_id' => null]) // ✅ Shopee Style: Apenas Mestres na Vitrine
             ->with(['fotos', 'categoria']);
 
         // Filtro por Categoria
         $categoriaId = \Yii::$app->request->get('categoria_id');
         if ($categoriaId) {
             $query->andWhere(['categoria_id' => $categoriaId]);
-            \Yii::info("Filtrando produtos por categoria_id: {$categoriaId}", 'api');
         }
 
-        // Suporte a busca inteligente por palavras (Tokenizada)
+        // Suporte a busca inteligente por palavras (Busca no Mestre OU nos Filhos)
         $busca = \Yii::$app->request->get('q') ?: \Yii::$app->request->get('busca');
         if ($busca && trim($busca) !== '') {
             $palavras = explode(' ', trim($busca));
             foreach ($palavras as $palavra) {
                 if (trim($palavra) === '') continue;
                 
-                // Escapa caracteres especiais e adiciona wildcards
-                $palavraEscapada = str_replace(['%', '_', '\\'], ['\%', '\_', '\\\\'], trim($palavra));
-                $termo = '%' . $palavraEscapada . '%';
+                $termo = '%' . trim($palavra) . '%';
 
-                $query->andWhere(new \yii\db\Expression(
-                    "unaccent(nome) ILIKE unaccent(:p) OR unaccent(codigo_referencia) ILIKE unaccent(:p) OR codigo_barras ILIKE :p",
-                    [':p' => $termo]
-                ));
+                // Busca no Mestre OU em qualquer um de seus Filhos
+                $query->andWhere([
+                    'OR',
+                    ['ilike', new \yii\db\Expression('unaccent(nome)'), new \yii\db\Expression('unaccent(:p)', [':p' => $termo])],
+                    ['ilike', new \yii\db\Expression('unaccent(codigo_referencia)'), $termo],
+                    ['ilike', 'codigo_barras', $termo],
+                    ['exists', (new \yii\db\Query())
+                        ->select(new \yii\db\Expression('1'))
+                        ->from('prest_produtos child')
+                        ->where('child.parent_id = prest_produtos.id')
+                        ->andWhere([
+                            'OR',
+                            ['ilike', new \yii\db\Expression('unaccent(child.nome)'), new \yii\db\Expression('unaccent(:p)', [':p' => $termo])],
+                            ['ilike', new \yii\db\Expression('unaccent(child.cor)'), new \yii\db\Expression('unaccent(:p)', [':p' => $termo])],
+                            ['ilike', new \yii\db\Expression('unaccent(child.tamanho)'), new \yii\db\Expression('unaccent(:p)', [':p' => $termo])],
+                            ['ilike', new \yii\db\Expression('unaccent(child.codigo_referencia)'), $termo],
+                            ['ilike', 'child.codigo_barras', $termo]
+                        ])
+                    ]
+                ]);
             }
-            \Yii::info("Aplicando busca inteligente por palavras: " . implode(', ', $palavras), 'api');
         }
 
         $dataProvider = new ActiveDataProvider([
@@ -106,7 +119,7 @@ class ProdutoController extends BaseController
     {
         $model = Produto::find()
             ->where(['id' => $id, 'ativo' => true])
-            ->with(['fotos', 'categoria'])
+            ->with(['fotos', 'categoria', 'variacoes'])
             ->one();
 
         if ($model === null) {

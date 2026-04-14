@@ -158,7 +158,7 @@ class ProdutoController extends Controller
         $dataProvider = new ActiveDataProvider([
             'query' => $query,
             'pagination' => [
-                'pageSize' => 12,
+                'pageSize' => 100,
             ],
             'sort' => [
                 'defaultOrder' => [
@@ -237,6 +237,8 @@ class ProdutoController extends Controller
         $dadosFinanceiros = DadosFinanceiros::getConfiguracaoGlobal($lojaId);
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
+            $this->processGradeAndKits($model);
+            
             // Salva dados financeiros se foram informados
             $postDadosFinanceiros = Yii::$app->request->post('DadosFinanceiros', []);
             if (
@@ -371,7 +373,9 @@ class ProdutoController extends Controller
             Yii::info('Model attributes após load: ' . json_encode($model->attributes), __METHOD__);
 
             if ($model->save()) {
-                // Salva dados financeiros se foram informados
+                $this->processGradeAndKits($model);
+                
+                // Salva dados financeiros...
                 $postDadosFinanceiros = Yii::$app->request->post('DadosFinanceiros', []);
                 if (
                     !empty($postDadosFinanceiros['taxa_fixa_percentual']) ||
@@ -1024,5 +1028,148 @@ class ProdutoController extends Controller
             'dados' => $dados,
             'lojaNome' => Yii::$app->user->identity->username ?? 'Minha Loja'
         ]);
+    }
+
+    /**
+     * Retorna lista de produtos para Select2 (Kits)
+     */
+    public function actionGetProdutosLista($q = null)
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+        $lojaId = $this->getLojaId();
+        
+        $query = Produto::find()
+            ->where(['usuario_id' => $lojaId, 'ativo' => true])
+            ->andWhere([
+                'OR',
+                ['IS NOT', 'parent_id', null], // Filhos
+                ['NOT IN', 'id', (new \yii\db\Query())->select('parent_id')->from('prest_produtos')->where(['IS NOT', 'parent_id', null])]
+            ])
+            ->limit(40);
+
+        if ($q !== null && trim($q) !== '') {
+            $termo = '%' . Produto::removeAcentos($q) . '%';
+            $query->andWhere(['or', 
+                ['ilike', 'unaccent(nome)', $termo],
+                ['ilike', 'unaccent(codigo_referencia)', $termo]
+            ]);
+        }
+
+        $produtos = $query->all();
+        $results = [];
+        
+        foreach ($produtos as $produto) {
+            $results[] = [
+                'id' => $produto->id,
+                'text' => $produto->nome . " (" . $produto->codigo_referencia . ")"
+            ];
+        }
+        
+        return ['results' => $results];
+    }
+
+    /**
+     * Processa o salvamento de Grade e Composição de Kit
+     */
+    protected function processGradeAndKits($model)
+    {
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            Yii::info('--- INÍCIO PROCESSAMENTO GRADE/KIT ---', __METHOD__);
+            Yii::info('Produto Mestre ID: ' . $model->id, __METHOD__);
+
+            // --- 1. VARIAÇÕES EXISTENTES ---
+            $variacoesPost = Yii::$app->request->post('Variacoes', []);
+            Yii::info('Variacoes Existentes POST: ' . json_encode($variacoesPost), __METHOD__);
+            
+            foreach ($variacoesPost as $vId => $data) {
+                $variante = Produto::findOne(['id' => $vId, 'parent_id' => $model->id]);
+                if ($variante) {
+                    $variante->codigo_barras = !empty($data['ean']) ? $data['ean'] : $variante->codigo_barras;
+                    $variante->estoque_atual = (float)($data['estoque'] ?? 0);
+                    $variante->preco_venda_sugerido = (float)($data['preco'] ?? $variante->preco_venda_sugerido);
+                    
+                    if (!$variante->save(false)) { // Save sem validação para garantir persistência dos campos passados
+                        $errors = json_encode($variante->getErrors());
+                        Yii::error("Falha ao atualizar variante $vId: $errors", __METHOD__);
+                        throw new \Exception("Erro ao atualizar variante ID $vId: $errors");
+                    }
+                    Yii::info("Variante $vId atualizada com sucesso. Estoque: {$variante->estoque_atual}", __METHOD__);
+                } else {
+                    Yii::warning("Aviso: Variante $vId não encontrada para o pai {$model->id}", __METHOD__);
+                }
+            }
+
+            // --- 2. NOVAS VARIAÇÕES ---
+            $newVariacoes = Yii::$app->request->post('NewVariacoes', []);
+            Yii::info('Novas Variacoes POST: ' . json_encode($newVariacoes), __METHOD__);
+            
+            foreach ($newVariacoes as $data) {
+                if (empty($data['cor']) && empty($data['tamanho'])) continue;
+
+                $variante = new Produto();
+                $variante->usuario_id = $model->usuario_id;
+                $variante->categoria_id = $model->categoria_id;
+                $variante->nome = $model->nome . ' (' . ($data['cor'] ?? '') . ' ' . ($data['tamanho'] ?? '') . ')';
+                $variante->parent_id = (string)$model->id;
+                $variante->cor = $data['cor'] ?? null;
+                $variante->tamanho = $data['tamanho'] ?? null;
+                $variante->codigo_barras = !empty($data['ean']) ? $data['ean'] : null;
+                $variante->estoque_atual = (float)($data['estoque'] ?? 0);
+                $variante->preco_venda_sugerido = (float)(($data['preco'] > 0) ? $data['preco'] : $model->preco_venda_sugerido);
+                $variante->preco_custo = (float)$model->preco_custo;
+                $variante->unidade_medida = $model->unidade_medida;
+                $variante->estoque_minimo = (float)$model->estoque_minimo;
+                $variante->ponto_corte = (float)$model->ponto_corte;
+                $variante->estoque_maximo = $model->estoque_maximo;
+                $variante->localizacao = $model->localizacao;
+                $variante->ativo = true;
+                
+                // Gera um código de referência único
+                $suffix = ($variante->cor ? '-' . $variante->cor : '') . ($variante->tamanho ? '-' . $variante->tamanho : '');
+                $variante->codigo_referencia = $model->codigo_referencia . $suffix;
+                
+                if (!$variante->save()) {
+                    $errors = json_encode($variante->getErrors());
+                    Yii::error("Erro ao gravar nova variante: $errors", __METHOD__);
+                    throw new \Exception("Erro ao criar nova variante ({$variante->nome}): $errors");
+                }
+                Yii::info("Nova variante criada: {$variante->id}", __METHOD__);
+            }
+
+            // --- 3. COMPOSIÇÃO DE KIT ---
+            $newKit = Yii::$app->request->post('NewKit', []);
+            if (!empty($newKit)) {
+                $model->eh_kit = true;
+                $model->save(false, ['eh_kit']);
+                
+                // Remove componentes anteriores para evitar duplicados na edição
+                \app\modules\vendas\models\ProdutoKitItem::deleteAll(['kit_id' => $model->id]);
+
+                foreach ($newKit as $pId => $data) {
+                    if (empty($pId) || $pId == 'null') continue;
+                    $kitItem = new \app\modules\vendas\models\ProdutoKitItem();
+                    $kitItem->kit_id = (string)$model->id;
+                    $kitItem->produto_id = (string)$pId;
+                    $kitItem->quantidade = (float)($data['qtd'] ?? 1);
+                    if (!$kitItem->save()) {
+                        throw new \Exception('Erro ao gravar item do kit: ' . json_encode($kitItem->getErrors()));
+                    }
+                }
+            }
+
+            // ✅ RECÁLCULO AUTOMÁTICO DE ESTOQUE (GRADE -> MESTRE)
+            // Sincroniza o estoque total do mestre agora.
+            $model->recalculateStockSum();
+
+            $transaction->commit();
+            Yii::info('--- FIM PROCESSAMENTO GRADE/KIT COM SUCESSO ---', __METHOD__);
+            return true;
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+            Yii::error('FALHA CRÍTICA GRADE/KIT: ' . $e->getMessage(), __METHOD__);
+            Yii::$app->session->setFlash('error', 'Erro ao salvar grade: ' . $e->getMessage());
+            return false;
+        }
     }
 }

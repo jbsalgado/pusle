@@ -102,7 +102,7 @@ console.log('[Config] 🔍 Detecção automática de URLs:', {
 export const CONFIG = {
     URL_API: detectedApiUrl || fallbackApiUrl,
     URL_BASE_WEB: detectedWebUrl || fallbackWebUrl,
-    CACHE_NAME: 'catalogo-cache-v10',
+    CACHE_NAME: 'catalogo-cache-v11',
     SYNC_TAG: 'sync-novo-pedido',
     ID_USUARIO_LOJA: getLojaId()
 };
