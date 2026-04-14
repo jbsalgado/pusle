@@ -668,7 +668,12 @@ class ProdutoController extends Controller
             }
         }
 
-        $files = UploadedFile::getInstancesByName('fotos');
+        $files = UploadedFile::getInstancesByName('Produto[fotos]');
+        
+        // Fallback para o nome simples (caso venha de outros locais do sistema)
+        if (empty($files)) {
+            $files = UploadedFile::getInstancesByName('fotos');
+        }
 
         // 🔍 DEBUG: Log para verificar se as fotos estão sendo recebidas
         Yii::info('Processando upload de fotos para produto: ' . $model->id, __METHOD__);

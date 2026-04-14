@@ -242,7 +242,97 @@ if ($model->hasErrors()): ?>
             <p class="mt-1.5 text-xs text-gray-500">Descreva detalhadamente o produto.</p>
         </div>
 
-        </div><!-- /content-basico -->
+
+        <!-- Fotos Existentes (se estiver editando) -->
+        <?php if (!$model->isNewRecord && $model->fotos): ?>
+            <div class="mt-8 pt-8 border-t border-gray-100">
+                <label class="block text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Fotos Cadastradas
+                </label>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    <?php foreach ($model->fotos as $foto): ?>
+                        <div class="relative group aspect-square bg-gray-100 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                            <img src="<?= Yii::getAlias('@web') . '/' . $foto->arquivo_path ?>"
+                                class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                alt="<?= Html::encode($foto->arquivo_nome) ?>">
+
+                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-2">
+                                <div class="flex justify-end">
+                                    <?php
+                                    $redirectTo = !$model->isNewRecord ? 'update' : 'view';
+                                    $deleteUrl = Url::to(['delete-foto', 'id' => $foto->id, 'redirect' => $redirectTo]);
+                                    ?>
+                                    <?= Html::a('✕', $deleteUrl, [
+                                        'class' => 'w-8 h-8 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-lg transform hover:scale-110 transition-all',
+                                        'data' => [
+                                            'confirm' => $foto->eh_principal ? (count($model->fotos) > 1 ? 'Esta é a foto principal. Ao excluir, outra foto será definida como principal automaticamente. Deseja continuar?' : 'Esta é a única foto do produto. Deseja excluí-la?') : 'Tem certeza que deseja excluir esta foto?',
+                                            'method' => 'post',
+                                        ],
+                                    ]) ?>
+                                </div>
+                                
+                                <div class="flex justify-center">
+                                    <?php if ($foto->eh_principal): ?>
+                                        <span class="w-full text-center py-1.5 bg-blue-600 text-white text-[10px] font-bold rounded-lg uppercase tracking-wider">
+                                            🌟 Principal
+                                        </span>
+                                    <?php else: ?>
+                                        <?php
+                                        $setPrincipalUrl = Url::to(['set-foto-principal', 'id' => $foto->id, 'redirect' => $redirectTo]);
+                                        ?>
+                                        <?= Html::a('Definir Principal', $setPrincipalUrl, [
+                                            'class' => 'w-full text-center py-1.5 bg-white/90 hover:bg-white text-blue-600 text-[10px] font-bold rounded-lg uppercase tracking-wider transition-all transform hover:translate-y-[-2px]',
+                                            'data-method' => 'post'
+                                        ]) ?>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Upload de Fotos (Aba Básico) -->
+        <div class="mt-8 pt-8 border-t border-gray-100">
+            <label class="block text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                Adicionar Novas Fotos
+            </label>
+            <div class="p-4 sm:p-8 bg-blue-50/30 rounded-2xl border-2 border-dashed border-blue-200 transition-all hover:bg-blue-50/50 hover:border-blue-300">
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-6">
+                    <div class="text-center">
+                        <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg class="h-8 w-8 text-blue-600" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </div>
+                        <div class="flex text-sm text-gray-600 justify-center">
+                            <label for="fotos-input" class="relative cursor-pointer bg-blue-600 px-4 py-2 rounded-lg font-bold text-white hover:bg-blue-700 transition-colors shadow-md">
+                                <span>Selecionar Fotos</span>
+                                <input id="fotos-input" name="Produto[fotos][]" type="file" class="sr-only" multiple accept="image/*">
+                            </label>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-3 font-medium">PNG, JPG até 5MB • Arraste e solte aqui</p>
+                    </div>
+                    
+                    <div class="hidden sm:block h-20 border-l-2 border-blue-100 mx-4"></div>
+                    
+                    <button type="button" id="btn-camera" class="inline-flex items-center px-6 py-4 bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-50 font-bold rounded-xl transition-all duration-200 gap-3 shadow-sm active:scale-95">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        Tirar Foto agora
+                    </button>
+                </div>
+                
+                <div id="preview-container" class="mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"></div>
+            </div>
+        </div>
+
+    </div><!-- /content-basico -->
 
         <!-- ABA FINANCEIRO -->
         <div id="content-financeiro" class="tab-pane hidden">
@@ -978,47 +1068,8 @@ if ($model->hasErrors()): ?>
             ])->label(false) ?>
             <p class="mt-1.5 text-xs text-gray-500">Onde o produto está armazenado fisicamente</p>
         </div>
+        </div>
     </div><!-- /content-estoque -->
-
-        <!-- Aviso sobre ponto de corte -->
-        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4 mt-2">
-            <p class="text-xs sm:text-sm text-yellow-800 leading-relaxed">
-                <strong>💡 Dica:</strong> O ponto de corte deve ser maior ou igual ao estoque mínimo.
-                Quando o estoque atual chegar ao ponto de corte, é recomendado fazer resuprimento urgente.
-            </p>
-        </div>
-
-        <!-- Upload de Fotos -->
-        <div class="mt-4 sm:mt-6 p-4 sm:p-6 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <div class="text-center">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                    <div class="mt-4 flex text-sm text-gray-600 justify-center">
-                        <label for="fotos-input" class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
-                            <span>Selecionar Fotos</span>
-                            <input id="fotos-input" name="Produto[fotos][]" type="file" class="sr-only" multiple accept="image/*">
-                        </label>
-                        <p class="pl-1">ou arraste e solte</p>
-                    </div>
-                    <p class="text-xs text-gray-500 mt-1">PNG, JPG até 5MB</p>
-                </div>
-                
-                <div class="hidden sm:block h-12 border-l border-gray-300 mx-2"></div>
-                
-                <button type="button" id="btn-camera" class="inline-flex items-center px-6 py-3 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 gap-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    Tirar Foto
-                </button>
-            </div>
-            
-            <div id="preview-container" class="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"></div>
-        </div>
-    </div><!-- /content-basico -->
 
     <!-- ABA GRADE (Variações) -->
     <div id="content-grade" class="tab-pane hidden space-y-4 sm:space-y-6">
@@ -1221,48 +1272,6 @@ if ($model->hasErrors()): ?>
             </div>
         </div>
 
-        <!-- Fotos Existentes (se estiver editando) -->
-        <?php if (!$model->isNewRecord && $model->fotos): ?>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Fotos Cadastradas</label>
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                    <?php foreach ($model->fotos as $foto): ?>
-                        <div class="relative group">
-                            <img src="<?= Yii::getAlias('@web') . '/' . $foto->arquivo_path ?>"
-                                class="w-full h-32 object-cover rounded-lg"
-                                alt="<?= Html::encode($foto->arquivo_nome) ?>">
-
-                            <?php if ($foto->eh_principal): ?>
-                                <span class="absolute top-2 left-2 px-2 py-1 bg-blue-600 text-white text-xs font-semibold rounded">
-                                    Principal
-                                </span>
-                            <?php else: ?>
-                                <?php
-                                $redirectTo = !$model->isNewRecord ? 'update' : 'view';
-                                $setPrincipalUrl = Url::to(['set-foto-principal', 'id' => $foto->id, 'redirect' => $redirectTo]);
-                                ?>
-                                <?= Html::a('Definir Principal', $setPrincipalUrl, [
-                                    'class' => 'absolute top-2 left-2 px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300',
-                                    'data-method' => 'post'
-                                ]) ?>
-                            <?php endif; ?>
-
-                            <?php
-                            $redirectTo = !$model->isNewRecord ? 'update' : 'view';
-                            $deleteUrl = Url::to(['delete-foto', 'id' => $foto->id, 'redirect' => $redirectTo]);
-                            ?>
-                            <?= Html::a('✕', $deleteUrl, [
-                                'class' => 'absolute top-2 right-2 w-6 h-6 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300',
-                                'data' => [
-                                    'confirm' => $foto->eh_principal ? (count($model->fotos) > 1 ? 'Esta é a foto principal. Ao excluir, outra foto será definida como principal automaticamente. Deseja continuar?' : 'Esta é a única foto do produto. Deseja excluí-la?') : 'Tem certeza que deseja excluir esta foto?',
-                                    'method' => 'post',
-                                ],
-                            ]) ?>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-        <?php endif; ?>
 
         <!-- Status Ativo -->
         <div class="flex items-center">

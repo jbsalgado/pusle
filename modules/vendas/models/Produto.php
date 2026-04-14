@@ -97,7 +97,6 @@ class Produto extends ActiveRecord
             [['margem_lucro_percentual'], 'number', 'min' => 0, 'max' => 99.99], // Margem: 0-99.99%
             [['markup_percentual'], 'number', 'min' => 0], // ✅ Markup: sem limite máximo (pode ser qualquer valor positivo)
             // Validação: impedir prejuízo (margem negativa)
-            [['preco_venda_sugerido'], 'validatePrejuizo'],
             [['estoque_atual', 'estoque_minimo', 'ponto_corte', 'estoque_maximo'], 'number', 'min' => 0],
             [['estoque_atual'], 'default', 'value' => 0],
             [['estoque_minimo'], 'default', 'value' => 0],

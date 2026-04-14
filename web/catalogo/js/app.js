@@ -501,8 +501,9 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false) {
         console.log('[App] 📦 Carregando produtos (página', pagina, ')...');
         mostrarCarregando();
         
-        // Usa per-page padrão de 100 (configurado no backend)
-        let url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}&page=${pagina}&per-page=100`;
+        // Usa per-page padrão de 100 (configurado no backend) e expande variações (e suas fotos), fotos do pai e categoria
+        let url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}&page=${pagina}&per-page=100&expand=variacoes.fotos,fotos,categoria`;
+
         if (termoBusca) {
             url += `&q=${encodeURIComponent(termoBusca)}`;
         }
@@ -855,6 +856,186 @@ window.limparBusca = function() {
     }
 };
 
+/**
+ * Função global para trocar a foto do slideshow
+ * @param {HTMLElement} btn - O botão clicado (seta)
+ * @param {number} direcao - 1 para próxima, -1 para anterior
+ * @param {Event} event - Evento de clique
+ */
+window.trocarFoto = function(btn, direcao, event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
+    const container = btn.closest('.slideshow-container');
+    if (!container) return;
+
+    const img = container.querySelector('.slideshow-img');
+    const dots = container.querySelectorAll('.slideshow-dot');
+    const fotos = JSON.parse(container.getAttribute('data-fotos') || '[]');
+    let currentIndex = parseInt(container.getAttribute('data-current-index') || '0');
+
+    if (fotos.length <= 1) return;
+
+    // Calcula novo índice
+    currentIndex += direcao;
+    if (currentIndex >= fotos.length) currentIndex = 0;
+    if (currentIndex < 0) currentIndex = fotos.length - 1;
+
+    // Atualiza container
+    container.setAttribute('data-current-index', currentIndex);
+
+    // Atualiza imagem
+    const novaFoto = fotos[currentIndex];
+    const arquivoPath = novaFoto.arquivo_path.replace(/^\//, '');
+    const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
+    img.src = `${baseUrl}/${arquivoPath}`;
+
+    // Atualiza dots
+    dots.forEach((dot, idx) => {
+        if (idx === currentIndex) {
+            dot.classList.add('bg-white', 'scale-125');
+            dot.classList.remove('bg-white/50');
+        } else {
+            dot.classList.remove('bg-white', 'scale-125');
+            dot.classList.add('bg-white/50');
+        }
+    });
+};
+
+/**
+ * Renderiza o espaço da foto com suporte a slideshow se houver múltiplas fotos
+ */
+function renderizarEspacoFoto(produto) {
+    let fotos = produto.fotos || [];
+    
+    // ✅ BUBBLE-UP: Se o produto pai não tem fotos, coleta fotos de todas as variações (grade)
+    if (fotos.length === 0 && produto.variacoes && produto.variacoes.length > 0) {
+        fotos = produto.variacoes.reduce((acc, v) => {
+            if (v.fotos && v.fotos.length > 0) {
+                // Adiciona fotos da variação ao array, evitando duplicatas por arquivo_path
+                v.fotos.forEach(f => {
+                    if (!acc.some(existente => existente.arquivo_path === f.arquivo_path)) {
+                        acc.push(f);
+                    }
+                });
+            }
+            return acc;
+        }, []);
+    }
+
+    let urlImagemPadrao = 'https://dummyimage.com/300x200/cccccc/ffffff.png&text=Sem+Imagem';
+    
+    if (fotos.length > 0 && fotos[0].arquivo_path) {
+        const arquivoPath = fotos[0].arquivo_path.replace(/^\//, '');
+        const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
+        urlImagemPadrao = `${baseUrl}/${arquivoPath}`;
+    }
+
+    if (fotos.length <= 1) {
+        const urlParaModal = urlImagemPadrao.replace(/'/g, "\\'");
+        const fotosJson = JSON.stringify(fotos).replace(/'/g, "&apos;");
+        return `
+            <div class="w-full h-48 bg-gray-50 flex items-center justify-center overflow-hidden p-2 cursor-zoom-in" 
+                 onclick="abrirGaleria(0, '${fotosJson}')">
+                <img src="${urlImagemPadrao}" 
+                     alt="${produto.nome}"
+                     class="w-full h-full object-contain"
+                     onerror="this.src='https://dummyimage.com/300x200/cccccc/ffffff.png&text=Erro'">
+            </div>
+        `;
+    }
+
+    // Gerar dots
+    const dotsHtml = fotos.map((_, idx) => `
+        <div class="slideshow-dot w-1.5 h-1.5 rounded-full transition-all duration-300 ${idx === 0 ? 'bg-white scale-125' : 'bg-white/50 shadow-sm'}"></div>
+    `).join('');
+
+    return `
+        <div class="slideshow-container relative w-full h-48 bg-gray-50 group overflow-hidden cursor-zoom-in" 
+             data-fotos='${JSON.stringify(fotos)}' 
+             data-current-index="0"
+             onclick="abrirGaleria(parseInt(this.getAttribute('data-current-index')), this.getAttribute('data-fotos'))">
+            
+            <!-- Imagem Principal -->
+            <img src="${urlImagemPadrao}" 
+                 alt="${produto.nome}"
+                 class="slideshow-img w-full h-full object-contain p-2 transition-opacity duration-300"
+                 onerror="this.src='https://dummyimage.com/300x200/cccccc/ffffff.png&text=Erro'">
+
+            <!-- Setas de Navegação -->
+            <button onclick="trocarFoto(this, -1, event)" 
+                    class="absolute left-1 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1 rounded-full opacity-80 group-hover:opacity-100 transition-opacity z-20">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7" />
+                </svg>
+            </button>
+            <button onclick="trocarFoto(this, 1, event)" 
+                    class="absolute right-1 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1 rounded-full opacity-80 group-hover:opacity-100 transition-opacity z-20">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7" />
+                </svg>
+            </button>
+
+            <!-- Indicadores (Dots) -->
+            <div class="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
+                ${dotsHtml}
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Renderiza uma tabela compacta com a prévia da grade (variações) do produto
+ */
+function renderizarPreviaGrade(produto) {
+    if (!produto.variacoes || produto.variacoes.length === 0) return '';
+
+    // Limita a 5 variações para não quebrar o layout
+    const variacoesExibir = produto.variacoes.slice(0, 5);
+    const temMais = produto.variacoes.length > 5;
+
+    let html = `
+    <div class="mt-3 mb-4 border-t border-gray-100 pt-2">
+        <table class="w-full text-[10px] text-gray-600 font-mono">
+            <thead>
+                <tr class="text-gray-400 uppercase border-b border-gray-50 pb-1">
+                    <th class="text-left font-bold pb-1">COR</th>
+                    <th class="text-center font-bold pb-1">TAM</th>
+                    <th class="text-center font-bold pb-1">EST</th>
+                    <th class="text-right font-bold pb-1">VALOR</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    variacoesExibir.forEach(v => {
+        const preco = v.preco_promocional > 0 ? v.preco_promocional : v.preco_venda_sugerido;
+        html += `
+            <tr class="border-b border-gray-50 last:border-0">
+                <td class="py-1 truncate max-w-[60px]" title="${v.cor || '-'}">${v.cor || '-'}</td>
+                <td class="py-1 text-center font-bold">${v.tamanho || '-'}</td>
+                <td class="py-1 text-center ${v.estoque_atual > 0 ? 'text-green-600' : 'text-red-500'}">${v.estoque_atual || 0}</td>
+                <td class="py-1 text-right font-bold text-blue-600">${formatarMoeda(preco)}</td>
+            </tr>
+        `;
+    });
+
+    html += `
+            </tbody>
+        </table>
+        ${temMais ? `
+            <div class="text-[9px] text-center text-orange-500 font-bold mt-1 uppercase italic">
+                + ${produto.variacoes.length - 5} variações disponíveis
+            </div>
+        ` : ''}
+    </div>
+    `;
+
+    return html;
+}
+
 function renderizarProdutos(listaProdutos) {
     console.log(`[App] 🎨 Renderizando ${listaProdutos.length} produtos...`, listaProdutos);
     const container = document.getElementById('catalogo-produtos');
@@ -887,14 +1068,6 @@ function renderizarProdutos(listaProdutos) {
     }
     
     container.innerHTML = listaProdutos.map(produto => {
-        // Construir URL da imagem corretamente
-        let urlImagem = 'https://dummyimage.com/300x200/cccccc/ffffff.png&text=Sem+Imagem';
-        if (produto.fotos && produto.fotos.length > 0 && produto.fotos[0].arquivo_path) {
-            const arquivoPath = produto.fotos[0].arquivo_path.replace(/^\//, '');
-            const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
-            urlImagem = `${baseUrl}/${arquivoPath}`;
-        }
-        
         return `
         <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 relative"
              data-produto-card="${produto.id}">
@@ -902,18 +1075,16 @@ function renderizarProdutos(listaProdutos) {
             <div class="badge-no-carrinho hidden absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full z-10">
                 ✓ No Carrinho
             </div>
-            
-            <img src="${urlImagem}" 
-                 alt="${produto.nome}"
-                 class="w-full h-48 object-contain"
-                 onerror="this.src='https://dummyimage.com/300x200/cccccc/ffffff.png&text=Erro'">
+            ${renderizarEspacoFoto(produto)}
             
             <div class="p-4">
                 <h3 class="text-lg font-bold text-gray-800 mb-2">${produto.nome}</h3>
                 
                 ${produto.descricao ? `
-                    <p class="text-sm text-gray-600 mb-3 line-clamp-2">${produto.descricao}</p>
+                    <p class="text-sm text-gray-600 mb-2 line-clamp-1">${produto.descricao}</p>
                 ` : ''}
+                
+                ${renderizarPreviaGrade(produto)}
                 
                 <div class="flex items-center justify-between mb-4">
                     <span class="text-2xl font-bold text-blue-600">
@@ -1897,6 +2068,97 @@ function fecharModal(modalId) {
 }
 
 window.abrirModal = abrirModal;
+
+// ==========================================================================
+// ✅ LIGHTBOX (GALERIA DE FOTOS AMPLIADA)
+// ==========================================================================
+
+let galeriaAtual = {
+    fotos: [],
+    index: 0
+};
+
+window.abrirGaleria = function(idx, fotosJson) {
+    try {
+        const fotos = typeof fotosJson === 'string' ? JSON.parse(fotosJson) : fotosJson;
+        if (!fotos || fotos.length === 0) return;
+        
+        galeriaAtual.fotos = fotos;
+        galeriaAtual.index = idx || 0;
+        
+        const modal = document.getElementById('modal-galeria');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.style.overflow = 'hidden'; // Bloqueia scroll
+            atualizarGaleria();
+        }
+    } catch (e) {
+        console.error('[Lightbox] Erro ao abrir galeria:', e);
+    }
+};
+
+function atualizarGaleria() {
+    const img = document.getElementById('img-ampliada');
+    const contador = document.getElementById('contador-galeria');
+    const foto = galeriaAtual.fotos[galeriaAtual.index];
+    
+    if (foto && foto.arquivo_path) {
+        const arquivoPath = foto.arquivo_path.replace(/^\//, '');
+        const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
+        img.src = `${baseUrl}/${arquivoPath}`;
+        contador.textContent = `${galeriaAtual.index + 1} / ${galeriaAtual.fotos.length}`;
+        
+        // Controle de visibilidade das setas
+        const btnPrev = document.getElementById('modal-prev');
+        const btnNext = document.getElementById('modal-next');
+        if (galeriaAtual.fotos.length <= 1) {
+            if (btnPrev) btnPrev.classList.add('hidden');
+            if (btnNext) btnNext.classList.add('hidden');
+        } else {
+            if (btnPrev) btnPrev.classList.remove('hidden');
+            if (btnNext) btnNext.classList.remove('hidden');
+        }
+    }
+}
+
+window.navegarGaleria = function(direcao, event) {
+    if (event) event.stopPropagation();
+    galeriaAtual.index += direcao;
+    
+    if (galeriaAtual.index < 0) galeriaAtual.index = galeriaAtual.fotos.length - 1;
+    if (galeriaAtual.index >= galeriaAtual.fotos.length) galeriaAtual.index = 0;
+    
+    const img = document.getElementById('img-ampliada');
+    if (img) {
+        img.style.opacity = '0.3';
+        img.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+            atualizarGaleria();
+            img.style.opacity = '1';
+            img.style.transform = 'scale(1)';
+        }, 150);
+    }
+};
+
+window.fecharGaleria = function() {
+    const modal = document.getElementById('modal-galeria');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.body.style.overflow = ''; // Libera scroll
+    }
+};
+
+// Teclado
+document.addEventListener('keydown', (e) => {
+    const modal = document.getElementById('modal-galeria');
+    if (modal && !modal.classList.contains('hidden')) {
+        if (e.key === 'Escape') fecharGaleria();
+        if (e.key === 'ArrowLeft') navegarGaleria(-1);
+        if (e.key === 'ArrowRight') navegarGaleria(1);
+    }
+});
 window.fecharModal = fecharModal;
 
 // ==========================================================================

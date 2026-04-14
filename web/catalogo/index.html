@@ -1107,12 +1107,37 @@
       </div>
     </div>
 
-    <!-- Modal Galeria de Fotos -->
-    <div
-      id="modal-galeria"
-      class="fixed inset-0 bg-black bg-opacity-95 z-50 hidden"
-    >
-      <!-- Conteúdo do Modal Galeria -->
+    <!-- Modal Galeria de Fotos (Lightbox) -->
+    <div id="modal-galeria" class="fixed inset-0 bg-black/95 z-[60] hidden flex-col items-center justify-center p-4 select-none animate-in fade-in duration-300">
+        <!-- Botão Fechar -->
+        <button onclick="fecharGaleria()" class="absolute top-6 right-6 text-white/70 hover:text-white transition-colors z-50 p-2 bg-white/10 hover:bg-white/20 rounded-full backdrop-blur-md">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+
+        <!-- Container Imagem -->
+        <div class="relative w-full h-full flex items-center justify-center overflow-hidden">
+            <!-- Setas Navegação no Modal -->
+            <button onclick="navegarGaleria(-1, event)" id="modal-prev" class="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all z-20">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 sm:h-10 sm:w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7" />
+                </svg>
+            </button>
+            
+            <img id="img-ampliada" src="" class="max-w-full max-h-[85vh] object-contain transition-all duration-300 transform scale-100" />
+            
+            <button onclick="navegarGaleria(1, event)" id="modal-next" class="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all z-20">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 sm:h-10 sm:w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Rodapé da Galeria (Contador) -->
+        <div class="absolute bottom-8 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md px-6 py-2 rounded-full border border-white/20 shadow-xl">
+            <span id="contador-galeria" class="text-white font-black tracking-widest text-sm uppercase">1 / 1</span>
+        </div>
     </div>
 
     <!-- Modal Comprovante -->
