@@ -92,8 +92,22 @@ if ($model->hasErrors()): ?>
 
     <div class="space-y-4 sm:space-y-6">
 
+    <!-- Toggle Visão Form -->
+    <div class="flex justify-end mb-2 sm:mb-4 px-4 sm:px-0">
+        <div class="inline-flex rounded-md shadow-sm border border-gray-200" role="group">
+            <button type="button" id="btn-view-tabs" onclick="setFormViewMode('tabs')" class="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-blue-700 bg-white border-r border-gray-200 rounded-l-lg hover:bg-gray-50 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 transition-colors flex items-center">
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                Visão com Abas
+            </button>
+            <button type="button" id="btn-view-single" onclick="setFormViewMode('single')" class="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white rounded-r-lg hover:bg-gray-50 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 transition-colors flex items-center">
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                Página Única
+            </button>
+        </div>
+    </div>
+
     <!-- Navegação por Abas (Tailwind/Mobile First) -->
-    <div class="mb-6 border-b border-gray-200 overflow-x-auto whitespace-nowrap scrollbar-hide -mx-4 sm:mx-0 px-4 sm:px-0">
+    <div id="main-tabs-nav" class="mb-6 border-b border-gray-200 overflow-x-auto whitespace-nowrap scrollbar-hide -mx-4 sm:mx-0 px-4 sm:px-0">
         <nav class="flex space-x-6 sm:space-x-8" aria-label="Tabs">
             <button type="button" onclick="switchTab('basico')" data-tab="basico" class="tab-btn active border-blue-600 text-blue-600 border-b-2 py-4 px-1 text-sm font-bold transition-all duration-200 flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
@@ -2852,6 +2866,85 @@ if ($model->hasErrors()): ?>
                 activeBtn.classList.remove('text-gray-600', 'font-medium');
             }
         };
+
+        // --- LÓGICA DE VISÃO (ABAS OU PÁGINA ÚNICA) ---
+        window.setFormViewMode = function(mode) {
+            localStorage.setItem('produtoFormViewMode', mode);
+            
+            const tabNav = document.getElementById('main-tabs-nav');
+            const subTabNav = document.querySelector('.subtab-btn')?.parentNode;
+
+            if (mode === 'single') {
+                // Esconde Navegação
+                if(tabNav) tabNav.classList.add('hidden');
+                if(subTabNav) subTabNav.classList.add('hidden');
+                
+                // Exibe tudo e adiciona títulos
+                document.querySelectorAll('.tab-pane').forEach(el => {
+                    el.classList.remove('hidden');
+                    if (!el.querySelector('.section-title-single-mode')) {
+                        const mapTitles = {
+                            'content-basico': '1. Informações Básicas',
+                            'content-financeiro': '2. Financeiro',
+                            'content-estoque': '3. Estoque',
+                            'content-grade': '4. Grade',
+                            'content-kit': '5. Kit'
+                        };
+                        const title = document.createElement('h2');
+                        title.className = 'section-title-single-mode text-lg sm:text-xl font-bold text-gray-800 uppercase border-b-2 border-gray-200 mt-8 mb-4 pb-2';
+                        title.innerText = mapTitles[el.id] || el.id;
+                        el.insertBefore(title, el.firstChild);
+                    }
+                });
+
+                document.querySelectorAll('.subtab-pane').forEach(el => {
+                    el.classList.remove('hidden');
+                    if (el.id === 'subcontent-fin-basica' || el.id === 'subcontent-fin-markup' || el.id === 'subcontent-fin-promos') {
+                        if (!el.querySelector('.sub-section-title-single-mode')) {
+                            const subMap = {
+                                'subcontent-fin-basica': '2.1 Precificação & Escala',
+                                'subcontent-fin-markup': '2.2 Markup & Inteligência',
+                                'subcontent-fin-promos': '2.3 Ofertas & Promoções'
+                            };
+                            const stitle = document.createElement('h3');
+                            stitle.className = 'sub-section-title-single-mode text-base sm:text-lg font-bold text-gray-700 mt-6 mb-3';
+                            stitle.innerText = subMap[el.id];
+                            el.insertBefore(stitle, el.firstChild);
+                        }
+                    }
+                });
+
+                // Atualiza Botões
+                document.getElementById('btn-view-tabs').classList.replace('text-blue-700', 'text-gray-700');
+                document.getElementById('btn-view-tabs').classList.remove('bg-blue-50');
+                document.getElementById('btn-view-single').classList.replace('text-gray-700', 'text-blue-700');
+                document.getElementById('btn-view-single').classList.add('bg-blue-50');
+                
+            } else {
+                // Modo Abas
+                if(tabNav) tabNav.classList.remove('hidden');
+                if(subTabNav) subTabNav.classList.remove('hidden');
+                
+                // Remove títulos extras
+                document.querySelectorAll('.section-title-single-mode, .sub-section-title-single-mode').forEach(el => el.remove());
+
+                // Atualiza Botões
+                document.getElementById('btn-view-tabs').classList.replace('text-gray-700', 'text-blue-700');
+                document.getElementById('btn-view-tabs').classList.add('bg-blue-50');
+                document.getElementById('btn-view-single').classList.replace('text-blue-700', 'text-gray-700');
+                document.getElementById('btn-view-single').classList.remove('bg-blue-50');
+
+                // Força a exibição da aba atual (retorna ao estado de abas)
+                const activeTab = document.querySelector('.tab-btn.active')?.dataset?.tab || 'basico';
+                const activeSubTab = document.querySelector('.subtab-btn.active')?.dataset?.subtab || 'fin-basica';
+                window.switchTab(activeTab);
+                window.switchSubTab(activeSubTab);
+            }
+        };
+
+        // Inicializa o modo de visualização salvo ao carregar
+        let savedMode = localStorage.getItem('produtoFormViewMode') || 'tabs';
+        setFormViewMode(savedMode);
 
         // --- LÓGICA DE GERADOR DE GRADE ---
         const btnPreviaGrade = document.getElementById('btn-previa-grade');
