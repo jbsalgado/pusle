@@ -42,6 +42,16 @@ $this->params['breadcrumbs'][] = $this->title;
                     ]
                 ) ?>
                 <?= Html::endForm() ?>
+                <?= Html::button(
+                    '<svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>Imprimir Etiqueta',
+                    [
+                        'class' => 'inline-flex items-center px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white font-semibold rounded-lg transition duration-300',
+                        'onclick' => "imprimirEtiqueta(this.dataset.nome, this.dataset.codigo, this.dataset.preco)",
+                        'data-nome' => $model->nome,
+                        'data-codigo' => $model->codigo_barras ?: $model->codigo_referencia ?: '',
+                        'data-preco' => number_format($model->preco_venda_sugerido, 2, ',', '.')
+                    ]
+                ) ?>
                 <?= Html::a(
                     '<svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>Voltar',
                     ['index'],
@@ -145,8 +155,14 @@ $this->params['breadcrumbs'][] = $this->title;
                         <?php endif; ?>
 
                         <p class="text-sm text-gray-500 mt-2">
-                            Código: <?= Html::encode($model->codigo_referencia) ?>
+                            Código Ref: <?= Html::encode($model->codigo_referencia) ?>
                         </p>
+                        <?php if ($model->codigo_barras): ?>
+                            <p class="text-sm font-bold text-gray-700 mt-1 flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+                                EAN: <?= Html::encode($model->codigo_barras) ?>
+                            </p>
+                        <?php endif; ?>
 
                         <div class="mt-3">
                             <?php if ($model->ativo): ?>
@@ -256,7 +272,9 @@ $this->params['breadcrumbs'][] = $this->title;
                             'attributes' => [
                                 'id',
                                 'nome',
+                                'marca',
                                 'codigo_referencia',
+                                'codigo_barras',
                                 [
                                     'attribute' => 'categoria_id',
                                     'value' => $model->categoria ? $model->categoria->nome : '-',
@@ -408,5 +426,51 @@ $this->params['breadcrumbs'][] = $this->title;
             document.getElementById('delete-form').submit();
         }
         return false;
+    }
+
+    function imprimirEtiqueta(nome, codigo, preco) {
+        if (!codigo) {
+            alert('Produto sem código de barras ou referência para geração da etiqueta.');
+            return;
+        }
+
+        var printWindow = window.open('', '_blank', 'width=400,height=600');
+        if (!printWindow) {
+            alert('Por favor, permita pop-ups para imprimir a etiqueta.');
+            return;
+        }
+
+        printWindow.document.write('<html><head><title>Etiqueta - ' + nome + '</title>' +
+            '<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>' +
+            '<style>' +
+            'body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 5mm; width: 80mm; color: #000; }' +
+            '.header { border-bottom: 1px dashed #000; margin-bottom: 3mm; padding-bottom: 2mm; font-size: 10px; font-family: monospace; }' +
+            '.nome { font-size: 14px; font-weight: bold; margin-bottom: 2mm; text-transform: uppercase; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }' +
+            '#barcode { width: 100%; max-height: 80px; }' +
+            '.preco-container { margin-top: 3mm; border-top: 1px dashed #000; padding-top: 2mm; }' +
+            '.preco-label { font-size: 10px; font-family: monospace; }' +
+            '.preco { font-size: 24px; font-weight: 900; }' +
+            '@page { margin: 0; size: auto; } @media print { body { width: 100%; } }' +
+            '</style></head><body>' +
+            '<div class="header">ETIQUETA DE PRODUTO</div>' +
+            '<div class="nome">' + nome + '</div>' +
+            '<svg id="barcode"></svg>' +
+            '<div class="preco-container">' +
+            '<div class="preco-label">PREÇO DE VENDA</div>' +
+            '<div class="preco">R$ ' + preco + '</div>' +
+            '</div>' +
+            '<script>' +
+            'window.onload = function() {' +
+            '    try {' +
+            '        JsBarcode("#barcode", "' + codigo + '", {' +
+            '            format: "CODE128", width: 2, height: 60, displayValue: true, fontSize: 14, margin: 5' +
+            '        });' +
+            '        setTimeout(function() { window.print(); window.close(); }, 800);' +
+            '    } catch (e) { ' +
+            '        console.error("Erro ao gerar barcode:", e);' +
+            '        document.body.innerHTML += "<p style=\'color:red\'>Erro ao gerar código de barras: " + e.message + "</p>";' +
+            '    }' +
+            '};<\/script></body></html>');
+        printWindow.document.close();
     }
 </script>

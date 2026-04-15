@@ -212,20 +212,29 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
 
                         <!-- Conteúdo -->
                         <div class="p-4">
-                            <div class="text-[10px] text-gray-400 font-mono mb-0.5 truncate flex items-center gap-1" title="Código de Barras / Ref">
-                                <span class="flex-grow truncate">
-                                    <?= $model->codigo_barras ? 'EAN: ' . Html::encode($model->codigo_barras) : '' ?>
-                                    <?= $model->codigo_referencia ? ' Ref: ' . Html::encode($model->codigo_referencia) : '' ?>
-                                </span>
-                                <?php if ($model->com_nota): ?>
-                                    <span class="inline-flex items-center px-1 rounded-[2px] text-[9px] font-bold bg-blue-100 text-blue-700 border border-blue-200 shrink-0" title="Última compra com Nota Fiscal">
-                                        NF
+                            <div class="text-xs font-mono mb-1 truncate flex flex-col gap-0.5" title="Código de Barras / Ref">
+                                <?php if ($model->codigo_barras): ?>
+                                    <span class="text-blue-600 font-bold">
+                                        EAN: <?= Html::encode($model->codigo_barras) ?>
                                     </span>
                                 <?php endif; ?>
+                                <span class="text-gray-400 text-[10px]">
+                                    Ref: <?= Html::encode($model->codigo_referencia ?: '-') ?>
+                                </span>
+                                <?php if ($model->com_nota): ?>
+                                    <div class="mt-1">
+                                        <span class="inline-flex items-center px-1 rounded-[2px] text-[9px] font-bold bg-blue-100 text-blue-700 border border-blue-200" title="Última compra com Nota Fiscal">
+                                            NF
+                                        </span>
+                                    </div>
+                                <?php endif; ?>
                             </div>
-                            <h3 class="text-base font-semibold text-gray-800 mb-1 leading-tight" title="<?= Html::encode($model->nome) ?>">
-                                <?= Html::encode($model->nome) ?>
                             </h3>
+                            <?php if ($model->marca): ?>
+                                <div class="text-xs text-gray-500 mb-2 font-medium">
+                                    Marca: <?= Html::encode($model->marca) ?>
+                                </div>
+                            <?php endif; ?>
 
                             <?php if ($model->categoria): ?>
                                 <span class="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full mb-3">
@@ -285,7 +294,10 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                                     '<svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>IMPRIMIR CODIGO DE BARRAS(termica)',
                                     [
                                         'class' => 'w-full flex items-center justify-center px-3 py-2 bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold rounded transition duration-300 shadow-sm',
-                                        'onclick' => "imprimirEtiqueta('" . addslashes($model->nome) . "', '" . ($model->codigo_barras ?: $model->codigo_referencia) . "', '" . number_format($model->preco_venda_sugerido, 2, ',', '.') . "')"
+                                        'onclick' => "imprimirEtiqueta(this.dataset.nome, this.dataset.codigo, this.dataset.preco)",
+                                        'data-nome' => $model->nome,
+                                        'data-codigo' => $model->codigo_barras ?: $model->codigo_referencia ?: '',
+                                        'data-preco' => number_format($model->preco_venda_sugerido, 2, ',', '.')
                                     ]
                                 ) ?>
                             </div>
@@ -304,6 +316,7 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produto</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Categoria</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Marca</th>
                                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Preço</th>
                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Estoque</th>
                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Margem</th>
@@ -382,9 +395,14 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                                             <?php endif; ?>
                                             <div>
                                                 <div class="text-sm font-medium text-gray-900"><?= Html::encode($model->nome) ?></div>
-                                                <div class="text-xs text-gray-500 flex items-center">
-                                                    <?= $model->codigo_barras ? 'EAN: ' . Html::encode($model->codigo_barras) : '' ?>
-                                                    <?= $model->codigo_referencia ? ' Ref: ' . Html::encode($model->codigo_referencia) : '' ?>
+                                                <?php if ($model->marca): ?>
+                                                    <div class="text-[10px] text-gray-500 font-medium">Marca: <?= Html::encode($model->marca) ?></div>
+                                                <?php endif; ?>
+                                                <div class="text-xs font-mono mt-1">
+                                                    <?php if ($model->codigo_barras): ?>
+                                                        <span class="text-blue-600 font-bold mr-2">EAN: <?= Html::encode($model->codigo_barras) ?></span>
+                                                    <?php endif; ?>
+                                                    <span class="text-gray-400">Ref: <?= Html::encode($model->codigo_referencia ?: '-') ?></span>
                                                     <?php if ($model->com_nota): ?>
                                                         <span class="inline-flex items-center px-1 rounded-[2px] text-[8px] font-bold bg-blue-100 text-blue-700 border border-blue-200 ml-1" title="Última compra com Nota Fiscal">
                                                             NF
@@ -396,6 +414,9 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap hidden md:table-cell">
                                         <span class="text-sm text-gray-900"><?= $model->categoria ? Html::encode($model->categoria->nome) : '-' ?></span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap hidden lg:table-cell text-sm text-gray-500">
+                                        <?= Html::encode($model->marca ?: '-') ?>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right">
                                         <span class="text-sm font-semibold text-green-600">
@@ -421,6 +442,15 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                                                 'type' => 'button',
                                             ]) ?>
                                             <?= Html::endForm() ?>
+                                            <button type="button" 
+                                                    onclick="imprimirEtiqueta(this.dataset.nome, this.dataset.codigo, this.dataset.preco)"
+                                                    data-nome="<?= Html::encode($model->nome) ?>"
+                                                    data-codigo="<?= Html::encode($model->codigo_barras ?: $model->codigo_referencia ?: "") ?>"
+                                                    data-preco="<?= number_format($model->preco_venda_sugerido, 2, ",", ".") ?>"
+                                                    class="text-slate-600 hover:text-slate-900" 
+                                                    title="Imprimir Etiqueta">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -491,155 +521,100 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
             return;
         }
 
-        const printWindow = window.open('', '_blank', 'width=400,height=600');
-        printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Etiqueta - ${nome}</title>
-                    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>
-                    <style>
-                        body { 
-                            font-family: Arial, sans-serif; 
-                            text-align: center; 
-                            margin: 0; 
-                            padding: 5mm; 
-                            width: 80mm; 
-                            color: #000;
-                        }
-                        .header {
-                            border-bottom: 1px dashed #000;
-                            margin-bottom: 3mm;
-                            padding-bottom: 2mm;
-                            font-size: 10px;
-                            font-family: monospace;
-                        }
-                        .nome { 
-                            font-size: 14px; 
-                            font-weight: bold; 
-                            margin-bottom: 2mm; 
-                            text-transform: uppercase;
-                            display: -webkit-box;
-                            -webkit-line-clamp: 2;
-                            -webkit-box-orient: vertical;
-                            overflow: hidden;
-                        }
-                        #barcode { 
-                            width: 100%; 
-                            max-height: 80px; 
-                        }
-                        .preco-container {
-                            margin-top: 3mm;
-                            border-top: 1px dashed #000;
-                            padding-top: 2mm;
-                        }
-                        .preco-label { font-size: 10px; font-family: monospace; }
-                        .preco { 
-                            font-size: 24px; 
-                            font-weight: 900; 
-                        }
-                        @page {
-                            margin: 0;
-                            size: auto;
-                        }
-                        @media print {
-                            body { width: 100%; }
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">ETIQUETA DE PRODUTO</div>
-                    <div class="nome">${nome}</div>
-                    <svg id="barcode"></svg>
-                    <div class="preco-container">
-                        <div class="preco-label">PREÇO DE VENDA</div>
-                        <div class="preco">R$ ${preco}</div>
-                    </div>
-                    <script>
-                        window.onload = function() {
-                            try {
-                                JsBarcode("#barcode", "${codigo}", {
-                                    format: "CODE128",
-                                    width: 2,
-                                    height: 60,
-                                    displayValue: true,
-                                    fontSize: 14,
-                                    margin: 5
-                                });
-                                setTimeout(() => {
-                                    window.print();
-                                    window.close();
-                                }, 800);
-                            } catch (e) {
-                                console.error("Erro ao gerar barcode:", e);
-                                document.body.innerHTML += "<p style='color:red'>Erro ao gerar código de barras: " + e.message + "</p>";
-                            }
-                        };
-                    <\/script>
-                </body>
-            </html>
-        `);
+        var printWindow = window.open('', '_blank', 'width=400,height=600');
+        if (!printWindow) {
+            alert('Por favor, permita pop-ups para imprimir a etiqueta.');
+            return;
+        }
+
+        printWindow.document.write('<html><head><title>Etiqueta - ' + nome + '</title>' +
+            '<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>' +
+            '<style>' +
+            'body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 5mm; width: 80mm; color: #000; }' +
+            '.header { border-bottom: 1px dashed #000; margin-bottom: 3mm; padding-bottom: 2mm; font-size: 10px; font-family: monospace; }' +
+            '.nome { font-size: 14px; font-weight: bold; margin-bottom: 2mm; text-transform: uppercase; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }' +
+            '#barcode { width: 100%; max-height: 80px; }' +
+            '.preco-container { margin-top: 3mm; border-top: 1px dashed #000; padding-top: 2mm; }' +
+            '.preco-label { font-size: 10px; font-family: monospace; }' +
+            '.preco { font-size: 24px; font-weight: 900; }' +
+            '@page { margin: 0; size: auto; } @media print { body { width: 100%; } }' +
+            '</style></head><body>' +
+            '<div class="header">ETIQUETA DE PRODUTO</div>' +
+            '<div class="nome">' + nome + '</div>' +
+            '<svg id="barcode"></svg>' +
+            '<div class="preco-container">' +
+            '<div class="preco-label">PREÇO DE VENDA</div>' +
+            '<div class="preco">R$ ' + preco + '</div>' +
+            '</div>' +
+            '<script>' +
+            'window.onload = function() {' +
+            '    try {' +
+            '        JsBarcode("#barcode", "' + codigo + '", {' +
+                '            format: "CODE128", width: 2, height: 60, displayValue: true, fontSize: 14, margin: 5' +
+                '        });' +
+                '        setTimeout(function() { window.print(); window.close(); }, 800);' +
+                '    } catch (e) { ' +
+                '        console.error("Erro ao gerar barcode:", e);' +
+                '        document.body.innerHTML += "<p style=\'color:red\'>Erro ao gerar código de barras: " + e.message + "</p>";' +
+                '    }' +
+                '};<\/script></body></html>');
         printWindow.document.close();
     }
 
     // --- SUPORTE A LEITOR DE CÓDIGO DE BARRAS (USB/Scanner) ---
     (function() {
-        let barcodeAccumulator = "";
-        let lastKeyTime = Date.now();
+        var barcodeAccumulator = "";
+        var lastKeyTime = Date.now();
 
-        window.addEventListener("keydown", (e) => {
-            const currentTime = Date.now();
+        window.addEventListener("keydown", function(e) {
+            var currentTime = Date.now();
             
-            // Se o tempo entre as teclas for muito curto (< 100ms), provavelmente é um leitor
             if (currentTime - lastKeyTime > 100) {
                 barcodeAccumulator = "";
             }
 
-            // Ignora teclas de controle, exceto Enter
             if (e.key.length === 1) {
                 barcodeAccumulator += e.key;
                 lastKeyTime = currentTime;
             }
 
-            // Se pressionar Enter e tivermos algo acumulado
             if (e.key === "Enter" && barcodeAccumulator.length >= 3) {
-                const potentialBarcode = barcodeAccumulator.trim();
-                
-                // Se não estivermos focados em nenhum input ou se estivermos na busca
-                const activeEl = document.activeElement;
-                const isInput = activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA";
+                var potentialBarcode = barcodeAccumulator.trim();
+                var activeEl = document.activeElement;
+                var isInput = activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA";
                 
                 if (!isInput || activeEl.id === "busca-produto-index") {
                     e.preventDefault();
-                    const inputBusca = document.getElementById('busca-produto-index');
+                    var inputBusca = document.getElementById('busca-produto-index');
                     if (inputBusca) {
                         inputBusca.value = potentialBarcode;
-                        inputBusca.form.submit(); // Submete a busca automaticamente
+                        inputBusca.form.submit();
                     }
                     barcodeAccumulator = "";
                 }
             }
         });
-        console.log("[Scanner] Leitor USB inicializado no índice de produtos.");
+        console.log("[Scanner] Leitor USB inicializado.");
     })();
 
     // --- SUPORTE A SCANNER VIA WEBCAM ---
-    let html5QrCodeIndex = null;
+    var html5QrCodeIndex = null;
 
     window.abrirScannerCamera = function() {
-        const modal = document.getElementById('modal-scanner-ean-index');
+        var modal = document.getElementById('modal-scanner-ean-index');
         if (!modal) return;
 
         modal.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
 
-        const feedback = document.getElementById('scanner-ean-feedback-index');
+        var feedback = document.getElementById('scanner-ean-feedback-index');
         if (feedback) feedback.classList.add('hidden');
 
         if (!html5QrCodeIndex) {
             html5QrCodeIndex = new Html5Qrcode("reader-ean-index");
         }
 
-        const config = {
+        var config = {
             fps: 10,
             qrbox: { width: 250, height: 150 },
             aspectRatio: 1.0
@@ -649,66 +624,41 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
             { facingMode: "environment" },
             config,
             onScanSuccessIndex
-        ).catch(err => {
+        ).catch(function(err) {
             console.error("[Scanner] Erro ao iniciar câmera:", err);
             alert("Não foi possível acessar a câmera.");
-            window.fecharScannerCamera();
+            fecharScannerCamera();
         });
     };
 
     window.fecharScannerCamera = function() {
-        const modal = document.getElementById('modal-scanner-ean-index');
+        var modal = document.getElementById('modal-scanner-ean-index');
         if (modal) {
             modal.classList.add('hidden');
             document.body.style.overflow = '';
         }
 
         if (html5QrCodeIndex && html5QrCodeIndex.isScanning) {
-            html5QrCodeIndex.stop().catch(err => console.error("[Scanner] Erro ao parar:", err));
+            html5QrCodeIndex.stop().catch(function(err) { console.error("[Scanner] Erro ao parar:", err); });
         }
     };
 
     function onScanSuccessIndex(decodedText, decodedResult) {
-        console.log(`[Scanner] Código detectado: ${decodedText}`);
+        console.log("[Scanner] Código detectado: " + decodedText);
 
-        const feedback = document.getElementById('scanner-ean-feedback-index');
+        var feedback = document.getElementById('scanner-ean-feedback-index');
         if (feedback) {
-            feedback.textContent = `Lido: ${decodedText}`;
+            feedback.textContent = "Lido: " + decodedText;
             feedback.classList.remove('hidden', 'bg-red-100', 'text-red-700');
             feedback.classList.add('bg-green-100', 'text-green-700');
         }
 
-        const inputBusca = document.getElementById('busca-produto-index');
+        var inputBusca = document.getElementById('busca-produto-index');
         if (inputBusca) {
             inputBusca.value = decodedText;
-            setTimeout(() => {
+            setTimeout(function() {
                 inputBusca.form.submit();
             }, 500);
         }
-
-        setTimeout(window.fecharScannerCamera, 500);
     }
-    // --- MODAL DO SCANNER (Webcam) ---
-    echo '
-    <div id="modal-scanner-ean-index" class="fixed inset-0 z-[100] hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="fecharScannerCamera()"></div>
-            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-medium text-gray-900">Escanear Código de Barras</h3>
-                        <button type="button" onclick="fecharScannerCamera()" class="text-gray-400 hover:text-gray-500">
-                            <span class="sr-only">Fechar</span>
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                    </div>
-                    <div id="reader-ean-index" style="width: 100%; min-height: 300px; background: #000; border-radius: 8px; overflow: hidden;"></div>
-                    <div id="scanner-ean-feedback-index" class="mt-4 p-2 text-center rounded hidden"></div>
-                    <p class="mt-4 text-xs text-center text-gray-500">Aponte o código de barras para a câmera</p>
-                </div>
-            </div>
-        </div>
-    </div>';
-    ?>
 </script>
