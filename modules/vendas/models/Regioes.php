@@ -31,6 +31,36 @@ class Regioes extends \yii\db\ActiveRecord
     }
 
     /**
+     * Gera UUID antes de salvar se for novo registro
+     */
+    public function beforeSave($insert)
+    {
+        if (parent::beforeSave($insert)) {
+            if ($insert && empty($this->id)) {
+                try {
+                    $uuid = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
+                    $this->id = $uuid;
+                } catch (\Exception $e) {
+                    if (function_exists('uuid_create')) {
+                        $this->id = uuid_create(UUID_TYPE_RANDOM);
+                    } else {
+                        $this->id = sprintf(
+                            '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+                            mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+                            mt_rand(0, 0xffff),
+                            mt_rand(0, 0x0fff) | 0x4000,
+                            mt_rand(0, 0x3fff) | 0x8000,
+                            mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+                        );
+                    }
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function rules()
@@ -38,7 +68,7 @@ class Regioes extends \yii\db\ActiveRecord
         return [
             [['descricao', 'cor_identificacao'], 'default', 'value' => null],
             [['ativo'], 'default', 'value' => 1],
-            [['id', 'usuario_id', 'nome'], 'required'],
+            [['usuario_id', 'nome'], 'required'],
             [['id', 'usuario_id', 'descricao'], 'string'],
             [['ativo'], 'boolean'],
             [['data_criacao'], 'safe'],

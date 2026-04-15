@@ -132,6 +132,11 @@ class Produto extends ActiveRecord
             [['porte'], 'string', 'max' => 1],
             [['porte'], 'default', 'value' => 'P'],
             [['parent_id'], 'exist', 'skipOnError' => true, 'targetClass' => Produto::class, 'targetAttribute' => ['parent_id' => 'id']],
+
+            // NOVOS CAMPOS: Código de Barras e Marca
+            [['codigo_barras', 'marca'], 'string', 'max' => 255],
+            [['codigo_barras', 'marca'], 'trim'],
+            [['codigo_barras', 'marca'], 'default', 'value' => null],
         ];
     }
 

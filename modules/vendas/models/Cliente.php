@@ -139,6 +139,34 @@ class Cliente extends ActiveRecord
     public function beforeSave($insert)
     {
         if (parent::beforeSave($insert)) {
+            // Gera UUID se for um novo registro e não tiver ID definido
+            if ($insert && empty($this->id)) {
+                try {
+                    // Tenta usar gen_random_uuid() do PostgreSQL (nativo, não precisa de extensão)
+                    $uuid = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
+                    $this->id = $uuid;
+                } catch (\Exception $e) {
+                    // Fallback: gera UUID no PHP usando ramsey/uuid ou função nativa
+                    if (function_exists('uuid_create')) {
+                        $uuid = uuid_create(UUID_TYPE_RANDOM);
+                        $this->id = $uuid;
+                    } else {
+                        // Gera UUID v4 manualmente
+                        $this->id = sprintf(
+                            '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+                            mt_rand(0, 0xffff),
+                            mt_rand(0, 0xffff),
+                            mt_rand(0, 0xffff),
+                            mt_rand(0, 0x0fff) | 0x4000,
+                            mt_rand(0, 0x3fff) | 0x8000,
+                            mt_rand(0, 0xffff),
+                            mt_rand(0, 0xffff),
+                            mt_rand(0, 0xffff)
+                        );
+                    }
+                }
+            }
+
             // Se senha foi fornecida, gera hash
             if (!empty($this->senha)) {
                 $this->senha_hash = Yii::$app->security->generatePasswordHash($this->senha);
