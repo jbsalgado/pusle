@@ -76,6 +76,9 @@ class CaixaMovimentacao extends ActiveRecord
     {
         return [
             [['caixa_id', 'tipo', 'valor', 'descricao'], 'required'],
+            [['caixa_id', 'forma_pagamento_id', 'venda_id', 'parcela_id', 'conta_pagar_id', 'categoria'], 'filter', 'filter' => function ($value) {
+                return $value === '' ? null : $value;
+            }],
             [['caixa_id', 'forma_pagamento_id', 'venda_id', 'parcela_id', 'conta_pagar_id'], 'string'],
             [['tipo'], 'in', 'range' => [self::TIPO_ENTRADA, self::TIPO_SAIDA]],
             [['categoria'], 'string', 'max' => 50],

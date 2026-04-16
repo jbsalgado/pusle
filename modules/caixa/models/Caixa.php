@@ -68,6 +68,9 @@ class Caixa extends ActiveRecord
     {
         return [
             [['usuario_id', 'valor_inicial'], 'required'],
+            [['colaborador_id'], 'filter', 'filter' => function ($value) {
+                return $value === '' ? null : $value;
+            }],
             [['usuario_id', 'colaborador_id', 'status'], 'string'],
             [['valor_inicial', 'valor_final', 'valor_esperado', 'diferenca'], 'number', 'min' => 0],
             [['data_abertura', 'data_fechamento'], 'safe'],
