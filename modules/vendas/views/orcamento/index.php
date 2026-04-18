@@ -13,6 +13,11 @@ $this->params['breadcrumbs'][] = $this->title;
         <!-- Header com Toggle de Visualização -->
         <div class="mb-6">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <?php
+                // ✅ Bibliotecas externas
+                echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>';
+                echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>';
+                ?>
                 <h1 class="text-3xl font-bold text-gray-900"><?= Html::encode($this->title) ?></h1>
                 <div class="flex flex-wrap gap-2 items-center">
                     <!-- Toggle Grid/Card -->

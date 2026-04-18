@@ -170,7 +170,8 @@ window.imprimirOrcamento = async function(orcamentoId) {
             dadosPedido: dadosOrcamento,
             dadosEmpresa: dadosEmpresa,
             valorTotal: dadosOrcamento.valor_total,
-            orcamentoId: orcamentoId, // Adiciona o ID para uso posterior
+            orcamentoId: orcamentoId,
+            hash: dadosOrcamento.hash, // Adiciona o hash para acesso público
         };
         
         console.log('[Orçamento] Comprovante gerado com sucesso');
@@ -370,12 +371,15 @@ function _gerarHTMLComprovanteContent(dados, dadosEmpresa) {
             <!-- Botões -->
             <div class="flex flex-wrap gap-2 mt-6 no-print">
                 <button onclick="imprimirNormal()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors">Cupom 80mm</button>
-                <button onclick="imprimirOrcamentoA4('${dados.id}')" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold hover:bg-indigo-700 transition-colors">Relatório A4</button>
-                ${dados.cliente && dados.cliente.telefone ? `
-                    <button onclick="compartilharOrcamentoWhatsApp('${dados.id}', '${dados.cliente.telefone}')" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition-colors" title="Compartilhar WhatsApp">
-                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.542 2.317 2.357-.546c1.021.575 1.914.911 3.127.912h.001c3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.586-5.766-5.767-5.767zm3.391 8.221c-.142.405-.815.739-1.121.78-.306.04-.685.074-1.747-.356-1.207-.492-2.198-1.554-2.718-2.223-.06-.078-.105-.139-.136-.188-.28-.399-.497-.707-.497-1.112 0-.441.228-.68.32-.78l.069-.074c.056-.063.155-.121.274-.121.117 0 .225.011.302.012.077.001.144.02.212.182.107.258.351.854.382.918.031.064.051.139.011.22-.04.082-.06.139-.121.21-.061.071-.129.158-.184.214-.059.06-.121.124-.052.245.069.121.306.505.657.817.452.401.832.525.952.585.12.06.192.051.264-.03s.306-.356.387-.478c.081-.121.162-.102.274-.061.112.041.711.335.832.396.121.06.202.09.232.141.03.05.03.295-.112.699zM12 1c-6.075 0-11 4.925-11 11s4.925 11 11 11 11-4.925 11-11-4.925-11-11-11zm0 2c4.97 0 9 4.03 9 9s-4.03 9-9 9-9-4.03-9-9 4.03-9 9-9z"/></svg>
-                    </button>
-                ` : ''}
+                <button onclick="imprimirOrcamentoA4('${dados.id}', '${dados.hash}')" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold hover:bg-indigo-700 transition-colors">Relatório A4</button>
+                
+                <button onclick="baixarComprovanteImagem()" class="bg-orange-500 text-white p-2 rounded-lg hover:bg-orange-600 transition-colors" title="Baixar como Imagem">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                </button>
+
+                <button onclick="compartilharOrcamentoWhatsApp('${dados.id}', '${dados.cliente ? (dados.cliente.telefone || '') : ''}', '${dados.hash}')" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition-colors" title="Compartilhar WhatsApp">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.542 2.317 2.357-.546c1.021.575 1.914.911 3.127.912h.001c3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.586-5.766-5.767-5.767zm3.391 8.221c-.142.405-.815.739-1.121.78-.306.04-.685.074-1.747-.356-1.207-.492-2.198-1.554-2.718-2.223-.06-.078-.105-.139-.136-.188-.28-.399-.497-.707-.497-1.112 0-.441.228-.68.32-.78l.069-.074c.056-.063.155-.121.274-.121.117 0 .225.011.302.012.077.001.144.02.212.182.107.258.351.854.382.918.031.064.051.139.011.22-.04.082-.06.139-.121.21-.061.071-.129.158-.184.214-.059.06-.121.124-.052.245.069.121.306.505.657.817.452.401.832.525.952.585.12.06.192.051.264-.03s.306-.356.387-.478c.081-.121.162-.102.274-.061.112.041.711.335.832.396.121.06.202.09.232.141.03.05.03.295-.112.699zM12 1c-6.075 0-11 4.925-11 11s4.925 11 11 11 11-4.925 11-11-4.925-11-11-11zm0 2c4.97 0 9 4.03 9 9s-4.03 9-9 9-9-4.03-9-9 4.03-9 9-9z"/></svg>
+                </button>
                 <button onclick="fecharModalComprovante()" class="flex-1 bg-gray-200 text-gray-800 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">Fechar</button>
             </div>
         </div>
@@ -400,9 +404,10 @@ window.fecharModalComprovante = function() {
  * Impressão normal (window.print)
  */
 window.imprimirNormal = function() {
-    if (!window.dadosComprovanteAtual || !window.dadosComprovanteAtual.orcamentoId) return;
-    const id = window.dadosComprovanteAtual.orcamentoId;
-    window.open(`/vendas/orcamento/imprimir?id=${id}`, '_blank');
+    if (!window.dadosComprovanteAtual) return;
+    const { orcamentoId, hash } = window.dadosComprovanteAtual;
+    const url = hash ? `/vendas/orcamento/imprimir?hash=${hash}` : `/vendas/orcamento/imprimir?id=${orcamentoId}`;
+    window.open(url, '_blank');
 };
 
 /**
@@ -658,15 +663,68 @@ function sanitizarParaImpressora(str) {
         .replace(/\r/g, '\n'); // Normaliza quebras de linha
 }
 
-function compartilharOrcamentoWhatsApp(id, telefone) {
-    const url = `${window.location.origin}/vendas/orcamento/imprimir?id=${id}`;
+window.compartilharOrcamentoWhatsApp = function(id, telefone, hash) {
+    let tel = telefone;
+    if (!tel || tel === 'undefined' || tel === 'null') {
+        tel = prompt("Informe o número do WhatsApp (ex: 82900000000):");
+        if (!tel) return;
+    }
+    
+    // Adiciona o domínio para o link externo
+    const base = window.location.origin;
+    const param = hash ? `hash=${hash}` : `id=${id}`;
+    const url = `${base}/vendas/orcamento/imprimir?${param}`;
     const texto = encodeURIComponent(`Olá! Segue o seu orçamento:\n${url}`);
     
-    const telLimpo = telefone.replace(/\D/g, '');
+    const telLimpo = tel.replace(/\D/g, '');
     const whatsAppUrl = `https://wa.me/${telLimpo.startsWith('55') ? telLimpo : '55' + telLimpo}?text=${texto}`;
     
     window.open(whatsAppUrl, '_blank');
-}
+};
+
+/**
+ * Captura o conteúdo do comprovante e baixa como imagem PNG
+ */
+window.baixarComprovanteImagem = function() {
+    const container = document.getElementById('comprovante-container');
+    if (!container) return;
+
+    // Feedback visual
+    const btn = event.currentTarget;
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<svg class="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+    btn.disabled = true;
+
+    // Oculta elementos que não devem sair na imagem
+    const noPrint = container.querySelectorAll('.no-print');
+    noPrint.forEach(el => el.style.display = 'none');
+
+    // Usa html2canvas para gerar a imagem
+    html2canvas(container, {
+        scale: 2, // Aumenta a resolução
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false
+    }).then(canvas => {
+        // Restaura elementos ocultos
+        noPrint.forEach(el => el.style.display = '');
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+
+        // Cria o link de download
+        const id = window.dadosComprovanteAtual ? window.dadosComprovanteAtual.orcamentoId : 'Orcamento';
+        const link = document.createElement('a');
+        link.download = `Comprovante_${id}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    }).catch(err => {
+        console.error('Erro ao gerar imagem:', err);
+        alert('Erro ao gerar imagem do comprovante.');
+        noPrint.forEach(el => el.style.display = '');
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+    });
+};
 
 function copiarPix() {
     const copyText = document.getElementById("pix-copia-cola");
@@ -728,8 +786,9 @@ function gerarPixCopiaCola(chave, nome, cidade, valor, identificador) {
     const finalCrc = (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
     return payload + finalCrc;
 }
-function imprimirOrcamentoA4(id) {
-    window.open(`/vendas/orcamento/imprimir-a4?id=${id}`, '_blank');
+window.imprimirOrcamentoA4 = function(id, hash) {
+    const param = hash ? `hash=${hash}` : `id=${id}`;
+    window.open(`/vendas/orcamento/imprimir-a4?${param}`, '_blank');
 }
 
 console.log('[Orçamento List] Funções carregadas com sucesso');

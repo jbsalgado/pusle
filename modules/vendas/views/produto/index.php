@@ -16,19 +16,39 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
 
     <!-- Header -->
     <div class="max-w-7xl mx-auto mb-6">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h1 class="text-3xl font-bold text-gray-900"><?= Html::encode($this->title) ?></h1>
-            <div class="flex flex-wrap gap-2">
-                <?= Html::a(
-                    '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>Voltar',
-                    ['/vendas/inicio/index'],
-                    ['class' => 'inline-flex items-center px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-lg shadow-md transition duration-300']
-                ) ?>
-                <?= Html::a(
-                    '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Novo Produto',
-                    ['create'],
-                    ['class' => 'inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-300']
-                ) ?>
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900"><?= Html::encode($this->title) ?></h1>
+                <p class="text-sm text-gray-500 mt-1">Gerencie seu catálogo de produtos e estoque</p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                <!-- Filtro Rápido (Toggle) -->
+                <div class="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200 flex items-center gap-3">
+                    <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Filtro Rápido:</span>
+                    <label class="relative inline-flex items-center cursor-pointer group">
+                        <input type="checkbox" id="quick-toggle-ativo" class="sr-only peer" 
+                            <?= (Yii::$app->request->get('ativo', '1') === '1') ? 'checked' : '' ?>
+                            onchange="syncAndSubmit(this.checked)">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        <span class="ml-2 text-sm font-semibold text-gray-700 group-hover:text-blue-600 transition-colors">
+                            Ativos
+                        </span>
+                    </label>
+                </div>
+
+                <div class="flex gap-2">
+                    <?= Html::a(
+                        '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>Voltar',
+                        ['/vendas/inicio/index'],
+                        ['class' => 'inline-flex items-center px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-lg shadow-md transition duration-300']
+                    ) ?>
+                    <?= Html::a(
+                        '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Novo Produto',
+                        ['create'],
+                        ['class' => 'inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-300']
+                    ) ?>
+                </div>
             </div>
         </div>
     </div>
@@ -37,7 +57,7 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
 
         <!-- Filtros e Busca -->
         <div class="bg-white rounded-lg shadow-md mb-6 p-6">
-            <form method="get" class="space-y-4">
+            <form id="filtro-produtos-form" method="get" class="space-y-4">
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
 
@@ -81,12 +101,12 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                         </select>
                     </div>
 
-                    <!-- Status -->
+                    <!-- Status Dropdown (Original) -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                        <select name="ativo" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <option value="">Todos</option>
-                            <option value="1" <?= Yii::$app->request->get('ativo') === '1' ? 'selected' : '' ?>>Ativos</option>
+                        <select name="ativo" id="filter-ativo-dropdown" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="" <?= Yii::$app->request->get('ativo') === '' ? 'selected' : '' ?>>Todos</option>
+                            <option value="1" <?= (Yii::$app->request->get('ativo', '1') === '1') ? 'selected' : '' ?>>Ativos</option>
                             <option value="0" <?= Yii::$app->request->get('ativo') === '0' ? 'selected' : '' ?>>Inativos</option>
                         </select>
                     </div>
@@ -100,8 +120,8 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                         </svg>
                         Buscar
                     </button>
-                    <?php if (Yii::$app->request->queryParams): ?>
-                        <?= Html::a('Limpar Filtros', ['index'], ['class' => 'px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition duration-300']) ?>
+                    <?php if (count(Yii::$app->request->queryParams) > 1 || (count(Yii::$app->request->queryParams) == 1 && !isset(Yii::$app->request->queryParams['ativo']))): ?>
+                        <?= Html::a('Limpar Filtros', ['index', 'ativo' => '1'], ['class' => 'px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition duration-300']) ?>
                     <?php endif; ?>
                 </div>
 
@@ -229,6 +249,8 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                                     </div>
                                 <?php endif; ?>
                             </div>
+                            <h3 class="text-lg font-bold text-gray-900 mb-1 truncate" title="<?= Html::encode($model->nome) ?>">
+                                <?= Html::encode($model->nome) ?>
                             </h3>
                             <?php if ($model->marca): ?>
                                 <div class="text-xs text-gray-500 mb-2 font-medium">
@@ -660,5 +682,26 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                 inputBusca.form.submit();
             }, 500);
         }
+    }
+
+    // --- SINCRONIZAÇÃO DE FILTRO RÁPIDO (TOGGLE) ---
+    window.syncAndSubmit = function(isEnabled) {
+        const dropdown = document.getElementById('filter-ativo-dropdown');
+        const form = document.getElementById('filtro-produtos-form');
+        if (dropdown && form) {
+            dropdown.value = isEnabled ? '1' : '0';
+            form.submit();
+        }
+    };
+
+    // Sincroniza o toggle se o dropdown for alterado manualmente
+    const dropdownAtivo = document.getElementById('filter-ativo-dropdown');
+    if (dropdownAtivo) {
+        dropdownAtivo.addEventListener('change', function() {
+            const toggle = document.getElementById('quick-toggle-ativo');
+            if (toggle) {
+                toggle.checked = (this.value === '1');
+            }
+        });
     }
 </script>

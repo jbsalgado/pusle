@@ -126,7 +126,7 @@ class ProdutoController extends Controller
         $categoriaId = Yii::$app->request->get('categoria_id');
         $busca = Yii::$app->request->get('busca');
         $estoque = Yii::$app->request->get('estoque');
-        $ativo = Yii::$app->request->get('ativo');
+        $ativo = Yii::$app->request->get('ativo', '1');
 
         if ($categoriaId) {
             $query->andWhere(['categoria_id' => $categoriaId]);

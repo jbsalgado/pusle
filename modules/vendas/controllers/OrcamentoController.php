@@ -22,6 +22,11 @@ class OrcamentoController extends Controller
                 'class' => AccessControl::class,
                 'rules' => [
                     [
+                        'actions' => ['imprimir', 'imprimir-a4'],
+                        'allow' => true,
+                        'roles' => ['?', '@'],
+                    ],
+                    [
                         'allow' => true,
                         'roles' => ['@'],
                     ],
@@ -132,6 +137,7 @@ class OrcamentoController extends Controller
 
         return [
             'id' => $model->id,
+            'hash' => $model->hash,
             'usuario_id' => $model->usuario_id, // ID do Dono da Loja
             'valor_total' => (float) $model->valor_total,
             'acrescimo_valor' => (float) ($model->acrescimo_valor ?? 0),
@@ -157,9 +163,13 @@ class OrcamentoController extends Controller
     /**
      * Gera PDF customizado (80mm) para orçamento usando FPDF
      */
-    public function actionImprimir($id)
+    public function actionImprimir($id = null, $hash = null)
     {
-        $model = $this->findModel($id);
+        if ($hash) {
+            $model = $this->findModelPublico($hash);
+        } else {
+            $model = $this->findModel($id);
+        }
         $apiCmd = new \app\modules\api\controllers\UsuarioController('api', $this->module);
         $empresa = $apiCmd->actionDadosLoja($model->usuario_id);
 
@@ -301,9 +311,13 @@ class OrcamentoController extends Controller
     /**
      * Imprime o orçamento em formato A4
      */
-    public function actionImprimirA4($id)
+    public function actionImprimirA4($id = null, $hash = null)
     {
-        $model = $this->findModel($id);
+        if ($hash) {
+            $model = $this->findModelPublico($hash);
+        } else {
+            $model = $this->findModel($id);
+        }
         $usuario = $model->usuario;
         $lojaConfig = LojaConfiguracao::findOne(['usuario_id' => $usuario->id]);
         $config = Configuracao::findOne(['usuario_id' => $usuario->id]);
@@ -424,6 +438,15 @@ class OrcamentoController extends Controller
         $pdf->Cell($col2, 10, "R$ " . number_format($model->valor_total, 2, ',', '.'), 0, 1, 'R', true);
         $pdf->SetTextColor(0, 0, 0);
 
+        // Observações
+        if (!empty($model->observacoes)) {
+            $pdf->Ln(5);
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell(190, 7, utf8_decode("OBSERVAÇÕES:"), 0, 1, 'L');
+            $pdf->SetFont('Arial', '', 10);
+            $pdf->MultiCell(190, 5, utf8_decode($model->observacoes), 0, 'L');
+        }
+
         // Rodapé
         $pdf->Ln(5);
         $pdf->SetFont('Arial', 'I', 8);
@@ -449,6 +472,19 @@ class OrcamentoController extends Controller
             return $model;
         }
         throw new \yii\web\NotFoundHttpException('A página solicitada não existe.');
+    }
+
+    /**
+     * Busca o orçamento pelo hash (acesso público)
+     * @param string $hash
+     * @return Orcamento
+     */
+    protected function findModelPublico($hash)
+    {
+        if (($model = Orcamento::findOne(['hash' => $hash])) !== null) {
+            return $model;
+        }
+        throw new \yii\web\NotFoundHttpException('O orçamento solicitado não existe.');
     }
 
     /**

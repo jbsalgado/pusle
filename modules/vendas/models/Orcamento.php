@@ -18,6 +18,7 @@ use app\modules\vendas\models\OrcamentoItem;
  * Tabela: orcamentos
  * 
  * @property int $id
+ * @property string $hash
  * @property string $usuario_id
  * @property string $cliente_id
  * @property float $valor_total
@@ -77,6 +78,11 @@ class Orcamento extends ActiveRecord
             if ($insert && empty($this->data_validade)) {
                 $this->data_validade = date('Y-m-d', strtotime('+7 days'));
             }
+
+            // Gera hash único para acesso público
+            if ($insert && empty($this->hash)) {
+                $this->hash = bin2hex(random_bytes(16));
+            }
             return true;
         }
         return false;
@@ -89,7 +95,7 @@ class Orcamento extends ActiveRecord
     {
         return [
             [['usuario_id', 'valor_total'], 'required'],
-            [['usuario_id', 'cliente_id', 'colaborador_vendedor_id', 'forma_pagamento_id'], 'string'],
+            [['usuario_id', 'cliente_id', 'colaborador_vendedor_id', 'forma_pagamento_id', 'hash'], 'string'],
             [['valor_total', 'desconto_valor', 'acrescimo_valor'], 'number', 'min' => 0],
             [['status'], 'string', 'max' => 20],
             [['status'], 'in', 'range' => [
