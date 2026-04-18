@@ -11,6 +11,7 @@ use yii\db\Expression;
  * This is the model class for table "orcamentos".
  *
  * @property int $id
+ * @property string $hash
  * @property string $usuario_id
  * @property string|null $cliente_id
  * @property string|null $colaborador_vendedor_id
@@ -54,13 +55,27 @@ class Orcamento extends ActiveRecord
     }
 
     /**
+     * @inheritdoc
+     */
+    public function beforeSave($insert)
+    {
+        if (parent::beforeSave($insert)) {
+            if ($insert && empty($this->hash)) {
+                $this->hash = bin2hex(random_bytes(16));
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function rules()
     {
         return [
             [['usuario_id'], 'required'],
-            [['usuario_id', 'cliente_id', 'colaborador_vendedor_id', 'forma_pagamento_id'], 'string'], // IDs são UUIDs no banco, mas string no PHP
+            [['usuario_id', 'cliente_id', 'colaborador_vendedor_id', 'forma_pagamento_id', 'hash'], 'string'], // IDs são UUIDs no banco, mas string no PHP
             [['valor_total', 'desconto_valor', 'acrescimo_valor'], 'number'],
             [['observacoes', 'acrescimo_tipo', 'observacao_acrescimo', 'status'], 'string'],
             [['data_criacao', 'data_atualizacao', 'data_validade'], 'safe'],
