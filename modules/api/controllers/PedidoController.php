@@ -424,6 +424,7 @@ class PedidoController extends BaseController
 
                 $item->desconto_percentual = $descontoPercentual;
                 $item->desconto_valor = $descontoValor;
+                $item->avulso_resolvido = false;
                 $item->nome_item_manual = $itemData['nome_item_manual'] ?? null;
 
                 Yii::error("Tentando salvar item #{$index}: " . print_r($item->attributes, true), 'api');

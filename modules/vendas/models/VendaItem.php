@@ -115,6 +115,26 @@ class VendaItem extends ActiveRecord
     {
         $fields = parent::fields();
         $fields['produto'] = 'produto';
+        $fields['nome_exibicao'] = function () {
+            return $this->getNomeExibicao();
+        };
         return $fields;
+    }
+
+    /**
+     * Retorna o nome do item para exibição, priorizando o nome manual (itens avulsos).
+     * @return string
+     */
+    public function getNomeExibicao()
+    {
+        if (!empty($this->nome_item_manual)) {
+            return $this->nome_item_manual;
+        }
+
+        if ($this->produto) {
+            return $this->produto->nome;
+        }
+
+        return 'Produto não identificado';
     }
 }

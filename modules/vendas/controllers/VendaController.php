@@ -105,7 +105,7 @@ class VendaController extends Controller
         $itens = [];
         foreach ($model->itens as $item) {
             $itens[] = [
-                'nome' => $item->produto ? $item->produto->nome : 'Produto',
+                'nome' => $item->getNomeExibicao(),
                 'quantidade' => (float) $item->quantidade,
                 'preco' => (float) $item->preco_unitario_venda,
                 'desconto_valor' => (float) ($item->desconto_valor ?? 0),
@@ -252,7 +252,7 @@ class VendaController extends Controller
 
             // Nome do Produto
             $pdf->SetFont('Courier', 'B', 10);
-            $nome = strtoupper(mb_convert_encoding($item->produto ? $item->produto->nome : 'PRODUTO', 'ISO-8859-1', 'UTF-8'));
+            $nome = strtoupper(mb_convert_encoding($item->getNomeExibicao(), 'ISO-8859-1', 'UTF-8'));
             $pdf->MultiCell(80, 4, $nome, 0, 'L');
 
             // Detalhes
@@ -434,7 +434,7 @@ class VendaController extends Controller
 
         foreach ($model->itens as $item) {
             $h = 7;
-            $nomeProduto = $item->produto ? $item->produto->nome : 'Produto não identificado';
+            $nomeProduto = $item->getNomeExibicao();
             $subtotalItem = $item->quantidade * $item->preco_unitario_venda;
             $subtotalBruto += $subtotalItem;
             $totalDescontos += (float)$item->desconto_valor;

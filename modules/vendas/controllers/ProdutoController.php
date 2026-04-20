@@ -942,9 +942,9 @@ class ProdutoController extends Controller
                 'MAX(v.data_venda) as ultima_venda'
             ])
             ->innerJoin(\app\modules\vendas\models\Venda::tableName() . ' v', 'v.id = vi.venda_id')
-            ->where(['not', ['vi.nome_item_manual' => null]])
+            ->where(['AND', ['NOT', ['vi.nome_item_manual' => null]], ['!=', 'vi.nome_item_manual', '']])
             ->andWhere(['v.usuario_id' => $lojaId])
-            ->andWhere(['vi.avulso_resolvido' => false])
+            ->andWhere(['OR', ['vi.avulso_resolvido' => false], ['vi.avulso_resolvido' => null]])
             ->groupBy('vi.nome_item_manual')
             ->orderBy(['total_vendas' => SORT_DESC]);
 
@@ -980,7 +980,7 @@ class ProdutoController extends Controller
             ->innerJoin(\app\modules\vendas\models\Venda::tableName() . ' v', 'v.id = vi.venda_id')
             ->where(['vi.nome_item_manual' => $nome_manual])
             ->andWhere(['v.usuario_id' => $lojaId])
-            ->andWhere(['vi.avulso_resolvido' => false])
+            ->andWhere(['OR', ['vi.avulso_resolvido' => false], ['vi.avulso_resolvido' => null]])
             ->all();
 
         if (empty($itens)) {
@@ -1021,9 +1021,9 @@ class ProdutoController extends Controller
                 'MAX(v.data_venda) as ultima_venda'
             ])
             ->innerJoin(\app\modules\vendas\models\Venda::tableName() . ' v', 'v.id = vi.venda_id')
-            ->where(['not', ['vi.nome_item_manual' => null]])
+            ->where(['AND', ['NOT', ['vi.nome_item_manual' => null]], ['!=', 'vi.nome_item_manual', '']])
             ->andWhere(['v.usuario_id' => $lojaId])
-            ->andWhere(['vi.avulso_resolvido' => false])
+            ->andWhere(['OR', ['vi.avulso_resolvido' => false], ['vi.avulso_resolvido' => null]])
             ->groupBy('vi.nome_item_manual')
             ->orderBy(['total_vendas' => SORT_DESC]);
 
