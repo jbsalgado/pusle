@@ -37,8 +37,8 @@ class AuthController extends Controller
                 return $this->redirect($redirectUrl . $separator . 'token=' . $token);
             }
 
-            // Após login bem-sucedido, redireciona para o dashboard (fluxo padrão)
-            return $this->redirect(['/vendas/dashboard']);
+            // Após login bem-sucedido, redireciona para a página inicial (fluxo pedido pelo usuário)
+            return $this->redirect(['/vendas/inicio']);
         }
 
         $model->senha = '';
@@ -74,8 +74,8 @@ class AuthController extends Controller
         if ($model->load(Yii::$app->request->post())) {
             if ($user = $model->signup()) {
                 if (Yii::$app->getUser()->login($user)) {
-                    // Redireciona para o dashboard após cadastro e login
-                    return $this->redirect(['/vendas/dashboard']);
+                    // Redireciona para a página inicial após cadastro e login
+                    return $this->redirect(['/vendas/inicio']);
                 }
             }
         }

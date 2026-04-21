@@ -567,6 +567,41 @@ usort($visibleCards, function ($a, $b) {
                     </div>
                 </a>
             <?php endif; ?>
+
+            <?php if ($ehDonoLoja): ?>
+                <!-- Dashboard Geral -->
+                <a href="<?= Url::to(['/vendas/dashboard/index']) ?>"
+                    class="group block bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
+                    <div class="flex items-center space-x-3 sm:space-x-4">
+                        <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
+                            <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2" />
+                            </svg>
+                        </div>
+                        <div class="flex-1 text-white">
+                            <h3 class="text-lg sm:text-xl font-bold mb-0.5">Dashboard Geral</h3>
+                            <p class="text-xs sm:text-sm opacity-90">Visão geral de estatísticas</p>
+                        </div>
+                    </div>
+                </a>
+
+                <!-- Dashboard Executivo -->
+                <a href="<?= Url::to(['/vendas/dashboard/executivo']) ?>"
+                    class="group block bg-gradient-to-br from-purple-600 to-indigo-800 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
+                    <div class="flex items-center space-x-3 sm:space-x-4">
+                        <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
+                            <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                            </svg>
+                        </div>
+                        <div class="flex-1 text-white">
+                            <h3 class="text-lg sm:text-xl font-bold mb-0.5">Dashboard Executivo</h3>
+                            <p class="text-xs sm:text-sm opacity-90">Indicadores de BI e Metas</p>
+                        </div>
+                    </div>
+                </a>
+            <?php endif; ?>
         </div>
 
 
