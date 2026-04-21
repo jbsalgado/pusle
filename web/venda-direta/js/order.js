@@ -95,7 +95,8 @@ function prepararObjetoPedido(dadosPedido, carrinho) {
             preco_unitario: item.preco_final || item.preco_venda_sugerido,
             desconto_percentual: item.descontoPercentual || 0,
             desconto_valor: item.descontoValor || 0,
-            nome_item_manual: item.nome_item_manual || null
+            nome_item_manual: item.nome_item_manual || null,
+            unidade_medida: item.unidade_medida || 'un'
         })),
         // Adiciona dados do acréscimo
         acrescimo_valor: parseFloat(acrescimo.valor) || 0,

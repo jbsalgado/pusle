@@ -137,6 +137,15 @@ class Produto extends ActiveRecord
             [['codigo_barras', 'marca'], 'string', 'max' => 255],
             [['codigo_barras', 'marca'], 'trim'],
             [['codigo_barras', 'marca'], 'default', 'value' => null],
+
+            // ✅ NOVOS CAMPOS: Precificação em Escala (Atacado)
+            [[
+                'qtd_escala_1', 'preco_escala_1', 
+                'qtd_escala_2', 'preco_escala_2', 
+                'qtd_escala_3', 'preco_escala_3', 
+                'qtd_escala_4', 'preco_escala_4', 
+                'qtd_escala_5', 'preco_escala_5'
+            ], 'number'],
         ];
     }
 
