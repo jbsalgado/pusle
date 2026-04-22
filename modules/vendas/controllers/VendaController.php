@@ -156,6 +156,7 @@ class VendaController extends Controller
             'status' => $model->status_venda_codigo, // Ex: QUITADA
             'forma_pagamento' => $model->formaPagamento ? $model->formaPagamento->nome : 'N/A',
             'cliente' => $cliente,
+            'observacoes' => $model->observacoes,
             'itens' => $itens,
         ];
     }
@@ -332,6 +333,17 @@ class VendaController extends Controller
         $pdf->Ln(2);
         $pdf->Cell(80, 2, '------------------------------------------', 0, 1, 'C');
 
+        // --- OBSERVAÇÕES ---
+        if (!empty($model->observacoes)) {
+            $pdf->Ln(2);
+            $pdf->SetFont('Courier', 'B', 9);
+            $pdf->Cell(80, 4, 'OBSERVACOES:', 0, 1, 'L');
+            $pdf->SetFont('Courier', '', 9);
+            $pdf->MultiCell(80, 4, mb_convert_encoding($model->observacoes, 'ISO-8859-1', 'UTF-8'), 0, 'L');
+            $pdf->Ln(2);
+            $pdf->Cell(80, 2, '------------------------------------------', 0, 1, 'C');
+        }
+
         // --- RODAPÉ ---
         $pdf->Ln(4);
         $pdf->SetFont('Courier', '', 10);
@@ -495,6 +507,16 @@ class VendaController extends Controller
         $pdf->Cell(155, 10, utf8_decode("VALOR TOTAL LÍQUIDO:"), 0, 0, 'R');
         $pdf->Cell(35, 10, "R$ " . number_format($model->valor_total, 2, ',', '.'), 0, 1, 'R');
         $pdf->SetTextColor(0, 0, 0);
+
+        // Observações
+        if (!empty($model->observacoes)) {
+            $pdf->Ln(5);
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->SetFillColor(245, 245, 245);
+            $pdf->Cell(190, 7, utf8_decode(" OBSERVAÇÕES"), 0, 1, 'L', true);
+            $pdf->SetFont('Arial', '', 10);
+            $pdf->MultiCell(190, 6, utf8_decode($model->observacoes), 0, 'L');
+        }
 
         // Assinaturas
         $pdf->SetY(260);

@@ -360,6 +360,14 @@ function _renderHTMLRecibo(venda, empresa) {
                 `).join('')}
             </div>
             ` : ''}
+            
+            <!-- Observações -->
+            ${venda.observacoes ? `
+            <div class="mt-4 border-t border-gray-200 pt-2">
+                <p class="text-[10px] font-bold text-gray-400 uppercase mb-1">Observações:</p>
+                <p class="text-sm text-gray-700 whitespace-pre-wrap">${venda.observacoes}</p>
+            </div>
+            ` : ''}
 
             <!-- Rodapé -->
             <div class="text-center mt-6 pt-4 border-t border-gray-300">
@@ -444,6 +452,13 @@ window.imprimirTermica = async function() {
         
         t += row('TOTAL RECEBIDO', 'R$ ' + v.valor_total.toFixed(2)) + '\n';
         t += row('PAGAMENTO', rA(v.forma_pagamento)) + '\n';
+        
+        if (v.observacoes) {
+            t += div + '\n';
+            t += 'OBSERVACOES:\n';
+            t += rA(v.observacoes) + '\n';
+        }
+        
         t += div + '\n';
         t += center('OBRIGADO PELA PREFERENCIA') + '\n\n\n\n';
 
