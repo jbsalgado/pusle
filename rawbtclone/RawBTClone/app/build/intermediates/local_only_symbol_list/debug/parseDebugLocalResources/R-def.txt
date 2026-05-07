@@ -1,0 +1,36 @@
+R_DEF: Internal format may change without notice
+local
+color black
+color purple_200
+color purple_500
+color purple_700
+color teal_200
+color teal_700
+color white
+id action_settings
+id btn_connect
+id btn_disconnect
+id btn_pick_file
+id btn_print_text
+id btn_refresh
+id btn_save
+id btn_test_page
+id et_columns
+id et_print_text
+id list_devices
+id progress_bar
+id spinner_encoding
+id spinner_esc_model
+id spinner_paper_width
+id switch_auto_cut
+id toolbar
+id tv_saved_device
+id tv_selected_file
+id tv_status
+layout activity_main
+layout activity_print
+layout activity_settings
+menu main_menu
+string app_name
+style Theme.RawBTClone
+xml print_service_config

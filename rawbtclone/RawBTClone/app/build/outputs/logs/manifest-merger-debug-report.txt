@@ -1,0 +1,411 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:2:1-82:12
+INJECTED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:2:1-82:12
+INJECTED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:2:1-82:12
+INJECTED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:2:1-82:12
+MERGED from [com.android.databinding:viewbinding:8.9.1] /home/barbosa/.gradle/caches/8.11.1/transforms/8014ae10f9149841f805ee98d3468e3b/transformed/viewbinding-8.9.1/AndroidManifest.xml:2:1-7:12
+MERGED from [com.google.android.material:material:1.12.0] /home/barbosa/.gradle/caches/8.11.1/transforms/1c1e2c297239eb73b2e1e6e23fd74215/transformed/material-1.12.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/barbosa/.gradle/caches/8.11.1/transforms/f6d3a022be59fa12239bd2dc6af73c28/transformed/constraintlayout-2.1.4/AndroidManifest.xml:2:1-11:12
+MERGED from [androidx.appcompat:appcompat-resources:1.7.0] /home/barbosa/.gradle/caches/8.11.1/transforms/66aae4f78baf3e41eb9fc9fdc90b238b/transformed/appcompat-resources-1.7.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.appcompat:appcompat:1.7.0] /home/barbosa/.gradle/caches/8.11.1/transforms/98b939152a86cc543a06349003a8bcea/transformed/appcompat-1.7.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/cafe975ea99a6b7c92b1a54d9b95c385/transformed/viewpager2-1.0.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.fragment:fragment:1.8.1] /home/barbosa/.gradle/caches/8.11.1/transforms/3a82fb90f270c5888e0c8895254eb611/transformed/fragment-1.8.1/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.fragment:fragment-ktx:1.8.1] /home/barbosa/.gradle/caches/8.11.1/transforms/dfd08a5e968413b5722ea2fb2bc5b929/transformed/fragment-ktx-1.8.1/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.activity:activity:1.9.0] /home/barbosa/.gradle/caches/8.11.1/transforms/a2f429c80cee096b8462a885aaa3b1a6/transformed/activity-1.9.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.activity:activity-ktx:1.9.0] /home/barbosa/.gradle/caches/8.11.1/transforms/f84f983bd402c8a974875444a2cb4d3d/transformed/activity-ktx-1.9.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/288ef0fad228df51920a4061ebf66b5f/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:17:1-35:12
+MERGED from [androidx.drawerlayout:drawerlayout:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/fc662b2fdbede023ff07a08b49d219bf/transformed/drawerlayout-1.1.1/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.1.0] /home/barbosa/.gradle/caches/8.11.1/transforms/42164c733c294c18103b15be4311c53a/transformed/coordinatorlayout-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.transition:transition:1.5.0] /home/barbosa/.gradle/caches/8.11.1/transforms/92e57e72d71a3cab60fba0e52a09ed05/transformed/transition-1.5.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/12128c7204c8c65d93d55923689d00c5/transformed/dynamicanimation-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/barbosa/.gradle/caches/8.11.1/transforms/872051241fa3a744c30053dd9294c1eb/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/barbosa/.gradle/caches/8.11.1/transforms/df54d2ba4a0967396221be1599818944/transformed/vectordrawable-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.recyclerview:recyclerview:1.1.0] /home/barbosa/.gradle/caches/8.11.1/transforms/4acaeb057144dcaf4c7b5357cb5c34f6/transformed/recyclerview-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.viewpager:viewpager:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/239b792f980c5613e1ae5a81ee40f459/transformed/viewpager-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.customview:customview:1.1.0] /home/barbosa/.gradle/caches/8.11.1/transforms/6486fab8541ae75017d076364a468faf/transformed/customview-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/a9fefbace34081df9c42008156a0c419/transformed/legacy-support-core-utils-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.loader:loader:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/62b7d479955e2cb692c86bc3ffd8edc5/transformed/loader-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:17:1-30:12
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /home/barbosa/.gradle/caches/8.11.1/transforms/6bbc058110fadaf32841c75411c0f296/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.savedstate:savedstate:1.2.1] /home/barbosa/.gradle/caches/8.11.1/transforms/fb4d5f74a41a23feae1ba64e24b74036/transformed/savedstate-1.2.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/c0c9d3018ba81dd808349c0b6ac1a387/transformed/lifecycle-livedata-2.8.3/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/6ca57f7a161202426e009b8fdba51f6d/transformed/lifecycle-livedata-core-2.8.3/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-runtime-android:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/8379199b58033407654b6529bc53cfe8/transformed/lifecycle-runtime-release/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/ad04f2e6c6bccd8d7c8a23b903c220c8/transformed/lifecycle-viewmodel-2.8.3/AndroidManifest.xml:2:1-5:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-android:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/fe3dd146ca49a63e8c9cafb1acde1306/transformed/lifecycle-viewmodel-release/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/13136b0be3c0481e4c46d95ce062363c/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:17:1-35:12
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/1890b39bd28df6f79ddceffa2d4fb5dc/transformed/lifecycle-livedata-core-ktx-2.8.3/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/1180cb52b6786069821414206526b937/transformed/lifecycle-viewmodel-ktx-2.8.3/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx-android:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/313f64a2c379b0489ac2ba6a009dff13/transformed/lifecycle-runtime-ktx-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/356e1612f929e65de2174185e61190bb/transformed/lifecycle-viewmodel-savedstate-2.8.3/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.core:core-ktx:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/aa1c54b5408e318ba433b46d3fdcc102/transformed/core-ktx-1.13.1/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.datastore:datastore-core-android:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/7274cdf1d49649a7064a50793007ee6b/transformed/datastore-core-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.datastore:datastore-android:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5e430a6b6676eb1cec7867dcd5680569/transformed/datastore-release/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.datastore:datastore-preferences-android:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/b2c5bb872e6f63b886f071851d20449a/transformed/datastore-preferences-release/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.annotation:annotation-experimental:1.4.0] /home/barbosa/.gradle/caches/8.11.1/transforms/a128eaedc025ad941d21a4bdc8ec1353/transformed/annotation-experimental-1.4.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/6d79c1ed0f7ff7369c1b81e995b9671e/transformed/cursoradapter-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:17:1-55:12
+MERGED from [androidx.cardview:cardview:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/d4ecd5a2d4f58b30a707b634274a25c7/transformed/cardview-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.interpolator:interpolator:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/c67e9521b1ddc35b2f02d31307fa4ce6/transformed/interpolator-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/559b7ce8d5c93f7f186e988848dac44d/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:17:1-27:12
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/d209381ac5682bf93a6b4312f60cc5e7/transformed/startup-runtime-1.1.1/AndroidManifest.xml:17:1-33:12
+MERGED from [androidx.tracing:tracing:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/4128d51559691d37cb960075a45ccf8b/transformed/tracing-1.0.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.documentfile:documentfile:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/e0cd63319295f0841a10f032f343175c/transformed/documentfile-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/b297830cbb8549b7941b577f40ca7363/transformed/localbroadcastmanager-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.print:print:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/253eb06e921f8e0d35b924040ee936d0/transformed/print-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /home/barbosa/.gradle/caches/8.11.1/transforms/b2f0c53dc18bee44636f9202966fa5b8/transformed/core-runtime-2.2.0/AndroidManifest.xml:17:1-22:12
+	package
+		INJECTED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml
+	android:versionName
+		INJECTED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml
+	android:versionCode
+		INJECTED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml
+	xmlns:android
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:2:11-69
+uses-permission#android.permission.BLUETOOTH
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:5:5-68
+	android:name
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:5:22-65
+uses-permission#android.permission.BLUETOOTH_ADMIN
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:6:5-74
+	android:name
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:6:22-71
+uses-permission#android.permission.BLUETOOTH_CONNECT
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:8:5-76
+	android:name
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:8:22-73
+uses-permission#android.permission.BLUETOOTH_SCAN
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:9:5-73
+	android:name
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:9:22-70
+uses-permission#android.permission.READ_EXTERNAL_STORAGE
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:12:5-13:38
+	android:maxSdkVersion
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:13:9-35
+	android:name
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:12:22-77
+uses-permission#android.permission.READ_MEDIA_IMAGES
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:14:5-76
+	android:name
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:14:22-73
+uses-permission#android.permission.FOREGROUND_SERVICE
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:17:5-77
+	android:name
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:17:22-74
+uses-permission#android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:18:5-94
+	android:name
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:18:22-91
+uses-feature#android.hardware.bluetooth
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:20:5-87
+	android:required
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:20:61-84
+	android:name
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:20:19-60
+application
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:22:5-81:19
+INJECTED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:22:5-81:19
+MERGED from [com.google.android.material:material:1.12.0] /home/barbosa/.gradle/caches/8.11.1/transforms/1c1e2c297239eb73b2e1e6e23fd74215/transformed/material-1.12.0/AndroidManifest.xml:22:5-20
+MERGED from [com.google.android.material:material:1.12.0] /home/barbosa/.gradle/caches/8.11.1/transforms/1c1e2c297239eb73b2e1e6e23fd74215/transformed/material-1.12.0/AndroidManifest.xml:22:5-20
+MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/barbosa/.gradle/caches/8.11.1/transforms/f6d3a022be59fa12239bd2dc6af73c28/transformed/constraintlayout-2.1.4/AndroidManifest.xml:9:5-20
+MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/barbosa/.gradle/caches/8.11.1/transforms/f6d3a022be59fa12239bd2dc6af73c28/transformed/constraintlayout-2.1.4/AndroidManifest.xml:9:5-20
+MERGED from [androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:28:5-89
+MERGED from [androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:28:5-89
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/13136b0be3c0481e4c46d95ce062363c/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/13136b0be3c0481e4c46d95ce062363c/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:23:5-53:19
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:23:5-53:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/559b7ce8d5c93f7f186e988848dac44d/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/559b7ce8d5c93f7f186e988848dac44d/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/d209381ac5682bf93a6b4312f60cc5e7/transformed/startup-runtime-1.1.1/AndroidManifest.xml:25:5-31:19
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/d209381ac5682bf93a6b4312f60cc5e7/transformed/startup-runtime-1.1.1/AndroidManifest.xml:25:5-31:19
+	android:extractNativeLibs
+		INJECTED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml
+	android:appComponentFactory
+		ADDED from [androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:28:18-86
+	android:supportsRtl
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:27:9-35
+	android:label
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:25:9-41
+	android:roundIcon
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:26:9-54
+	android:icon
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:24:9-43
+	android:allowBackup
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:23:9-35
+	android:theme
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:28:9-48
+activity#com.seuprefixo.rawbtclone.ui.main.MainActivity
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:31:9-38:20
+	android:exported
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:33:13-36
+	android:name
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:32:13-49
+intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:34:13-37:29
+action#android.intent.action.MAIN
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:35:17-69
+	android:name
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:35:25-66
+category#android.intent.category.LAUNCHER
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:36:17-77
+	android:name
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:36:27-74
+activity#com.seuprefixo.rawbtclone.ui.settings.SettingsActivity
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:41:9-44:66
+	android:parentActivityName
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:44:13-63
+	android:exported
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:43:13-37
+	android:name
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:42:13-57
+activity#com.seuprefixo.rawbtclone.ui.print.PrintActivity
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:47:9-66:20
+	android:exported
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:49:13-36
+	android:name
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:48:13-51
+intent-filter#action:name:android.intent.action.SEND+category:name:android.intent.category.DEFAULT+data:mimeType:text/plain
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:51:13-55:29
+action#android.intent.action.SEND
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:52:17-69
+	android:name
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:52:25-66
+category#android.intent.category.DEFAULT
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:53:17-76
+	android:name
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:53:27-73
+data
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:54:17-55
+	android:mimeType
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:54:23-52
+intent-filter#action:name:android.intent.action.SEND+category:name:android.intent.category.DEFAULT+data:mimeType:image/*
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:56:13-60:29
+intent-filter#action:name:android.intent.action.SEND+category:name:android.intent.category.DEFAULT+data:mimeType:application/pdf
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:61:13-65:29
+service#com.seuprefixo.rawbtclone.service.ThermalPrintService
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:69:9-79:19
+	android:exported
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:71:13-36
+	android:permission
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:72:13-71
+	android:name
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:70:13-56
+intent-filter#action:name:android.printservice.PrintService
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:73:13-75:29
+action#android.printservice.PrintService
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:74:17-76
+	android:name
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:74:25-73
+meta-data#android.printservice
+ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:76:13-78:64
+	android:resource
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:78:17-61
+	android:name
+		ADDED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:77:17-52
+uses-sdk
+INJECTED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml
+INJECTED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml
+MERGED from [com.android.databinding:viewbinding:8.9.1] /home/barbosa/.gradle/caches/8.11.1/transforms/8014ae10f9149841f805ee98d3468e3b/transformed/viewbinding-8.9.1/AndroidManifest.xml:5:5-44
+MERGED from [com.android.databinding:viewbinding:8.9.1] /home/barbosa/.gradle/caches/8.11.1/transforms/8014ae10f9149841f805ee98d3468e3b/transformed/viewbinding-8.9.1/AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.material:material:1.12.0] /home/barbosa/.gradle/caches/8.11.1/transforms/1c1e2c297239eb73b2e1e6e23fd74215/transformed/material-1.12.0/AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.material:material:1.12.0] /home/barbosa/.gradle/caches/8.11.1/transforms/1c1e2c297239eb73b2e1e6e23fd74215/transformed/material-1.12.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/barbosa/.gradle/caches/8.11.1/transforms/f6d3a022be59fa12239bd2dc6af73c28/transformed/constraintlayout-2.1.4/AndroidManifest.xml:5:5-7:41
+MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/barbosa/.gradle/caches/8.11.1/transforms/f6d3a022be59fa12239bd2dc6af73c28/transformed/constraintlayout-2.1.4/AndroidManifest.xml:5:5-7:41
+MERGED from [androidx.appcompat:appcompat-resources:1.7.0] /home/barbosa/.gradle/caches/8.11.1/transforms/66aae4f78baf3e41eb9fc9fdc90b238b/transformed/appcompat-resources-1.7.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.appcompat:appcompat-resources:1.7.0] /home/barbosa/.gradle/caches/8.11.1/transforms/66aae4f78baf3e41eb9fc9fdc90b238b/transformed/appcompat-resources-1.7.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.appcompat:appcompat:1.7.0] /home/barbosa/.gradle/caches/8.11.1/transforms/98b939152a86cc543a06349003a8bcea/transformed/appcompat-1.7.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.appcompat:appcompat:1.7.0] /home/barbosa/.gradle/caches/8.11.1/transforms/98b939152a86cc543a06349003a8bcea/transformed/appcompat-1.7.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/cafe975ea99a6b7c92b1a54d9b95c385/transformed/viewpager2-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/cafe975ea99a6b7c92b1a54d9b95c385/transformed/viewpager2-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.fragment:fragment:1.8.1] /home/barbosa/.gradle/caches/8.11.1/transforms/3a82fb90f270c5888e0c8895254eb611/transformed/fragment-1.8.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.fragment:fragment:1.8.1] /home/barbosa/.gradle/caches/8.11.1/transforms/3a82fb90f270c5888e0c8895254eb611/transformed/fragment-1.8.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.fragment:fragment-ktx:1.8.1] /home/barbosa/.gradle/caches/8.11.1/transforms/dfd08a5e968413b5722ea2fb2bc5b929/transformed/fragment-ktx-1.8.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.fragment:fragment-ktx:1.8.1] /home/barbosa/.gradle/caches/8.11.1/transforms/dfd08a5e968413b5722ea2fb2bc5b929/transformed/fragment-ktx-1.8.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity:1.9.0] /home/barbosa/.gradle/caches/8.11.1/transforms/a2f429c80cee096b8462a885aaa3b1a6/transformed/activity-1.9.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.activity:activity:1.9.0] /home/barbosa/.gradle/caches/8.11.1/transforms/a2f429c80cee096b8462a885aaa3b1a6/transformed/activity-1.9.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.activity:activity-ktx:1.9.0] /home/barbosa/.gradle/caches/8.11.1/transforms/f84f983bd402c8a974875444a2cb4d3d/transformed/activity-ktx-1.9.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-ktx:1.9.0] /home/barbosa/.gradle/caches/8.11.1/transforms/f84f983bd402c8a974875444a2cb4d3d/transformed/activity-ktx-1.9.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/288ef0fad228df51920a4061ebf66b5f/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/288ef0fad228df51920a4061ebf66b5f/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.drawerlayout:drawerlayout:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/fc662b2fdbede023ff07a08b49d219bf/transformed/drawerlayout-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.drawerlayout:drawerlayout:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/fc662b2fdbede023ff07a08b49d219bf/transformed/drawerlayout-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.1.0] /home/barbosa/.gradle/caches/8.11.1/transforms/42164c733c294c18103b15be4311c53a/transformed/coordinatorlayout-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.1.0] /home/barbosa/.gradle/caches/8.11.1/transforms/42164c733c294c18103b15be4311c53a/transformed/coordinatorlayout-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.transition:transition:1.5.0] /home/barbosa/.gradle/caches/8.11.1/transforms/92e57e72d71a3cab60fba0e52a09ed05/transformed/transition-1.5.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.transition:transition:1.5.0] /home/barbosa/.gradle/caches/8.11.1/transforms/92e57e72d71a3cab60fba0e52a09ed05/transformed/transition-1.5.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/12128c7204c8c65d93d55923689d00c5/transformed/dynamicanimation-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/12128c7204c8c65d93d55923689d00c5/transformed/dynamicanimation-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/barbosa/.gradle/caches/8.11.1/transforms/872051241fa3a744c30053dd9294c1eb/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/barbosa/.gradle/caches/8.11.1/transforms/872051241fa3a744c30053dd9294c1eb/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/barbosa/.gradle/caches/8.11.1/transforms/df54d2ba4a0967396221be1599818944/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/barbosa/.gradle/caches/8.11.1/transforms/df54d2ba4a0967396221be1599818944/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.recyclerview:recyclerview:1.1.0] /home/barbosa/.gradle/caches/8.11.1/transforms/4acaeb057144dcaf4c7b5357cb5c34f6/transformed/recyclerview-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.recyclerview:recyclerview:1.1.0] /home/barbosa/.gradle/caches/8.11.1/transforms/4acaeb057144dcaf4c7b5357cb5c34f6/transformed/recyclerview-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.viewpager:viewpager:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/239b792f980c5613e1ae5a81ee40f459/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.viewpager:viewpager:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/239b792f980c5613e1ae5a81ee40f459/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.customview:customview:1.1.0] /home/barbosa/.gradle/caches/8.11.1/transforms/6486fab8541ae75017d076364a468faf/transformed/customview-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.customview:customview:1.1.0] /home/barbosa/.gradle/caches/8.11.1/transforms/6486fab8541ae75017d076364a468faf/transformed/customview-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/a9fefbace34081df9c42008156a0c419/transformed/legacy-support-core-utils-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/a9fefbace34081df9c42008156a0c419/transformed/legacy-support-core-utils-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/62b7d479955e2cb692c86bc3ffd8edc5/transformed/loader-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/62b7d479955e2cb692c86bc3ffd8edc5/transformed/loader-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /home/barbosa/.gradle/caches/8.11.1/transforms/6bbc058110fadaf32841c75411c0f296/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /home/barbosa/.gradle/caches/8.11.1/transforms/6bbc058110fadaf32841c75411c0f296/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate:1.2.1] /home/barbosa/.gradle/caches/8.11.1/transforms/fb4d5f74a41a23feae1ba64e24b74036/transformed/savedstate-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate:1.2.1] /home/barbosa/.gradle/caches/8.11.1/transforms/fb4d5f74a41a23feae1ba64e24b74036/transformed/savedstate-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/c0c9d3018ba81dd808349c0b6ac1a387/transformed/lifecycle-livedata-2.8.3/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/c0c9d3018ba81dd808349c0b6ac1a387/transformed/lifecycle-livedata-2.8.3/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/6ca57f7a161202426e009b8fdba51f6d/transformed/lifecycle-livedata-core-2.8.3/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/6ca57f7a161202426e009b8fdba51f6d/transformed/lifecycle-livedata-core-2.8.3/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-android:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/8379199b58033407654b6529bc53cfe8/transformed/lifecycle-runtime-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-android:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/8379199b58033407654b6529bc53cfe8/transformed/lifecycle-runtime-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/ad04f2e6c6bccd8d7c8a23b903c220c8/transformed/lifecycle-viewmodel-2.8.3/AndroidManifest.xml:4:5-43
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/ad04f2e6c6bccd8d7c8a23b903c220c8/transformed/lifecycle-viewmodel-2.8.3/AndroidManifest.xml:4:5-43
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-android:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/fe3dd146ca49a63e8c9cafb1acde1306/transformed/lifecycle-viewmodel-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-android:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/fe3dd146ca49a63e8c9cafb1acde1306/transformed/lifecycle-viewmodel-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/13136b0be3c0481e4c46d95ce062363c/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:21:5-44
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/13136b0be3c0481e4c46d95ce062363c/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:21:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/1890b39bd28df6f79ddceffa2d4fb5dc/transformed/lifecycle-livedata-core-ktx-2.8.3/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/1890b39bd28df6f79ddceffa2d4fb5dc/transformed/lifecycle-livedata-core-ktx-2.8.3/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/1180cb52b6786069821414206526b937/transformed/lifecycle-viewmodel-ktx-2.8.3/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/1180cb52b6786069821414206526b937/transformed/lifecycle-viewmodel-ktx-2.8.3/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx-android:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/313f64a2c379b0489ac2ba6a009dff13/transformed/lifecycle-runtime-ktx-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx-android:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/313f64a2c379b0489ac2ba6a009dff13/transformed/lifecycle-runtime-ktx-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/356e1612f929e65de2174185e61190bb/transformed/lifecycle-viewmodel-savedstate-2.8.3/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/356e1612f929e65de2174185e61190bb/transformed/lifecycle-viewmodel-savedstate-2.8.3/AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core-ktx:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/aa1c54b5408e318ba433b46d3fdcc102/transformed/core-ktx-1.13.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.core:core-ktx:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/aa1c54b5408e318ba433b46d3fdcc102/transformed/core-ktx-1.13.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.datastore:datastore-core-android:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/7274cdf1d49649a7064a50793007ee6b/transformed/datastore-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.datastore:datastore-core-android:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/7274cdf1d49649a7064a50793007ee6b/transformed/datastore-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.datastore:datastore-android:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5e430a6b6676eb1cec7867dcd5680569/transformed/datastore-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.datastore:datastore-android:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5e430a6b6676eb1cec7867dcd5680569/transformed/datastore-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.datastore:datastore-preferences-android:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/b2c5bb872e6f63b886f071851d20449a/transformed/datastore-preferences-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.datastore:datastore-preferences-android:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/b2c5bb872e6f63b886f071851d20449a/transformed/datastore-preferences-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.annotation:annotation-experimental:1.4.0] /home/barbosa/.gradle/caches/8.11.1/transforms/a128eaedc025ad941d21a4bdc8ec1353/transformed/annotation-experimental-1.4.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.annotation:annotation-experimental:1.4.0] /home/barbosa/.gradle/caches/8.11.1/transforms/a128eaedc025ad941d21a4bdc8ec1353/transformed/annotation-experimental-1.4.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/6d79c1ed0f7ff7369c1b81e995b9671e/transformed/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/6d79c1ed0f7ff7369c1b81e995b9671e/transformed/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:21:5-44
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:21:5-44
+MERGED from [androidx.cardview:cardview:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/d4ecd5a2d4f58b30a707b634274a25c7/transformed/cardview-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cardview:cardview:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/d4ecd5a2d4f58b30a707b634274a25c7/transformed/cardview-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/c67e9521b1ddc35b2f02d31307fa4ce6/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/c67e9521b1ddc35b2f02d31307fa4ce6/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/559b7ce8d5c93f7f186e988848dac44d/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/559b7ce8d5c93f7f186e988848dac44d/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/d209381ac5682bf93a6b4312f60cc5e7/transformed/startup-runtime-1.1.1/AndroidManifest.xml:21:5-23:41
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/d209381ac5682bf93a6b4312f60cc5e7/transformed/startup-runtime-1.1.1/AndroidManifest.xml:21:5-23:41
+MERGED from [androidx.tracing:tracing:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/4128d51559691d37cb960075a45ccf8b/transformed/tracing-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.tracing:tracing:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/4128d51559691d37cb960075a45ccf8b/transformed/tracing-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.documentfile:documentfile:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/e0cd63319295f0841a10f032f343175c/transformed/documentfile-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.documentfile:documentfile:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/e0cd63319295f0841a10f032f343175c/transformed/documentfile-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/b297830cbb8549b7941b577f40ca7363/transformed/localbroadcastmanager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/b297830cbb8549b7941b577f40ca7363/transformed/localbroadcastmanager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.print:print:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/253eb06e921f8e0d35b924040ee936d0/transformed/print-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.print:print:1.0.0] /home/barbosa/.gradle/caches/8.11.1/transforms/253eb06e921f8e0d35b924040ee936d0/transformed/print-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /home/barbosa/.gradle/caches/8.11.1/transforms/b2f0c53dc18bee44636f9202966fa5b8/transformed/core-runtime-2.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /home/barbosa/.gradle/caches/8.11.1/transforms/b2f0c53dc18bee44636f9202966fa5b8/transformed/core-runtime-2.2.0/AndroidManifest.xml:20:5-44
+	android:targetSdkVersion
+		INJECTED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml
+provider#androidx.startup.InitializationProvider
+ADDED from [androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/13136b0be3c0481e4c46d95ce062363c/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/13136b0be3c0481e4c46d95ce062363c/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/d209381ac5682bf93a6b4312f60cc5e7/transformed/startup-runtime-1.1.1/AndroidManifest.xml:26:9-30:34
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/barbosa/.gradle/caches/8.11.1/transforms/d209381ac5682bf93a6b4312f60cc5e7/transformed/startup-runtime-1.1.1/AndroidManifest.xml:26:9-30:34
+	tools:node
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:28:13-31
+	android:authorities
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:26:13-68
+	android:exported
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:27:13-37
+	android:name
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:25:13-67
+meta-data#androidx.emoji2.text.EmojiCompatInitializer
+ADDED from [androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:30:17-75
+permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:22:5-24:47
+	android:protectionLevel
+		ADDED from [androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:24:9-44
+	android:name
+		ADDED from [androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:23:9-81
+permission#com.seuprefixo.rawbtclone.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:22:5-24:47
+	android:protectionLevel
+		ADDED from [androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:24:9-44
+	android:name
+		ADDED from [androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:23:9-81
+uses-permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:26:5-97
+	android:name
+		ADDED from [androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:26:22-94
+uses-permission#com.seuprefixo.rawbtclone.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:26:5-97
+	android:name
+		ADDED from [androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:26:22-94
+meta-data#androidx.lifecycle.ProcessLifecycleInitializer
+ADDED from [androidx.lifecycle:lifecycle-process:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/13136b0be3c0481e4c46d95ce062363c/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.lifecycle:lifecycle-process:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/13136b0be3c0481e4c46d95ce062363c/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.lifecycle:lifecycle-process:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/13136b0be3c0481e4c46d95ce062363c/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:30:17-78
+meta-data#androidx.profileinstaller.ProfileInstallerInitializer
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:30:17-85
+receiver#androidx.profileinstaller.ProfileInstallReceiver
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:34:9-52:20
+	android:enabled
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:37:13-35
+	android:exported
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:38:13-36
+	android:permission
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:39:13-57
+	android:directBootAware
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:36:13-44
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:35:13-76
+intent-filter#action:name:androidx.profileinstaller.action.INSTALL_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:40:13-42:29
+action#androidx.profileinstaller.action.INSTALL_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:41:17-91
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:41:25-88
+intent-filter#action:name:androidx.profileinstaller.action.SKIP_FILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:43:13-45:29
+action#androidx.profileinstaller.action.SKIP_FILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:44:17-85
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:44:25-82
+intent-filter#action:name:androidx.profileinstaller.action.SAVE_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:46:13-48:29
+action#androidx.profileinstaller.action.SAVE_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:47:17-88
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:47:25-85
+intent-filter#action:name:androidx.profileinstaller.action.BENCHMARK_OPERATION
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:49:13-51:29
+action#androidx.profileinstaller.action.BENCHMARK_OPERATION
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:50:17-95
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:50:25-92

@@ -1,0 +1,22 @@
+[
+    {
+        "merged": "com.seuprefixo.rawbtclone.app-debug-40:/menu_main_menu.xml.flat",
+        "source": "com.seuprefixo.rawbtclone.app-main-42:/menu/main_menu.xml"
+    },
+    {
+        "merged": "com.seuprefixo.rawbtclone.app-debug-40:/layout_activity_print.xml.flat",
+        "source": "com.seuprefixo.rawbtclone.app-main-42:/layout/activity_print.xml"
+    },
+    {
+        "merged": "com.seuprefixo.rawbtclone.app-debug-40:/xml_print_service_config.xml.flat",
+        "source": "com.seuprefixo.rawbtclone.app-main-42:/xml/print_service_config.xml"
+    },
+    {
+        "merged": "com.seuprefixo.rawbtclone.app-debug-40:/layout_activity_main.xml.flat",
+        "source": "com.seuprefixo.rawbtclone.app-main-42:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.seuprefixo.rawbtclone.app-debug-40:/layout_activity_settings.xml.flat",
+        "source": "com.seuprefixo.rawbtclone.app-main-42:/layout/activity_settings.xml"
+    }
+]

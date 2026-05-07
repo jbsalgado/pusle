@@ -1,0 +1,256 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.seuprefixo.rawbtclone"
+4    android:versionCode="1"
+5    android:versionName="1.0.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="26"
+9        android:targetSdkVersion="34" />
+10
+11    <!-- Bluetooth clássico (SPP para impressoras térmicas) -->
+12    <uses-permission android:name="android.permission.BLUETOOTH" />
+12-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:5:5-68
+12-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:5:22-65
+13    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+13-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:6:5-74
+13-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:6:22-71
+14    <!-- Android 12+ -->
+15    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+15-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:8:5-76
+15-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:8:22-73
+16    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+16-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:9:5-73
+16-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:9:22-70
+17
+18    <!-- Leitura de arquivos (PDF/imagem) -->
+19    <uses-permission
+19-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:12:5-13:38
+20        android:name="android.permission.READ_EXTERNAL_STORAGE"
+20-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:12:22-77
+21        android:maxSdkVersion="32" />
+21-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:13:9-35
+22    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+22-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:14:5-76
+22-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:14:22-73
+23
+24    <!-- Print Service roda em foreground quando imprimindo -->
+25    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+25-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:17:5-77
+25-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:17:22-74
+26    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+26-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:18:5-94
+26-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:18:22-91
+27
+28    <uses-feature
+28-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:20:5-87
+29        android:name="android.hardware.bluetooth"
+29-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:20:19-60
+30        android:required="true" />
+30-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:20:61-84
+31
+32    <permission
+32-->[androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:22:5-24:47
+33        android:name="com.seuprefixo.rawbtclone.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+33-->[androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:23:9-81
+34        android:protectionLevel="signature" />
+34-->[androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:24:9-44
+35
+36    <uses-permission android:name="com.seuprefixo.rawbtclone.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+36-->[androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:26:5-97
+36-->[androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:26:22-94
+37
+38    <application
+38-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:22:5-81:19
+39        android:allowBackup="true"
+39-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:23:9-35
+40        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+40-->[androidx.core:core:1.13.1] /home/barbosa/.gradle/caches/8.11.1/transforms/cde5c8eab18f19db7ad39053d02b2555/transformed/core-1.13.1/AndroidManifest.xml:28:18-86
+41        android:debuggable="true"
+42        android:extractNativeLibs="false"
+43        android:icon="@mipmap/ic_launcher"
+43-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:24:9-43
+44        android:label="@string/app_name"
+44-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:25:9-41
+45        android:roundIcon="@mipmap/ic_launcher_round"
+45-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:26:9-54
+46        android:supportsRtl="true"
+46-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:27:9-35
+47        android:testOnly="true"
+48        android:theme="@style/Theme.RawBTClone" >
+48-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:28:9-48
+49
+50        <!-- Activity principal -->
+51        <activity
+51-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:31:9-38:20
+52            android:name="com.seuprefixo.rawbtclone.ui.main.MainActivity"
+52-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:32:13-49
+53            android:exported="true" >
+53-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:33:13-36
+54            <intent-filter>
+54-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:34:13-37:29
+55                <action android:name="android.intent.action.MAIN" />
+55-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:35:17-69
+55-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:35:25-66
+56
+57                <category android:name="android.intent.category.LAUNCHER" />
+57-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:36:17-77
+57-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:36:27-74
+58            </intent-filter>
+59        </activity>
+60
+61        <!-- Activity de configurações -->
+62        <activity
+62-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:41:9-44:66
+63            android:name="com.seuprefixo.rawbtclone.ui.settings.SettingsActivity"
+63-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:42:13-57
+64            android:exported="false"
+64-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:43:13-37
+65            android:parentActivityName="com.seuprefixo.rawbtclone.ui.main.MainActivity" />
+65-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:44:13-63
+66
+67        <!-- Activity de impressão manual -->
+68        <activity
+68-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:47:9-66:20
+69            android:name="com.seuprefixo.rawbtclone.ui.print.PrintActivity"
+69-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:48:13-51
+70            android:exported="true" >
+70-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:49:13-36
+71
+72            <!-- Recebe ação de compartilhar/imprimir de outros apps -->
+73            <intent-filter>
+73-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:51:13-55:29
+74                <action android:name="android.intent.action.SEND" />
+74-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:52:17-69
+74-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:52:25-66
+75
+76                <category android:name="android.intent.category.DEFAULT" />
+76-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:53:17-76
+76-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:53:27-73
+77
+78                <data android:mimeType="text/plain" />
+78-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:54:17-55
+78-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:54:23-52
+79            </intent-filter>
+80            <intent-filter>
+80-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:56:13-60:29
+81                <action android:name="android.intent.action.SEND" />
+81-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:52:17-69
+81-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:52:25-66
+82
+83                <category android:name="android.intent.category.DEFAULT" />
+83-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:53:17-76
+83-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:53:27-73
+84
+85                <data android:mimeType="image/*" />
+85-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:54:17-55
+85-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:54:23-52
+86            </intent-filter>
+87            <intent-filter>
+87-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:61:13-65:29
+88                <action android:name="android.intent.action.SEND" />
+88-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:52:17-69
+88-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:52:25-66
+89
+90                <category android:name="android.intent.category.DEFAULT" />
+90-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:53:17-76
+90-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:53:27-73
+91
+92                <data android:mimeType="application/pdf" />
+92-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:54:17-55
+92-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:54:23-52
+93            </intent-filter>
+94        </activity>
+95
+96        <!-- Print Service nativo do Android (aparece em Configurações → Impressão) -->
+97        <service
+97-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:69:9-79:19
+98            android:name="com.seuprefixo.rawbtclone.service.ThermalPrintService"
+98-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:70:13-56
+99            android:exported="true"
+99-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:71:13-36
+100            android:permission="android.permission.BIND_PRINT_SERVICE" >
+100-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:72:13-71
+101            <intent-filter>
+101-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:73:13-75:29
+102                <action android:name="android.printservice.PrintService" />
+102-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:74:17-76
+102-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:74:25-73
+103            </intent-filter>
+104
+105            <meta-data
+105-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:76:13-78:64
+106                android:name="android.printservice"
+106-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:77:17-52
+107                android:resource="@xml/print_service_config" />
+107-->/srv/http/pulse/rawbtclone/RawBTClone/app/src/main/AndroidManifest.xml:78:17-61
+108        </service>
+109
+110        <provider
+110-->[androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
+111            android:name="androidx.startup.InitializationProvider"
+111-->[androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:25:13-67
+112            android:authorities="com.seuprefixo.rawbtclone.androidx-startup"
+112-->[androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:26:13-68
+113            android:exported="false" >
+113-->[androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:27:13-37
+114            <meta-data
+114-->[androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
+115                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+115-->[androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:30:17-75
+116                android:value="androidx.startup" />
+116-->[androidx.emoji2:emoji2:1.3.0] /home/barbosa/.gradle/caches/8.11.1/transforms/7968bf0efce3f361dd0b5e86fb081c05/transformed/emoji2-1.3.0/AndroidManifest.xml:31:17-49
+117            <meta-data
+117-->[androidx.lifecycle:lifecycle-process:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/13136b0be3c0481e4c46d95ce062363c/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:29:13-31:52
+118                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+118-->[androidx.lifecycle:lifecycle-process:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/13136b0be3c0481e4c46d95ce062363c/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:30:17-78
+119                android:value="androidx.startup" />
+119-->[androidx.lifecycle:lifecycle-process:2.8.3] /home/barbosa/.gradle/caches/8.11.1/transforms/13136b0be3c0481e4c46d95ce062363c/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:31:17-49
+120            <meta-data
+120-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:29:13-31:52
+121                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+121-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:30:17-85
+122                android:value="androidx.startup" />
+122-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:31:17-49
+123        </provider>
+124
+125        <receiver
+125-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:34:9-52:20
+126            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+126-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:35:13-76
+127            android:directBootAware="false"
+127-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:36:13-44
+128            android:enabled="true"
+128-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:37:13-35
+129            android:exported="true"
+129-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:38:13-36
+130            android:permission="android.permission.DUMP" >
+130-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:39:13-57
+131            <intent-filter>
+131-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:40:13-42:29
+132                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+132-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:41:17-91
+132-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:41:25-88
+133            </intent-filter>
+134            <intent-filter>
+134-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:43:13-45:29
+135                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+135-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:44:17-85
+135-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:44:25-82
+136            </intent-filter>
+137            <intent-filter>
+137-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:46:13-48:29
+138                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+138-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:47:17-88
+138-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:47:25-85
+139            </intent-filter>
+140            <intent-filter>
+140-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:49:13-51:29
+141                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+141-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:50:17-95
+141-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/barbosa/.gradle/caches/8.11.1/transforms/5f096539be3fab2e8fc95fb7b0e3fbb2/transformed/profileinstaller-1.3.1/AndroidManifest.xml:50:25-92
+142            </intent-filter>
+143        </receiver>
+144    </application>
+145
+146</manifest>

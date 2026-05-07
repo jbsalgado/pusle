@@ -321,11 +321,14 @@ export async function finalizarPedido(dadosPedido, carrinho) {
             // ✅ Enviado com sucesso!
             console.log('[Order] 🎉 Orçamento finalizado com sucesso via envio direto');
             
-            const hash = vendaData?.hash || (resultadoDireto.dados?.hash);
+            // ✅ CORREÇÃO: Define vendaData a partir dos dados retornados para evitar ReferenceError
+            const vendaData = resultadoDireto.dados;
+            const hash = vendaData?.hash;
+            
             return {
                 sucesso: true,
-                dados: resultadoDireto.dados,
-                mensagem: `Orçamento gerado com sucesso!\n\nNúmero: ${vendaData?.id || vendaData?.orçamento?.id || 'N/A'}\nValor Total: R$ ${vendaData?.valor_total || vendaData?.orçamento?.valor_total || '0.00'}${hash ? '\n\nLink Público: ' + window.location.origin + '/vendas/orcamento/imprimir?hash=' + hash : ''}`
+                dados: vendaData,
+                mensagem: `Orçamento gerado com sucesso!\n\nNúmero: ${vendaData?.id || vendaData?.orcamento?.id || vendaData?.orçamento?.id || 'N/A'}\nValor Total: R$ ${vendaData?.valor_total || vendaData?.orcamento?.valor_total || vendaData?.orçamento?.valor_total || '0.00'}${hash ? '\n\nLink Público: ' + window.location.origin + '/vendas/orcamento/imprimir?hash=' + hash : ''}`
             };
         }
         
