@@ -15,6 +15,7 @@ use yii\filters\VerbFilter;
 use yii\filters\AccessControl;
 use yii\data\ActiveDataProvider;
 use yii\web\UploadedFile;
+use kartik\mpdf\Pdf;
 
 class ProdutoController extends Controller
 {
@@ -176,6 +177,106 @@ class ProdutoController extends Controller
             'dataProvider' => $dataProvider,
             'categorias' => $categorias,
         ]);
+    }
+
+    public function actionImprimirRelatorio()
+    {
+        // Verifica se é administrador
+        if (!$this->isAdministrador()) {
+            throw new \yii\web\ForbiddenHttpException('Você não tem permissão para acessar esta página.');
+        }
+
+        $lojaId = $this->getLojaId();
+
+        // Subquery para calcular quantidade vendida (apenas vendas confirmadas/quitadas/parciais)
+        $subQueryVendas = (new \yii\db\Query())
+            ->select('SUM(quantidade)')
+            ->from('prest_venda_itens item')
+            ->innerJoin('prest_vendas venda', 'venda.id = item.venda_id')
+            ->where('item.produto_id = prest_produtos.id')
+            ->andWhere(['not in', 'venda.status_venda_codigo', ['ORCAMENTO', 'CANCELADA']]);
+
+        $query = Produto::find()
+            ->select(['prest_produtos.*', 'quantidade_vendida' => $subQueryVendas])
+            ->where(['usuario_id' => $lojaId])
+            ->with(['categoria']);
+
+        // Filtros (mesma lógica do index)
+        $categoriaId = Yii::$app->request->get('categoria_id');
+        $busca = Yii::$app->request->get('busca');
+        $estoque = Yii::$app->request->get('estoque');
+        $ativo = Yii::$app->request->get('ativo', '1');
+
+        if ($categoriaId) {
+            $query->andWhere(['categoria_id' => $categoriaId]);
+        }
+
+        if ($busca && trim($busca) !== '') {
+            $palavras = explode(' ', trim($busca));
+            foreach ($palavras as $palavra) {
+                if (trim($palavra) === '') continue;
+                $termo = '%' . $palavra . '%';
+                $query->andWhere(new \yii\db\Expression(
+                    "unaccent(nome) ILIKE unaccent(:p) OR unaccent(codigo_referencia) ILIKE unaccent(:p) OR codigo_barras ILIKE :p",
+                    [':p' => $termo]
+                ));
+            }
+        }
+
+        if ($estoque === 'com') {
+            $query->andWhere(['>', 'estoque_atual', 0]);
+        } elseif ($estoque === 'sem') {
+            $query->andWhere(['estoque_atual' => 0]);
+        }
+
+        if ($ativo !== null && $ativo !== '') {
+            $query->andWhere(['ativo' => $ativo]);
+        }
+
+        // Ordenação alfabética solicitada
+        $query->orderBy(['nome' => SORT_ASC]);
+
+        $produtos = $query->all();
+
+        // Renderiza o conteúdo (usando renderPartial para o mPDF)
+        $content = $this->renderPartial('imprimir_relatorio', [
+            'produtos' => $produtos,
+            'filtros' => [
+                'busca' => $busca,
+                'categoria' => $categoriaId ? Categoria::findOne($categoriaId)->nome : 'Todas',
+                'estoque' => $estoque,
+                'ativo' => $ativo
+            ]
+        ]);
+
+        // Configuração do mPDF via Kartik
+        $pdf = new Pdf([
+            'mode' => Pdf::MODE_UTF8,
+            'format' => Pdf::FORMAT_A4,
+            'orientation' => Pdf::ORIENT_PORTRAIT,
+            'destination' => Pdf::DEST_BROWSER,
+            'content' => $content,
+            'cssInline' => '
+                .relatorio-container { font-family: Arial, sans-serif; font-size: 10px; color: #333; }
+                .header-relatorio { text-align: center; margin-bottom: 20px; }
+                .header-relatorio h1 { margin: 0; font-size: 18px; text-transform: uppercase; border-bottom: 1px solid #000; padding-bottom: 5px; }
+                .filtros-info { margin-bottom: 10px; font-size: 9px; background: #f0f0f0; padding: 5px; border: 1px solid #ccc; }
+                table.tabela-produtos { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+                table.tabela-produtos th, table.tabela-produtos td { border: 1px solid #ccc; padding: 5px; text-align: left; }
+                table.tabela-produtos th { background-color: #eee; font-weight: bold; text-transform: uppercase; font-size: 9px; }
+                .text-right { text-align: right; }
+                .text-center { text-align: center; }
+                .estoque-baixo { color: #d9534f; font-weight: bold; }
+                .footer-resumo { text-align: right; font-size: 9px; border-top: 1px solid #ccc; padding-top: 5px; }
+            ',
+            'options' => ['title' => 'Relatório de Produtos'],
+            'methods' => [
+                'SetHeader' => ['Relatório de Produtos - Pulse Sistema||Gerado em: ' . date('d/m/Y H:i')],
+                'SetFooter' => ['Página {PAGENO} de {nbpg}'],
+            ]
+        ]);
+
+        return $pdf->render();
     }
 
     public function actionView($id)

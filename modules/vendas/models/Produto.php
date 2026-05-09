@@ -62,6 +62,11 @@ use app\modules\marketplace\components\MarketplaceSyncManager;
 class Produto extends ActiveRecord
 {
     /**
+     * @var float Propriedade virtual para relatórios
+     */
+    public $quantidade_vendida;
+
+    /**
      * {@inheritdoc}
      */
     public static function tableName()
