@@ -371,11 +371,38 @@ try {
         $historicalAverageDailyData[] = $mDays > 0 ? ($rev / $mDays) : 0;
     }
 
+    // Query inventory value
+    $inventoryRow = Yii::$app->db->createCommand("
+        SELECT 
+            SUM(p.estoque_atual * p.preco_venda_sugerido) as total_venda,
+            SUM(p.estoque_atual * p.preco_custo) as total_custo,
+            SUM(p.estoque_atual) as total_itens
+        FROM prest_produtos p
+        WHERE p.usuario_id = :uid 
+          AND p.ativo = TRUE 
+          AND p.estoque_atual > 0
+          AND (
+              p.parent_id IS NOT NULL 
+              OR NOT EXISTS (
+                  SELECT 1 FROM prest_produtos sub WHERE sub.parent_id = p.id
+              )
+          )
+    ", [':uid' => $usuarioId])->queryOne();
+
+    $totalVendaEstoque = isset($inventoryRow['total_venda']) ? floatval($inventoryRow['total_venda']) : 0.0;
+    $totalCustoEstoque = isset($inventoryRow['total_custo']) ? floatval($inventoryRow['total_custo']) : 0.0;
+    $totalItensEstoque = isset($inventoryRow['total_itens']) ? floatval($inventoryRow['total_itens']) : 0.0;
+
     // ----------------------------------------------------
     // 7. ASSEMBLE JSON RESPONSE
     // ----------------------------------------------------
     echo json_encode([
         'success' => true,
+        'estoque' => [
+            'total_venda' => $totalVendaEstoque,
+            'total_custo' => $totalCustoEstoque,
+            'total_itens' => $totalItensEstoque
+        ],
         'info' => [
             'mes' => $mes,
             'ano' => $ano,

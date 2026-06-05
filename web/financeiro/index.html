@@ -107,7 +107,7 @@
             }
             .kpi-grid {
                 display: grid !important;
-                grid-template-columns: repeat(4, 1fr) !important;
+                grid-template-columns: repeat(5, 1fr) !important;
                 gap: 10px !important;
                 margin-bottom: 15px !important;
             }
@@ -194,7 +194,7 @@
         </div>
 
         <!-- KPI Cards Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 kpi-grid">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8 kpi-grid">
             <!-- Card 1: Faturamento -->
             <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center justify-between relative overflow-hidden kpi-card">
                 <div class="space-y-2 relative z-10">
@@ -251,6 +251,22 @@
                     <i class="fa-solid fa-calculator text-xl"></i>
                 </div>
                 <div class="absolute bottom-0 right-0 w-24 h-24 bg-amber-50/30 rounded-full translate-x-8 translate-y-8 pointer-events-none"></div>
+            </div>
+
+            <!-- Card 5: Valor em Estoque -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center justify-between relative overflow-hidden kpi-card">
+                <div class="space-y-2 relative z-10">
+                    <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Valor em Estoque (Venda)</p>
+                    <h3 class="text-2xl font-bold text-slate-900" id="kpi-estoque">R$ 0,00</h3>
+                    <p class="text-xs text-indigo-600 font-semibold flex items-center space-x-1">
+                        <i class="fa-solid fa-tags"></i>
+                        <span>Custo: <span id="kpi-estoque-custo">R$ 0,00</span></span>
+                    </p>
+                </div>
+                <div class="w-12 h-12 bg-sky-50 rounded-xl flex items-center justify-center text-sky-600 relative z-10">
+                    <i class="fa-solid fa-boxes-stacked text-xl"></i>
+                </div>
+                <div class="absolute bottom-0 right-0 w-24 h-24 bg-sky-50/30 rounded-full translate-x-8 translate-y-8 pointer-events-none"></div>
             </div>
         </div>
 
@@ -522,6 +538,12 @@
                 document.getElementById('kpi-despesas').innerText = formatBRL(data.summary.despesa_total);
                 document.getElementById('kpi-saldo').innerText = formatBRL(data.summary.saldo_liquido);
                 document.getElementById('kpi-media').innerText = formatBRL(data.summary.media_diaria);
+                
+                // Update Stock KPIs
+                if (data.estoque) {
+                    document.getElementById('kpi-estoque').innerText = formatBRL(data.estoque.total_venda || 0);
+                    document.getElementById('kpi-estoque-custo').innerText = formatBRL(data.estoque.total_custo || 0);
+                }
                 
                 // Update Net Profit color and description
                 const saldo = data.summary.saldo_liquido;
