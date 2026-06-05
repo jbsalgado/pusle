@@ -41,7 +41,7 @@ $mes = isset($_GET['mes']) ? sprintf('%02d', max(1, min(12, intval($_GET['mes'])
 $ano = isset($_GET['ano']) ? intval($_GET['ano']) : date('Y');
 $mes_ano = "$ano-$mes";
 
-$daysInMonth = cal_days_in_month(CAL_GREGORIAN, intval($mes), $ano);
+$daysInMonth = intval(date('t', strtotime("$ano-$mes-01")));
 
 try {
     // ----------------------------------------------------
@@ -367,7 +367,7 @@ try {
         $historicalCompraData[] = $comp;
         $historicalTotalExpenseData[] = $totExp;
         
-        $mDays = cal_days_in_month(CAL_GREGORIAN, intval($parts[1]), intval($parts[0]));
+        $mDays = intval(date('t', strtotime("{$parts[0]}-{$parts[1]}-01")));
         $historicalAverageDailyData[] = $mDays > 0 ? ($rev / $mDays) : 0;
     }
 

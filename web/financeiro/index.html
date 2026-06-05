@@ -510,7 +510,7 @@
                 const data = await response.json();
                 
                 if (!data.success) {
-                    alert('Erro ao carregar dados: ' + data.error);
+                    alert('Erro ao carregar dados: ' + (data.error || data.message || JSON.stringify(data)));
                     return;
                 }
                 
