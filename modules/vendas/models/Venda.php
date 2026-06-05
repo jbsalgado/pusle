@@ -34,6 +34,7 @@ use app\modules\vendas\models\FormaPagamento;
  * @property string $forma_pagamento_id
  * @property string $data_criacao
  * @property string $data_atualizacao
+ * @property string|null $cpf_consumidor CPF do consumidor final (opcional, para NFC-e e relatórios)
  * 
  * @property Usuario $usuario
  * @property Cliente $cliente
@@ -111,6 +112,10 @@ class Venda extends ActiveRecord
             // Novos campos de Acréscimo
             [['acrescimo_valor'], 'number', 'min' => 0],
             [['acrescimo_tipo', 'observacao_acrescimo'], 'string'],
+
+            // CPF do Consumidor Final (opcional)
+            [['cpf_consumidor'], 'string', 'max' => 14],
+            [['cpf_consumidor'], 'default', 'value' => null],
         ];
     }
 
@@ -136,6 +141,7 @@ class Venda extends ActiveRecord
             'acrescimo_valor' => 'Valor Acréscimo',
             'acrescimo_tipo' => 'Tipo Acréscimo',
             'observacao_acrescimo' => 'Obs. Acréscimo',
+            'cpf_consumidor' => 'CPF do Consumidor',
         ];
     }
 
@@ -477,6 +483,7 @@ class Venda extends ActiveRecord
         $fields['acrescimo_valor'] = 'acrescimo_valor';
         $fields['acrescimo_tipo'] = 'acrescimo_tipo';
         $fields['observacao_acrescimo'] = 'observacao_acrescimo';
+        $fields['cpf_consumidor'] = 'cpf_consumidor';
 
         $fields['itens'] = 'itens';
         $fields['parcelas'] = 'parcelas';

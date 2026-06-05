@@ -604,6 +604,15 @@ class MercadoPagoController extends Controller
             // 🟢 TRATAMENTO PARA POINT (MAQUINETA)
             if ($type === 'payment_intent') {
                 $intentId = $data['data']['id'] ?? $data['id'] ?? null;
+                if (!$tenantId) {
+                    $mpUserId = $data['user_id'] ?? ($data['data']['user_id'] ?? null);
+                    if ($mpUserId) {
+                        $usuario = $this->buscarUsuarioPorMpUserId($mpUserId);
+                        if ($usuario) {
+                            $tenantId = $usuario['id'];
+                        }
+                    }
+                }
                 return $this->processarWebhookPoint($intentId, $tenantId);
             }
 
@@ -670,6 +679,19 @@ class MercadoPagoController extends Controller
                     if ($payment) {
                         return $payment;
                     }
+                }
+            }
+
+            // Otimização: Tenta consultar com o token master da plataforma (O(1))
+            $masterToken = getenv('MP_CLIENT_SECRET') ?: getenv('MERCADO_PAGO_CLIENT_SECRET');
+            if ($masterToken) {
+                try {
+                    $payment = $this->consultarPagamentoComToken($paymentId, $masterToken);
+                    if ($payment) {
+                        return $payment;
+                    }
+                } catch (\Throwable $e) {
+                    Yii::info('Falha ao consultar pagamento com token master da plataforma, prosseguindo para fallback.', 'mercadopago');
                 }
             }
 
@@ -1339,6 +1361,22 @@ class MercadoPagoController extends Controller
                 }
 
                 $this->baixarEstoqueVenda($venda);
+
+                // Marcar parcelas geradas como pagas no banco de dados para consistência financeira
+                try {
+                    $parcelas = \app\modules\vendas\models\Parcela::findAll(['venda_id' => $venda->id]);
+                    foreach ($parcelas as $parcela) {
+                        if ($parcela->status_parcela_codigo !== \app\modules\vendas\models\StatusParcela::PAGA) {
+                            $parcela->status_parcela_codigo = \app\modules\vendas\models\StatusParcela::PAGA;
+                            $parcela->data_pagamento = date('Y-m-d');
+                            $parcela->valor_pago = $parcela->valor_parcela;
+                            $parcela->forma_pagamento_id = $venda->forma_pagamento_id;
+                            $parcela->save(false);
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    Yii::error("Erro ao marcar parcelas como pagas no webhook: " . $e->getMessage(), 'mercadopago');
+                }
             }
 
             try {

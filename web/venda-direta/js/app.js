@@ -1499,11 +1499,21 @@ window.abrirModalPedido = async function() {
     document.getElementById('info-cliente').classList.add('hidden');
     document.getElementById('msg-cadastrar-cliente').classList.add('hidden');
     document.getElementById('campo-cliente-parcelado').classList.add('hidden');
+    // Limpa CPF do consumidor antes de pré-preencher
+    const inputCpfConsumidor = document.getElementById('consumidor_cpf');
+    if (inputCpfConsumidor) inputCpfConsumidor.value = '';
+    // Reseta estado do campo de vendedor (caso venha de sessão anterior)
+    const cpfVendedorInput = document.getElementById('vendedor_cpf_busca');
+    const btnBuscarVendedor = document.querySelector('button[onclick="window.buscarVendedor()"]');
+    if (cpfVendedorInput) { cpfVendedorInput.removeAttribute('readonly'); cpfVendedorInput.classList.remove('bg-gray-100', 'cursor-not-allowed'); }
+    if (btnBuscarVendedor) btnBuscarVendedor.classList.remove('hidden');
     popularOpcoesParcelas();
     abrirModal('modal-cliente-pedido');
     
     // Preencher automaticamente CPF do vendedor se o usuário logado for vendedor
     preencherDadosVendedor();
+    // Preencher automaticamente CPF do consumidor com o CPF do colaborador logado
+    preencherCpfConsumidor();
     
     try {
         const estaOffline = !navigator.onLine;
@@ -1560,6 +1570,14 @@ function preencherDadosVendedor() {
             const cpfLimpo = colaborador.cpf.replace(/[^\d]/g, '');
             const cpfFormatado = cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
             cpfInput.value = cpfFormatado;
+
+            // ✅ Torna o campo somente leitura — colaborador já identificado
+            cpfInput.setAttribute('readonly', true);
+            cpfInput.classList.add('bg-gray-100', 'cursor-not-allowed');
+
+            // Oculta o botão Buscar (não é necessário quando já identificado)
+            const btnBuscar = document.querySelector('button[onclick="window.buscarVendedor()"]');
+            if (btnBuscar) btnBuscar.classList.add('hidden');
             
             // Define o colaborador atual
             colaboradorAtual = colaborador;
@@ -1578,7 +1596,24 @@ function preencherDadosVendedor() {
                 infoVendedor.classList.remove('hidden');
             }
             
-            console.log('[App] ✅ CPF do vendedor preenchido automaticamente:', cpfFormatado);
+            console.log('[App] ✅ CPF do vendedor preenchido automaticamente (readonly):', cpfFormatado);
+        }
+    }
+}
+
+/**
+ * Pré-preenche o campo de CPF do consumidor com o CPF do colaborador logado.
+ * O campo permanece editável — o operador pode limpar ou trocar antes de finalizar.
+ */
+function preencherCpfConsumidor() {
+    const colaborador = getColaboradorData();
+    if (colaborador && colaborador.cpf) {
+        const cpfInput = document.getElementById('consumidor_cpf');
+        if (cpfInput) {
+            const cpfLimpo = colaborador.cpf.replace(/[^\d]/g, '');
+            const cpfFormatado = cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+            cpfInput.value = cpfFormatado;
+            console.log('[App] ✅ CPF do consumidor pré-preenchido automaticamente:', cpfFormatado);
         }
     }
 }
@@ -1661,7 +1696,13 @@ window.confirmarPedido = async function() {
             numero_parcelas: numeroParcelas,
             data_primeiro_pagamento: permiteParcelamento && numeroParcelas > 1 ? document.getElementById('data-primeiro-pagamento')?.value || null : null,
             intervalo_dias_parcelas: permiteParcelamento && numeroParcelas > 1 ? parseInt(document.getElementById('intervalo-dias')?.value || 30, 10) : null,
-            orcamento_id: orcamentoIdAtual // ✅ NOVO: Vincula venda ao orçamento
+            orcamento_id: orcamentoIdAtual, // ✅ NOVO: Vincula venda ao orçamento
+            // CPF do consumidor final (opcional) — enviado sem pontuação (só dígitos) para o backend formatar
+            cpf_consumidor: (() => {
+                const val = document.getElementById('consumidor_cpf')?.value || '';
+                const digitos = val.replace(/\D/g, '');
+                return digitos.length === 11 ? val.trim() : null; // envia com pontuação se válido
+            })()
         };
         
         const carrinho = getCarrinho();

@@ -601,6 +601,22 @@ usort($visibleCards, function ($a, $b) {
                         </div>
                     </div>
                 </a>
+
+                <!-- Dashboard Financeiro (Fluxo de Caixa) -->
+                <a href="<?= Yii::getAlias('@web') ?>/financeiro/index.html"
+                    class="group block bg-gradient-to-br from-emerald-600 to-teal-700 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
+                    <div class="flex items-center space-x-3 sm:space-x-4">
+                        <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
+                            <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div class="flex-1 text-white">
+                            <h3 class="text-lg sm:text-xl font-bold mb-0.5">Fluxo de Caixa</h3>
+                            <p class="text-xs sm:text-sm opacity-90">Dashboard Financeiro Real</p>
+                        </div>
+                    </div>
+                </a>
             <?php endif; ?>
         </div>
 

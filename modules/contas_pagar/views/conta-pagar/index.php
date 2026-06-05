@@ -1,14 +1,21 @@
 <?php
 
 use yii\helpers\Html;
+use yii\helpers\Json;
 use yii\helpers\Url;
 use yii\widgets\LinkPager;
 use app\modules\contas_pagar\models\ContaPagar;
+use app\modules\contas_pagar\models\TipoDespesa;
 
 $this->title = 'Contas a Pagar';
 $this->params['breadcrumbs'][] = $this->title;
 
-$viewMode = Yii::$app->request->get('view', 'cards');
+$viewMode       = Yii::$app->request->get('view', 'cards');
+$gruposMap      = $gruposMap      ?? [];
+$tiposAgrupados = $tiposAgrupados ?? [];
+$grupoFiltro    = $grupoFiltro    ?? '';
+$tipoDespesaId  = $tipoDespesaId  ?? '';
+$tiposAgrupadosJson = Json::htmlEncode($tiposAgrupados);
 ?>
 
 <div class="min-h-screen bg-gray-50 py-4 px-3 sm:py-6 sm:px-4 lg:px-8">
@@ -32,6 +39,11 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                     '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>Relatórios',
                     ['/contas-pagar/relatorio/index'],
                     ['class' => 'inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg shadow-md transition duration-300 text-sm sm:text-base w-full sm:w-auto justify-center']
+                ) ?>
+                <?= Html::a(
+                    '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>Tipos',
+                    ['/contas-pagar/tipo-despesa/index'],
+                    ['class' => 'inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition duration-300 text-sm sm:text-base w-full sm:w-auto justify-center']
                 ) ?>
                 <?= Html::a(
                     '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Nova Conta',
@@ -59,6 +71,36 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                             <option value="<?= ContaPagar::STATUS_PAGA ?>" <?= Yii::$app->request->get('status') === ContaPagar::STATUS_PAGA ? 'selected' : '' ?>>Paga</option>
                             <option value="<?= ContaPagar::STATUS_VENCIDA ?>" <?= Yii::$app->request->get('status') === ContaPagar::STATUS_VENCIDA ? 'selected' : '' ?>>Vencida</option>
                             <option value="<?= ContaPagar::STATUS_CANCELADA ?>" <?= Yii::$app->request->get('status') === ContaPagar::STATUS_CANCELADA ? 'selected' : '' ?>>Cancelada</option>
+                        </select>
+                    </div>
+
+                    <!-- Grupo de Despesa -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Grupo de Despesa</label>
+                        <select name="grupo" id="filtro-grupo" class="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base">
+                            <option value="">Todos os grupos</option>
+                            <?php foreach ($gruposMap as $chave => $label): ?>
+                                <option value="<?= Html::encode($chave) ?>" <?= $grupoFiltro === $chave ? 'selected' : '' ?>>
+                                    <?= TipoDespesa::getGrupoIcon($chave) ?> <?= Html::encode($label) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <!-- Tipo de Despesa -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Despesa</label>
+                        <select name="tipo_despesa_id" id="filtro-tipo" class="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base">
+                            <option value="">Todos os tipos</option>
+                            <?php foreach ($tiposAgrupados as $grupo => $tipos): ?>
+                                <?php foreach ($tipos as $tid => $tnome): ?>
+                                    <option value="<?= Html::encode($tid) ?>"
+                                        data-grupo="<?= Html::encode($grupo) ?>"
+                                        <?= $tipoDespesaId === $tid ? 'selected' : '' ?>>
+                                        <?= TipoDespesa::getGrupoIcon($grupo) ?> <?= Html::encode($tnome) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php endforeach; ?>
                         </select>
                     </div>
 
@@ -124,6 +166,14 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                                     <?= Html::encode($model->descricao) ?>
                                 </h3>
                                 <?= $model->fornecedor ? Html::encode($model->fornecedor->getNomeCompleto()) : 'Sem Fornecedor' ?>
+                                <?php if ($model->tipoDespesa): ?>
+                                    <div class="mt-1">
+                                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium <?= TipoDespesa::getGrupoBadgeClass($model->tipoDespesa->grupo) ?>">
+                                            <?= TipoDespesa::getGrupoIcon($model->tipoDespesa->grupo) ?>
+                                            <?= Html::encode($model->tipoDespesa->nome) ?>
+                                        </span>
+                                    </div>
+                                <?php endif; ?>
                             </div>
                             <span class="px-2 py-1 <?= $statusBg ?> <?= $statusText ?> text-xs font-semibold rounded-full ml-2">
                                 <?= Html::encode($model->status) ?>
@@ -191,6 +241,7 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
+                                <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Tipo</th>
                                 <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Fornecedor</th>
                                 <th class="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
                                 <th class="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Vencimento</th>
@@ -205,6 +256,16 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                                         <div class="text-sm font-medium text-gray-900"><?= Html::encode($model->descricao) ?></div>
                                         <?php if ($model->compra_id): ?>
                                             <div class="text-xs text-gray-500">Ref. Compra #<?= substr($model->compra_id, 0, 8) ?></div>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="px-3 sm:px-6 py-4 hidden lg:table-cell">
+                                        <?php if ($model->tipoDespesa): ?>
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold <?= TipoDespesa::getGrupoBadgeClass($model->tipoDespesa->grupo) ?>">
+                                                <?= TipoDespesa::getGrupoIcon($model->tipoDespesa->grupo) ?>
+                                                <?= Html::encode($model->tipoDespesa->nome) ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="text-xs text-gray-400">—</span>
                                         <?php endif; ?>
                                     </td>
                                     <td class="px-3 sm:px-6 py-4 hidden md:table-cell">

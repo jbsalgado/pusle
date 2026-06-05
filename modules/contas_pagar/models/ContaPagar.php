@@ -7,6 +7,7 @@ use yii\db\ActiveRecord;
 use yii\db\Expression;
 use yii\behaviors\TimestampBehavior;
 use app\models\Usuario;
+use app\modules\contas_pagar\models\TipoDespesa;
 use app\modules\vendas\models\Fornecedor;
 use app\modules\vendas\models\Compra;
 use app\modules\vendas\models\FormaPagamento;
@@ -21,6 +22,7 @@ use app\modules\vendas\models\FormaPagamento;
  * @property string $usuario_id
  * @property string|null $fornecedor_id
  * @property string|null $compra_id
+ * @property string|null $tipo_despesa_id
  * @property string $descricao
  * @property float $valor
  * @property string $data_vencimento
@@ -35,6 +37,7 @@ use app\modules\vendas\models\FormaPagamento;
  * @property Fornecedor|null $fornecedor
  * @property Compra|null $compra
  * @property FormaPagamento|null $formaPagamento
+ * @property TipoDespesa|null $tipoDespesa
  */
 class ContaPagar extends ActiveRecord
 {
@@ -78,7 +81,7 @@ class ContaPagar extends ActiveRecord
     {
         return [
             [['usuario_id', 'descricao', 'valor', 'data_vencimento'], 'required'],
-            [['usuario_id', 'fornecedor_id', 'compra_id', 'status', 'forma_pagamento_id'], 'string'],
+            [['usuario_id', 'fornecedor_id', 'compra_id', 'status', 'forma_pagamento_id', 'tipo_despesa_id'], 'string'],
             [['valor'], 'number', 'min' => 0.01],
             [['descricao', 'arquivo_comprovante'], 'string', 'max' => 255],
             [['data_vencimento', 'data_pagamento'], 'date', 'format' => 'php:Y-m-d'],
@@ -90,6 +93,7 @@ class ContaPagar extends ActiveRecord
             [['fornecedor_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => Fornecedor::class, 'targetAttribute' => ['fornecedor_id' => 'id']],
             [['compra_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => Compra::class, 'targetAttribute' => ['compra_id' => 'id']],
             [['forma_pagamento_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => FormaPagamento::class, 'targetAttribute' => ['forma_pagamento_id' => 'id']],
+            [['tipo_despesa_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => TipoDespesa::class, 'targetAttribute' => ['tipo_despesa_id' => 'id']],
         ];
     }
 
@@ -99,21 +103,22 @@ class ContaPagar extends ActiveRecord
     public function attributeLabels()
     {
         return [
-            'id' => 'ID',
-            'usuario_id' => 'Usuário',
-            'fornecedor_id' => 'Fornecedor',
-            'compra_id' => 'Compra',
-            'descricao' => 'Descrição',
-            'valor' => 'Valor',
-            'data_vencimento' => 'Data de Vencimento',
-            'data_pagamento' => 'Data de Pagamento',
-            'status' => 'Status',
+            'id'                 => 'ID',
+            'usuario_id'         => 'Usuário',
+            'fornecedor_id'      => 'Fornecedor',
+            'compra_id'          => 'Compra',
+            'tipo_despesa_id'    => 'Tipo de Despesa',
+            'descricao'          => 'Descrição',
+            'valor'              => 'Valor',
+            'data_vencimento'    => 'Data de Vencimento',
+            'data_pagamento'     => 'Data de Pagamento',
+            'status'             => 'Status',
             'forma_pagamento_id' => 'Forma de Pagamento',
-            'observacoes' => 'Observações',
-            'arquivo_comprovante' => 'Comprovante/Anexo',
-            'comprovanteFile' => 'Upload de Comprovante',
-            'data_criacao' => 'Data de Criação',
-            'data_atualizacao' => 'Data de Atualização',
+            'observacoes'        => 'Observações',
+            'arquivo_comprovante'=> 'Comprovante/Anexo',
+            'comprovanteFile'    => 'Upload de Comprovante',
+            'data_criacao'       => 'Data de Criação',
+            'data_atualizacao'   => 'Data de Atualização',
         ];
     }
 
@@ -147,6 +152,14 @@ class ContaPagar extends ActiveRecord
     public function getFormaPagamento()
     {
         return $this->hasOne(FormaPagamento::class, ['id' => 'forma_pagamento_id']);
+    }
+
+    /**
+     * Relação com TipoDespesa
+     */
+    public function getTipoDespesa()
+    {
+        return $this->hasOne(TipoDespesa::class, ['id' => 'tipo_despesa_id']);
     }
 
     /**

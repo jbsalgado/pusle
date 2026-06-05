@@ -29,8 +29,9 @@ class Module extends \yii\base\Module
 
         // Mapeamento de controllers com hífen
         $this->controllerMap = [
-            'conta-pagar' => 'app\modules\contas_pagar\controllers\ContaPagarController',
-            'relatorio' => 'app\modules\contas_pagar\controllers\RelatorioController',
+            'conta-pagar'   => 'app\modules\contas_pagar\controllers\ContaPagarController',
+            'relatorio'     => 'app\modules\contas_pagar\controllers\RelatorioController',
+            'tipo-despesa'  => 'app\modules\contas_pagar\controllers\TipoDespesaController',
         ];
     }
 }

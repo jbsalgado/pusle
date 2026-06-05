@@ -4,6 +4,7 @@ namespace app\modules\contas_pagar\controllers;
 
 use Yii;
 use app\modules\contas_pagar\models\ContaPagar;
+use app\modules\contas_pagar\models\TipoDespesa;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\filters\AccessControl;
@@ -41,7 +42,7 @@ class ContaPagarController extends Controller
     }
 
     /**
-     * Lista todas as contas a pagar
+     * Lista todas as contas a pagar, com filtros por status, grupo e tipo de despesa.
      * @return string
      */
     public function actionIndex()
@@ -49,24 +50,47 @@ class ContaPagarController extends Controller
         $usuarioId = Yii::$app->user->id;
 
         $query = ContaPagar::find()
-            ->where(['usuario_id' => $usuarioId])
-            ->orderBy(['data_vencimento' => SORT_ASC]);
+            ->alias('cp')
+            ->where(['cp.usuario_id' => $usuarioId])
+            ->with('tipoDespesa')
+            ->orderBy(['cp.data_vencimento' => SORT_ASC]);
 
-        // Filtros
+        // Filtro por status
         $status = Yii::$app->request->get('status');
         if ($status) {
-            $query->andWhere(['status' => $status]);
+            $query->andWhere(['cp.status' => $status]);
+        }
+
+        // Filtro por grupo de despesa (JOIN com prest_tipos_despesa)
+        $grupo = Yii::$app->request->get('grupo');
+        if ($grupo && in_array($grupo, [TipoDespesa::GRUPO_FIXA, TipoDespesa::GRUPO_VARIAVEL, TipoDespesa::GRUPO_MERCADORIA])) {
+            $query->joinWith(['tipoDespesa td'], false)
+                  ->andWhere(['td.grupo' => $grupo]);
+        }
+
+        // Filtro por tipo de despesa específico
+        $tipoDespesaId = Yii::$app->request->get('tipo_despesa_id');
+        if ($tipoDespesaId) {
+            $query->andWhere(['cp.tipo_despesa_id' => $tipoDespesaId]);
         }
 
         $dataProvider = new ActiveDataProvider([
-            'query' => $query,
+            'query'      => $query,
             'pagination' => [
                 'pageSize' => 20,
             ],
         ]);
 
+        // Dados para os filtros da view
+        $tiposAgrupados = TipoDespesa::getTodosAgrupados($usuarioId);
+        $gruposMap      = TipoDespesa::getGruposMap();
+
         return $this->render('index', [
-            'dataProvider' => $dataProvider,
+            'dataProvider'   => $dataProvider,
+            'gruposMap'      => $gruposMap,
+            'tiposAgrupados' => $tiposAgrupados,
+            'grupoFiltro'    => $grupo,
+            'tipoDespesaId'  => $tipoDespesaId,
         ]);
     }
 

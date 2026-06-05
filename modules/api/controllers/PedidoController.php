@@ -175,6 +175,21 @@ class PedidoController extends BaseController
         $acrescimoTipo = isset($data['acrescimo_tipo']) ? $data['acrescimo_tipo'] : null;
         $observacaoAcrescimo = isset($data['observacao_acrescimo']) ? $data['observacao_acrescimo'] : null;
 
+        // CPF DO CONSUMIDOR FINAL (opcional)
+        // Remove pontuação caso venha formatado do frontend (000.000.000-00 -> 00000000000)
+        // Armazenamos formatado (com pontuação) para facilitar leitura
+        $cpfConsumidorRaw = isset($data['cpf_consumidor']) ? trim($data['cpf_consumidor']) : null;
+        $cpfConsumidor = null;
+        if (!empty($cpfConsumidorRaw)) {
+            $cpfApenasDigitos = preg_replace('/\D/', '', $cpfConsumidorRaw);
+            if (strlen($cpfApenasDigitos) === 11) {
+                // Formata: 000.000.000-00
+                $cpfConsumidor = preg_replace('/^(\d{3})(\d{3})(\d{3})(\d{2})$/', '$1.$2.$3-$4', $cpfApenasDigitos);
+            } else {
+                Yii::warning("CPF do consumidor inválido (não tem 11 dígitos): {$cpfConsumidorRaw}. Campo será ignorado.", 'api');
+            }
+        }
+
         if ($acrescimoValor < 0) {
             throw new BadRequestHttpException('O valor do acréscimo não pode ser negativo.');
         }
@@ -344,6 +359,10 @@ class PedidoController extends BaseController
             $venda->acrescimo_valor = $acrescimoValor;
             $venda->acrescimo_tipo = $acrescimoTipo;
             $venda->observacao_acrescimo = $observacaoAcrescimo;
+
+            // Salva CPF do consumidor final (opcional)
+            $venda->cpf_consumidor = $cpfConsumidor;
+            Yii::info("CPF do Consumidor: " . ($cpfConsumidor ?? 'Não informado'), 'api');
 
             // Adiciona a forma de pagamento
             $venda->forma_pagamento_id = $formaPagamentoId;

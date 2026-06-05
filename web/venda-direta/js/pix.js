@@ -700,6 +700,7 @@ window.confirmarRecebimentoPix = async function() {
  * Gera comprovante de venda para impressora térmica
  */
 async function gerarComprovanteVenda(carrinho, dadosPedido) {
+    window.comprovanteImagem = null; // Limpa cache anterior para forçar recriação sob demanda se solicitado
     console.log('[PIX] 🧾 Gerando comprovante. Parcelas:', dadosPedido.parcelas?.length || 0);
     console.log('[PIX] 📊 Dados do pedido:', {
         numero_parcelas: dadosPedido.numero_parcelas,
@@ -896,6 +897,23 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
         return `R$ ${parseFloat(val).toFixed(2).replace('.', ',')}`;
     };
     
+    // Gera QR Code PIX para o rodape do comprovante (usa cache — sem nova requisicao)
+    // Segue padrao Banco Central (EMV) para cupom nao fiscal de balcao
+    let pixQrCode = null;
+    try {
+        if (PIX_CONFIG_CACHE && PIX_CONFIG_CACHE.chave) {
+            pixQrCode = gerarCodigoPixEstatico(
+                PIX_CONFIG_CACHE.chave,
+                PIX_CONFIG_CACHE.nome,
+                PIX_CONFIG_CACHE.cidade,
+                valorTotal,
+                null
+            );
+        }
+    } catch (e) {
+        console.warn('[PIX] Nao foi possivel gerar QR Code para o comprovante:', e.message);
+    }
+
     // Cria HTML do comprovante
     const html = `
 <!DOCTYPE html>
@@ -916,11 +934,14 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
         }
         body {
             font-family: 'Courier New', monospace;
-            font-size: 12px;
+            font-weight: 600; /* Alto contraste para impressora termica */
+            font-size: 16px;
             width: 80mm;
             margin: 0 auto;
             padding: 5mm;
-            line-height: 1.3;
+            line-height: 1.4;
+            color: #000000;
+            -webkit-font-smoothing: antialiased;
         }
         .header {
             text-align: center;
@@ -1076,6 +1097,13 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
         </div>
     </div>
     ` : ''}
+
+    ${dadosPedido.cpf_consumidor ? `
+    <div style="margin: 6px 0; padding: 5px 0; border-top: 1px dashed #000;">
+        <div style="font-weight: bold; font-size: 11px;">CONSUMIDOR CPF:</div>
+        <div style="font-size: 11px;">${dadosPedido.cpf_consumidor}</div>
+    </div>
+    ` : ''}
     
     <div class="linha"></div>
     
@@ -1227,8 +1255,16 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
     `;
     })()}
     
+    ${pixQrCode ? `
+    <div style="text-align: center; margin: 10px 0; border-top: 1px dashed #000; padding-top: 8px;">
+        <div style="font-size: 10px; font-weight: bold; margin-bottom: 4px;">PAGUE COM PIX</div>
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(pixQrCode)}" 
+             width="120" height="120" alt="QR PIX" style="display: block; margin: 0 auto;" />
+    </div>
+    ` : ''}
+
     <div class="footer">
-        <div>Obrigado pela preferência!</div>
+        <div>Obrigado pela preferencia!</div>
         <div style="margin-top: 5px;">${dadosEmpresa.nome_loja || dadosEmpresa.nome}</div>
     </div>
     
@@ -1237,122 +1273,48 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
 </html>
     `;
     
-    // Cria elemento temporário para renderizar o comprovante
-    const tempDiv = document.createElement('div');
-    tempDiv.style.position = 'absolute';
-    tempDiv.style.left = '-9999px';
-    tempDiv.style.width = '80mm';
-    tempDiv.style.padding = '5mm';
-    tempDiv.style.fontFamily = "'Courier New', monospace";
-    tempDiv.style.fontSize = '12px';
-    tempDiv.style.lineHeight = '1.3';
-    tempDiv.style.backgroundColor = '#fff';
-    tempDiv.style.color = '#000';
-    document.body.appendChild(tempDiv);
-    
-    // Cria iframe para renderizar o HTML completo com estilos
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'absolute';
-    iframe.style.left = '-9999px';
-    iframe.style.width = '80mm';
-    iframe.style.height = 'auto';
-    iframe.style.border = 'none';
-    document.body.appendChild(iframe);
-    
-    // Aguarda o iframe carregar
-    iframe.onload = async () => {
-        try {
-            // Aguarda um pouco mais para garantir que imagens carregaram
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            // Verifica se html2canvas está disponível
-            if (typeof html2canvas === 'undefined') {
-                console.error('[PIX] ❌ html2canvas não está disponível');
-                alert('Erro: Biblioteca html2canvas não carregada. Recarregue a página.');
-                document.body.removeChild(tempDiv);
-                document.body.removeChild(iframe);
-                return;
-            }
-            
-            // Converte para PNG usando html2canvas
-            const canvas = await html2canvas(iframe.contentDocument.body, {
-                backgroundColor: '#ffffff',
-                scale: 2,
-                logging: false,
-                useCORS: true,
-                allowTaint: false,
-                width: iframe.contentDocument.body.scrollWidth,
-                height: iframe.contentDocument.body.scrollHeight
-            });
-            
-            // Converte canvas para blob
-            canvas.toBlob((blob) => {
-                if (!blob) {
-                    console.error('[PIX] ❌ Erro ao gerar blob da imagem');
-                    alert('Erro ao gerar imagem do comprovante.');
-                    document.body.removeChild(tempDiv);
-                    document.body.removeChild(iframe);
-                    return;
-                }
-                
-                // Cria URL da imagem
-                const imageUrl = URL.createObjectURL(blob);
-                
-                // Armazena a imagem globalmente para compartilhamento
-                window.comprovanteImagem = {
-                    blob: blob,
-                    url: imageUrl,
-                    canvas: canvas
-                };
-                
-                // Exibe no modal com botões de ação
-                const container = document.getElementById('comprovante-container');
-                if (container) {
-                    container.innerHTML = `
-                        <div class="flex flex-col gap-3">
-                            <img src="${imageUrl}" alt="Comprovante" class="max-w-full h-auto rounded-lg shadow-md mx-auto" style="width: 100%; max-width: 600px;">
-                        </div>`;
-                }
-                
-                // Armazena dados globais para as funções de impressão
-                window.dadosComprovanteAtual = {
-                    carrinho,
-                    dadosPedido,
-                    dadosEmpresa,
-                    valorTotal,
-                    dataHora,
-                    acrescimoValor,
-                    acrescimoTipo,
-                    acrescimoObs,
-                    subtotalGeral, // Capturado do escopo da função
-                    totalDescontos // Capturado do escopo da função
-                };
-                
-                // Abre o modal
-                const modal = document.getElementById('modal-comprovante');
-                if (modal) {
-                    modal.classList.remove('hidden');
-                }
-                
-                // Limpa elementos temporários
-                document.body.removeChild(tempDiv);
-                document.body.removeChild(iframe);
-                
-                console.log('[PIX] ✅ Comprovante gerado com sucesso como PNG');
-            }, 'image/png', 1.0);
-            
-        } catch (error) {
-            console.error('[PIX] ❌ Erro ao gerar comprovante PNG:', error);
-            alert('Erro ao gerar comprovante. Tente novamente.');
-            if (document.body.contains(tempDiv)) document.body.removeChild(tempDiv);
-            if (document.body.contains(iframe)) document.body.removeChild(iframe);
-        }
+    // Armazena dados globais para as funcoes de impressao e compartilhamento
+    window.dadosComprovanteAtual = {
+        carrinho,
+        dadosPedido,
+        dadosEmpresa,
+        valorTotal,
+        dataHora,
+        acrescimoValor,
+        acrescimoTipo,
+        acrescimoObs,
+        subtotalGeral,
+        totalDescontos,
+        htmlComprovante: html // armazena HTML para impressao direta
     };
-    
-    // Escreve o HTML no iframe
-    iframe.contentDocument.open();
-    iframe.contentDocument.write(html);
-    iframe.contentDocument.close();
+
+    // Exibe preview do comprovante no modal via iframe inline (SEM html2canvas)
+    // Isso garante texto nativo na impressora termica — sem conversao para imagem
+    const container = document.getElementById('comprovante-container');
+    if (container) {
+        const previewIframe = document.createElement('iframe');
+        previewIframe.style.width = '100%';
+        previewIframe.style.maxWidth = '340px';
+        previewIframe.style.height = '500px';
+        previewIframe.style.border = '1px solid #e5e7eb';
+        previewIframe.style.borderRadius = '8px';
+        previewIframe.style.margin = '0 auto';
+        previewIframe.style.display = 'block';
+        previewIframe.style.backgroundColor = '#ffffff';
+        container.innerHTML = '';
+        container.appendChild(previewIframe);
+        previewIframe.contentDocument.open();
+        previewIframe.contentDocument.write(html);
+        previewIframe.contentDocument.close();
+    }
+
+    // Abre o modal
+    const modal = document.getElementById('modal-comprovante');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+
+    console.log('[PIX] ✅ Comprovante gerado com sucesso (texto nativo, sem html2canvas)');
 }
 
 /**
@@ -1465,14 +1427,24 @@ function gerarTextoComprovante() {
     const formaPgto = removerAcentos(dadosPedido.forma_pagamento || 'DINHEIRO').toUpperCase();
     texto += row("PAGAMENTO", formaPgto) + '\n';
     
-    // Observações
+    // CPF do Consumidor (se informado)
+    if (dadosPedido.cpf_consumidor) {
+        texto += linhaSeparadora + '\n';
+        const cpfConsDigitos = dadosPedido.cpf_consumidor.replace(/\D/g, '');
+        const cpfConsFmt = cpfConsDigitos.length === 11
+            ? cpfConsDigitos.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+            : dadosPedido.cpf_consumidor;
+        texto += 'CONSUMIDOR CPF: ' + cpfConsFmt + '\n';
+    }
+
+    // Observacoes
     if (dadosPedido.observacoes) {
         texto += linhaSeparadora + '\n';
         texto += "OBSERVACOES:\n";
         texto += removerAcentos(dadosPedido.observacoes).toUpperCase() + '\n';
     }
     
-    // Rodapé
+    // Rodape
     texto += '\n\n' + center("OBRIGADO PELA PREFERENCIA!") + '\n\n\n';
     
     // Sanitização final para garantir apenas ASCII e caracteres seguros
@@ -1498,7 +1470,7 @@ window.imprimirComprovanteTexto = function() {
     try {
         const texto = gerarTextoComprovante();
         if (!texto) {
-            alert('Erro ao gerar texto para impressão.');
+            alert('Erro ao gerar texto para impressao.');
             return;
         }
         
@@ -1511,38 +1483,38 @@ window.imprimirComprovanteTexto = function() {
             if (window.dadosComprovanteAtual && 
                 window.dadosComprovanteAtual.dadosEmpresa && 
                 window.dadosComprovanteAtual.dadosEmpresa.logo_url) {
-                
-                // Constrói URL absoluta usando a base da página atual
-                // Assume que logo_url é relativo ou absoluto correto
                 const logoRelativo = window.dadosComprovanteAtual.dadosEmpresa.logo_url;
-                // Cria URL absoluta baseada na origem atual (funciona para IP e localhost)
                 const logoAbsoluto = new URL(logoRelativo, window.location.href).href;
-                
                 urlLogoParam = `&logo=${encodeURIComponent(logoAbsoluto)}`;
-                console.log('[Print] 📷 Logo URL detectada:', logoAbsoluto);
+                console.log('[Print] Logo URL:', logoAbsoluto);
             }
         } catch (e) {
-            console.warn('[Print] ⚠️ Falha ao processar URL do logo:', e);
+            console.warn('[Print] Falha ao processar URL do logo:', e);
         }
         
-        // Deep Link para o App Flutter
-        // Schema: printapp://print?data=CONTEXTO_TEXTO&logo=URL_DO_LOGO
+        // Deep Link para o App Flutter (printapp://)
         const deepLink = `printapp://print?data=${encodedText}${urlLogoParam}`;
-        
-        console.log('[Print] 🖨️ Abrindo Deep Link:', deepLink);
-        
-        // Tenta abrir o app
+        console.log('[Print] Abrindo Deep Link:', deepLink.substring(0, 60) + '...');
         window.location.href = deepLink;
         
-        // Fallback setTimeOut se não abrir? (Difícil detectar em mobile web)
+        // Fallback: se o app nao abrir em 2s, usa window.print() com o HTML do comprovante
         setTimeout(() => {
-             // Opcional: mostrar aviso se o usuário ainda estiver aqui
-             console.log('[Print] ⏳ Verificando se app abriu...');
-        }, 2000);
+            // Verifica se ainda estamos na mesma pagina (app nao foi aberto)
+            if (document.visibilityState === 'visible' && window.dadosComprovanteAtual && window.dadosComprovanteAtual.htmlComprovante) {
+                console.log('[Print] App nao detectado, usando window.print() como fallback...');
+                const win = window.open('', '_blank', 'width=400,height=700');
+                if (win) {
+                    win.document.write(window.dadosComprovanteAtual.htmlComprovante);
+                    win.document.close();
+                    win.focus();
+                    setTimeout(() => win.print(), 500);
+                }
+            }
+        }, 2500);
         
     } catch (e) {
-        console.error('[Print] ❌ Erro:', e);
-        alert('Erro ao processar impressão: ' + e.message);
+        console.error('[Print] Erro:', e);
+        alert('Erro ao processar impressao: ' + e.message);
     }
 };
 
@@ -1886,4 +1858,138 @@ window.gerarVendaA4 = function() {
 };
 
 export { gerarComprovanteVenda };
+
+// ==========================================
+// FUNÇÕES DE COMPATIBILIDADE E LAZY LOADING
+// ==========================================
+
+// Gera a imagem do comprovante a partir do iframe ativo sob demanda
+async function garantirImagemComprovante() {
+    if (window.comprovanteImagem && window.comprovanteImagem.blob) {
+        return true;
+    }
+    
+    console.log('[PIX] 🔄 Gerando imagem do comprovante sob demanda...');
+    const container = document.getElementById('comprovante-container');
+    const iframe = container ? container.querySelector('iframe') : null;
+    if (!iframe) {
+        console.warn('[PIX] Iframe do comprovante nao encontrado no container.');
+        return false;
+    }
+    
+    try {
+        if (typeof html2canvas === 'undefined') {
+            console.error('[PIX] Biblioteca html2canvas nao esta carregada.');
+            alert('Erro: Biblioteca de captura de imagem nao carregada. Por favor, aguarde ou recarregue a pagina.');
+            return false;
+        }
+        
+        // Garante que o documento do iframe esteja completamente renderizado
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        
+        const canvas = await html2canvas(doc.body, {
+            backgroundColor: '#ffffff',
+            scale: 2,
+            logging: false,
+            useCORS: true,
+            allowTaint: false,
+            width: doc.body.scrollWidth,
+            height: doc.body.scrollHeight
+        });
+        
+        return new Promise((resolve) => {
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    const imageUrl = URL.createObjectURL(blob);
+                    window.comprovanteImagem = {
+                        blob: blob,
+                        url: imageUrl,
+                        canvas: canvas
+                    };
+                    console.log('[PIX] ✅ Imagem do comprovante gerada com sucesso.');
+                    resolve(true);
+                } else {
+                    console.error('[PIX] Erro ao gerar blob do canvas.');
+                    resolve(false);
+                }
+            }, 'image/png', 1.0);
+        });
+    } catch (e) {
+        console.error('[PIX] Erro ao gerar imagem do comprovante:', e);
+        return false;
+    }
+}
+
+// Redefine a ação do botão "Imprimir" estático do modal para usar o fluxo de texto nítido
+window.imprimirComprovante = function() {
+    console.log('[PIX] 🖨️ Acao disparada pelo botao Imprimir (modal)');
+    if (typeof window.imprimirComprovanteTexto === 'function') {
+        window.imprimirComprovanteTexto();
+    } else {
+        alert("Comprovante não disponível para impressão.");
+    }
+};
+
+// Sobrescreve compartilharWhatsApp para gerar a imagem sob demanda antes de disparar
+const originalCompartilharWhatsApp = window.compartilharWhatsApp;
+window.compartilharWhatsApp = async function() {
+    console.log('[PIX] 💬 Acao disparada pelo botao WhatsApp (modal)');
+    
+    // Mostra overlay simples de progresso
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;font-family:sans-serif;font-size:16px;font-weight:bold;gap:10px;';
+    overlay.innerHTML = `
+        <svg class="animate-spin h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span>Gerando imagem para o WhatsApp...</span>
+    `;
+    document.body.appendChild(overlay);
+    
+    try {
+        const ok = await garantirImagemComprovante();
+        if (ok && typeof originalCompartilharWhatsApp === 'function') {
+            await originalCompartilharWhatsApp();
+        } else if (!ok) {
+            alert('Não foi possível gerar a imagem para compartilhamento.');
+        }
+    } finally {
+        if (document.body.contains(overlay)) {
+            document.body.removeChild(overlay);
+        }
+    }
+};
+
+// Sobrescreve baixarComprovante para gerar a imagem sob demanda antes do download
+const originalBaixarComprovante = window.baixarComprovante;
+window.baixarComprovante = async function() {
+    console.log('[PIX] 📥 Acao disparada pelo botao Baixar (modal)');
+    
+    // Mostra overlay simples de progresso
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;font-family:sans-serif;font-size:16px;font-weight:bold;gap:10px;';
+    overlay.innerHTML = `
+        <svg class="animate-spin h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span>Preparando download...</span>
+    `;
+    document.body.appendChild(overlay);
+    
+    try {
+        const ok = await garantirImagemComprovante();
+        if (ok && typeof originalBaixarComprovante === 'function') {
+            originalBaixarComprovante();
+        } else if (!ok) {
+            alert('Não foi possível gerar a imagem para download.');
+        }
+    } finally {
+        if (document.body.contains(overlay)) {
+            document.body.removeChild(overlay);
+        }
+    }
+};
+
 

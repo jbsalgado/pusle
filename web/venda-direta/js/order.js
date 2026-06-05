@@ -88,6 +88,7 @@ function prepararObjetoPedido(dadosPedido, carrinho) {
         forma_pagamento_id: dadosPedido.forma_pagamento_id,
         is_venda_direta: true, // ✅ MARCADOR: Identifica que é venda direta (loja física)
         emitir_fiscal: document.getElementById('emitir-fiscal')?.checked || false, // ✅ NOVO: Flag para NFe
+        cpf_consumidor: dadosPedido.cpf_consumidor || null, // CPF do consumidor final (opcional)
         itens: carrinho.map(item => ({
             produto_id: item.produto_id || item.id,
             quantidade: item.quantidade,
