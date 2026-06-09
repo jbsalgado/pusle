@@ -317,5 +317,5 @@ $this->params['breadcrumbs'][] = $this->title;
 <?php
 // Passa URL base para o JavaScript
 $this->registerJs("window.BASE_URL = '" . Url::base(true) . "';", \yii\web\View::POS_HEAD);
-$this->registerJsFile('@web/js/orcamento-list.js?v=5', ['depends' => [\yii\web\JqueryAsset::class]]);
+$this->registerJsFile('@web/js/orcamento-list.js?v=' . time(), ['depends' => [\yii\web\JqueryAsset::class]]);
 ?>

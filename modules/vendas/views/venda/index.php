@@ -371,7 +371,7 @@ $this->title = 'Vendas Efetivadas';
 <!-- Modal Comprovante -->
 <?php
 // Registra o script necessário
-$this->registerJsFile('@web/js/venda-list.js?v=5', ['depends' => [\yii\web\JqueryAsset::class]]);
+$this->registerJsFile('@web/js/venda-list.js?v=' . time(), ['depends' => [\yii\web\JqueryAsset::class]]);
 ?>
 <div id="modal-comprovante" class="fixed inset-0 z-[100] hidden overflow-y-auto">
     <!-- Overlay -->

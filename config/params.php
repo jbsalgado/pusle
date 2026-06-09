@@ -85,4 +85,27 @@ return [
             ],
         ],
     ],
+
+    // -------------------------------------------------------------------------
+    // Integração WhatsApp — Evolution API Go (Engine v0.7.1)
+    // -------------------------------------------------------------------------
+    // baseUrl:      URL base do serviço Go (sem barra final)
+    // globalApiKey: Chave global definida no motor Go (usada em ações administrativas)
+    //
+    // ATENÇÃO: Em produção, atualize os valores abaixo com as credenciais reais.
+    // -------------------------------------------------------------------------
+    'evolution' => [
+        'baseUrl'      => 'http://localhost:8080',           // URL do motor Evolution API Go
+        'globalApiKey' => '429683C4C977415CAAFCCE10F7D57E11',         // Global API Key do motor Go
+    ],
+
+    // -------------------------------------------------------------------------
+    // [LEGADO — Node Wrapper] Mantido apenas como referência histórica.
+    // Não utilizar. Substituído pelo bloco 'evolution' acima.
+    // -------------------------------------------------------------------------
+    // 'whatsapp' => [
+    //     'api_url'  => 'http://localhost:8080/api/v1/whatsapp/send',
+    //     'api_key'  => '83e4060e-78e1-4fe5-9977-aeeccd46a2b8',
+    //     'base_url' => 'http://72.61.221.180',
+    // ],
 ];

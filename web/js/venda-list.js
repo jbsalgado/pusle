@@ -375,16 +375,24 @@ function _renderHTMLRecibo(venda, empresa) {
             </div>
             
             <!-- Botões de Ação -->
-            <div class="flex flex-wrap gap-2 mt-6 no-print">
+            <div class="flex flex-wrap gap-2 mt-6 no-print" id="botoes-acao-recibo">
                 <button onclick="imprimirNormal()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors">Cupom 80mm</button>
                 <button onclick="imprimirCupomPresente('${venda.id}')" class="flex-1 bg-pink-600 text-white py-2 rounded-lg font-bold hover:bg-pink-700 transition-colors">Vale-Presente</button>
                 <button onclick="imprimirVendaA4('${venda.id}')" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold hover:bg-indigo-700 transition-colors">Pedido A4</button>
-                ${venda.cliente && venda.cliente.telefone ? `
-                    <button onclick="compartilharWhatsApp('${venda.id}', '${venda.cliente.telefone}')" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition-colors" title="Compartilhar WhatsApp">
-                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.542 2.317 2.357-.546c1.021.575 1.914.911 3.127.912h.001c3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.586-5.766-5.767-5.767zm3.391 8.221c-.142.405-.815.739-1.121.78-.306.04-.685.074-1.747-.356-1.207-.492-2.198-1.554-2.718-2.223-.06-.078-.105-.139-.136-.188-.28-.399-.497-.707-.497-1.112 0-.441.228-.68.32-.78l.069-.074c.056-.063.155-.121.274-.121.117 0 .225.011.302.012.077.001.144.02.212.182.107.258.351.854.382.918.031.064.051.139.011.22-.04.082-.06.139-.121.21-.061.071-.129.158-.184.214-.059.06-.121.124-.052.245.069.121.306.505.657.817.452.401.832.525.952.585.12.06.192.051.264-.03s.306-.356.387-.478c.081-.121.162-.102.274-.061.112.041.711.335.832.396.121.06.202.09.232.141.03.05.03.295-.112.699zM12 1c-6.075 0-11 4.925-11 11s4.925 11 11 11 11-4.925 11-11-4.925-11-11-11zm0 2c4.97 0 9 4.03 9 9s-4.03 9-9 9-9-4.03-9-9 4.03-9 9-9z"/></svg>
-                    </button>
-                ` : ''}
                 <button onclick="fecharModalComprovante()" class="flex-1 bg-gray-200 text-gray-800 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">Fechar</button>
+                
+                <div class="w-full flex gap-2 mt-2">
+                    ${venda.cliente && venda.cliente.telefone ? `
+                    <button onclick="compartilharWhatsApp('${venda.id}', '${venda.cliente.telefone}')" class="flex-1 flex items-center justify-center bg-green-500 text-white py-2 rounded-lg font-bold hover:bg-green-600 transition-colors" title="Compartilhar Link no WhatsApp">
+                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.542 2.317 2.357-.546c1.021.575 1.914.911 3.127.912h.001c3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.586-5.766-5.767-5.767zm3.391 8.221c-.142.405-.815.739-1.121.78-.306.04-.685.074-1.747-.356-1.207-.492-2.198-1.554-2.718-2.223-.06-.078-.105-.139-.136-.188-.28-.399-.497-.707-.497-1.112 0-.441.228-.68.32-.78l.069-.074c.056-.063.155-.121.274-.121.117 0 .225.011.302.012.077.001.144.02.212.182.107.258.351.854.382.918.031.064.051.139.011.22-.04.082-.06.139-.121.21-.061.071-.129.158-.184.214-.059.06-.121.124-.052.245.069.121.306.505.657.817.452.401.832.525.952.585.12.06.192.051.264-.03s.306-.356.387-.478c.081-.121.162-.102.274-.061.112.041.711.335.832.396.121.06.202.09.232.141.03.05.03.295-.112.699zM12 1c-6.075 0-11 4.925-11 11s4.925 11 11 11 11-4.925 11-11-4.925-11-11-11zm0 2c4.97 0 9 4.03 9 9s-4.03 9-9 9-9-4.03-9-9 4.03-9 9-9z"/></svg>
+                        WhatsApp (Texto)
+                    </button>
+                    ` : ''}
+                    <button onclick="compartilharWhatsAppImagem('${venda.id}', '${venda.cliente && venda.cliente.telefone ? venda.cliente.telefone : ''}')" class="flex-1 flex items-center justify-center bg-purple-600 text-white py-2 rounded-lg font-bold hover:bg-purple-700 transition-colors shadow-md" title="Enviar Imagem pela Evolution API">
+                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.542 2.317 2.357-.546c1.021.575 1.914.911 3.127.912h.001c3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.586-5.766-5.767-5.767zm3.391 8.221c-.142.405-.815.739-1.121.78-.306.04-.685.074-1.747-.356-1.207-.492-2.198-1.554-2.718-2.223-.06-.078-.105-.139-.136-.188-.28-.399-.497-.707-.497-1.112 0-.441.228-.68.32-.78l.069-.074c.056-.063.155-.121.274-.121.117 0 .225.011.302.012.077.001.144.02.212.182.107.258.351.854.382.918.031.064.051.139.011.22-.04.082-.06.139-.121.21-.061.071-.129.158-.184.214-.059.06-.121.124-.052.245.069.121.306.505.657.817.452.401.832.525.952.585.12.06.192.051.264-.03s.306-.356.387-.478c.081-.121.162-.102.274-.061.112.041.711.335.832.396.121.06.202.09.232.141.03.05.03.295-.112.699zM12 1c-6.075 0-11 4.925-11 11s4.925 11 11 11 11-4.925 11-11-4.925-11-11-11zm0 2c4.97 0 9 4.03 9 9s-4.03 9-9 9-9-4.03-9-9 4.03-9 9-9z"/></svg>
+                        WhatsApp (Imagem)
+                    </button>
+                </div>
             </div>
         </div>
     `;
@@ -541,6 +549,116 @@ function compartilharWhatsApp(vendaId, telefone) {
     
     window.open(whatsAppUrl, '_blank');
 }
+
+// =========================================================================
+// WhatsApp (Imagem) - Integração Evolution API com HTML2Canvas
+// =========================================================================
+async function compartilharWhatsAppImagem(vendaId, telefonePadrao = '') {
+    // 1. Pega e normaliza o telefone
+    let telLimpoPadrao = telefonePadrao ? telefonePadrao.replace(/\D/g, "") : "";
+    if (telLimpoPadrao.startsWith("55") && telLimpoPadrao.length > 11) {
+        telLimpoPadrao = telLimpoPadrao.substring(2);
+    }
+
+    let telefone = prompt(
+        "Digite o número de WhatsApp do cliente (com DDD):\nEx: 11999999999",
+        telLimpoPadrao
+    );
+    if (telefone === null) return; // Cancelou
+
+    let numeroLimpo = telefone.replace(/\D/g, "");
+    if (numeroLimpo.length === 0) {
+        alert("O número de telefone é obrigatório.");
+        return;
+    }
+    if (numeroLimpo.length <= 11) {
+        numeroLimpo = "55" + numeroLimpo;
+    }
+
+    // 2. Cria overlay de carregamento
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;font-family:sans-serif;font-size:16px;font-weight:bold;gap:15px;backdrop-filter:blur(4px);";
+    overlay.innerHTML = `
+        <svg class="animate-spin h-10 w-10 text-purple-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span>Fotografando recibo e enviando via Evolution API...</span>
+    `;
+    document.body.appendChild(overlay);
+
+    try {
+        // 3. Injeta html2canvas dinamicamente se não existir
+        if (typeof html2canvas === 'undefined') {
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                script.onload = resolve;
+                script.onerror = () => reject(new Error('Falha ao carregar html2canvas'));
+                document.head.appendChild(script);
+            });
+        }
+
+        // 4. Captura a div do comprovante (escondendo os botões temporariamente)
+        const botoesArea = document.getElementById('botoes-acao-recibo');
+        if (botoesArea) botoesArea.style.display = 'none';
+        
+        const container = document.getElementById("comprovante-container");
+        
+        // Aplica um estilo temporário para garantir que fique bem na foto
+        const originalStyle = container.style.cssText;
+        container.style.cssText += "background:white; padding:20px; border-radius:0; box-shadow:none; max-height:none;";
+        
+        const canvas = await html2canvas(container, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            logging: false
+        });
+        
+        // Restaura a visualização original
+        container.style.cssText = originalStyle;
+        if (botoesArea) botoesArea.style.display = '';
+
+        // 5. Converte para base64
+        const base64data = canvas.toDataURL("image/jpeg", 0.9);
+
+        // 6. Envia para a API (Yii2 Backend Authentication CSRF)
+        const baseUrl = window.BASE_URL || window.location.origin;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        
+        // Monta o envio simulando como o axios faria para que o WhatsappController entenda como json ou x-www
+        // A actionSend do WhatsappController aceita json_decode($request->getRawBody())
+        const response = await fetch(`${baseUrl}/api/whatsapp/send`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-Token": csrfToken
+            },
+            body: JSON.stringify({
+                numero: numeroLimpo,
+                mensagem: "Segue o comprovante de sua venda. Obrigado pela preferência!",
+                base64: base64data
+            })
+        });
+
+        const resData = await response.json();
+        
+        if (response.ok && resData.success) {
+            alert("✅ Comprovante em imagem enviado com sucesso via WhatsApp!");
+        } else {
+            alert("❌ Erro ao enviar imagem: " + (resData.message || resData.name || "Erro desconhecido"));
+        }
+    } catch (err) {
+        console.error("Erro ao enviar imagem:", err);
+        alert("❌ Erro de comunicação com o servidor ao gerar ou enviar a imagem.");
+    } finally {
+        if (document.body.contains(overlay)) {
+            document.body.removeChild(overlay);
+        }
+    }
+}
+
 function imprimirVendaA4(vendaId) {
     window.open(`/vendas/venda/imprimir-a4?id=${vendaId}`, '_blank');
 }

@@ -1912,7 +1912,7 @@ async function garantirImagemComprovante() {
                     console.error('[PIX] Erro ao gerar blob do canvas.');
                     resolve(false);
                 }
-            }, 'image/png', 1.0);
+            }, 'image/jpeg', 0.8);
         });
     } catch (e) {
         console.error('[PIX] Erro ao gerar imagem do comprovante:', e);
@@ -1991,5 +1991,9 @@ window.baixarComprovante = async function() {
         }
     }
 };
+
+// Exposição global de funções internas para o index.html
+window.gerarTextoComprovante = gerarTextoComprovante;
+window.garantirImagemComprovante = garantirImagemComprovante;
 
 

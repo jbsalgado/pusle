@@ -25,6 +25,7 @@ class ComposerStaticInit038382e60070cf64fca6f94856995296
             'yii\\symfonymailer\\' => 18,
             'yii\\swiftmailer\\' => 16,
             'yii\\jui\\' => 8,
+            'yii\\httpclient\\' => 15,
             'yii\\gii\\' => 8,
             'yii\\faker\\' => 10,
             'yii\\debug\\' => 10,
@@ -197,6 +198,10 @@ class ComposerStaticInit038382e60070cf64fca6f94856995296
         'yii\\jui\\' =>
         array (
             0 => __DIR__ . '/..' . '/yiisoft/yii2-jui',
+        ),
+        'yii\\httpclient\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/yiisoft/yii2-httpclient/src',
         ),
         'yii\\gii\\' =>
         array (

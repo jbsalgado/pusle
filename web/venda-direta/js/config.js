@@ -165,6 +165,8 @@ export const API_ENDPOINTS = {
     PEDIDO_CONFIRMAR_RECEBIMENTO: `${CONFIG.URL_API}/api/pedido/confirmar-recebimento`,
     // ✅ NOVO: Endpoint para checar status simplificado (Polling Point)
     PEDIDO_STATUS: `${CONFIG.URL_API}/api/pedido/status`,
+    // ✅ NOVO: Endpoint para envio de mensagens via WhatsApp (Proxy)
+    WHATSAPP_SEND: `${CONFIG.URL_API}/api/whatsapp/send`,
 };
 
 export const STORAGE_KEYS = {

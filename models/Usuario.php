@@ -272,6 +272,32 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
         return $this->getAuthKey() === $authKey;
     }
 
+    /**
+     * Retorna o ID da empresa/loja (tenant ID).
+     * Se o usuário for dono da loja, retorna seu próprio ID.
+     * Se for colaborador, retorna o ID do dono da loja (usuario_id do colaborador).
+     * 
+     * @return string
+     */
+    public function getTenantId()
+    {
+        if ($this->eh_dono_loja === true || $this->eh_dono_loja === 't' || $this->eh_dono_loja === 1) {
+            return $this->id;
+        }
+
+        // Tenta buscar o colaborador usando o ID deste usuário
+        $colaborador = \app\modules\vendas\models\Colaborador::find()
+            ->where(['prest_usuario_login_id' => $this->id])
+            ->andWhere(['ativo' => true])
+            ->one();
+
+        if ($colaborador) {
+            return $colaborador->usuario_id;
+        }
+
+        return $this->id;
+    }
+
     // ===================================================================
     // ✅ FIM: MÉTODOS DA IDENTITYINTERFACE
     // ===================================================================

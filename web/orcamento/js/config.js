@@ -164,6 +164,8 @@ export const API_ENDPOINTS = {
     PEDIDO_CONFIRMAR_RECEBIMENTO: `${CONFIG.URL_API}/api/pedido/confirmar-recebimento`,
     // ✅ NOVO: Endpoint para confirmar recebimento de orçamento (apenas muda status)
     ORCAMENTO_CONFIRMAR_RECEBIMENTO: `${CONFIG.URL_API}/api/orcamento/confirmar-recebimento`,
+    // ✅ NOVO: Endpoint para envio de mensagens via WhatsApp (Proxy)
+    WHATSAPP_SEND: `${CONFIG.URL_API}/api/whatsapp/send`,
 };
 
 export const STORAGE_KEYS = {

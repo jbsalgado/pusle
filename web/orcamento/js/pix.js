@@ -1520,7 +1520,7 @@ async function gerarComprovanteOrcamento(carrinho, dadosPedido) {
           document.body.removeChild(tempDiv);
           document.body.removeChild(iframe);
 
-          console.log("[PIX] ✅ Comprovante gerado com sucesso como PNG");
+          console.log("[PIX] ✅ Comprovante gerado com sucesso como JPEG");
 
           // ✅ Automação de Impressão Térmica
           if (window.GATEWAY_CONFIG?.imprimir_automatico) {
@@ -1536,8 +1536,8 @@ async function gerarComprovanteOrcamento(carrinho, dadosPedido) {
             }, 800);
           }
         },
-        "image/png",
-        1.0,
+        "image/jpeg",
+        0.8,
       );
     } catch (error) {
       console.error("[PIX] ❌ Erro ao gerar comprovante PNG:", error);
@@ -2055,4 +2055,5 @@ function formatarTelefone(telefone) {
 
 // Exporta para garantir acesso no app.js
 window.mostrarModalPixEstatico = mostrarModalPixEstatico;
+window.gerarTextoComprovante = gerarTextoComprovante;
 export { gerarComprovanteOrcamento };

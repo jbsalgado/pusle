@@ -153,6 +153,9 @@ $config = [
         'cobranca' => [
             'class' => 'app\modules\cobranca\Module',
         ],
+        'evolution' => [
+            'class' => 'app\modules\evolution\Module',
+        ],
     ],
     'params' => $params,
 ];

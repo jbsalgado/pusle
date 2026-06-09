@@ -1391,6 +1391,16 @@ class MercadoPagoController extends Controller
             }
 
             $transaction->commit();
+            
+            // =========================================================================
+            // Disparo Automático de Comprovante via WhatsApp (Evolution API)
+            // =========================================================================
+            try {
+                $this->enviarNotificacaoWhatsAppAprovacao($venda);
+            } catch (\Throwable $e) {
+                Yii::error("Erro ao enviar WhatsApp automático: " . $e->getMessage(), 'mercadopago');
+            }
+            
         } catch (\Throwable $e) {
             $transaction->rollBack();
             Yii::error([
@@ -1399,6 +1409,82 @@ class MercadoPagoController extends Controller
                 'tenant_id' => $tenantId,
                 'error' => $e->getMessage()
             ], 'mercadopago');
+            throw $e;
+        }
+    }
+
+    /**
+     * Envia notificação automática de aprovação via WhatsApp (Evolution API)
+     */
+    private function enviarNotificacaoWhatsAppAprovacao($venda)
+    {
+        // 1. Verifica se a venda tem cliente
+        if (empty($venda->cliente_id)) return;
+        $cliente = \app\modules\vendas\models\Cliente::findOne($venda->cliente_id);
+        if (!$cliente || empty($cliente->telefone)) return;
+
+        // 2. Verifica configuração de WhatsApp do lojista
+        $config = \app\modules\evolution\models\WhatsappConfig::findByEmpresa($venda->usuario_id);
+        if ($config === null || empty($config->token)) return;
+
+        // 3. Formata e Normaliza o número (Regra do 9)
+        $numero = preg_replace('/[^0-9]/', '', $cliente->telefone);
+        if (strlen($numero) < 10) return;
+
+        if (strlen($numero) === 11) {
+            $numero = '55' . $numero;
+        } elseif (strlen($numero) === 10) {
+            $ddd  = substr($numero, 0, 2);
+            $rest = substr($numero, 2);
+            $numero = '55' . $ddd . '9' . $rest;
+        }
+
+        if (strlen($numero) === 13 && strpos($numero, '55') === 0) {
+            $ddd = (int) substr($numero, 2, 2);
+            if ($ddd >= 20 && substr($numero, 4, 1) === '9') {
+                $numero = '55' . $ddd . substr($numero, 5);
+            }
+        }
+
+        // 4. Formata mensagem do Recibo de Confirmação
+        $sql = "SELECT nome_loja, nome FROM prest_usuarios WHERE id = :id";
+        $loja = Yii::$app->db->createCommand($sql, [':id' => $venda->usuario_id])->queryOne();
+        $nomeLoja = $loja ? ($loja['nome_loja'] ?: $loja['nome']) : 'Nossa Loja';
+        
+        $primeiroNome = explode(' ', trim($cliente->nome))[0];
+        $valorTotal = number_format($venda->valor_total, 2, ',', '.');
+        
+        $mensagem = "Olá, *{$primeiroNome}*! Tudo bem?\n\n";
+        $mensagem .= "Seu pagamento via Mercado Pago no valor de *R$ {$valorTotal}* (Pedido #{$venda->id}) foi *APROVADO* com sucesso! ✅\n\n";
+        $mensagem .= "Nós da *{$nomeLoja}* já estamos preparando o seu pedido.\n";
+        $mensagem .= "Obrigado pela preferência!\n\n_Ref: " . substr(uniqid(), -5) . '_';
+
+        // 5. Configura e Dispara API Evolution Go
+        $evolutionConfig = Yii::$app->params['evolution'] ?? [];
+        $baseUrl = rtrim($evolutionConfig['baseUrl'] ?? 'http://localhost:8080', '/');
+
+        $client = new \yii\httpclient\Client(['baseUrl' => $baseUrl]);
+        $url = '/message/sendText/' . urlencode($config->instance_name);
+        
+        $payload = [
+            'number' => $numero,
+            'text'   => $mensagem,
+            'delay'  => 1500
+        ];
+
+        try {
+            $response = $client->post($url, $payload, [
+                'Apikey' => $config->token,
+                'Content-Type' => 'application/json'
+            ])->send();
+
+            if (!$response->isOk) {
+                Yii::error("Erro Evolution Go Webhook Automático: " . $response->content, 'mercadopago');
+            } else {
+                Yii::info("WhatsApp automático enviado com sucesso para {$numero} (Pedido #{$venda->id})", 'mercadopago');
+            }
+        } catch (\Exception $e) {
+            Yii::error("Exceção disparando WhatsApp Automático: " . $e->getMessage(), 'mercadopago');
         }
     }
 

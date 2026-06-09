@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>PULSE-PLUS — Arquitetura Multi-Empresa e Integração Evolution API Go</title>
+    <style>
+        /* Variáveis e Resets */
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --text-color: #333;
+            --bg-color: #fff;
+            --border-color: #eee;
+            --code-bg: #f8f9fa;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* Tipografia e Títulos */
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+        }
+        
+        h1 {
+            font-size: 2.2em;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        
+        h2 {
+            font-size: 1.8em;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+            margin-top: 2em;
+        }
+        
+        h3 {
+            font-size: 1.4em;
+            color: #34495e;
+        }
+        
+        p, ul, ol {
+            margin-bottom: 1.2em;
+        }
+        
+        /* Citações e Alertas */
+        blockquote {
+            border-left: 4px solid var(--accent-color);
+            margin: 1.5em 0;
+            padding: 0.8em 15px;
+            background-color: #f0f7fb;
+            color: #555;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        blockquote p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Código e Blocos de Código */
+        code {
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            background-color: rgba(27,31,35,0.05);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-size: 0.85em;
+            color: #e83e8c;
+        }
+        
+        pre {
+            background-color: var(--code-bg);
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.45;
+            margin: 1.5em 0;
+        }
+        
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            color: #24292e;
+            font-size: 100%;
+        }
+
+        /* Tabelas */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5em 0;
+        }
+        
+        th, td {
+            border: 1px solid #dfe2e5;
+            padding: 10px 14px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #f6f8fa;
+            font-weight: 600;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #fcfcfc;
+        }
+
+        /* Elementos UI / Utilitários */
+        hr {
+            border: 0;
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 2.5em 0;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .footer-note {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            margin-top: 40px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+            text-align: center;
+        }
+
+        .btn-print {
+            display: block;
+            width: fit-content;
+            margin: 0 auto 30px auto;
+            padding: 10px 20px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .btn-print:hover {
+            background-color: #2980b9;
+        }
+
+        /* =========================================
+           Estilos Específicos para Impressão (PDF) 
+           ========================================= */
+        @media print {
+            body {
+                max-width: 100%;
+                margin: 0;
+                padding: 10mm 15mm;
+                font-size: 11pt; /* Tamanho base menor para caber mais */
+                color: #000;
+                background-color: #fff;
+            }
+            
+            /* Ocultar botão de imprimir */
+            .btn-print {
+                display: none !important;
+            }
+
+            /* Controle de Quebra de Página */
+            h1, h2, h3 { 
+                page-break-after: avoid; 
+                color: #000;
+            }
+            
+            h2 { 
+                margin-top: 2em; 
+            }
+            
+            /* Evita quebras no meio de blocos importantes */
+            pre, blockquote, table, tr, img {
+                page-break-inside: avoid;
+            }
+            
+            /* Controle de linhas órfãs e viúvas */
+            p, h2, h3, li { 
+                orphans: 3; 
+                widows: 3; 
+            }
+
+            /* Estilização para p&b / contraste na impressão */
+            pre {
+                border: 1px solid #bbb;
+                background-color: #fafafa;
+                white-space: pre-wrap; /* Quebra linha no código impresso se for longo */
+                word-wrap: break-word;
+            }
+            
+            code {
+                color: #000;
+                border: 1px solid #ddd;
+            }
+            
+            blockquote {
+                border-left-color: #666;
+                background-color: #f9f9f9;
+            }
+
+            th {
+                background-color: #e5e5e5 !important;
+                -webkit-print-color-adjust: exact;
+                color-adjust: exact;
+            }
+
+            a {
+                text-decoration: underline;
+                color: #000;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <button class="btn-print" onclick="window.print()">
+        🖨️ Imprimir / Gerar PDF
+    </button>
+
+    <h1>PULSE-PLUS — Arquitetura Multi-Empresa e Integração Evolution API Go</h1>
+    
+    <blockquote>
+        <p><strong>Versão:</strong> 1.0 — Junho/2026<br>
+        <strong>Contexto:</strong> Evolution API Go (Engine v0.7.1) · Yii2 Basic · PostgreSQL</p>
+    </blockquote>
+
+    <hr>
+
+    <h2>1. Como o Sistema Trabalha com Múltiplas Empresas (Multi-Tenant)</h2>
+    
+    <h3>1.1 Conceito de Tenant no PULSE-PLUS</h3>
+    <p>O PULSE-PLUS adota um modelo <strong>single-database multi-tenant</strong>: um único banco de dados PostgreSQL (<code>pulse_plus</code>) hospeda os dados de <strong>todas</strong> as empresas cadastradas. O isolamento entre elas é feito por <strong>chave de escopo</strong> em cada tabela, e não por schemas ou bancos separados.</p>
+    
+    <p>A tabela raiz do modelo é <code>prest_usuarios</code>. <strong>Cada linha nessa tabela representa uma empresa/loja</strong> (o "dono da loja"), identificada por um UUID gerado pelo PostgreSQL (<code>gen_random_uuid()</code>).</p>
+
+<pre><code>prest_usuarios
+──────────────
+id   (UUID)  ← identificador único da empresa / tenant
+nome
+cpf
+email
+eh_dono_loja (boolean) ← true para donos de loja
+...</code></pre>
+
+    <h3>1.2 Chave de Escopo: <code>usuario_id</code></h3>
+    <p>Todas as tabelas de dados operacionais possuem uma coluna <code>usuario_id</code> (UUID) com <strong>Foreign Key</strong> para <code>prest_usuarios(id)</code>. Essa coluna funciona como a chave de escopo que isola os dados de cada empresa.</p>
+
+<pre><code>prest_vendas          prest_produtos        prest_clientes
+─────────────         ──────────────        ───────────────
+id                    id                    id
+usuario_id (FK) ──►   usuario_id (FK) ──►   usuario_id (FK)
+...                   ...                   ...</code></pre>
+
+    <p>Quando a Empresa A acessa <code>/vendas/inicio</code>, o sistema busca <code>WHERE usuario_id = 'uuid-da-empresa-a'</code> automaticamente — os dados da Empresa B nunca aparecem.</p>
+
+    <h3>1.3 Como a Sessão Identifica a Empresa Ativa</h3>
+    <p>O Yii2 usa a interface <code>IdentityInterface</code> implementada pelo model <code>app\models\Usuario</code> (tabela <code>prest_usuarios</code>). Após o login, o framework armazena o UUID da empresa logada na sessão. Em qualquer controller, o ID do tenant ativo é:</p>
+
+<pre><code class="language-php">// Forma canônica — retorna o UUID da empresa logada
+$empresaId = Yii::$app->user->id;
+
+// Equivalente (acesso ao objeto completo)
+$empresa = Yii::$app->user->identity;  // instância de app\models\Usuario
+$empresaId = $empresa->id;</code></pre>
+
+    <h3>1.4 Padrão de Isolamento nos Controllers</h3>
+    <p>Todos os controllers do sistema seguem o mesmo padrão:</p>
+
+<pre><code class="language-php">// Exemplo: listar produtos da empresa ativa
+$usuarioId = Yii::$app->user->id;
+
+$produtos = Produto::find()
+    ->where(['usuario_id' => $usuarioId, 'ativo' => true])
+    ->all();</code></pre>
+
+<pre><code class="language-php">// Exemplo: proteger update/delete contra acesso cruzado
+$model = Venda::findOne(['id' => $id, 'usuario_id' => Yii::$app->user->id]);
+if ($model === null) {
+    throw new ForbiddenHttpException('Acesso negado.');
+}</code></pre>
+
+    <h3>1.5 Hierarquia de Usuários por Empresa</h3>
+    <p>Cada empresa possui seus próprios colaboradores na tabela <code>prest_colaboradores</code>. O campo <code>usuario_id</code> nessa tabela aponta para o UUID do <strong>dono da loja</strong> (a empresa), não do colaborador em si.</p>
+
+<pre><code>Empresa A (prest_usuarios.id = uuid-A)
+  └── Colaborador 1 (usuario_id = uuid-A)
+  └── Colaborador 2 (usuario_id = uuid-A)
+  └── Colaborador 3 (usuario_id = uuid-A)
+
+Empresa B (prest_usuarios.id = uuid-B)
+  └── Colaborador 4 (usuario_id = uuid-B)</code></pre>
+
+    <hr>
+
+    <h2>2. Integração Evolution API Go por Empresa</h2>
+    
+    <h3>2.1 Arquitetura da Integração</h3>
+    <p>Cada empresa do PULSE-PLUS possui sua própria <strong>instância WhatsApp isolada</strong> no motor Evolution API Go. O PULSE-PLUS não compartilha instâncias entre clientes — cada empresa se conecta com seu próprio número.</p>
+
+<pre><code>┌───────────────────────────────────────────────────────────┐
+│                     PULSE-PLUS (Yii2)                     │
+│                                                           │
+│  Empresa A ──► EvolutionService ──► instância A (Go)      │
+│  Empresa B ──► EvolutionService ──► instância B (Go)      │
+│  Empresa C ──► EvolutionService ──► instância C (Go)      │
+│                                                           │
+│  Tabela: pulse_whatsapp_config (1 linha por empresa)      │
+└───────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                 ┌────────────────────────┐
+                 │  Evolution API Go      │
+                 │  Engine v0.7.1         │
+                 │  (localhost:8083)      │
+                 └────────────────────────┘</code></pre>
+
+    <h3>2.2 Tabela de Persistência: <code>pulse_whatsapp_config</code></h3>
+    <p>Um registro por empresa. Armazena os metadados da sessão WhatsApp:</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Coluna</th>
+                <th>Tipo</th>
+                <th>Descrição</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>id</code></td>
+                <td>SERIAL PK</td>
+                <td>Chave primária sequencial</td>
+            </tr>
+            <tr>
+                <td><code>empresa_id</code></td>
+                <td>UUID (UK/FK)</td>
+                <td>UUID da empresa em <code>prest_usuarios</code> (1:1)</td>
+            </tr>
+            <tr>
+                <td><code>instance_name</code></td>
+                <td>VARCHAR(255)</td>
+                <td>Nome da instância no motor Go (padrão canônico)</td>
+            </tr>
+            <tr>
+                <td><code>token</code></td>
+                <td>VARCHAR(255)</td>
+                <td>API Key específica da instância, retornada pelo Go</td>
+            </tr>
+            <tr>
+                <td><code>status</code></td>
+                <td>VARCHAR(50)</td>
+                <td><code>'CONNECTED'</code> ou <code>'DISCONNECTED'</code></td>
+            </tr>
+            <tr>
+                <td><code>created_at</code></td>
+                <td>TIMESTAMP</td>
+                <td>Data de criação (auto)</td>
+            </tr>
+            <tr>
+                <td><code>updated_at</code></td>
+                <td>TIMESTAMP</td>
+                <td>Última atualização (auto via trigger)</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>2.3 Padrão Canônico do Nome de Instância</h3>
+    <p>O nome de cada instância no motor Go é gerado deterministicamente a partir do UUID da empresa:</p>
+
+<pre><code>UUID da empresa: 3f2504e0-4f89-11d3-9a0c-0305e82c3301
+Remove hífens:   3f2504e04f8911d39a0c0305e82c3301
+Primeiros 12:    3f2504e04f89
+Nome final:      pulse_empresa_id_3f2504e04f89</code></pre>
+
+    <p><strong>Lógica PHP (EvolutionService):</strong></p>
+<pre><code class="language-php">private function buildInstanceName(string $empresaId): string
+{
+    $short = substr(str_replace('-', '', $empresaId), 0, 12);
+    return "pulse_empresa_id_{$short}";
+}</code></pre>
+
+    <p>Isso garante que duas empresas com UUIDs diferentes <strong>nunca</strong> gerarão o mesmo nome de instância, e o nome é sempre estável para o mesmo UUID.</p>
+
+    <hr>
+
+    <h2>3. Configuração Passo a Passo</h2>
+
+    <h3>3.1 Pré-requisitos</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Requisito</th>
+                <th>Valor esperado</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Evolution API Go rodando</td>
+                <td><code>http://localhost:8083</code> (ou outra porta)</td>
+            </tr>
+            <tr>
+                <td>Global API Key definida</td>
+                <td>Configurada no motor Go ao iniciar</td>
+            </tr>
+            <tr>
+                <td>PHP extension</td>
+                <td><code>yii2-httpclient</code> instalado via composer</td>
+            </tr>
+            <tr>
+                <td>Migration executada</td>
+                <td><code>m260608_020000_create_pulse_whatsapp_config</code> aplicada</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>3.2 Configurar <code>config/params.php</code></h3>
+    <p>Abra o arquivo e localize o bloco <code>evolution</code>. Atualize com os valores reais:</p>
+
+<pre><code class="language-php">'evolution' => [
+    // URL base do motor Go (sem barra final)
+    // Em produção, pode ser http://72.61.221.180:8083 ou um domínio próprio
+    'baseUrl'      => 'http://localhost:8083',
+
+    // Global API Key configurada no motor Go
+    // Geralmente definida na variável de ambiente AUTHENTICATION_API_KEY do Go
+    'globalApiKey' => 'sua-chave-global-aqui',
+],</code></pre>
+
+    <blockquote>
+        <p><strong>⚠️ Atenção:</strong> Não commite a <code>globalApiKey</code> real no repositório. Em produção, use variáveis de ambiente ou um arquivo <code>.env</code> não versionado.</p>
+    </blockquote>
+
+    <h3>3.3 Verificar o Módulo no <code>config/web.php</code></h3>
+    <p>O módulo já está registrado:</p>
+
+<pre><code class="language-php">'modules' => [
+    // ... outros módulos
+    'evolution' => [
+        'class' => 'app\modules\evolution\Module',
+    ],
+],</code></pre>
+
+    <p>Nenhuma alteração necessária aqui.</p>
+
+    <h3>3.4 Confirmar que a Migration Foi Executada</h3>
+
+<pre><code class="language-bash"># Verifica o histórico de migrations
+php yii migrate/history --migrationPath=@app/migrations 5
+
+# Saída esperada:
+# (2026-06-08 ...) m260608_020000_create_pulse_whatsapp_config</code></pre>
+
+    <p>Se não aparecer, execute:</p>
+
+<pre><code class="language-bash">php yii migrate --migrationPath=@app/migrations --interactive=0</code></pre>
+
+    <hr>
+
+    <h2>4. Fluxo de Uso por Empresa</h2>
+
+    <h3>4.1 Primeira Conexão (Pareamento)</h3>
+
+<pre><code>1. Empresa loga no PULSE-PLUS
+   → Yii::$app->user->id retorna o UUID da empresa
+
+2. Acessa /evolution/config
+   → ConfigController::actionIndex() consulta checkStatus()
+   → Status: DISCONNECTED (nenhuma instância criada ainda)
+   → View exibe botão "Conectar WhatsApp"
+
+3. Clica em "Conectar WhatsApp"
+   → ConfigController::actionConnect()
+   → EvolutionService::createInstance($empresaId)
+   → POST /instance/create na API Go com apiKey global
+   → Go retorna: token da instância + QR Code em Base64
+   → Salva token e instance_name em pulse_whatsapp_config
+   → View exibe QR Code
+
+4. Empresa escaneia o QR Code com o celular
+
+5. JavaScript faz polling a cada 4s para /evolution/config/check-status-ajax
+   → EvolutionService::checkStatus($empresaId)
+   → GET /instance/all na API Go
+   → Localiza instância pelo instanceName
+   → Retorna { "connected": true }
+
+6. JavaScript redireciona para /evolution/config
+   → Painel exibe badge verde "Conectado"</code></pre>
+
+    <h3>4.2 Envio de Notificação Automática (Backend)</h3>
+
+<pre><code class="language-php">use app\modules\evolution\services\EvolutionService;
+
+// Em qualquer ponto do sistema (controller, command, etc.)
+$service   = new EvolutionService();
+$empresaId = Yii::$app->user->id; // ou UUID fixo em commands CLI
+
+$enviado = $service->sendMessage(
+    $empresaId,
+    '81999998888',       // número do destinatário
+    "✅ Venda #1234 confirmada!\nValor: R$ 250,00"
+);
+
+if (!$enviado) {
+    Yii::warning("Falha ao enviar WhatsApp para empresa {$empresaId}", __METHOD__);
+}</code></pre>
+
+    <p>O <code>sendMessage</code> recupera o token específico da empresa no banco local e envia usando o header <code>apikey</code> (minúsculo) — nunca a chave global.</p>
+
+    <h3>4.3 Desconexão</h3>
+
+<pre><code>1. Empresa acessa /evolution/config
+2. Clica em "Desconectar"
+   → ConfigController::actionDisconnect()
+   → EvolutionService::deleteInstance($empresaId)
+   → DELETE /instance/delete/{instanceName} na API Go
+   → Atualiza pulse_whatsapp_config: status=DISCONNECTED, token=''
+3. Redireciona para o painel com status atualizado</code></pre>
+
+    <hr>
+
+    <h2>5. Regras de Autenticação HTTP (Homologadas)</h2>
+
+    <p>Este é um ponto crítico da integração. O motor Go usa <strong>dois headers diferentes</strong> dependendo do tipo de ação:</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Ação</th>
+                <th>Header</th>
+                <th>Valor</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Criar instância</td>
+                <td><code>apiKey</code></td>
+                <td>Global API Key</td>
+            </tr>
+            <tr>
+                <td>Listar instâncias (<code>/all</code>)</td>
+                <td><code>apiKey</code></td>
+                <td>Global API Key</td>
+            </tr>
+            <tr>
+                <td>Deletar instância</td>
+                <td><code>apiKey</code></td>
+                <td>Global API Key</td>
+            </tr>
+            <tr>
+                <td>Enviar mensagem (<code>/send/text</code>)</td>
+                <td><code>apikey</code></td>
+                <td>Token da instância</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <blockquote>
+        <p><strong><code>apiKey</code></strong> (K maiúsculo) = autenticação <strong>administrativa global</strong><br>
+        <strong><code>apikey</code></strong> (tudo minúsculo) = autenticação da <strong>instância específica</strong></p>
+    </blockquote>
+
+    <p>Confundir os dois causa erros HTTP 401/403 silenciosos.</p>
+
+    <hr>
+
+    <h2>6. Estrutura de Arquivos do Módulo</h2>
+
+<pre><code>modules/evolution/
+├── Module.php                          ← Bootstrap (namespace, controllerNamespace)
+├── controllers/
+│   └── ConfigController.php           ← UI do painel WhatsApp
+│       ├── actionIndex()              ← Painel de status
+│       ├── actionConnect()            ← Gera QR Code
+│       ├── actionDisconnect()         ← Desconecta instância
+│       └── actionCheckStatusAjax()    ← Endpoint JSON p/ polling
+├── models/
+│   └── WhatsappConfig.php             ← ActiveRecord (pulse_whatsapp_config)
+├── services/
+│   └── EvolutionService.php           ← Integração HTTP com o motor Go
+│       ├── createInstance()
+│       ├── sendMessage()
+│       ├── checkStatus()
+│       ├── deleteInstance()
+│       ├── buildInstanceName()        ← (private) gerador de nome canônico
+│       └── sanitizePhoneNumber()      ← (private) normalização DDI 55
+└── views/config/
+    ├── index.php                       ← Painel (badge conectado/desconectado)
+    └── connect.php                     ← QR Code + polling JS nativo</code></pre>
+
+    <hr>
+
+    <h2>7. Adicionando Envio de WhatsApp em Outras Partes do Sistema</h2>
+
+    <p>Para enviar mensagens de qualquer módulo existente (ex: ao fechar uma venda):</p>
+
+<pre><code class="language-php">// Em VendaController, após salvar a venda:
+use app\modules\evolution\services\EvolutionService;
+
+$service = new EvolutionService();
+$service->sendMessage(
+    Yii::$app->user->id,
+    $cliente->telefone,
+    "Olá {$cliente->nome}! Sua venda #{$venda->id} foi registrada com sucesso. 🎉"
+);</code></pre>
+
+    <p>O método é <strong>fire-and-forget seguro</strong>: em caso de falha (API Go fora do ar, token inválido, etc.), o erro é logado silenciosamente em <code>runtime/logs/app.log</code> via <code>Yii::error()</code> e o sistema <strong>nunca trava</strong>.</p>
+
+    <hr>
+
+    <h2>8. Diagnóstico e Resolução de Problemas</h2>
+
+    <h3>Motor Go não responde</h3>
+
+<pre><code class="language-bash"># Verifica se o processo Go está rodando
+curl -s http://localhost:8083/instance/all \
+  -H "apiKey: sua-chave-global-aqui"
+
+# Saída esperada: [] (array vazio se nenhuma instância criada)
+# Se Connection refused: o motor Go não está rodando</code></pre>
+
+    <h3>QR Code não aparece</h3>
+    <ol>
+        <li>Verifique o log do Yii2: <code>runtime/logs/app.log</code></li>
+        <li>Busque por <code>EvolutionService::createInstance</code></li>
+        <li>O log mostrará o status HTTP e o corpo da resposta da API Go</li>
+    </ol>
+
+    <h3>Token expirado / instância desapareceu do Go</h3>
+    <p>A instância pode ser removida do motor Go manualmente ou por reinicialização. Nesse caso, clique em <strong>"Reconectar / Atualizar QR Code"</strong> na tela de painel. Isso chama <code>createInstance()</code> novamente, que cria uma nova instância e salva o novo token no banco.</p>
+
+    <h3>Status não sincroniza automaticamente</h3>
+    <p>O <code>checkStatus()</code> é chamado toda vez que a empresa acessa <code>/evolution/config</code>. O banco local (<code>pulse_whatsapp_config.status</code>) é atualizado a cada visita. Para sincronização em background, implemente um Yii2 Console Command que itere sobre todos os registros da tabela e chame <code>checkStatus()</code> por empresa.</p>
+
+    <hr>
+
+    <h2>9. Referência Rápida de Endpoints</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Módulo/Rota</th>
+                <th>Descrição</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>GET  /evolution/config</code></td>
+                <td>Painel de status da empresa logada</td>
+            </tr>
+            <tr>
+                <td><code>GET  /evolution/config/connect</code></td>
+                <td>Gera e exibe o QR Code</td>
+            </tr>
+            <tr>
+                <td><code>POST /evolution/config/disconnect</code></td>
+                <td>Desconecta o WhatsApp</td>
+            </tr>
+            <tr>
+                <td><code>GET  /evolution/config/check-status-ajax</code></td>
+                <td>JSON <code>{"connected": bool}</code> (Ajax)</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="footer-note">
+        <p><em>Documento gerado automaticamente pela análise do código-fonte do PULSE-PLUS.</em><br>
+        <em>Atualizar este documento a cada mudança significativa na arquitetura multi-tenant ou no módulo evolution.</em></p>
+    </div>
+
+</body>
+</html>
