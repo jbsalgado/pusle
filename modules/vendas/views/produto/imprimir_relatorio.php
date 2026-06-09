@@ -15,7 +15,7 @@ use yii\helpers\Html;
         <strong>Filtros:</strong> 
         Busca: <?= Html::encode($filtros['busca'] ?: 'Nenhuma') ?> | 
         Categoria: <?= Html::encode($filtros['categoria']) ?> | 
-        Estoque: <?= $filtros['estoque'] === 'sem' ? 'Sem Estoque' : ($filtros['estoque'] === 'com' ? 'Com Estoque' : 'Todos') ?> | 
+        Estoque: <?= $filtros['estoque'] === 'com' ? 'Com Estoque' : ($filtros['estoque'] === 'zerado' ? 'Estoque Zerado' : ($filtros['estoque'] === 'corte' ? 'Abaixo do Ponto de Corte' : 'Todos')) ?> | 
         Status: <?= $filtros['ativo'] === '1' ? 'Ativos' : ($filtros['ativo'] === '0' ? 'Inativos' : 'Todos') ?>
     </div>
 

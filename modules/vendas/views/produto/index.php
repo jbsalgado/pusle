@@ -43,11 +43,7 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                         ['/vendas/inicio/index'],
                         ['class' => 'inline-flex items-center px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-lg shadow-md transition duration-300']
                     ) ?>
-                    <?= Html::a(
-                        '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>Imprimir Relatório',
-                        ['imprimir-relatorio'] + Yii::$app->request->queryParams,
-                        ['class' => 'inline-flex items-center px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white font-semibold rounded-lg shadow-md transition duration-300', 'target' => '_blank']
-                    ) ?>
+
                     <?= Html::a(
                         '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Novo Produto',
                         ['create'],
@@ -102,7 +98,8 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                         <select name="estoque" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             <option value="">Todos</option>
                             <option value="com" <?= Yii::$app->request->get('estoque') == 'com' ? 'selected' : '' ?>>Com estoque</option>
-                            <option value="sem" <?= Yii::$app->request->get('estoque') == 'sem' ? 'selected' : '' ?>>Sem estoque</option>
+                            <option value="zerado" <?= Yii::$app->request->get('estoque') == 'zerado' ? 'selected' : '' ?>>Estoque Zerado</option>
+                            <option value="corte" <?= Yii::$app->request->get('estoque') == 'corte' ? 'selected' : '' ?>>Abaixo do Ponto de Corte</option>
                         </select>
                     </div>
 
@@ -118,7 +115,7 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
 
                 </div>
 
-                <div class="flex gap-2">
+                <div class="flex gap-2 flex-wrap">
                     <button type="submit" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition duration-300">
                         <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -128,6 +125,21 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                     <?php if (count(Yii::$app->request->queryParams) > 1 || (count(Yii::$app->request->queryParams) == 1 && !isset(Yii::$app->request->queryParams['ativo']))): ?>
                         <?= Html::a('Limpar Filtros', ['index', 'ativo' => '1'], ['class' => 'px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition duration-300']) ?>
                     <?php endif; ?>
+                    <?= Html::a(
+                        '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>Imprimir Relatório',
+                        '#',
+                        [
+                            'class' => 'inline-flex items-center px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white font-semibold rounded-lg shadow-md transition duration-300',
+                            'onclick' => '
+                                event.preventDefault();
+                                var form = document.getElementById("filtro-produtos-form");
+                                var qs = new URLSearchParams(new FormData(form)).toString();
+                                var actionUrl = "' . \yii\helpers\Url::to(['imprimir-relatorio']) . '";
+                                var separator = actionUrl.indexOf("?") !== -1 ? "&" : "?";
+                                window.open(actionUrl + separator + qs, "_blank");
+                            '
+                        ]
+                    ) ?>
                 </div>
 
             </form>

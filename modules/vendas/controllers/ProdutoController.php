@@ -148,8 +148,10 @@ class ProdutoController extends Controller
 
         if ($estoque === 'com') {
             $query->andWhere(['>', 'estoque_atual', 0]);
-        } elseif ($estoque === 'sem') {
-            $query->andWhere(['estoque_atual' => 0]);
+        } elseif ($estoque === 'zerado') {
+            $query->andWhere(['<=', 'estoque_atual', 0]);
+        } elseif ($estoque === 'corte') {
+            $query->andWhere('estoque_atual <= ponto_corte');
         }
 
         if ($ativo !== null && $ativo !== '') {
@@ -225,8 +227,10 @@ class ProdutoController extends Controller
 
         if ($estoque === 'com') {
             $query->andWhere(['>', 'estoque_atual', 0]);
-        } elseif ($estoque === 'sem') {
-            $query->andWhere(['estoque_atual' => 0]);
+        } elseif ($estoque === 'zerado') {
+            $query->andWhere(['<=', 'estoque_atual', 0]);
+        } elseif ($estoque === 'corte') {
+            $query->andWhere('estoque_atual <= ponto_corte');
         }
 
         if ($ativo !== null && $ativo !== '') {

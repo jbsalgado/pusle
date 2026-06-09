@@ -34,7 +34,7 @@ let metadadosPaginacao = null;
 // Disponibiliza CONFIG no window para compatibilidade com módulos que não usam import
 window.CONFIG = CONFIG;
 
-// Inicialização
+/// Inicialização
 async function init() {
     try {
         console.log('[App] 🚀 Iniciando aplicação VENDA DIRETA...');
@@ -1512,8 +1512,8 @@ window.abrirModalPedido = async function() {
     
     // Preencher automaticamente CPF do vendedor se o usuário logado for vendedor
     preencherDadosVendedor();
-    // Preencher automaticamente CPF do consumidor com o CPF do colaborador logado
-    preencherCpfConsumidor();
+    // Preencher automaticamente CPF do consumidor com o CPF do colaborador logado foi desativado a pedido do usuário
+    // preencherCpfConsumidor();
     
     try {
         const estaOffline = !navigator.onLine;
