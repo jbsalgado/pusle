@@ -185,6 +185,8 @@ class ProdutoController extends Controller
     {
         // Aumenta o limite do PCRE para suportar HTMLs grandes no mPDF
         ini_set('pcre.backtrack_limit', '5000000');
+        set_time_limit(300);
+        ini_set('memory_limit', '512M');
 
         // Verifica se é administrador
         if (!$this->isAdministrador()) {
@@ -270,11 +272,17 @@ class ProdutoController extends Controller
                 .filtros-info { margin-bottom: 10px; font-size: 9px; background: #f0f0f0; padding: 5px; border: 1px solid #ccc; }
                 table.tabela-produtos { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
                 table.tabela-produtos th, table.tabela-produtos td { border: 1px solid #ccc; padding: 5px; text-align: left; }
-                table.tabela-produtos th { background-color: #eee; font-weight: bold; text-transform: uppercase; font-size: 9px; }
-                .text-right { text-align: right; }
-                .text-center { text-align: center; }
+                table.tabela-produtos th { background-color: #eee; font-weight: bold; text-transform: uppercase; font-size: 9px; text-align: center !important; }
+                .text-right { text-align: right !important; }
+                .text-center { text-align: center !important; }
                 .estoque-baixo { color: #d9534f; font-weight: bold; }
                 .footer-resumo { text-align: right; font-size: 9px; border-top: 1px solid #ccc; padding-top: 5px; }
+                .header-grupo-destaque { background-color: #ddd !important; color: #000000 !important; text-align: center; font-weight: bold; }
+                .header-destaque-valor { background-color: #eee !important; color: #000000 !important; text-align: center; font-weight: bold; }
+                .destaque-valor { background-color: #eff6ff !important; font-weight: bold; }
+                .header-grupo-lucro { background-color: #ddd !important; color: #000000 !important; text-align: center; font-weight: bold; }
+                .header-destaque-lucro { background-color: #eee !important; color: #000000 !important; text-align: center; font-weight: bold; }
+                .destaque-lucro { background-color: #f0fdf4 !important; font-weight: bold; color: #15803d !important; }
             ',
             'options' => ['title' => 'Relatório de Produtos'],
             'methods' => [
