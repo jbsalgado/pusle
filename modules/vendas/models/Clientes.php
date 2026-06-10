@@ -170,11 +170,16 @@ class Clientes extends \yii\db\ActiveRecord
                 }
             }
 
-            // Limpar documentos
-            if ($this->cpf) {
+            // Limpar e normalizar documentos (se vazios, define como NULL para não violar restrição UNIQUE)
+            if (empty($this->cpf) || trim($this->cpf) === '') {
+                $this->cpf = null;
+            } else {
                 $this->cpf = preg_replace('/[^0-9]/', '', $this->cpf);
             }
-            if ($this->cnpj) {
+
+            if (empty($this->cnpj) || trim($this->cnpj) === '') {
+                $this->cnpj = null;
+            } else {
                 $this->cnpj = preg_replace('/[^0-9]/', '', $this->cnpj);
             }
             

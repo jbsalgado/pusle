@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações de Aparência — Pulse</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: 'var(--brand-50, #f0f7ff)',
+                            100: 'var(--brand-100, #e0effe)',
+                            200: 'var(--brand-200, #bae0fd)',
+                            300: 'var(--brand-300, #7cc8fb)',
+                            400: 'var(--brand-400, #38aaf7)',
+                            500: 'var(--brand-500, #0e8ce9)',
+                            600: 'var(--brand-600, #026ec7)',
+                            700: 'var(--brand-700, #0358a1)',
+                            800: 'var(--brand-800, #074b85)',
+                            900: 'var(--brand-900, #0c3f6e)',
+                            950: 'var(--brand-950, #082849)',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .theme-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .theme-card:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-brand-200 transition-all duration-300" id="header-logo-icon">
+                    <i class="fa-solid fa-palette text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-base font-bold text-slate-900 leading-tight">Configurações visuais</h1>
+                    <p class="text-xs text-slate-500 font-medium">Aparência do PWA & Dashboard</p>
+                </div>
+            </div>
+            
+            <a href="index.html" class="inline-flex items-center space-x-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-semibold transition-all">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span>Voltar ao PDV</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Two Column Layout: Configuration & Live Preview -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            <!-- Left Column: Themes Selection -->
+            <div class="lg:col-span-7 space-y-6">
+                <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                    <h2 class="text-lg font-bold text-slate-900 mb-2">Selecione um Tema Pré-programado</h2>
+                    <p class="text-sm text-slate-500 mb-6">Escolha um dos esquemas de cores pré-programados criados por designers para valorizar a marca do seu negócio.</p>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="themes-container">
+                        <!-- Themes populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Custom Theme Block -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-900">Tema Customizado</h2>
+                            <p class="text-sm text-slate-500">Defina suas próprias cores em formato hexadecimal.</p>
+                        </div>
+                        <button id="btn-custom" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl transition-all">
+                            Personalizar
+                        </button>
+                    </div>
+
+                    <div id="custom-inputs-box" class="hidden border-t border-slate-100 pt-5 mt-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Cor Primária</label>
+                                <div class="flex items-center space-x-2 border border-slate-200 rounded-xl p-2 bg-slate-50">
+                                    <input type="color" id="input-cor-primaria" class="w-8 h-8 rounded-lg cursor-pointer border-0 p-0">
+                                    <input type="text" id="text-cor-primaria" class="w-full bg-transparent border-0 focus:ring-0 focus:outline-none text-sm font-mono font-semibold uppercase" placeholder="#0E8CE9">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Cor Secundária</label>
+                                <div class="flex items-center space-x-2 border border-slate-200 rounded-xl p-2 bg-slate-50">
+                                    <input type="color" id="input-cor-secundaria" class="w-8 h-8 rounded-lg cursor-pointer border-0 p-0">
+                                    <input type="text" id="text-cor-secundaria" class="w-full bg-transparent border-0 focus:ring-0 focus:outline-none text-sm font-mono font-semibold uppercase" placeholder="#026EC7">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Action Buttons -->
+                <div class="flex items-center justify-end space-x-4">
+                    <a href="index.html" class="px-5 py-3 text-slate-500 hover:text-slate-700 text-sm font-semibold transition-all">Cancelar</a>
+                    <button id="btn-salvar" class="px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold shadow-md shadow-brand-200 transition-all flex items-center space-x-2">
+                        <i class="fa-solid fa-check"></i>
+                        <span>Salvar Aparência</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right Column: Interactive Live Preview -->
+            <div class="lg:col-span-5 lg:sticky lg:top-24">
+                <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm overflow-hidden flex flex-col">
+                    <h2 class="text-base font-bold text-slate-900 mb-1 flex items-center space-x-2">
+                        <i class="fa-solid fa-circle-play text-brand-600" id="preview-play-icon"></i>
+                        <span>Pré-visualização em Tempo Real</span>
+                    </h2>
+                    <p class="text-xs text-slate-400 font-medium mb-5">Veja como as cores se comportam na interface do PDV de vendas.</p>
+                    
+                    <!-- Simulated Interface Mockup -->
+                    <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-slate-50/50 flex flex-col relative h-[380px]">
+                        
+                        <!-- Simulated Header -->
+                        <div class="bg-brand-600 h-12 flex items-center justify-between px-3 text-white transition-all duration-300">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-6 h-6 bg-white/20 rounded-md flex items-center justify-center">
+                                    <i class="fa-solid fa-store text-xs"></i>
+                                </div>
+                                <span class="text-xs font-bold tracking-wide">TOP CONSTRUÇÕES</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-[10px]">
+                                    <i class="fa-solid fa-bell"></i>
+                                </div>
+                                <div class="w-6 h-6 bg-white/30 rounded-full flex items-center justify-center font-bold text-[10px]">
+                                    TC
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Simulated Body Content -->
+                        <div class="flex-grow p-3 flex flex-col justify-between">
+                            <div class="space-y-3">
+                                <!-- Search bar simulation -->
+                                <div class="bg-white border border-slate-200 rounded-lg p-2 flex items-center space-x-2 shadow-sm">
+                                    <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs"></i>
+                                    <div class="h-2 w-28 bg-slate-200 rounded-full"></div>
+                                </div>
+
+                                <!-- Tabs simulation -->
+                                <div class="flex space-x-2">
+                                    <span class="px-2.5 py-1 bg-brand-100 text-brand-700 rounded-full text-[9px] font-bold transition-all duration-300">Todos</span>
+                                    <span class="px-2.5 py-1 bg-white border border-slate-200 text-slate-500 rounded-full text-[9px] font-medium">Hidráulicos</span>
+                                    <span class="px-2.5 py-1 bg-white border border-slate-200 text-slate-500 rounded-full text-[9px] font-medium">Tintas</span>
+                                </div>
+
+                                <!-- Cards grid simulation -->
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="bg-white border border-slate-100 rounded-lg p-2 shadow-sm space-y-2">
+                                        <div class="h-16 bg-slate-100 rounded-md flex items-center justify-center">
+                                            <i class="fa-solid fa-image text-slate-300 text-lg"></i>
+                                        </div>
+                                        <div class="h-2 w-16 bg-slate-200 rounded-full"></div>
+                                        <div class="flex justify-between items-center pt-1">
+                                            <span class="text-[10px] font-bold text-slate-700">R$ 29,90</span>
+                                            <button class="w-5 h-5 bg-brand-600 text-white rounded-md flex items-center justify-center text-[9px] transition-all duration-300">
+                                                <i class="fa-solid fa-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="bg-white border border-slate-100 rounded-lg p-2 shadow-sm space-y-2">
+                                        <div class="h-16 bg-slate-100 rounded-md flex items-center justify-center">
+                                            <i class="fa-solid fa-image text-slate-300 text-lg"></i>
+                                        </div>
+                                        <div class="h-2 w-12 bg-slate-200 rounded-full"></div>
+                                        <div class="flex justify-between items-center pt-1">
+                                            <span class="text-[10px] font-bold text-slate-700">R$ 89,90</span>
+                                            <button class="w-5 h-5 bg-brand-600 text-white rounded-md flex items-center justify-center text-[9px] transition-all duration-300">
+                                                <i class="fa-solid fa-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Bottom Floating Bar simulation -->
+                            <div class="bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-between shadow-md">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-7 h-7 bg-brand-50 rounded-lg flex items-center justify-center text-brand-600 text-xs transition-all duration-300">
+                                        <i class="fa-solid fa-cart-shopping"></i>
+                                    </div>
+                                    <div class="text-left">
+                                        <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider leading-none">Subtotal</p>
+                                        <p class="text-[10px] font-bold text-slate-800">R$ 119,80</p>
+                                    </div>
+                                </div>
+                                <button class="bg-brand-600 hover:bg-brand-700 text-white text-[9px] font-bold px-3 py-1.5 rounded-lg flex items-center space-x-1 shadow-sm transition-all duration-300">
+                                    <span>Fechar Venda</span>
+                                    <i class="fa-solid fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Global Toast Alert -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl transition-all duration-300 transform translate-y-20 opacity-0 flex items-center space-x-3 z-50">
+        <i class="fa-solid fa-circle-check text-emerald-400 text-lg" id="toast-icon"></i>
+        <span class="text-sm font-semibold" id="toast-message">Mensagem de alerta</span>
+    </div>
+
+    <!-- JS Logic -->
+    <script type="module">
+        import { CONFIG, API_ENDPOINTS } from './js/config.js';
+        import { fetchWithAuth } from './js/api.js';
+
+        // Temas de cores do model LojaConfiguracao
+        const TEMAS_DISPONIVEIS = {
+            azul: {
+                nome: 'Ocean Blue',
+                cor: '#0e8ce9',
+                escala: {
+                    50: '#f0f7ff', 100: '#e0effe', 200: '#bae0fd', 300: '#7cc8fb', 400: '#38aaf7',
+                    500: '#0e8ce9', 600: '#026ec7', 700: '#0358a1', 800: '#074b85', 900: '#0c3f6e', 950: '#082849'
+                }
+            },
+            verde: {
+                nome: 'Forest Green',
+                cor: '#10b981',
+                escala: {
+                    50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 300: '#86efac', 400: '#4ade80',
+                    500: '#10b981', 600: '#059669', 700: '#047857', 800: '#065f46', 900: '#064e3b', 950: '#022c22'
+                }
+            },
+            roxo: {
+                nome: 'Purple Sunset',
+                cor: '#8b5cf6',
+                escala: {
+                    50: '#faf5ff', 100: '#f3e8ff', 200: '#e9d5ff', 300: '#d8b4fe', 400: '#c084fc',
+                    500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6', 900: '#4c1d95', 950: '#2e1065'
+                }
+            },
+            laranja: {
+                nome: 'Sunset Orange',
+                cor: '#f97316',
+                escala: {
+                    50: '#fff7ed', 100: '#ffedd5', 200: '#fed7aa', 300: '#fdba74', 400: '#fb923c',
+                    500: '#f97316', 600: '#ea580c', 700: '#c2410c', 800: '#9a3412', 900: '#7c2d12', 950: '#431407'
+                }
+            },
+            rosa: {
+                nome: 'Rose Premium',
+                cor: '#f43f5e',
+                escala: {
+                    50: '#fff1f2', 100: '#ffe4e6', 200: '#fecdd3', 300: '#fda4af', 400: '#fb7185',
+                    500: '#f43f5e', 600: '#e11d48', 700: '#be123c', 800: '#9f1239', 900: '#881337', 950: '#4c0519'
+                }
+            },
+            dark: {
+                nome: 'Dark Slate',
+                cor: '#64748b',
+                escala: {
+                    50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8',
+                    500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a', 950: '#020617'
+                }
+            }
+        };
+
+        let temaSelecionado = 'azul';
+        let corPrimariaCustomizada = '#0e8ce9';
+        let corSecundariaCustomizada = '#026ec7';
+
+        // DOM elements
+        const themesContainer = document.getElementById('themes-container');
+        const customInputsBox = document.getElementById('custom-inputs-box');
+        const btnCustom = document.getElementById('btn-custom');
+        const inputCorPrimaria = document.getElementById('input-cor-primaria');
+        const textCorPrimaria = document.getElementById('text-cor-primaria');
+        const inputCorSecundaria = document.getElementById('input-cor-secundaria');
+        const textCorSecundaria = document.getElementById('text-cor-secundaria');
+        const btnSalvar = document.getElementById('btn-salvar');
+
+        // Inicialização
+        async function init() {
+            renderizarListaTemas();
+            setupEventListeners();
+            await carregarConfiguracaoAtual();
+        }
+
+        // Renderiza os cartões de tema
+        function renderizarListaTemas() {
+            themesContainer.innerHTML = '';
+            
+            Object.entries(TEMAS_DISPONIVEIS).forEach(([key, value]) => {
+                const card = document.createElement('div');
+                card.id = `card-theme-${key}`;
+                card.className = `theme-card border-2 rounded-2xl p-4 cursor-pointer flex items-center justify-between transition-all ${
+                    temaSelecionado === key ? 'border-brand-600 bg-brand-50/40 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'
+                }`;
+                
+                card.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white" style="background-color: ${value.cor}">
+                            <i class="fa-solid fa-palette text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-slate-800 text-sm leading-tight">${value.nome}</p>
+                            <p class="text-xs text-slate-400 font-medium">Layout estético</p>
+                        </div>
+                    </div>
+                    <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                        temaSelecionado === key ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-350 bg-white'
+                    }" id="radio-icon-${key}">
+                        ${temaSelecionado === key ? '<i class="fa-solid fa-check text-[9px]"></i>' : ''}
+                    </div>
+                `;
+                
+                card.addEventListener('click', () => selecionarTema(key));
+                themesContainer.appendChild(card);
+            });
+        }
+
+        // Seleciona um tema pré-programado
+        function selecionarTema(key) {
+            temaSelecionado = key;
+            customInputsBox.classList.add('hidden');
+            btnCustom.className = "px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl transition-all";
+            
+            // Re-renderiza a lista de temas para atualizar o estado ativo
+            renderizarListaTemas();
+            
+            // Aplica visual de live preview na hora
+            aplicarLivePreview(TEMAS_DISPONIVEIS[key].escala);
+        }
+
+        // Seleciona a opção de tema customizado
+        function selecionarTemaCustomizado() {
+            temaSelecionado = 'customizado';
+            customInputsBox.classList.remove('hidden');
+            btnCustom.className = "px-4 py-2 bg-brand-600 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-brand-200";
+            
+            // Desativa cartões de temas fechados
+            document.querySelectorAll('.theme-card').forEach(el => {
+                el.className = "theme-card border-2 border-slate-200 bg-white hover:border-slate-300 rounded-2xl p-4 cursor-pointer flex items-center justify-between transition-all";
+            });
+            document.querySelectorAll('[id^="radio-icon-"]').forEach(el => {
+                el.className = "w-5 h-5 rounded-full border-2 border-slate-300 bg-white flex items-center justify-center";
+                el.innerHTML = '';
+            });
+
+            // Atualiza inputs com os hexadecimais
+            inputCorPrimaria.value = corPrimariaCustomizada;
+            textCorPrimaria.value = corPrimariaCustomizada;
+            inputCorSecundaria.value = corSecundariaCustomizada;
+            textCorSecundaria.value = corSecundariaCustomizada;
+
+            gerarEscalaCustomizadaEPreview();
+        }
+
+        // Aplica o esquema de cores dinâmico no preview na metade direita da tela
+        function aplicarLivePreview(escala) {
+            const root = document.documentElement;
+            Object.entries(escala).forEach(([peso, hex]) => {
+                root.style.setProperty(`--brand-${peso}`, hex);
+            });
+        }
+
+        // Gera a escala Tailwind e joga no preview a partir do input de cor do usuário
+        function gerarEscalaCustomizadaEPreview() {
+            const primVal = corPrimariaCustomizada;
+            const secVal = corSecundariaCustomizada;
+
+            // Escala simulada baseada na cor do usuário
+            const escalaSimulada = {
+                50: '#f0f7ff',
+                100: '#e0effe',
+                200: '#bae0fd',
+                300: '#7cc8fb',
+                400: '#38aaf7',
+                500: primVal,
+                600: secVal,
+                700: secVal,
+                800: '#074b85',
+                900: '#0c3f6e',
+                950: '#082849',
+            };
+
+            aplicarLivePreview(escalaSimulada);
+        }
+
+        // Busca a configuração salva no backend
+        async function carregarConfiguracaoAtual() {
+            try {
+                const response = await fetch(`${CONFIG.URL_API}/api/usuario/dados-loja?usuario_id=${CONFIG.ID_USUARIO_LOJA}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.aparencia) {
+                        const config = data.aparencia;
+                        if (config.tema && config.tema !== 'customizado') {
+                            selecionarTema(config.tema);
+                        } else if (config.tema === 'customizado') {
+                            corPrimariaCustomizada = config.cor_primaria || '#0e8ce9';
+                            corSecundariaCustomizada = config.cor_secundaria || '#026ec7';
+                            selecionarTemaCustomizado();
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('[Aparencia] Erro ao buscar configuração atual:', error);
+                showToast('Erro ao carregar configurações de aparência.', 'error');
+            }
+        }
+
+        // Salva as configurações de aparência
+        async function salvarAparencia() {
+            btnSalvar.disabled = true;
+            btnSalvar.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> <span>Salvando...</span>`;
+
+            const payload = {
+                tema: temaSelecionado,
+                cor_primaria: temaSelecionado === 'customizado' ? corPrimariaCustomizada : null,
+                cor_secundaria: temaSelecionado === 'customizado' ? corSecundariaCustomizada : null
+            };
+
+            try {
+                const response = await fetchWithAuth(`${CONFIG.URL_API}/api/usuario/salvar-aparencia`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const resData = await response.json();
+
+                if (response.ok && resData.sucesso) {
+                    showToast('Aparência salva com sucesso!', 'success');
+                    
+                    // Se for salvo com sucesso, atualiza o CSS na página e aguarda um segundo antes de voltar
+                    if (resData.aparencia && resData.aparencia.escala_cores) {
+                        aplicarLivePreview(resData.aparencia.escala_cores);
+                    }
+
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 1200);
+
+                } else {
+                    console.error('[Aparencia] Falha ao salvar (resposta do servidor):', resData);
+                    showToast(resData.erro || 'Falha ao salvar as configurações.', 'error');
+                    btnSalvar.disabled = false;
+                    btnSalvar.innerHTML = `<i class="fa-solid fa-check"></i> <span>Salvar Aparência</span>`;
+                }
+
+            } catch (error) {
+                console.error('[Aparencia] Erro ao salvar:', error);
+                showToast('Erro na conexão com o servidor.', 'error');
+                btnSalvar.disabled = false;
+                btnSalvar.innerHTML = `<i class="fa-solid fa-check"></i> <span>Salvar Aparência</span>`;
+            }
+        }
+
+        // Configura ouvintes de eventos
+        function setupEventListeners() {
+            btnCustom.addEventListener('click', selecionarTemaCustomizado);
+            
+            // Sincronização entre Seletor HTML e Input de texto para Cor Primária
+            inputCorPrimaria.addEventListener('input', (e) => {
+                corPrimariaCustomizada = e.target.value;
+                textCorPrimaria.value = corPrimariaCustomizada;
+                gerarEscalaCustomizadaEPreview();
+            });
+            textCorPrimaria.addEventListener('input', (e) => {
+                let val = e.target.value;
+                if (val.match(/^#[0-9a-fA-F]{6}$/)) {
+                    corPrimariaCustomizada = val;
+                    inputCorPrimaria.value = val;
+                    gerarEscalaCustomizadaEPreview();
+                }
+            });
+
+            // Sincronização para Cor Secundária
+            inputCorSecundaria.addEventListener('input', (e) => {
+                corSecundariaCustomizada = e.target.value;
+                textCorSecundaria.value = corSecundariaCustomizada;
+                gerarEscalaCustomizadaEPreview();
+            });
+            textCorSecundaria.addEventListener('input', (e) => {
+                let val = e.target.value;
+                if (val.match(/^#[0-9a-fA-F]{6}$/)) {
+                    corSecundariaCustomizada = val;
+                    inputCorSecundaria.value = val;
+                    gerarEscalaCustomizadaEPreview();
+                }
+            });
+
+            btnSalvar.addEventListener('click', salvarAparencia);
+        }
+
+        // Exibe alertas Toast
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const messageEl = document.getElementById('toast-message');
+            const iconEl = document.getElementById('toast-icon');
+
+            messageEl.innerText = message;
+            
+            if (type === 'success') {
+                iconEl.className = "fa-solid fa-circle-check text-emerald-400 text-lg";
+            } else {
+                iconEl.className = "fa-solid fa-circle-xmark text-rose-400 text-lg";
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        init();
+    </script>
+</body>
+</html>

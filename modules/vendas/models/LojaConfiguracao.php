@@ -79,6 +79,9 @@ class LojaConfiguracao extends ActiveRecord
             [['codigo_municipio_ibge'], 'string', 'max' => 7],
             [['logo_path'], 'string', 'max' => 500],
             [['pix_chave', 'pix_nome', 'pix_cidade'], 'string', 'max' => 255],
+            [['aparencia_tema'], 'string', 'max' => 50],
+            [['aparencia_cor_primaria', 'aparencia_cor_secundaria'], 'string', 'max' => 7],
+            [['aparencia_cor_primaria', 'aparencia_cor_secundaria'], 'match', 'pattern' => '/^#[0-9a-fA-F]{6}$/', 'message' => 'A cor deve ser um hexadecimal válido (ex: #3B82F6).'],
             [['usuario_id'], 'unique'],
 
             // Validação de CPF/CNPJ
@@ -125,6 +128,9 @@ class LojaConfiguracao extends ActiveRecord
             'pix_chave' => 'Chave PIX',
             'pix_nome' => 'Nome (Recebedor PIX)',
             'pix_cidade' => 'Cidade (Recebedor PIX)',
+            'aparencia_tema' => 'Tema do Sistema',
+            'aparencia_cor_primaria' => 'Cor Primária Customizada',
+            'aparencia_cor_secundaria' => 'Cor Secundária Customizada',
             'created_at' => 'Criado em',
             'updated_at' => 'Atualizado em',
         ];
@@ -185,5 +191,143 @@ class LojaConfiguracao extends ActiveRecord
         }
 
         return $this->telefone;
+    }
+
+    /**
+     * Retorna a lista de temas pré-programados com suas respectivas escalas de cores.
+     * @return array
+     */
+    public static function getTemasDisponiveis()
+    {
+        return [
+            'azul' => [
+                'nome' => 'Ocean Blue',
+                'cores' => [
+                    '50' => '#f0f7ff',
+                    '100' => '#e0effe',
+                    '200' => '#bae0fd',
+                    '300' => '#7cc8fb',
+                    '400' => '#38aaf7',
+                    '500' => '#0e8ce9',
+                    '600' => '#026ec7',
+                    '700' => '#0358a1',
+                    '800' => '#074b85',
+                    '900' => '#0c3f6e',
+                    '950' => '#082849',
+                ]
+            ],
+            'verde' => [
+                'nome' => 'Forest Green',
+                'cores' => [
+                    '50' => '#f0vdf4', // fallback safe
+                    '50' => '#f0fdf4',
+                    '100' => '#dcfce7',
+                    '200' => '#bbf7d0',
+                    '300' => '#86efac',
+                    '400' => '#4ade80',
+                    '500' => '#10b981',
+                    '600' => '#059669',
+                    '700' => '#047857',
+                    '800' => '#065f46',
+                    '900' => '#064e3b',
+                    '950' => '#022c22',
+                ]
+            ],
+            'roxo' => [
+                'nome' => 'Purple Sunset',
+                'cores' => [
+                    '50' => '#faf5ff',
+                    '100' => '#f3e8ff',
+                    '200' => '#e9d5ff',
+                    '300' => '#d8b4fe',
+                    '400' => '#c084fc',
+                    '500' => '#8b5cf6',
+                    '600' => '#7c3aed',
+                    '700' => '#6d28d9',
+                    '800' => '#5b21b6',
+                    '900' => '#4c1d95',
+                    '950' => '#2e1065',
+                ]
+            ],
+            'laranja' => [
+                'nome' => 'Sunset Orange',
+                'cores' => [
+                    '50' => '#fff7ed',
+                    '100' => '#ffedd5',
+                    '200' => '#fed7aa',
+                    '300' => '#fdba74',
+                    '400' => '#fb923c',
+                    '500' => '#f97316',
+                    '600' => '#ea580c',
+                    '700' => '#c2410c',
+                    '800' => '#9a3412',
+                    '900' => '#7c2d12',
+                    '950' => '#431407',
+                ]
+            ],
+            'rosa' => [
+                'nome' => 'Rose Premium',
+                'cores' => [
+                    '50' => '#fff1f2',
+                    '100' => '#ffe4e6',
+                    '200' => '#fecdd3',
+                    '300' => '#fda4af',
+                    '400' => '#fb7185',
+                    '500' => '#f43f5e',
+                    '600' => '#e11d48',
+                    '700' => '#be123c',
+                    '800' => '#9f1239',
+                    '900' => '#881337',
+                    '950' => '#4c0519',
+                ]
+            ],
+            'dark' => [
+                'nome' => 'Dark Slate',
+                'cores' => [
+                    '50' => '#f8fafc',
+                    '100' => '#f1f5f9',
+                    '200' => '#e2e8f0',
+                    '300' => '#cbd5e1',
+                    '400' => '#94a3b8',
+                    '500' => '#64748b',
+                    '600' => '#475569',
+                    '700' => '#334155',
+                    '800' => '#1e293b',
+                    '900' => '#0f172a',
+                    '950' => '#020617',
+                ]
+            ]
+        ];
+    }
+
+    /**
+     * Retorna a escala de cores resolvida do tema ativo.
+     * @return array
+     */
+    public function getEscalaCores()
+    {
+        $temas = self::getTemasDisponiveis();
+        $temaAtivo = $this->aparencia_tema ?: 'azul';
+
+        if ($temaAtivo !== 'customizado' && isset($temas[$temaAtivo])) {
+            return $temas[$temaAtivo]['cores'];
+        }
+
+        // Se for customizado ou não encontrado, gera a escala baseada na cor primária fornecida (ou azul como fallback)
+        $corPrimaria = $this->aparencia_cor_primaria ?: '#0e8ce9';
+        
+        return [
+            '50' => '#f0f7ff',
+            '100' => '#e0effe',
+            '200' => '#bae0fd',
+            '300' => '#7cc8fb',
+            '400' => '#38aaf7',
+            '500' => $corPrimaria,
+            '600' => $this->aparencia_cor_secundaria ?: $corPrimaria,
+            '700' => $this->aparencia_cor_secundaria ?: $corPrimaria,
+            '800' => '#074b85',
+            '900' => '#0c3f6e',
+            '950' => '#082849',
+        ];
     }
 }

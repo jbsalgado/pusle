@@ -75,6 +75,12 @@ async function init() {
         if (btnMaquinetas && GATEWAY_CONFIG.habilitado && GATEWAY_CONFIG.gateway === 'mercadopago') {
             btnMaquinetas.classList.remove('hidden');
         }
+
+        // Exibir botão de configuração de aparência apenas para o Administrador/Dono da Loja
+        const btnAparencia = document.getElementById('btn-configuracao-aparencia');
+        if (btnAparencia && (!usuarioData || !usuarioData.colaborador)) {
+            btnAparencia.classList.remove('hidden');
+        }
         
         // ✅ Verifica se há comprovante para exibir após reload
         verificarComprovantePosReload();
@@ -107,6 +113,11 @@ async function carregarLogoEmpresa() {
                 tem_logo_path: !!dadosLoja.logo_path, 
                 logo_path: dadosLoja.logo_path 
             });
+            
+            // ✅ APLICA APARÊNCIA DINÂMICA
+            if (dadosLoja.aparencia) {
+                aplicarAparenciaDinamica(dadosLoja.aparencia);
+            }
             
             if (dadosLoja.logo_path) {
                 let logoUrl = dadosLoja.logo_path.trim();
@@ -154,6 +165,30 @@ async function carregarLogoEmpresa() {
     } catch (error) {
         console.error('[App] ❌ Erro ao carregar logo da empresa:', error);
     }
+}
+
+// Aplicar Aparência Dinâmica na SPA (Cores baseadas no tema)
+function aplicarAparenciaDinamica(aparencia) {
+    if (!aparencia || !aparencia.escala_cores) {
+        console.log('[App] 🎨 Sem dados de aparência customizada. Usando cores padrão.');
+        return;
+    }
+    
+    console.log('[App] 🎨 Aplicando tema de cores dinâmico:', aparencia.tema);
+    
+    let styleEl = document.getElementById('dynamic-theme-vars');
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'dynamic-theme-vars';
+        document.head.appendChild(styleEl);
+    }
+    
+    let cssRule = ':root {\n';
+    Object.entries(aparencia.escala_cores).forEach(([peso, hex]) => {
+        cssRule += `  --brand-${peso}: ${hex};\n`;
+    });
+    cssRule += '}';
+    styleEl.innerHTML = cssRule;
 }
 
 // ✅ NOVO: Listener de Autenticação
@@ -324,9 +359,9 @@ function renderizarCarrinho() {
                     </div>
                     
                     <!-- Área de Desconto -->
-                    <div class="mt-2 p-2 ${item.isFilteredScale ? 'bg-blue-50 border border-blue-100' : 'bg-gray-50'} rounded text-sm">
+                    <div class="mt-2 p-2 ${item.isFilteredScale ? 'bg-brand-50 border border-brand-100' : 'bg-gray-50'} rounded text-sm">
                         <div class="flex items-center justify-between mb-1">
-                            <label class="text-xs ${item.isFilteredScale ? 'text-blue-700 font-bold' : 'text-gray-500'}">
+                            <label class="text-xs ${item.isFilteredScale ? 'text-brand-700 font-bold' : 'text-gray-500'}">
                                 ${item.isFilteredScale ? '✨ Desconto Volume:' : 'Desconto:'}
                             </label>
                             <select onchange="alterarTipoDesconto('${item.id}', this.value)" class="text-xs border rounded p-0.5 bg-white">
@@ -339,7 +374,7 @@ function renderizarCarrinho() {
                             data-desconto-item="${item.id}"
                             oninput="formatarEntradaDesconto(this)"
                             onchange="aplicarDesconto('${item.id}', this.value)" 
-                            class="w-full border rounded p-1 text-right text-xs ${item.isFilteredScale ? 'bg-blue-100 border-blue-300 font-bold text-blue-800' : ''}" 
+                            class="w-full border rounded p-1 text-right text-xs ${item.isFilteredScale ? 'bg-brand-100 border-brand-300 font-bold text-brand-800' : ''}" 
                             placeholder="0,00"
                             ${item.isFilteredScale ? 'title="Desconto aplicado automaticamente pelo volume"' : ''}>
                     </div>
@@ -544,7 +579,7 @@ window.filtrarPorCategoria = async function(id) {
     document.querySelectorAll('.categoria-chip').forEach(btn => {
         const isSelected = btn.dataset.categoriaId == id; // Loose equality para 'todos' vs id numérico
         if (isSelected) {
-            btn.className = 'categoria-chip active px-4 py-1.5 bg-blue-600 text-white rounded-full text-sm font-medium whitespace-nowrap shadow-sm transition-colors border border-blue-600';
+            btn.className = 'categoria-chip active px-4 py-1.5 bg-brand-600 text-white rounded-full text-sm font-medium whitespace-nowrap shadow-sm transition-colors border border-brand-600';
         } else {
             btn.className = 'categoria-chip px-4 py-1.5 bg-white text-gray-700 rounded-full text-sm font-medium whitespace-nowrap shadow-sm hover:bg-gray-50 transition-colors border border-gray-200';
         }
@@ -1156,7 +1191,7 @@ function renderizarProdutos(listaProdutos) {
                             <span class="text-[10px] text-gray-500 line-through">${formatarMoeda(precoOriginal)}</span>
                             <span class="text-xl font-bold text-red-600">${formatarMoeda(precoExibido)}</span>
                         ` : `
-                            <span class="text-xl font-bold text-blue-600">${formatarMoeda(precoExibido)}</span>
+                            <span class="text-xl font-bold text-brand-600">${formatarMoeda(precoExibido)}</span>
                         `}
                     </div>
                     <span class="text-[10px] ${produto.estoque_atual > 0 ? 'text-green-600' : 'text-red-600'} font-semibold">
@@ -1167,11 +1202,15 @@ function renderizarProdutos(listaProdutos) {
                     <button onclick="abrirModalVariacoes('${produto.id}')" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-all shadow-sm flex items-center justify-center gap-2">
                         <span>🏷️ Escolher Opções</span>
                     </button>
-                ` : `
-                    <button onclick="abrirModalQuantidade('${produto.id}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors">
-                        🛒 ${produto.estoque_atual <= 0 ? 'Vender sem estoque' : 'Adicionar'}
+                ` : (parseFloat(produto.estoque_atual || 0) <= 0 ? `
+                    <button disabled class="w-full bg-gray-200 text-gray-400 font-semibold py-2 px-4 rounded-lg text-sm cursor-not-allowed flex items-center justify-center gap-1" title="Produto sem estoque">
+                        <span>🚫 Sem estoque</span>
                     </button>
-                `}
+                ` : `
+                    <button onclick="abrirModalQuantidade('${produto.id}')" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors">
+                        🛒 Adicionar
+                    </button>
+                `)}
             </div>
         </div>`;
     }).join('');
@@ -1701,6 +1740,15 @@ window.confirmarPedido = async function() {
             cpf_consumidor: (() => {
                 const val = document.getElementById('consumidor_cpf')?.value || '';
                 const digitos = val.replace(/\D/g, '');
+                
+                // Evita preencher o CPF do consumidor com o CPF do vendedor logado
+                // (previne autofill indesejado do navegador ou erros de digitação)
+                const cpfVendedor = colaboradorAtual?.cpf ? colaboradorAtual.cpf.replace(/\D/g, '') : '';
+                if (cpfVendedor && digitos === cpfVendedor) {
+                    console.warn('[App] ⚠️ CPF informado para o consumidor é idêntico ao do vendedor logado. Ignorando.');
+                    return null;
+                }
+                
                 return digitos.length === 11 ? val.trim() : null; // envia com pontuação se válido
             })()
         };
@@ -2746,23 +2794,30 @@ window.abrirModalVariacoes = async function(produtoId) {
             return;
         }
 
-        container.innerHTML = variacoes.map(v => `
-            <div onclick="adicionarVariacaoDireto('${v.id}', '${produtoId}')" class="flex justify-between items-center p-4 border border-gray-100 rounded-xl hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all active:scale-[0.98] group bg-white shadow-sm">
+        container.innerHTML = variacoes.map(v => {
+            const temEstoque = parseFloat(v.estoque_atual || 0) > 0;
+            return `
+            <div 
+                ${temEstoque ? `onclick="adicionarVariacaoDireto('${v.id}', '${produtoId}')"` : ''} 
+                class="flex justify-between items-center p-4 border rounded-xl transition-all shadow-sm bg-white
+                       ${temEstoque ? 'border-gray-100 hover:border-brand-300 hover:bg-brand-50 cursor-pointer active:scale-[0.98]' : 'border-gray-200 opacity-60 cursor-not-allowed'}"
+                title="${temEstoque ? 'Adicionar esta opção' : 'Opção sem estoque disponível'}"
+            >
                 <div class="flex flex-col">
                     <div class="flex items-center gap-2">
                         <span class="px-2 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-bold rounded uppercase">${v.tamanho || 'U'}</span>
-                        <span class="font-bold text-gray-800">${v.cor || 'Única'}</span>
+                        <span class="font-bold ${temEstoque ? 'text-gray-800' : 'text-gray-400 line-through'}">${v.cor || 'Única'}</span>
                     </div>
                     <span class="text-[10px] text-gray-400 mt-1">Ref: ${v.codigo_referencia}</span>
                 </div>
                 <div class="flex flex-col items-end">
-                    <span class="text-lg font-bold text-blue-600">${formatarMoeda(v.preco_venda_sugerido)}</span>
-                    <span class="text-[9px] ${v.estoque_atual > 0 ? 'text-green-500' : 'text-red-400'}">
-                        Estoque: ${formatarQuantidade(v.estoque_atual, false)}
+                    <span class="text-lg font-bold ${temEstoque ? 'text-brand-600' : 'text-gray-400'}">${formatarMoeda(v.preco_venda_sugerido)}</span>
+                    <span class="text-[9px] ${temEstoque ? 'text-green-500 font-semibold' : 'text-red-500 font-bold'}">
+                        ${temEstoque ? `Estoque: ${formatarQuantidade(v.estoque_atual, false)}` : 'Sem estoque'}
                     </span>
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
 
     } catch (error) {
         console.error('[App] Erro ao carregar variações:', error);

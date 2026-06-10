@@ -1709,7 +1709,31 @@ window.gerarVendaA4 = function() {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Comprovante de Venda #${idExibicao}</title>
         <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+          tailwind.config = {
+            theme: {
+              extend: {
+                colors: {
+                  brand: {
+                    50: 'var(--brand-50, #f0f7ff)',
+                    100: 'var(--brand-100, #e0effe)',
+                    200: 'var(--brand-200, #bae0fd)',
+                    300: 'var(--brand-300, #7cc8fb)',
+                    400: 'var(--brand-400, #38aaf7)',
+                    500: 'var(--brand-500, #0e8ce9)',
+                    600: 'var(--brand-600, #026ec7)',
+                    700: 'var(--brand-700, #0358a1)',
+                    800: 'var(--brand-800, #074b85)',
+                    900: 'var(--brand-900, #0c3f6e)',
+                    950: 'var(--brand-950, #082849)',
+                  },
+                }
+              }
+            }
+          }
+        </script>
         <style>
+            ${document.getElementById('dynamic-theme-vars')?.innerHTML || ''}
             @media print {
                 @page { size: A4; margin: 10mm; }
                 body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; }
@@ -1723,7 +1747,7 @@ window.gerarVendaA4 = function() {
         
         <!-- Botões de Ação (Não aparecem na impressão) -->
         <div class="no-print fixed top-4 right-4 flex gap-2 z-50">
-            <button onclick="window.print()" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 font-bold flex items-center gap-2">
+            <button onclick="window.print()" class="bg-brand-600 text-white px-4 py-2 rounded shadow hover:bg-brand-700 font-bold flex items-center gap-2">
                 🖨️ Imprimir / Salvar PDF
             </button>
             <button onclick="downloadHtml()" class="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 font-bold flex items-center gap-2">
@@ -1745,7 +1769,7 @@ window.gerarVendaA4 = function() {
                     </div>
                 </div>
                 <div class="text-right">
-                    <h2 class="text-xl font-bold text-blue-800">COMPROVANTE DE VENDA</h2>
+                    <h2 class="text-xl font-bold text-brand-800">COMPROVANTE DE VENDA</h2>
                     <p class="text-gray-500 text-lg">#${idExibicao}</p>
                     <p class="text-sm text-gray-400 mt-1">Emissão: ${dataHora}</p>
                 </div>
@@ -1753,8 +1777,8 @@ window.gerarVendaA4 = function() {
 
             <!-- Dados do Cliente -->
             ${dadosPedido.cliente ? `
-            <div class="bg-blue-50 p-4 rounded-lg mb-6 border border-blue-100 break-inside-avoid">
-                <h3 class="text-blue-800 font-bold mb-2 uppercase text-sm border-b border-blue-200 pb-1">Dados do Cliente</h3>
+            <div class="bg-brand-50 p-4 rounded-lg mb-6 border border-brand-100 break-inside-avoid">
+                <h3 class="text-brand-800 font-bold mb-2 uppercase text-sm border-b border-brand-200 pb-1">Dados do Cliente</h3>
                 <div class="grid grid-cols-2 gap-4 text-sm">
                     <div>
                         <p><span class="font-semibold">Nome:</span> ${dadosPedido.cliente.nome}</p>
@@ -1796,7 +1820,7 @@ window.gerarVendaA4 = function() {
                         <span>- ${formatMoney(totalDescontos)}</span>
                     </div>` : ''}
                     ${acrescimoValor > 0 ? `
-                    <div class="flex justify-between text-sm mb-1 text-blue-600">
+                    <div class="flex justify-between text-sm mb-1 text-brand-600">
                         <span>Acréscimos:</span>
                         <span>+ ${formatMoney(acrescimoValor)}</span>
                     </div>` : ''}
@@ -1807,7 +1831,7 @@ window.gerarVendaA4 = function() {
                     
                     <div class="mt-4 pt-4 border-t border-gray-200">
                          <p class="text-sm font-semibold text-gray-700">Forma de Pagamento:</p>
-                         <p class="text-lg text-blue-700 font-bold uppercase">${dadosPedido.forma_pagamento || dadosVenda.forma_pagamento_nome || 'A Combinar'}</p>
+                         <p class="text-lg text-brand-700 font-bold uppercase">${dadosPedido.forma_pagamento || dadosVenda.forma_pagamento_nome || 'A Combinar'}</p>
                          ${dadosPedido.numero_parcelas > 1 ? `<p class="text-xs text-gray-500 mt-1">${dadosPedido.numero_parcelas}x de ${formatMoney(valorTotal / dadosPedido.numero_parcelas)}</p>` : ''}
                     </div>
                 </div>

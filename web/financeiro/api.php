@@ -396,6 +396,22 @@ try {
     // ----------------------------------------------------
     // 7. ASSEMBLE JSON RESPONSE
     // ----------------------------------------------------
+    $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $usuarioId]);
+    $tempConfig = new \app\modules\vendas\models\LojaConfiguracao();
+    $tempConfig->aparencia_tema = 'azul';
+    
+    $aparencia = $lojaConfig ? [
+        'tema' => $lojaConfig->aparencia_tema ?: 'azul',
+        'cor_primaria' => $lojaConfig->aparencia_cor_primaria,
+        'cor_secundaria' => $lojaConfig->aparencia_cor_secundaria,
+        'escala_cores' => $lojaConfig->getEscalaCores(),
+    ] : [
+        'tema' => 'azul',
+        'cor_primaria' => null,
+        'cor_secundaria' => null,
+        'escala_cores' => $tempConfig->getEscalaCores(),
+    ];
+
     echo json_encode([
         'success' => true,
         'estoque' => [
@@ -407,7 +423,8 @@ try {
             'mes' => $mes,
             'ano' => $ano,
             'dias' => $daysInMonth,
-            'usuario' => Yii::$app->db->createCommand("SELECT nome FROM prest_usuarios WHERE id = :uid", [':uid' => $usuarioId])->queryScalar()
+            'usuario' => Yii::$app->db->createCommand("SELECT nome FROM prest_usuarios WHERE id = :uid", [':uid' => $usuarioId])->queryScalar(),
+            'aparencia' => $aparencia,
         ],
         'summary' => [
             'receita_total' => $totalReceita,

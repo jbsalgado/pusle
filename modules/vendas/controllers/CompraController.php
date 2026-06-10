@@ -17,6 +17,8 @@ use yii\filters\VerbFilter;
 use yii\filters\AccessControl;
 use yii\db\Transaction;
 use yii\db\Expression;
+use app\modules\evolution\services\EvolutionService;
+use kartik\mpdf\Pdf;
 
 /**
  * CompraController implementa as ações CRUD para o model Compra.
@@ -44,6 +46,7 @@ class CompraController extends Controller
                     'delete' => ['POST'],
                     'concluir' => ['POST'],
                     'cancelar' => ['POST'],
+                    'enviar-whatsapp' => ['POST'],
                 ],
             ],
         ];
@@ -133,6 +136,29 @@ class CompraController extends Controller
 
         $itens = [];
         $post = Yii::$app->request->post();
+
+        // Se houver POST de itens, pré-carrega para a variável $itens para manter na tela em caso de erro de validação
+        if (isset($post['ItemCompra']) && is_array($post['ItemCompra'])) {
+            foreach ($post['ItemCompra'] as $itemData) {
+                $item = new ItemCompra();
+                $item->load(['ItemCompra' => $itemData]);
+                
+                // Passa as propriedades extras temporárias usadas no form
+                $item->nome_produto_temp = $itemData['nome_produto_temp'] ?? '';
+                $item->codigo_referencia_temp = $itemData['codigo_referencia_temp'] ?? '';
+                $item->codigo_barras = $itemData['codigo_barras'] ?? '';
+                $item->marca = $itemData['marca'] ?? '';
+                $item->preco_venda_sugerido_temp = isset($itemData['preco_venda_sugerido_temp']) && $itemData['preco_venda_sugerido_temp'] !== '' ? (float)$itemData['preco_venda_sugerido_temp'] : null;
+                $item->estoque_minimo_temp = isset($itemData['estoque_minimo_temp']) && $itemData['estoque_minimo_temp'] !== '' ? (float)$itemData['estoque_minimo_temp'] : null;
+                $item->ponto_corte_temp = isset($itemData['ponto_corte_temp']) && $itemData['ponto_corte_temp'] !== '' ? (float)$itemData['ponto_corte_temp'] : null;
+                $item->estoque_maximo_temp = isset($itemData['estoque_maximo_temp']) && $itemData['estoque_maximo_temp'] !== '' ? (float)$itemData['estoque_maximo_temp'] : null;
+                $item->venda_fracionada_temp = isset($itemData['venda_fracionada_temp']) ? (bool)$itemData['venda_fracionada_temp'] : false;
+                $item->unidade_medida_temp = $itemData['unidade_medida_temp'] ?? 'UN';
+                $item->categoria_id = isset($itemData['categoria_id']) && $itemData['categoria_id'] !== '' ? $itemData['categoria_id'] : null;
+
+                $itens[] = $item;
+            }
+        }
 
         if ($model->load($post)) {
             $transaction = Yii::$app->db->beginTransaction();
@@ -225,6 +251,8 @@ class CompraController extends Controller
                 }
             } catch (\Exception $e) {
                 $transaction->rollBack();
+                $model->isNewRecord = true;
+                $model->id = null; // Reseta ID para que seja gerado um novo UUID no beforeSave e evitar conflitos
                 Yii::$app->session->setFlash('error', 'Erro ao salvar compra: ' . $e->getMessage());
             }
         }
@@ -267,6 +295,30 @@ class CompraController extends Controller
         }
 
         $post = Yii::$app->request->post();
+        $itens = [];
+
+        // Se houver POST de itens, pré-carrega para a variável $itens para manter na tela em caso de erro de validação
+        if (isset($post['ItemCompra']) && is_array($post['ItemCompra'])) {
+            foreach ($post['ItemCompra'] as $itemData) {
+                $item = new ItemCompra();
+                $item->load(['ItemCompra' => $itemData]);
+
+                // Passa as propriedades extras temporárias usadas no form
+                $item->nome_produto_temp = $itemData['nome_produto_temp'] ?? '';
+                $item->codigo_referencia_temp = $itemData['codigo_referencia_temp'] ?? '';
+                $item->codigo_barras = $itemData['codigo_barras'] ?? '';
+                $item->marca = $itemData['marca'] ?? '';
+                $item->preco_venda_sugerido_temp = isset($itemData['preco_venda_sugerido_temp']) && $itemData['preco_venda_sugerido_temp'] !== '' ? (float)$itemData['preco_venda_sugerido_temp'] : null;
+                $item->estoque_minimo_temp = isset($itemData['estoque_minimo_temp']) && $itemData['estoque_minimo_temp'] !== '' ? (float)$itemData['estoque_minimo_temp'] : null;
+                $item->ponto_corte_temp = isset($itemData['ponto_corte_temp']) && $itemData['ponto_corte_temp'] !== '' ? (float)$itemData['ponto_corte_temp'] : null;
+                $item->estoque_maximo_temp = isset($itemData['estoque_maximo_temp']) && $itemData['estoque_maximo_temp'] !== '' ? (float)$itemData['estoque_maximo_temp'] : null;
+                $item->venda_fracionada_temp = isset($itemData['venda_fracionada_temp']) ? (bool)$itemData['venda_fracionada_temp'] : false;
+                $item->unidade_medida_temp = $itemData['unidade_medida_temp'] ?? 'UN';
+                $item->categoria_id = isset($itemData['categoria_id']) && $itemData['categoria_id'] !== '' ? $itemData['categoria_id'] : null;
+
+                $itens[] = $item;
+            }
+        }
 
         if ($model->load($post)) {
             $transaction = Yii::$app->db->beginTransaction();
@@ -328,7 +380,11 @@ class CompraController extends Controller
             }
         }
 
-        $itens = $model->itensCompra;
+        // Se não for POST (carregamento inicial), busca os itens salvos no banco
+        if (empty($post)) {
+            $itens = $model->itens;
+        }
+
         $fornecedores = Fornecedor::getListaDropdownArray(Yii::$app->user->id);
         $categorias = Categoria::getListaDropdown();
         $produtos = Produto::find()
@@ -791,6 +847,98 @@ class CompraController extends Controller
         }
 
         return $this->render('importar-xml', ['model' => $uploadModel]);
+    }
+
+    /**
+     * Envia o pedido de compra via WhatsApp em formato PDF.
+     * @param string $id
+     * @return mixed
+     */
+    public function actionEnviarWhatsapp($id)
+    {
+        $model = $this->findModel($id);
+        
+        $request = Yii::$app->request;
+        if ($request->isPost) {
+            $telefone = $request->post('telefone');
+            $legenda = $request->post('legenda');
+            
+            if (empty($telefone)) {
+                Yii::$app->session->setFlash('error', 'O número de telefone é obrigatório.');
+                return $this->redirect(['view', 'id' => $model->id]);
+            }
+            
+            try {
+                // 1. Gera o PDF da compra na memória
+                $pdfContent = $this->gerarPdfCompra($model);
+                $pdfBase64 = base64_encode($pdfContent);
+                
+                // 2. Dispara o PDF via Evolution API Go
+                $service = new EvolutionService();
+                $filename = 'Pedido_Compra_' . strtoupper(substr($model->id, 0, 8)) . '.pdf';
+                
+                $sucesso = $service->sendDocument(
+                    $model->usuario_id,
+                    $telefone,
+                    $pdfBase64,
+                    $filename,
+                    $legenda ?: 'Segue em anexo o pedido de compra.'
+                );
+                
+                if ($sucesso) {
+                    Yii::$app->session->setFlash('success', 'Pedido de compra enviado com sucesso via WhatsApp!');
+                } else {
+                    Yii::$app->session->setFlash('error', 'Erro ao enviar o PDF via WhatsApp. Certifique-se de que sua instância está conectada.');
+                }
+            } catch (\Exception $e) {
+                Yii::$app->session->setFlash('error', 'Falha ao processar e enviar o pedido: ' . $e->getMessage());
+            }
+        }
+        
+        return $this->redirect(['view', 'id' => $model->id]);
+    }
+
+    /**
+     * Gera o PDF do Pedido de Compra usando a biblioteca mPDF.
+     * @param Compra $model
+     * @return string Conteúdo binário do PDF
+     */
+    private function gerarPdfCompra($model)
+    {
+        $content = $this->renderPartial('pdf', [
+            'model' => $model,
+        ]);
+
+        $pdf = new Pdf([
+            'mode' => Pdf::MODE_UTF8,
+            'format' => Pdf::FORMAT_A4,
+            'orientation' => Pdf::ORIENT_PORTRAIT,
+            'destination' => Pdf::DEST_STRING,
+            'content' => $content,
+            'cssInline' => '
+                body { font-family: Arial, sans-serif; font-size: 11px; color: #333; }
+                .pedido-container { padding: 5px; }
+                .header-pedido { width: 100%; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; margin-bottom: 20px; }
+                .subtitle { font-size: 10px; color: #555; line-height: 1.4; margin-top: 5px; }
+                .dados-compra { width: 100%; margin-bottom: 20px; border-collapse: collapse; }
+                .dados-compra td { padding: 6px; }
+                .dados-compra td.label { font-weight: bold; color: #1e3a8a; width: 100px; }
+                table.tabela-itens { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 15px; }
+                table.tabela-itens th, table.tabela-itens td { border: 1px solid #ddd; padding: 6px; text-align: left; font-size: 10px; }
+                table.tabela-itens th { background-color: #f3f4f6; font-weight: bold; color: #1f2937; text-transform: uppercase; }
+                .text-right { text-align: right; }
+                .text-center { text-align: center; }
+                .resumo-financeiro { width: 100%; border-collapse: collapse; }
+                .resumo-financeiro td { padding: 4px; font-size: 11px; }
+                .resumo-financeiro td.label { text-align: right; font-weight: bold; padding-right: 10px; }
+                .resumo-financeiro td.valor { text-align: right; font-weight: bold; width: 100px; }
+                .total-destaque { font-size: 13px; font-weight: bold; color: #1e3a8a; }
+                .footer-pedido { text-align: center; margin-top: 35px; font-size: 9px; color: #777; border-top: 1px dashed #ddd; padding-top: 10px; }
+            ',
+            'options' => ['title' => 'Pedido de Compra #' . substr($model->id, 0, 8)],
+        ]);
+
+        return $pdf->render();
     }
 
     /**

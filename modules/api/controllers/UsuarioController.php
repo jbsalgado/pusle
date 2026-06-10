@@ -15,24 +15,34 @@ class UsuarioController extends Controller
     public function behaviors()
     {
         $behaviors = parent::behaviors();
-        $behaviors['contentNegotiator']['formats']['application/json'] = Response::FORMAT_JSON;
+        
+        // Remove authenticator para reinseri-lo depois do CORS filter
+        $auth = $behaviors['authenticator'] ?? null;
+        unset($behaviors['authenticator']);
 
-        // CORS para permitir cookies de sessão
+        // CORS - corrigido para evitar InvalidConfigException e preflight OPTIONS
         $behaviors['corsFilter'] = [
             'class' => \yii\filters\Cors::class,
             'cors' => [
-                'Origin' => ['http://localhost', 'http://localhost:*', '*'],
+                'Origin' => ['http://localhost', 'http://localhost:*', 'http://127.0.0.1', 'http://127.0.0.1:*'],
                 'Access-Control-Request-Method' => ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
                 'Access-Control-Request-Headers' => ['*'],
-                'Access-Control-Allow-Credentials' => true,
+                'Access-Control-Allow-Credentials' => false,
                 'Access-Control-Max-Age' => 86400,
             ],
         ];
 
-        $behaviors['authenticator'] = [
-            'class' => \yii\filters\auth\HttpBearerAuth::class,
-            'optional' => ['dados-loja', 'config'],
-        ];
+        // Reinsere o authenticator DEPOIS do CORS filter
+        if ($auth) {
+            $behaviors['authenticator'] = $auth;
+        } else {
+            $behaviors['authenticator'] = [
+                'class' => \yii\filters\auth\HttpBearerAuth::class,
+            ];
+        }
+        $behaviors['authenticator']['optional'] = ['dados-loja', 'config'];
+
+        $behaviors['contentNegotiator']['formats']['application/json'] = Response::FORMAT_JSON;
 
         return $behaviors;
     }
@@ -154,6 +164,12 @@ class UsuarioController extends Controller
                     'pix_chave' => $config->pix_chave ?? $lojaConfig->pix_chave,
                     'pix_nome' => $config->pix_nome ?? $lojaConfig->pix_nome,
                     'pix_cidade' => $config->pix_cidade ?? $lojaConfig->pix_cidade,
+                    'aparencia' => [
+                        'tema' => $lojaConfig->aparencia_tema ?: 'azul',
+                        'cor_primaria' => $lojaConfig->aparencia_cor_primaria,
+                        'cor_secundaria' => $lojaConfig->aparencia_cor_secundaria,
+                        'escala_cores' => $lojaConfig->getEscalaCores(),
+                    ],
                 ];
             }
 
@@ -185,6 +201,9 @@ class UsuarioController extends Controller
             // Se tiver $config (prest_configuracoes), usa o endereço dela se o outro estiver vazio
             $enderecoCompleto = !empty($enderecoPartes) ? implode(', ', $enderecoPartes) : ($config->endereco_completo ?? '');
 
+            $tempConfig = new \app\modules\vendas\models\LojaConfiguracao();
+            $tempConfig->aparencia_tema = 'azul';
+
             return [
                 'nome' => $usuario['nome'] ?? 'Loja',
                 'nome_loja' => $config->nome_loja ?? $usuario['nome'] ?? 'Loja',
@@ -201,6 +220,12 @@ class UsuarioController extends Controller
                 'pix_chave' => $config->pix_chave ?? null,
                 'pix_nome' => $config->pix_nome ?? null,
                 'pix_cidade' => $config->pix_cidade ?? null,
+                'aparencia' => [
+                    'tema' => 'azul',
+                    'cor_primaria' => null,
+                    'cor_secundaria' => null,
+                    'escala_cores' => $tempConfig->getEscalaCores(),
+                ],
             ];
         } catch (\Exception $e) {
             Yii::$app->response->statusCode = 500;
@@ -261,6 +286,90 @@ class UsuarioController extends Controller
             Yii::$app->response->statusCode = 500;
             Yii::$app->response->format = Response::FORMAT_JSON;
             return ['erro' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * POST /api/usuario/salvar-aparencia
+     * Salva as configurações de aparência da loja
+     */
+    public function actionSalvarAparencia()
+    {
+        try {
+            Yii::$app->response->format = Response::FORMAT_JSON;
+
+            // Apenas usuários logados podem alterar a aparência
+            if (Yii::$app->user->isGuest) {
+                Yii::$app->response->statusCode = 401;
+                return ['erro' => 'Usuário não autenticado'];
+            }
+
+            // Identificar o ID da loja (usuario_id dono)
+            $usuarioLogado = Yii::$app->user->identity;
+            $lojaId = $usuarioLogado->id;
+
+            // Se for colaborador vendedor, o dono da loja está no campo usuario_id do colaborador
+            $colaborador = Colaborador::getColaboradorLogado();
+            if ($colaborador && $colaborador->usuario_id) {
+                $lojaId = $colaborador->usuario_id;
+            }
+
+            // Carregar a requisição POST
+            $postData = Yii::$app->request->post();
+            
+            // Caso seja enviado como JSON no body
+            if (empty($postData)) {
+                $rawBody = Yii::$app->request->getRawBody();
+                $postData = json_decode($rawBody, true) ?: [];
+            }
+
+            $tema = $postData['tema'] ?? 'azul';
+            $corPrimaria = $postData['cor_primaria'] ?? null;
+            $corSecundaria = $postData['cor_secundaria'] ?? null;
+
+            // Buscar ou criar a configuração da loja
+            $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $lojaId]);
+            if (!$lojaConfig) {
+                $lojaConfig = new \app\modules\vendas\models\LojaConfiguracao();
+                $lojaConfig->usuario_id = $lojaId;
+                $lojaConfig->nome_loja = $usuarioLogado->nome ?? 'Minha Loja';
+                $lojaConfig->cpf_cnpj = '00.000.000/0000-00';
+            }
+
+            $lojaConfig->aparencia_tema = $tema;
+            $lojaConfig->aparencia_cor_primaria = $corPrimaria;
+            $lojaConfig->aparencia_cor_secundaria = $corSecundaria;
+
+            if ($lojaConfig->save()) {
+                return [
+                    'sucesso' => true,
+                    'mensagem' => 'Aparência salva com sucesso!',
+                    'aparencia' => [
+                        'tema' => $lojaConfig->aparencia_tema,
+                        'cor_primaria' => $lojaConfig->aparencia_cor_primaria,
+                        'cor_secundaria' => $lojaConfig->aparencia_cor_secundaria,
+                        'escala_cores' => $lojaConfig->getEscalaCores(),
+                    ]
+                ];
+            } else {
+                Yii::$app->response->statusCode = 422;
+                return [
+                    'sucesso' => false,
+                    'erro' => 'Falha ao salvar as configurações.',
+                    'erros' => $lojaConfig->getErrors()
+                ];
+            }
+
+        } catch (\Throwable $e) {
+            Yii::$app->response->statusCode = 500;
+            return [
+                'sucesso' => false,
+                'erro' => $e->getMessage(),
+                'classe' => get_class($e),
+                'linha' => $e->getLine(),
+                'arquivo' => $e->getFile(),
+                'trace' => $e->getTraceAsString()
+            ];
         }
     }
 }

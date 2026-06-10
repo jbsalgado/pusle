@@ -388,24 +388,20 @@ $this->params['breadcrumbs'][] = $this->title;
 
                                         <div class="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center gap-2">
                                             <?php if (!$foto->eh_principal): ?>
-                                                <?php
-                                                $setPrincipalUrl = Url::to(['set-foto-principal', 'id' => $foto->id, 'redirect' => 'view']);
-                                                ?>
-                                                <?= Html::a('Principal', $setPrincipalUrl, [
-                                                    'class' => 'px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded',
-                                                    'data-method' => 'post'
+                                                <?= Html::beginForm(['set-foto-principal', 'id' => $foto->id, 'redirect' => 'view'], 'post', ['class' => 'inline']) ?>
+                                                <?= Html::submitButton('Principal', [
+                                                    'class' => 'px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded pointer-events-auto cursor-pointer'
                                                 ]) ?>
+                                                <?= Html::endForm() ?>
                                             <?php endif; ?>
-                                            <?php
-                                            $deleteUrl = Url::to(['delete-foto', 'id' => $foto->id, 'redirect' => 'view']);
-                                            ?>
-                                            <?= Html::a('Excluir', $deleteUrl, [
-                                                'class' => 'px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded',
-                                                'data' => [
-                                                    'confirm' => $foto->eh_principal ? 'Esta é a foto principal. Ao excluir, outra foto será definida como principal automaticamente. Deseja continuar?' : 'Tem certeza que deseja excluir esta foto?',
-                                                    'method' => 'post',
-                                                ],
+                                            <?= Html::beginForm(['delete-foto', 'id' => $foto->id, 'redirect' => 'view'], 'post', [
+                                                'class' => 'inline',
+                                                'onsubmit' => "return confirm('" . ($foto->eh_principal ? 'Esta é a foto principal. Ao excluir, outra foto será definida como principal automaticamente. Deseja continuar?' : 'Tem certeza que deseja excluir esta foto?') . "')"
                                             ]) ?>
+                                            <?= Html::submitButton('Excluir', [
+                                                'class' => 'px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded pointer-events-auto cursor-pointer'
+                                            ]) ?>
+                                            <?= Html::endForm() ?>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>

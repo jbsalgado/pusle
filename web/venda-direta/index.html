@@ -20,17 +20,17 @@
           extend: {
             colors: {
               brand: {
-                50: '#f0f7ff',
-                100: '#e0effe',
-                200: '#bae0fd',
-                300: '#7cc8fb',
-                400: '#38aaf7',
-                500: '#0e8ce9',
-                600: '#026ec7',
-                700: '#0358a1',
-                800: '#074b85',
-                900: '#0c3f6e',
-                950: '#082849',
+                50: 'var(--brand-50, #f0f7ff)',
+                100: 'var(--brand-100, #e0effe)',
+                200: 'var(--brand-200, #bae0fd)',
+                300: 'var(--brand-300, #7cc8fb)',
+                400: 'var(--brand-400, #38aaf7)',
+                500: 'var(--brand-500, #0e8ce9)',
+                600: 'var(--brand-600, #026ec7)',
+                700: 'var(--brand-700, #0358a1)',
+                800: 'var(--brand-800, #074b85)',
+                900: 'var(--brand-900, #0c3f6e)',
+                950: 'var(--brand-950, #082849)',
               },
             },
             fontFamily: {
@@ -60,7 +60,6 @@
         };
       }
     </script>
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
       /* Status online/offline - por padrão mostra offline até ser atualizado */
       #status-online {
@@ -157,7 +156,7 @@
               class="h-10 w-auto object-contain hidden"
               style="max-width: 150px"
             />
-            <h1 class="text-xl font-bold text-blue-600">Venda Direta</h1>
+            <h1 class="text-xl font-bold text-brand-600">Venda Direta</h1>
           </div>
           <div class="flex items-center gap-3">
             <a
@@ -188,6 +187,18 @@
               <span class="h-3 w-3 bg-gray-400 rounded-full"></span>
               <span class="text-xs font-medium hidden sm:inline">Offline</span>
             </div>
+
+            <!-- ✨ Botão Configurar Aparência -->
+            <a
+              id="btn-configuracao-aparencia"
+              href="config-aparencia.html"
+              class="relative text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors flex items-center justify-center hidden"
+              title="Configurar Aparência da Loja"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
+            </a>
 
             <!-- ✨ Botão Gerenciar Maquinetas -->
             <button
@@ -230,7 +241,7 @@
 
             <button
               id="btn-abrir-carrinho"
-              class="relative bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600"
+              class="relative bg-brand-600 text-white p-2 rounded-full hover:bg-brand-700"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -260,11 +271,11 @@
             type="text"
             id="busca-produto"
             placeholder="🔍 Buscar por nome ou código de barras..."
-            class="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm text-gray-900 bg-white placeholder-gray-400"
+            class="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-sm text-gray-900 bg-white placeholder-gray-400"
           />
           <button
             id="btn-scan-camera"
-            class="absolute right-10 top-1/2 transform -translate-y-1/2 text-blue-500 hover:text-blue-700 p-1"
+            class="absolute right-10 top-1/2 transform -translate-y-1/2 text-brand-500 hover:text-brand-700 p-1"
             title="Escanear com a câmera"
             onclick="window.abrirScannerCamera()"
           >
@@ -322,7 +333,7 @@
     <!-- ✨ Banner de Atualização -->
     <div
       id="banner-atualizacao"
-      class="hidden fixed top-16 left-0 right-0 bg-blue-600 text-white py-3 px-4 z-50 shadow-lg"
+      class="hidden fixed top-16 left-0 right-0 bg-brand-600 text-white py-3 px-4 z-50 shadow-lg"
     >
       <div
         class="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-3"
@@ -383,7 +394,7 @@
       >
         <button
           onclick="filtrarPorCategoria('todos')"
-          class="categoria-chip active flex-shrink-0 px-4 py-1.5 bg-blue-600 text-white rounded-full text-sm font-medium whitespace-nowrap shadow-sm transition-colors border border-blue-600"
+          class="categoria-chip active flex-shrink-0 px-4 py-1.5 bg-brand-600 text-white rounded-full text-sm font-medium whitespace-nowrap shadow-sm transition-colors border border-brand-600"
           data-categoria-id="todos"
         >
           Todos
@@ -436,7 +447,7 @@
           <button
             id="btn-pagina-anterior"
             onclick="navegarPagina(-1)"
-            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            class="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
             disabled
           >
             ← Anterior
@@ -450,7 +461,7 @@
           <button
             id="btn-pagina-proxima"
             onclick="navegarPagina(1)"
-            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            class="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
             disabled
           >
             Próxima →
@@ -506,7 +517,7 @@
           <button
             id="btn-pagina-anterior-rodape"
             onclick="navegarPagina(-1)"
-            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            class="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
             disabled
           >
             ← Anterior
@@ -520,7 +531,7 @@
           <button
             id="btn-pagina-proxima-rodape"
             onclick="navegarPagina(1)"
-            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            class="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
             disabled
           >
             Próxima →
@@ -757,7 +768,7 @@
 
         <form id="form-cliente-pedido">
           <div class="p-4 space-y-4">
-            <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+            <div class="bg-brand-50 p-3 rounded-lg border border-brand-200">
               <p class="text-sm text-gray-700">
                 <strong>Venda Direta:</strong> O cliente escolhe a forma de
                 pagamento, paga e leva o produto. Informe o CPF do vendedor
@@ -779,12 +790,12 @@
                   placeholder="000.000.000-00"
                   maxlength="14"
                   data-mask="cpf"
-                  class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-brand-500 focus:border-brand-500"
                 />
                 <button
                   type="button"
                   onclick="window.buscarClienteVendaDireta()"
-                  class="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700"
+                  class="px-4 py-2 bg-brand-600 text-white rounded-md font-semibold hover:bg-brand-700"
                 >
                   Buscar
                 </button>
@@ -798,13 +809,13 @@
               </div>
               <div
                 id="msg-cadastrar-cliente"
-                class="mt-2 text-sm text-blue-700 bg-blue-50 p-2 rounded border border-blue-200 hidden"
+                class="mt-2 text-sm text-brand-700 bg-brand-50 p-2 rounded border border-brand-200 hidden"
               >
                 <p class="mb-2">Cliente não encontrado. Deseja cadastrar?</p>
                 <button
                   type="button"
                   onclick="window.abrirModalCadastroCliente()"
-                  class="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 text-sm"
+                  class="px-4 py-2 bg-brand-600 text-white rounded-md font-semibold hover:bg-brand-700 text-sm"
                 >
                   Cadastrar Cliente
                 </button>
@@ -829,6 +840,7 @@
                 placeholder="000.000.000-00"
                 maxlength="14"
                 data-mask="cpf"
+                autocomplete="off"
                 class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
               />
               <p class="mt-1 text-xs text-gray-500">
@@ -979,7 +991,7 @@
               type="button"
               id="btn-confirmar-pedido"
               onclick="window.confirmarPedido()"
-              class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 transition-opacity"
+              class="w-full bg-brand-600 text-white p-3 rounded-lg font-semibold hover:bg-brand-700 transition-opacity"
             >
               ✅ Confirmar Venda
             </button>
@@ -1010,10 +1022,10 @@
         <div class="flex-1 overflow-y-auto sm:py-8 py-4 px-[5px] flex flex-col items-center">
           <!-- Produto Info -->
           <div class="text-center sm:mb-8 mb-4 w-full px-[5px]">
-            <span class="text-[10px] font-black text-blue-600 uppercase tracking-[0.3em] bg-blue-50 px-4 py-1 rounded-full inline-block mb-3 shadow-sm shadow-blue-50" id="categoria-modal">VENDA DIRETA</span>
+            <span class="text-[10px] font-black text-brand-600 uppercase tracking-[0.3em] bg-brand-50 px-4 py-1 rounded-full inline-block mb-3 shadow-sm shadow-brand-50" id="categoria-modal">VENDA DIRETA</span>
             <h3 class="sm:text-3xl text-xl font-black text-gray-900 leading-tight mb-2" id="nome-produto-modal">[Nome do Produto]</h3>
             <div class="flex items-baseline justify-center gap-2">
-              <span class="sm:text-4xl text-2xl font-black text-blue-600" id="preco-produto-modal">R$ 0,00</span>
+              <span class="sm:text-4xl text-2xl font-black text-brand-600" id="preco-produto-modal">R$ 0,00</span>
               <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">/ UNIDADE</span>
             </div>
           </div>
@@ -1044,7 +1056,7 @@
               <button 
                 type="button"
                 onclick="window.incrementarModal()" 
-                class="sm:w-14 sm:h-14 w-12 h-12 flex items-center justify-center bg-blue-600 text-white rounded-2xl transition-all active:scale-90 shadow-xl shadow-blue-200 flex-shrink-0"
+                class="sm:w-14 sm:h-14 w-12 h-12 flex items-center justify-center bg-brand-600 text-white rounded-2xl transition-all active:scale-90 shadow-xl shadow-brand-200 flex-shrink-0"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" class="sm:h-8 sm:w-8 h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3.5" d="M12 4v16m8-8H4" />
@@ -1053,14 +1065,14 @@
             </div>
 
             <!-- Resumo Total -->
-            <div class="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[32px] sm:py-6 py-4 px-[5px] text-center shadow-2xl shadow-blue-200 relative overflow-hidden">
+            <div class="bg-gradient-to-br from-brand-600 to-brand-800 rounded-[32px] sm:py-6 py-4 px-[5px] text-center shadow-2xl shadow-brand-200 relative overflow-hidden">
               <div class="absolute top-0 right-0 p-4 opacity-10">
                  <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                  </svg>
               </div>
               <div class="relative z-10">
-                <p class="text-[10px] font-bold text-blue-100 uppercase tracking-[0.4em] mb-1 opacity-80">Subtotal do Item</p>
+                <p class="text-[10px] font-bold text-brand-100 uppercase tracking-[0.4em] mb-1 opacity-80">Subtotal do Item</p>
                 <div id="subtotal-modal" class="sm:text-4xl text-2xl font-black text-white">R$ 0,00</div>
               </div>
             </div>
@@ -1071,7 +1083,7 @@
         <div class="sm:p-6 p-4 bg-gray-50 border-t border-gray-100">
           <button
             id="btn-confirmar-adicionar"
-            class="w-full bg-blue-600 hover:bg-blue-700 text-white sm:h-16 h-14 rounded-[24px] font-black text-lg shadow-xl shadow-blue-200 transition-all active:scale-[0.97] flex items-center justify-center gap-4"
+            class="w-full bg-brand-600 hover:bg-brand-700 text-white sm:h-16 h-14 rounded-[24px] font-black text-lg shadow-xl shadow-brand-200 transition-all active:scale-[0.97] flex items-center justify-center gap-4"
           >
             <span>Confirmar e Adicionar</span>
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1221,7 +1233,7 @@
 
           <button
             onclick="copiarCodigoPix()"
-            class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 mb-3"
+            class="w-full bg-brand-600 text-white py-3 rounded-lg font-semibold hover:bg-brand-700 mb-3"
           >
             📋 Copiar Código PIX
           </button>
@@ -1233,8 +1245,8 @@
             ✅ Confirmar Recebimento
           </button>
 
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p class="text-xs text-blue-800">
+          <div class="bg-brand-50 border border-brand-200 rounded-lg p-3">
+            <p class="text-xs text-brand-850">
               <strong>Instruções:</strong> Após o pagamento, clique em
               "Confirmar Recebimento" para gerar o comprovante.
             </p>
@@ -1451,7 +1463,7 @@
               type="button"
               id="btn-salvar-cliente"
               onclick="window.salvarClienteVendaDireta()"
-              class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700"
+              class="w-full bg-brand-600 text-white p-3 rounded-lg font-semibold hover:bg-brand-700"
             >
               Salvar Cliente
             </button>
@@ -1547,7 +1559,7 @@
             </button>
             <button
               onclick="window.gerarVendaA4()"
-              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              class="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 flex items-center gap-2"
             >
               <svg
                 class="w-5 h-5"
@@ -1582,8 +1594,8 @@
         
         <div class="p-4 flex-1 overflow-y-auto">
           <!-- Formulário Novo Vínculo -->
-          <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-            <h3 class="font-bold text-blue-800 mb-3 text-sm uppercase">Vincular Nova Maquineta</h3>
+          <div class="mb-6 p-4 bg-brand-50 rounded-lg border border-brand-100">
+            <h3 class="font-bold text-brand-800 mb-3 text-sm uppercase">Vincular Nova Maquineta</h3>
             <div class="space-y-3">
               <div>
                 <label class="block text-xs font-medium text-gray-700">Serial Number (S/N)</label>
@@ -1593,7 +1605,7 @@
                 <label class="block text-xs font-medium text-gray-700">Apelido (Ex: Caixa 01)</label>
                 <input type="text" id="point-nome" class="w-full p-2 border rounded text-sm" placeholder="Nome para identificar">
               </div>
-              <button id="btn-salvar-maquineta" class="w-full bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700 transition-colors">Vincular Dispositivo</button>
+              <button id="btn-salvar-maquineta" class="w-full bg-brand-600 text-white py-2 rounded font-bold hover:bg-brand-700 transition-colors">Vincular Dispositivo</button>
             </div>
           </div>
 
@@ -2064,7 +2076,7 @@
           const banner = document.getElementById("banner-atualizacao");
           if (banner) {
             banner.classList.remove("hidden");
-            banner.classList.remove("bg-blue-600");
+            banner.classList.remove("bg-brand-600");
             banner.classList.add("bg-green-600");
             banner.querySelector("p.font-semibold").textContent =
               "Sistema atualizado!";

@@ -275,30 +275,28 @@ if ($model->hasErrors()): ?>
                                 <div class="flex justify-end">
                                     <?php
                                     $redirectTo = !$model->isNewRecord ? 'update' : 'view';
-                                    $deleteUrl = Url::to(['delete-foto', 'id' => $foto->id, 'redirect' => $redirectTo]);
                                     ?>
-                                    <?= Html::a('✕', $deleteUrl, [
-                                        'class' => 'w-8 h-8 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-lg transform hover:scale-110 transition-all',
-                                        'data' => [
-                                            'confirm' => $foto->eh_principal ? (count($model->fotos) > 1 ? 'Esta é a foto principal. Ao excluir, outra foto será definida como principal automaticamente. Deseja continuar?' : 'Esta é a única foto do produto. Deseja excluí-la?') : 'Tem certeza que deseja excluir esta foto?',
-                                            'method' => 'post',
-                                        ],
+                                    <?= Html::beginForm(['delete-foto', 'id' => $foto->id, 'redirect' => $redirectTo], 'post', [
+                                        'class' => 'inline',
+                                        'onsubmit' => "return confirm('" . ($foto->eh_principal ? (count($model->fotos) > 1 ? 'Esta é a foto principal. Ao excluir, outra foto será definida como principal automaticamente. Deseja continuar?' : 'Esta é a única foto do produto. Deseja excluí-la?') : 'Tem certeza que deseja excluir esta foto?') . "')"
                                     ]) ?>
+                                    <?= Html::submitButton('✕', [
+                                        'class' => 'w-8 h-8 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-lg transform hover:scale-110 transition-all pointer-events-auto cursor-pointer'
+                                    ]) ?>
+                                    <?= Html::endForm() ?>
                                 </div>
                                 
-                                <div class="flex justify-center">
+                                <div class="flex justify-center w-full">
                                     <?php if ($foto->eh_principal): ?>
                                         <span class="w-full text-center py-1.5 bg-blue-600 text-white text-[10px] font-bold rounded-lg uppercase tracking-wider">
                                             🌟 Principal
                                         </span>
                                     <?php else: ?>
-                                        <?php
-                                        $setPrincipalUrl = Url::to(['set-foto-principal', 'id' => $foto->id, 'redirect' => $redirectTo]);
-                                        ?>
-                                        <?= Html::a('Definir Principal', $setPrincipalUrl, [
-                                            'class' => 'w-full text-center py-1.5 bg-white/90 hover:bg-white text-blue-600 text-[10px] font-bold rounded-lg uppercase tracking-wider transition-all transform hover:translate-y-[-2px]',
-                                            'data-method' => 'post'
+                                        <?= Html::beginForm(['set-foto-principal', 'id' => $foto->id, 'redirect' => $redirectTo], 'post', ['class' => 'w-full']) ?>
+                                        <?= Html::submitButton('Definir Principal', [
+                                            'class' => 'w-full text-center py-1.5 bg-white/90 hover:bg-white text-blue-600 text-[10px] font-bold rounded-lg uppercase tracking-wider transition-all transform hover:translate-y-[-2px] pointer-events-auto cursor-pointer'
                                         ]) ?>
+                                        <?= Html::endForm() ?>
                                     <?php endif; ?>
                                 </div>
                             </div>

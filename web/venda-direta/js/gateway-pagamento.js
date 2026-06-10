@@ -319,7 +319,7 @@ function mostrarModalPix(pixData, paymentId) {
             </div>
             
             <button onclick="navigator.clipboard.writeText('${pixData.payload}')" 
-                    class="w-full bg-blue-500 text-white py-3 rounded-lg mb-4 hover:bg-blue-600">
+                    class="w-full bg-brand-600 text-white py-3 rounded-lg mb-4 hover:bg-brand-700">
                 📋 Copiar Código PIX
             </button>
             
@@ -328,7 +328,7 @@ function mostrarModalPix(pixData, paymentId) {
                     Aguardando confirmação...
                 </p>
                 <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-                    <div class="bg-blue-500 h-1.5 rounded-full animate-pulse"></div>
+                    <div class="bg-brand-500 h-1.5 rounded-full animate-pulse"></div>
                 </div>
             </div>
             
@@ -433,7 +433,7 @@ function mostrarModalSelecaoPoint(dispositivos) {
                 <h3 class="text-xl font-bold mb-4">Selecione a Maquineta</h3>
                 <div class="space-y-3 mb-6">
                     ${dispositivos.map(d => `
-                        <button class="w-full text-left p-4 border rounded-lg hover:bg-blue-50 hover:border-blue-500 transition-colors flex justify-between items-center" data-id="${d.id}">
+                        <button class="w-full text-left p-4 border rounded-lg hover:bg-brand-50 hover:border-brand-500 transition-colors flex justify-between items-center" data-id="${d.id}">
                             <span>${d.nome}</span>
                             <span class="text-xs text-gray-400">${d.device_id}</span>
                         </button>
@@ -466,16 +466,16 @@ function mostrarModalAguardandoPoint(nomeMaquineta) {
     modal.className = 'fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4';
     modal.innerHTML = `
         <div class="bg-white rounded-lg p-8 max-w-sm w-full text-center">
-            <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <i class="fas fa-credit-card text-3xl text-blue-600 animate-pulse"></i>
+            <div class="w-20 h-20 bg-brand-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i class="fas fa-credit-card text-3xl text-brand-600 animate-pulse"></i>
             </div>
             <h3 class="text-2xl font-bold mb-2">Aguardando na Maquineta</h3>
             <p class="text-gray-600 mb-6">Por favor, finalize o pagamento na <strong>${nomeMaquineta}</strong>.</p>
             <div class="w-full bg-gray-200 rounded-full h-2 mb-4">
-                <div class="bg-blue-600 h-2 rounded-full animate-progress" style="width: 100%"></div>
+                <div class="bg-brand-600 h-2 rounded-full animate-progress" style="width: 100%"></div>
             </div>
             <p class="text-sm text-gray-500">O Pulse atualizará a venda automaticamente assim que for aprovado.</p>
-            <button onclick="window.location.reload()" class="mt-8 text-blue-600 font-medium">Voltar para Início</button>
+            <button onclick="window.location.reload()" class="mt-8 text-brand-600 font-medium">Voltar para Início</button>
         </div>
     `;
     document.body.appendChild(modal);

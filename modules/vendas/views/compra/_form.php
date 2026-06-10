@@ -9,7 +9,6 @@ use app\modules\vendas\models\ItemCompra;
 <div class="compra-form">
     <?php $form = ActiveForm::begin([
         'id' => 'compra-form',
-        'action' => $model->isNewRecord ? ['create'] : ['update', 'id' => $model->id],
         'options' => [
             'class' => 'space-y-6 p-4 sm:p-6 lg:p-8',
             'novalidate' => true, // Previne que o navegador bloqueie o envio por causa de hidden fields
@@ -331,6 +330,7 @@ use app\modules\vendas\models\ItemCompra;
             const spanPrecoSugerido = itemElement.querySelector('.span-preco-sugerido');
             const containerPrecoSugerido = itemElement.querySelector('.preco-sugerido-container');
             const inputMarca = itemElement.querySelector('.input-marca');
+            const inputCodigoBarras = itemElement.querySelector('.input-codigo-barras');
             const resultsContainer = itemElement.querySelector('.autocomplete-results');
 
             const inputSearchCat = itemElement.querySelector('.input-search-categoria');
@@ -351,6 +351,23 @@ use app\modules\vendas\models\ItemCompra;
                 calcularTotal();
             }
 
+            function atualizarEstadoCategoria() {
+                if (inputId.value) {
+                    // Produto cadastrado selecionado: busca a categoria dele
+                    const p = produtos.find(prod => prod.id == inputId.value);
+                    if (p && p.categoria_id && categorias[p.categoria_id]) {
+                        inputIdCat.value = p.categoria_id;
+                        inputSearchCat.value = categorias[p.categoria_id];
+                    }
+                    inputSearchCat.readOnly = true;
+                    inputSearchCat.classList.add('bg-gray-100', 'cursor-not-allowed');
+                } else {
+                    // Produto novo
+                    inputSearchCat.readOnly = false;
+                    inputSearchCat.classList.remove('bg-gray-100', 'cursor-not-allowed');
+                }
+            }
+
             // Product Autocomplete Logic
             inputSearch.addEventListener('input', function() {
                 const term = this.value.toLowerCase();
@@ -360,6 +377,8 @@ use app\modules\vendas\models\ItemCompra;
                 inputId.value = '';
                 // Sincroniza nome temporário para o auto-cadastro no backend
                 if (inputNomeTemp) inputNomeTemp.value = term;
+
+                atualizarEstadoCategoria();
 
                 const filtered = produtos.filter(p => p.nome.toLowerCase().includes(term));
 
@@ -380,12 +399,6 @@ use app\modules\vendas\models\ItemCompra;
                             if (inputCodigoBarras) inputCodigoBarras.value = p.codigo_barras || '';
                             if (inputMarca) inputMarca.value = p.marca || '';
 
-                            // Select category if product has one
-                            if (inputIdCat && p.categoria_id && categorias[p.categoria_id]) {
-                                inputIdCat.value = p.categoria_id;
-                                inputSearchCat.value = categorias[p.categoria_id];
-                            }
-
                             if (p.preco_custo) {
                                 // Format price for display
                                 const precoFormatted = new Intl.NumberFormat('pt-BR', {
@@ -395,6 +408,7 @@ use app\modules\vendas\models\ItemCompra;
                                 inputPreco.dispatchEvent(new Event('input')); // Trigger mask
                             }
                             resultsContainer.classList.add('hidden');
+                            atualizarEstadoCategoria();
                             calcularSubtotal();
                         });
 
@@ -453,6 +467,9 @@ use app\modules\vendas\models\ItemCompra;
 
             inputQuantidade.addEventListener('input', calcularSubtotal);
             inputPreco.addEventListener('input', calcularSubtotal);
+
+            // Sincroniza categoria inicial e define readonly se já houver produto_id
+            atualizarEstadoCategoria();
 
             // Dispara cálculo inicial se já houver valores preenchidos (ex: XML)
             if (inputQuantidade.value || inputPreco.value) {

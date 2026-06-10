@@ -183,6 +183,9 @@ class ProdutoController extends Controller
 
     public function actionImprimirRelatorio()
     {
+        // Aumenta o limite do PCRE para suportar HTMLs grandes no mPDF
+        ini_set('pcre.backtrack_limit', '5000000');
+
         // Verifica se é administrador
         if (!$this->isAdministrador()) {
             throw new \yii\web\ForbiddenHttpException('Você não tem permissão para acessar esta página.');
@@ -257,7 +260,7 @@ class ProdutoController extends Controller
         $pdf = new Pdf([
             'mode' => Pdf::MODE_UTF8,
             'format' => Pdf::FORMAT_A4,
-            'orientation' => Pdf::ORIENT_PORTRAIT,
+            'orientation' => Pdf::ORIENT_LANDSCAPE,
             'destination' => Pdf::DEST_BROWSER,
             'content' => $content,
             'cssInline' => '
@@ -773,7 +776,13 @@ class ProdutoController extends Controller
             }
         }
 
-        $files = UploadedFile::getInstancesByName('Produto[fotos]');
+        // Tenta carregar usando o modelo (padrão Yii2 para inputs do tipo Model[atributo][])
+        $files = UploadedFile::getInstances($model, 'fotos');
+
+        // Fallback para o nome direto no post
+        if (empty($files)) {
+            $files = UploadedFile::getInstancesByName('Produto[fotos]');
+        }
         
         // Fallback para o nome simples (caso venha de outros locais do sistema)
         if (empty($files)) {

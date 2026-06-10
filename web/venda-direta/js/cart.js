@@ -34,6 +34,12 @@ export function adicionarAoCarrinho(produto, quantidade) {
     return false;
   }
 
+  // Bloquear inclusão se o produto não for avulso e estiver sem estoque
+  if (!produto.is_avulso && parseFloat(produto.estoque_atual || 0) <= 0) {
+    alert(`O produto "${produto.nome || 'Item'}" está sem estoque disponível.`);
+    return false;
+  }
+
   const itemExistente = carrinho.find((item) => {
     if (produto.is_avulso) {
       return item.id === produto.id && item.nome === produto.nome;

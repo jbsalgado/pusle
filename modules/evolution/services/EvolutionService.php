@@ -343,6 +343,75 @@ class EvolutionService
         return true;
     }
 
+    /**
+     * Envia um arquivo/documento (como PDF) via WhatsApp.
+     *
+     * @param string $empresaId UUID do tenant
+     * @param string $to        Número de destino
+     * @param string $base64    Conteúdo do arquivo em base64 (sem o cabeçalho data:)
+     * @param string $filename  Nome do arquivo (ex: pedido.pdf)
+     * @param string $caption   Mensagem/Legenda opcional
+     * @return bool             true em caso de sucesso, false em falha
+     */
+    public function sendDocument(string $empresaId, string $to, string $base64, string $filename, string $caption = ''): bool
+    {
+        $config = WhatsappConfig::findByEmpresa($empresaId);
+
+        if ($config === null || empty($config->token)) {
+            Yii::error(
+                "EvolutionService::sendDocument — instância não encontrada ou sem token para empresa {$empresaId}.",
+                __METHOD__
+            );
+            return false;
+        }
+
+        $sanitizedNumber = $this->sanitizePhoneNumber($to);
+        $cleanBase64 = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', $base64);
+
+        // Configurações do delay e comportamento anti-ban
+        $delayMin = isset($config->delay_min) ? (int)$config->delay_min : 1500;
+        $delayMax = isset($config->delay_max) ? (int)$config->delay_max : 2500;
+        $delay = rand($delayMin, $delayMax);
+
+        try {
+            $client   = new Client(['baseUrl' => $this->baseUrl]);
+            $response = $client->createRequest()
+                ->setMethod('POST')
+                ->setFormat(Client::FORMAT_JSON)
+                ->setUrl('/send/media')
+                ->addHeaders([
+                    'Content-Type' => 'application/json',
+                    'apikey'       => $config->token,
+                ])
+                ->setData([
+                    'number'   => $sanitizedNumber,
+                    'url'      => $cleanBase64,
+                    'type'     => 'document',
+                    'caption'  => $caption,
+                    'filename' => $filename,
+                    'delay'    => $delay,
+                ])
+                ->send();
+
+            if (!$response->isOk) {
+                Yii::error(
+                    "EvolutionService::sendDocument — resposta não-OK: "
+                    . $response->statusCode . ' ' . $response->content,
+                    __METHOD__
+                );
+                return false;
+            }
+
+            return true;
+        } catch (HttpClientException $e) {
+            Yii::error(
+                "EvolutionService::sendDocument — falha HTTP: " . $e->getMessage(),
+                __METHOD__
+            );
+            return false;
+        }
+    }
+
     // =========================================================================
     // HELPERS PRIVADOS
     // =========================================================================
@@ -378,20 +447,42 @@ class EvolutionService
      *   1. Remove todos os caracteres não numéricos.
      *   2. Injeta o DDI 55 (Brasil) caso o número não comece com ele.
      *   3. Garante o formato: 55DDD9NÚMERO (sem caracteres especiais).
+     *   4. Remove o 9º dígito se for DDD do Brasil >= 20.
      *
      * @param string $number Número bruto (pode conter +, -, espaços, parênteses)
-     * @return string        Número sanitizado no formato 5511999998888
+     * @return string        Número sanitizado no formato 5511999998888 ou sem nono dígito.
      */
     private function sanitizePhoneNumber(string $number): string
     {
         // Remove tudo que não for dígito
-        $digits = preg_replace('/\D/', '', $number);
+        $numero = preg_replace('/\D/', '', $number);
 
-        // Injeta DDI 55 se não estiver presente
-        if (!str_starts_with($digits, '55')) {
-            $digits = '55' . $digits;
+        // Adicionar DDI 55 se necessário
+        if (strlen($numero) === 11) {
+            $numero = '55' . $numero;
+        } elseif (strlen($numero) === 10) {
+            $ddd  = substr($numero, 0, 2);
+            $rest = substr($numero, 2);
+            $numero = '55' . $ddd . '9' . $rest;
         }
 
-        return $digits;
+        // Se o número não começar com 55 (DDI internacional), garante que tenha pelo menos o DDI se o usuário digitar completo
+        if (strlen($numero) < 10) {
+            // Número muito curto, apenas garante 55 no início
+            if (!str_starts_with($numero, '55')) {
+                $numero = '55' . $numero;
+            }
+        }
+
+        // Normalização do nono dígito:
+        // WhatsApp BR remove o 9 para DDDs >= 20 (fora de São Paulo).
+        if (strlen($numero) === 13 && strpos($numero, '55') === 0) {
+            $ddd = (int) substr($numero, 2, 2);
+            if ($ddd >= 20 && substr($numero, 4, 1) === '9') {
+                $numero = '55' . $ddd . substr($numero, 5);
+            }
+        }
+
+        return $numero;
     }
 }

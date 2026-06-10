@@ -27,36 +27,29 @@ const getLojaId = () => {
 const detectApiBaseUrl = () => {
     const pathname = window.location.pathname;
     
-    // Remove /venda-direta ou /venda-direta/index ou /venda-direta/index.html do final do path
-    let basePath = pathname.replace(/\/venda-direta(\/index(\.html)?)?(\/)?$/, '');
+    // Localiza a pasta /venda-direta para extrair o caminho base correto
+    const idx = pathname.indexOf('/venda-direta');
+    let basePath = idx !== -1 ? pathname.substring(0, idx) : pathname;
     
     // Se o path contém index.php, extrai tudo até /index.php
     if (basePath.includes('/index.php')) {
-        // Pega tudo até /index.php (incluindo)
         const match = basePath.match(/^(.+\/index\.php)/);
         if (match) {
             basePath = match[1];
         } else {
-            // Se não encontrou padrão, tenta pegar o diretório que contém index.php
             const parts = basePath.split('/index.php');
             basePath = parts[0] + '/index.php';
         }
     } else {
-        // Se não tem index.php no path, pode estar usando pretty URLs
-        // Tenta encontrar o caminho base removendo o controller/action
-        // Remove barra final se existir
         basePath = basePath.replace(/\/$/, '');
         
-        // Se o path está vazio ou é apenas /, usa /index.php
         if (!basePath || basePath === '/') {
             basePath = '/index.php';
         } else {
-            // Adiciona /index.php ao final do caminho base
             basePath = basePath + '/index.php';
         }
     }
     
-    // Garante que comece com /
     if (!basePath.startsWith('/')) {
         basePath = '/' + basePath;
     }
@@ -69,28 +62,19 @@ const detectApiBaseUrl = () => {
  */
 const detectWebBaseUrl = () => {
     const pathname = window.location.pathname;
-    const origin = window.location.origin;
     
-    // Remove /venda-direta ou /venda-direta/index ou /venda-direta/index.html do final do path
-    let basePath = pathname.replace(/\/venda-direta(\/index(\.html)?)?\/?$/, '');
+    // Localiza a pasta /venda-direta para extrair o caminho base correto
+    const idx = pathname.indexOf('/venda-direta');
+    let basePath = idx !== -1 ? pathname.substring(0, idx) : pathname;
     
-    // Remove /index.php se existir
     basePath = basePath.replace(/\/index\.php.*$/, '');
-    
-    // Remove barra final se existir
     basePath = basePath.replace(/\/$/, '');
     
-    // Garante que comece com /
     if (!basePath.startsWith('/')) {
         basePath = '/' + basePath;
     }
     
-    // Se estiver vazio, retorna /
-    basePath = basePath || '/';
-    
-    // Em produção, retorna caminho relativo (sem origin)
-    // O navegador vai resolver automaticamente baseado na origem atual
-    return basePath;
+    return basePath || '/';
 };
 
 // Detecta automaticamente os caminhos base

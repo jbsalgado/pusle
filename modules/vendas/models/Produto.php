@@ -143,6 +143,12 @@ class Produto extends ActiveRecord
             [['codigo_barras', 'marca'], 'trim'],
             [['codigo_barras', 'marca'], 'default', 'value' => null],
 
+            // Código de Referência
+            [['codigo_referencia'], 'string', 'max' => 50],
+            [['codigo_referencia'], 'trim'],
+            [['codigo_referencia'], 'default', 'value' => null],
+            [['codigo_referencia'], 'validateCodigoReferenciaUnico'],
+
             // ✅ NOVOS CAMPOS: Precificação em Escala (Atacado)
             [[
                 'qtd_escala_1', 'preco_escala_1', 
