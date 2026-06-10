@@ -1,6 +1,6 @@
 // sw.js - Service Worker para Módulo Prestanista
 
-const CACHE_NAME = 'prestanista-cache-v1';
+const CACHE_NAME = 'prestanista-cache-v2';
 const SYNC_TAG = 'sync-cobranca-prestanista';
 
 // Recursos estáticos para cache
