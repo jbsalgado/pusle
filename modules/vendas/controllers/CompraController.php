@@ -450,29 +450,14 @@ class CompraController extends Controller
             // INTEGRAÇÃO FINANCEIRA: Gera Conta a Pagar automaticamente
             // ====================================================================================
             // Verifica se já existe conta para esta compra (evita duplicidade em caso de erro/retry)
-            $contaExistente = \app\modules\contas_pagar\models\ContaPagar::findOne(['compra_id' => $model->id]);
+            $contaExistente = \app\modules\contas_pagar\models\ContaPagar::find()
+                ->where(['compra_id' => $model->id])
+                ->exists();
 
             if (!$contaExistente) {
-                $conta = new \app\modules\contas_pagar\models\ContaPagar();
-                $conta->usuario_id = $model->usuario_id;
-                $conta->fornecedor_id = $model->fornecedor_id;
-                $conta->compra_id = $model->id;
-
-                // Formata a descrição com número da nota
-                $notaTxt = $model->numero_nota_fiscal ? "NF {$model->numero_nota_fiscal}" : "S/N";
-                $conta->descricao = "Compra {$notaTxt} - " . ($model->fornecedor->nome_fantasia ?? 'Fornecedor');
-
-                // Usa o valor total (considerando frete e desc)
-                $conta->valor = $model->getValorLiquido();
-
-                // Vencimento (se não tiver, usa hoje)
-                $conta->data_vencimento = $model->data_vencimento ?: date('Y-m-d');
-
-                $conta->status = \app\modules\contas_pagar\models\ContaPagar::STATUS_PENDENTE;
-                $conta->observacoes = "Gerado automaticamente pela conclusão da Compra #{$model->id}";
-
-                if (!$conta->save()) {
-                    throw new \Exception('Erro ao gerar Conta a Pagar: ' . implode(', ', $conta->getFirstErrors()));
+                $resultadoContas = $model->gerarContasPagar();
+                if (!$resultadoContas['success']) {
+                    throw new \Exception('Erro ao gerar Conta a Pagar: ' . ($resultadoContas['message'] ?? 'Erro desconhecido'));
                 }
             }
             // ====================================================================================
@@ -512,6 +497,20 @@ class CompraController extends Controller
             $model->status_compra = Compra::STATUS_CANCELADA;
             if (!$model->save()) {
                 throw new \Exception('Erro ao salvar compra: ' . json_encode($model->errors));
+            }
+
+            // Cancela contas a pagar associadas que estejam pendentes
+            $contasPagarClass = 'app\\modules\\contas_pagar\\models\\ContaPagar';
+            if (class_exists($contasPagarClass)) {
+                $contas = $contasPagarClass::find()->where(['compra_id' => $model->id])->all();
+                foreach ($contas as $conta) {
+                    if ($conta->status === $contasPagarClass::STATUS_PENDENTE) {
+                        $conta->status = $contasPagarClass::STATUS_CANCELADA;
+                        if (!$conta->save(false)) {
+                            throw new \Exception('Erro ao cancelar conta a pagar vinculada: ' . json_encode($conta->errors));
+                        }
+                    }
+                }
             }
 
             // Se estava concluída, reverte o estoque
@@ -562,8 +561,26 @@ class CompraController extends Controller
             return $this->redirect(['index']);
         }
 
-        $model->delete();
-        Yii::$app->session->setFlash('success', 'Compra excluída com sucesso!');
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            $contasPagarClass = 'app\\modules\\contas_pagar\\models\\ContaPagar';
+            if (class_exists($contasPagarClass)) {
+                $contas = $contasPagarClass::find()->where(['compra_id' => $model->id])->all();
+                foreach ($contas as $conta) {
+                    if ($conta->status === 'PAGA') {
+                        throw new \Exception("Não é possível excluir esta compra porque existe uma conta a pagar vinculada que já foi paga.");
+                    }
+                    $conta->delete();
+                }
+            }
+            $model->delete();
+            $transaction->commit();
+            Yii::$app->session->setFlash('success', 'Compra excluída com sucesso!');
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+            Yii::$app->session->setFlash('error', 'Erro ao excluir compra: ' . $e->getMessage());
+        }
+
         return $this->redirect(['index']);
     }
 

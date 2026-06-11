@@ -223,8 +223,10 @@ class Compra extends ActiveRecord
      */
     public function gerarContasPagar($regenerar = false)
     {
-        // Importa o model ContaPagar
+        // Importa o model ContaPagar e TipoDespesa
         $contaPagarClass = 'app\\modules\\contas_pagar\\models\\ContaPagar';
+        $tipoDespesaClass = 'app\\modules\\contas_pagar\\models\\TipoDespesa';
+        
         if (!class_exists($contaPagarClass)) {
             return ['success' => false, 'message' => 'Módulo Contas a Pagar não encontrado'];
         }
@@ -261,6 +263,30 @@ class Compra extends ActiveRecord
             ];
         }
 
+        // Localiza ou cria o tipo de despesa default para compras (MERCADORIA)
+        $tipoDespesaId = null;
+        if (class_exists($tipoDespesaClass)) {
+            $tipoDespesa = $tipoDespesaClass::find()
+                ->where(['usuario_id' => $this->usuario_id, 'grupo' => $tipoDespesaClass::GRUPO_MERCADORIA, 'ativo' => true])
+                ->one();
+            
+            if (!$tipoDespesa) {
+                $tipoDespesa = new $tipoDespesaClass();
+                $tipoDespesa->usuario_id = $this->usuario_id;
+                $tipoDespesa->nome = 'Compra de Mercadoria';
+                $tipoDespesa->grupo = $tipoDespesaClass::GRUPO_MERCADORIA;
+                $tipoDespesa->ativo = true;
+                $tipoDespesa->descricao = 'Gerado automaticamente para compras de mercadorias';
+                if ($tipoDespesa->save()) {
+                    $tipoDespesaId = $tipoDespesa->id;
+                } else {
+                    Yii::error('Erro ao auto-criar TipoDespesa para compras: ' . json_encode($tipoDespesa->errors), __METHOD__);
+                }
+            } else {
+                $tipoDespesaId = $tipoDespesa->id;
+            }
+        }
+
         // Calcula valor líquido (total - desconto + frete)
         $valorLiquido = $this->getValorLiquido();
 
@@ -280,6 +306,10 @@ class Compra extends ActiveRecord
             $conta->usuario_id = $this->usuario_id;
             $conta->fornecedor_id = $this->fornecedor_id;
             $conta->compra_id = $this->id;
+
+            if ($tipoDespesaId) {
+                $conta->tipo_despesa_id = $tipoDespesaId;
+            }
 
             // Descrição da conta
             if ($numParcelas == 1) {
