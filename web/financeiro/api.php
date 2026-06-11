@@ -4,6 +4,10 @@
 // defined('YII_ENV') or define('YII_ENV', 'dev');
 
 require __DIR__ . '/../../vendor/autoload.php';
+
+// Carrega as variáveis de ambiente do arquivo .env
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../..');
+$dotenv->safeLoad();
 require __DIR__ . '/../../vendor/yiisoft/yii2/Yii.php';
 
 $config = require __DIR__ . '/../../config/web.php';
