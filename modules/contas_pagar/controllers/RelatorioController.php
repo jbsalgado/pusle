@@ -38,7 +38,7 @@ class RelatorioController extends Controller
      */
     public function actionIndex()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         // Estatísticas gerais
         $stats = [
@@ -82,7 +82,7 @@ class RelatorioController extends Controller
      */
     public function actionAVencer()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
         $dias = Yii::$app->request->get('dias', 30); // Padrão: 30 dias
 
         $dataLimite = date('Y-m-d', strtotime("+{$dias} days"));
@@ -116,7 +116,7 @@ class RelatorioController extends Controller
      */
     public function actionVencidas()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         $query = ContaPagar::find()
             ->where(['usuario_id' => $usuarioId])
@@ -145,7 +145,7 @@ class RelatorioController extends Controller
      */
     public function actionPorFornecedor()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
         $fornecedorId = Yii::$app->request->get('fornecedor_id');
 
         $query = ContaPagar::find()
@@ -190,7 +190,7 @@ class RelatorioController extends Controller
      */
     public function actionFluxo()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
         $ano = Yii::$app->request->get('ano', date('Y'));
         $mes = Yii::$app->request->get('mes', date('m'));
 
@@ -233,7 +233,7 @@ class RelatorioController extends Controller
      */
     public function actionExportPdf($tipo = 'a-vencer')
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         // Configuração básica para PDF
         $mpdf = new \Mpdf\Mpdf([
@@ -313,7 +313,7 @@ class RelatorioController extends Controller
      */
     public function actionExportExcel($tipo = 'a-vencer')
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();

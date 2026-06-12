@@ -156,6 +156,9 @@ $config = [
         'evolution' => [
             'class' => 'app\modules\evolution\Module',
         ],
+        'admin' => [
+            'class' => 'app\modules\admin\Module',
+        ],
     ],
     'params' => $params,
 ];

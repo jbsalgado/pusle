@@ -75,9 +75,17 @@ async function init() {
         // 2️⃣ Carregar configuração da loja (gateways de pagamento)
         console.log('[App] ⚙️ Carregando configuração da loja...');
         const gatewayConfig = await carregarConfigLoja();
+
+        // ✅ MULTI-TENANCY: Se nenhuma loja foi identificada → redireciona para vitrine de lojas
+        if (gatewayConfig?.lojaIdentificada === false) {
+            console.warn('[App] 🏬 Loja não identificada. Redirecionando para vitrine de lojas...');
+            window.location.replace('lojas.html');
+            return;
+        }
+
         // Disponibilizar GATEWAY_CONFIG no window para uso em outras funções
         window.GATEWAY_CONFIG = gatewayConfig;
-        
+
         // 2.5️⃣ Carregar logo da empresa
         await carregarLogoEmpresa();
         

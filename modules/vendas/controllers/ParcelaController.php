@@ -40,7 +40,7 @@ class ParcelaController extends Controller
 
     public function actionIndex()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         // Query base com joins para filtros
         $query = Parcela::find()
@@ -158,7 +158,7 @@ class ParcelaController extends Controller
         // Buscar formas de pagamento para dropdown
         $formasPagamento = ArrayHelper::map(
             FormaPagamento::find()
-                ->where(['usuario_id' => Yii::$app->user->id, 'ativo' => true])
+                ->where(['usuario_id' => \app\components\TenantHelper::getId(), 'ativo' => true])
                 ->orderBy(['nome' => SORT_ASC])
                 ->all(),
             'id',

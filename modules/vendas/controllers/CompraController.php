@@ -59,7 +59,7 @@ class CompraController extends Controller
     public function actionIndex()
     {
         $query = Compra::find()
-            ->where(['usuario_id' => Yii::$app->user->id])
+            ->where(['usuario_id' => \app\components\TenantHelper::getId()])
             ->with(['fornecedor', 'itens.produto']);
 
         // Filtros
@@ -125,7 +125,7 @@ class CompraController extends Controller
     public function actionCreate()
     {
         $model = new Compra();
-        $model->usuario_id = Yii::$app->user->id;
+        $model->usuario_id = \app\components\TenantHelper::getId();
         $model->data_compra = date('Y-m-d');
         $model->status_compra = Compra::STATUS_PENDENTE;
         $model->valor_total = 0;
@@ -178,7 +178,7 @@ class CompraController extends Controller
 
                                 if ($codigoRef || $nomeProd) {
                                     $produtoDb = Produto::find()
-                                        ->where(['usuario_id' => Yii::$app->user->id])
+                                        ->where(['usuario_id' => \app\components\TenantHelper::getId()])
                                         ->andFilterWhere(['OR', ['codigo_referencia' => $codigoRef], ['nome' => $nomeProd]])
                                         ->one();
 
@@ -260,7 +260,7 @@ class CompraController extends Controller
         $fornecedores = Fornecedor::getListaDropdownArray(Yii::$app->user->id);
         $categorias = Categoria::getListaDropdown();
         $produtos = Produto::find()
-            ->where(['usuario_id' => Yii::$app->user->id, 'ativo' => true])
+            ->where(['usuario_id' => \app\components\TenantHelper::getId(), 'ativo' => true])
             ->orderBy('nome')
             ->all();
 
@@ -388,7 +388,7 @@ class CompraController extends Controller
         $fornecedores = Fornecedor::getListaDropdownArray(Yii::$app->user->id);
         $categorias = Categoria::getListaDropdown();
         $produtos = Produto::find()
-            ->where(['usuario_id' => Yii::$app->user->id, 'ativo' => true])
+            ->where(['usuario_id' => \app\components\TenantHelper::getId(), 'ativo' => true])
             ->orderBy('nome')
             ->all();
 
@@ -632,7 +632,7 @@ class CompraController extends Controller
         }
 
         $produtos = Produto::find()
-            ->where(['usuario_id' => Yii::$app->user->id, 'ativo' => true])
+            ->where(['usuario_id' => \app\components\TenantHelper::getId(), 'ativo' => true])
             ->orderBy('nome')
             ->all();
 
@@ -697,7 +697,7 @@ class CompraController extends Controller
                     // 2. Criar Model Compra Preenchido
                     // =========================================================
                     $model = new Compra();
-                    $model->usuario_id = Yii::$app->user->id;
+                    $model->usuario_id = \app\components\TenantHelper::getId();
                     $model->numero_nota_fiscal = (string)$ide->nNF;
                     $model->serie_nota_fiscal = (string)$ide->serie;
 
@@ -725,14 +725,14 @@ class CompraController extends Controller
 
                     // Tenta encontrar Fornecedor no banco
                     $fornecedor = Fornecedor::find()
-                        ->where(['usuario_id' => Yii::$app->user->id])
+                        ->where(['usuario_id' => \app\components\TenantHelper::getId()])
                         ->andWhere(['=', new \yii\db\Expression("REGEXP_REPLACE(cnpj, '[^0-9]', '', 'g')"), $cnpjEmit])
                         ->one();
 
                     // Se não achou pelo CNPJ limpo, tenta busca normalizada (o que já estiver no banco)
                     if (!$fornecedor) {
                         $fornecedor = Fornecedor::find()
-                            ->where(['usuario_id' => Yii::$app->user->id])
+                            ->where(['usuario_id' => \app\components\TenantHelper::getId()])
                             ->andWhere(['like', 'cnpj', $cnpjEmit])
                             ->one();
                     }
@@ -767,14 +767,14 @@ class CompraController extends Controller
                         $produtoDb = null;
                         if (!empty($ean) && $ean !== 'SEM GTIN') {
                             $produtoDb = Produto::find()
-                                ->where(['usuario_id' => Yii::$app->user->id, 'codigo_barras' => $ean])
+                                ->where(['usuario_id' => \app\components\TenantHelper::getId(), 'codigo_barras' => $ean])
                                 ->one();
                         }
 
                         // NOVO: Sugere venda fracionada baseado na unidade do XML ou no produto existente
                         if (!$produtoDb) {
                             $produtoDb = Produto::find()
-                                ->where(['usuario_id' => Yii::$app->user->id])
+                                ->where(['usuario_id' => \app\components\TenantHelper::getId()])
                                 ->andWhere([
                                     'OR',
                                     ['codigo_referencia' => trim($codigo)],
@@ -845,7 +845,7 @@ class CompraController extends Controller
                     $fornecedores = Fornecedor::getListaDropdownArray(Yii::$app->user->id);
                     $categorias = Categoria::getListaDropdown();
                     $produtos = Produto::find()
-                        ->where(['usuario_id' => Yii::$app->user->id, 'ativo' => true])
+                        ->where(['usuario_id' => \app\components\TenantHelper::getId(), 'ativo' => true])
                         ->orderBy('nome')
                         ->all();
 

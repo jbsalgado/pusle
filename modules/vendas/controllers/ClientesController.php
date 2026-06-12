@@ -48,7 +48,7 @@ class ClientesController extends Controller
     public function actionIndex()
     {
         $query = Clientes::find()
-            ->where(['usuario_id' => Yii::$app->user->id])
+            ->where(['usuario_id' => \app\components\TenantHelper::getId()])
             ->with(['regiao'])
             ->orderBy(['nome_completo' => SORT_ASC]);
 
@@ -101,7 +101,7 @@ class ClientesController extends Controller
 
         // Buscar regiões para o filtro
         $regioes = Regioes::find()
-            ->where(['usuario_id' => Yii::$app->user->id])
+            ->where(['usuario_id' => \app\components\TenantHelper::getId()])
             ->orderBy(['nome' => SORT_ASC])
             ->all();
 
@@ -132,12 +132,12 @@ class ClientesController extends Controller
     public function actionCreate()
     {
         $model = new Clientes();
-        $model->usuario_id = Yii::$app->user->id;
+        $model->usuario_id = \app\components\TenantHelper::getId();
         $model->ativo = true;
 
         // Buscar regiões para o dropdown
         $regioes = Regioes::find()
-            ->where(['usuario_id' => Yii::$app->user->id])
+            ->where(['usuario_id' => \app\components\TenantHelper::getId()])
             ->orderBy(['nome' => SORT_ASC])
             ->all();
 
@@ -180,7 +180,7 @@ class ClientesController extends Controller
 
         // Buscar regiões para o dropdown
         $regioes = Regioes::find()
-            ->where(['usuario_id' => Yii::$app->user->id])
+            ->where(['usuario_id' => \app\components\TenantHelper::getId()])
             ->orderBy(['nome' => SORT_ASC])
             ->all();
 

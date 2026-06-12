@@ -48,7 +48,7 @@ class TipoDespesaController extends Controller
      */
     public function actionIndex()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
         $grupoFiltro = Yii::$app->request->get('grupo');
 
         $query = TipoDespesa::find()
@@ -77,7 +77,7 @@ class TipoDespesaController extends Controller
     public function actionCreate()
     {
         $model = new TipoDespesa();
-        $model->usuario_id = Yii::$app->user->id;
+        $model->usuario_id = \app\components\TenantHelper::getId();
         $model->ativo = true;
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
@@ -160,7 +160,7 @@ class TipoDespesaController extends Controller
      */
     protected function findModel($id)
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         $model = TipoDespesa::findOne(['id' => $id, 'usuario_id' => $usuarioId]);
         if ($model !== null) {

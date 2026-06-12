@@ -404,14 +404,26 @@ usort($visibleCards, function ($a, $b) {
     <div class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
         <div class="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
             <div class="flex items-center justify-between h-14 sm:h-16">
-                <!-- Logo/Título -->
+                <!-- Logo/Título da Loja (SaaS) -->
                 <div class="flex items-center space-x-2 sm:space-x-3">
-                    <div class="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg p-1.5 sm:p-2">
-                        <svg class="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                        </svg>
-                    </div>
-                    <span class="text-base sm:text-lg font-bold text-gray-900 hidden sm:inline">Vendas</span>
+                    <?php if (isset($lojaConfig) && !empty($lojaConfig->logo_path)): ?>
+                        <?php
+                        $logoUrl = trim($lojaConfig->logo_path);
+                        if (!preg_match('/^https?:\/\//', $logoUrl)) {
+                            $logoUrl = Yii::getAlias('@web') . '/' . ltrim($logoUrl, '/');
+                        }
+                        ?>
+                        <img src="<?= Html::encode($logoUrl) ?>" alt="Logo" class="h-8 sm:h-10 object-contain rounded">
+                    <?php else: ?>
+                        <div class="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg p-1.5 sm:p-2">
+                            <svg class="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                            </svg>
+                        </div>
+                    <?php endif; ?>
+                    <span class="text-base sm:text-lg font-bold text-gray-900 hidden sm:inline">
+                        <?= isset($lojaConfig) && !empty($lojaConfig->nome_loja) ? Html::encode($lojaConfig->nome_loja) : 'PULSE SaaS' ?>
+                    </span>
                 </div>
 
                 <!-- Menu de Usuário -->

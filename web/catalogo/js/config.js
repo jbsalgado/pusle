@@ -1,38 +1,40 @@
-// config.js - VERSÃO ATUALIZADA
+// config.js - VERSÃO DINÂMICA (Multi-Tenant)
 
 const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
 
-const getLojaId = () => {
+/**
+ * Detecta o slug/id da loja a partir de:
+ * 1. Query param ?loja=... ou ?slug=... ou ?id=...
+ * 2. Subdomínio (ex: alexbird.seudominio.com)
+ * 3. Segmento de pathname antes de /catalogo/
+ * Retorna null quando não detectado (será resolvido via API com fallback).
+ */
+const getLojaSlugOrId = () => {
+    // 1. Query string
+    const params = new URLSearchParams(window.location.search);
+    const qLoja = params.get('loja') || params.get('slug') || params.get('id');
+    if (qLoja) return qLoja;
+
+    // 2. Subdomínio (ignora 'www', 'localhost', IPs)
+    const hostname = window.location.hostname;
+    const hostParts = hostname.split('.');
+    if (hostParts.length > 2 && !['www', 'localhost', '127'].includes(hostParts[0])) {
+        return hostParts[0];
+    }
+
+    // 3. Pathname: segmento imediatamente ANTES de /catalogo/
     const pathname = window.location.pathname;
     const segments = pathname.split('/').filter(p => p);
-    
-    // Procura o segmento 'catalogo'
     const catIndex = segments.indexOf('catalogo');
-    let lojaPath = 'catalogo';
-    
     if (catIndex > 0) {
-        // Se existe algo antes de 'catalogo', esse é o slug da loja
-        lojaPath = segments[catIndex - 1];
-    } else if (catIndex === 0) {
-        // Se 'catalogo' é o primeiro, usamos ele mesmo
-        lojaPath = 'catalogo';
-    } else {
-        // Fallback: pega o último segmento que não termina em .html
-        const cleanSegments = segments.filter(s => !s.endsWith('.html'));
-        lojaPath = cleanSegments[cleanSegments.length - 1] || 'catalogo';
+        const candidate = segments[catIndex - 1].split('.')[0];
+        // Ignora segmentos genéricos do servidor (web, pulse, basic)
+        if (!['web', 'pulse', 'basic', 'index.php'].includes(candidate)) {
+            return candidate;
+        }
     }
-    
-    // Remove qualquer extensão caso tenha sobrado
-    lojaPath = lojaPath.split('.')[0];
-    
-    const lojaMap = {
-        'catalogo': '5e449fee-4486-4536-a64f-74aed38a6987', // Top Construções
-        'top-construcoes': '5e449fee-4486-4536-a64f-74aed38a6987', // Top Construções
-        'alexbird': '5eb98116-77c2-4a01-bd60-50db21eaa206',
-        'victor':'0b633731-25a1-4991-b1c4-c46acc6bce06',
-    };
-    
-    return lojaMap[lojaPath] || lojaMap['catalogo'];
+
+    return null; // Sem slug; o backend usará o fallback (primeira loja)
 };
 
 /**
@@ -104,53 +106,58 @@ export const CONFIG = {
     URL_BASE_WEB: detectedWebUrl || fallbackWebUrl,
     CACHE_NAME: 'catalogo-cache-v11',
     SYNC_TAG: 'sync-novo-pedido',
-    ID_USUARIO_LOJA: getLojaId()
+    ID_USUARIO_LOJA: null, // Será preenchido dinamicamente em carregarConfigLoja()
+    _slugDetectado: getLojaSlugOrId()
 };
 
-// Log da configuração final
-console.log('[Config] ✅ Configuração final:', {
+// Log da configuração inicial (sem ID ainda)
+console.log('[Config] ℹ️ Config inicial (ID será resolvido via API):', {
     URL_API: CONFIG.URL_API,
     URL_BASE_WEB: CONFIG.URL_BASE_WEB,
-    ID_USUARIO_LOJA: CONFIG.ID_USUARIO_LOJA
+    _slugDetectado: CONFIG._slugDetectado
 });
 
+// Adiciona o endpoint dinâmico de resolução de slug
+const _urlApiBase = CONFIG.URL_API;
+
 export const API_ENDPOINTS = {
-    PRODUTO: `${CONFIG.URL_API}/api/produto`,
-    CLIENTE: `${CONFIG.URL_API}/api/cliente`,
-    CLIENTE_BUSCA_CPF: `${CONFIG.URL_API}/api/cliente/buscar-cpf`,
-    COLABORADOR_BUSCA_CPF: `${CONFIG.URL_API}/api/colaborador/buscar-cpf`,
-    PEDIDO: `${CONFIG.URL_API}/api/pedido`, // GET - listar pedidos
-    PEDIDO_CREATE: `${CONFIG.URL_API}/api/pedido/create`, // POST - criar pedido
+    PRODUTO: `${_urlApiBase}/api/produto`,
+    CLIENTE: `${_urlApiBase}/api/cliente`,
+    CLIENTE_BUSCA_CPF: `${_urlApiBase}/api/cliente/buscar-cpf`,
+    COLABORADOR_BUSCA_CPF: `${_urlApiBase}/api/colaborador/buscar-cpf`,
+    PEDIDO: `${_urlApiBase}/api/pedido`, // GET - listar pedidos
+    PEDIDO_CREATE: `${_urlApiBase}/api/pedido/create`, // POST - criar pedido
     
-    // ✅ NOVOS ENDPOINTS
-    USUARIO_CONFIG: `${CONFIG.URL_API}/api/usuario/config`,
-    USUARIO_DADOS_LOJA: `${CONFIG.URL_API}/api/usuario/dados-loja`, // Endpoint para dados da loja (comprovantes)
+    // ✅ ENDPOINTS DE USUÁRIO
+    USUARIO_CONFIG: `${_urlApiBase}/api/usuario/config`,
+    USUARIO_CONFIG_BY_SLUG: `${_urlApiBase}/api/usuario/config-by-slug`, // ✅ NOVO endpoint dinâmico
+    USUARIO_DADOS_LOJA: `${_urlApiBase}/api/usuario/dados-loja`,
     
     // =======================================================
     // ✅ CORREÇÃO: ENDPOINTS ADICIONADOS DO BACKUP
     // =======================================================
-    CLIENTE_LOGIN: `${CONFIG.URL_API}/api/cliente/login`,
-    FORMA_PAGAMENTO: `${CONFIG.URL_API}/api/forma-pagamento`,
-    CALCULO_PARCELA: `${CONFIG.URL_API}/api/calculo/calcular-parcelas`,
+    CLIENTE_LOGIN: `${_urlApiBase}/api/cliente/login`,
+    FORMA_PAGAMENTO: `${_urlApiBase}/api/forma-pagamento`,
+    CALCULO_PARCELA: `${_urlApiBase}/api/calculo/calcular-parcelas`,
     // =======================================================
     
     // Mercado Pago
-    MERCADOPAGO_CRIAR_PREFERENCIA: `${CONFIG.URL_API}/api/mercado-pago/criar-preferencia`,
+    MERCADOPAGO_CRIAR_PREFERENCIA: `${_urlApiBase}/api/mercado-pago/criar-preferencia`,
     
     // Asaas
-    ASAAS_CRIAR_COBRANCA: `${CONFIG.URL_API}/api/asaas/criar-cobranca`,
-    ASAAS_GERAR_QR_PIX: `${CONFIG.URL_API}/api/asaas/gerar-qrcode-pix`,
+    ASAAS_CRIAR_COBRANCA: `${_urlApiBase}/api/asaas/criar-cobranca`,
+    ASAAS_GERAR_QR_PIX: `${_urlApiBase}/api/asaas/gerar-qrcode-pix`,
 
     // ✅ NOVO ENDPOINT DE CONSULTA PARA POLLING (ADICIONADO)
-    ASAAS_CONSULTAR_STATUS: `${CONFIG.URL_API}/api/asaas/consultar-status`,
+    ASAAS_CONSULTAR_STATUS: `${_urlApiBase}/api/asaas/consultar-status`,
 
     // ✅ NOVO: Endpoint genérico para consulta de status de pedido/venda
-    PEDIDO_STATUS: `${CONFIG.URL_API}/api/pedido/status`,
+    PEDIDO_STATUS: `${_urlApiBase}/api/pedido/status`,
     
     // ✅ NOVO: Endpoint para buscar parcelas de uma venda
-    PEDIDO_PARCELAS: `${CONFIG.URL_API}/api/pedido/parcelas`,
+    PEDIDO_PARCELAS: `${_urlApiBase}/api/pedido/parcelas`,
     // ✅ NOVO: Endpoint para confirmar recebimento de venda
-    PEDIDO_CONFIRMAR_RECEBIMENTO: `${CONFIG.URL_API}/api/pedido/confirmar-recebimento`,
+    PEDIDO_CONFIRMAR_RECEBIMENTO: `${_urlApiBase}/api/pedido/confirmar-recebimento`,
 };
 
 export const STORAGE_KEYS = {
@@ -166,34 +173,74 @@ export let GATEWAY_CONFIG = {
     asaas_sandbox: false
 };
 
-// ✅ NOVA: Função para carregar config da loja
+// ✅ NOVA: Função para carregar config da loja (com resolução dinâmica de slug)
 export async function carregarConfigLoja() {
     try {
+        // ✅ ETAPA 1: Se não há slug detectado → sinaliza para o app redirecionar à vitrine
+        if (!CONFIG.ID_USUARIO_LOJA && !CONFIG._slugDetectado) {
+            console.warn('[Config] ⚠️ Nenhum slug de loja detectado. Redirecionando para vitrine.');
+            return { lojaIdentificada: false };
+        }
+
+        // ✅ ETAPA 2: Resolver o ID da loja a partir do slug detectado
+        if (!CONFIG.ID_USUARIO_LOJA) {
+            const slug = CONFIG._slugDetectado;
+            const slugResp = await fetch(
+                `${API_ENDPOINTS.USUARIO_CONFIG_BY_SLUG}?slug=${encodeURIComponent(slug)}`
+            );
+
+            if (slugResp.status === 400 || slugResp.status === 404) {
+                console.warn('[Config] ⚠️ Slug inválido ou loja não encontrada:', slug);
+                return { lojaIdentificada: false };
+            }
+
+            if (slugResp.ok) {
+                const lojaInfo = await slugResp.json();
+                CONFIG.ID_USUARIO_LOJA = lojaInfo.id;
+                console.log('[Config] ✅ ID da loja resolvido:', CONFIG.ID_USUARIO_LOJA, '| Loja:', lojaInfo.nome);
+            } else {
+                console.error('[Config] ❌ Falha ao resolver slug:', slugResp.status);
+                return { lojaIdentificada: false };
+            }
+        }
+
+        // ✅ ETAPA 3: Carregar configurações de gateway usando o ID já resolvido
+        if (!CONFIG.ID_USUARIO_LOJA) {
+            console.error('[Config] ❌ ID da loja não pôde ser determinado.');
+            return { lojaIdentificada: false };
+        }
+
+        // Disponibiliza no window para outros módulos
+        window.CONFIG = CONFIG;
+
         const response = await fetch(
             `${API_ENDPOINTS.USUARIO_CONFIG}?usuario_id=${CONFIG.ID_USUARIO_LOJA}`
         );
-        
+
         if (!response.ok) {
             throw new Error('Erro ao carregar configuração');
         }
-        
+
         const config = await response.json();
-        
+
         GATEWAY_CONFIG.habilitado = config.api_de_pagamento || false;
         GATEWAY_CONFIG.gateway = config.gateway_pagamento || 'nenhum';
         GATEWAY_CONFIG.mercadopago_public_key = config.mercadopago_public_key;
         GATEWAY_CONFIG.asaas_sandbox = config.asaas_sandbox || false;
-        
-        console.log('[Config] Gateway:', GATEWAY_CONFIG.gateway, 
+
+        console.log('[Config] ℹ️ Gateway:', GATEWAY_CONFIG.gateway,
                     GATEWAY_CONFIG.habilitado ? '✅ HABILITADO' : '❌ DESABILITADO');
-        
-        return GATEWAY_CONFIG;
-        
+        console.log('[Config] ✅ Loja ativa: ID=', CONFIG.ID_USUARIO_LOJA);
+
+        // Sinaliza loja identificada com sucesso
+        return { ...GATEWAY_CONFIG, lojaIdentificada: true };
+
     } catch (error) {
         console.error('[Config] Erro ao carregar:', error);
-        return GATEWAY_CONFIG;
+        return { ...GATEWAY_CONFIG, lojaIdentificada: false };
     }
 }
+
 
 export const ELEMENTOS_CRITICOS = [
     'catalogo-produtos',

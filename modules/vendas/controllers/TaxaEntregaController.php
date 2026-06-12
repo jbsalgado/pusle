@@ -42,7 +42,7 @@ class TaxaEntregaController extends Controller
     public function actionIndex()
     {
         $query = TaxaEntrega::find()
-            ->where(['usuario_id' => Yii::$app->user->id, 'ativo' => true]);
+            ->where(['usuario_id' => \app\components\TenantHelper::getId(), 'ativo' => true]);
 
         // Filtro de busca
         $busca = Yii::$app->request->get('busca');
@@ -81,7 +81,7 @@ class TaxaEntregaController extends Controller
     public function actionCreate()
     {
         $model = new TaxaEntrega();
-        $model->usuario_id = Yii::$app->user->id;
+        $model->usuario_id = \app\components\TenantHelper::getId();
         $model->ativo = true;
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {

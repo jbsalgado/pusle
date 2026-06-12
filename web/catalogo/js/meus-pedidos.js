@@ -1,6 +1,6 @@
 // js/meus-pedidos.js
 import { maskCPF } from './utils.js';
-import { CONFIG, API_ENDPOINTS } from './config.js';
+import { CONFIG, API_ENDPOINTS, carregarConfigLoja } from './config.js';
 
 const TOKEN_KEY = 'cliente_auth_token';
 const CLIENTE_DATA_KEY = 'cliente_data';
@@ -473,6 +473,9 @@ function setupViewToggle() {
 
 // --- Inicialização ---
 document.addEventListener('DOMContentLoaded', async () => {
+    // ✅ PRIMEIRO: Garante que o ID da loja esteja resolvido antes de qualquer operação
+    await carregarConfigLoja();
+
     configurarMascaraCpf();
     setupViewToggle();
 

@@ -121,7 +121,7 @@ const CACHE_NAME = 'catalogo-cache-v14';
 
 const APP_SHELL_FILES = [
     `${URL_BASE_WEB}/catalogo/index.html`,
-    `${URL_BASE_WEB}/catalogo/app.js`,
+    `${URL_BASE_WEB}/catalogo/js/app.js`,
     `${URL_BASE_WEB}/catalogo/style.css`,
     `${URL_BASE_WEB}/catalogo/manifest.json`,
     `${URL_BASE_WEB}/catalogo/js/idb-keyval.js`,
@@ -130,7 +130,7 @@ const APP_SHELL_FILES = [
 // Arquivos críticos que SEMPRE devem buscar na rede primeiro
 const CRITICAL_FILES = [
     `${URL_BASE_WEB}/catalogo/index.html`,
-    `${URL_BASE_WEB}/catalogo/app.js`
+    `${URL_BASE_WEB}/catalogo/js/app.js`
 ];
 
 // Evento de Instalação
@@ -169,9 +169,9 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // 1. API de Produtos (Stale-While-Revalidate)
-    // ✅ AJUSTE: Agora compara a URL exata (com ID) que vem do app.js
-    if (event.request.url === API_PRODUTO_URL) {
+    // 1. API de Produtos (Stale-While-Revalidate) — detecção dinâmica, funciona para qualquer tenant
+    // ✅ Usa pathname para não depender de usuario_id fixo no Service Worker
+    if (url.pathname.includes('/api/produto') && event.request.method === 'GET') {
         event.respondWith(
             caches.open(CACHE_NAME).then(cache => {
                 return cache.match(event.request).then(cachedResponse => {

@@ -85,7 +85,7 @@ class ConfiguracaoController extends Controller
      */
     public function actionCreate()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         // Verifica se já existe
         $existing = Configuracao::findOne(['usuario_id' => $usuarioId]);

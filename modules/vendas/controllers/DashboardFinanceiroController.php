@@ -35,7 +35,7 @@ class DashboardFinanceiroController extends Controller
 
     public function actionIndex()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         $kpis = $this->getFinancialKPIs($usuarioId);
         $charts = [

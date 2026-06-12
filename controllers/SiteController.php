@@ -28,9 +28,13 @@ class SiteController extends Controller
     public function actionIndex()
     {
         if (!Yii::$app->user->isGuest) {
+            $usuario = Yii::$app->user->identity;
+            if ($usuario->is_admin && !$usuario->eh_dono_loja) {
+                return $this->redirect(['/admin/loja/index']);
+            }
             return $this->redirect(['/vendas/inicio']);
         }
-        return $this->redirect(['auth/login']);
+        return $this->redirect(['/loja-cadastro/index']);
     }
 }
 

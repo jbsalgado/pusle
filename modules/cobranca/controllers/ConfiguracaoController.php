@@ -41,7 +41,7 @@ class ConfiguracaoController extends Controller
      */
     public function actionIndex()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
         $model = CobrancaConfiguracao::getOrCreateForUser($usuarioId);
 
         if ($model->load(Yii::$app->request->post())) {
@@ -65,7 +65,7 @@ class ConfiguracaoController extends Controller
     {
         Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
 
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
         $config = CobrancaConfiguracao::findOne(['usuario_id' => $usuarioId]);
 
         if (!$config) {

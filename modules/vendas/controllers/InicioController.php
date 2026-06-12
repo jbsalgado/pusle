@@ -90,7 +90,7 @@ class InicioController extends Controller
         $countVendasPendentes = 0;
         if ($ehAdministrador || $ehDonoLoja) {
             $countVendasPendentes = \app\modules\vendas\models\Venda::find()
-                ->where(['usuario_id' => $usuario->id])
+                ->where(['usuario_id' => \app\components\TenantHelper::getId()])
                 ->andWhere(['status_venda_codigo' => \app\modules\vendas\models\StatusVenda::EM_ABERTO])
                 ->andWhere([
                     'or',
@@ -102,11 +102,15 @@ class InicioController extends Controller
                 ->count();
         }
 
+        // Buscar configuração da loja atual (tenant) para personalização
+        $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => \app\components\TenantHelper::getId()]);
+
         return $this->render('index', [
             'colaborador' => $colaborador,
             'ehAdministrador' => $ehAdministrador,
             'ehDonoLoja' => $ehDonoLoja,
             'countVendasPendentes' => $countVendasPendentes,
+            'lojaConfig' => $lojaConfig,
         ]);
     }
 

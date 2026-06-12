@@ -27,6 +27,7 @@ class SignupForm extends Model
     public $senha;
     public $senha_confirmacao;
     public $termos_aceitos;
+    public $nome_loja;  // Nome fantasia da loja (SaaS)
     // Campos de endereço
     public $endereco;
     public $bairro;
@@ -101,6 +102,9 @@ class SignupForm extends Model
             [['estado'], 'string', 'max' => 2],
             [['estado'], 'match', 'pattern' => '/^[A-Z]{2}$/', 'message' => 'Estado deve ter 2 letras maiúsculas (ex: MG, SP).', 'skipOnEmpty' => true],
             [['logo_path'], 'string', 'max' => 500],
+            // Nome da Loja (SaaS)
+            [['nome_loja'], 'string', 'min' => 2, 'max' => 100],
+            [['nome_loja'], 'trim'],
         ];
     }
 
@@ -117,6 +121,7 @@ class SignupForm extends Model
             'senha' => 'Senha',
             'senha_confirmacao' => 'Confirmar Senha',
             'termos_aceitos' => 'Aceito os Termos de Uso',
+            'nome_loja' => 'Nome da Loja',
             'endereco' => 'Endereço da Empresa',
             'bairro' => 'Bairro',
             'cidade' => 'Cidade',
@@ -524,6 +529,103 @@ class SignupForm extends Model
     }
 
     /**
+     * Cadastro público SaaS: cria loja com status "pendente" aguardando aprovação.
+     * Não faz login automático nem confirma a conta.
+     *
+     * @return Usuario|null
+     */
+    public function signupPendente()
+    {
+        // Adiciona nome_loja como campo opcional para o fluxo púndente
+        if (!$this->validate()) {
+            Yii::error('signupPendente() — validação falhou: ' . json_encode($this->errors), __METHOD__);
+            return null;
+        }
+
+        $transaction = Yii::$app->db->beginTransaction();
+
+        try {
+            $usuario = new Usuario();
+
+            // Gera UUID
+            $usuario->id = Yii::$app->db->createCommand('SELECT gen_random_uuid()')->queryScalar();
+
+            $usuario->nome     = $this->nome;
+            $usuario->cpf      = preg_replace('/[^0-9]/', '', $this->cpf);
+            $usuario->telefone = preg_replace('/[^0-9]/', '', $this->telefone);
+            $usuario->email    = trim(strtolower($this->email));
+            $usuario->username = !empty($usuario->cpf) ? $usuario->cpf : $usuario->email;
+
+            $usuario->eh_dono_loja = true;
+            $usuario->is_admin     = false;
+
+            // ===== PENDÊNCIA: bloqueia até admin aprovar =====
+            $usuario->status_loja = 'pendente';
+            $usuario->blocked_at  = date('Y-m-d H:i:s');
+            $usuario->confirmed_at = null; // Não confirmado ainda
+
+            // Endereço
+            $usuario->cidade  = !empty($this->cidade) ? trim($this->cidade) : null;
+            $usuario->estado  = !empty($this->estado) ? strtoupper(trim($this->estado)) : null;
+            $usuario->bairro  = !empty($this->bairro) ? trim($this->bairro) : null;
+            $usuario->endereco = !empty($this->endereco) ? trim($this->endereco) : null;
+            $usuario->logo_path = !empty($this->logo_path) ? trim($this->logo_path) : null;
+
+            // Geração automática de catalogo_path (slug único da loja)
+            $nomeLojaFinal = !empty($this->nome_loja) ? trim($this->nome_loja) : trim($this->nome);
+            $usuario->catalogo_path = $this->gerarCatalogoPathUnico($nomeLojaFinal);
+
+            // Senha
+            $usuario->setPassword($this->senha);
+            $usuario->generateAuthKey();
+
+            if (!$usuario->save()) {
+                $erros = [];
+                foreach ($usuario->errors as $field => $msgs) {
+                    foreach ($msgs as $msg) {
+                        $this->addError($field === 'hash_senha' ? 'senha' : $field, $msg);
+                        $erros[] = $field . ': ' . $msg;
+                    }
+                }
+                throw new \Exception('Erro ao salvar usuário: ' . implode(' | ', $erros));
+            }
+
+            // Cria registro de LojaConfiguracao (usa o nome e CPF do usuário se nome_loja não for fornecido)
+            try {
+                $lojaConfig = new \app\modules\vendas\models\LojaConfiguracao();
+                $lojaConfig->usuario_id = $usuario->id;
+                $lojaConfig->nome_loja  = $nomeLojaFinal;
+                $lojaConfig->cpf_cnpj   = $usuario->cpf; // Campo obrigatório
+                
+                // Novos campos adicionados para consistência e alimentar a vitrine pública de lojas
+                $lojaConfig->telefone   = $usuario->telefone;
+                $lojaConfig->cidade     = $usuario->cidade;
+                $lojaConfig->estado     = $usuario->estado;
+                $lojaConfig->logo_path  = $usuario->logo_path;
+
+                if (!$lojaConfig->save(false)) {
+                    Yii::warning('Erro ao salvar LojaConfiguracao: ' . json_encode($lojaConfig->errors), __METHOD__);
+                }
+            } catch (\Exception $e) {
+                Yii::warning('Não foi possível criar LojaConfiguracao: ' . $e->getMessage(), __METHOD__);
+            }
+
+            $transaction->commit();
+            Yii::info('Nova loja pendente criada: ' . $usuario->email . ' | Loja: ' . ($this->nome_loja ?? '-') . ' | Slug: ' . $usuario->catalogo_path, __METHOD__);
+
+            return $usuario;
+
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+            Yii::error('signupPendente() erro: ' . $e->getMessage(), __METHOD__);
+            if (!$this->hasErrors()) {
+                $this->addError('email', $e->getMessage());
+            }
+            return null;
+        }
+    }
+
+    /**
      * Envia email de boas-vindas ao novo usuário
      * 
      * @param Usuario $usuario
@@ -537,18 +639,74 @@ class SignupForm extends Model
                 ->setTo($usuario->email)
                 ->setSubject('Bem-vindo ao ' . Yii::$app->name)
                 ->setHtmlBody("
-                    <h1>Olá, {$usuario->nome}!</h1>
-                    <p>Bem-vindo ao <strong>" . Yii::$app->name . "</strong>!</p>
-                    <p>Seu cadastro foi realizado com sucesso.</p>
-                    <p><strong>CPF:</strong> {$usuario->getCpfFormatado()}</p>
-                    <p>Você já pode fazer login no sistema.</p>
-                    <br>
-                    <p>Atenciosamente,<br>Equipe " . Yii::$app->name . "</p>
-                ")
+                     <h1>Olá, {$usuario->nome}!</h1>
+                     <p>Bem-vindo ao <strong>" . Yii::$app->name . "</strong>!</p>
+                     <p>Seu cadastro foi realizado com sucesso.</p>
+                     <p><strong>CPF:</strong> {$usuario->getCpfFormatado()}</p>
+                     <p>Você já pode fazer login no sistema.</p>
+                     <br>
+                     <p>Atenciosamente,<br>Equipe " . Yii::$app->name . "</p>
+                 ")
                 ->send();
         } catch (\Exception $e) {
             Yii::error("Erro ao enviar email de boas-vindas: {$e->getMessage()}", __METHOD__);
             return false;
         }
     }
+
+    /**
+     * Gera um catalogo_path (slug) único e limpo com base no nome da loja.
+     *
+     * @param string $nomeLoja
+     * @return string
+     */
+    private function gerarCatalogoPathUnico(string $nomeLoja): string
+    {
+        // Converte caracteres especiais e acentos
+        $slug = trim($nomeLoja);
+        $slug = mb_strtolower($slug, 'UTF-8');
+        
+        $map = [
+            'á'=>'a','à'=>'a','â'=>'a','ã'=>'a','ä'=>'a','é'=>'e','è'=>'e','ê'=>'e','ë'=>'e',
+            'í'=>'i','ì'=>'i','î'=>'i','ï'=>'i','ó'=>'o','ò'=>'o','ô'=>'o','õ'=>'o','ö'=>'o',
+            'ú'=>'u','ù'=>'u','û'=>'u','ü'=>'u','ç'=>'c','ñ'=>'n','æ'=>'ae','œ'=>'oe'
+        ];
+        $slug = strtr($slug, $map);
+        
+        // Remove símbolos indesejados
+        $slug = preg_replace('/[^a-z0-9\s-]/', '', $slug);
+        // Substitui múltiplos hífens e espaços por um único hífen
+        $slug = preg_replace('/[\s-]+/', '-', $slug);
+        $slug = trim($slug, '-');
+
+        // Se o slug ficar vazio, usa um fallback
+        if (empty($slug)) {
+            $slug = 'loja';
+        }
+
+        // Garante que o slug não colida com termos proibidos
+        $termosProibidos = ['catalogo', 'loja-cadastro', 'admin', 'vendas', 'api', 'venda-direta', 'orcamento', 'sucesso', 'config', 'lojas'];
+        if (in_array($slug, $termosProibidos)) {
+            $slug .= '-loja';
+        }
+
+        // Verifica unicidade no banco de dados
+        $slugOriginal = $slug;
+        $i = 1;
+        while (true) {
+            $existe = (new \yii\db\Query())
+                ->from('prest_usuarios')
+                ->where(['catalogo_path' => $slug])
+                ->exists();
+
+            if (!$existe) {
+                break;
+            }
+            $slug = $slugOriginal . '-' . $i;
+            $i++;
+        }
+
+        return $slug;
+    }
 }
+

@@ -41,7 +41,7 @@ class ComissaoConfigController extends Controller
     public function actionIndex()
     {
         $query = ComissaoConfig::find()
-            ->where(['usuario_id' => Yii::$app->user->id])
+            ->where(['usuario_id' => \app\components\TenantHelper::getId()])
             ->with(['colaborador', 'categoria']);
 
         // Filtros
@@ -85,12 +85,12 @@ class ComissaoConfigController extends Controller
 
         // Buscar dados para os filtros
         $colaboradores = Colaborador::find()
-            ->where(['usuario_id' => Yii::$app->user->id, 'ativo' => true])
+            ->where(['usuario_id' => \app\components\TenantHelper::getId(), 'ativo' => true])
             ->orderBy(['nome_completo' => SORT_ASC])
             ->all();
 
         $categorias = Categoria::find()
-            ->where(['usuario_id' => Yii::$app->user->id, 'ativo' => true])
+            ->where(['usuario_id' => \app\components\TenantHelper::getId(), 'ativo' => true])
             ->orderBy(['nome' => SORT_ASC])
             ->all();
 
@@ -117,7 +117,7 @@ class ComissaoConfigController extends Controller
     public function actionCreate()
     {
         $model = new ComissaoConfig();
-        $model->usuario_id = Yii::$app->user->id;
+        $model->usuario_id = \app\components\TenantHelper::getId();
         $model->ativo = true;
 
         if ($model->load(Yii::$app->request->post())) {

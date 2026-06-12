@@ -48,7 +48,7 @@ class ColaboradorController extends Controller
     public function actionIndex()
     {
         $query = Colaborador::find()
-            ->where(['usuario_id' => Yii::$app->user->id])
+            ->where(['usuario_id' => \app\components\TenantHelper::getId()])
             ->orderBy(['nome_completo' => SORT_ASC]);
 
         // Aplicar filtros
@@ -114,7 +114,7 @@ class ColaboradorController extends Controller
     public function actionCreate()
     {
         $model = new Colaborador();
-        $model->usuario_id = Yii::$app->user->id;
+        $model->usuario_id = \app\components\TenantHelper::getId();
         $model->ativo = true;
 
         if ($model->load(Yii::$app->request->post())) {

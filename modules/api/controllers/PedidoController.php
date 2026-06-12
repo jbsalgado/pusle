@@ -255,6 +255,9 @@ class PedidoController extends BaseController
 
             // ===== LOOP 1: PRÉ-CÁLCULO E VALIDAÇÃO =====
             Yii::error("Iniciando pré-cálculo e validação...", 'api');
+            $ocorrenciasEstoque = [];
+            $itensFiltrados = [];
+
             foreach ($data['itens'] as $index => $itemData) {
                 if (empty($itemData['produto_id']) || empty($itemData['quantidade']) || !isset($itemData['preco_unitario'])) {
                     throw new Exception("Item #{$index} tem dados incompletos.");
@@ -298,10 +301,18 @@ class PedidoController extends BaseController
                     throw new Exception("Item #{$index}: produto inválido ou não pertence à loja.");
                 }
 
-                // Pula validação de estoque se for orçamento ou se for o produto genérico
+                // Regra de Estoque Inteligente:
+                // Pula validação se for orçamento ou se for o produto genérico/avulso
                 $isOrcamento = isset($data['is_orcamento']) && $data['is_orcamento'] === true;
-                if (!$isOrcamento && $produtoId !== '00000000-0000-0000-0000-000000000000' && !$produto->temEstoque($quantidadePedida)) {
-                    throw new Exception("Produto '{$produto->nome}' sem estoque suficiente.");
+                if (!$isOrcamento && $produtoId !== '00000000-0000-0000-0000-000000000000') {
+                    $estoqueAtual = (float)($produto->estoque_atual ?: 0);
+                    if ($estoqueAtual <= 0) {
+                        $ocorrenciasEstoque[] = "Item '{$produto->nome}' não incluído por estar sem estoque.";
+                        continue; // Ignora e pula este item
+                    } elseif ($quantidadePedida > $estoqueAtual) {
+                        $ocorrenciasEstoque[] = "Item '{$produto->nome}' reduzido de {$quantidadePedida} para {$estoqueAtual} por falta de estoque.";
+                        $quantidadePedida = $estoqueAtual;
+                    }
                 }
 
                 // Calcula subtotal do item
@@ -320,11 +331,30 @@ class PedidoController extends BaseController
                 // Soma ao total da venda (subtraindo desconto)
                 $valorTotalVenda += ($subtotalItem - $descontoValor);
 
+                $itensFiltrados[] = [
+                    'produto' => $produto,
+                    'quantidade' => $quantidadePedida,
+                    'preco_unitario' => $precoUnitario,
+                    'desconto_percentual' => $descontoPercentual,
+                    'desconto_valor' => $descontoValor,
+                    'nome_item_manual' => $itemData['nome_item_manual'] ?? null,
+                    'unidade_medida' => $itemData['unidade_medida'] ?? ($produto->unidade_medida ?? 'un')
+                ];
+
                 Yii::error("Item #{$index} ({$produto->nome}): Qtd={$quantidadePedida}, Preço={$precoUnitario}, Desc={$descontoValor}. Total parcial={$valorTotalVenda}", 'api');
             }
 
+            // Valida se sobrou algum item na venda
+            if (empty($itensFiltrados)) {
+                $msgErro = 'Não foi possível finalizar o pedido porque todos os itens estão sem estoque disponível.';
+                if (!empty($ocorrenciasEstoque)) {
+                    $msgErro .= ' Ocorrências: ' . implode(' | ', $ocorrenciasEstoque);
+                }
+                throw new Exception($msgErro);
+            }
+
             Yii::error("Pré-cálculo concluído. Valor Total Itens = {$valorTotalVenda}", 'api');
-            if ($valorTotalVenda <= 0 && count($data['itens']) > 0) {
+            if ($valorTotalVenda <= 0 && count($itensFiltrados) > 0) {
                 throw new Exception('Valor total do pedido não pode ser zero.');
             }
 
@@ -351,6 +381,12 @@ class PedidoController extends BaseController
             } else {
                 $venda->observacoes = $data['observacoes'] ?? ($isVendaDireta ? 'Venda Direta' : 'Pedido PWA');
                 $venda->status_venda_codigo = \app\modules\vendas\models\StatusVenda::EM_ABERTO;
+            }
+
+            // Anexa as ocorrências de estoque nas observações da venda se existirem
+            if (!empty($ocorrenciasEstoque)) {
+                $obsOcorrencias = " | Ocorrências de estoque: " . implode('; ', $ocorrenciasEstoque);
+                $venda->observacoes .= $obsOcorrencias;
             }
 
             $venda->valor_total = $valorTotalVenda;
@@ -416,35 +452,18 @@ class PedidoController extends BaseController
             // ===== LOOP 2: CRIAR ITENS =====
             // ✅ CORREÇÃO: Para vendas online, estoque só é baixado após confirmação de pagamento
             Yii::error("Iniciando criação de itens...", 'api');
-            foreach ($data['itens'] as $index => $itemData) {
-                $produto = Produto::findOne($itemData['produto_id']);
+            foreach ($itensFiltrados as $index => $itemPrep) {
+                $produto = $itemPrep['produto'];
 
                 $item = new VendaItem();
                 $item->venda_id = $venda->id;
                 $item->produto_id = $produto->id;
-                $item->quantidade = (float)$itemData['quantidade'];
-                $item->preco_unitario_venda = (float)$itemData['preco_unitario'];
-
-                // Processa descontos
-                $descontoPercentual = isset($itemData['desconto_percentual']) ? (float)$itemData['desconto_percentual'] : 0.0;
-                $descontoValor = isset($itemData['desconto_valor']) ? (float)$itemData['desconto_valor'] : 0.0;
-
-                $subtotalItem = $item->quantidade * $item->preco_unitario_venda;
-
-                // Se percentual > 0 e valor == 0, calcula valor
-                if ($descontoPercentual > 0 && $descontoValor == 0) {
-                    $descontoValor = $subtotalItem * ($descontoPercentual / 100);
-                }
-
-                // Se valor > 0 e percentual == 0, calcula percentual (informativo)
-                if ($descontoValor > 0 && $descontoPercentual == 0 && $subtotalItem > 0) {
-                    $descontoPercentual = ($descontoValor / $subtotalItem) * 100;
-                }
-
-                $item->desconto_percentual = $descontoPercentual;
-                $item->desconto_valor = $descontoValor;
+                $item->quantidade = $itemPrep['quantidade'];
+                $item->preco_unitario_venda = $itemPrep['preco_unitario'];
+                $item->desconto_percentual = $itemPrep['desconto_percentual'];
+                $item->desconto_valor = $itemPrep['desconto_valor'];
                 $item->avulso_resolvido = false;
-                $item->nome_item_manual = $itemData['nome_item_manual'] ?? null;
+                $item->nome_item_manual = $itemPrep['nome_item_manual'];
 
                 Yii::error("Tentando salvar item #{$index}: " . print_r($item->attributes, true), 'api');
                 if (!$item->save()) {

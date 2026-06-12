@@ -40,7 +40,7 @@ class DadosFinanceirosController extends Controller
      */
     public function actionIndex()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
         
         // Busca configuração global
         $configuracaoGlobal = DadosFinanceiros::getConfiguracaoGlobal($usuarioId);
@@ -64,7 +64,7 @@ class DadosFinanceirosController extends Controller
      */
     public function actionGlobal()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
         $model = DadosFinanceiros::getConfiguracaoGlobal($usuarioId);
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
@@ -82,7 +82,7 @@ class DadosFinanceirosController extends Controller
      */
     public function actionProduto($produto_id = null)
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
         
         if ($produto_id) {
             // Busca configuração existente ou cria nova

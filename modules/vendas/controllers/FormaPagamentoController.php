@@ -46,7 +46,7 @@ class FormaPagamentoController extends Controller
     {
         $dataProvider = new ActiveDataProvider([
             'query' => FormaPagamento::find()
-                ->where(['usuario_id' => Yii::$app->user->id])
+                ->where(['usuario_id' => \app\components\TenantHelper::getId()])
                 ->orderBy(['nome' => SORT_ASC]),
             'pagination' => [
                 'pageSize' => 20,
@@ -82,7 +82,7 @@ class FormaPagamentoController extends Controller
     public function actionCreate()
     {
         $model = new FormaPagamento();
-        $model->usuario_id = Yii::$app->user->id;
+        $model->usuario_id = \app\components\TenantHelper::getId();
         $model->ativo = true;
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {

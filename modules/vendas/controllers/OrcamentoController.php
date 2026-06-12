@@ -44,7 +44,7 @@ class OrcamentoController extends Controller
     public function actionIndex()
     {
         $searchModel = new OrcamentoSearch();
-        $searchModel->usuario_id = Yii::$app->user->id;
+        $searchModel->usuario_id = \app\components\TenantHelper::getId();
         $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
 
         // Registra CSS
@@ -112,8 +112,22 @@ class OrcamentoController extends Controller
                 'unidade_medida' => $item->produto ? $item->produto->unidade_medida : 'un',
                 'venda_fracionada' => $item->produto ? (bool)$item->produto->venda_fracionada : false,
                 'fotos' => $item->produto && $item->produto->fotos ? $item->produto->fotos : [],
+                'estoque_atual' => $item->produto ? (float)$item->produto->estoque_atual : 0,
+                'is_avulso' => $item->produto ? false : true,
+                // Escalas de atacado (caso existam no produto e o vendedor altere quantidade no carrinho)
+                'qtd_escala_1' => $item->produto ? (float)$item->produto->qtd_escala_1 : null,
+                'preco_escala_1' => $item->produto ? (float)$item->produto->preco_escala_1 : null,
+                'qtd_escala_2' => $item->produto ? (float)$item->produto->qtd_escala_2 : null,
+                'preco_escala_2' => $item->produto ? (float)$item->produto->preco_escala_2 : null,
+                'qtd_escala_3' => $item->produto ? (float)$item->produto->qtd_escala_3 : null,
+                'preco_escala_3' => $item->produto ? (float)$item->produto->preco_escala_3 : null,
+                'qtd_escala_4' => $item->produto ? (float)$item->produto->qtd_escala_4 : null,
+                'preco_escala_4' => $item->produto ? (float)$item->produto->preco_escala_4 : null,
+                'qtd_escala_5' => $item->produto ? (float)$item->produto->qtd_escala_5 : null,
+                'preco_escala_5' => $item->produto ? (float)$item->produto->preco_escala_5 : null,
             ];
         }
+
 
         $lojaConfig = LojaConfiguracao::findOne(['usuario_id' => $model->usuario_id]);
         $config = Configuracao::findOne(['usuario_id' => $model->usuario_id]);
@@ -495,7 +509,7 @@ class OrcamentoController extends Controller
         \Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
         $today = date('Y-m-d 00:00:00');
         $tomorrow = date('Y-m-d 23:59:59', strtotime('+1 day'));
-        $usuario_id = Yii::$app->user->id;
+        $usuario_id = \app\components\TenantHelper::getId();
 
         $totalHoje = (float)Orcamento::find()->where(['>=', 'data_criacao', $today])->andWhere(['usuario_id' => $usuario_id])->sum('valor_total');
         $countHoje = (int)Orcamento::find()->where(['>=', 'data_criacao', $today])->andWhere(['usuario_id' => $usuario_id])->count();

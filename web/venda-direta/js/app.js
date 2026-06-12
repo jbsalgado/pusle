@@ -45,7 +45,16 @@ async function init() {
             console.error('[App] ❌ Falha na autenticação');
             return;
         }
-        
+
+        // ✅ MULTI-TENANCY: Define o ID da loja com base no usuário autenticado
+        // Se for colaborador, usa o usuario_id do DONO da loja; caso contrário, usa o próprio ID
+        const tenantId = usuarioData.colaborador
+            ? usuarioData.colaborador.usuario_id
+            : (usuarioData.usuario?.id || usuarioData.id);
+        CONFIG.ID_USUARIO_LOJA = tenantId;
+        window.CONFIG = CONFIG; // Mantém referência global sincronizada
+        console.log('[App] 🏪 Tenant resolvido (venda-direta):', tenantId);
+
         verificarElementosCriticos(ELEMENTOS_CRITICOS);
         popularOpcoesParcelas();
         await carregarConfigLoja();

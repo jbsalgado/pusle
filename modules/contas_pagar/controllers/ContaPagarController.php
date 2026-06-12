@@ -47,7 +47,7 @@ class ContaPagarController extends Controller
      */
     public function actionIndex()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         $query = ContaPagar::find()
             ->alias('cp')
@@ -100,7 +100,7 @@ class ContaPagarController extends Controller
      */
     public function actionExport()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         $query = ContaPagar::find()
             ->where(['usuario_id' => $usuarioId])
@@ -164,7 +164,7 @@ class ContaPagarController extends Controller
     public function actionCreate()
     {
         $model = new ContaPagar();
-        $model->usuario_id = Yii::$app->user->id;
+        $model->usuario_id = \app\components\TenantHelper::getId();
         $model->status = ContaPagar::STATUS_PENDENTE;
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
@@ -426,7 +426,7 @@ class ContaPagarController extends Controller
      */
     protected function findModel($id)
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         if (($model = ContaPagar::findOne(['id' => $id, 'usuario_id' => $usuarioId])) !== null) {
             return $model;
