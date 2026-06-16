@@ -548,8 +548,23 @@ class VendaController extends Controller
         $today = date('Y-m-d 00:00:00');
         $usuario_id = \Yii::$app->user->id;
 
-        $totalHoje = (float)Venda::find()->where(['>=', 'data_venda', $today])->andWhere(['usuario_id' => $usuario_id])->sum('valor_total');
-        $countHoje = (int)Venda::find()->where(['>=', 'data_venda', $today])->andWhere(['usuario_id' => $usuario_id])->count();
+        $totalHoje = (float)Venda::find()
+            ->where(['>=', 'data_venda', $today])
+            ->andWhere(['usuario_id' => $usuario_id])
+            ->andWhere(['not in', 'status_venda_codigo', [
+                \app\modules\vendas\models\StatusVenda::CANCELADA,
+                \app\modules\vendas\models\StatusVenda::ORCAMENTO
+            ]])
+            ->sum('valor_total');
+
+        $countHoje = (int)Venda::find()
+            ->where(['>=', 'data_venda', $today])
+            ->andWhere(['usuario_id' => $usuario_id])
+            ->andWhere(['not in', 'status_venda_codigo', [
+                \app\modules\vendas\models\StatusVenda::CANCELADA,
+                \app\modules\vendas\models\StatusVenda::ORCAMENTO
+            ]])
+            ->count();
 
         return [
             'hoje_valor' => $totalHoje,

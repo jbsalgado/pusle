@@ -196,8 +196,8 @@ function atualizarMiniaturas() {
         const miniatura = document.createElement('button');
         miniatura.className = `w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
             index === indiceFotoAtual 
-                ? 'border-blue-500 ring-2 ring-blue-300' 
-                : 'border-gray-300 hover:border-blue-400'
+                ? 'border-brand-500 ring-2 ring-brand-300' 
+                : 'border-gray-300 hover:border-brand-400'
         }`;
         miniatura.innerHTML = `<img src="${urlMiniatura}" alt="Miniatura ${index + 1}" class="w-full h-full object-cover">`;
         

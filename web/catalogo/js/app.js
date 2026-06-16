@@ -145,10 +145,10 @@ async function verificarRetornoCheckout() {
             overlay.id = 'mp-verificando-overlay';
             overlay.className = 'fixed inset-0 bg-white bg-opacity-90 flex flex-col items-center justify-center z-[100] p-6 text-center';
             overlay.innerHTML = `
-                <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <div class="w-16 h-16 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mb-4"></div>
                 <h2 class="text-xl font-bold mb-2">Verificando seu pagamento...</h2>
                 <p class="text-gray-600 mb-4">Aguarde um instante enquanto confirmamos a transação com o Mercado Pago.</p>
-                <p id="mp-status-text" class="text-sm font-medium text-blue-600">Status: PROCESSANDO</p>
+                <p id="mp-status-text" class="text-sm font-medium text-brand-600">Status: PROCESSANDO</p>
             `;
             document.body.appendChild(overlay);
 
@@ -195,6 +195,10 @@ async function carregarLogoEmpresa() {
                 logo_path: dadosLoja.logo_path 
             });
             
+            if (dadosLoja.aparencia) {
+                aplicarAparenciaDinamica(dadosLoja.aparencia);
+            }
+
             if (dadosLoja.logo_path) {
                 let logoUrl = dadosLoja.logo_path.trim();
                 
@@ -241,6 +245,29 @@ async function carregarLogoEmpresa() {
     } catch (error) {
         console.error('[App] ❌ Erro ao carregar logo da empresa:', error);
     }
+}
+
+function aplicarAparenciaDinamica(aparencia) {
+    if (!aparencia || !aparencia.escala_cores) {
+        console.log('[App] 🎨 Sem dados de aparência customizada. Usando cores padrão.');
+        return;
+    }
+
+    console.log('[App] 🎨 Aplicando tema de cores dinâmico:', aparencia.tema);
+
+    let styleEl = document.getElementById('dynamic-theme-vars');
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'dynamic-theme-vars';
+        document.head.appendChild(styleEl);
+    }
+
+    let cssRule = ':root {\\n';
+    Object.entries(aparencia.escala_cores).forEach(([peso, hex]) => {
+        cssRule += `  --brand-${peso}: ${hex};\\n`;
+    });
+    cssRule += '}';
+    styleEl.innerHTML = cssRule;
 }
 
 // ==========================================================================
@@ -1025,7 +1052,7 @@ function renderizarPreviaGrade(produto) {
                 <td class="py-1 truncate max-w-[60px]" title="${v.cor || '-'}">${v.cor || '-'}</td>
                 <td class="py-1 text-center font-bold">${v.tamanho || '-'}</td>
                 <td class="py-1 text-center ${v.estoque_atual > 0 ? 'text-green-600' : 'text-red-500'}">${v.estoque_atual || 0}</td>
-                <td class="py-1 text-right font-bold text-blue-600">${formatarMoeda(preco)}</td>
+                <td class="py-1 text-right font-bold text-brand-600">${formatarMoeda(preco)}</td>
             </tr>
         `;
     });
@@ -1095,7 +1122,7 @@ function renderizarProdutos(listaProdutos) {
                 ${renderizarPreviaGrade(produto)}
                 
                 <div class="flex items-center justify-between mb-4">
-                    <span class="text-2xl font-bold text-blue-600">
+                    <span class="text-2xl font-bold text-brand-600">
                         ${formatarMoeda(produto.preco_venda_sugerido)}
                     </span>
                     
@@ -1111,7 +1138,7 @@ function renderizarProdutos(listaProdutos) {
                     </button>
                 ` : `
                     <button onclick="abrirModalQuantidade('${produto.id}')"
-                            class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 ${produto.estoque_atual <= 0 ? 'opacity-50 cursor-not-allowed' : ''}"
+                            class="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 ${produto.estoque_atual <= 0 ? 'opacity-50 cursor-not-allowed' : ''}"
                             ${produto.estoque_atual <= 0 ? 'disabled' : ''}>
                         🛒 Adicionar ao Carrinho
                     </button>
@@ -2355,7 +2382,7 @@ function mostrarErro(mensagem) {
                 <div class="text-red-500 text-xl mb-4">⚠️</div>
                 <p class="text-gray-700 text-lg">${mensagem}</p>
                 <button onclick="location.reload()" 
-                        class="mt-4 bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600">
+                        class="mt-4 bg-brand-500 text-white px-6 py-2 rounded-lg hover:bg-brand-600">
                     Tentar Novamente
                 </button>
             </div>
@@ -2423,7 +2450,7 @@ window.abrirModalVariacoes = async function(produtoId) {
     modal.classList.remove('hidden');
     container.innerHTML = `
         <div class="text-center py-12">
-            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600 mx-auto"></div>
             <p class="text-sm text-gray-500 mt-4 font-medium">Buscando opções...</p>
         </div>
     `;
@@ -2447,7 +2474,7 @@ window.abrirModalVariacoes = async function(produtoId) {
         }
 
         container.innerHTML = variacoes.map(v => `
-            <div onclick="adicionarVariacaoDireto('${v.id}', '${produtoId}')" class="flex justify-between items-center p-4 border border-gray-100 rounded-xl hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all active:scale-[0.98] group bg-white shadow-sm">
+            <div onclick="adicionarVariacaoDireto('${v.id}', '${produtoId}')" class="flex justify-between items-center p-4 border border-gray-100 rounded-xl hover:border-brand-300 hover:bg-brand-50 cursor-pointer transition-all active:scale-[0.98] group bg-white shadow-sm">
                 <div class="flex flex-col">
                     <div class="flex items-center gap-2">
                         <span class="px-2 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-bold rounded uppercase">${v.tamanho || 'U'}</span>
@@ -2456,7 +2483,7 @@ window.abrirModalVariacoes = async function(produtoId) {
                     <span class="text-[10px] text-gray-400 mt-1">Ref: ${v.codigo_referencia || 'N/A'}</span>
                 </div>
                 <div class="flex flex-col items-end">
-                    <span class="text-lg font-bold text-blue-600">${formatarMoeda(v.preco_venda_sugerido)}</span>
+                    <span class="text-lg font-bold text-brand-600">${formatarMoeda(v.preco_venda_sugerido)}</span>
                     <span class="text-[9px] ${v.estoque_atual > 0 ? 'text-green-500' : 'text-red-400'}">
                         Estoque: ${v.estoque_atual || 0}
                     </span>
@@ -2595,7 +2622,7 @@ window.atualizarFrete = async function() {
                     const falta = minParaGratis - subtotal;
                     if (msgFrete) {
                         msgFrete.textContent = `🎁 Compre mais R$ ${falta.toFixed(2).replace('.', ',')} para ganhar Frete Grátis!`;
-                        msgFrete.className = 'mt-1 text-xs font-semibold text-blue-600';
+                        msgFrete.className = 'mt-1 text-xs font-semibold text-brand-600';
                         msgFrete.classList.remove('hidden');
                     }
                 }

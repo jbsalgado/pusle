@@ -243,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${temEstoque ? `${estoque} unidade(s) disponivel` : 'Indisponivel'}
                         </p>
                         
-                        <p class="text-2xl font-bold text-blue-600 mb-4 mt-auto">R$ ${parseFloat(produto.preco_venda_sugerido || 0).toFixed(2)}</p>
+                        <p class="text-2xl font-bold text-brand-600 mb-4 mt-auto">R$ ${parseFloat(produto.preco_venda_sugerido || 0).toFixed(2)}</p>
                         
                         <div class="flex items-center gap-2">
                             <input 
@@ -263,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 data-img="${urlImagem}" 
                                 data-estoque="${estoque}"
                                 class="btn-adicionar-carrinho w-full p-2 rounded-lg font-semibold transition-colors
-                                    ${!temEstoque ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}"
+                                    ${!temEstoque ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-brand-500 text-white hover:bg-brand-600'}"
                                 ${!temEstoque ? 'disabled' : ''}
                             >
                                 ${!temEstoque ? 'Indisponivel' : 'Adicionar'}
@@ -530,13 +530,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (data.acrescimo_percentual > 0) {
                 parcelaInfoResultado.innerHTML = `
-                    <span class="font-bold text-blue-600">${data.numero_parcelas}x de R$ ${valorParcelaFmt}</span>
+                    <span class="font-bold text-brand-600">${data.numero_parcelas}x de R$ ${valorParcelaFmt}</span>
                     <br>
                     <span class="text-xs">(Total a prazo: R$ ${valorTotalFmt})</span>
                 `;
             } else {
                 parcelaInfoResultado.innerHTML = `
-                    <span class="font-bold text-blue-600">${data.numero_parcelas}x de R$ ${valorParcelaFmt}</span>
+                    <span class="font-bold text-brand-600">${data.numero_parcelas}x de R$ ${valorParcelaFmt}</span>
                     <br>
                     <span class="text-xs">(Total: R$ ${valorTotalFmt}, sem acréscimo)</span>
                 `;

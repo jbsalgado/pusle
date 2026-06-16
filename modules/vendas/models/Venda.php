@@ -409,7 +409,13 @@ class Venda extends ActiveRecord
                     }
                 }
 
-                // 3. Atualiza status da Venda
+                // 3. Cancela as comissões associadas
+                \app\modules\vendas\models\Comissao::updateAll(
+                    ['status' => \app\modules\vendas\models\Comissao::STATUS_CANCELADA],
+                    ['venda_id' => $this->id]
+                );
+
+                // 4. Atualiza status da Venda
                 $this->status_venda_codigo = StatusVenda::CANCELADA;
                 $this->data_atualizacao = new Expression('NOW()');
                 if (!$this->save(false, ['status_venda_codigo', 'data_atualizacao'])) {

@@ -88,6 +88,22 @@ use yii\helpers\Url;
             </span>
         </div>
         <p class="text-xs text-gray-500 mt-2">Usamos os dados da loja logada para associar o token OAuth ao tenant correto.</p>
+
+        <div class="mt-4 bg-gray-50 rounded-lg p-4 max-w-md border border-gray-200">
+            <div class="flex items-start">
+                <div class="flex items-center h-5">
+                    <?= Html::checkbox('mercadopago_sandbox', $usuarioAtual ? $usuarioAtual->mercadopago_sandbox : true, [
+                        'class' => 'w-4 h-4 text-sky-600 bg-white border-gray-300 rounded focus:ring-sky-500 focus:ring-2',
+                        'id' => 'mercadopago_sandbox_checkbox',
+                        'value' => 1
+                    ]) ?>
+                </div>
+                <div class="ml-3">
+                    <label for="mercadopago_sandbox_checkbox" class="font-medium text-gray-900 text-sm sm:text-base cursor-pointer">Ambiente de Testes (Sandbox)</label>
+                    <p class="text-xs text-gray-500">Quando ativado, os pagamentos do Mercado Pago serão processados em modo sandbox (simulado).</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Cores -->

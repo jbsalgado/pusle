@@ -959,14 +959,14 @@ class MercadoPagoController extends Controller
             case 'approved':
                 if ($tenantId && $orderId) {
                     $this->registrarLogFinanceiro($tenantId, $orderId, $pagamento->id, $valorTotal, $platformFee, 'approved');
-                    $this->liberarPedido($tenantId, $orderId, $valorTotal, $pagamento->id);
+                    $this->liberarPedido($tenantId, $orderId, $valorTotal, $pagamento->id, $platformFee);
                 } else {
                     // Fluxo legado baseado em preferência
                     $pedidoId = $this->criarPedidoNoSistema($externalReference, $pagamento);
                     if ($pedidoId) {
                         $preferencia = $this->buscarPreferenciaPorExternalRef($externalReference);
                         $this->registrarLogFinanceiro($preferencia['usuario_id'], $pedidoId, $pagamento->id, $valorTotal, $platformFee, 'approved');
-                        $this->liberarPedido($preferencia['usuario_id'], $pedidoId, $valorTotal, $pagamento->id);
+                        $this->liberarPedido($preferencia['usuario_id'], $pedidoId, $valorTotal, $pagamento->id, $platformFee);
                     }
                 }
                 break;
@@ -1334,7 +1334,7 @@ class MercadoPagoController extends Controller
     /**
      * Marca venda como quitada, baixa estoque e registra caixa.
      */
-    private function liberarPedido($tenantId, $orderId, $valorTotal, $paymentId)
+    private function liberarPedido($tenantId, $orderId, $valorTotal, $paymentId, $platformFee = null)
     {
         $venda = Venda::findOne(['id' => $orderId, 'usuario_id' => $tenantId]);
 
@@ -1345,6 +1345,10 @@ class MercadoPagoController extends Controller
                 'tenant_id' => $tenantId
             ], 'mercadopago');
             return;
+        }
+
+        if ($platformFee === null && $valorTotal > 0) {
+            $platformFee = $this->calcularApplicationFee($valorTotal);
         }
 
         $transaction = Yii::$app->db->beginTransaction();
@@ -1380,14 +1384,39 @@ class MercadoPagoController extends Controller
             }
 
             try {
-                CaixaHelper::registrarEntradaVenda(
+                // Registrar Entrada Bruta
+                $valorVenda = $valorTotal ?: $venda->valor_total;
+                \app\modules\caixa\helpers\CaixaHelper::registrarEntradaVenda(
                     $venda->id,
-                    $valorTotal ?: $venda->valor_total,
+                    $valorVenda,
                     $venda->forma_pagamento_id,
                     $venda->usuario_id
                 );
+
+                // Registrar Saída de Taxa/Split se aplicável para conciliação no Caixa
+                if ($platformFee > 0) {
+                    $caixa = \app\modules\caixa\helpers\CaixaHelper::getCaixaAberto($venda->usuario_id);
+                    if ($caixa) {
+                        $movimentacaoSaida = new \app\modules\caixa\models\CaixaMovimentacao();
+                        $movimentacaoSaida->caixa_id = $caixa->id;
+                        $movimentacaoSaida->tipo = \app\modules\caixa\models\CaixaMovimentacao::TIPO_SAIDA;
+                        $movimentacaoSaida->categoria = \app\modules\caixa\models\CaixaMovimentacao::CATEGORIA_OUTRO;
+                        $movimentacaoSaida->valor = $platformFee;
+                        $movimentacaoSaida->descricao = "Tarifa Split Plataforma - Venda #" . substr($venda->id, 0, 8);
+                        $movimentacaoSaida->venda_id = $venda->id;
+                        $movimentacaoSaida->forma_pagamento_id = $venda->forma_pagamento_id;
+                        $movimentacaoSaida->data_movimento = date('Y-m-d H:i:s');
+                        
+                        if (!$movimentacaoSaida->save()) {
+                            $erros = $movimentacaoSaida->getFirstErrors();
+                            Yii::error("Erro ao registrar saida de split no caixa: " . implode(', ', $erros), 'mercadopago');
+                        } else {
+                            Yii::info("Saída de split R$ {$platformFee} registrada no caixa #{$caixa->id}", 'mercadopago');
+                        }
+                    }
+                }
             } catch (\Throwable $e) {
-                Yii::error("Erro ao registrar entrada no caixa: " . $e->getMessage(), 'mercadopago');
+                Yii::error("Erro ao registrar entrada/saída no caixa: " . $e->getMessage(), 'mercadopago');
             }
 
             $transaction->commit();
@@ -1566,6 +1595,18 @@ class MercadoPagoController extends Controller
      */
     private function buscarUsuarioPorId($usuarioId)
     {
+        $lojaId = $usuarioId;
+
+        // Se o ID informado pertencer a um colaborador, mapeia para o ID do dono/empresa.
+        if (!empty($lojaId) && $this->validarUUID($lojaId)) {
+            $checkColab = \app\modules\vendas\models\Colaborador::find()
+                ->where(['prest_usuario_login_id' => $lojaId])
+                ->one();
+            if ($checkColab) {
+                $lojaId = $checkColab->usuario_id;
+            }
+        }
+
         $sql = "
             SELECT 
                 id,
@@ -1587,7 +1628,7 @@ class MercadoPagoController extends Controller
         ";
 
         return Yii::$app->db->createCommand($sql, [
-            ':id' => $usuarioId
+            ':id' => $lojaId
         ])->queryOne();
     }
 

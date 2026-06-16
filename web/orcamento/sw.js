@@ -86,8 +86,8 @@ const ID_USUARIO_LOJA = getLojaId();
 const API_PRODUTO_URL = `${URL_API}/api/produto?usuario_id=${ID_USUARIO_LOJA}`;
 const API_PEDIDO_URL = `${URL_API}/api/pedido`;
 
-// 🔥 ATUALIZAÇÃO IMPORTANTE: Versão v4 para forçar nova loja e limpar cache antigo
-const CACHE_NAME = 'orcamento-cache-v6';
+// 🔥 ATUALIZAÇÃO IMPORTANTE: Versão v9 para forçar nova loja e limpar cache antigo
+const CACHE_NAME = 'orcamento-cache-v10';
 
 const APP_SHELL_FILES = [
     `${URL_BASE_WEB}/orcamento/index.html`,

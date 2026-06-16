@@ -60,6 +60,7 @@ class ConfiguracaoController extends Controller
     public function actionUpdate()
     {
         $model = Configuracao::getConfiguracaoAtual();
+        $usuario = Yii::$app->user->identity;
 
         if ($model->load(Yii::$app->request->post())) {
             $model->certificado_arquivo = UploadedFile::getInstance($model, 'certificado_arquivo');
@@ -67,6 +68,13 @@ class ConfiguracaoController extends Controller
             if ($model->certificado_arquivo) {
                 $pfxContent = file_get_contents($model->certificado_arquivo->tempName);
                 $model->certificado_pfx = base64_encode($pfxContent);
+            }
+
+            // Salva modo sandbox do Mercado Pago do usuário logado
+            $post = Yii::$app->request->post();
+            if ($usuario) {
+                $usuario->mercadopago_sandbox = isset($post['mercadopago_sandbox']) && $post['mercadopago_sandbox'] == '1';
+                $usuario->save(false);
             }
 
             if ($model->save()) {
@@ -86,6 +94,7 @@ class ConfiguracaoController extends Controller
     public function actionCreate()
     {
         $usuarioId = \app\components\TenantHelper::getId();
+        $usuario = Yii::$app->user->identity;
 
         // Verifica se já existe
         $existing = Configuracao::findOne(['usuario_id' => $usuarioId]);
@@ -107,6 +116,13 @@ class ConfiguracaoController extends Controller
             if ($model->certificado_arquivo) {
                 $pfxContent = file_get_contents($model->certificado_arquivo->tempName);
                 $model->certificado_pfx = base64_encode($pfxContent);
+            }
+
+            // Salva modo sandbox do Mercado Pago do usuário logado
+            $post = Yii::$app->request->post();
+            if ($usuario) {
+                $usuario->mercadopago_sandbox = isset($post['mercadopago_sandbox']) && $post['mercadopago_sandbox'] == '1';
+                $usuario->save(false);
             }
 
             if ($model->save()) {

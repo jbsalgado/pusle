@@ -169,6 +169,19 @@ class UsuarioController extends Controller
     public function actionConfig($usuario_id)
     {
         try {
+            $lojaId = $usuario_id;
+
+            // ✅ IDENTIFICAÇÃO INTELIGENTE DO ID DA LOJA (OWNER)
+            // Se o ID informado pertence a um colaborador, mapeia para o ID do dono/empresa.
+            if (!empty($lojaId)) {
+                $checkColab = \app\modules\vendas\models\Colaborador::find()
+                    ->where(['prest_usuario_login_id' => $lojaId])
+                    ->one();
+                if ($checkColab) {
+                    $lojaId = $checkColab->usuario_id;
+                }
+            }
+
             $sql = "
                 SELECT 
                     u.id,
@@ -187,7 +200,7 @@ class UsuarioController extends Controller
             ";
 
             $usuario = Yii::$app->db->createCommand($sql, [
-                ':id' => $usuario_id
+                ':id' => $lojaId
             ])->queryOne();
 
             if (!$usuario) {

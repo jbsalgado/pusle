@@ -162,7 +162,7 @@ function criarCardProduto(produto) {
         ` : ''}
 
         ${temMultiplasFotos ? `
-        <div class="absolute bottom-2 left-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg flex items-center gap-1 z-10">
+        <div class="absolute bottom-2 left-2 bg-brand-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg flex items-center gap-1 z-10">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
             </svg>
@@ -192,7 +192,7 @@ function criarCardProduto(produto) {
             <h3 class="text-[13px] font-semibold text-gray-800 mb-1 leading-tight" title="${produto.nome || 'Produto'}">
                 ${produto.nome || 'Produto'}
                 ${produto.com_nota ? `
-                    <span class="inline-flex items-center px-1 rounded-[2px] text-[9px] font-bold bg-blue-100 text-blue-700 border border-blue-200 shrink-0 ml-1" title="Última compra com Nota Fiscal">
+                    <span class="inline-flex items-center px-1 rounded-[2px] text-[9px] font-bold bg-brand-100 text-brand-700 border border-brand-200 shrink-0 ml-1" title="Última compra com Nota Fiscal">
                         NF
                     </span>
                 ` : ''}
@@ -205,7 +205,7 @@ function criarCardProduto(produto) {
                 ${temEstoque ? `${formatarQuantidade(estoque, permiteFracionado)} ${unidadeMedida} disponível` : 'Indisponível'}
             </p>
             
-            <p class="text-2xl font-bold text-blue-600 mb-4 mt-auto">${formatarMoeda(produto.preco_venda_sugerido || 0)}</p>
+            <p class="text-2xl font-bold text-brand-600 mb-4 mt-auto">${formatarMoeda(produto.preco_venda_sugerido || 0)}</p>
             
             <div class="flex items-center gap-2">
                 <input 
@@ -229,7 +229,7 @@ function criarCardProduto(produto) {
                     data-fracionado="${permiteFracionado ? '1' : '0'}"
                     data-unidade="${unidadeMedida}"
                     class="btn-adicionar-carrinho w-full p-2 rounded-lg font-semibold transition-colors
-                        ${!temEstoque ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}"
+                        ${!temEstoque ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-brand-500 text-white hover:bg-brand-600'}"
                     ${!temEstoque ? 'disabled' : ''}
                 >
                     ${!temEstoque ? 'Indisponível' : 'Adicionar'}

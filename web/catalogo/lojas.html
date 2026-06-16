@@ -268,14 +268,16 @@
     const detectApiBase = () => {
       // Localiza onde começa '/catalogo' no pathname
       const pathname = window.location.pathname;
-      const idx = pathname.indexOf('/catalogo');
-      // Tudo ANTES de '/catalogo' é o prefixo (ex: '' em localhost, '/pulse/web' em subpasta)
-      const prefix = idx !== -1 ? pathname.substring(0, idx) : '';
-      // Remove barra final e qualquer resquício de index.php no prefixo
-      const base = prefix.replace(/\/index\.php.*$/, '').replace(/\/$/, '');
-      return (base || '') + '/index.php';
+      let basePath = pathname.split('/catalogo')[0];
+      if (basePath.includes('/index.php')) {
+        const match = basePath.match(/^(.+\/index\.php)/);
+        if (match) return match[1];
+      }
+      basePath = basePath.replace(/\/$/, '');
+      return (basePath || '') + '/index.php';
     };
-    const API_BASE = detectApiBase();
+    
+    const API_BASE = window.location.origin + detectApiBase();
     const API_LOJAS = `${API_BASE}/api/usuario/lojas`;
 
     // ─── Estado global ──────────────────────────────────────────────────────

@@ -180,18 +180,22 @@ window.simularPagamentoSandbox = async function() {
     }
     
     if (!currentPaymentId) {
-        alert('Erro: Payment ID não encontrado');
+        alert('Erro: ID da venda não encontrado para verificação.');
+        if (btnTeste) {
+            btnTeste.disabled = false;
+            btnTeste.textContent = '🧪 Testar Confirmação';
+        }
         return;
     }
     
-    // Força uma verificação imediata
-    const resultado = await verificarStatusPagamento(currentPaymentId);
+    // Força uma verificação imediata via status da venda/pedido
+    const resultado = await verificarStatusVenda(currentPaymentId);
     
     if (resultado.status === 'pago') {
         console.log('[Gateway] ✅ TESTE SANDBOX: Pagamento confirmado!');
-        tratarPagamentoConfirmado(resultado.pedido_id, resultado.dados);
+        tratarPagamentoConfirmado(currentPaymentId, resultado.dados, window.currentGateway || 'asaas');
     } else {
-        alert(`Status atual: ${resultado.dados?.status_asaas || 'PENDING'}\n\nSe você já confirmou no sandbox, aguarde alguns segundos e clique novamente.`);
+        alert(`Status atual no sistema: ${resultado.dados?.status || 'PENDENTE'}\n\nSe você já confirmou no sandbox, aguarde alguns segundos e clique novamente.`);
         if (btnTeste) {
             btnTeste.disabled = false;
             btnTeste.textContent = '🧪 Testar Confirmação';
@@ -219,17 +223,15 @@ export async function processarPagamento(dadosPedido, carrinho, cliente, pedidoI
 
 async function processarMercadoPago(dadosPedido, carrinho, cliente, pedidoId = null) {
     try {
+        const valorTotal = carrinho.reduce((total, item) => 
+            total + ((item.preco_venda_sugerido || 0) * (item.quantidade || 1)), 0
+        );
+
         const payload = {
-            usuario_id: CONFIG.ID_USUARIO_LOJA,
-            cliente_id: dadosPedido.cliente_id,
-            venda_id: pedidoId, // ✅ Passa o ID da venda já criada
-            itens: carrinho.map(item => ({
-                produto_id: item.produto_id || item.id || null,
-                nome: item.nome || 'Produto',
-                descricao: item.descricao || '',
-                quantidade: item.quantidade || 1,
-                preco_unitario: item.preco_venda_sugerido || 0
-            })),
+            tenant_id: CONFIG.ID_USUARIO_LOJA,
+            order_id: pedidoId,
+            amount: valorTotal,
+            description: `Pedido ${pedidoId} - Catálogo`,
             cliente: {
                 nome: cliente.nome || '',
                 sobrenome: cliente.sobrenome || '',
@@ -242,32 +244,57 @@ async function processarMercadoPago(dadosPedido, carrinho, cliente, pedidoId = n
             }
         };
         
-        const response = await fetch(API_ENDPOINTS.MERCADOPAGO_CRIAR_PREFERENCIA, {
+        console.log('[MP] 🚀 Enviando requisição de PIX Transparente para Mercado Pago:', payload);
+        
+        const response = await fetch(API_ENDPOINTS.MERCADOPAGO_CRIAR_PIX_SPLIT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
         
         if (!response.ok) {
-            const erro = await response.json();
-            throw new Error(erro.erro || 'Erro ao criar preferência');
+            let erroMsg = 'Erro ao processar pagamento com o Mercado Pago. Por favor, tente novamente ou entre em contato com a loja.';
+            try {
+                const erro = await response.json();
+                erroMsg = erro.erro || erro.mensagem || erroMsg;
+            } catch (e) {}
+            throw new Error(erroMsg);
         }
         
         const resultado = await response.json();
+        console.log('[MP] 📡 Resposta recebida:', resultado);
         
-        localStorage.setItem('mp_preference_id', resultado.preference_id);
-        localStorage.setItem('mp_external_ref', resultado.external_reference);
-        
-        window.location.href = resultado.init_point;
-        
-        return {
-            sucesso: true,
-            gateway: 'mercadopago',
-            redirecionado: true
-        };
+        if (resultado.sucesso && resultado.qr_code) {
+            // Salvar referências no localStorage
+            localStorage.setItem('mp_payment_id', resultado.payment_id);
+            localStorage.setItem('mp_external_ref', pedidoId);
+            
+            // Set variables for global sandbox use
+            window.currentGateway = 'mercadopago';
+            currentPaymentId = pedidoId;
+            
+            // Adapt to the structure expected by mostrarModalPix
+            const pixData = {
+                encoded_image: resultado.qr_code_base64,
+                payload: resultado.qr_code
+            };
+            
+            mostrarModalPix(pixData, resultado.payment_id);
+            iniciarPollingStatusVenda(pedidoId, 'mercadopago');
+            
+            return {
+                sucesso: true,
+                gateway: 'mercadopago',
+                mensagem: 'Modal PIX exibido. Aguardando pagamento.',
+                ...resultado
+            };
+        } else {
+            throw new Error(resultado.mensagem || resultado.erro || 'Não foi possível gerar o QR Code PIX.');
+        }
         
     } catch (error) {
         console.error('[MP] ❌ Erro:', error);
+        alert(`Falha no pagamento: ${error.message}`);
         throw error;
     }
 }
@@ -328,6 +355,9 @@ async function processarAsaas(dadosPedido, carrinho, cliente, pedidoId = null) {
         localStorage.setItem('asaas_external_ref', resultado.external_reference);
         
         if (resultado.pix) {
+            window.currentGateway = 'asaas';
+            currentPaymentId = pedidoId || resultado.payment_id;
+            
             mostrarModalPix(resultado.pix, resultado.payment_id);
             // Inicia polling usando o pedidoId (external_reference) se disponível, senão usa payment_id
             iniciarPollingStatusVenda(pedidoId || resultado.payment_id, 'asaas');
@@ -378,7 +408,7 @@ function mostrarModalPix(pixData, paymentId) {
             </div>
             
             <button onclick="navigator.clipboard.writeText('${pixData.payload}')" 
-                    class="w-full bg-blue-500 text-white py-3 rounded-lg mb-4 hover:bg-blue-600">
+                    class="w-full bg-brand-500 text-white py-3 rounded-lg mb-4 hover:bg-brand-600">
                 📋 Copiar Código PIX
             </button>
             
@@ -393,7 +423,7 @@ function mostrarModalPix(pixData, paymentId) {
                     Aguardando confirmação...
                 </p>
                 <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-                    <div class="bg-blue-500 h-1.5 rounded-full animate-pulse"></div>
+                    <div class="bg-brand-500 h-1.5 rounded-full animate-pulse"></div>
                 </div>
             </div>
             

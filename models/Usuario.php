@@ -76,7 +76,12 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
             [['gateway_pagamento'], 'string', 'max' => 50],
             [['gateway_pagamento'], 'default', 'value' => 'nenhum'],
             [['gateway_pagamento'], 'in', 'range' => ['nenhum', 'mercadopago', 'asaas']],
-            [['catalogo_path'], 'default', 'value' => 'catalogo'],
+            [['catalogo_path'], 'default', 'value' => 'catalogo', 'when' => function ($model) {
+                return (bool)$model->eh_dono_loja;
+            }],
+            [['catalogo_path'], 'default', 'value' => null, 'when' => function ($model) {
+                return !(bool)$model->eh_dono_loja;
+            }],
             // Campos de endereço
             [['endereco'], 'string', 'max' => 255],
             [['bairro', 'cidade'], 'string', 'max' => 100],

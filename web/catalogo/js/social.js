@@ -240,8 +240,8 @@ async function gerarStory() {
                 <div class="p-12 h-full flex flex-col relative bg-gradient-to-br from-gray-50 to-gray-200">
                     <!-- Header -->
                     <div class="flex flex-col items-center mb-10 pt-4">
-                         ${logoSrc ? `<img src="${logoSrc}" crossorigin="anonymous" class="h-32 w-auto object-contain mb-4 drop-shadow-md">` : '<h1 class="text-5xl font-black text-blue-900 tracking-tighter uppercase">Ofertas</h1>'}
-                         <div class="h-1.5 w-32 bg-blue-500 rounded-full"></div>
+                         ${logoSrc ? `<img src="${logoSrc}" crossorigin="anonymous" class="h-32 w-auto object-contain mb-4 drop-shadow-md">` : '<h1 class="text-5xl font-black text-brand-900 tracking-tighter uppercase">Ofertas</h1>'}
+                         <div class="h-1.5 w-32 bg-brand-500 rounded-full"></div>
                     </div>
 
                     <!-- Cartão Centralizado do Produto -->
@@ -259,7 +259,7 @@ async function gerarStory() {
                                 </h2>
                                 
                                 <div class="w-full mt-8">
-                                    <div class="inline-block bg-blue-600 text-white text-6xl font-black px-12 py-6 rounded-3xl shadow-xl border-b-8 border-blue-800 tracking-tight">
+                                    <div class="inline-block bg-brand-600 text-white text-6xl font-black px-12 py-6 rounded-3xl shadow-xl border-b-8 border-brand-800 tracking-tight">
                                         ${formatarMoeda(p.preco_venda_sugerido)}
                                     </div>
                                     ${p.estoque_atual > 0 ? 
@@ -276,10 +276,10 @@ async function gerarStory() {
                         <div class="bg-white/90 backdrop-blur-md p-6 rounded-2xl shadow-lg border border-white/50 flex items-center justify-between gap-6">
                             <div class="flex-1">
                                 <p class="text-3xl font-bold text-gray-800">Gostou?</p>
-                                <p class="text-xl text-blue-600 font-medium">Peça pelo Link na Bio</p>
+                                <p class="text-xl text-brand-600 font-medium">Peça pelo Link na Bio</p>
                             </div>
-                            <div class="bg-blue-100 p-3 rounded-full">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div class="bg-brand-100 p-3 rounded-full">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                                 </svg>
                             </div>

@@ -64,13 +64,13 @@ export function formatarInfoParcelas(dadosParcela) {
 
     if (dadosParcela.acrescimoPercentual > 0) {
         return `
-            <span class="font-bold text-blue-600">${dadosParcela.numeroParcelas}x de R$ ${valorParcelaFmt}</span>
+            <span class="font-bold text-brand-600">${dadosParcela.numeroParcelas}x de R$ ${valorParcelaFmt}</span>
             <br>
             <span class="text-xs">(Total a prazo: R$ ${valorTotalFmt})</span>
         `;
     } else {
         return `
-            <span class="font-bold text-blue-600">${dadosParcela.numeroParcelas}x de R$ ${valorParcelaFmt}</span>
+            <span class="font-bold text-brand-600">${dadosParcela.numeroParcelas}x de R$ ${valorParcelaFmt}</span>
             <br>
             <span class="text-xs">(Total: R$ ${valorTotalFmt}, sem acréscimo)</span>
         `;
