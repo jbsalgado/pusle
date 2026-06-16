@@ -18,13 +18,14 @@ class ProdutoController extends BaseController
         return [
             'index' => ['GET', 'HEAD'],
             'view' => ['GET', 'HEAD'],
+            'marcas' => ['GET', 'HEAD'],
         ];
     }
 
     public function behaviors()
     {
         $behaviors = parent::behaviors();
-        $behaviors['authenticator']['optional'] = ['index', 'view'];
+        $behaviors['authenticator']['optional'] = ['index', 'view', 'marcas'];
         return $behaviors;
     }
 
@@ -64,6 +65,13 @@ class ProdutoController extends BaseController
         $categoriaId = \Yii::$app->request->get('categoria_id');
         if ($categoriaId) {
             $query->andWhere(['categoria_id' => $categoriaId]);
+        }
+
+        // Filtro por Marca (busca parcial insensível a acentos/caixa)
+        $marca = \Yii::$app->request->get('marca');
+        if ($marca && trim($marca) !== '') {
+            $termoMarca = '%' . trim($marca) . '%';
+            $query->andWhere(['ilike', new \yii\db\Expression('unaccent(marca)'), new \yii\db\Expression('unaccent(:m)', [':m' => $termoMarca])]);
         }
 
         // Suporte a busca inteligente por palavras (Busca no Mestre OU nos Filhos)
@@ -127,5 +135,28 @@ class ProdutoController extends BaseController
         }
 
         return $this->success($model);
+    }
+
+    /**
+     * Retorna todas as marcas únicas dos produtos ativos do usuário.
+     * GET /api/produto/marcas?usuario_id=xxx
+     */
+    public function actionMarcas()
+    {
+        $usuarioId = \Yii::$app->request->get('usuario_id');
+        if (!$usuarioId) {
+            return $this->success([]);
+        }
+
+        $marcas = Produto::find()
+            ->select(['marca'])
+            ->where(['ativo' => true, 'usuario_id' => $usuarioId])
+            ->andWhere(['is not', 'marca', null])
+            ->andWhere(['!=', 'marca', ''])
+            ->distinct()
+            ->orderBy(['marca' => SORT_ASC])
+            ->column();
+
+        return $this->success($marcas);
     }
 }

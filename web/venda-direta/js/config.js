@@ -96,6 +96,7 @@ console.log('[Config] ✅ Configuração final:', {
 
 export const API_ENDPOINTS = {
     PRODUTO: `${CONFIG.URL_API}/api/produto`,
+    PRODUTO_MARCAS: `${CONFIG.URL_API}/api/produto/marcas`,
     CATEGORIA: `${CONFIG.URL_API}/api/categoria`,
     CLIENTE: `${CONFIG.URL_API}/api/cliente`,
     CLIENTE_BUSCA_CPF: `${CONFIG.URL_API}/api/cliente/buscar-cpf`,

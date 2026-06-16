@@ -92,6 +92,7 @@ class ContaPagar extends ActiveRecord
             [['observacoes'], 'string'],
             [['status'], 'in', 'range' => [self::STATUS_PENDENTE, self::STATUS_PAGA, self::STATUS_VENCIDA, self::STATUS_CANCELADA]],
             [['status'], 'default', 'value' => self::STATUS_PENDENTE],
+            [['fornecedor_id', 'compra_id', 'tipo_despesa_id', 'forma_pagamento_id'], 'default', 'value' => null],
             [['comprovanteFile'], 'file', 'skipOnEmpty' => true, 'extensions' => 'png, jpg, jpeg, pdf', 'maxSize' => 1024 * 1024 * 5], // 5MB
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
             [['fornecedor_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => Fornecedor::class, 'targetAttribute' => ['fornecedor_id' => 'id']],

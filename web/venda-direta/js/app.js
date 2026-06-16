@@ -24,6 +24,7 @@ let formasPagamento = [];
 let usuarioData = null;
 let clienteAtual = null; // Cliente para vendas parceladas
 let categoriaSelecionada = 'todos'; // Categoria atual (todos = null na API)
+let marcaSelecionada = ''; // Marca atual de busca (parcial)
 let orcamentoIdAtual = null; // ✅ NOVO: Armazena ID do orçamento carregado
 
 // Cache de páginas já carregadas (melhora performance)
@@ -61,8 +62,10 @@ async function init() {
         await carregarLogoEmpresa(); // Carrega logo da empresa
         await registrarServiceWorker();
         await carregarCarrinhoInicial();
-        // ✅ Carrega categorias antes dos produtos
+        // ✅ Carrega categorias e marcas antes dos produtos
         await carregarCategorias();
+        await carregarMarcas();
+        inicializarSelect2Filtros();
         await carregarProdutos();
         inicializarEventListeners();
         inicializarBuscaProdutos(); // Inicializa o filtro de busca
@@ -549,58 +552,116 @@ async function carregarCategorias() {
         const data = await response.json();
         const categorias = data.data || [];
         
-        const container = document.getElementById('filtro-categorias');
-        if (!container) return; // Se não tiver container (ex: fora da home), ignora
+        const select = document.getElementById('select-categoria');
+        if (!select) return;
         
-        // Remove loading
-        const loading = document.getElementById('loading-categorias');
-        if (loading) loading.remove();
-        
-        // Mantém o botão "Todos" e adiciona as categorias
-        const btnTodos = container.querySelector('button[data-categoria-id="todos"]');
-        container.innerHTML = '';
-        if (btnTodos) container.appendChild(btnTodos);
+        select.innerHTML = '<option value="todos">Todos os Grupos</option>';
         
         categorias.forEach(cat => {
-            const btn = document.createElement('button');
-            btn.className = 'categoria-chip flex-shrink-0 px-4 py-1.5 bg-white text-gray-700 rounded-full text-sm font-medium whitespace-nowrap shadow-sm hover:bg-gray-50 transition-colors border border-gray-200';
-            btn.textContent = cat.nome;
-            btn.dataset.categoriaId = cat.id;
-            btn.onclick = () => window.filtrarPorCategoria(cat.id);
-            container.appendChild(btn);
+            const opt = document.createElement('option');
+            opt.value = cat.id;
+            opt.textContent = cat.nome;
+            select.appendChild(opt);
         });
         
         console.log(`[App] ✅ ${categorias.length} categorias carregadas`);
         
     } catch (error) {
         console.error('[App] ❌ Erro ao carregar categorias:', error);
-        // Remove loading em caso de erro
-        const loading = document.getElementById('loading-categorias');
-        if (loading) loading.style.display = 'none';
     }
 }
 
-window.filtrarPorCategoria = async function(id) {
-    // Atualiza estado global
-    categoriaSelecionada = id;
+async function carregarMarcas() {
+    try {
+        console.log('[App] 📂 Carregando marcas...');
+        const response = await fetchWithAuth(`${API_ENDPOINTS.PRODUTO_MARCAS}?usuario_id=${CONFIG.ID_USUARIO_LOJA}`);
+        
+        if (!response.ok) throw new Error('Falha ao carregar marcas');
+        
+        const data = await response.json();
+        const marcas = data.data || [];
+        
+        const select = document.getElementById('select-marca');
+        if (!select) return;
+        
+        select.innerHTML = '<option value="">Todas as Marcas</option>';
+        
+        marcas.forEach(marca => {
+            const opt = document.createElement('option');
+            opt.value = marca;
+            opt.textContent = marca;
+            select.appendChild(opt);
+        });
+        
+        console.log(`[App] ✅ ${marcas.length} marcas carregadas`);
+        
+    } catch (error) {
+        console.error('[App] ❌ Erro ao carregar marcas:', error);
+    }
+}
+
+function inicializarSelect2Filtros() {
+    // Inicializa Select2 para Categoria/Grupo
+    $('#select-categoria').select2({
+        placeholder: 'Todos os Grupos',
+        allowClear: false
+    }).on('change', async function() {
+        categoriaSelecionada = $(this).val() || 'todos';
+        const inputBusca = document.getElementById('busca-produto');
+        const termoBusca = inputBusca ? inputBusca.value.trim() : '';
+        await carregarProdutos(1, true, termoBusca);
+    });
+
+    // Inicializa Select2 para Marcas
+    $('#select-marca').select2({
+        placeholder: 'Todas as Marcas',
+        allowClear: true
+    }).on('change', async function() {
+        marcaSelecionada = $(this).val() || '';
+        const inputBusca = document.getElementById('busca-produto');
+        const termoBusca = inputBusca ? inputBusca.value.trim() : '';
+        await carregarProdutos(1, true, termoBusca);
+    });
+}
+
+window.limparTodosFiltros = async function() {
+    // 1. Limpa campo de busca de produto
+    const inputBusca = document.getElementById('busca-produto');
+    if (inputBusca) inputBusca.value = '';
     
-    // Atualiza UI
-    document.querySelectorAll('.categoria-chip').forEach(btn => {
-        const isSelected = btn.dataset.categoriaId == id; // Loose equality para 'todos' vs id numérico
-        if (isSelected) {
-            btn.className = 'categoria-chip active px-4 py-1.5 bg-brand-600 text-white rounded-full text-sm font-medium whitespace-nowrap shadow-sm transition-colors border border-brand-600';
-        } else {
-            btn.className = 'categoria-chip px-4 py-1.5 bg-white text-gray-700 rounded-full text-sm font-medium whitespace-nowrap shadow-sm hover:bg-gray-50 transition-colors border border-gray-200';
-        }
+    const btnLimparBusca = document.getElementById('btn-limpar-busca');
+    if (btnLimparBusca) btnLimparBusca.classList.add('hidden');
+    
+    categoriaSelecionada = 'todos';
+    marcaSelecionada = '';
+    
+    // 2. Temporariamente remove ouvintes para evitar chamadas duplas à API
+    $('#select-categoria').off('change');
+    $('#select-marca').off('change');
+    
+    // 3. Reseta visualmente os selects do Select2
+    $('#select-categoria').val('todos').trigger('change');
+    $('#select-marca').val('').trigger('change');
+    
+    // 4. Re-vincula os ouvintes de mudança
+    $('#select-categoria').on('change', async function() {
+        categoriaSelecionada = $(this).val() || 'todos';
+        const inputB = document.getElementById('busca-produto');
+        const termoB = inputB ? inputB.value.trim() : '';
+        await carregarProdutos(1, true, termoB);
     });
     
-    // Reseta busca quando muda categoria? 
-    // Por enquanto, mantenho a busca se existir, mas talvez seja melhor resetar o input
-    const inputBusca = document.getElementById('busca-produto');
-    const termoBusca = inputBusca ? inputBusca.value.trim() : '';
+    $('#select-marca').on('change', async function() {
+        marcaSelecionada = $(this).val() || '';
+        const inputB = document.getElementById('busca-produto');
+        const termoB = inputB ? inputB.value.trim() : '';
+        await carregarProdutos(1, true, termoB);
+    });
     
-    // Recarrega produtos (página 1)
-    await carregarProdutos(1, true, termoBusca);
+    // 5. Executa uma única chamada de recarregamento
+    await carregarProdutos(1, true, '');
+    
+    if (inputBusca) inputBusca.focus();
 };
 
 window.onload = function() {
@@ -620,8 +681,8 @@ window.onload = function() {
  */
 async function carregarProdutos(pagina = 1, forcarRecarregar = false, termoBusca = '') {
     try {
-        // Para busca ou filtro de categoria, não usa cache
-        const usarCache = !forcarRecarregar && !termoBusca && (categoriaSelecionada === 'todos' || !categoriaSelecionada) && cacheProdutos.has(pagina);
+        // Para busca ou filtro de categoria ou marca, não usa cache
+        const usarCache = !forcarRecarregar && !termoBusca && (categoriaSelecionada === 'todos' || !categoriaSelecionada) && !marcaSelecionada && cacheProdutos.has(pagina);
         
         if (usarCache) {
             console.log(`[App] 📦 Usando cache da página ${pagina}`);
@@ -636,7 +697,7 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false, termoBusca
             return;
         }
         
-        const catInfo = categoriaSelecionada && categoriaSelecionada !== 'todos' ? `, categoria: ${categoriaSelecionada}` : '';
+        const catInfo = (categoriaSelecionada && categoriaSelecionada !== 'todos' ? `, categoria: ${categoriaSelecionada}` : '') + (marcaSelecionada ? `, marca: ${marcaSelecionada}` : '');
         console.log('[App] 📦 Carregando produtos (página', pagina, termoBusca ? `, busca: "${termoBusca}"` : '', catInfo, ')...');
         mostrarCarregando();
         
@@ -652,6 +713,11 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false, termoBusca
         // Adiciona categoria
         if (categoriaSelecionada && categoriaSelecionada !== 'todos') {
             url += `&categoria_id=${categoriaSelecionada}`;
+        }
+ 
+        // Adiciona marca
+        if (marcaSelecionada && marcaSelecionada.trim() !== '') {
+            url += `&marca=${encodeURIComponent(marcaSelecionada.trim())}`;
         }
         const response = await fetchWithAuth(url);
         
@@ -1187,6 +1253,16 @@ function renderizarProdutos(listaProdutos) {
                         </span>
                     ` : ''}
                 </div>
+                
+                ${produto.marca ? `
+                    <div class="text-[10px] font-semibold text-brand-600 uppercase tracking-wider mb-1 truncate" title="Marca: ${produto.marca}">
+                        ${produto.marca}
+                    </div>
+                ` : `
+                    <div class="text-[10px] text-transparent select-none mb-1">
+                        &nbsp;
+                    </div>
+                `}
                 
                 <h3 class="text-sm font-bold text-gray-800 mb-2 leading-tight line-clamp-2" title="${produto.nome}">
                     ${produto.nome}

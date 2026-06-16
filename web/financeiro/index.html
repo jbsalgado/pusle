@@ -482,11 +482,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             const today = new Date();
             
-            // If the current month is June, but the user wants to see May which is highly populated, let's select May by default for demo!
-            // Wait, we saw that May 2026 has all mock costs and sales. Let's make May 2026 the default!
-            // That guarantees they see the dashboard working immediately!
-            document.getElementById('select-mes').value = "5"; 
-            document.getElementById('select-ano').value = "2026";
+            // Define o mês e ano dinamicamente de acordo com a data atual do sistema
+            document.getElementById('select-mes').value = String(today.getMonth() + 1);
+            document.getElementById('select-ano').value = String(today.getFullYear());
             
             // Set print subtitle/date
             document.getElementById('print-date').innerText = today.toLocaleDateString('pt-BR') + ' às ' + today.toLocaleTimeString('pt-BR');
