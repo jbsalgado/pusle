@@ -55,6 +55,7 @@ $badgeCssMap = [
     TipoDespesa::GRUPO_MERCADORIA => 'bg-blue-100 text-blue-800 border border-blue-200',
 ];
 $badgeCssJson = Json::htmlEncode($badgeCssMap);
+$isNewRecordJson = Json::htmlEncode($model->isNewRecord);
 
 // Valor atual formatado para exibição (edição)
 $valorDisplay = '';
@@ -203,6 +204,41 @@ if ($model->valor) {
             ]) ?>
         </div>
 
+        <?php if ($model->isNewRecord): ?>
+            <!-- ─── Repetição / Recorrência ────────────────────────────────── -->
+            <div class="sm:col-span-2 border-t border-gray-100 pt-4">
+                <?= $form->field($model, 'recorrente', [
+                    'template' => "<div class=\"flex items-center gap-2\">{input}\n{label}</div>\n{error}",
+                    'labelOptions' => ['class' => 'text-sm font-medium text-gray-700 select-none cursor-pointer'],
+                ])->checkbox([
+                    'id' => 'recorrente-checkbox',
+                    'class' => 'rounded text-blue-600 focus:ring-blue-500 h-4 w-4 transition duration-150 ease-in-out cursor-pointer',
+                ], false) ?>
+
+                <div id="recorrencia-campos" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div>
+                        <?= $form->field($model, 'recorrencia_frequencia')->dropDownList([
+                            'mensal' => 'Mensal',
+                            'quinzenal' => 'Quinzenal',
+                            'semanal' => 'Semanal',
+                        ], [
+                            'id' => 'recorrencia-frequencia',
+                            'class' => 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm',
+                        ]) ?>
+                    </div>
+                    <div>
+                        <?= $form->field($model, 'recorrencia_repeticoes')->input('number', [
+                            'id' => 'recorrencia-repeticoes',
+                            'min' => 2,
+                            'max' => 12,
+                            'value' => 2,
+                            'class' => 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm font-semibold',
+                        ])->hint('<span class="text-xs text-gray-400 block mt-1" id="recorrencia-helper">Máximo de 12 lançamentos para frequência mensal (1 ano).</span>') ?>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+
     </div><!-- /grid -->
 
     <!-- ─── Botões ──────────────────────────────────────────────── -->
@@ -298,6 +334,71 @@ $this->registerJs(<<<JS
             hiddenValor.value = parseFloat(raw).toFixed(2);
         }
     });
+
+    // ─── 3. Lançamento Recorrente (Ocultar/Exibir e Limites de Parcelas) ──
+    var isNewRecord = {$isNewRecordJson};
+    if (isNewRecord) {
+        var recorrenteCheckbox = document.getElementById('recorrente-checkbox');
+        var recorrenciaCampos  = document.getElementById('recorrencia-campos');
+        var frequenciaSelect   = document.getElementById('recorrencia-frequencia');
+        var repeticoesInput    = document.getElementById('recorrencia-repeticoes');
+        var helperText         = document.getElementById('recorrencia-helper');
+
+        function toggleRecorrencia() {
+            if (recorrenteCheckbox && recorrenteCheckbox.checked) {
+                recorrenciaCampos.classList.remove('hidden');
+                atualizarLimitesRecorrencia();
+            } else if (recorrenciaCampos) {
+                recorrenciaCampos.classList.add('hidden');
+            }
+        }
+
+        function atualizarLimitesRecorrencia() {
+            if (!frequenciaSelect || !repeticoesInput || !helperText) return;
+            
+            var freq = frequenciaSelect.value;
+            var maxReps = 12;
+            var msg = "";
+
+            if (freq === 'mensal') {
+                maxReps = 12;
+                msg = "Máximo de 12 lançamentos para frequência mensal (1 ano).";
+            } else if (freq === 'quinzenal') {
+                maxReps = 24;
+                msg = "Máximo de 24 lançamentos para frequência quinzenal (1 ano).";
+            } else if (freq === 'semanal') {
+                maxReps = 52;
+                msg = "Máximo de 52 lançamentos para frequência semanal (1 ano).";
+            }
+
+            repeticoesInput.max = maxReps;
+            helperText.textContent = msg;
+
+            var val = parseInt(repeticoesInput.value) || 2;
+            if (val > maxReps) {
+                repeticoesInput.value = maxReps;
+            } else if (val < 2) {
+                repeticoesInput.value = 2;
+            }
+        }
+
+        if (recorrenteCheckbox) {
+            recorrenteCheckbox.addEventListener('change', toggleRecorrencia);
+            toggleRecorrencia();
+        }
+        if (frequenciaSelect) {
+            frequenciaSelect.addEventListener('change', atualizarLimitesRecorrencia);
+        }
+        if (repeticoesInput) {
+            repeticoesInput.addEventListener('input', function() {
+                var maxReps = parseInt(this.max) || 12;
+                var val = parseInt(this.value);
+                if (val > maxReps) {
+                    this.value = maxReps;
+                }
+            });
+        }
+    }
 
 })();
 JS

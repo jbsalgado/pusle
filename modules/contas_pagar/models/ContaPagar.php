@@ -74,6 +74,10 @@ class ContaPagar extends ActiveRecord
      */
     public $comprovanteFile;
 
+    public $recorrente;
+    public $recorrencia_frequencia;
+    public $recorrencia_repeticoes;
+
     /**
      * {@inheritdoc}
      */
@@ -94,6 +98,16 @@ class ContaPagar extends ActiveRecord
             [['compra_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => Compra::class, 'targetAttribute' => ['compra_id' => 'id']],
             [['forma_pagamento_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => FormaPagamento::class, 'targetAttribute' => ['forma_pagamento_id' => 'id']],
             [['tipo_despesa_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => TipoDespesa::class, 'targetAttribute' => ['tipo_despesa_id' => 'id']],
+            
+            [['recorrente'], 'boolean'],
+            [['recorrencia_frequencia'], 'string'],
+            [['recorrencia_frequencia'], 'in', 'range' => ['mensal', 'semanal', 'quinzenal']],
+            [['recorrencia_repeticoes'], 'integer', 'min' => 2, 'max' => 52],
+            [['recorrencia_frequencia', 'recorrencia_repeticoes'], 'required', 'when' => function($model) {
+                return (bool)$model->recorrente;
+            }, 'whenClient' => "function (attribute, value) {
+                return $('#recorrente-checkbox').is(':checked');
+            }"],
         ];
     }
 
@@ -119,6 +133,9 @@ class ContaPagar extends ActiveRecord
             'comprovanteFile'    => 'Upload de Comprovante',
             'data_criacao'       => 'Data de Criação',
             'data_atualizacao'   => 'Data de Atualização',
+            'recorrente'         => 'Lançamento Recorrente',
+            'recorrencia_frequencia' => 'Frequência da Recorrência',
+            'recorrencia_repeticoes' => 'Total de Lançamentos',
         ];
     }
 
