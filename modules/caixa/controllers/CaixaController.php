@@ -46,7 +46,7 @@ class CaixaController extends Controller
      */
     public function actionIndex()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
         
         // Verifica se há caixas do dia anterior abertos
         $caixasDiaAnterior = Caixa::find()
@@ -109,7 +109,7 @@ class CaixaController extends Controller
      */
     public function actionCreate()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
         
         // Verifica se já existe caixa aberto para este usuário
         $caixaAberto = Caixa::find()
@@ -237,7 +237,7 @@ class CaixaController extends Controller
      */
     protected function findModel($id)
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
         
         if (($model = Caixa::findOne(['id' => $id, 'usuario_id' => $usuarioId])) !== null) {
             return $model;

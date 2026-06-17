@@ -40,7 +40,7 @@ class RegiaoController extends Controller
     {
         $dataProvider = new ActiveDataProvider([
             'query' => Regiao::find()
-                ->where(['usuario_id' => Yii::$app->user->id]),
+                ->where(['usuario_id' => \app\components\TenantHelper::getId()]),
             'pagination' => [
                 'pageSize' => 20,
             ],
@@ -62,7 +62,7 @@ class RegiaoController extends Controller
     public function actionCreate()
     {
         $model = new Regiao();
-        $model->usuario_id = Yii::$app->user->id;
+        $model->usuario_id = \app\components\TenantHelper::getId();
         $model->ativo = true;
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {

@@ -38,7 +38,7 @@ class ConfigController extends Controller
      */
     public function actionIndex()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         $configs = MarketplaceConfig::find()
             ->where(['usuario_id' => $usuarioId])
@@ -56,7 +56,7 @@ class ConfigController extends Controller
     public function actionCreate()
     {
         $model = new MarketplaceConfig();
-        $model->usuario_id = Yii::$app->user->id;
+        $model->usuario_id = \app\components\TenantHelper::getId();
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
             Yii::$app->session->setFlash('success', 'Configuração de marketplace criada com sucesso!');
@@ -158,7 +158,7 @@ class ConfigController extends Controller
      */
     public function actionAuth($m)
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         // Simulação de redirecionamento para o Provedor OAuth
         // Na vida real, redirecionaríamos para: https://auth.mercadolivre.com.br/...
@@ -190,7 +190,7 @@ class ConfigController extends Controller
     {
         $model = MarketplaceConfig::findOne([
             'id' => $id,
-            'usuario_id' => Yii::$app->user->id, // Segurança: apenas configs do próprio usuário
+            'usuario_id' => \app\components\TenantHelper::getId(), // Segurança: apenas configs do próprio usuário
         ]);
 
         if ($model === null) {

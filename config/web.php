@@ -115,6 +115,7 @@ $config = [
                 'POST api/pedido' => 'api/pedido/create',
                 'GET api/pedido' => 'api/pedido/index',
                 // Regras REST específicas para produto
+                'GET api/produto/marcas' => 'api/produto/marcas',
                 'GET api/produto/<id:[\w-]+>' => 'api/produto/view',
                 // Regras REST específicas para cliente
                 'POST api/cliente' => 'api/cliente/create',
@@ -155,6 +156,9 @@ $config = [
         ],
         'evolution' => [
             'class' => 'app\modules\evolution\Module',
+        ],
+        'admin' => [
+            'class' => 'app\modules\admin\Module',
         ],
     ],
     'params' => $params,

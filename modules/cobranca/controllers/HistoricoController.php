@@ -42,7 +42,7 @@ class HistoricoController extends Controller
      */
     public function actionIndex()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         $query = CobrancaHistorico::find()
             ->where(['usuario_id' => $usuarioId])
@@ -102,7 +102,7 @@ class HistoricoController extends Controller
      */
     public function actionView($id)
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         $model = CobrancaHistorico::find()
             ->where(['id' => $id, 'usuario_id' => $usuarioId])
@@ -124,7 +124,7 @@ class HistoricoController extends Controller
     {
         Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
 
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         $historico = CobrancaHistorico::find()
             ->where(['id' => $id, 'usuario_id' => $usuarioId])

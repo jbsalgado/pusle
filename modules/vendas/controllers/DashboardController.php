@@ -87,7 +87,13 @@ class DashboardController extends Controller
             $stats = [
                 'total_clientes' => Cliente::find()->where(['usuario_id' => $usuario->id])->count(),
                 'total_produtos' => Produto::find()->where(['usuario_id' => $usuario->id])->count(),
-                'total_vendas' => Venda::find()->where(['usuario_id' => $usuario->id])->count(),
+                'total_vendas' => Venda::find()
+                    ->where(['usuario_id' => $usuario->id])
+                    ->andWhere(['not in', 'status_venda_codigo', [
+                        \app\modules\vendas\models\StatusVenda::CANCELADA,
+                        \app\modules\vendas\models\StatusVenda::ORCAMENTO
+                    ]])
+                    ->count(),
                 'total_categorias' => Categoria::find()->where(['usuario_id' => $usuario->id])->count(),
             ];
 
@@ -230,6 +236,10 @@ class DashboardController extends Controller
             ->where(['usuario_id' => $usuarioId])
             ->andWhere(['>=', 'data_venda', $hoje . ' 00:00:00'])
             ->andWhere(['<=', 'data_venda', $hoje . ' 23:59:59'])
+            ->andWhere(['not in', 'status_venda_codigo', [
+                \app\modules\vendas\models\StatusVenda::CANCELADA,
+                \app\modules\vendas\models\StatusVenda::ORCAMENTO
+            ]])
             ->sum('valor_total') ?: 0;
 
         // Receita semana
@@ -237,6 +247,10 @@ class DashboardController extends Controller
             ->where(['usuario_id' => $usuarioId])
             ->andWhere(['>=', 'data_venda', $primeiroDiaSemana . ' 00:00:00'])
             ->andWhere(['<=', 'data_venda', $ultimoDiaSemana . ' 23:59:59'])
+            ->andWhere(['not in', 'status_venda_codigo', [
+                \app\modules\vendas\models\StatusVenda::CANCELADA,
+                \app\modules\vendas\models\StatusVenda::ORCAMENTO
+            ]])
             ->sum('valor_total') ?: 0;
 
         // Receita mês
@@ -244,6 +258,10 @@ class DashboardController extends Controller
             ->where(['usuario_id' => $usuarioId])
             ->andWhere(['>=', 'data_venda', $primeiroDiaMes . ' 00:00:00'])
             ->andWhere(['<=', 'data_venda', $ultimoDiaMes . ' 23:59:59'])
+            ->andWhere(['not in', 'status_venda_codigo', [
+                \app\modules\vendas\models\StatusVenda::CANCELADA,
+                \app\modules\vendas\models\StatusVenda::ORCAMENTO
+            ]])
             ->sum('valor_total') ?: 0;
 
         // Quantidade vendas mês
@@ -251,6 +269,10 @@ class DashboardController extends Controller
             ->where(['usuario_id' => $usuarioId])
             ->andWhere(['>=', 'data_venda', $primeiroDiaMes . ' 00:00:00'])
             ->andWhere(['<=', 'data_venda', $ultimoDiaMes . ' 23:59:59'])
+            ->andWhere(['not in', 'status_venda_codigo', [
+                \app\modules\vendas\models\StatusVenda::CANCELADA,
+                \app\modules\vendas\models\StatusVenda::ORCAMENTO
+            ]])
             ->count();
 
         // Ticket médio
@@ -283,11 +305,19 @@ class DashboardController extends Controller
         $vendasParceladas = Venda::find()
             ->where(['usuario_id' => $usuarioId])
             ->andWhere(['>', 'numero_parcelas', 1])
+            ->andWhere(['not in', 'status_venda_codigo', [
+                \app\modules\vendas\models\StatusVenda::CANCELADA,
+                \app\modules\vendas\models\StatusVenda::ORCAMENTO
+            ]])
             ->count();
 
         $vendasAVista = Venda::find()
             ->where(['usuario_id' => $usuarioId])
             ->andWhere(['numero_parcelas' => 1])
+            ->andWhere(['not in', 'status_venda_codigo', [
+                \app\modules\vendas\models\StatusVenda::CANCELADA,
+                \app\modules\vendas\models\StatusVenda::ORCAMENTO
+            ]])
             ->count();
 
         return [
@@ -318,6 +348,7 @@ class DashboardController extends Controller
                 COALESCE(SUM(valor_total), 0) as valor_total
             FROM prest_vendas
             WHERE usuario_id = :usuario_id
+            AND status_venda_codigo NOT IN ('CANCELADA', 'ORCAMENTO')
             AND data_venda >= :data_inicio
             GROUP BY DATE(data_venda)
             ORDER BY dia ASC
@@ -343,6 +374,7 @@ class DashboardController extends Controller
                 COALESCE(SUM(valor_total), 0) as valor_total
             FROM prest_vendas
             WHERE usuario_id = :usuario_id
+            AND status_venda_codigo NOT IN ('CANCELADA', 'ORCAMENTO')
             AND data_venda >= :data_inicio
             GROUP BY TO_CHAR(data_venda, 'YYYY-MM')
             ORDER BY mes ASC
@@ -370,6 +402,7 @@ class DashboardController extends Controller
             FROM prest_vendas v
             LEFT JOIN prest_formas_pagamento fp ON fp.id = v.forma_pagamento_id
             WHERE v.usuario_id = :usuario_id
+            AND v.status_venda_codigo NOT IN ('CANCELADA', 'ORCAMENTO')
             AND v.data_venda >= :data_inicio
             AND v.data_venda <= :data_fim
             GROUP BY fp.id, fp.nome
@@ -401,6 +434,7 @@ class DashboardController extends Controller
                 COALESCE(SUM(valor_total), 0) as valor_total
             FROM prest_vendas
             WHERE usuario_id = :usuario_id
+            AND status_venda_codigo NOT IN ('CANCELADA', 'ORCAMENTO')
             AND data_venda >= :data_inicio
             AND data_venda <= :data_fim
             GROUP BY CASE 
@@ -440,6 +474,7 @@ class DashboardController extends Controller
             AND c.eh_vendedor = true
             AND c.ativo = true
             AND v.usuario_id = :usuario_id
+            AND v.status_venda_codigo NOT IN ('CANCELADA', 'ORCAMENTO')
             AND v.data_venda >= :data_inicio
             AND v.data_venda <= :data_fim
             GROUP BY c.id, c.nome_completo
@@ -509,6 +544,7 @@ class DashboardController extends Controller
                 INNER JOIN prest_venda_itens vi ON vi.produto_id = p.id
                 INNER JOIN prest_vendas v ON v.id = vi.venda_id
                 WHERE p.usuario_id = :usuario_id
+                AND v.status_venda_codigo NOT IN ('CANCELADA', 'ORCAMENTO')
                 GROUP BY p.id, p.nome, p.preco_venda_sugerido, p.venda_fracionada, p.unidade_medida
                 ORDER BY quantidade_total DESC
                 LIMIT :limit

@@ -40,11 +40,126 @@ class UsuarioController extends Controller
                 'class' => \yii\filters\auth\HttpBearerAuth::class,
             ];
         }
-        $behaviors['authenticator']['optional'] = ['dados-loja', 'config'];
+        $behaviors['authenticator']['optional'] = ['dados-loja', 'config', 'config-by-slug', 'lojas'];
 
         $behaviors['contentNegotiator']['formats']['application/json'] = Response::FORMAT_JSON;
 
         return $behaviors;
+    }
+
+    /**
+     * GET /api/usuario/config-by-slug?slug=xxx
+     * Resolve o UUID da loja a partir do catalogo_path (slug público).
+     * Endpoint público — não requer autenticação.
+     * Se slug ausente → HTTP 400 (frontend redireciona para vitrine de lojas).
+     */
+    public function actionConfigBySlug($slug = null)
+    {
+        try {
+            // Sem slug → não faz fallback; o frontend deve redirecionar para /lojas.html
+            if (empty($slug)) {
+                Yii::$app->response->statusCode = 400;
+                return [
+                    'erro'      => 'slug_obrigatorio',
+                    'message'   => 'Informe o slug da loja via ?slug=... ou acesse a vitrine de lojas.',
+                    'lojas_url' => '/catalogo/lojas.html',
+                ];
+            }
+
+            $usuario = null;
+
+            // Tenta por UUID direto
+            if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $slug)) {
+                $usuario = Yii::$app->db->createCommand(
+                    'SELECT id, nome, email, catalogo_path FROM prest_usuarios WHERE id = :id::uuid AND eh_dono_loja = true LIMIT 1',
+                    [':id' => $slug]
+                )->queryOne();
+            }
+
+            // Tenta por catalogo_path
+            if (!$usuario) {
+                $usuario = Yii::$app->db->createCommand(
+                    'SELECT id, nome, email, catalogo_path FROM prest_usuarios WHERE catalogo_path = :slug AND eh_dono_loja = true LIMIT 1',
+                    [':slug' => $slug]
+                )->queryOne();
+            }
+
+            if (!$usuario) {
+                Yii::$app->response->statusCode = 404;
+                return [
+                    'erro'      => 'loja_nao_encontrada',
+                    'message'   => 'Nenhuma loja encontrada para o slug informado.',
+                    'lojas_url' => '/catalogo/lojas.html',
+                ];
+            }
+
+            return [
+                'id'            => $usuario['id'],
+                'nome'          => $usuario['nome'],
+                'catalogo_path' => $usuario['catalogo_path'],
+            ];
+
+        } catch (\Exception $e) {
+            Yii::$app->response->statusCode = 500;
+            return ['erro' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * GET /api/usuario/lojas
+     * Lista todas as lojas ativas para a vitrine pública do catálogo.
+     * Endpoint público — não requer autenticação.
+     */
+    public function actionLojas()
+    {
+        try {
+            $sql = "
+                SELECT
+                    u.id,
+                    u.nome            AS nome_usuario,
+                    u.catalogo_path,
+                    COALESCE(lc.nome_loja, u.nome) AS nome_loja,
+                    lc.logo_path,
+                    lc.telefone,
+                    lc.cidade,
+                    lc.estado,
+                    lc.razao_social
+                FROM prest_usuarios u
+                LEFT JOIN loja_configuracao lc ON lc.usuario_id = u.id
+                WHERE u.eh_dono_loja = true
+                  AND u.status_loja  = 'ativa'
+                ORDER BY u.data_criacao ASC
+            ";
+
+            $lojas = Yii::$app->db->createCommand($sql)->queryAll();
+
+            // Detecta a base da URL do catálogo para montar links absolutos
+            $request   = Yii::$app->request;
+            $baseUrl   = $request->hostInfo; // ex: http://localhost
+            $catalogoBase = $baseUrl . '/catalogo';
+
+            $resultado = [];
+            foreach ($lojas as $loja) {
+                $slug = $loja['catalogo_path'] ?: $loja['id'];
+
+                $resultado[] = [
+                    'id'           => $loja['id'],
+                    'nome_loja'    => $loja['nome_loja'],
+                    'slug'         => $slug,
+                    'catalogo_url' => $catalogoBase . '/?loja=' . urlencode($slug),
+                    'logo_path'    => $loja['logo_path'] ?: null,
+                    'telefone'     => $loja['telefone']  ?: null,
+                    'cidade'       => $loja['cidade']    ?: null,
+                    'estado'       => $loja['estado']    ?: null,
+                ];
+            }
+
+            return $resultado;
+
+        } catch (\Exception $e) {
+            Yii::$app->response->statusCode = 500;
+            return ['erro' => $e->getMessage()];
+        }
     }
 
     /**
@@ -54,6 +169,19 @@ class UsuarioController extends Controller
     public function actionConfig($usuario_id)
     {
         try {
+            $lojaId = $usuario_id;
+
+            // ✅ IDENTIFICAÇÃO INTELIGENTE DO ID DA LOJA (OWNER)
+            // Se o ID informado pertence a um colaborador, mapeia para o ID do dono/empresa.
+            if (!empty($lojaId)) {
+                $checkColab = \app\modules\vendas\models\Colaborador::find()
+                    ->where(['prest_usuario_login_id' => $lojaId])
+                    ->one();
+                if ($checkColab) {
+                    $lojaId = $checkColab->usuario_id;
+                }
+            }
+
             $sql = "
                 SELECT 
                     u.id,
@@ -72,7 +200,7 @@ class UsuarioController extends Controller
             ";
 
             $usuario = Yii::$app->db->createCommand($sql, [
-                ':id' => $usuario_id
+                ':id' => $lojaId
             ])->queryOne();
 
             if (!$usuario) {

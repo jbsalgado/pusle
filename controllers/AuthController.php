@@ -37,7 +37,15 @@ class AuthController extends Controller
                 return $this->redirect($redirectUrl . $separator . 'token=' . $token);
             }
 
-            // Após login bem-sucedido, redireciona para a página inicial (fluxo pedido pelo usuário)
+            // Após login bem-sucedido, verifica o tipo de usuário
+            $usuario = Yii::$app->user->identity;
+            
+            // Se for apenas Gestor do SaaS (admin, mas não é dono de loja)
+            if ($usuario->is_admin && !$usuario->eh_dono_loja) {
+                return $this->redirect(['/admin/loja/index']);
+            }
+
+            // Caso contrário (Dono de Loja ou Colaborador), vai para o painel de vendas
             return $this->redirect(['/vendas/inicio']);
         }
 

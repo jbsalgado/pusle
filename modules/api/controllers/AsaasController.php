@@ -1388,6 +1388,18 @@ class AsaasController extends BaseController
 
     private function buscarUsuarioPorId($usuarioId)
     {
+        $lojaId = $usuarioId;
+
+        // Se o ID informado pertencer a um colaborador, mapeia para o ID do dono/empresa.
+        if (!empty($lojaId) && $this->validarUUID($lojaId)) {
+            $checkColab = \app\modules\vendas\models\Colaborador::find()
+                ->where(['prest_usuario_login_id' => $lojaId])
+                ->one();
+            if ($checkColab) {
+                $lojaId = $checkColab->usuario_id;
+            }
+        }
+
         $sql = "
             SELECT 
                 id,
@@ -1401,7 +1413,7 @@ class AsaasController extends BaseController
             LIMIT 1
         ";
 
-        return Yii::$app->db->createCommand($sql, [':id' => $usuarioId])->queryOne();
+        return Yii::$app->db->createCommand($sql, [':id' => $lojaId])->queryOne();
     }
 
     private function gerarExternalReference($usuarioId)

@@ -39,7 +39,7 @@ class DashboardController extends Controller
      */
     public function actionIndex()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         // Verificar se o módulo está habilitado
         if (!\app\modules\marketplace\Module::isEnabled()) {
@@ -117,7 +117,7 @@ class DashboardController extends Controller
      */
     public function actionSync()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         $logs = MarketplaceSyncLog::find()
             ->where(['usuario_id' => $usuarioId])

@@ -40,7 +40,7 @@ class CategoriaController extends Controller
     {
         $dataProvider = new ActiveDataProvider([
             'query' => Categoria::find()
-                ->where(['usuario_id' => Yii::$app->user->id])
+                ->where(['usuario_id' => \app\components\TenantHelper::getId()])
                 ->with(['produtos']),
             'pagination' => [
                 'pageSize' => 20,
@@ -84,7 +84,7 @@ class CategoriaController extends Controller
     public function actionCreate()
     {
         $model = new Categoria();
-        $model->usuario_id = Yii::$app->user->id;
+        $model->usuario_id = \app\components\TenantHelper::getId();
         $model->ativo = true;
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {

@@ -37,7 +37,7 @@ class FinanceiroController extends Controller
 
     public function actionIndex()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         $dataProvider = new ActiveDataProvider([
             'query' => FinanceiroMensal::find()
@@ -53,7 +53,7 @@ class FinanceiroController extends Controller
     public function actionCreate()
     {
         $model = new FinanceiroMensal();
-        $model->usuario_id = Yii::$app->user->id;
+        $model->usuario_id = \app\components\TenantHelper::getId();
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
             Yii::$app->session->setFlash('success', 'Registro financeiro adicionado com sucesso!');
@@ -90,7 +90,7 @@ class FinanceiroController extends Controller
      */
     public function actionAplicarSugestao()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         // Pega os últimos 3 meses
         $registros = FinanceiroMensal::find()

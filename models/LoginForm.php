@@ -93,15 +93,23 @@ class LoginForm extends Model
                 return;
             }
             
-            // Se não é dono, verifica se tem colaborador associado com login próprio
-            if ($usuario->eh_dono_loja === false) {
+            // Converte is_admin de forma segura (pode vir como 't', 'true' do PostgreSQL)
+            $isAdmin = false;
+            if (is_string($usuario->is_admin)) {
+                $isAdmin = in_array(strtolower(trim($usuario->is_admin)), ['t', 'true', '1']);
+            } else {
+                $isAdmin = (bool) $usuario->is_admin;
+            }
+
+            // Se não é dono E não é gestor do SaaS, verifica se é um colaborador vinculado
+            if ($usuario->eh_dono_loja === false && !$isAdmin) {
                 $colaborador = \app\modules\vendas\models\Colaborador::find()
                     ->where(['prest_usuario_login_id' => $usuario->id])
                     ->andWhere(['ativo' => true])
                     ->one();
-                
+
                 if (!$colaborador) {
-                    $this->addError($attribute, 'Você não tem permissão para acessar o sistema web. Use o aplicativo mobile (PWA) para acessar como colaborador.');
+                    $this->addError($attribute, 'Usuário não está associado a nenhuma loja ativa. Entre em contato com o administrador da sua loja.');
                     return;
                 }
             }

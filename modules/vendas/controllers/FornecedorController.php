@@ -46,7 +46,7 @@ class FornecedorController extends Controller
     public function actionIndex()
     {
         $query = Fornecedor::find()
-            ->where(['usuario_id' => Yii::$app->user->id]);
+            ->where(['usuario_id' => \app\components\TenantHelper::getId()]);
 
         // Filtros
         $busca = Yii::$app->request->get('busca');
@@ -105,7 +105,7 @@ class FornecedorController extends Controller
     public function actionCreate()
     {
         $model = new Fornecedor();
-        $model->usuario_id = Yii::$app->user->id;
+        $model->usuario_id = \app\components\TenantHelper::getId();
         $model->ativo = true;
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {

@@ -132,7 +132,16 @@ async function init() {
             console.error('[App] ❌ Falha na autenticação');
             return;
         }
-        
+
+        // ✅ MULTI-TENANCY: Define o ID da loja com base no usuário autenticado
+        // Se for colaborador, usa o usuario_id do DONO da loja; caso contrário, usa o próprio ID
+        const tenantId = usuarioData.colaborador
+            ? usuarioData.colaborador.usuario_id
+            : (usuarioData.usuario?.id || usuarioData.id);
+        CONFIG.ID_USUARIO_LOJA = tenantId;
+        window.CONFIG = CONFIG; // Mantém referência global sincronizada
+        console.log('[App] 🏪 Tenant resolvido (orcamento):', tenantId);
+
         verificarElementosCriticos(ELEMENTOS_CRITICOS);
         popularOpcoesParcelas();
         await carregarConfigLoja();
@@ -220,7 +229,12 @@ async function carregarLogoEmpresa() {
             return;
         }
         
-        const response = await fetch(`${API_ENDPOINTS.USUARIO_DADOS_LOJA}?usuario_id=${CONFIG.ID_USUARIO_LOJA}`);
+        const { getToken } = await import('./storage.js');
+        const token = await getToken();
+        const headers = { 'Accept': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        
+        const response = await fetch(`${API_ENDPOINTS.USUARIO_DADOS_LOJA}?usuario_id=${CONFIG.ID_USUARIO_LOJA}`, { headers });
         console.log('[App] 📡 Resposta da API dados-loja:', response.status);
         
         if (response.ok) {
@@ -230,6 +244,11 @@ async function carregarLogoEmpresa() {
                 logo_path: dadosLoja.logo_path 
             });
             
+            // ✅ APLICA APARÊNCIA DINÂMICA (cores do tema configurado)
+            if (dadosLoja.aparencia) {
+                aplicarAparenciaDinamica(dadosLoja.aparencia);
+            }
+
             if (dadosLoja.logo_path) {
                 let logoUrl = dadosLoja.logo_path.trim();
                 
@@ -276,6 +295,30 @@ async function carregarLogoEmpresa() {
     } catch (error) {
         console.error('[App] ❌ Erro ao carregar logo da empresa:', error);
     }
+}
+
+// Aplicar Aparência Dinâmica na SPA (Cores baseadas no tema configurado pelo usuário)
+function aplicarAparenciaDinamica(aparencia) {
+    if (!aparencia || !aparencia.escala_cores) {
+        console.log('[App] 🎨 Sem dados de aparência customizada. Usando cores padrão.');
+        return;
+    }
+
+    console.log('[App] 🎨 Aplicando tema de cores dinâmico:', aparencia.tema);
+
+    let styleEl = document.getElementById('dynamic-theme-vars');
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'dynamic-theme-vars';
+        document.head.appendChild(styleEl);
+    }
+
+    let cssRule = ':root {\n';
+    Object.entries(aparencia.escala_cores).forEach(([peso, hex]) => {
+        cssRule += `  --brand-${peso}: ${hex};\n`;
+    });
+    cssRule += '}';
+    styleEl.innerHTML = cssRule;
 }
 
 // Service Worker Registration
@@ -1036,8 +1079,8 @@ function renderizarPreviaGrade(produto) {
             <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50">
                 <td class="py-1 truncate max-w-[60px]" title="${v.cor || '-'}">${v.cor || '-'}</td>
                 <td class="py-1 text-center font-bold">${v.tamanho || '-'}</td>
-                <td class="py-1 text-center ${v.estoque_atual > 0 ? 'text-green-600' : 'text-red-500'}">${v.estoque_atual || 0}</td>
-                <td class="py-1 text-right font-bold text-blue-600">${formatarMoeda(preco)}</td>
+                <td class="py-1 text-center ${v.estoque_atual > 0 ? 'text-brand-600' : 'text-red-500'}">${v.estoque_atual || 0}</td>
+                <td class="py-1 text-right font-bold text-brand-600">${formatarMoeda(preco)}</td>
             </tr>
         `;
     });
@@ -1046,7 +1089,7 @@ function renderizarPreviaGrade(produto) {
             </tbody>
         </table>
         ${temMais ? `
-            <div class="text-[9px] text-center text-orange-500 font-bold mt-1 uppercase italic">
+            <div class="text-[9px] text-center text-brand-500 font-bold mt-1 uppercase italic">
                 + ${produto.variacoes.length - 5} variações disponíveis
             </div>
         ` : ''}
@@ -1099,7 +1142,7 @@ function renderizarProdutos(listaProdutos) {
         
         return `
         <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl relative" data-produto-card="${produto.id}">
-            <div class="badge-no-carrinho hidden absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full z-10">✓ No Carrinho</div>
+            <div class="badge-no-carrinho hidden absolute top-2 right-2 bg-brand-500 text-white text-xs font-bold px-2 py-1 rounded-full z-10">✓ No Carrinho</div>
             ${emPromocao ? '<div class="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded z-10">PROMOÇÃO</div>' : ''}
             
             ${renderizarEspacoFoto(produto)}
@@ -1115,20 +1158,20 @@ function renderizarProdutos(listaProdutos) {
                             <span class="text-sm text-gray-500 line-through">${formatarMoeda(precoOriginal)}</span>
                             <span class="text-2xl font-bold text-red-600">${formatarMoeda(precoExibido)}</span>
                         ` : `
-                            <span class="text-2xl font-bold text-blue-600">${formatarMoeda(precoExibido)}</span>
+                            <span class="text-2xl font-bold text-brand-600">${formatarMoeda(precoExibido)}</span>
                         `}
                     </div>
-                    <span class="text-xs ${produto.estoque_atual > 0 || produto.possui_grade ? 'text-green-600' : 'text-red-600'} font-semibold">
+                    <span class="text-xs ${produto.estoque_atual > 0 || produto.possui_grade ? 'text-brand-600' : 'text-red-600'} font-semibold">
                         ${produto.possui_grade ? 'Várias opções' : (produto.estoque_atual > 0 ? `${produto.estoque_atual} em estoque` : 'Sem estoque')}
                     </span>
                 </div>
                 
                 ${produto.possui_grade ? `
-                    <button onclick="abrirModalVariacoes('${produto.id}')" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                    <button onclick="abrirModalVariacoes('${produto.id}')" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
                         🏷️ Escolher Opções
                     </button>
                 ` : `
-                    <button onclick="abrirModalQuantidade('${produto.id}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg" ${produto.estoque_atual <= 0 ? 'disabled opacity-50' : ''}>
+                    <button onclick="abrirModalQuantidade('${produto.id}')" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold py-2 px-4 rounded-lg" ${produto.estoque_atual <= 0 ? 'disabled opacity-50' : ''}>
                         🛒 Adicionar
                     </button>
                 `}
@@ -2254,7 +2297,7 @@ window.abrirModalVariacoes = async function(produtoId) {
     modal.classList.remove('hidden');
     container.innerHTML = `
         <div class="text-center py-12">
-            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600 mx-auto"></div>
             <p class="text-sm text-gray-500 mt-4 font-medium">Buscando opções...</p>
         </div>
     `;
@@ -2278,7 +2321,7 @@ window.abrirModalVariacoes = async function(produtoId) {
         }
 
         container.innerHTML = variacoes.map(v => `
-            <div onclick="adicionarVariacaoDireto('${v.id}', '${produtoId}')" class="flex justify-between items-center p-4 border border-gray-200 rounded-xl hover:border-green-300 hover:bg-green-50 cursor-pointer transition-all active:scale-[0.98] group bg-white shadow-sm">
+            <div onclick="adicionarVariacaoDireto('${v.id}', '${produtoId}')" class="flex justify-between items-center p-4 border border-gray-200 rounded-xl hover:border-brand-300 hover:bg-brand-50 cursor-pointer transition-all active:scale-[0.98] group bg-white shadow-sm">
                 <div class="flex flex-col">
                     <div class="flex items-center gap-2">
                         <span class="px-2 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-bold rounded uppercase">${v.tamanho || 'U'}</span>
@@ -2287,8 +2330,8 @@ window.abrirModalVariacoes = async function(produtoId) {
                     <span class="text-[10px] text-gray-400 mt-1">Código: ${v.codigo_referencia || 'N/A'}</span>
                 </div>
                 <div class="flex flex-col items-end">
-                    <span class="text-lg font-bold text-green-600">${formatarMoeda(v.preco_venda_sugerido)}</span>
-                    <span class="text-[9px] ${v.estoque_atual > 0 ? 'text-green-500' : 'text-red-400'}">
+                    <span class="text-lg font-bold text-brand-600">${formatarMoeda(v.preco_venda_sugerido)}</span>
+                    <span class="text-[9px] ${v.estoque_atual > 0 ? 'text-brand-500' : 'text-red-400'}">
                         Estoque: ${v.estoque_atual || 0}
                     </span>
                 </div>

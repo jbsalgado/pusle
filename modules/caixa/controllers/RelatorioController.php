@@ -38,7 +38,7 @@ class RelatorioController extends Controller
      */
     public function actionIndex()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         // Estatísticas gerais
         $caixaAberto = Caixa::find()
@@ -84,7 +84,7 @@ class RelatorioController extends Controller
      */
     public function actionFechamento($id = null)
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         if ($id) {
             $caixa = Caixa::findOne(['id' => $id, 'usuario_id' => $usuarioId]);
@@ -132,7 +132,7 @@ class RelatorioController extends Controller
      */
     public function actionMovimentacoes()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
         $dataInicio = Yii::$app->request->get('data_inicio', date('Y-m-01'));
         $dataFim = Yii::$app->request->get('data_fim', date('Y-m-d'));
 
@@ -182,7 +182,7 @@ class RelatorioController extends Controller
      */
     public function actionPorCategoria()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
         $mes = Yii::$app->request->get('mes', date('Y-m'));
 
         $dataInicio = $mes . '-01';
@@ -233,7 +233,7 @@ class RelatorioController extends Controller
      */
     public function actionExportPdf($tipo = 'fechamento')
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         $mpdf = new \Mpdf\Mpdf([
             'mode' => 'utf-8',
@@ -300,7 +300,7 @@ class RelatorioController extends Controller
      */
     public function actionExportExcel($tipo = 'movimentacoes')
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();

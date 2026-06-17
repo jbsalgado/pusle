@@ -43,7 +43,7 @@ class CupomFiscalController extends Controller
      */
     public function actionIndex()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
         $dataProvider = new ActiveDataProvider([
             'query' => CupomFiscal::find()->where(['usuario_id' => $usuarioId])->orderBy(['data_emissao' => SORT_DESC]),
             'pagination' => [

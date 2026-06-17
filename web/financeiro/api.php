@@ -8,7 +8,10 @@ require __DIR__ . '/../../vendor/autoload.php';
 // Carrega as variáveis de ambiente do arquivo .env
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../..');
 $dotenv->safeLoad();
+<<<<<<< HEAD
 
+=======
+>>>>>>> 1807f8af550fdb45e5b96858ecc61281d2ecd2ae
 require __DIR__ . '/../../vendor/yiisoft/yii2/Yii.php';
 
 $config = require __DIR__ . '/../../config/web.php';

@@ -28,3 +28,6 @@ config/params-local.php
 config/certificados/*.pfx
 config/certificados/*.key
 config/certificados/*.crt
+
+acesso-dados-vps-top-contrucao.env
+

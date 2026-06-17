@@ -131,7 +131,7 @@ class MovimentacaoController extends Controller
      */
     protected function findModel($id)
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
         
         $model = CaixaMovimentacao::find()
             ->joinWith('caixa')

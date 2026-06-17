@@ -99,7 +99,7 @@ class SyncController extends Controller
     {
         $model = MarketplaceConfig::findOne([
             'id' => $id,
-            'usuario_id' => Yii::$app->user->id,
+            'usuario_id' => \app\components\TenantHelper::getId(),
         ]);
 
         if ($model === null) {

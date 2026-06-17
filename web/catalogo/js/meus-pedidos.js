@@ -1,6 +1,6 @@
 // js/meus-pedidos.js
 import { maskCPF } from './utils.js';
-import { CONFIG, API_ENDPOINTS } from './config.js';
+import { CONFIG, API_ENDPOINTS, carregarConfigLoja } from './config.js';
 
 const TOKEN_KEY = 'cliente_auth_token';
 const CLIENTE_DATA_KEY = 'cliente_data';
@@ -273,7 +273,7 @@ function renderItemVenda(item, index) {
                 </div>
             </div>
             <div class="flex-shrink-0 text-right">
-                <p class="text-sm font-bold text-blue-600">R$ ${valorTotalItem.replace('.', ',')}</p>
+                <p class="text-sm font-bold text-brand-600">R$ ${valorTotalItem.replace('.', ',')}</p>
             </div>
         </div>
     `;
@@ -371,7 +371,7 @@ function renderPedido(pedido) {
         <!-- Total -->
         <div class="border-t-2 border-gray-200 pt-3 mt-4 flex justify-between items-center">
             <span class="text-base font-bold text-gray-800">Total:</span>
-            <span class="text-xl font-bold text-blue-600">R$ ${valorTotalCalculado.toFixed(2).replace('.', ',')}</span>
+            <span class="text-xl font-bold text-brand-600">R$ ${valorTotalCalculado.toFixed(2).replace('.', ',')}</span>
         </div>
 
         <!-- Observações -->
@@ -392,7 +392,7 @@ function renderPedido(pedido) {
 
 function getStatusClass(status) {
     switch (status) {
-        case 'EM_ABERTO': return 'bg-blue-100 text-blue-800 border border-blue-200';
+        case 'EM_ABERTO': return 'bg-brand-100 text-brand-800 border border-brand-200';
         case 'CONCLUIDA': case 'PAGO': return 'bg-green-100 text-green-800 border border-green-200';
         case 'CANCELADA': return 'bg-red-100 text-red-800 border border-red-200';
         default: return 'bg-gray-100 text-gray-800 border border-gray-200';
@@ -473,6 +473,9 @@ function setupViewToggle() {
 
 // --- Inicialização ---
 document.addEventListener('DOMContentLoaded', async () => {
+    // ✅ PRIMEIRO: Garante que o ID da loja esteja resolvido antes de qualquer operação
+    await carregarConfigLoja();
+
     configurarMascaraCpf();
     setupViewToggle();
 

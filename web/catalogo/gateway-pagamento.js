@@ -179,7 +179,7 @@ function mostrarModalPix(pixData) {
             </div>
             
             <button onclick="navigator.clipboard.writeText('${pixData.payload}')" 
-                    class="w-full bg-blue-500 text-white py-3 rounded-lg mb-2">
+                    class="w-full bg-brand-500 text-white py-3 rounded-lg mb-2">
                 📋 Copiar Código PIX
             </button>
             

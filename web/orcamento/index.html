@@ -9,9 +9,34 @@
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#16a34a" />
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-    <!-- Tailwind CSS via CDN (apenas para desenvolvimento) -->
-    <!-- Para produção, instale via npm: npm install -D tailwindcss -->
-    <!-- <script src="https://cdn.tailwindcss.com"></script> -->
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50:  'var(--brand-50,  #f0fdf4)',
+                100: 'var(--brand-100, #dcfce7)',
+                200: 'var(--brand-200, #bbf7d0)',
+                300: 'var(--brand-300, #86efac)',
+                400: 'var(--brand-400, #4ade80)',
+                500: 'var(--brand-500, #22c55e)',
+                600: 'var(--brand-600, #16a34a)',
+                700: 'var(--brand-700, #15803d)',
+                800: 'var(--brand-800, #166534)',
+                900: 'var(--brand-900, #14532d)',
+                950: 'var(--brand-950, #052e16)',
+              },
+            },
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+            },
+          }
+        }
+      }
+    </script>
     <script>
       // Suprime o aviso do console sobre Tailwind CDN
       if (typeof console !== "undefined" && console.warn) {
@@ -28,7 +53,6 @@
         };
       }
     </script>
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
       /* Status online/offline - por padrão mostra offline até ser atualizado */
       #status-online {
@@ -125,7 +149,7 @@
               class="h-10 w-auto object-contain hidden"
               style="max-width: 150px"
             />
-            <h1 class="text-xl font-bold text-green-600">ORÇAMENTO</h1>
+            <h1 class="text-xl font-bold text-brand-600">ORÇAMENTO</h1>
           </div>
           <div class="flex items-center gap-3">
             <a
@@ -148,8 +172,8 @@
               </svg>
               <span class="hidden sm:inline">Início</span>
             </a>
-            <div id="status-online" class="items-center gap-1 text-green-600">
-              <span class="h-3 w-3 bg-green-500 rounded-full"></span>
+            <div id="status-online" class="items-center gap-1 text-brand-600">
+              <span class="h-3 w-3 bg-brand-500 rounded-full"></span>
               <span class="text-xs font-medium hidden sm:inline">Online</span>
             </div>
             <div id="status-offline" class="items-center gap-1 text-gray-500">
@@ -159,7 +183,7 @@
             <!-- Novo: Badge de Pedidos Pendentes -->
             <div
               id="status-pendente"
-              class="hidden items-center gap-1 text-orange-600 bg-orange-50 px-2 py-1 rounded-full border border-orange-200"
+              class="hidden items-center gap-1 text-brand-600 bg-brand-50 px-2 py-1 rounded-full border border-brand-200"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -182,7 +206,7 @@
             </div>
             <button
               id="btn-abrir-carrinho"
-              class="relative bg-green-500 text-white p-2 rounded-full hover:bg-green-600"
+              class="relative bg-brand-500 text-white p-2 rounded-full hover:bg-brand-600"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -212,7 +236,7 @@
             type="text"
             id="busca-produto"
             placeholder="Buscar por nome, código ou barra..."
-            class="w-full px-4 py-2 pl-10 pr-20 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm text-gray-900 bg-white placeholder-gray-400"
+            class="w-full px-4 py-2 pl-10 pr-20 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-sm text-gray-900 bg-white placeholder-gray-400"
           />
           <svg
             class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400"
@@ -232,7 +256,7 @@
             <button 
                 onclick="window.abrirScannerWebcam()"
                 title="Escanear Código de Barras"
-                class="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors"
+                class="p-1 text-gray-400 hover:text-brand-600 rounded transition-colors"
                 type="button"
             >
                 <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -267,7 +291,7 @@
           <button
             id="btn-pagina-anterior"
             onclick="navegarPagina(-1)"
-            class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            class="px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
             disabled
           >
             ← Anterior
@@ -281,7 +305,7 @@
           <button
             id="btn-pagina-proxima"
             onclick="navegarPagina(1)"
-            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            class="px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
             disabled
           >
             Próxima →
@@ -300,7 +324,7 @@
       <!-- Indicador de Carregamento -->
       <div id="carregando-produtos" class="text-center py-8 text-gray-500">
         <svg
-          class="animate-spin h-8 w-8 mx-auto mb-2 text-blue-500"
+          class="animate-spin h-8 w-8 mx-auto mb-2 text-brand-500"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
@@ -337,7 +361,7 @@
           <button
             id="btn-pagina-anterior-rodape"
             onclick="navegarPagina(-1)"
-            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            class="px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
             disabled
           >
             ← Anterior
@@ -351,7 +375,7 @@
           <button
             id="btn-pagina-proxima-rodape"
             onclick="navegarPagina(1)"
-            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            class="px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
             disabled
           >
             Próxima →
@@ -523,7 +547,7 @@
                 <p class="text-sm text-gray-600">Valor Total</p>
                 <p
                   id="valor-total-carrinho"
-                  class="text-2xl sm:text-3xl font-bold text-blue-600"
+                  class="text-2xl sm:text-3xl font-bold text-brand-600"
                 >
                   R$ 0,00
                 </p>
@@ -540,7 +564,7 @@
             </div>
             <button
               id="btn-finalizar-pedido"
-              class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white p-3 sm:p-4 rounded-xl font-bold text-base sm:text-lg shadow-lg hover:from-green-600 hover:to-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              class="w-full bg-gradient-to-r from-brand-500 to-brand-600 text-white p-3 sm:p-4 rounded-xl font-bold text-base sm:text-lg shadow-lg hover:from-brand-600 hover:to-brand-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               disabled
             >
               Gerar Orçamento
@@ -572,7 +596,7 @@
 
         <form id="form-cliente-pedido">
           <div class="p-4 space-y-4">
-            <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+            <div class="bg-brand-50 p-3 rounded-lg border border-brand-200">
               <p class="text-sm text-gray-700">
                 <strong>Orçamento:</strong> O cliente escolhe a forma de
                 pagamento, paga e leva o produto. Informe o CPF do vendedor
@@ -594,12 +618,12 @@
                   placeholder="000.000.000-00"
                   maxlength="14"
                   data-mask="cpf"
-                  class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-brand-500 focus:border-brand-500"
                 />
                 <button
                   type="button"
                   onclick="window.buscarClienteOrcamento()"
-                  class="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700"
+                  class="px-4 py-2 bg-brand-600 text-white rounded-md font-semibold hover:bg-brand-700"
                 >
                   Buscar
                 </button>
@@ -607,19 +631,19 @@
               <input type="hidden" id="cliente_id" name="cliente_id" />
               <div
                 id="info-cliente"
-                class="mt-2 text-sm text-green-700 bg-green-50 p-2 rounded border border-green-200 hidden"
+                class="mt-2 text-sm text-brand-700 bg-brand-50 p-2 rounded border border-brand-200 hidden"
               >
                 Cliente: <strong id="nome-cliente-info"></strong>
               </div>
               <div
                 id="msg-cadastrar-cliente"
-                class="mt-2 text-sm text-blue-700 bg-blue-50 p-2 rounded border border-blue-200 hidden"
+                class="mt-2 text-sm text-brand-700 bg-brand-50 p-2 rounded border border-brand-200 hidden"
               >
                 <p class="mb-2">Cliente não encontrado. Deseja cadastrar?</p>
                 <button
                   type="button"
                   onclick="window.abrirModalCadastroCliente()"
-                  class="px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 text-sm"
+                  class="px-4 py-2 bg-brand-600 text-white rounded-md font-semibold hover:bg-brand-700 text-sm"
                 >
                   Cadastrar Cliente
                 </button>
@@ -643,12 +667,12 @@
                   placeholder="000.000.000-00"
                   maxlength="14"
                   data-mask="cpf"
-                  class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-brand-500 focus:border-brand-500"
                 />
                 <button
                   type="button"
                   onclick="window.buscarVendedor()"
-                  class="px-4 py-2 bg-green-600 text-white rounded-md font-semibold hover:bg-green-700"
+                  class="px-4 py-2 bg-brand-600 text-white rounded-md font-semibold hover:bg-brand-700"
                 >
                   Buscar
                 </button>
@@ -660,7 +684,7 @@
               />
               <div
                 id="info-vendedor"
-                class="mt-2 text-sm text-green-700 bg-green-50 p-2 rounded border border-green-200 hidden"
+                class="mt-2 text-sm text-brand-700 bg-brand-50 p-2 rounded border border-brand-200 hidden"
               >
                 Vendedor: <strong id="nome-vendedor-info"></strong>
               </div>
@@ -680,7 +704,7 @@
                 id="observacoes-pedido"
                 name="observacoes"
                 rows="3"
-                class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-brand-500 focus:border-brand-500"
                 placeholder="Observações adicionais (opcional)"
               ></textarea>
             </div>
@@ -695,7 +719,7 @@
                 <select
                   id="numero-parcelas"
                   name="numero_parcelas"
-                  class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-brand-500 focus:border-brand-500"
                   required
                 >
                   <option value="1">À vista</option>
@@ -711,7 +735,7 @@
                 <select
                   id="forma-pagamento"
                   name="forma_pagamento"
-                  class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-brand-500 focus:border-brand-500"
                   required
                 >
                   <option value="">Carregando...</option>
@@ -730,7 +754,7 @@
                 type="date"
                 id="data-primeiro-pagamento"
                 name="data_primeiro_pagamento"
-                class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-base"
+                class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-brand-500 focus:border-brand-500 text-base"
               />
               <p class="mt-1 text-xs text-gray-500">
                 ℹ️ Informe a data do vencimento da primeira parcela
@@ -751,7 +775,7 @@
                 min="1"
                 max="365"
                 value="30"
-                class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-base"
+                class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-brand-500 focus:border-brand-500 text-base"
                 placeholder="Ex: 30 dias"
               />
               <p class="mt-1 text-xs text-gray-500">
@@ -765,7 +789,7 @@
               type="button"
               id="btn-confirmar-pedido"
               onclick="window.confirmarPedido()"
-              class="w-full bg-green-600 text-white p-3 rounded-lg font-semibold hover:bg-green-700 transition-opacity"
+              class="w-full bg-brand-600 text-white p-3 rounded-lg font-semibold hover:bg-brand-700 transition-opacity"
             >
               ✅ Confirmar Orçamento
             </button>
@@ -789,7 +813,7 @@
                 <!-- Populado via JS: Lista de botões/cards por variação -->
                 <div id="variacoes-lista" class="grid grid-cols-1 gap-3">
                     <div class="text-center py-8">
-                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600 mx-auto"></div>
                         <p class="text-sm text-gray-500 mt-2">Buscando variações...</p>
                     </div>
                 </div>
@@ -822,7 +846,7 @@
             [Nome do Produto]
           </p>
           <p
-            class="text-center text-xl font-bold text-blue-600"
+            class="text-center text-xl font-bold text-brand-600"
             id="preco-produto-modal"
           >
             [Preço]
@@ -845,7 +869,7 @@
         <div class="border-t p-4 bg-gray-50 rounded-b-lg">
           <button
             id="btn-confirmar-adicionar"
-            class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700"
+            class="w-full bg-brand-600 text-white p-3 rounded-lg font-semibold hover:bg-brand-700"
           >
             Confirmar
           </button>
@@ -885,7 +909,7 @@
                   type="text"
                   id="login-username"
                   required
-                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
                   placeholder="Seu usuário"
                 />
               </div>
@@ -900,7 +924,7 @@
                   type="password"
                   id="login-password"
                   required
-                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
                   placeholder="Sua senha"
                 />
               </div>
@@ -915,7 +939,7 @@
               <button
                 type="submit"
                 id="btn-login-submit"
-                class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition duration-300 transform active:scale-95"
+                class="w-full bg-brand-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-brand-700 transition duration-300 transform active:scale-95"
               >
                 Entrar
               </button>
@@ -980,7 +1004,7 @@
           <div class="text-center mb-4">
             <div class="mb-4">
               <svg
-                class="w-16 h-16 mx-auto text-green-600"
+                class="w-16 h-16 mx-auto text-brand-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -994,15 +1018,15 @@
               </svg>
             </div>
             <p class="text-lg font-semibold text-gray-700 mb-2">
-              Valor: <span id="dinheiro-valor" class="text-green-600"></span>
+              Valor: <span id="dinheiro-valor" class="text-brand-600"></span>
             </p>
             <p class="text-sm text-gray-600">
               Confirme o recebimento do pagamento em dinheiro
             </p>
           </div>
 
-          <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-            <p class="text-sm text-green-800">
+          <div class="bg-brand-50 border border-brand-200 rounded-lg p-4 mb-4">
+            <p class="text-sm text-brand-800">
               <strong>Instruções:</strong> Após receber o pagamento em dinheiro,
               clique em "Confirmar Orçamento" para finalizar o orçamento e
               gerar o comprovante.
@@ -1011,7 +1035,7 @@
 
           <button
             onclick="window.confirmarRecebimentoDinheiro()"
-            class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 mb-3"
+            class="w-full bg-brand-600 text-white py-3 rounded-lg font-semibold hover:bg-brand-700 mb-3"
           >
             ✅ Confirmar Orçamento
           </button>
@@ -1044,7 +1068,7 @@
         <div class="p-6">
           <div class="text-center mb-4">
             <p class="text-lg font-semibold text-gray-700 mb-2">
-              Valor: <span id="pix-valor" class="text-blue-600"></span>
+              Valor: <span id="pix-valor" class="text-brand-600"></span>
             </p>
             <p class="text-sm text-gray-600">
               Escaneie o QR Code ou copie o código PIX
@@ -1067,20 +1091,20 @@
 
           <button
             onclick="copiarCodigoPix()"
-            class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 mb-3"
+            class="w-full bg-brand-600 text-white py-3 rounded-lg font-semibold hover:bg-brand-700 mb-3"
           >
             📋 Copiar Código PIX
           </button>
 
           <button
             onclick="window.confirmarRecebimentoPix()"
-            class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 mb-3"
+            class="w-full bg-brand-600 text-white py-3 rounded-lg font-semibold hover:bg-brand-700 mb-3"
           >
             ✅ Confirmar Orçamento
           </button>
 
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p class="text-xs text-blue-800">
+          <div class="bg-brand-50 border border-brand-200 rounded-lg p-3">
+            <p class="text-xs text-brand-800">
               <strong>Instruções:</strong> Após o pagamento, clique em
               "Confirmar Orçamento" para gerar o comprovante.
             </p>
@@ -1297,7 +1321,7 @@
               type="button"
               id="btn-salvar-cliente"
               onclick="window.salvarClienteOrcamento()"
-              class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700"
+              class="w-full bg-brand-600 text-white p-3 rounded-lg font-semibold hover:bg-brand-700"
             >
               Salvar Cliente
             </button>
@@ -1335,7 +1359,7 @@
           <div class="mt-6 flex flex-wrap gap-3 justify-center">
             <button
               onclick="imprimirComprovante()"
-              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              class="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 flex items-center gap-2"
             >
               <svg
                 class="w-5 h-5"
@@ -1354,7 +1378,7 @@
             </button>
             <button
               onclick="compartilharWhatsAppTexto()"
-              class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+              class="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 flex items-center gap-2"
             >
               <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                 <path
@@ -1365,7 +1389,7 @@
             </button>
             <button
               onclick="compartilharWhatsAppImagem()"
-              class="px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 flex items-center gap-2"
+              class="px-4 py-2 bg-brand-700 text-white rounded-lg hover:bg-brand-800 flex items-center gap-2"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />

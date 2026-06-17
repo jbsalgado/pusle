@@ -41,7 +41,7 @@ class ComissaoController extends Controller
     {
         $dataProvider = new ActiveDataProvider([
             'query' => Comissao::find()
-                ->where(['usuario_id' => Yii::$app->user->id])
+                ->where(['usuario_id' => \app\components\TenantHelper::getId()])
                 ->with(['colaborador', 'venda', 'parcela']),
             'pagination' => [
                 'pageSize' => 20,
@@ -74,7 +74,7 @@ class ComissaoController extends Controller
     public function actionCreate()
     {
         $model = new Comissao();
-        $model->usuario_id = Yii::$app->user->id;
+        $model->usuario_id = \app\components\TenantHelper::getId();
         $model->status = Comissao::STATUS_PENDENTE;
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {

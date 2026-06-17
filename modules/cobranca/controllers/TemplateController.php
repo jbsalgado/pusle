@@ -40,7 +40,7 @@ class TemplateController extends Controller
      */
     public function actionIndex()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         $templates = CobrancaTemplate::find()
             ->where(['usuario_id' => $usuarioId])
@@ -57,7 +57,7 @@ class TemplateController extends Controller
      */
     public function actionUpdate($tipo)
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         $model = CobrancaTemplate::findOne([
             'usuario_id' => $usuarioId,

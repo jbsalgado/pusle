@@ -2,24 +2,7 @@
 
 const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
 
-const getLojaId = () => {
-    const pathname = window.location.pathname;
-    const segments = pathname.split('/').filter(p => p);
-    const lojaPath = segments[segments.length - 1];
-    
-    // ⚠️ ATENÇÃO: Ajuste conforme a loja ativa. Para "Top Construções":
-    // usuario_id = 5e449fee-4486-4536-a64f-74aed38a6987
-    const lojaMap = {
-        'catalogo': 'a99a38a9-e368-4a47-a4bd-02ba3bacaa76',
-        'alexbird': '5eb98116-77c2-4a01-bd60-50db21eaa206',
-        'victor': '0b633731-25a1-4991-b1c4-c46acc6bce06',
-        'venda-direta': '5e449fee-4486-4536-a64f-74aed38a6987', // Top Construções
-        'orcamento': '5e449fee-4486-4536-a64f-74aed38a6987',
-        'top-construcoes': '5e449fee-4486-4536-a64f-74aed38a6987',
-    };
-    
-    return lojaMap[lojaPath] || lojaMap['venda-direta'];
-};
+
 
 /**
  * Detecta automaticamente o caminho base da API a partir da URL atual
@@ -100,7 +83,7 @@ export const CONFIG = {
     URL_BASE_WEB: detectedWebUrl || fallbackWebUrl,
     CACHE_NAME: 'orcamento-cache-v1',
     SYNC_TAG: 'sync-novo-orcamento',
-    ID_USUARIO_LOJA: getLojaId()
+    ID_USUARIO_LOJA: null, // ✅ Definido dinamicamente após login (ver app.js → verificarAutenticacao)
 };
 
 // Log da configuração final

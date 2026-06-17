@@ -35,7 +35,7 @@ class DashboardFinanceiroController extends Controller
 
     public function actionIndex()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         $kpis = $this->getFinancialKPIs($usuarioId);
         $charts = [
@@ -65,7 +65,13 @@ class DashboardFinanceiroController extends Controller
     {
         // KPIs de Vendas (existentes)
         $kpis = [
-            'receita_total' => Venda::find()->where(['usuario_id' => $usuarioId])->sum('valor_total') ?: 0,
+            'receita_total' => Venda::find()
+                ->where(['usuario_id' => $usuarioId])
+                ->andWhere(['not in', 'status_venda_codigo', [
+                    \app\modules\vendas\models\StatusVenda::CANCELADA,
+                    \app\modules\vendas\models\StatusVenda::ORCAMENTO
+                ]])
+                ->sum('valor_total') ?: 0,
             'comissoes_pendentes' => Comissao::find()->where(['usuario_id' => $usuarioId, 'status' => Comissao::STATUS_PENDENTE])->sum('valor_comissao') ?: 0,
             'valor_recebido_asaas' => AsaasCobrancas::find()->where(['usuario_id' => $usuarioId, 'status' => 'RECEIVED'])->sum('valor_recebido') ?: 0,
             'taxas_plataforma' => Yii::$app->db->createCommand("
@@ -124,6 +130,7 @@ class DashboardFinanceiroController extends Controller
         $sql = "SELECT TO_CHAR(data_venda, 'YYYY-MM') as mes, SUM(valor_total) as total 
                 FROM prest_vendas 
                 WHERE usuario_id = :uid 
+                AND status_venda_codigo NOT IN ('CANCELADA', 'ORCAMENTO')
                 GROUP BY mes ORDER BY mes DESC LIMIT 12";
         return Yii::$app->db->createCommand($sql, [':uid' => $usuarioId])->queryAll();
     }
@@ -156,6 +163,7 @@ class DashboardFinanceiroController extends Controller
             SELECT TO_CHAR(data_venda, 'YYYY-MM') as mes, SUM(valor_total) as total 
             FROM prest_vendas 
             WHERE usuario_id = :uid 
+            AND status_venda_codigo NOT IN ('CANCELADA', 'ORCAMENTO')
             GROUP BY mes ORDER BY mes DESC LIMIT 6
         ", [':uid' => $usuarioId])->queryAll();
 

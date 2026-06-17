@@ -47,7 +47,7 @@ class ContaPagarController extends Controller
      */
     public function actionIndex()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         $query = ContaPagar::find()
             ->alias('cp')
@@ -100,7 +100,7 @@ class ContaPagarController extends Controller
      */
     public function actionExport()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         $query = ContaPagar::find()
             ->where(['usuario_id' => $usuarioId])
@@ -164,18 +164,73 @@ class ContaPagarController extends Controller
     public function actionCreate()
     {
         $model = new ContaPagar();
-        $model->usuario_id = Yii::$app->user->id;
+        $model->usuario_id = \app\components\TenantHelper::getId();
         $model->status = ContaPagar::STATUS_PENDENTE;
 
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
+        if ($model->load(Yii::$app->request->post())) {
+            $transaction = Yii::$app->db->beginTransaction();
+            try {
+                if ($model->validate()) {
+                    $originalDesc = $model->descricao;
+                    if ($model->recorrente && (int)$model->recorrencia_repeticoes > 1) {
+                        $total = (int)$model->recorrencia_repeticoes;
+                        $model->descricao = $originalDesc . " (1/" . $total . ")";
+                    }
 
-            // Processa Upload
-            if ($this->processUpload($model)) {
-                $model->save(false);
+                    if (!$model->save(false)) {
+                        throw new \Exception("Erro ao salvar conta principal.");
+                    }
+
+                    // Processa Upload
+                    if ($this->processUpload($model)) {
+                        $model->save(false);
+                    }
+
+                    // Processa as repetições recorrentes
+                    if ($model->recorrente && (int)$model->recorrencia_repeticoes > 1) {
+                        $total = (int)$model->recorrencia_repeticoes;
+                        $frequencia = $model->recorrencia_frequencia;
+                        $baseDate = new \DateTime($model->data_vencimento);
+
+                        for ($i = 2; $i <= $total; $i++) {
+                            $clone = new ContaPagar();
+                            $clone->usuario_id = $model->usuario_id;
+                            $clone->fornecedor_id = $model->fornecedor_id;
+                            $clone->tipo_despesa_id = $model->tipo_despesa_id;
+                            $clone->forma_pagamento_id = $model->forma_pagamento_id;
+                            $clone->valor = $model->valor;
+                            $clone->observacoes = $model->observacoes;
+                            $clone->status = ContaPagar::STATUS_PENDENTE;
+
+                            // Ajusta a data de vencimento
+                            $cloneDate = clone $baseDate;
+                            $multiplier = $i - 1;
+                            if ($frequencia === 'mensal') {
+                                $cloneDate->modify("+{$multiplier} month");
+                            } elseif ($frequencia === 'quinzenal') {
+                                $days = $multiplier * 15;
+                                $cloneDate->modify("+{$days} day");
+                            } elseif ($frequencia === 'semanal') {
+                                $cloneDate->modify("+{$multiplier} week");
+                            }
+
+                            $clone->data_vencimento = $cloneDate->format('Y-m-d');
+                            $clone->descricao = $originalDesc . " (" . $i . "/" . $total . ")";
+
+                            if (!$clone->save(false)) {
+                                throw new \Exception("Erro ao salvar lançamento recorrente {$i}/{$total}.");
+                            }
+                        }
+                    }
+
+                    $transaction->commit();
+                    Yii::$app->session->setFlash('success', 'Conta(s) a pagar criada(s) com sucesso!');
+                    return $this->redirect(['view', 'id' => $model->id]);
+                }
+            } catch (\Exception $e) {
+                $transaction->rollBack();
+                Yii::$app->session->setFlash('error', 'Erro ao salvar contas a pagar: ' . $e->getMessage());
             }
-
-            Yii::$app->session->setFlash('success', 'Conta a pagar criada com sucesso!');
-            return $this->redirect(['view', 'id' => $model->id]);
         }
 
         return $this->render('create', [
@@ -426,7 +481,7 @@ class ContaPagarController extends Controller
      */
     protected function findModel($id)
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         if (($model = ContaPagar::findOne(['id' => $id, 'usuario_id' => $usuarioId])) !== null) {
             return $model;

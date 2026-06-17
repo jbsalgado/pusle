@@ -57,11 +57,15 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
             [['id', 'nome', 'hash_senha', 'cpf', 'telefone', 'username'], 'required'],
             [['id'], 'string'],
             [['data_criacao', 'data_atualizacao', 'blocked_at', 'confirmed_at', 'mp_token_expiration'], 'safe'],
-            [['api_de_pagamento', 'mercadopago_sandbox', 'asaas_sandbox', 'eh_dono_loja'], 'boolean'],
+            [['api_de_pagamento', 'mercadopago_sandbox', 'asaas_sandbox', 'eh_dono_loja', 'is_admin'], 'boolean'],
             [['api_de_pagamento'], 'default', 'value' => false],
             [['eh_dono_loja'], 'default', 'value' => false],
+            [['is_admin'], 'default', 'value' => false],
             [['mercadopago_sandbox'], 'default', 'value' => true],
             [['asaas_sandbox'], 'default', 'value' => true],
+            [['status_loja'], 'string', 'max' => 20],
+            [['status_loja'], 'default', 'value' => 'ativa'],
+            [['status_loja'], 'in', 'range' => ['pendente', 'ativa', 'suspensa', 'rejeitada']],
             [['nome', 'email', 'catalogo_path'], 'string', 'max' => 100],
             [['username'], 'string', 'max' => 50],
             [['username'], 'unique'],
@@ -72,7 +76,12 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
             [['gateway_pagamento'], 'string', 'max' => 50],
             [['gateway_pagamento'], 'default', 'value' => 'nenhum'],
             [['gateway_pagamento'], 'in', 'range' => ['nenhum', 'mercadopago', 'asaas']],
-            [['catalogo_path'], 'default', 'value' => 'catalogo'],
+            [['catalogo_path'], 'default', 'value' => 'catalogo', 'when' => function ($model) {
+                return (bool)$model->eh_dono_loja;
+            }],
+            [['catalogo_path'], 'default', 'value' => null, 'when' => function ($model) {
+                return !(bool)$model->eh_dono_loja;
+            }],
             // Campos de endereço
             [['endereco'], 'string', 'max' => 255],
             [['bairro', 'cidade'], 'string', 'max' => 100],
@@ -148,23 +157,20 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
 
             if (is_string($valorOriginal)) {
                 $this->eh_dono_loja = (strtolower(trim($valorOriginal)) === 't' || strtolower(trim($valorOriginal)) === 'true' || $valorOriginal === '1');
-                Yii::info("🔍 converterBooleanFields - eh_dono_loja convertido de '{$valorOriginal}' (string) para " . ($this->eh_dono_loja ? 'true' : 'false'), __METHOD__);
+                Yii::info("converteBooleanFields - eh_dono_loja de '{$valorOriginal}' para " . ($this->eh_dono_loja ? 'true' : 'false'), __METHOD__);
             } elseif ($valorOriginal === 1 || $valorOriginal === '1') {
                 $this->eh_dono_loja = true;
-                Yii::info("🔍 converterBooleanFields - eh_dono_loja convertido de {$valorOriginal} (int) para true", __METHOD__);
             } elseif ($valorOriginal === 0 || $valorOriginal === '0' || $valorOriginal === false) {
                 $this->eh_dono_loja = false;
             } elseif ($valorOriginal === true) {
                 $this->eh_dono_loja = true;
             } else {
-                // Se não conseguir converter, assume false
                 $this->eh_dono_loja = false;
-                Yii::warning("⚠️ converterBooleanFields - Não conseguiu converter eh_dono_loja. Valor original: " . var_export($valorOriginal, true) . " (tipo: " . gettype($valorOriginal) . ")", __METHOD__);
             }
         }
 
-        // Converte outros campos boolean também
-        $booleanFields = ['api_de_pagamento', 'mercadopago_sandbox', 'asaas_sandbox'];
+        // Converte outros campos boolean (inclui is_admin)
+        $booleanFields = ['api_de_pagamento', 'mercadopago_sandbox', 'asaas_sandbox', 'is_admin'];
         foreach ($booleanFields as $field) {
             if (property_exists($this, $field) && isset($this->$field)) {
                 if (is_string($this->$field)) {
@@ -341,12 +347,19 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
 
     public static function findByLogin($login)
     {
-        // Busca por username, email ou CPF
-        $usuario = static::find()
-            ->where(['username' => $login])
-            ->orWhere(['email' => $login])
-            ->orWhere(['cpf' => $login])
-            ->one();
+        $loginLower = strtolower(trim($login));
+        $loginClean = preg_replace('/[^0-9]/', '', $login);
+
+        // Busca por username (case-insensitive), email (case-insensitive) ou CPF (somente números)
+        $query = static::find()
+            ->where(['LOWER(username)' => $loginLower])
+            ->orWhere(['LOWER(email)' => $loginLower]);
+
+        if (!empty($loginClean)) {
+            $query->orWhere(['cpf' => $loginClean]);
+        }
+
+        $usuario = $query->one();
 
         if ($usuario) {
             // Converte valores boolean do PostgreSQL após ler do banco

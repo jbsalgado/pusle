@@ -59,7 +59,7 @@ class CompraController extends Controller
     public function actionIndex()
     {
         $query = Compra::find()
-            ->where(['usuario_id' => Yii::$app->user->id])
+            ->where(['usuario_id' => \app\components\TenantHelper::getId()])
             ->with(['fornecedor', 'itens.produto']);
 
         // Filtros
@@ -125,7 +125,7 @@ class CompraController extends Controller
     public function actionCreate()
     {
         $model = new Compra();
-        $model->usuario_id = Yii::$app->user->id;
+        $model->usuario_id = \app\components\TenantHelper::getId();
         $model->data_compra = date('Y-m-d');
         $model->status_compra = Compra::STATUS_PENDENTE;
         $model->valor_total = 0;
@@ -178,7 +178,7 @@ class CompraController extends Controller
 
                                 if ($codigoRef || $nomeProd) {
                                     $produtoDb = Produto::find()
-                                        ->where(['usuario_id' => Yii::$app->user->id])
+                                        ->where(['usuario_id' => \app\components\TenantHelper::getId()])
                                         ->andFilterWhere(['OR', ['codigo_referencia' => $codigoRef], ['nome' => $nomeProd]])
                                         ->one();
 
@@ -260,7 +260,7 @@ class CompraController extends Controller
         $fornecedores = Fornecedor::getListaDropdownArray(Yii::$app->user->id);
         $categorias = Categoria::getListaDropdown();
         $produtos = Produto::find()
-            ->where(['usuario_id' => Yii::$app->user->id, 'ativo' => true])
+            ->where(['usuario_id' => \app\components\TenantHelper::getId(), 'ativo' => true])
             ->orderBy('nome')
             ->all();
 
@@ -388,7 +388,7 @@ class CompraController extends Controller
         $fornecedores = Fornecedor::getListaDropdownArray(Yii::$app->user->id);
         $categorias = Categoria::getListaDropdown();
         $produtos = Produto::find()
-            ->where(['usuario_id' => Yii::$app->user->id, 'ativo' => true])
+            ->where(['usuario_id' => \app\components\TenantHelper::getId(), 'ativo' => true])
             ->orderBy('nome')
             ->all();
 
@@ -450,29 +450,14 @@ class CompraController extends Controller
             // INTEGRAÇÃO FINANCEIRA: Gera Conta a Pagar automaticamente
             // ====================================================================================
             // Verifica se já existe conta para esta compra (evita duplicidade em caso de erro/retry)
-            $contaExistente = \app\modules\contas_pagar\models\ContaPagar::findOne(['compra_id' => $model->id]);
+            $contaExistente = \app\modules\contas_pagar\models\ContaPagar::find()
+                ->where(['compra_id' => $model->id])
+                ->exists();
 
             if (!$contaExistente) {
-                $conta = new \app\modules\contas_pagar\models\ContaPagar();
-                $conta->usuario_id = $model->usuario_id;
-                $conta->fornecedor_id = $model->fornecedor_id;
-                $conta->compra_id = $model->id;
-
-                // Formata a descrição com número da nota
-                $notaTxt = $model->numero_nota_fiscal ? "NF {$model->numero_nota_fiscal}" : "S/N";
-                $conta->descricao = "Compra {$notaTxt} - " . ($model->fornecedor->nome_fantasia ?? 'Fornecedor');
-
-                // Usa o valor total (considerando frete e desc)
-                $conta->valor = $model->getValorLiquido();
-
-                // Vencimento (se não tiver, usa hoje)
-                $conta->data_vencimento = $model->data_vencimento ?: date('Y-m-d');
-
-                $conta->status = \app\modules\contas_pagar\models\ContaPagar::STATUS_PENDENTE;
-                $conta->observacoes = "Gerado automaticamente pela conclusão da Compra #{$model->id}";
-
-                if (!$conta->save()) {
-                    throw new \Exception('Erro ao gerar Conta a Pagar: ' . implode(', ', $conta->getFirstErrors()));
+                $resultadoContas = $model->gerarContasPagar();
+                if (!$resultadoContas['success']) {
+                    throw new \Exception('Erro ao gerar Conta a Pagar: ' . ($resultadoContas['message'] ?? 'Erro desconhecido'));
                 }
             }
             // ====================================================================================
@@ -512,6 +497,20 @@ class CompraController extends Controller
             $model->status_compra = Compra::STATUS_CANCELADA;
             if (!$model->save()) {
                 throw new \Exception('Erro ao salvar compra: ' . json_encode($model->errors));
+            }
+
+            // Cancela contas a pagar associadas que estejam pendentes
+            $contasPagarClass = 'app\\modules\\contas_pagar\\models\\ContaPagar';
+            if (class_exists($contasPagarClass)) {
+                $contas = $contasPagarClass::find()->where(['compra_id' => $model->id])->all();
+                foreach ($contas as $conta) {
+                    if ($conta->status === $contasPagarClass::STATUS_PENDENTE) {
+                        $conta->status = $contasPagarClass::STATUS_CANCELADA;
+                        if (!$conta->save(false)) {
+                            throw new \Exception('Erro ao cancelar conta a pagar vinculada: ' . json_encode($conta->errors));
+                        }
+                    }
+                }
             }
 
             // Se estava concluída, reverte o estoque
@@ -562,8 +561,26 @@ class CompraController extends Controller
             return $this->redirect(['index']);
         }
 
-        $model->delete();
-        Yii::$app->session->setFlash('success', 'Compra excluída com sucesso!');
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            $contasPagarClass = 'app\\modules\\contas_pagar\\models\\ContaPagar';
+            if (class_exists($contasPagarClass)) {
+                $contas = $contasPagarClass::find()->where(['compra_id' => $model->id])->all();
+                foreach ($contas as $conta) {
+                    if ($conta->status === 'PAGA') {
+                        throw new \Exception("Não é possível excluir esta compra porque existe uma conta a pagar vinculada que já foi paga.");
+                    }
+                    $conta->delete();
+                }
+            }
+            $model->delete();
+            $transaction->commit();
+            Yii::$app->session->setFlash('success', 'Compra excluída com sucesso!');
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+            Yii::$app->session->setFlash('error', 'Erro ao excluir compra: ' . $e->getMessage());
+        }
+
         return $this->redirect(['index']);
     }
 
@@ -615,7 +632,7 @@ class CompraController extends Controller
         }
 
         $produtos = Produto::find()
-            ->where(['usuario_id' => Yii::$app->user->id, 'ativo' => true])
+            ->where(['usuario_id' => \app\components\TenantHelper::getId(), 'ativo' => true])
             ->orderBy('nome')
             ->all();
 
@@ -680,7 +697,7 @@ class CompraController extends Controller
                     // 2. Criar Model Compra Preenchido
                     // =========================================================
                     $model = new Compra();
-                    $model->usuario_id = Yii::$app->user->id;
+                    $model->usuario_id = \app\components\TenantHelper::getId();
                     $model->numero_nota_fiscal = (string)$ide->nNF;
                     $model->serie_nota_fiscal = (string)$ide->serie;
 
@@ -708,14 +725,14 @@ class CompraController extends Controller
 
                     // Tenta encontrar Fornecedor no banco
                     $fornecedor = Fornecedor::find()
-                        ->where(['usuario_id' => Yii::$app->user->id])
+                        ->where(['usuario_id' => \app\components\TenantHelper::getId()])
                         ->andWhere(['=', new \yii\db\Expression("REGEXP_REPLACE(cnpj, '[^0-9]', '', 'g')"), $cnpjEmit])
                         ->one();
 
                     // Se não achou pelo CNPJ limpo, tenta busca normalizada (o que já estiver no banco)
                     if (!$fornecedor) {
                         $fornecedor = Fornecedor::find()
-                            ->where(['usuario_id' => Yii::$app->user->id])
+                            ->where(['usuario_id' => \app\components\TenantHelper::getId()])
                             ->andWhere(['like', 'cnpj', $cnpjEmit])
                             ->one();
                     }
@@ -750,14 +767,14 @@ class CompraController extends Controller
                         $produtoDb = null;
                         if (!empty($ean) && $ean !== 'SEM GTIN') {
                             $produtoDb = Produto::find()
-                                ->where(['usuario_id' => Yii::$app->user->id, 'codigo_barras' => $ean])
+                                ->where(['usuario_id' => \app\components\TenantHelper::getId(), 'codigo_barras' => $ean])
                                 ->one();
                         }
 
                         // NOVO: Sugere venda fracionada baseado na unidade do XML ou no produto existente
                         if (!$produtoDb) {
                             $produtoDb = Produto::find()
-                                ->where(['usuario_id' => Yii::$app->user->id])
+                                ->where(['usuario_id' => \app\components\TenantHelper::getId()])
                                 ->andWhere([
                                     'OR',
                                     ['codigo_referencia' => trim($codigo)],
@@ -828,7 +845,7 @@ class CompraController extends Controller
                     $fornecedores = Fornecedor::getListaDropdownArray(Yii::$app->user->id);
                     $categorias = Categoria::getListaDropdown();
                     $produtos = Produto::find()
-                        ->where(['usuario_id' => Yii::$app->user->id, 'ativo' => true])
+                        ->where(['usuario_id' => \app\components\TenantHelper::getId(), 'ativo' => true])
                         ->orderBy('nome')
                         ->all();
 

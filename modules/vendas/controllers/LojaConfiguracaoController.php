@@ -44,7 +44,7 @@ class LojaConfiguracaoController extends Controller
      */
     public function actionIndex()
     {
-        $usuarioId = Yii::$app->user->id;
+        $usuarioId = \app\components\TenantHelper::getId();
 
         // Busca ou cria configuração
         $model = LojaConfiguracao::findOne(['usuario_id' => $usuarioId]);

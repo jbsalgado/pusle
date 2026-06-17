@@ -86,22 +86,22 @@ const ID_USUARIO_LOJA = getLojaId();
 const API_PRODUTO_URL = `${URL_API}/api/produto?usuario_id=${ID_USUARIO_LOJA}`;
 const API_PEDIDO_URL = `${URL_API}/api/pedido`;
 
-// 🔥 ATUALIZAÇÃO IMPORTANTE: Versão v4 para forçar nova loja e limpar cache antigo
-const CACHE_NAME = 'venda-direta-cache-v5'; 
+// 🔥 ATUALIZAÇÃO IMPORTANTE: Versão v9 para forçar nova loja e limpar cache antigo
+const CACHE_NAME = 'orcamento-cache-v10';
 
 const APP_SHELL_FILES = [
-    `${URL_BASE_WEB}/venda-direta/index.html`,
-    `${URL_BASE_WEB}/venda-direta/js/app.js`,
-    `${URL_BASE_WEB}/venda-direta/js/pix.js`, // Garante cache do novo arquivo
-    `${URL_BASE_WEB}/venda-direta/style.css`,
-    `${URL_BASE_WEB}/venda-direta/manifest.json`,
-    `${URL_BASE_WEB}/venda-direta/js/idb-keyval.js`,
+    `${URL_BASE_WEB}/orcamento/index.html`,
+    `${URL_BASE_WEB}/orcamento/js/app.js`,
+    `${URL_BASE_WEB}/orcamento/js/pix.js`,
+    `${URL_BASE_WEB}/orcamento/style.css`,
+    `${URL_BASE_WEB}/orcamento/manifest.json`,
+    `${URL_BASE_WEB}/orcamento/js/idb-keyval.js`,
 ];
 
 const CRITICAL_FILES = [
-    `${URL_BASE_WEB}/venda-direta/index.html`,
-    `${URL_BASE_WEB}/venda-direta/js/app.js`,
-    `${URL_BASE_WEB}/venda-direta/js/pix.js`
+    `${URL_BASE_WEB}/orcamento/index.html`,
+    `${URL_BASE_WEB}/orcamento/js/app.js`,
+    `${URL_BASE_WEB}/orcamento/js/pix.js`
 ];
 
 // Install
