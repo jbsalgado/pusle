@@ -199,7 +199,7 @@ class MercadoPagoController extends Controller
                 'transaction_amount' => $amount,
                 'description' => $request['description'] ?? 'Pedido ' . $orderId,
                 'payment_method_id' => 'pix',
-                'notification_url' => $this->getBaseUrl() . '/pulse/web/index.php/api/mercado-pago/webhook?tenant_id=' . $tenantId,
+                'notification_url' => $this->resolveBaseUrl() . '/index.php/api/mercado-pago/webhook?tenant_id=' . $tenantId,
                 'external_reference' => $orderId,
                 'metadata' => [
                     'tenant_id' => $tenantId,
@@ -335,9 +335,7 @@ class MercadoPagoController extends Controller
             $externalReference = $this->gerarExternalReference($usuario['id']);
 
             // 6️⃣ CONFIGURAR URLs DE RETORNO
-            $baseUrl = $this->getBaseUrl();
-            // Garante que não tenha barra dupla
-            $baseUrl = rtrim($baseUrl, '/');
+            $baseUrl = $this->resolveBaseUrl();
 
             // Define o caminho do catálogo (catalogo ou nome da loja)
             $catalogoPath = $usuario['catalogo_path'] ?? 'catalogo';
@@ -1366,6 +1364,23 @@ class MercadoPagoController extends Controller
 
                 $this->baixarEstoqueVenda($venda);
 
+                // Garante que as parcelas sejam geradas se não existirem
+                try {
+                    $parcelasExistentes = \app\modules\vendas\models\Parcela::find()
+                        ->where(['venda_id' => $venda->id])
+                        ->count();
+                    if ($parcelasExistentes == 0) {
+                        $venda->gerarParcelas(
+                            $venda->forma_pagamento_id,
+                            $venda->data_primeiro_vencimento ?? date('Y-m-d'),
+                            30, // Fallback para intervalo padrão de 30 dias
+                            true
+                        );
+                    }
+                } catch (\Throwable $e) {
+                    Yii::error("Erro ao gerar parcelas no webhook: " . $e->getMessage(), 'mercadopago');
+                }
+
                 // Marcar parcelas geradas como pagas no banco de dados para consistência financeira
                 try {
                     $parcelas = \app\modules\vendas\models\Parcela::findAll(['venda_id' => $venda->id]);
@@ -1691,7 +1706,7 @@ class MercadoPagoController extends Controller
         }
 
         // Armazena a taxa de comissão do usuário para uso no cálculo da fee
-        $this->taxaComissao = isset($usuario['taxa_comissao']) ? (float)$usuario['taxa_comissao'] : null;
+        $this->taxaComissao = isset($usuario['taxa_comissao']) ? (float)$usuario['taxa_comissao'] : (Yii::$app->params['pulse_platform_fee_percent'] ?? 0.005);
 
         Yii::info([
             'message' => 'SDK Mercado Pago Inicializado',
@@ -1749,7 +1764,7 @@ class MercadoPagoController extends Controller
      */
     private function buildDefaultRedirectUri(): string
     {
-        return $this->getBaseUrl() . '/pulse/web/index.php/api/mercado-pago/oauth-callback';
+        return $this->resolveBaseUrl() . '/index.php/api/mercado-pago/oauth-callback';
     }
 
     /**
@@ -1882,6 +1897,18 @@ class MercadoPagoController extends Controller
         $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
         return "{$protocol}://{$host}";
+    }
+
+    /**
+     * Resolve a URL base dinamicamente com base na requisição do Yii2.
+     * Retorna a URL completa sem a barra no final.
+     */
+    private function resolveBaseUrl(): string
+    {
+        if (Yii::$app instanceof \yii\web\Application && Yii::$app->request->hasMethod('getHostInfo')) {
+            return rtrim(Yii::$app->request->hostInfo . Yii::$app->request->baseUrl, '/');
+        }
+        return rtrim($this->getBaseUrl() . '/pulse/web', '/');
     }
 
     /**

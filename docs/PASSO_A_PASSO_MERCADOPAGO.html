@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guia de Configuração: Split Mercado Pago — Pulse Plus</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #00e5ff;
+            --primary-hover: #00b0ff;
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #f59e0b;
+            --border-color: #334155;
+            --glow: 0 0 15px rgba(0, 229, 255, 0.4);
+            --gradient: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow-x: hidden;
+            background-image: radial-gradient(circle at 10% 20%, rgba(0, 229, 255, 0.05) 0%, transparent 40%),
+                              radial-gradient(circle at 90% 80%, rgba(245, 158, 11, 0.05) 0%, transparent 40%);
+        }
+
+        /* Header Glow styling */
+        header {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 1.2rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            font-size: 1.6rem;
+            background: linear-gradient(90deg, var(--primary), #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo i {
+            color: var(--primary);
+            -webkit-text-fill-color: var(--primary);
+            text-shadow: var(--glow);
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 3rem auto;
+            padding: 0 1.5rem;
+        }
+
+        .hero {
+            text-align: center;
+            margin-bottom: 4rem;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .hero h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.8rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            color: var(--text-main);
+            letter-spacing: -0.5px;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        /* Glassmorphism Navigation Menu */
+        .steps-nav {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 3rem;
+        }
+
+        .nav-item {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 0.5rem;
+        }
+
+        .nav-item i {
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+
+        .nav-item span {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .nav-item.active {
+            border-color: var(--primary);
+            box-shadow: var(--glow);
+            transform: translateY(-4px);
+        }
+
+        .nav-item.active i {
+            color: var(--primary);
+        }
+
+        .nav-item.active span {
+            color: var(--primary);
+        }
+
+        /* Content Container with Slide Animation */
+        .step-content {
+            background: var(--gradient);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            min-height: 400px;
+            display: none;
+            animation: slideIn 0.5s ease-out forwards;
+        }
+
+        .step-content.active {
+            display: block;
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+        }
+
+        .step-badge {
+            background: rgba(0, 229, 255, 0.1);
+            color: var(--primary);
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            text-transform: uppercase;
+        }
+
+        .step-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .instruction-group {
+            margin-bottom: 2rem;
+        }
+
+        .instruction-group h3 {
+            font-size: 1.2rem;
+            color: var(--primary);
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .instruction-group p {
+            margin-bottom: 1rem;
+            color: var(--text-main);
+        }
+
+        ol, ul {
+            padding-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        /* Code block design */
+        pre {
+            background: #090d16 !important;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1.2rem;
+            overflow-x: auto;
+            margin: 1.2rem 0;
+            position: relative;
+        }
+
+        code {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.95rem;
+            color: #38bdf8;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 0.8rem;
+            right: 0.8rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.3rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: var(--primary);
+            color: var(--bg-dark);
+            border-color: var(--primary);
+        }
+
+        /* Info Alerts */
+        .info-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 4px solid var(--accent);
+            border-radius: 0 10px 10px 0;
+            padding: 1.2rem;
+            margin: 1.5rem 0;
+        }
+
+        .info-box h4 {
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 3rem 0;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-color);
+            margin-top: 5rem;
+            font-size: 0.9rem;
+        }
+
+        /* CSS Keyframe Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Media queries for responsiveness */
+        @media (max-width: 768px) {
+            .steps-nav {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .hero h1 {
+                font-size: 2rem;
+            }
+            .step-content {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">
+            <i class="fa-solid fa-bolt-lightning"></i> Pulse Plus
+        </div>
+        <div>
+            <span class="step-badge">Manual de Integração</span>
+        </div>
+    </header>
+
+    <div class="container">
+        
+        <div class="hero">
+            <h1>Split de Vendas Mercado Pago</h1>
+            <p>Guia interativo passo a passo para configurar e ativar o recebimento automático de taxas da plataforma.</p>
+        </div>
+
+        <!-- 4 Steps Navigation -->
+        <div class="steps-nav">
+            <div class="nav-item active" onclick="showStep(1)" id="nav-step-1">
+                <i class="fa-solid fa-laptop-code"></i>
+                <span>1. Criar App no MP</span>
+            </div>
+            <div class="nav-item" onclick="showStep(2)" id="nav-step-2">
+                <i class="fa-solid fa-server"></i>
+                <span>2. Configurar SaaS</span>
+            </div>
+            <div class="nav-item" onclick="showStep(3)" id="nav-step-3">
+                <i class="fa-solid fa-link"></i>
+                <span>3. Conectar Lojista</span>
+            </div>
+            <div class="nav-item" onclick="showStep(4)" id="nav-step-4">
+                <i class="fa-solid fa-circle-check"></i>
+                <span>4. Receber Split</span>
+            </div>
+        </div>
+
+        <!-- STEP 1 CONTENT -->
+        <div class="step-content active" id="content-step-1">
+            <div class="step-header">
+                <span class="step-badge">Passo 1</span>
+                <h2 class="step-title">Criar a Integração no Mercado Pago</h2>
+            </div>
+            
+            <div class="instruction-group">
+                <h3><i class="fa-solid fa-chevron-right"></i> 1. Acessar o Portal de Developers</h3>
+                <p>Entre no site <a href="https://www.mercadopago.com.br/developers" target="_blank" style="color: var(--primary);">Mercado Pago Developers</a> utilizando a conta que deseja definir como a **dona da plataforma** (a conta que receberá os 0,5% de taxa).</p>
+            </div>
+
+            <div class="instruction-group">
+                <h3><i class="fa-solid fa-chevron-right"></i> 2. Criar Aplicação</h3>
+                <p>Vá em **Suas Aplicações** e clique em **Criar nova aplicação**. Preencha o formulário:</p>
+                <ul style="margin-left: 2rem; list-style-type: square; color: var(--text-muted);">
+                    <li><strong>Nome da aplicação:</strong> Ex: <code>Pulse Plus Plataforma</code></li>
+                    <li><strong>Tipo de solução de pagamento:</strong> Selecione <code>Checkout Pro</code> ou <code>Pagamentos Online</code>.</li>
+                    <li><strong>Modelo de integração:</strong> Selecione <code>Marketplace / Split</code>.</li>
+                </ul>
+            </div>
+
+            <div class="instruction-group">
+                <h3><i class="fa-solid fa-chevron-right"></i> 3. Configurar Credenciais de Produção e Homologação</h3>
+                <p>Após criar, no menu esquerdo vá em **Credenciais** e anote:</p>
+                <ul style="margin-left: 2rem; list-style-type: square; color: var(--text-muted);">
+                    <li><strong>Client ID (App ID):</strong> Um código numérico.</li>
+                    <li><strong>Client Secret (Access Token Master):</strong> Começa com <code>APP_USR-...</code>.</li>
+                </ul>
+            </div>
+
+            <div class="instruction-group">
+                <h3><i class="fa-solid fa-chevron-right"></i> 4. Configurar as URLs e Callback OAuth</h3>
+                <p>Na sua aplicação do Mercado Pago, configure o campo <strong>Redirect URI</strong> (URL de redirecionamento) para o endpoint de callback do sistema em produção:</p>
+                <pre><button class="copy-btn" onclick="copyCode(this)">Copiar</button><code>https://seudominio.com.br/index.php/api/mercado-pago/oauth-callback</code></pre>
+            </div>
+        </div>
+
+        <!-- STEP 2 CONTENT -->
+        <div class="step-content" id="content-step-2">
+            <div class="step-header">
+                <span class="step-badge">Passo 2</span>
+                <h2 class="step-title">Configurar as Credenciais no Servidor (SaaS)</h2>
+            </div>
+
+            <div class="instruction-group">
+                <h3><i class="fa-solid fa-chevron-right"></i> 1. Editar o arquivo de Ambiente (.env)</h3>
+                <p>Acesse o servidor de hospedagem e insira os dados gerados no Passo 1 no arquivo <code>.env</code> localizado na raiz do projeto:</p>
+                <pre><button class="copy-btn" onclick="copyCode(this)">Copiar</button><code># Configurações do Mercado Pago (OAuth e Plataforma)
+MP_APP_ID="INSIRA_O_APP_ID_AQUI"
+MP_CLIENT_SECRET="INSIRA_O_CLIENT_SECRET_DA_SUA_CONTA_AQUI"
+MP_REDIRECT_URI="https://seu-dominio-saas.com/index.php/api/mercado-pago/oauth-callback"</code></pre>
+            </div>
+
+            <div class="instruction-group">
+                <h3><i class="fa-solid fa-chevron-right"></i> 2. Definir a Taxa de Comissão Padrão</h3>
+                <p>No arquivo <code>config/params.php</code>, configure a taxa que a plataforma reterá por venda (o padrão é 0,5%):</p>
+                <pre><button class="copy-btn" onclick="copyCode(this)">Copiar</button><code>'pulse_platform_fee_percent' => 0.005, // 0.005 representa 0.5%</code></pre>
+            </div>
+
+            <div class="info-box">
+                <h4><i class="fa-solid fa-triangle-exclamation"></i> Importante:</h4>
+                <p>Para aplicar e atualizar as variáveis de ambiente em produção, reinicie seu servidor web ou servidor de containers caso necessário.</p>
+            </div>
+        </div>
+
+        <!-- STEP 3 CONTENT -->
+        <div class="step-content" id="content-step-3">
+            <div class="step-header">
+                <span class="step-badge">Passo 3</span>
+                <h2 class="step-title">Como o Lojista Conecta sua Conta</h2>
+            </div>
+
+            <div class="instruction-group">
+                <h3><i class="fa-solid fa-chevron-right"></i> 1. Acesso do Lojista ao Painel de Integrações</h3>
+                <p>O lojista cadastrado no SaaS deve acessar seu respectivo Painel Administrativo -> **Configurações de Gateway** e selecionar **Mercado Pago**.</p>
+            </div>
+
+            <div class="instruction-group">
+                <h3><i class="fa-solid fa-chevron-right"></i> 2. Fluxo OAuth</h3>
+                <p>O lojista verá o botão <strong>"Conectar com Mercado Pago"</strong>. Ao clicar:</p>
+                <ul style="margin-left: 2rem; list-style-type: square; color: var(--text-muted); margin-bottom: 1rem;">
+                    <li>Ele será redirecionado para a tela oficial de login e consentimento do Mercado Pago.</li>
+                    <li>Ele autoriza a aplicação do SaaS a gerenciar pagamentos.</li>
+                    <li>O Mercado Pago redirecionará de volta para o sistema no endpoint <code>oauth-callback</code>.</li>
+                </ul>
+            </div>
+
+            <div class="instruction-group">
+                <h3><i class="fa-solid fa-chevron-right"></i> 3. Gravação Automática de Tokens</h3>
+                <p>O sistema do SaaS captura o token do lojista (`access_token` individual) e grava na tabela do banco de dados para utilizá-lo nas futuras requisições de checkout de seus clientes de forma isolada e segura.</p>
+            </div>
+        </div>
+
+        <!-- STEP 4 CONTENT -->
+        <div class="step-content" id="content-step-4">
+            <div class="step-header">
+                <span class="step-badge">Passo 4</span>
+                <h2 class="step-title">Como Funciona a Receita do Split nas Vendas</h2>
+            </div>
+
+            <div class="instruction-group">
+                <h3><i class="fa-solid fa-chevron-right"></i> O Fluxo da Transação de Checkout</h3>
+                <p>Quando um cliente compra no PWA (Catálogo) ou o vendedor realiza uma venda direta:</p>
+                <ol style="margin-left: 2rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+                    <li style="margin-bottom: 0.5rem;">O sistema envia a transação para o Mercado Pago vinculada ao token do lojista.</li>
+                    <li style="margin-bottom: 0.5rem;">O parâmetro <code>application_fee</code> / <code>marketplace_fee</code> é anexado no payload contendo o cálculo da comissão de 0.5%.</li>
+                    <li style="margin-bottom: 0.5rem;">O cliente realiza o pagamento.</li>
+                    <li style="margin-bottom: 0.5rem;"><strong>O Mercado Pago realiza a divisão (Split) imediata no ato da aprovação:</strong>
+                        <ul style="margin-left: 1.5rem; list-style-type: circle; margin-top: 0.3rem;">
+                            <li>O valor líquido menos a taxa vai para a carteira digital do lojista.</li>
+                            <li>Os 0,5% caem diretamente no saldo da conta do administrador da plataforma.</li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+
+            <div class="info-box" style="background: rgba(0, 229, 255, 0.05); border-left-color: var(--primary);">
+                <h4><i class="fa-solid fa-circle-info" style="color: var(--primary);"></i> Conciliação Financeira Local</h4>
+                <p>Toda movimentação do split também é registrada na tabela local de auditoria financeira <code>saas_financial_logs</code> e inserida como saída no caixa para garantir conciliação perfeita para o lojista.</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>&copy; 2026 Pulse Plus — Todos os direitos reservados.</p>
+        </div>
+
+    </div>
+
+    <script>
+        function showStep(stepNum) {
+            // Deactivate all step tabs and contents
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            document.querySelectorAll('.step-content').forEach(content => content.classList.remove('active'));
+
+            // Activate chosen step tab and content
+            document.getElementById('nav-step-' + stepNum).classList.add('active');
+            document.getElementById('content-step-' + stepNum).classList.add('active');
+        }
+
+        function copyCode(btn) {
+            const codeEl = btn.nextElementSibling;
+            navigator.clipboard.writeText(codeEl.textContent).then(() => {
+                const originalText = btn.textContent;
+                btn.textContent = 'Copiado!';
+                btn.style.background = 'var(--primary)';
+                btn.style.color = 'var(--bg-dark)';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = 'var(--card-bg)';
+                    btn.style.color = 'var(--text-main)';
+                }, 1500);
+            });
+        }
+    </script>
+</body>
+</html>
