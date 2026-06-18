@@ -95,39 +95,70 @@ class AuthController extends Controller
     }
 
     /**
-     * Carrega dados da empresa para exibir no login
+     * Carrega dados da empresa para exibir no login.
+     * Se houver ?loja=<slug> na URL, prioriza os dados daquela loja.
      * @return array
      */
     protected function carregarDadosEmpresa()
     {
         try {
-            // Tenta buscar a primeira configuração disponível
-            $config = Configuracao::find()->one();
+            // 1. Verifica se há slug de loja na URL (?loja=meu-slug)
+            $slug = Yii::$app->request->get('loja');
+
+            if ($slug) {
+                // Busca a loja pelo catalogo_path (slug)
+                $usuario = \app\models\Usuario::find()
+                    ->where(['catalogo_path' => $slug, 'eh_dono_loja' => true])
+                    ->one();
+
+                if ($usuario) {
+                    $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $usuario->id]);
+                    $nomeLoja   = $lojaConfig->nome_loja ?? $usuario->nome ?? 'Loja';
+                    $logoPath   = $lojaConfig->logo_path ?? $usuario->logo_path ?? '';
+
+                    return [
+                        'nome_loja' => $nomeLoja,
+                        'logo_path' => $logoPath,
+                        'slug'      => $slug,
+                    ];
+                }
+            }
+
+            // 2. Fallback: primeira configuração disponível (comportamento anterior)
+            $config = \app\modules\vendas\models\Configuracao::find()->one();
 
             if ($config) {
                 return [
                     'nome_loja' => $config->nome_loja ?? 'THAUSZ-PULSE',
                     'logo_path' => $config->logo_path ?? '',
+                    'slug'      => null,
                 ];
             }
 
-            // Se não houver configuração, tenta buscar do primeiro usuário
+            // 3. Último fallback: primeiro usuário cadastrado
             $usuario = \app\models\Usuario::find()->one();
 
             if ($usuario) {
                 return [
                     'nome_loja' => $usuario->nome ?? 'THAUSZ-PULSE',
                     'logo_path' => $usuario->logo_path ?? '',
+                    'slug'      => null,
                 ];
             }
-        } catch (\Exception $e) {
-            Yii::error('Erro ao carregar dados da empresa: ' . $e->getMessage(), __METHOD__);
-        }
 
-        // Valores padrão
-        return [
-            'nome_loja' => 'THAUSZ-PULSE',
-            'logo_path' => '',
-        ];
+            return [
+                'nome_loja' => 'THAUSZ-PULSE',
+                'logo_path' => '',
+                'slug'      => null,
+            ];
+
+        } catch (\Exception $e) {
+            Yii::warning('Erro ao carregar dados da empresa: ' . $e->getMessage(), __METHOD__);
+            return [
+                'nome_loja' => 'THAUSZ-PULSE',
+                'logo_path' => '',
+                'slug'      => null,
+            ];
+        }
     }
 }

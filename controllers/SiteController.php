@@ -34,7 +34,10 @@ class SiteController extends Controller
             }
             return $this->redirect(['/vendas/inicio']);
         }
-        return $this->redirect(['/loja-cadastro/index']);
+
+        // Usuário não logado → vai para a vitrine pública de lojas (SaaS)
+        // O cadastro de nova loja está disponível via botão na própria vitrine
+        return $this->redirect(Yii::$app->request->baseUrl . '/catalogo/lojas.html');
     }
 }
 

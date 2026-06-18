@@ -127,7 +127,7 @@ class UsuarioController extends Controller
                 FROM prest_usuarios u
                 LEFT JOIN loja_configuracao lc ON lc.usuario_id = u.id
                 WHERE u.eh_dono_loja = true
-                  AND u.status_loja  = 'ativa'
+                  AND (u.status_loja = 'ativa' OR u.status_loja IS NULL)
                 ORDER BY u.data_criacao ASC
             ";
 
@@ -147,6 +147,7 @@ class UsuarioController extends Controller
                     'nome_loja'    => $loja['nome_loja'],
                     'slug'         => $slug,
                     'catalogo_url' => $catalogoBase . '/?loja=' . urlencode($slug),
+                    'login_url'    => $baseUrl . '/auth/login?loja=' . urlencode($slug),
                     'logo_path'    => $loja['logo_path'] ?: null,
                     'telefone'     => $loja['telefone']  ?: null,
                     'cidade'       => $loja['cidade']    ?: null,
@@ -154,7 +155,16 @@ class UsuarioController extends Controller
                 ];
             }
 
-            return $resultado;
+            // Metadados do SaaS: usado pelo lojas.html para card admin e botão cadastro
+            $saasInfo = [
+                '_saas' => [
+                    'cadastro_url'    => $baseUrl . '/loja-cadastro',
+                    'admin_url'       => $baseUrl . '/auth/login',
+                    'nome_plataforma' => Yii::$app->name ?? 'Pulse',
+                ],
+            ];
+
+            return array_merge($resultado, [$saasInfo]);
 
         } catch (\Exception $e) {
             Yii::$app->response->statusCode = 500;

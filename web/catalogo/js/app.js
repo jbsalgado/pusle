@@ -86,6 +86,13 @@ async function init() {
         // Disponibilizar GATEWAY_CONFIG no window para uso em outras funções
         window.GATEWAY_CONFIG = gatewayConfig;
 
+        // Configura o botão Entrar no topo
+        const btnEntrarLoja = document.getElementById('btn-entrar-loja');
+        if (btnEntrarLoja) {
+            const loginUrl = CONFIG.URL_API.replace('/index.php', '') + '/index.php/auth/login?loja=' + encodeURIComponent(CONFIG._slugDetectado || '');
+            btnEntrarLoja.href = loginUrl;
+        }
+
         // 2.5️⃣ Carregar logo da empresa
         await carregarLogoEmpresa();
         

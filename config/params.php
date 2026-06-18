@@ -95,8 +95,8 @@ return [
     // ATENÇÃO: Em produção, atualize os valores abaixo com as credenciais reais.
     // -------------------------------------------------------------------------
     'evolution' => [
-        'baseUrl'      => 'http://localhost:8080',           // URL do motor Evolution API Go
-        'globalApiKey' => '4f9e7a2b8c1d3e5f6a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0e9f8a',         // Global API Key do motor Go
+        'baseUrl'      => $_ENV['EVOLUTION_BASE_URL'] ?? getenv('EVOLUTION_BASE_URL') ?: 'http://localhost:8080',           // URL do motor Evolution API Go
+        'globalApiKey' => $_ENV['EVOLUTION_API_KEY'] ?? getenv('EVOLUTION_API_KEY') ?: '429683C4C977415CAAFCCE10F7D57E11',  // Global API Key do motor Go
     ],
 
     // -------------------------------------------------------------------------

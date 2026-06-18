@@ -107,19 +107,116 @@ document.addEventListener('DOMContentLoaded', () => {
     const cadastroClienteErroMsg = document.getElementById('cadastro-cliente-erro-msg');
 
     // --- CONFIGURACAO ---
-    const URL_API = '/pulse/basic/web/index.php';
-    const URL_BASE_WEB = '/pulse/basic/web';
+    // Detecta automaticamente a base do backend Yii2 a partir do pathname atual.
+    // Ex: /catalogo/ → base ''; /pulse/web/catalogo/ → base '/pulse/web'
+    const URL_API = (() => {
+        const path = window.location.pathname;
+        const idx = path.indexOf('/catalogo');
+        const base = idx >= 0 ? path.substring(0, idx) : '';
+        return window.location.origin + base + '/index.php';
+    })();
+    const URL_BASE_WEB = (() => {
+        const path = window.location.pathname;
+        const idx = path.indexOf('/catalogo');
+        return idx >= 0 ? path.substring(0, idx) : '';
+    })();
     const API_PRODUTO_URL = `${URL_API}/api/produto`;
     const API_CLIENTE_URL = `${URL_API}/api/cliente`;
     const API_CLIENTE_BUSCA_CPF_URL = `${URL_API}/api/cliente/buscar-cpf`;
     const API_CLIENTE_LOGIN_URL = `${URL_API}/api/cliente/login`;
     const API_CALCULO_PARCELA_URL = `${URL_API}/api/calculo/calcular-parcelas`;
     const API_COLABORADOR_BUSCA_CPF_URL = `${URL_API}/api/colaborador/buscar-cpf`;
-    const CACHE_NAME = 'catalogo-cache-v4';
+    const CACHE_NAME = 'catalogo-cache-v5';
+    console.log('[CONFIG] URL_API detectada:', URL_API);
     
     let carrinho = [];
-    let idUsuarioLoja = null;
+    let idUsuarioLoja = null;   // UUID do dono da loja — resolvido via slug da URL
+    let nomeLojaAtual = null;   // Nome da loja para exibição
     let clienteAtual = null;
+
+    // ─── RESOLUÇÃO DO SLUG DA LOJA ─────────────────────────────────────────
+    /**
+     * Lê o parâmetro ?loja=<slug> da URL e resolve o UUID da loja via API.
+     * Se não houver slug ou a loja não for encontrada, redireciona para lojas.html.
+     * @returns {Promise<{id:string, nome:string, catalogo_path:string}|null>}
+     */
+    async function resolverLojaDoSlug() {
+        const params = new URLSearchParams(window.location.search);
+        const slug = params.get('loja');
+
+        if (!slug) {
+            console.warn('[SLUG] Nenhum slug informado. Redirecionando para vitrine de lojas...');
+            window.location.href = 'lojas.html';
+            return null;
+        }
+
+        console.log('[SLUG] Resolvendo slug:', slug);
+
+        try {
+            const resp = await fetch(`${URL_API}/api/usuario/config-by-slug?slug=${encodeURIComponent(slug)}`);
+            const data = await resp.json();
+
+            if (!resp.ok || !data.id) {
+                console.warn('[SLUG] Loja não encontrada para slug:', slug, data);
+                window.location.href = 'lojas.html';
+                return null;
+            }
+
+            console.log('[SLUG] Loja resolvida:', data);
+            return data; // { id, nome, catalogo_path }
+
+        } catch (err) {
+            console.error('[SLUG] Erro ao resolver slug:', err);
+            window.location.href = 'lojas.html';
+            return null;
+        }
+    }
+
+    /**
+     * Carrega e aplica os dados visuais da loja (logo, tema, nome) na interface.
+     * @param {string} usuarioId - UUID do dono da loja
+     */
+    async function aplicarIdentidadeLoja(usuarioId) {
+        try {
+            const resp = await fetch(`${URL_API}/api/usuario/dados-loja?usuario_id=${usuarioId}`);
+            if (!resp.ok) return;
+
+            const dados = await resp.json();
+            if (dados.erro) return;
+
+            // Atualiza o título da página
+            nomeLojaAtual = dados.nome_loja || dados.nome || 'Catálogo';
+            document.title = nomeLojaAtual;
+
+            // Exibe logo ou nome no header
+            const logoEl = document.getElementById('logo-empresa');
+            const tituloEl = document.querySelector('h1') || document.querySelector('[id*="titulo"]');
+
+            if (logoEl && dados.logo_path) {
+                logoEl.src = dados.logo_path;
+                logoEl.alt = nomeLojaAtual;
+                logoEl.classList.remove('hidden');
+            }
+
+            if (tituloEl && nomeLojaAtual) {
+                tituloEl.textContent = nomeLojaAtual;
+            }
+
+            // Aplica escala de cores do tema (CSS variables)
+            const aparencia = dados.aparencia;
+            if (aparencia && aparencia.escala_cores) {
+                const root = document.documentElement;
+                const cores = aparencia.escala_cores;
+                Object.entries(cores).forEach(([nivel, valor]) => {
+                    root.style.setProperty(`--brand-${nivel}`, valor);
+                });
+                console.log('[TEMA] Tema aplicado:', aparencia.tema);
+            }
+
+        } catch (err) {
+            console.warn('[IDENTIDADE] Erro ao carregar dados da loja:', err);
+        }
+    }
 
     // --- STATUS ONLINE/OFFLINE ---
     const htmlTag = document.documentElement;
@@ -187,21 +284,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function carregarProdutos() {
         try {
-            const response = await fetch(API_PRODUTO_URL, { cache: 'no-cache' });
+            // Usa o usuario_id já resolvido pelo slug; se não tiver, retorna vazio
+            if (!idUsuarioLoja) {
+                catalogoContainer.innerHTML = '<p class="col-span-full text-center text-gray-500">Loja não identificada.</p>';
+                return;
+            }
+
+            const url = `${API_PRODUTO_URL}?usuario_id=${idUsuarioLoja}`;
+            const response = await fetch(url, { cache: 'no-cache' });
             if (!response.ok) throw new Error(`Erro: ${response.statusText}`);
 
             const data = await response.json();
-            const produtos = data.items || data;
+            const produtos = (data.data && data.data.items) ? data.data.items : (data.items || data);
 
             if (!produtos || produtos.length === 0) {
                 catalogoContainer.innerHTML = '<p class="col-span-full text-center text-gray-500">Nenhum produto disponivel.</p>';
                 return;
             }
 
-            if (produtos[0] && produtos[0].usuario_id) {
-                idUsuarioLoja = produtos[0].usuario_id;
-                console.log("ID da loja:", idUsuarioLoja);
-            }
+            console.log('[PRODUTOS] Carregados:', produtos.length, '| Loja:', idUsuarioLoja);
 
             catalogoContainer.innerHTML = '';
             produtos.forEach(produto => {
@@ -1388,11 +1489,27 @@ document.addEventListener('DOMContentLoaded', () => {
     (async () => {
         try {
             atualizarStatusOnline();
+
+            // 1. Resolve a loja pelo slug da URL (?loja=<slug>)
+            //    Se não houver slug ou loja inválida, redireciona para lojas.html
+            const dadosLoja = await resolverLojaDoSlug();
+            if (!dadosLoja) return; // redirecionamento em andamento
+
+            idUsuarioLoja = dadosLoja.id;
+            nomeLojaAtual = dadosLoja.nome;
+
+            // 2. Aplica identidade visual da loja (logo, tema, nome)
+            await aplicarIdentidadeLoja(idUsuarioLoja);
+
+            // 3. Carrega produtos da loja
             await carregarProdutos();
+
+            // 4. Restaura carrinho local
             await carregarCarrinhoLocal();
-            console.log("Aplicacao iniciada.");
+
+            console.log('[APP] Aplicação iniciada. Loja:', nomeLojaAtual, '| ID:', idUsuarioLoja);
         } catch (error) {
-            console.error("ERRO NA INICIALIZACAO:", error);
+            console.error('[APP] ERRO NA INICIALIZACAO:', error);
         }
     })();
 });

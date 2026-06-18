@@ -149,6 +149,18 @@
       <p class="text-lg text-indigo-300 max-w-md mx-auto leading-relaxed">
         Escolha uma loja e explore todos os produtos disponíveis
       </p>
+      <!-- Botão Cadastre sua Loja -->
+      <div class="mt-6">
+        <a id="btn-cadastrar-loja" href="/loja-cadastro"
+           class="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-white text-sm font-semibold
+                  transition-all hover:-translate-y-0.5"
+           style="background:linear-gradient(135deg,#10b981,#059669); box-shadow:0 8px 24px rgba(16,185,129,0.4)">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          <span>Cadastre sua Loja</span>
+        </a>
+      </div>
     </header>
 
     <!-- Busca -->
@@ -346,13 +358,68 @@
           </div>
         </div>
 
-        <!-- CTA -->
-        <a href="${loja.catalogo_url}"
-           class="btn-catalogo flex items-center justify-center gap-2 w-full py-3 rounded-xl text-white text-sm font-semibold">
-          <span>Ver Catálogo</span>
+        <!-- CTAs: Catálogo + Sistema -->
+        <div class="flex flex-col gap-2">
+          <a href="${loja.catalogo_url}"
+             class="btn-catalogo flex items-center justify-center gap-2 w-full py-3 rounded-xl text-white text-sm font-semibold">
+            <span>Ver Catálogo</span>
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+            </svg>
+          </a>
+          ${loja.login_url ? `
+          <a href="${loja.login_url}"
+             class="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-indigo-200 text-xs font-medium
+                    border border-indigo-500/30 hover:bg-indigo-500/10 transition-colors">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+            </svg>
+            Acessar Sistema
+          </a>` : ''}
+        </div>
+      `;
+      return div;
+    }
+
+    // ─── Card especial do SaaS Admin ─────────────────────────────────
+    function renderCardAdmin(saasInfo, delay = 0) {
+      const div = document.createElement('div');
+      div.className = 'loja-card p-6 flex flex-col gap-5 card-appear';
+      div.style.animationDelay = `${delay}ms`;
+      div.style.borderColor = 'rgba(139, 92, 246, 0.5)';
+      div.dataset.nome = 'admin administrador sistema pulse';
+      div.innerHTML = `
+        <div class="flex items-center gap-4">
+          <div class="flex-shrink-0 w-14 h-14 rounded-full flex items-center justify-center"
+               style="background:linear-gradient(135deg,#7c3aed,#4f46e5); padding:3px">
+            <div class="w-full h-full rounded-full flex items-center justify-center bg-indigo-950">
+              <svg class="h-6 w-6 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+              </svg>
+            </div>
+          </div>
+          <div class="min-w-0">
+            <h2 class="text-base font-bold text-white leading-tight">${saasInfo.nome_plataforma}</h2>
+            <span class="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                  style="background:rgba(139,92,246,0.18);border:1px solid rgba(139,92,246,0.3);color:#c4b5fd">
+              🔐 Administradores
+            </span>
+          </div>
+        </div>
+        <div class="space-y-1 flex-1">
+          <p class="text-xs text-indigo-400">Painel de gestão das lojas cadastradas na plataforma.</p>
+        </div>
+        <a href="${saasInfo.admin_url}"
+           class="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-white text-sm font-semibold
+                  transition-all hover:-translate-y-0.5"
+           style="background:linear-gradient(135deg,#7c3aed,#4f46e5); box-shadow:0 4px 16px rgba(124,58,237,0.4)">
           <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
           </svg>
+          Acesso Administrativo
         </a>
       `;
       return div;
@@ -401,9 +468,29 @@
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
         const data = await resp.json();
-        todasLojas = Array.isArray(data) ? data : (data.items || []);
+        const rawItems = Array.isArray(data) ? data : (data.items || []);
+
+        // Separa metadados do SaaS (_saas) das lojas reais
+        let saasInfo = null;
+        todasLojas = rawItems.filter(item => {
+          if (item && item._saas) { saasInfo = item._saas; return false; }
+          return !!item.id; // apenas lojas válidas
+        });
+
         skeletons.classList.add('hidden');
         renderizarLojas(todasLojas);
+
+        // Adiciona o card admin ao final da grade
+        if (saasInfo) {
+          const cardAdmin = renderCardAdmin(saasInfo, todasLojas.length * 80);
+          grid.appendChild(cardAdmin);
+
+          // Atualiza o link do botão "Cadastre sua Loja" se vier da API
+          const btnCadastro = document.getElementById('btn-cadastrar-loja');
+          if (btnCadastro && saasInfo.cadastro_url) {
+            btnCadastro.href = saasInfo.cadastro_url;
+          }
+        }
 
       } catch (err) {
         console.error('[Vitrine] Erro ao carregar lojas:', err);

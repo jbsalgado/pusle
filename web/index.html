@@ -105,9 +105,9 @@
     </div>
 
     <script>
-        // ID padrão da loja (mesmo usado no catálogo)
-        const LOJA_ID = 'a99a38a9-e368-4a47-a4bd-02ba3bacaa76';
-        
+        // ID da loja resolvido dinamicamente (substitui o antigo LOJA_ID hardcoded)
+        let LOJA_ID = null;
+
         // Detecta URL base da API
         function detectApiBaseUrl() {
             const pathname = window.location.pathname;
@@ -143,6 +143,34 @@
         }
         
         const API_BASE = detectApiBaseUrl();
+        const baseWebPath = API_BASE.replace('/index.php', '') || '';
+
+        // ─── Resolução dinâmica da loja ──────────────────────────────────────────
+        // Lê ?loja=<slug> da URL. Se não houver, redireciona para a vitrine.
+        async function resolverLoja() {
+            const params = new URLSearchParams(window.location.search);
+            const slug   = params.get('loja');
+
+            if (!slug) {
+                // Sem slug → vai para a vitrine de lojas (SaaS)
+                window.location.replace(baseWebPath + '/catalogo/lojas.html');
+                return null;
+            }
+
+            try {
+                const resp = await fetch(`${API_BASE}/api/usuario/config-by-slug?slug=${encodeURIComponent(slug)}`);
+                const data = await resp.json();
+                if (!resp.ok || !data.id) {
+                    window.location.replace(baseWebPath + '/catalogo/lojas.html');
+                    return null;
+                }
+                return data; // { id, nome, catalogo_path }
+            } catch (e) {
+                console.error('[INDEX] Erro ao resolver loja:', e);
+                window.location.replace(baseWebPath + '/catalogo/lojas.html');
+                return null;
+            }
+        }
         
         // Carrega dados da empresa
         async function carregarDadosEmpresa() {
@@ -226,9 +254,6 @@
                 if (btnCatalogo) {
                     btnCatalogo.style.background = `linear-gradient(to right, ${dados.cor_primaria}, ${dados.cor_secundaria || dados.cor_primaria})`;
                 }
-                
-                // Botão entrar já está discreto no canto superior direito
-                // Não precisa de ajustes de cor adicionais
             }
             
             // Informações de contato no footer
@@ -246,15 +271,31 @@
         function atualizarBotaoEntrar() {
             const btnEntrar = document.getElementById('btn-entrar');
             if (btnEntrar) {
-                const basePath = detectApiBaseUrl();
-                btnEntrar.href = basePath.replace('/index.php', '') + '/index.php/auth/login';
+                btnEntrar.href = baseWebPath + '/index.php/auth/login';
             }
         }
         
         // Carrega dados ao carregar a página
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             atualizarBotaoEntrar();
-            carregarDadosEmpresa();
+            const lojaInfo = await resolverLoja();
+            if (lojaInfo) {
+                LOJA_ID = lojaInfo.id;
+                
+                // Atualiza o link do catálogo para ir direto para o catálogo da loja resolvida
+                const btnCatalogo = document.getElementById('btn-catalogo');
+                if (btnCatalogo) {
+                    btnCatalogo.href = baseWebPath + '/catalogo/?loja=' + encodeURIComponent(lojaInfo.catalogo_path || lojaInfo.id);
+                }
+                
+                // Atualiza o botão Entrar para passar a loja também, facilitando login
+                const btnEntrar = document.getElementById('btn-entrar');
+                if (btnEntrar) {
+                    btnEntrar.href = btnEntrar.href + '?loja=' + encodeURIComponent(lojaInfo.catalogo_path || lojaInfo.id);
+                }
+                
+                carregarDadosEmpresa();
+            }
         });
     </script>
 </body>
