@@ -10,7 +10,7 @@ use yii\db\Migration;
  * 2. Coluna `status_loja` (varchar) em prest_usuarios — ciclo de vida: pendente|ativa|suspensa|rejeitada
  * 3. Índice em `status_loja` para buscas rápidas no painel admin
  */
-class m260611_saas_001_add_is_admin_status_loja extends Migration
+class m260611_000002_add_is_admin_status_loja extends Migration
 {
     public function safeUp()
     {
