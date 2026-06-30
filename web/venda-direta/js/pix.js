@@ -576,11 +576,44 @@ window.confirmarRecebimentoPix = async function() {
         return;
     }
     
-    // ✅ NOVO FLUXO: Confirma recebimento no backend (já foi criado, só precisa confirmar)
     const vendaId = window.dadosPedidoPix.venda_id;
     
     if (!vendaId) {
         alert('Erro: ID da venda não encontrado. A venda pode não ter sido criada corretamente.');
+        return;
+    }
+    
+    // Se for pagamento múltiplo, pula a chamada de quitação redundante
+    if (window.dadosPedidoPix.pagamentos_multiplos) {
+        console.log('[PIX] ✅ Recebimento confirmado via Múltiplos Pagamentos.');
+        
+        const { getCarrinho, limparCarrinho } = await import('./cart.js');
+        let carrinho = [];
+        try {
+            const carrinhoSalvo = localStorage.getItem('carrinho_venda_direta');
+            if (carrinhoSalvo) {
+                carrinho = JSON.parse(carrinhoSalvo);
+            }
+        } catch (e) {
+            console.warn('[PIX] Não foi possível recuperar carrinho do localStorage');
+        }
+        
+        if (carrinho.length === 0 && window.dadosPedidoPix.itens) {
+            carrinho = window.dadosPedidoPix.itens;
+        }
+        
+        sessionStorage.setItem('venda_confirmada_comprovante', JSON.stringify({
+            venda: window.dadosPedidoPix.venda_dados_completos || window.dadosPedidoPix,
+            dadosPedido: window.dadosPedidoPix,
+            carrinho: carrinho,
+            formaPagamento: 'Múltiplas Formas'
+        }));
+        
+        await limparCarrinho();
+        if (typeof fecharModal === 'function') {
+            fecharModal('modal-pix-estatico');
+        }
+        window.location.reload();
         return;
     }
     
@@ -602,7 +635,7 @@ window.confirmarRecebimentoPix = async function() {
         }
 
         const responseJson = await response.json();
-        const vendaConfirmada = responseJson.data || responseJson;
+        const vendaConfirmada = responseJson.dados || responseJson.data || responseJson;
         console.log('[PIX] ✅ Recebimento confirmado com sucesso!', vendaConfirmada);
         
     // Importa funções necessárias dinamicamente
@@ -1088,7 +1121,7 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
     <div style="margin: 8px 0;">
         <div style="font-weight: bold; margin-bottom: 5px;">CLIENTE:</div>
         <div style="font-size: 11px; line-height: 1.4;">
-            <div><strong>${dadosPedido.cliente.nome}</strong></div>
+            <div><strong>${dadosPedido.cliente.nome || dadosPedido.cliente.nome_completo || 'Cliente'}</strong></div>
             ${dadosPedido.cliente.cpf ? `<div>CPF: ${formatarCpfCnpj(dadosPedido.cliente.cpf)}</div>` : ''}
             ${dadosPedido.cliente.telefone ? `<div>Fone: ${formatarTelefone(dadosPedido.cliente.telefone)}</div>` : ''}
             ${dadosPedido.cliente.endereco ? `<div>${dadosPedido.cliente.endereco}${dadosPedido.cliente.numero ? ', ' + dadosPedido.cliente.numero : ''}${dadosPedido.cliente.complemento ? ' - ' + dadosPedido.cliente.complemento : ''}</div>` : ''}
@@ -1166,7 +1199,7 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
         </div>` : ''}
         ${acrescimoValor > 0 ? `
         <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
-             <span>ACRÉSCIMO${acrescimoTipo ? ' (' + acrescimoTipo + ')' : ''}:</span>
+             <span>ACRÉSCIMO / TAXAS${acrescimoTipo ? ' (' + acrescimoTipo + ')' : ''}:</span>
              <span>+${formatarMoeda(acrescimoValor)}</span>
         </div>
         ${acrescimoObs ? `<div style="font-size: 9px; color: #555; text-align: right; margin-bottom: 2px;">(${acrescimoObs})</div>` : ''}
@@ -1177,9 +1210,26 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
         TOTAL: ${valorFormatado}
     </div>
     
-    <div class="pagamento">
-        <div class="pagamento-tipo">FORMA DE PAGAMENTO: ${dadosPedido.forma_pagamento || dadosVenda.forma_pagamento_nome || 'Não informado'}</div>
-        ${dadosPedido.numero_parcelas === 1 ? `<div>VALOR PAGO: ${valorFormatado}</div>` : `<div>${dadosPedido.numero_parcelas}x de ${formatarMoeda(valorTotal / dadosPedido.numero_parcelas)}</div>`}
+    <div class="pagamento" style="font-size: 11px; margin-top: 5px; line-height: 1.4;">
+        ${(() => {
+            const parcelas = dadosVenda.parcelas || dadosPedido.parcelas || [];
+            const isMultiplo = (dadosPedido.forma_pagamento === 'Múltiplas Formas' || dadosVenda.forma_pagamento_nome === 'Múltiplas Formas');
+            if (isMultiplo && parcelas.length > 0) {
+                let htmlDetail = '<div style="font-weight: bold; margin-bottom: 3px;">FORMA DE PAGAMENTO: Múltiplas Formas</div>';
+                parcelas.forEach((p, idx) => {
+                    const nomeForma = p.formaPagamento?.nome || 'Forma ' + (idx + 1);
+                    const val = parseFloat(p.valor_parcela || 0);
+                    htmlDetail += `<div style="display: flex; justify-content: space-between; padding-left: 5px;"><span>• ${nomeForma}</span><span>${formatarMoeda(val)}</span></div>`;
+                });
+                htmlDetail += `<div class="separador" style="margin: 3px 0;">--------------------------------</div>`;
+                htmlDetail += `<div style="display: flex; justify-content: space-between; font-weight: bold;"><span>TOTAL PAGO:</span><span>${valorFormatado}</span></div>`;
+                return htmlDetail;
+            }
+            return `
+                <div class="pagamento-tipo" style="font-weight: bold;">FORMA DE PAGAMENTO: ${dadosPedido.forma_pagamento || dadosVenda.forma_pagamento_nome || 'Não informado'}</div>
+                ${dadosPedido.numero_parcelas === 1 ? `<div>VALOR PAGO: ${valorFormatado}</div>` : `<div>${dadosPedido.numero_parcelas}x de ${formatarMoeda(valorTotal / dadosPedido.numero_parcelas)}</div>`}
+            `;
+        })()}
     </div>
 
     ${dadosPedido.observacoes ? `
@@ -1192,9 +1242,10 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
     ${(() => {
         const temParcelas = dadosPedido.parcelas && Array.isArray(dadosPedido.parcelas) && dadosPedido.parcelas.length > 0;
         const numeroParcelas = dadosPedido.numero_parcelas || 0;
+        const isMultiplo = (dadosPedido.forma_pagamento === 'Múltiplas Formas' || dadosVenda.forma_pagamento_nome === 'Múltiplas Formas');
         
-        // ✅ Só mostra tabela se houver parcelas E a venda for parcelada (mais de 1 parcela)
-        const deveMostrar = temParcelas && numeroParcelas > 1;
+        // ✅ Só mostra tabela se houver parcelas E a venda for parcelada (mais de 1 parcela) E não for pagamento múltiplo
+        const deveMostrar = temParcelas && numeroParcelas > 1 && !isMultiplo;
         
         console.log('[PIX] 🔍 Verificando se deve mostrar parcelas:', {
             temParcelas,
@@ -1348,6 +1399,14 @@ function gerarTextoComprovante() {
         return left + ' '.repeat(spaces) + right;
     };
 
+    // Função para duas colunas com pontos de preenchimento (Esquerda ... Direita)
+    const rowDots = (left, right) => {
+        const lLen = left.length;
+        const rLen = right.length;
+        const dotsCount = Math.max(1, largura - lLen - rLen);
+        return left + '.'.repeat(dotsCount) + right;
+    };
+
     // Cabeçalho
     texto += center(removerAcentos(dadosEmpresa.nome_loja || 'LOJA').toUpperCase()) + '\n';
     if(dadosEmpresa.cpf_cnpj) texto += center(formatarCpfCnpj(dadosEmpresa.cpf_cnpj)) + '\n';
@@ -1411,21 +1470,35 @@ function gerarTextoComprovante() {
     texto += linhaSeparadora + '\n';
     
     // Subtotal e Descontos e Acréscimos (Texto)
-    if (subtotalGeral && subtotalGeral > 0) texto += row("SUBTOTAL", `R$ ${parseFloat(subtotalGeral).toFixed(2)}`) + '\n';
-    if (totalDescontos && totalDescontos > 0) texto += row("DESCONTOS", `-R$ ${parseFloat(totalDescontos).toFixed(2)}`) + '\n';
+    if (subtotalGeral && subtotalGeral > 0) texto += row("SUBTOTAL", `R$ ${parseFloat(subtotalGeral).toFixed(2).replace('.', ',')}`) + '\n';
+    if (totalDescontos && totalDescontos > 0) texto += row("DESCONTOS", `-${parseFloat(totalDescontos).toFixed(2).replace('.', ',')}`) + '\n';
     
     if (acrescimoValor > 0) {
         const tipoAcr = acrescimoTipo ? ` (${acrescimoTipo})` : '';
-        // Trunca nome do acréscimo se for muito longo
-        const labelAcr = `ACRESCIMO${tipoAcr}`;
-        texto += row(labelAcr.substring(0, 18), `+R$ ${parseFloat(acrescimoValor).toFixed(2)}`) + '\n';
+        const labelAcr = `ACRESCIMO / TAXAS${tipoAcr}`;
+        texto += row(labelAcr.substring(0, 18), `+R$ ${parseFloat(acrescimoValor).toFixed(2).replace('.', ',')}`) + '\n';
         if (acrescimoObs) texto += center(`(${acrescimoObs})`) + '\n';
     }
     
     // Totais
-    texto += row("TOTAL", `R$ ${valorTotal.toFixed(2)}`) + '\n';
-    const formaPgto = removerAcentos(dadosPedido.forma_pagamento || 'DINHEIRO').toUpperCase();
-    texto += row("PAGAMENTO", formaPgto) + '\n';
+    texto += row("TOTAL", `R$ ${valorTotal.toFixed(2).replace('.', ',')}`) + '\n';
+    texto += linhaSeparadora + '\n';
+    
+    const parcelas = dadosVenda.parcelas || dadosPedido.parcelas || [];
+    const isMultiplo = (dadosPedido.forma_pagamento === 'Múltiplas Formas' || dadosVenda.forma_pagamento_nome === 'Múltiplas Formas');
+    if (isMultiplo && parcelas.length > 0) {
+        parcelas.forEach((p, idx) => {
+            const nomeForma = p.formaPagamento?.nome || 'Forma ' + (idx + 1);
+            const val = parseFloat(p.valor_parcela || 0);
+            texto += rowDots(removerAcentos(nomeForma).toUpperCase(), val.toFixed(2).replace('.', ',')) + '\n';
+        });
+        texto += linhaSeparadora + '\n';
+        texto += rowDots("TOTAL PAGO", valorTotal.toFixed(2).replace('.', ',')) + '\n';
+    } else {
+        const formaPgto = removerAcentos(dadosPedido.forma_pagamento || dadosVenda.forma_pagamento_nome || 'DINHEIRO').toUpperCase();
+        texto += row("PAGAMENTO", formaPgto) + '\n';
+        texto += row("TOTAL PAGO", valorTotal.toFixed(2).replace('.', ',')) + '\n';
+    }
     
     // CPF do Consumidor (se informado)
     if (dadosPedido.cpf_consumidor) {
@@ -1492,31 +1565,60 @@ window.imprimirComprovanteTexto = function() {
             console.warn('[Print] Falha ao processar URL do logo:', e);
         }
         
-        // Deep Link para o App Flutter (printapp://)
-        const deepLink = `printapp://print?data=${encodedText}${urlLogoParam}`;
-        console.log('[Print] Abrindo Deep Link:', deepLink.substring(0, 60) + '...');
-        window.location.href = deepLink;
+        // Detecção de ambiente móvel/aplicativo
+        const isPulseApp = window.flutter_inappwebview !== undefined;
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
-        // Fallback: se o app nao abrir em 2s, usa window.print() com o HTML do comprovante
-        setTimeout(() => {
-            // Verifica se ainda estamos na mesma pagina (app nao foi aberto)
-            if (document.visibilityState === 'visible' && window.dadosComprovanteAtual && window.dadosComprovanteAtual.htmlComprovante) {
-                console.log('[Print] App nao detectado, usando window.print() como fallback...');
-                const win = window.open('', '_blank', 'width=400,height=700');
-                if (win) {
-                    win.document.write(window.dadosComprovanteAtual.htmlComprovante);
-                    win.document.close();
-                    win.focus();
-                    setTimeout(() => win.print(), 500);
+        if (isPulseApp || isMobile) {
+            // Deep Link para o App Flutter (printapp://)
+            const deepLink = `printapp://print?data=${encodedText}${urlLogoParam}`;
+            console.log('[Print] Ambientes moveis/app detectados. Abrindo Deep Link:', deepLink.substring(0, 60) + '...');
+            window.location.href = deepLink;
+            
+            // Fallback: se o app nao abrir em 2.5s, usa window.print() com o HTML do comprovante
+            setTimeout(() => {
+                // Verifica se ainda estamos na mesma pagina (app nao foi aberto)
+                if (document.visibilityState === 'visible') {
+                    console.log('[Print] App nao detectado no mobile, usando fallback...');
+                    abrirJanelaImpressao();
                 }
-            }
-        }, 2500);
+            }, 2500);
+        } else {
+            // No desktop, executa diretamente a impressão padrão
+            console.log('[Print] Ambiente desktop detectado, abrindo impressao direta...');
+            abrirJanelaImpressao();
+        }
         
     } catch (e) {
         console.error('[Print] Erro:', e);
         alert('Erro ao processar impressao: ' + e.message);
     }
 };
+
+// Função auxiliar para abrir a janela de impressão com o HTML nítido do comprovante
+function abrirJanelaImpressao() {
+    if (window.dadosComprovanteAtual && window.dadosComprovanteAtual.htmlComprovante) {
+        // Sem parâmetros de tamanho (width/height) para abrir em uma nova aba ao invés de janela popup
+        const win = window.open('', '_blank');
+        if (win) {
+            win.document.write(window.dadosComprovanteAtual.htmlComprovante);
+            win.document.close();
+            win.focus();
+            setTimeout(() => {
+                win.print();
+                // Fecha a aba temporária após a impressão no desktop
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                if (!isMobile) {
+                    setTimeout(() => win.close(), 500);
+                }
+            }, 500);
+        } else {
+            alert('Não foi possível abrir a janela de impressão. Verifique se os popups estão permitidos neste navegador.');
+        }
+    } else {
+        alert('Conteúdo do comprovante não disponível.');
+    }
+}
 
 window.compartilharComprovanteImagem = async function() {
     if (!window.comprovanteImagem || !window.comprovanteImagem.blob) {

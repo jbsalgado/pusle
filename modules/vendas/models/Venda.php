@@ -159,7 +159,7 @@ class Venda extends ActiveRecord
      * @return bool
      * @throws \yii\db\Exception
      */
-    public function gerarParcelas($formaPagamentoId = null, $dataPrimeiroPagamento = null, $intervaloDiasParcelas = 30, $isVendaDireta = false)
+    public function gerarParcelas($formaPagamentoId = null, $dataPrimeiroPagamento = null, $intervaloDiasParcelas = 30, $isVendaDireta = false, $pagamentosMultiplos = [])
     {
         // Valida o intervalo de dias
         $intervaloDiasParcelas = max(1, min(365, (int)$intervaloDiasParcelas));
@@ -168,6 +168,44 @@ class Venda extends ActiveRecord
 
         // Deleta parcelas existentes para esta venda
         Parcela::deleteAll(['venda_id' => $this->id]);
+
+        // Se houver pagamentos múltiplos (divisão de pagamento)
+        if (!empty($pagamentosMultiplos) && is_array($pagamentosMultiplos)) {
+            $this->numero_parcelas = count($pagamentosMultiplos);
+            // Salva o número correto de parcelas na venda sem rodar validações completas
+            $this->save(false, ['numero_parcelas']);
+
+            $i = 1;
+            foreach ($pagamentosMultiplos as $pgto) {
+                $parcela = new Parcela();
+                $parcela->venda_id = $this->id;
+                $parcela->usuario_id = $this->usuario_id;
+                $parcela->numero_parcela = $i;
+                $parcela->valor_parcela = (float)$pgto['valor'];
+                
+                // Pagamentos múltiplos no checkout vencem no dia da venda
+                $parcela->data_vencimento = date('Y-m-d');
+                
+                if ($isVendaDireta) {
+                    $parcela->status_parcela_codigo = StatusParcela::PAGA;
+                    $parcela->data_pagamento = date('Y-m-d');
+                    $parcela->valor_pago = (float)$pgto['valor'];
+                } else {
+                    $parcela->status_parcela_codigo = StatusParcela::PENDENTE;
+                }
+                
+                $parcela->forma_pagamento_id = !empty($pgto['forma_pagamento_id']) ? $pgto['forma_pagamento_id'] : null;
+                
+                if (!$parcela->save()) {
+                    Yii::error("Erro ao salvar parcela múltipla {$i} para venda {$this->id}: " . print_r($parcela->errors, true), 'Venda');
+                    throw new \yii\db\Exception("Não foi possível salvar a parcela {$i} do pagamento múltiplo.");
+                }
+                $i++;
+            }
+            
+            Yii::info("Geração de parcelas múltiplas concluída para Venda ID {$this->id}. Total: " . count($pagamentosMultiplos), 'Venda');
+            return true;
+        }
 
         if ($this->numero_parcelas <= 0) {
             $this->numero_parcelas = 1; // Garante pelo menos uma parcela
@@ -370,7 +408,7 @@ class Venda extends ActiveRecord
                     foreach ($this->parcelas as $parcela) {
                         if ($parcela->status_parcela_codigo !== StatusParcela::PAGA) {
                             // Usamos registrarPagamento para garantir a entrada no caixa via CaixaHelper
-                            if (!$parcela->registrarPagamento($parcela->valor_parcela, null, $this->forma_pagamento_id)) {
+                            if (!$parcela->registrarPagamento($parcela->valor_parcela, null, $parcela->forma_pagamento_id ?: $this->forma_pagamento_id)) {
                                 throw new \Exception("Erro ao registrar pagamento da parcela {$parcela->numero_parcela}.");
                             }
                         }
@@ -495,6 +533,17 @@ class Venda extends ActiveRecord
         $fields['parcelas'] = 'parcelas';
         $fields['statusVenda'] = 'statusVenda';
         return $fields;
+    }
+
+    public function extraFields()
+    {
+        return [
+            'itens',
+            'parcelas',
+            'cliente',
+            'vendedor',
+            'formaPagamento',
+        ];
     }
 
     public function getUsuario()

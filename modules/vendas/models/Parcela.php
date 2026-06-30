@@ -220,4 +220,16 @@ class Parcela extends ActiveRecord
         return $this->hasOne(Cliente::class, ['id' => 'cliente_id'])
             ->via('venda');
     }
+
+    public function extraFields()
+    {
+        return [
+            'venda',
+            'statusParcela',
+            'formaPagamento',
+            'cobrador',
+            'carteiraCobranca',
+            'cliente',
+        ];
+    }
 }

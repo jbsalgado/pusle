@@ -31,6 +31,7 @@ $this->params['breadcrumbs'][] = 'Editar';
                 'fornecedores' => $fornecedores,
                 'categorias' => $categorias,
                 'produtos' => $produtos,
+                'contasPagar' => $contasPagar,
             ]) ?>
         </div>
 

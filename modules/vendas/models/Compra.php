@@ -221,7 +221,7 @@ class Compra extends ActiveRecord
      * @param bool $regenerar Se true, remove contas existentes e gera novamente
      * @return array Array com as contas criadas ou erros
      */
-    public function gerarContasPagar($regenerar = false)
+    public function gerarContasPagar($regenerar = false, $parcelasManuais = [])
     {
         // Importa o model ContaPagar e TipoDespesa
         $contaPagarClass = 'app\\modules\\contas_pagar\\models\\ContaPagar';
@@ -285,6 +285,56 @@ class Compra extends ActiveRecord
             } else {
                 $tipoDespesaId = $tipoDespesa->id;
             }
+        }
+
+        // Caso tenhamos parcelas manuais especificadas
+        if (!empty($parcelasManuais) && is_array($parcelasManuais)) {
+            $numParcelas = count($parcelasManuais);
+            
+            foreach ($parcelasManuais as $i => $pData) {
+                $idx = $i + 1;
+                $conta = new $contaPagarClass();
+                $conta->usuario_id = $this->usuario_id;
+                $conta->fornecedor_id = $this->fornecedor_id;
+                $conta->compra_id = $this->id;
+
+                if ($tipoDespesaId) {
+                    $conta->tipo_despesa_id = $tipoDespesaId;
+                }
+
+                $conta->descricao = sprintf(
+                    'Compra NF %s - Parcela %d/%d - %s',
+                    $this->numero_nota_fiscal ?? 'S/N',
+                    $idx,
+                    $numParcelas,
+                    $this->fornecedor->nome_fantasia ?? 'Fornecedor'
+                );
+
+                // Converte formato BRL se necessário
+                $val = $pData['valor'];
+                if (is_string($val) && strpos($val, ',') !== false) {
+                    $val = str_replace(',', '.', str_replace('.', '', $val));
+                }
+                $conta->valor = round((float)$val, 2);
+                $conta->data_vencimento = $pData['data_vencimento'];
+                $conta->status = 'PENDENTE';
+
+                if ($this->observacoes) {
+                    $conta->observacoes = $this->observacoes;
+                }
+
+                if ($conta->save()) {
+                    $resultado['contas_criadas']++;
+                    $resultado['contas'][] = $conta;
+                } else {
+                    $resultado['success'] = false;
+                    $resultado['erros'][] = [
+                        'parcela' => $idx,
+                        'erros' => $conta->errors
+                    ];
+                }
+            }
+            return $resultado;
         }
 
         // Calcula valor líquido (total - desconto + frete)

@@ -848,27 +848,46 @@
               </p>
             </div>
 
-            <!-- Campo CPF do Consumidor Final (Opcional) -->
-            <div>
-              <label
-                for="consumidor_cpf"
-                class="block text-sm font-medium text-gray-700 mb-1"
-                >CPF do Consumidor (Opcional)</label
-              >
-              <input
-                type="text"
-                id="consumidor_cpf"
-                name="cpf_consumidor"
-                placeholder="000.000.000-00"
-                maxlength="14"
-                data-mask="cpf"
-                autocomplete="off"
-                class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
-              <p class="mt-1 text-xs text-gray-500">
-                ℹ️ Deixe em branco se não quiser registrar o CPF na nota ou no cupom da venda.
-              </p>
+            <!-- Campo CPF e WhatsApp do Consumidor (Opcional) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label
+                  for="consumidor_cpf"
+                  class="block text-sm font-medium text-gray-700 mb-1"
+                  >CPF do Consumidor (Opcional)</label
+                >
+                <input
+                  type="text"
+                  id="consumidor_cpf"
+                  name="cpf_consumidor"
+                  placeholder="000.000.000-00"
+                  maxlength="14"
+                  data-mask="cpf"
+                  autocomplete="off"
+                  class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label
+                  for="consumidor_whatsapp"
+                  class="block text-sm font-medium text-gray-700 mb-1"
+                  >WhatsApp do Consumidor (Opcional)</label
+                >
+                <input
+                  type="text"
+                  id="consumidor_whatsapp"
+                  name="whatsapp_consumidor"
+                  placeholder="(00) 00000-0000"
+                  maxlength="15"
+                  data-mask="phone"
+                  autocomplete="off"
+                  class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
             </div>
+            <p class="mt-1 text-xs text-gray-500">
+              ℹ️ Deixe em branco se não quiser registrar o CPF ou associar o WhatsApp. Se ambos forem informados e válidos, o cliente será cadastrado automaticamente.
+            </p>
 
             <div>
               <label
@@ -924,7 +943,7 @@
               ></textarea>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div id="container-pagamento-unico" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label
                   for="numero-parcelas"
@@ -955,6 +974,46 @@
                 >
                   <option value="">Carregando...</option>
                 </select>
+              </div>
+            </div>
+
+            <!-- Divisão de Pagamento (Múltiplas Formas) -->
+            <div class="pt-2">
+              <label class="flex items-center gap-2 cursor-pointer p-2 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
+                <input type="checkbox" id="usar-multiplos-pagamentos" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500">
+                <div class="flex flex-col">
+                  <span class="text-sm font-bold text-gray-800">Dividir pagamento (Múltiplas Formas)</span>
+                  <span class="text-xs text-gray-500">Pagar utilizando mais de uma forma de pagamento</span>
+                </div>
+              </label>
+            </div>
+
+            <div id="container-multiplos-pagamentos" class="hidden space-y-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              <h3 class="text-sm font-bold text-gray-800">Formas de Pagamento Selecionadas</h3>
+              <div id="lista-pagamentos-multiplos" class="space-y-2">
+                <!-- Linhas de pagamento serão inseridas dinamicamente via JS -->
+              </div>
+              <button
+                type="button"
+                id="btn-adicionar-forma-pagamento"
+                class="w-full py-2 border border-dashed border-blue-500 text-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-50 hover:text-blue-700 transition-colors flex items-center justify-center gap-1"
+              >
+                ➕ Adicionar Forma de Pagamento
+              </button>
+              
+              <div class="pt-2 border-t flex flex-col gap-1 text-sm">
+                <div class="flex justify-between text-gray-600">
+                  <span>Total da Venda:</span>
+                  <strong id="multiplo-total-venda">R$ 0,00</strong>
+                </div>
+                <div class="flex justify-between text-gray-600">
+                  <span>Total Informado:</span>
+                  <strong id="multiplo-total-informado" class="text-blue-600">R$ 0,00</strong>
+                </div>
+                <div class="flex justify-between text-lg font-bold border-t pt-1" id="box-multiplo-restante">
+                  <span id="label-multiplo-restante">Restante:</span>
+                  <span id="valor-multiplo-restante" class="text-red-600">R$ 0,00</span>
+                </div>
               </div>
             </div>
 

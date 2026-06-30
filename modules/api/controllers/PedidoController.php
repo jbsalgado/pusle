@@ -131,6 +131,14 @@ class PedidoController extends BaseController
             throw new BadRequestHttpException('Dados em formato inesperado.');
         }
 
+        // Se houver pagamentos múltiplos, preenche forma_pagamento_id para passar nas validações
+        $pagamentosMultiplos = isset($data['pagamentos_multiplos']) ? $data['pagamentos_multiplos'] : [];
+        if (!empty($pagamentosMultiplos) && is_array($pagamentosMultiplos)) {
+            if (empty($data['forma_pagamento_id'])) {
+                $data['forma_pagamento_id'] = $pagamentosMultiplos[0]['forma_pagamento_id'] ?? null;
+            }
+        }
+
         Yii::error('Dados Decodificados ($data Pedido): ' . print_r($data, true), 'api');
 
         // Validação inicial
@@ -195,7 +203,7 @@ class PedidoController extends BaseController
         }
 
         // === VALIDAÇÃO: DINHEIRO e PIX não permitem parcelamento ===
-        if ($numeroParcelas > 1 && $formaPagamentoId) {
+        if (empty($pagamentosMultiplos) && $numeroParcelas > 1 && $formaPagamentoId) {
             $formaPagamento = \app\modules\vendas\models\FormaPagamento::findOne($formaPagamentoId);
             if ($formaPagamento) {
                 $tipo = $formaPagamento->tipo;
@@ -207,7 +215,7 @@ class PedidoController extends BaseController
 
         // === NOVA VALIDAÇÃO: Data do primeiro pagamento ===
         $dataPrimeiroPagamento = null;
-        if ($numeroParcelas > 1) {
+        if (empty($pagamentosMultiplos) && $numeroParcelas > 1) {
             if (empty($data['data_primeiro_pagamento'])) {
                 throw new BadRequestHttpException('Data do primeiro pagamento é obrigatória para vendas parceladas.');
             }
@@ -363,6 +371,21 @@ class PedidoController extends BaseController
             $valorTotalVenda += $acrescimoValor;
             Yii::info("Adicionando acréscimo: R$ {$acrescimoValor}. Novo Total: R$ {$valorTotalVenda}", 'api');
 
+            // Valida soma de pagamentos múltiplos contra o total calculado
+            if (!empty($pagamentosMultiplos)) {
+                $somaPagamentos = 0.0;
+                foreach ($pagamentosMultiplos as $pgto) {
+                    if (empty($pgto['forma_pagamento_id']) || !isset($pgto['valor'])) {
+                        throw new Exception("Dados incompletos em pagamentos_multiplos.");
+                    }
+                    $somaPagamentos += (float)$pgto['valor'];
+                }
+                
+                if (round($somaPagamentos, 2) !== round($valorTotalVenda, 2)) {
+                    throw new Exception("A soma das formas de pagamento (R$ " . number_format($somaPagamentos, 2, ',', '.') . ") não corresponde ao total da venda (R$ " . number_format($valorTotalVenda, 2, ',', '.') . ").");
+                }
+            }
+
             // ===== CRIAR E SALVAR VENDA =====
             // ✅ NOVO FLUXO: Vendas diretas são criadas com status EM_ABERTO
             // Processamento (estoque, caixa, etc) só acontece após confirmação de recebimento
@@ -493,7 +516,8 @@ class PedidoController extends BaseController
                     $formaPagamentoId,
                     $isVendaDireta ? date('Y-m-d') : $dataPrimeiroPagamento,
                     $intervaloDiasParcelas,
-                    false // ✅ NÃO marca como paga - será feito na confirmação
+                    false, // ✅ NÃO marca como paga - será feito na confirmação
+                    $pagamentosMultiplos
                 );
                 Yii::error("Parcelas geradas para Venda ID {$venda->id} (não marcadas como pagas)", 'api');
             } else {
@@ -558,8 +582,10 @@ class PedidoController extends BaseController
 
             Yii::$app->response->statusCode = 201;
             $venda->refresh();
+            unset($venda->parcelas);
+            unset($venda->itens);
 
-            return $this->success($venda->toArray([], ['itens.produto', 'parcelas', 'cliente', 'vendedor']), 'Pedido criado com sucesso');
+            return $this->success($venda->toArray([], ['itens.produto', 'parcelas.formaPagamento', 'cliente', 'vendedor']), 'Pedido criado com sucesso');
         } catch (BadRequestHttpException $e) {
             $transaction->rollBack();
             Yii::error("Rollback: BadRequest - " . $e->getMessage(), 'api');
@@ -688,16 +714,21 @@ class PedidoController extends BaseController
 
             // Recarrega venda com relacionamentos
             $venda->refresh();
+            unset($venda->parcelas);
+            unset($venda->itens);
+            unset($venda->cliente);
+
             $venda->populateRelation('itens', $venda->itens);
             $venda->populateRelation('cliente', $venda->cliente);
             $venda->populateRelation('parcelas', $venda->parcelas);
 
             foreach ($venda->itens as $item) {
+                unset($item->produto);
                 $item->populateRelation('produto', $item->produto);
             }
 
             Yii::$app->response->statusCode = 200;
-            return $this->success($venda->toArray([], ['itens.produto', 'parcelas', 'cliente', 'vendedor', 'formaPagamento']), 'Recebimento confirmado');
+            return $this->success($venda->toArray([], ['itens.produto', 'parcelas.formaPagamento', 'cliente', 'vendedor', 'formaPagamento']), 'Recebimento confirmado');
         } catch (\Exception $e) {
             Yii::error('Erro ao confirmar recebimento: ' . $e->getMessage(), 'api');
             throw new ServerErrorHttpException('Erro ao confirmar recebimento: ' . $e->getMessage());

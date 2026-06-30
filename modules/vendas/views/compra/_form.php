@@ -95,6 +95,81 @@ use app\modules\vendas\models\ItemCompra;
         </div>
     </div>
 
+    <!-- Financeiro / Parcelamento -->
+    <div class="border-b border-gray-200 pb-6 mt-6">
+        <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Financeiro / Parcelamento
+        </h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Parcelamento</label>
+                <select id="tipo-parcelamento" class="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="vista">À Vista (1 Parcela)</option>
+                    <option value="auto">Parcelamento Automático (Intervalo Fixo)</option>
+                    <option value="manual">Parcelamento Manual (Informar Vencimentos e Valores)</option>
+                </select>
+            </div>
+
+            <div id="col-num-parcelas" class="hidden">
+                <?= $form->field($model, 'num_parcelas')->textInput([
+                    'type' => 'number',
+                    'min' => 1,
+                    'max' => 120,
+                    'id' => 'input-num-parcelas',
+                    'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'
+                ]) ?>
+            </div>
+
+            <div id="col-intervalo-parcelas" class="hidden">
+                <?= $form->field($model, 'intervalo_parcelas')->textInput([
+                    'type' => 'number',
+                    'min' => 1,
+                    'max' => 365,
+                    'id' => 'input-intervalo-parcelas',
+                    'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'
+                ]) ?>
+            </div>
+        </div>
+
+        <!-- Bloco de Parcelas Manuais -->
+        <div id="container-parcelas-manuais" class="hidden mt-6 space-y-4">
+            <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg border">
+                <span class="text-sm font-semibold text-gray-800">Datas de Vencimento e Valores das Parcelas</span>
+                <button type="button" id="btn-adicionar-parcela-manual" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition duration-200 flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Adicionar Parcela
+                </button>
+            </div>
+
+            <div id="lista-parcelas-manuais" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Parcelas injetadas dinamicamente -->
+            </div>
+
+            <div class="flex justify-end pt-4">
+                <div class="p-4 bg-gray-50 border rounded-lg text-sm flex flex-col gap-2 w-full sm:w-80 shadow-inner">
+                    <div class="flex justify-between text-gray-600">
+                        <span>Total Líquido da Compra:</span>
+                        <strong id="manual-total-liquido">R$ 0,00</strong>
+                    </div>
+                    <div class="flex justify-between text-gray-600">
+                        <span>Total das Parcelas:</span>
+                        <strong id="manual-total-parcelas" class="text-blue-600">R$ 0,00</strong>
+                    </div>
+                    <div class="flex justify-between border-t pt-2 font-bold text-gray-900" id="box-manual-restante">
+                        <span id="label-manual-restante">Diferença a Parcelar:</span>
+                        <span id="valor-manual-restante" class="text-red-600">R$ 0,00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Itens da Compra -->
     <div class="border-b border-gray-200 pb-6">
         <div class="flex justify-between items-center mb-4">
@@ -160,6 +235,15 @@ use app\modules\vendas\models\ItemCompra;
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let itemIndex = <?= count($itens) ?>;
+        const isNewRecord = <?= $model->isNewRecord ? 'true' : 'false' ?>;
+        const contasPagarExistentes = <?= json_encode(array_map(function ($c) {
+            return [
+                'valor' => $c->valor,
+                'data_vencimento' => $c->data_vencimento
+            ];
+        }, $contasPagar)) ?>;
+        let parcelaIndex = 0;
+
         const categorias = <?= json_encode($categorias) ?>;
         const produtos = <?= json_encode(array_map(function ($p) {
                                 return [
@@ -171,6 +255,169 @@ use app\modules\vendas\models\ItemCompra;
                                     'marca' => $p->marca
                                 ];
                             }, $produtos)) ?>;
+
+        // Funções para Parcelas Manuais
+        function obterTotalLiquido() {
+            let total = 0;
+            document.querySelectorAll('.item-subtotal').forEach(function(el) {
+                const text = el.textContent.replace('R$ ', '').replace('R$', '').trim();
+                total += unmaskCurrency(text);
+            });
+            const frete = unmaskCurrency(document.getElementById('input-frete').value);
+            total += frete;
+            const desconto = unmaskCurrency(document.getElementById('input-desconto').value);
+            total -= desconto;
+            return total < 0 ? 0 : total;
+        }
+
+        function recalcularResumoManual() {
+            const totalLiquido = obterTotalLiquido();
+            let totalParcelas = 0;
+            document.querySelectorAll('.parcela-valor').forEach(function(input) {
+                totalParcelas += unmaskCurrency(input.value);
+            });
+
+            document.getElementById('manual-total-liquido').textContent = 'R$ ' + new Intl.NumberFormat('pt-BR', {
+                minimumFractionDigits: 2
+            }).format(totalLiquido);
+
+            document.getElementById('manual-total-parcelas').textContent = 'R$ ' + new Intl.NumberFormat('pt-BR', {
+                minimumFractionDigits: 2
+            }).format(totalParcelas);
+
+            const diferenca = totalLiquido - totalParcelas;
+            const valorRestanteEl = document.getElementById('valor-manual-restante');
+            const labelRestanteEl = document.getElementById('label-manual-restante');
+
+            if (valorRestanteEl) {
+                valorRestanteEl.classList.remove('text-red-600', 'text-green-600');
+
+                if (Math.abs(diferenca) < 0.01) {
+                    labelRestanteEl.textContent = 'Diferença:';
+                    valorRestanteEl.textContent = 'R$ 0,00 (Valores Batem!)';
+                    valorRestanteEl.classList.add('text-green-600');
+                } else if (diferenca < 0) {
+                    labelRestanteEl.textContent = 'Excedente:';
+                    valorRestanteEl.textContent = 'R$ ' + new Intl.NumberFormat('pt-BR', {
+                        minimumFractionDigits: 2
+                    }).format(Math.abs(diferenca));
+                    valorRestanteEl.classList.add('text-red-600');
+                } else {
+                    labelRestanteEl.textContent = 'Restante a Parcelar:';
+                    valorRestanteEl.textContent = 'R$ ' + new Intl.NumberFormat('pt-BR', {
+                        minimumFractionDigits: 2
+                    }).format(diferenca);
+                    valorRestanteEl.classList.add('text-red-600');
+                }
+            }
+        }
+
+        function adicionarParcelaManual(vencimento = '', valor = '') {
+            const container = document.getElementById('lista-parcelas-manuais');
+            if (!container) return;
+            
+            // Se vencimento não for informado, sugere data baseado na parcela anterior
+            if (!vencimento) {
+                const datasExistentes = Array.from(document.querySelectorAll('.parcela-data')).map(el => el.value);
+                if (datasExistentes.length > 0) {
+                    const ultimaData = new Date(datasExistentes[datasExistentes.length - 1] + 'T12:00:00');
+                    ultimaData.setDate(ultimaData.getDate() + 30);
+                    vencimento = ultimaData.toISOString().split('T')[0];
+                } else {
+                    // Primeira parcela
+                    const dataCompraInput = document.getElementById('compra-data_compra') || document.querySelector('[name="Compra[data_compra]"]');
+                    const dataCompraStr = (dataCompraInput && dataCompraInput.value) ? dataCompraInput.value : new Date().toISOString().split('T')[0];
+                    const dataCompra = new Date(dataCompraStr + 'T12:00:00');
+                    dataCompra.setDate(dataCompra.getDate() + 30);
+                    vencimento = dataCompra.toISOString().split('T')[0];
+                }
+            }
+
+            // Se valor não for informado, sugere a diferença restante
+            if (!valor) {
+                const totalLiquido = obterTotalLiquido();
+                let totalParcelas = 0;
+                document.querySelectorAll('.parcela-valor').forEach(function(input) {
+                    totalParcelas += unmaskCurrency(input.value);
+                });
+                const restante = totalLiquido - totalParcelas;
+                if (restante > 0) {
+                    valor = new Intl.NumberFormat('pt-BR', {
+                        minimumFractionDigits: 2
+                    }).format(restante);
+                }
+            }
+
+            const html = `
+                <div class="parcela-manual-row border p-4 rounded-lg bg-gray-50 relative flex gap-3 items-end" data-index="${parcelaIndex}">
+                    <div class="flex-1">
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Vencimento da Parcela *</label>
+                        <input type="date" name="ParcelasManuais[${parcelaIndex}][data_vencimento]" class="parcela-data w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 text-sm" value="${vencimento}" required>
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Valor da Parcela (R$) *</label>
+                        <input type="text" name="ParcelasManuais[${parcelaIndex}][valor]" class="parcela-valor currency-input w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-blue-500 text-sm" value="${valor}" placeholder="0,00" required>
+                    </div>
+                    <button type="button" class="btn-remover-parcela-manual p-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition" title="Remover Parcela">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                </div>
+            `;
+
+            container.insertAdjacentHTML('beforeend', html);
+            const newRow = container.lastElementChild;
+            newRow.querySelector('.parcela-valor').addEventListener('input', maskCurrency);
+            newRow.querySelector('.parcela-valor').addEventListener('input', recalcularResumoManual);
+            newRow.querySelector('.parcela-data').addEventListener('change', recalcularResumoManual);
+            
+            newRow.querySelector('.btn-remover-parcela-manual').addEventListener('click', function() {
+                newRow.remove();
+                recalcularResumoManual();
+            });
+
+            parcelaIndex++;
+            recalcularResumoManual();
+        }
+
+        // Evento de alteração de Tipo de Parcelamento
+        const selectTipoParcelamento = document.getElementById('tipo-parcelamento');
+        const colNumParcelas = document.getElementById('col-num-parcelas');
+        const colIntervaloParcelas = document.getElementById('col-intervalo-parcelas');
+        const containerParcelasManuais = document.getElementById('container-parcelas-manuais');
+
+        if (selectTipoParcelamento) {
+            selectTipoParcelamento.addEventListener('change', function() {
+                const val = this.value;
+                if (val === 'vista') {
+                    colNumParcelas.classList.add('hidden');
+                    colIntervaloParcelas.classList.add('hidden');
+                    containerParcelasManuais.classList.add('hidden');
+                    document.getElementById('input-num-parcelas').value = 1;
+                } else if (val === 'auto') {
+                    colNumParcelas.classList.remove('hidden');
+                    colIntervaloParcelas.classList.remove('hidden');
+                    containerParcelasManuais.classList.add('hidden');
+                } else if (val === 'manual') {
+                    colNumParcelas.classList.add('hidden');
+                    colIntervaloParcelas.classList.add('hidden');
+                    containerParcelasManuais.classList.remove('hidden');
+                    
+                    // Se a lista de parcelas estiver vazia, adiciona a primeira automaticamente
+                    if (document.querySelectorAll('.parcela-manual-row').length === 0) {
+                        adicionarParcelaManual();
+                    }
+                }
+            });
+        }
+
+        const btnAddParcelaManual = document.getElementById('btn-adicionar-parcela-manual');
+        if (btnAddParcelaManual) {
+            btnAddParcelaManual.addEventListener('click', function() {
+                adicionarParcelaManual();
+            });
+        }
 
         // Função de Máscara de Moeda (Right-to-Left)
         function maskCurrency(event) {
@@ -499,6 +746,9 @@ use app\modules\vendas\models\ItemCompra;
             document.getElementById('total-compra').textContent = 'R$ ' + new Intl.NumberFormat('pt-BR', {
                 minimumFractionDigits: 2
             }).format(total);
+
+            // Atualiza resumo do parcelamento manual se estiver visível
+            recalcularResumoManual();
         }
 
         // Processamento seguro do formulário via Yii2
@@ -519,6 +769,34 @@ use app\modules\vendas\models\ItemCompra;
             Processando...
         `;
 
+            // Se for parcelamento manual, valida se os valores batem
+            const tipo = document.getElementById('tipo-parcelamento').value;
+            if (tipo === 'manual') {
+                const totalLiquido = obterTotalLiquido();
+                let totalParcelas = 0;
+                document.querySelectorAll('.parcela-valor').forEach(function(input) {
+                    totalParcelas += unmaskCurrency(input.value);
+                });
+
+                if (document.querySelectorAll('.parcela-manual-row').length === 0) {
+                    alert('Por favor, adicione pelo menos uma parcela para o parcelamento manual.');
+                    btnSubmit.disabled = false;
+                    btnSubmit.classList.add('bg-green-600', 'hover:bg-green-700');
+                    btnSubmit.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                    btnSubmit.innerHTML = `<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>` + (isNewRecord ? 'Cadastrar' : 'Atualizar');
+                    return false;
+                }
+
+                if (Math.abs(totalLiquido - totalParcelas) >= 0.01) {
+                    alert('A soma das parcelas (R$ ' + new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(totalParcelas) + ') não corresponde ao total líquido da compra (R$ ' + new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(totalLiquido) + '). Ajuste os valores antes de salvar.');
+                    btnSubmit.disabled = false;
+                    btnSubmit.classList.add('bg-green-600', 'hover:bg-green-700');
+                    btnSubmit.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                    btnSubmit.innerHTML = `<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>` + (isNewRecord ? 'Cadastrar' : 'Atualizar');
+                    return false;
+                }
+            }
+
             // Desmascara valores de moeda antes do envio final
             document.querySelectorAll('.currency-input').forEach(input => {
                 input.value = unmaskCurrency(input.value);
@@ -526,6 +804,33 @@ use app\modules\vendas\models\ItemCompra;
 
             return true; // Continua com o submit final
         });
+
+        // Inicialização de parcelas existentes se houver
+        if (contasPagarExistentes && contasPagarExistentes.length > 1) {
+            selectTipoParcelamento.value = 'manual';
+            selectTipoParcelamento.dispatchEvent(new Event('change'));
+            // Limpa qualquer linha adicionada por padrão
+            document.getElementById('lista-parcelas-manuais').innerHTML = '';
+            
+            contasPagarExistentes.forEach(c => {
+                // Formata o valor com vírgula para centavos
+                const valorFormatado = new Intl.NumberFormat('pt-BR', {
+                    minimumFractionDigits: 2
+                }).format(c.valor);
+                adicionarParcelaManual(c.data_vencimento, valorFormatado);
+            });
+            recalcularResumoManual();
+        } else if (contasPagarExistentes && contasPagarExistentes.length === 1) {
+            // Se for apenas uma parcela, podemos manter "À Vista"
+            selectTipoParcelamento.value = 'vista';
+            selectTipoParcelamento.dispatchEvent(new Event('change'));
+        } else {
+            // Nova compra sem contas existentes, inicializa como "À Vista"
+            if (selectTipoParcelamento) {
+                selectTipoParcelamento.value = 'vista';
+                selectTipoParcelamento.dispatchEvent(new Event('change'));
+            }
+        }
 
         // Anexa listeners aos itens existentes e força cálculo inicial
         try {

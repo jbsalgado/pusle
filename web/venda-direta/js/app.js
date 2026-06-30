@@ -1777,39 +1777,155 @@ window.buscarVendedor = async function() {
 // 🔥 FUNÇÃO PRINCIPAL DE VENDA COM PIX ESTÁTICO INTEGRADO 🔥
 // 🔥 FUNÇÃO PRINCIPAL DE VENDA COM PIX ESTÁTICO INTEGRADO 🔥
 window.confirmarPedido = async function() {
-    
-    const formaPagamentoId = document.getElementById('forma-pagamento')?.value;
-    if (!formaPagamentoId) { alert('Selecione uma forma de pagamento.'); return; }
-    
     const btnConfirmar = document.getElementById('btn-confirmar-pedido');
     btnConfirmar.disabled = true;
     btnConfirmar.textContent = 'Processando...';
     
     try {
+        const usarMultiplos = document.getElementById('usar-multiplos-pagamentos')?.checked || false;
+        let formaPagamentoId = null;
+        let pagamentosMultiplosArray = [];
+        
+        if (usarMultiplos) {
+            // Coleta pagamentos múltiplos
+            const rows = document.querySelectorAll('#lista-pagamentos-multiplos > div');
+            let soma = 0;
+            
+            for (const row of rows) {
+                const selectForma = row.querySelector('.select-forma-pagamento');
+                const inputValor = row.querySelector('.input-valor-pagamento');
+                
+                const fId = selectForma?.value;
+                const val = parseFloat(inputValor?.value || 0);
+                
+                if (!fId) {
+                    alert('Selecione a forma de pagamento para todas as linhas adicionadas.');
+                    return;
+                }
+                if (val <= 0) {
+                    alert('O valor de cada forma de pagamento deve ser maior que zero.');
+                    return;
+                }
+                
+                pagamentosMultiplosArray.push({
+                    forma_pagamento_id: fId,
+                    valor: val
+                });
+                soma += val;
+            }
+            
+            if (pagamentosMultiplosArray.length === 0) {
+                alert('Adicione pelo menos uma forma de pagamento.');
+                return;
+            }
+            
+            const totalVenda = parseFloat(calcularTotalCarrinho() || 0);
+            if (Math.abs(soma - totalVenda) >= 0.01) {
+                alert('A soma das formas de pagamento não bate com o total da venda.');
+                return;
+            }
+            
+            // Define a formaPagamentoId "principal" como a primeira da lista
+            formaPagamentoId = pagamentosMultiplosArray[0].forma_pagamento_id;
+        } else {
+            formaPagamentoId = document.getElementById('forma-pagamento')?.value;
+            if (!formaPagamentoId) { alert('Selecione uma forma de pagamento.'); return; }
+        }
+
         // Verifica se a forma de pagamento permite parcelamento antes de pegar o valor
         const formaPagamentoSelecionada = formasPagamento.find(fp => fp.id === formaPagamentoId);
         const tipoFormaPagamento = formaPagamentoSelecionada?.tipo || '';
-        const permiteParcelamento = tipoFormaPagamento !== 'DINHEIRO' && tipoFormaPagamento !== 'PIX' && tipoFormaPagamento !== 'PIX_ESTATICO';
+        const permiteParcelamento = !usarMultiplos && tipoFormaPagamento !== 'DINHEIRO' && tipoFormaPagamento !== 'PIX' && tipoFormaPagamento !== 'PIX_ESTATICO';
         
         // Se não permite parcelamento, força para 1 parcela
         const selectParcelas = document.getElementById('numero-parcelas');
-        let numeroParcelas = parseInt(selectParcelas?.value || 1, 10);
-        if (!permiteParcelamento && numeroParcelas > 1) {
-            numeroParcelas = 1;
-            if (selectParcelas) {
-                selectParcelas.value = '1';
+        let numeroParcelas = 1;
+        if (usarMultiplos) {
+            numeroParcelas = pagamentosMultiplosArray.length;
+        } else {
+            numeroParcelas = parseInt(selectParcelas?.value || 1, 10);
+            if (!permiteParcelamento && numeroParcelas > 1) {
+                numeroParcelas = 1;
+                if (selectParcelas) {
+                    selectParcelas.value = '1';
+                }
             }
         }
         
-        // Para vendas parceladas, cliente é obrigatório
+        // Fluxo de auto-registro do cliente se CPF e WhatsApp do consumidor forem preenchidos
+        const consumidorCpfInput = document.getElementById('consumidor_cpf')?.value || '';
+        const consumidorWhatsappInput = document.getElementById('consumidor_whatsapp')?.value || '';
+        
+        const cpfLimpo = consumidorCpfInput.replace(/\D/g, '');
+        const whatsappLimpo = consumidorWhatsappInput.replace(/\D/g, '');
+        
         let clienteId = null;
-        if (numeroParcelas > 1) {
-            clienteId = clienteAtual?.id || document.getElementById('cliente_id')?.value || null;
-            if (!clienteId) {
-                alert('Para vendas parceladas, é necessário buscar e cadastrar o cliente.');
-                document.getElementById('campo-cliente-parcelado').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        if (cpfLimpo && whatsappLimpo) {
+            const { validarCPF, formatarCPF } = await import('./utils.js');
+            if (!validarCPF(cpfLimpo)) {
+                alert('O CPF do consumidor informado é inválido.');
                 return;
             }
+            if (whatsappLimpo.length < 10) {
+                alert('O WhatsApp do consumidor informado é inválido. Digite com o DDD.');
+                return;
+            }
+            
+            try {
+                btnConfirmar.textContent = 'Verificando cliente...';
+                const { buscarClientePorCpf, cadastrarCliente } = await import('./customer.js');
+                const busca = await buscarClientePorCpf(cpfLimpo, CONFIG.ID_USUARIO_LOJA);
+                
+                if (busca.existe && busca.cliente) {
+                    console.log('[App] Cliente com CPF já existe. Associando ao pedido:', busca.cliente);
+                    clienteAtual = busca.cliente;
+                    clienteId = busca.cliente.id;
+                    
+                    const inputClienteId = document.getElementById('cliente_id');
+                    if (inputClienteId) inputClienteId.value = clienteId;
+                } else {
+                    console.log('[App] Cadastrando novo cliente automaticamente...');
+                    btnConfirmar.textContent = 'Cadastrando cliente...';
+                    
+                    const dadosNovoCliente = {
+                        nome_completo: `Consumidor ${formatarCPF(cpfLimpo)}`,
+                        cpf: cpfLimpo,
+                        telefone: whatsappLimpo,
+                        senha: '123456', // Padrão mínimo exigido de 4 caracteres
+                        endereco_logradouro: 'Não Informado',
+                        endereco_numero: 'S/N',
+                        endereco_bairro: 'Não Informado',
+                        endereco_cidade: 'Não Informado',
+                        endereco_estado: 'SP',
+                        endereco_cep: '00000000' // Atende ao padrão de 8 dígitos numéricos
+                    };
+                    
+                    const novoCliente = await cadastrarCliente(dadosNovoCliente);
+                    console.log('[App] Cliente cadastrado automaticamente com sucesso:', novoCliente);
+                    clienteAtual = novoCliente;
+                    clienteId = novoCliente.id;
+                    
+                    const inputClienteId = document.getElementById('cliente_id');
+                    if (inputClienteId) inputClienteId.value = clienteId;
+                }
+            } catch (error) {
+                console.error('[App] Erro no fluxo de auto-registro de cliente:', error);
+                alert('Erro ao processar cadastro do cliente: ' + error.message);
+                return;
+            }
+        }
+        
+        // Se não foi auto-registrado, tenta recuperar o cliente selecionado manualmente
+        if (!clienteId) {
+            clienteId = clienteAtual?.id || document.getElementById('cliente_id')?.value || null;
+        }
+        
+        // Para vendas parceladas, cliente é obrigatório
+        if (numeroParcelas > 1 && !usarMultiplos && !clienteId) {
+            alert('Para vendas parceladas, é necessário buscar e cadastrar o cliente.');
+            document.getElementById('campo-cliente-parcelado').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
         }
         
         const dadosPedido = {
@@ -1821,6 +1937,9 @@ window.confirmarPedido = async function() {
             data_primeiro_pagamento: permiteParcelamento && numeroParcelas > 1 ? document.getElementById('data-primeiro-pagamento')?.value || null : null,
             intervalo_dias_parcelas: permiteParcelamento && numeroParcelas > 1 ? parseInt(document.getElementById('intervalo-dias')?.value || 30, 10) : null,
             orcamento_id: orcamentoIdAtual, // ✅ NOVO: Vincula venda ao orçamento
+            is_venda_direta: true, // Garante que o backend saiba que é venda direta
+            confirmar_imediato: usarMultiplos ? true : undefined,
+            pagamentos_multiplos: usarMultiplos ? pagamentosMultiplosArray : undefined,
             // CPF do consumidor final (opcional) — enviado sem pontuação (só dígitos) para o backend formatar
             cpf_consumidor: (() => {
                 const val = document.getElementById('consumidor_cpf')?.value || '';
@@ -1869,6 +1988,61 @@ window.confirmarPedido = async function() {
                 alert('Erro: ID da venda não encontrado. Verifique o console para mais detalhes.');
                 btnConfirmar.disabled = false;
                 btnConfirmar.textContent = '✅ Confirmar Venda';
+                return;
+            }
+
+            // Se for pagamento múltiplo, já foi confirmado no backend (via confirmar_imediato: true)
+            if (usarMultiplos) {
+                console.log('[App] ✅ Venda com múltiplos pagamentos finalizada e confirmada!');
+                
+                // Verifica se há pagamento via PIX/PIX_ESTATICO na divisão
+                const pixPayment = pagamentosMultiplosArray.find(p => {
+                    const fp = formasPagamento.find(f => f.id == p.forma_pagamento_id);
+                    return fp && (fp.tipo === 'PIX' || fp.tipo === 'PIX_ESTATICO');
+                });
+                
+                if (pixPayment) {
+                    console.log('[App] 🟢 Pagamento PIX detectado na divisão. Mostrando modal PIX...');
+                    const valorPix = parseFloat(pixPayment.valor);
+                    
+                    // Gera TxID limpo
+                    const now = new Date();
+                    const dia = String(now.getDate()).padStart(2, '0');
+                    const mes = String(now.getMonth() + 1).padStart(2, '0');
+                    const ano = now.getFullYear();
+                    const hora = String(now.getHours()).padStart(2, '0');
+                    const min = String(now.getMinutes()).padStart(2, '0');
+                    const txId = `VendaDireta${dia}${mes}${ano}${hora}${min}`;
+                    
+                    const dadosPedidoCompleto = {
+                        ...dadosPedido,
+                        venda_id: vendaId,
+                        venda_dados_completos: resultado.dados?.data || resultado.dados,
+                        emitir_fiscal: document.getElementById('emitir-fiscal')?.checked || false,
+                        itens: carrinho,
+                        valorTotal: calcularTotalCarrinho()
+                    };
+                    
+                    await window.mostrarModalPixEstatico(valorPix, txId, dadosPedidoCompleto, CONFIG.ID_USUARIO_LOJA);
+                    fecharModal('modal-cliente-pedido');
+                    
+                    // Restaura botão
+                    btnConfirmar.disabled = false;
+                    btnConfirmar.textContent = '✅ Confirmar Venda';
+                    return;
+                }
+                
+                // Sem PIX: Finaliza diretamente
+                sessionStorage.setItem('venda_confirmada_comprovante', JSON.stringify({
+                    venda: resultado.dados?.data || resultado.dados,
+                    dadosPedido: dadosPedido,
+                    carrinho: carrinho,
+                    formaPagamento: 'Múltiplas Formas'
+                }));
+                
+                await limparCarrinho();
+                fecharModal('modal-cliente-pedido');
+                window.location.reload();
                 return;
             }
 
@@ -1994,7 +2168,7 @@ window.confirmarPedido = async function() {
                 
                 // Salva dados da venda no sessionStorage para exibir comprovante após reload
                 sessionStorage.setItem('venda_confirmada_comprovante', JSON.stringify({
-                    venda: vendaConfirmada,
+                    venda: vendaConfirmada?.data || vendaConfirmada,
                     dadosPedido: dadosPedido,
                     carrinho: carrinho,
                     formaPagamento: formaPagamentoSelecionada?.nome || 'Não informado'
@@ -2215,6 +2389,50 @@ function inicializarEventListeners() {
             console.error('[App] Erro ao processar confirmação automática:', error);
         }
     });
+
+    // Listeners de múltiplas formas de pagamento
+    const usarMultiplos = document.getElementById('usar-multiplos-pagamentos');
+    const containerMultiplos = document.getElementById('container-multiplos-pagamentos');
+    const containerUnico = document.getElementById('container-pagamento-unico');
+    
+    if (usarMultiplos) {
+        usarMultiplos.addEventListener('change', function() {
+            if (this.checked) {
+                containerMultiplos?.classList.remove('hidden');
+                containerUnico?.classList.add('hidden');
+                document.getElementById('campo-data-primeiro-pagamento')?.classList.add('hidden');
+                document.getElementById('campo-intervalo-parcelas')?.classList.add('hidden');
+                document.getElementById('campo-cliente-parcelado')?.classList.add('hidden');
+                
+                const lista = document.getElementById('lista-pagamentos-multiplos');
+                if (lista) {
+                    lista.innerHTML = '';
+                    window.adicionarLinhaPagamentoMultiplo();
+                }
+            } else {
+                containerMultiplos?.classList.add('hidden');
+                containerUnico?.classList.remove('hidden');
+                
+                const selectParcelas = document.getElementById('numero-parcelas');
+                if (selectParcelas && parseInt(selectParcelas.value, 10) > 1) {
+                    document.getElementById('campo-data-primeiro-pagamento')?.classList.remove('hidden');
+                    document.getElementById('campo-intervalo-parcelas')?.classList.remove('hidden');
+                    document.getElementById('campo-cliente-parcelado')?.classList.remove('hidden');
+                }
+                
+                // Re-habilita botão de confirmação caso estivesse travado
+                const btnConfirmar = document.getElementById('btn-confirmar-pedido');
+                if (btnConfirmar) btnConfirmar.disabled = false;
+            }
+        });
+    }
+    
+    const btnAddForma = document.getElementById('btn-adicionar-forma-pagamento');
+    if (btnAddForma) {
+        btnAddForma.addEventListener('click', function() {
+            window.adicionarLinhaPagamentoMultiplo();
+        });
+    }
 }
 
 // ==========================================================================
@@ -2517,7 +2735,7 @@ window.confirmarRecebimentoDinheiro = async function() {
         }
 
         const responseJson = await response.json();
-        const vendaConfirmada = responseJson.data || responseJson;
+        const vendaConfirmada = responseJson.dados || responseJson.data || responseJson;
         console.log('[Dinheiro] ✅ Recebimento confirmado com sucesso!', vendaConfirmada);
         
         // Recupera carrinho
@@ -2936,6 +3154,112 @@ window.adicionarVariacaoDireto = async function(idVariacao, idMestre) {
         alert('Erro ao adicionar variação: ' + error.message);
     } finally {
         ocultarCarregando();
+    }
+};
+
+// ==========================================================================
+// ✅ AUXILIARES DE DIVISÃO DE PAGAMENTO (MÚLTIPLAS FORMAS)
+// ==========================================================================
+window.adicionarLinhaPagamentoMultiplo = function() {
+    const lista = document.getElementById('lista-pagamentos-multiplos');
+    if (!lista) return;
+    
+    const index = lista.children.length;
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-2 bg-white p-2 rounded-md border border-gray-200';
+    row.setAttribute('data-index', index);
+    
+    // Constrói options de formas de pagamento
+    let optionsHtml = '<option value="">Selecione o pagamento...</option>';
+    if (window.formasPagamento && window.formasPagamento.length > 0) {
+        window.formasPagamento.forEach(forma => {
+            optionsHtml += `<option value="${forma.id}">${forma.nome}</option>`;
+        });
+    }
+    
+    // Calcula o valor restante sugerido para a nova linha
+    const totalVenda = parseFloat(calcularTotalCarrinho() || 0);
+    const totalInformado = window.obterTotalInformadoMultiplo();
+    const restante = Math.max(0, totalVenda - totalInformado);
+    
+    row.innerHTML = `
+        <select class="select-forma-pagamento flex-1 p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 text-sm">
+            ${optionsHtml}
+        </select>
+        <input
+            type="number"
+            step="0.01"
+            min="0.01"
+            class="input-valor-pagamento w-32 p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 text-sm font-semibold"
+            placeholder="R$ 0,00"
+            value="${restante > 0 ? restante.toFixed(2) : ''}"
+        />
+        <button
+            type="button"
+            class="btn-remover-pagamento text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded transition-colors"
+        >
+            🗑️
+        </button>
+    `;
+    
+    // Add event listeners
+    row.querySelector('.select-forma-pagamento').addEventListener('change', window.recalcularResumoMultiplo);
+    row.querySelector('.input-valor-pagamento').addEventListener('input', window.recalcularResumoMultiplo);
+    row.querySelector('.btn-remover-pagamento').addEventListener('click', function() {
+        row.remove();
+        window.recalcularResumoMultiplo();
+    });
+    
+    lista.appendChild(row);
+    window.recalcularResumoMultiplo();
+};
+
+window.obterTotalInformadoMultiplo = function() {
+    const inputs = document.querySelectorAll('.input-valor-pagamento');
+    let total = 0;
+    inputs.forEach(input => {
+        total += parseFloat(input.value || 0);
+    });
+    return total;
+};
+
+window.recalcularResumoMultiplo = function() {
+    const totalVenda = parseFloat(calcularTotalCarrinho() || 0);
+    const totalInformado = window.obterTotalInformadoMultiplo();
+    const restante = totalVenda - totalInformado;
+    
+    const elTotalVenda = document.getElementById('multiplo-total-venda');
+    const elTotalInformado = document.getElementById('multiplo-total-informado');
+    const elRestanteValor = document.getElementById('valor-multiplo-restante');
+    const elRestanteLabel = document.getElementById('label-multiplo-restante');
+    const btnConfirmar = document.getElementById('btn-confirmar-pedido');
+    
+    if (elTotalVenda) elTotalVenda.textContent = formatarMoeda(totalVenda);
+    if (elTotalInformado) elTotalInformado.textContent = formatarMoeda(totalInformado);
+    
+    if (elRestanteValor) {
+        elRestanteValor.textContent = formatarMoeda(Math.abs(restante));
+        
+        // Remove classes de cor anteriores
+        elRestanteValor.classList.remove('text-red-600', 'text-green-600', 'text-yellow-600');
+        
+        if (Math.abs(restante) < 0.01) {
+            // Valor bateu exatamente!
+            elRestanteValor.textContent = 'Pago!';
+            elRestanteValor.classList.add('text-green-600');
+            if (elRestanteLabel) elRestanteLabel.textContent = 'Status:';
+            if (btnConfirmar) btnConfirmar.disabled = false;
+        } else if (restante > 0) {
+            // Ainda falta pagar
+            elRestanteValor.classList.add('text-red-600');
+            if (elRestanteLabel) elRestanteLabel.textContent = 'Restante:';
+            if (btnConfirmar) btnConfirmar.disabled = true;
+        } else {
+            // Pagou a mais
+            elRestanteValor.classList.add('text-yellow-600');
+            if (elRestanteLabel) elRestanteLabel.textContent = 'Excedente:';
+            if (btnConfirmar) btnConfirmar.disabled = true; // Força bater exato
+        }
     }
 };
 

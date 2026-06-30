@@ -103,7 +103,9 @@ function prepararObjetoPedido(dadosPedido, carrinho) {
         acrescimo_valor: parseFloat(acrescimo.valor) || 0,
         acrescimo_tipo: acrescimo.tipo || null,
         observacao_acrescimo: acrescimo.observacao || null,
-        orcamento_id: dadosPedido.orcamento_id || null // Link para orçamento convertido
+        orcamento_id: dadosPedido.orcamento_id || null, // Link para orçamento convertido
+        confirmar_imediato: dadosPedido.confirmar_imediato || null,
+        pagamentos_multiplos: dadosPedido.pagamentos_multiplos || null
     };
 
     // Só incluir campos de parcelamento se realmente houver parcelas

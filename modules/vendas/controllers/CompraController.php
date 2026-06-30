@@ -222,10 +222,18 @@ class CompraController extends Controller
 
                     // Recalcula valor total
                     $model->recalcularValorTotal();
+                    $parcelasManuais = isset($post['ParcelasManuais']) ? $post['ParcelasManuais'] : [];
+                    if (!empty($parcelasManuais)) {
+                        usort($parcelasManuais, function($a, $b) {
+                            return strcmp($a['data_vencimento'], $b['data_vencimento']);
+                        });
+                        $model->num_parcelas = count($parcelasManuais);
+                        $model->data_vencimento = $parcelasManuais[0]['data_vencimento'];
+                    }
                     $model->save(false);
 
                     // NOVO: Gera contas a pagar automaticamente
-                    $resultadoContas = $model->gerarContasPagar();
+                    $resultadoContas = $model->gerarContasPagar(false, $parcelasManuais);
                     if ($resultadoContas['success']) {
                         Yii::$app->session->setFlash('success', sprintf(
                             'Compra cadastrada com sucesso! %d conta(s) a pagar gerada(s) automaticamente.',
@@ -257,6 +265,22 @@ class CompraController extends Controller
             }
         }
 
+        $contasPagar = [];
+        if (isset($post['ParcelasManuais']) && is_array($post['ParcelasManuais'])) {
+            foreach ($post['ParcelasManuais'] as $pData) {
+                $conta = new \app\modules\contas_pagar\models\ContaPagar();
+                
+                // Converte formato BRL se necessário
+                $val = $pData['valor'];
+                if (is_string($val) && strpos($val, ',') !== false) {
+                    $val = str_replace(',', '.', str_replace('.', '', $val));
+                }
+                $conta->valor = (float)$val;
+                $conta->data_vencimento = $pData['data_vencimento'];
+                $contasPagar[] = $conta;
+            }
+        }
+
         $fornecedores = Fornecedor::getListaDropdownArray(Yii::$app->user->id);
         $categorias = Categoria::getListaDropdown();
         $produtos = Produto::find()
@@ -270,6 +294,7 @@ class CompraController extends Controller
             'fornecedores' => $fornecedores,
             'categorias' => $categorias,
             'produtos' => $produtos,
+            'contasPagar' => $contasPagar,
         ]);
     }
 
@@ -368,7 +393,23 @@ class CompraController extends Controller
 
                     // Recalcula valor total
                     $model->recalcularValorTotal();
+                    $parcelasManuais = isset($post['ParcelasManuais']) ? $post['ParcelasManuais'] : [];
+                    if (!empty($parcelasManuais)) {
+                        usort($parcelasManuais, function($a, $b) {
+                            return strcmp($a['data_vencimento'], $b['data_vencimento']);
+                        });
+                        $model->num_parcelas = count($parcelasManuais);
+                        $model->data_vencimento = $parcelasManuais[0]['data_vencimento'];
+                    }
                     $model->save(false);
+
+                    // Regenera contas a pagar se a compra for PENDENTE
+                    if ($model->status_compra === Compra::STATUS_PENDENTE) {
+                        $resultadoContas = $model->gerarContasPagar(true, $parcelasManuais); // true = regenerar
+                        if (!$resultadoContas['success']) {
+                            throw new \Exception('Erro ao atualizar contas a pagar: ' . ($resultadoContas['message'] ?? 'Erro desconhecido'));
+                        }
+                    }
 
                     $transaction->commit();
                     Yii::$app->session->setFlash('success', 'Compra atualizada com sucesso!');
@@ -385,6 +426,27 @@ class CompraController extends Controller
             $itens = $model->itens;
         }
 
+        $contasPagar = [];
+        if (isset($post['ParcelasManuais']) && is_array($post['ParcelasManuais'])) {
+            foreach ($post['ParcelasManuais'] as $pData) {
+                $conta = new \app\modules\contas_pagar\models\ContaPagar();
+                
+                // Converte formato BRL se necessário
+                $val = $pData['valor'];
+                if (is_string($val) && strpos($val, ',') !== false) {
+                    $val = str_replace(',', '.', str_replace('.', '', $val));
+                }
+                $conta->valor = (float)$val;
+                $conta->data_vencimento = $pData['data_vencimento'];
+                $contasPagar[] = $conta;
+            }
+        } else {
+            $contasPagar = \app\modules\contas_pagar\models\ContaPagar::find()
+                ->where(['compra_id' => $model->id])
+                ->orderBy('data_vencimento')
+                ->all();
+        }
+
         $fornecedores = Fornecedor::getListaDropdownArray(Yii::$app->user->id);
         $categorias = Categoria::getListaDropdown();
         $produtos = Produto::find()
@@ -398,6 +460,7 @@ class CompraController extends Controller
             'fornecedores' => $fornecedores,
             'categorias' => $categorias,
             'produtos' => $produtos,
+            'contasPagar' => $contasPagar,
         ]);
     }
 
@@ -856,6 +919,7 @@ class CompraController extends Controller
                         'fornecedores' => $fornecedores,
                         'categorias' => $categorias,
                         'produtos' => $produtos,
+                        'contasPagar' => [],
                     ]);
                 } catch (\Exception $e) {
                     Yii::$app->session->setFlash('error', 'Erro ao processar XML: ' . $e->getMessage());

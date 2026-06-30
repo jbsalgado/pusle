@@ -30,6 +30,7 @@ $this->params['breadcrumbs'][] = $this->title;
                 'fornecedores' => $fornecedores,
                 'categorias' => $categorias,
                 'produtos' => $produtos,
+                'contasPagar' => $contasPagar,
             ]) ?>
         </div>
 
