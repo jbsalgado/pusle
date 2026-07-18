@@ -196,6 +196,21 @@ export function formatarMoeda(valor) {
 }
 
 /**
+ * Formata quantidade com suporte a valores fracionados
+ * @param {number} qtd - Quantidade a ser formatada
+ * @param {boolean} permiteFracionado - Se o produto permite venda fracionada
+ * @returns {string} Quantidade formatada (ex: 1.500 ou 1)
+ */
+export function formatarQuantidade(qtd, permiteFracionado) {
+    if (!permiteFracionado) {
+        return Math.floor(qtd).toString();
+    }
+    const num = parseFloat(qtd) || 0;
+    // Remove zeros desnecessários: 1.500 -> 1.5, mas 1.000 -> 1
+    return num.toFixed(3).replace(/\.?0+$/, '');
+}
+
+/**
  * Verifica elementos críticos do DOM
  */
 export function verificarElementosCriticos(elementosIds) {

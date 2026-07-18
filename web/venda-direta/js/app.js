@@ -1358,6 +1358,20 @@ window.abrirModalQuantidade = function(produtoId) {
     
     // Configura input para fracionados
     const permiteFracionado = !!produto.venda_fracionada;
+    const estoque = permiteFracionado ? parseFloat(produto.estoque_atual || 0) : parseInt(produto.estoque_atual || 0);
+    const unidadeMedida = produto.unidade_medida || 'un';
+    
+    // 🆕 Exibe estoque disponível no modal
+    const estoqueEl = document.getElementById('estoque-modal');
+    if (estoqueEl) {
+        if (estoque > 0) {
+            estoqueEl.textContent = `📦 Estoque disponível: ${formatarQuantidade(estoque, permiteFracionado)} ${unidadeMedida}`;
+            estoqueEl.className = 'text-xs font-semibold text-green-600 bg-green-50 px-3 py-1 rounded-full inline-block';
+        } else {
+            estoqueEl.textContent = '🚫 Sem estoque disponível';
+            estoqueEl.className = 'text-xs font-semibold text-red-600 bg-red-50 px-3 py-1 rounded-full inline-block';
+        }
+    }
     
     // ✅ NOVO: Inicia com a primeira faixa da escala se existir
     let qtdInicial = 1;
@@ -1376,6 +1390,12 @@ window.abrirModalQuantidade = function(produtoId) {
         const quantidade = parseFloat(valorRaw);
         
         if (quantidade > 0) {
+            // 🆕 Validação de estoque: impede adicionar quantidade maior que o disponível
+            if (estoque > 0 && quantidade > estoque) {
+                alert(`❌ Estoque insuficiente!\n\nDisponível: ${formatarQuantidade(estoque, permiteFracionado)} ${unidadeMedida}\nSolicitado: ${formatarQuantidade(quantidade, permiteFracionado)} ${unidadeMedida}\n\nPor favor, ajuste a quantidade.`);
+                return;
+            }
+            
             const arquivoPath = produto.fotos?.[0]?.arquivo_path?.replace(/^\//, '') || '';
             const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
             const produtoComImagem = { ...produto, imagem: arquivoPath ? `${baseUrl}/${arquivoPath}` : null };

@@ -5,6 +5,56 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meus Pedidos</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50:  'var(--brand-50,  #f0f7ff)',
+                100: 'var(--brand-100, #e0effe)',
+                200: 'var(--brand-200, #bae0fd)',
+                300: 'var(--brand-300, #7cc8fb)',
+                400: 'var(--brand-400, #38aaf7)',
+                500: 'var(--brand-500, #0e8ce9)',
+                600: 'var(--brand-600, #026ec7)',
+                700: 'var(--brand-700, #0358a1)',
+                800: 'var(--brand-800, #074b85)',
+                900: 'var(--brand-900, #0c3f6e)',
+                950: 'var(--brand-950, #082849)',
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <script>
+      // Persistir o slug da loja na sessionStorage para não perder ao navegar
+      (function() {
+        var params = new URLSearchParams(window.location.search);
+        var slug = params.get('loja') || params.get('slug') || params.get('id');
+        if (slug) {
+          sessionStorage.setItem('loja_slug', slug);
+        } else {
+          slug = sessionStorage.getItem('loja_slug');
+          if (slug) {
+            // Reinsere o param na URL sem recarregar
+            var url = new URL(window.location.href);
+            url.searchParams.set('loja', slug);
+            window.history.replaceState({}, '', url.toString());
+          }
+        }
+        // Corrigir links de "Voltar" dinamicamente
+        document.addEventListener('DOMContentLoaded', function() {
+          var s = sessionStorage.getItem('loja_slug');
+          if (s) {
+            document.querySelectorAll('a[href="index.html"]').forEach(function(a) {
+              a.href = 'index.html?loja=' + encodeURIComponent(s);
+            });
+          }
+        });
+      })();
+    </script>
     <link rel="stylesheet" href="style.css"> <style>
         /* Estilos adicionais, se necessário */
         .active-view {
@@ -90,6 +140,6 @@
         </main>
     </div>
 
-    <script type="module" src="js/utils.js"></script> <script type="module" src="js/meus-pedidos.js"></script>
+    <script type="module" src="js/utils.js?v=20260703b"></script> <script type="module" src="js/meus-pedidos.js?v=20260703b"></script>
 </body>
 </html>

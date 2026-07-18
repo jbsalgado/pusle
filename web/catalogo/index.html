@@ -32,6 +32,24 @@
         },
       };
     </script>
+    <script>
+      // Persiste o slug da loja no sessionStorage para uso em outras páginas (ex: meus-pedidos.html)
+      (function() {
+        var slug = new URLSearchParams(window.location.search).get('loja')
+                || new URLSearchParams(window.location.search).get('slug')
+                || new URLSearchParams(window.location.search).get('id');
+        if (slug) {
+          sessionStorage.setItem('loja_slug', slug);
+          // Atualiza o link de Meus Pedidos assim que o DOM estiver pronto
+          document.addEventListener('DOMContentLoaded', function() {
+            var btnMeusPedidos = document.getElementById('btn-meus-pedidos');
+            if (btnMeusPedidos) {
+              btnMeusPedidos.href = 'meus-pedidos.html?loja=' + encodeURIComponent(slug);
+            }
+          });
+        }
+      })();
+    </script>
     <style>
       /* Status online/offline - por padrão mostra offline até ser atualizado */
       #status-online {

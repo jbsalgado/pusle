@@ -4,12 +4,13 @@ import {
     getCarrinho, setCarrinho, adicionarAoCarrinho, removerDoCarrinho,
     aumentarQuantidadeItem, diminuirQuantidadeItem, calcularTotalCarrinho,
     calcularTotalItens, limparCarrinho, atualizarIndicadoresCarrinho,
-    atualizarBadgeProduto, aplicarDescontoItem, getAcrescimo, setAcrescimo
+    atualizarBadgeProduto, aplicarDescontoItem, getAcrescimo, setAcrescimo,
+    getPrecoVigente
 } from './cart.js?v=surcharge_fix';
 import { carregarCarrinho, limparDadosLocaisPosSinc, carregarFormasPagamentoCache, obterFilaPedidos } from './storage.js';
 import { finalizarPedido } from './order.js';
 import { carregarFormasPagamento } from './payment.js';
-import { validarCPF, maskCPF, maskPhone, maskCEP, formatarMoeda, formatarCPF, verificarElementosCriticos } from './utils.js';
+import { validarCPF, maskCPF, maskPhone, maskCEP, formatarMoeda, formatarQuantidade, formatarCPF, verificarElementosCriticos } from './utils.js';
 import { ELEMENTOS_CRITICOS } from './config.js';
 import { mostrarModalPixEstatico } from './pix.js?v=fix_routing'; // Importação do novo módulo
 import { verificarAutenticacao, getColaboradorData, login } from './auth.js'; // Importação do módulo de autenticação
@@ -420,6 +421,7 @@ function renderizarCarrinho() {
         }
         const totalItem = Math.max(0, subtotal - valorDesconto);
         const emPromocao = item.em_promocao || false;
+        const temAjusteVolume = item.preco_final > item.preco_venda_sugerido;
 
         return `
         <div class="cart-item">
@@ -428,17 +430,23 @@ function renderizarCarrinho() {
                 <img src="${urlImagem}" alt="${item.nome}" class="cart-item-image">
                 <div class="cart-item-info">
                     <h3 class="cart-item-name">${item.nome}${emPromocao ? ' <span class="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded">PROMOÇÃO</span>' : ''}</h3>
-                    <p class="cart-item-price">${formatarMoeda(precoUnitario)} un.${emPromocao && item.preco_venda_sugerido ? ` <span class="text-xs text-gray-500 line-through">${formatarMoeda(item.preco_venda_sugerido)}</span>` : ''}</p>
+                    <p class="cart-item-price ${temAjusteVolume ? 'text-orange-600 font-bold' : ''}">
+                        ${formatarMoeda(precoUnitario)} un.
+                        ${(emPromocao || temAjusteVolume) && item.preco_venda_sugerido ? ` <span class="text-xs text-gray-500 line-through">${formatarMoeda(item.preco_venda_sugerido)}</span>` : ''}
+                        ${temAjusteVolume ? '<span class="text-[10px] block text-orange-500 mt-[-2px]">Ajuste p/ baixo volume</span>' : ''}
+                    </p>
                     <div class="cart-item-controls">
                         <button onclick="diminuirQtd('${item.id}')" class="qty-btn">−</button>
-                        <span class="qty-value">${item.quantidade}</span>
+                        <span class="qty-value">${formatarQuantidade(item.quantidade, item.venda_fracionada)}</span>
                         <button onclick="aumentarQtd('${item.id}')" class="qty-btn">+</button>
                     </div>
                     
                     <!-- Área de Desconto -->
-                    <div class="mt-2 p-2 bg-gray-50 rounded text-sm">
+                    <div class="mt-2 p-2 ${item.isFilteredScale ? 'bg-brand-50 border border-brand-100' : 'bg-gray-50'} rounded text-sm">
                         <div class="flex items-center justify-between mb-1">
-                            <label class="text-xs text-gray-500">Desconto:</label>
+                            <label class="text-xs ${item.isFilteredScale ? 'text-brand-700 font-bold' : 'text-gray-500'}">
+                                ${item.isFilteredScale ? '✨ Desconto Volume:' : 'Desconto:'}
+                            </label>
                             <select onchange="alterarTipoDesconto('${item.id}', this.value)" class="text-xs border rounded p-0.5 bg-white">
                                 <option value="valor" ${item.descontoValor > 0 ? 'selected' : ''}>R$</option>
                                 <option value="porcentagem" ${item.descontoPercentual > 0 ? 'selected' : ''}>%</option>
@@ -449,8 +457,9 @@ function renderizarCarrinho() {
                             data-desconto-item="${item.id}"
                             oninput="formatarEntradaDesconto(this)"
                             onchange="aplicarDesconto('${item.id}', this.value)" 
-                            class="w-full border rounded p-1 text-right text-xs" 
-                            placeholder="0,00">
+                            class="w-full border rounded p-1 text-right text-xs ${item.isFilteredScale ? 'bg-brand-100 border-brand-300 font-bold text-brand-800' : ''}" 
+                            placeholder="0,00"
+                            ${item.isFilteredScale ? 'title="Desconto aplicado automaticamente pelo volume"' : ''}>
                     </div>
 
                     <div class="cart-item-total mt-2">
@@ -1180,21 +1189,104 @@ function renderizarProdutos(listaProdutos) {
     }).join('');
 }
 
+// --- LÓGICA DO MODAL DE QUANTIDADE (UNIFICADA COM VENDA DIRETA) ---
+window.produtoAtualModal = null;
+
+window.atualizarPrecoModal = function() {
+    const inputQtd = document.getElementById('input-quantidade');
+    const subtotalElement = document.getElementById('subtotal-modal');
+    if (!inputQtd || !subtotalElement || !window.produtoAtualModal) return;
+
+    let qtd = parseFloat(inputQtd.value.replace(',', '.')) || 0;
+    
+    // Busca o preço dinâmico baseado na escala
+    const precoVigente = getPrecoVigente(window.produtoAtualModal, qtd);
+    
+    // O subtotal agora reflete exatamente a escala atingida
+    const subtotal = qtd * precoVigente;
+    subtotalElement.textContent = formatarMoeda(subtotal);
+};
+
+window.incrementarModal = function() {
+    const inputQtd = document.getElementById('input-quantidade');
+    if (!inputQtd || !window.produtoAtualModal) return;
+    
+    const passo = window.produtoAtualModal.venda_fracionada ? 0.1 : 1;
+    let qtd = parseFloat(inputQtd.value.replace(',', '.')) || 0;
+    
+    qtd = Math.round((qtd + passo) * 1000) / 1000;
+    inputQtd.value = qtd;
+    window.atualizarPrecoModal();
+};
+
+window.decrementarModal = function() {
+    const inputQtd = document.getElementById('input-quantidade');
+    if (!inputQtd || !window.produtoAtualModal) return;
+    
+    const passo = window.produtoAtualModal.venda_fracionada ? 0.1 : 1;
+    let qtd = parseFloat(inputQtd.value.replace(',', '.')) || 0;
+    
+    if (qtd > passo) {
+        qtd = Math.round((qtd - passo) * 1000) / 1000;
+        inputQtd.value = qtd;
+        window.atualizarPrecoModal();
+    }
+};
+
 window.abrirModalQuantidade = function(produtoId) {
     const produto = produtos.find(p => p.id === produtoId);
     if (!produto) return;
     
+    window.produtoAtualModal = produto;
+
     const inputQtd = document.getElementById('input-quantidade');
     document.getElementById('nome-produto-modal').textContent = produto.nome;
     // ✅ CORREÇÃO: Usar preço promocional se disponível
     const precoExibido = produto.preco_final || produto.preco_venda_sugerido;
     document.getElementById('preco-produto-modal').textContent = formatarMoeda(precoExibido);
-    inputQtd.value = 1;
-    inputQtd.max = produto.estoque_atual;
+    
+    // Configura input para fracionados
+    const permiteFracionado = !!produto.venda_fracionada;
+    const estoque = permiteFracionado ? parseFloat(produto.estoque_atual || 0) : parseInt(produto.estoque_atual || 0);
+    const unidadeMedida = produto.unidade_medida || 'un';
+    
+    // 🆕 Exibe estoque disponível no modal
+    const estoqueEl = document.getElementById('estoque-modal');
+    if (estoqueEl) {
+        if (estoque > 0) {
+            estoqueEl.textContent = `📦 Estoque disponível: ${permiteFracionado ? estoque.toFixed(3).replace(/\.?0+$/, '') : estoque} ${unidadeMedida}`;
+            estoqueEl.className = 'text-xs font-semibold text-green-600 bg-green-50 px-3 py-1 rounded-full inline-block';
+        } else {
+            estoqueEl.textContent = '🚫 Sem estoque disponível';
+            estoqueEl.className = 'text-xs font-semibold text-red-600 bg-red-50 px-3 py-1 rounded-full inline-block';
+        }
+    }
+    
+    // ✅ NOVO: Inicia com a primeira faixa da escala se existir
+    let qtdInicial = 1;
+    const qtdEscala1 = parseFloat(produto.qtd_escala_1 || 0);
+    if (qtdEscala1 > 0) {
+        qtdInicial = qtdEscala1;
+    }
+    
+    inputQtd.value = qtdInicial;
+    
+    // Atualiza o subtotal inicial
+    window.atualizarPrecoModal();
     
     document.getElementById('btn-confirmar-adicionar').onclick = () => {
-        const quantidade = parseInt(inputQtd.value, 10);
-        if (quantidade > 0 && quantidade <= produto.estoque_atual) {
+        const valorRaw = inputQtd.value.replace(',', '.');
+        const quantidade = parseFloat(valorRaw);
+        
+        if (quantidade > 0) {
+            // 🆕 Validação de estoque: impede adicionar quantidade maior que o disponível
+            if (estoque > 0 && quantidade > estoque) {
+                const qtdFmt = permiteFracionado ? quantidade.toFixed(3).replace(/\.?0+$/, '') : Math.floor(quantidade);
+                const estoqueFmt = permiteFracionado ? estoque.toFixed(3).replace(/\.?0+$/, '') : Math.floor(estoque);
+                alert(`❌ Estoque insuficiente!\n\nDisponível: ${estoqueFmt} ${unidadeMedida}\nSolicitado: ${qtdFmt} ${unidadeMedida}\n\nPor favor, ajuste a quantidade.`);
+                return;
+            }
+            
             const arquivoPath = produto.fotos?.[0]?.arquivo_path?.replace(/^\//, '') || '';
             const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
             const produtoComImagem = { ...produto, imagem: arquivoPath ? `${baseUrl}/${arquivoPath}` : null };
@@ -1204,10 +1296,16 @@ window.abrirModalQuantidade = function(produtoId) {
                 fecharModal('modal-quantidade');
             }
         } else {
-            alert(`Quantidade inválida. Máximo: ${produto.estoque_atual}`);
+            alert(`Quantidade inválida.`);
         }
     };
     abrirModal('modal-quantidade');
+    
+    // Foco automático no input de quantidade após o modal abrir
+    setTimeout(() => {
+        inputQtd.focus();
+        inputQtd.select();
+    }, 350);
 };
 
 window.abrirCarrinho = function() { renderizarCarrinho(); abrirModal('modal-carrinho'); };

@@ -35,8 +35,23 @@ export function adicionarAoCarrinho(produto, quantidade) {
   }
 
   // Bloquear inclusão se o produto não for avulso e estiver sem estoque
-  if (!produto.is_avulso && parseFloat(produto.estoque_atual || 0) <= 0) {
+  const estoqueAtual = parseFloat(produto.estoque_atual || 0);
+  if (!produto.is_avulso && estoqueAtual <= 0) {
     alert(`O produto "${produto.nome || 'Item'}" está sem estoque disponível.`);
+    return false;
+  }
+
+  // 🆕 Validação de segurança: impede adicionar quantidade maior que o estoque
+  if (!produto.is_avulso && estoqueAtual > 0 && quantidade > estoqueAtual) {
+    const permiteFracionado = !!produto.venda_fracionada;
+    const unidadeMedida = produto.unidade_medida || 'un';
+    const qtdFormatada = permiteFracionado 
+      ? quantidade.toFixed(3).replace(/\.?0+$/, '')
+      : Math.floor(quantidade);
+    const estoqueFormatado = permiteFracionado 
+      ? estoqueAtual.toFixed(3).replace(/\.?0+$/, '')
+      : Math.floor(estoqueAtual);
+    alert(`❌ Estoque insuficiente!\n\nProduto: ${produto.nome || 'Item'}\nDisponível: ${estoqueFormatado} ${unidadeMedida}\nSolicitado: ${qtdFormatada} ${unidadeMedida}\n\nPor favor, ajuste a quantidade.`);
     return false;
   }
 

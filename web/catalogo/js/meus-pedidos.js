@@ -473,8 +473,37 @@ function setupViewToggle() {
 
 // --- Inicialização ---
 document.addEventListener('DOMContentLoaded', async () => {
+    // ✅ RESOLUÇÃO DO SLUG DA LOJA (múltiplos fallbacks em ordem de prioridade)
+    if (!CONFIG._slugDetectado) {
+
+        // 1. Tenta extrair o caminho do catálogo diretamente da URL
+        //    Ex: /catalogo/meus-pedidos.html → 'catalogo'
+        const pathSegments = window.location.pathname.split('/').filter(s => s);
+        const SEGMENTOS_IGNORADOS = ['web', 'pulse', 'basic', 'index.php', 'meus-pedidos.html'];
+        const slugDaURL = pathSegments.find(s => !s.includes('.') && !SEGMENTOS_IGNORADOS.includes(s));
+        if (slugDaURL) {
+            console.log('[meus-pedidos] 🔍 Slug extraído da URL:', slugDaURL);
+            CONFIG._slugDetectado = slugDaURL;
+        }
+
+        // 2. Fallback: localStorage (persiste entre sessões do browser)
+        if (!CONFIG._slugDetectado) {
+            const slugSalvo = localStorage.getItem('loja_slug');
+            if (slugSalvo) {
+                console.log('[meus-pedidos] 💾 Slug recuperado do localStorage:', slugSalvo);
+                CONFIG._slugDetectado = slugSalvo;
+            }
+        }
+    }
+
+    // Persiste o slug resolvido para uso futuro
+    if (CONFIG._slugDetectado) {
+        localStorage.setItem('loja_slug', CONFIG._slugDetectado);
+    }
+
     // ✅ PRIMEIRO: Garante que o ID da loja esteja resolvido antes de qualquer operação
     await carregarConfigLoja();
+    console.log('[meus-pedidos] ID_USUARIO_LOJA resolvido:', CONFIG.ID_USUARIO_LOJA);
 
     configurarMascaraCpf();
     setupViewToggle();
