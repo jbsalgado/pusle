@@ -1473,6 +1473,11 @@ window.abrirModalPedido = async function() {
     document.getElementById('info-cliente').classList.add('hidden');
     document.getElementById('msg-cadastrar-cliente').classList.add('hidden');
     document.getElementById('campo-cliente-parcelado').classList.add('hidden');
+    // Limpa CPF e WhatsApp do consumidor antes de abrir
+    const inputCpfConsumidor = document.getElementById('consumidor_cpf');
+    if (inputCpfConsumidor) inputCpfConsumidor.value = '';
+    const inputWhatsappConsumidor = document.getElementById('consumidor_whatsapp');
+    if (inputWhatsappConsumidor) inputWhatsappConsumidor.value = '';
     popularOpcoesParcelas();
     abrirModal('modal-cliente-pedido');
     
@@ -1612,15 +1617,88 @@ window.confirmarPedido = async function() {
             }
         }
         
-        // Para orçamentos parceladas, cliente é obrigatório
+        // Fluxo de auto-registro do cliente se CPF e WhatsApp do consumidor forem preenchidos
+        const consumidorCpfInput = document.getElementById('consumidor_cpf')?.value || '';
+        const consumidorWhatsappInput = document.getElementById('consumidor_whatsapp')?.value || '';
+        
+        const cpfLimpo = consumidorCpfInput.replace(/\D/g, '');
+        const whatsappLimpo = consumidorWhatsappInput.replace(/\D/g, '');
+        
         let clienteId = null;
-        if (numeroParcelas > 1) {
-            clienteId = clienteAtual?.id || document.getElementById('cliente_id')?.value || null;
-            if (!clienteId) {
-                alert('Para orçamentos parceladas, é necessário buscar e cadastrar o cliente.');
-                document.getElementById('campo-cliente-parcelado').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        if (cpfLimpo && whatsappLimpo) {
+            const { validarCPF, formatarCPF } = await import('./utils.js');
+            if (!validarCPF(cpfLimpo)) {
+                alert('O CPF do consumidor informado é inválido.');
+                btnConfirmar.disabled = false;
+                btnConfirmar.textContent = '✅ Confirmar Orçamento';
                 return;
             }
+            if (whatsappLimpo.length < 10) {
+                alert('O WhatsApp do consumidor informado é inválido. Digite com o DDD.');
+                btnConfirmar.disabled = false;
+                btnConfirmar.textContent = '✅ Confirmar Orçamento';
+                return;
+            }
+            
+            try {
+                btnConfirmar.textContent = 'Verificando cliente...';
+                const { buscarClientePorCpf, cadastrarCliente } = await import('./customer.js');
+                const busca = await buscarClientePorCpf(cpfLimpo, CONFIG.ID_USUARIO_LOJA);
+                
+                if (busca.existe && busca.cliente) {
+                    console.log('[App] Cliente com CPF já existe. Associando ao orçamento:', busca.cliente);
+                    clienteAtual = busca.cliente;
+                    clienteId = busca.cliente.id;
+                    
+                    const inputClienteId = document.getElementById('cliente_id');
+                    if (inputClienteId) inputClienteId.value = clienteId;
+                } else {
+                    console.log('[App] Cadastrando novo cliente automaticamente...');
+                    btnConfirmar.textContent = 'Cadastrando cliente...';
+                    
+                    const dadosNovoCliente = {
+                        nome_completo: `Consumidor ${formatarCPF(cpfLimpo)}`,
+                        cpf: cpfLimpo,
+                        telefone: whatsappLimpo,
+                        senha: '123456',
+                        endereco_logradouro: 'Não Informado',
+                        endereco_numero: 'S/N',
+                        endereco_bairro: 'Não Informado',
+                        endereco_cidade: 'Não Informado',
+                        endereco_estado: 'SP',
+                        endereco_cep: '00000000'
+                    };
+                    
+                    const novoCliente = await cadastrarCliente(dadosNovoCliente);
+                    console.log('[App] Cliente cadastrado automaticamente com sucesso:', novoCliente);
+                    clienteAtual = novoCliente;
+                    clienteId = novoCliente.id;
+                    
+                    const inputClienteId = document.getElementById('cliente_id');
+                    if (inputClienteId) inputClienteId.value = clienteId;
+                }
+            } catch (error) {
+                console.error('[App] Erro no fluxo de auto-registro de cliente:', error);
+                alert('Erro ao processar cadastro do cliente: ' + error.message);
+                btnConfirmar.disabled = false;
+                btnConfirmar.textContent = '✅ Confirmar Orçamento';
+                return;
+            }
+        }
+        
+        // Se não foi auto-registrado, tenta recuperar o cliente selecionado manualmente
+        if (!clienteId) {
+            clienteId = clienteAtual?.id || document.getElementById('cliente_id')?.value || null;
+        }
+        
+        // Para orçamentos parcelados, cliente é obrigatório
+        if (numeroParcelas > 1 && !clienteId) {
+            alert('Para orçamentos parcelados, é necessário buscar e cadastrar o cliente.');
+            document.getElementById('campo-cliente-parcelado').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            btnConfirmar.disabled = false;
+            btnConfirmar.textContent = '✅ Confirmar Orçamento';
+            return;
         }
         
         const dadosPedido = {
@@ -1630,7 +1708,17 @@ window.confirmarPedido = async function() {
             forma_pagamento_id: formaPagamentoId,
             numero_parcelas: numeroParcelas,
             data_primeiro_pagamento: permiteParcelamento && numeroParcelas > 1 ? document.getElementById('data-primeiro-pagamento')?.value || null : null,
-            intervalo_dias_parcelas: permiteParcelamento && numeroParcelas > 1 ? parseInt(document.getElementById('intervalo-dias')?.value || 30, 10) : null
+            intervalo_dias_parcelas: permiteParcelamento && numeroParcelas > 1 ? parseInt(document.getElementById('intervalo-dias')?.value || 30, 10) : null,
+            cpf_consumidor: (() => {
+                const val = document.getElementById('consumidor_cpf')?.value || '';
+                const digitos = val.replace(/\D/g, '');
+                const cpfVendedor = colaboradorAtual?.cpf ? colaboradorAtual.cpf.replace(/\D/g, '') : '';
+                if (cpfVendedor && digitos === cpfVendedor) {
+                    console.warn('[App] ⚠️ CPF informado para o consumidor é idêntico ao do vendedor logado. Ignorando.');
+                    return null;
+                }
+                return digitos.length === 11 ? val.trim() : null;
+            })()
         };
         
         const carrinho = getCarrinho();

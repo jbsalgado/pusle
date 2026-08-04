@@ -12,13 +12,18 @@ use yii\helpers\Url;
 $this->title = 'Comprovante de Venda';
 $this->registerCss('
     @media print {
-        body { margin: 0; padding: 0; }
+        body { margin: 0; padding: 0; font-family: "Courier New", Courier, monospace !important; font-weight: 700 !important; color: #000000 !important; -webkit-print-color-adjust: exact; }
         .no-print { display: none !important; }
         .comprovante-container { 
             max-width: 100% !important; 
             margin: 0 !important; 
-            padding: 20px !important;
+            padding: 10px !important;
             box-shadow: none !important;
+            font-family: "Courier New", Courier, monospace !important;
+            color: #000000 !important;
+        }
+        .comprovante-container * {
+            color: #000000 !important;
         }
     }
 ');

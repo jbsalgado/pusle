@@ -97,13 +97,67 @@ class EvolutionService
                 $config->status = 'DISCONNECTED';
                 $config->save(false);
             } else {
-                // Falhou ao criar. Pode ser que a instância já exista no motor Go (Retorna 500).
-                // Se nós NÃO temos um token salvo localmente, então é uma falha fatal real.
-                if (empty($config->token)) {
-                    Yii::error("EvolutionService::createInstance — falha fatal ao criar: " . $response->content, __METHOD__);
-                    return null;
+                // Falhou ao criar (ex: instância já existe no motor Go com outro token)
+                // Busca no motor Go o token real atribuído à essa instância
+                $foundToken = null;
+                try {
+                    $allResponse = $client->createRequest()
+                        ->setMethod('GET')
+                        ->setUrl('/instance/all')
+                        ->addHeaders(['apiKey' => $this->globalApiKey])
+                        ->send();
+
+                    if ($allResponse->isOk) {
+                        $responseData = json_decode($allResponse->content, true);
+                        $instancesList = $responseData['data'] ?? (is_array($responseData) ? $responseData : []);
+                        foreach ($instancesList as $inst) {
+                            $name = $inst['name'] ?? $inst['instanceName'] ?? null;
+                            if ($name === $instanceName && !empty($inst['token'])) {
+                                $foundToken = $inst['token'];
+                                break;
+                            }
+                        }
+                    }
+                } catch (\Throwable $t) {
+                    Yii::warn("EvolutionService::createInstance — erro ao consultar /instance/all: " . $t->getMessage(), __METHOD__);
                 }
-                // Se nós TEMOS um token, significa que ela já existe. Vamos apenas seguir em frente e conectar!
+
+                if ($foundToken !== null) {
+                    // Token recuperado com sucesso do motor Go!
+                    $instanceToken = $foundToken;
+                    $config->token = $instanceToken;
+                    $config->status = 'DISCONNECTED';
+                    $config->save(false);
+                } else {
+                    // Se não encontrou no Go, força a exclusão do registro estragado e recria
+                    $this->deleteInstance($empresaId);
+
+                    $instanceToken = Yii::$app->security->generateRandomString(32);
+                    $retryResponse = $client->createRequest()
+                        ->setMethod('POST')
+                        ->setFormat(Client::FORMAT_JSON)
+                        ->setUrl('/instance/create')
+                        ->addHeaders([
+                            'Content-Type' => 'application/json',
+                            'apiKey'       => $this->globalApiKey,
+                        ])
+                        ->setData([
+                            'name'         => $instanceName,
+                            'instanceName' => $instanceName,
+                            'token'        => $instanceToken,
+                            'qrcode'       => true,
+                        ])
+                        ->send();
+
+                    if ($retryResponse->isOk) {
+                        $config->token = $instanceToken;
+                        $config->status = 'DISCONNECTED';
+                        $config->save(false);
+                    } else {
+                        Yii::error("EvolutionService::createInstance — falha fatal ao recriar: " . $retryResponse->content, __METHOD__);
+                        return null;
+                    }
+                }
             }
 
             // Fluxo novo v0.7.1: Conecta a instância
@@ -306,9 +360,34 @@ class EvolutionService
 
         try {
             $client   = new Client(['baseUrl' => $this->baseUrl]);
+
+            // Busca o ID UUID da instância no motor Go
+            $targetId = $instanceName;
+            try {
+                $allResponse = $client->createRequest()
+                    ->setMethod('GET')
+                    ->setUrl('/instance/all')
+                    ->addHeaders(['apiKey' => $this->globalApiKey])
+                    ->send();
+
+                if ($allResponse->isOk) {
+                    $responseData = json_decode($allResponse->content, true);
+                    $instancesList = $responseData['data'] ?? (is_array($responseData) ? $responseData : []);
+                    foreach ($instancesList as $inst) {
+                        $name = $inst['name'] ?? $inst['instanceName'] ?? null;
+                        if ($name === $instanceName && !empty($inst['id'])) {
+                            $targetId = $inst['id'];
+                            break;
+                        }
+                    }
+                }
+            } catch (\Throwable $t) {
+                // ignora e tenta usar instanceName diretamente
+            }
+
             $response = $client->createRequest()
                 ->setMethod('DELETE')
-                ->setUrl("/instance/delete/{$instanceName}")
+                ->setUrl("/instance/delete/{$targetId}")
                 ->addHeaders([
                     'Content-Type' => 'application/json',
                     'apiKey'       => $this->globalApiKey,

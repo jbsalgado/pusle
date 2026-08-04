@@ -1027,114 +1027,136 @@ async function gerarComprovanteOrcamento(carrinho, dadosPedido) {
             }
         }
         body {
-            font-family: 'Courier New', monospace; /* Mantém Courier New mas força negrito */
-            font-weight: 600; /* Força negrito geral para melhorar contraste térmico */
-            font-size: 16px; /* Aumentado para 16px conforme solicitado */
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: 700;
+            font-size: 12px;
             width: 80mm;
             margin: 0 auto;
-            padding: 5mm;
-            line-height: 1.4;
-            color: #000000; /* Preto absoluto */
+            padding: 4mm 3mm;
+            line-height: 1.35;
+            color: #000000;
             -webkit-font-smoothing: antialiased;
         }
         .header {
             text-align: center;
-            border-bottom: 1px dashed #000;
-            padding-bottom: 5px;
-            margin-bottom: 5px;
+            border-bottom: 1px dashed #000000;
+            padding-bottom: 4px;
+            margin-bottom: 4px;
         }
         .empresa-nome {
-            font-weight: bold;
-            font-size: 14px;
+            font-weight: 900;
+            font-size: 15px;
             margin-bottom: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
         .empresa-dados {
-            font-size: 10px;
+            font-weight: 700;
+            font-size: 11px;
             margin: 2px 0;
+            color: #000000;
         }
         .titulo {
             text-align: center;
-            font-weight: bold;
-            font-size: 13px;
-            margin: 8px 0;
+            font-weight: 900;
+            font-size: 14px;
+            margin: 6px 0;
             text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
         .linha {
-            border-bottom: 1px dashed #000;
-            margin: 5px 0;
-            padding-bottom: 3px;
+            border-bottom: 1px dashed #000000;
+            margin: 4px 0;
+            padding-bottom: 2px;
         }
         .item {
-            margin: 4px 0;
-            overflow: visible; /* Garante que o conteúdo não seja cortado */
+            margin: 5px 0;
+            overflow: visible;
         }
         .item-descricao {
-            font-weight: bold;
-            margin-bottom: 4px; /* Aumentado para melhor espaçamento */
-            overflow-wrap: break-word; /* Permite quebra de palavras longas */
-            word-wrap: break-word; /* Compatibilidade com navegadores antigos */
-            word-break: break-word; /* Força quebra de palavras se necessário */
-            display: block; /* Mudado de -webkit-box para block */
-            line-height: 1.3; /* Aumentado para melhor legibilidade */
-            white-space: normal; /* Garante quebra de linha */
-            overflow: visible; /* Garante que texto não seja cortado */
-            max-width: 100%; /* Usa toda a largura disponível */
+            font-weight: 900;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.2px;
+            margin-bottom: 2px;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            word-break: break-word;
+            display: block;
+            line-height: 1.3;
+            white-space: normal;
+            overflow: visible;
+            max-width: 100%;
         }
         .item-detalhes {
-            font-size: 10px;
+            font-weight: 700;
+            font-size: 12px;
             display: flex;
             justify-content: space-between;
+            color: #000000;
         }
         .total {
             text-align: right;
-            font-weight: bold;
-            font-size: 13px;
-            margin-top: 8px;
-            padding-top: 5px;
-            border-top: 2px solid #000;
+            font-weight: 900;
+            font-size: 15px;
+            margin-top: 6px;
+            padding-top: 4px;
+            border-top: 2px solid #000000;
+            color: #000000;
         }
         .pagamento {
-            margin: 8px 0;
-            padding: 5px 0;
-            border-top: 1px dashed #000;
-            border-bottom: 1px dashed #000;
+            margin: 6px 0;
+            padding: 4px 0;
+            border-top: 1px dashed #000000;
+            border-bottom: 1px dashed #000000;
+            font-weight: 700;
+            font-size: 12px;
         }
         .pagamento-tipo {
-            font-weight: bold;
+            font-weight: 900;
             margin-bottom: 3px;
+            font-size: 12px;
         }
         .footer {
             text-align: center;
-            font-size: 10px;
-            margin-top: 10px;
-            padding-top: 5px;
-            border-top: 1px dashed #000;
+            font-weight: 700;
+            font-size: 11px;
+            margin-top: 8px;
+            padding-top: 4px;
+            border-top: 1px dashed #000000;
+            color: #000000;
         }
         .data-hora {
             text-align: center;
-            font-size: 10px;
-            margin: 5px 0;
+            font-weight: 700;
+            font-size: 11px;
+            margin: 4px 0;
+            color: #000000;
         }
         .separador {
             text-align: center;
-            margin: 5px 0;
-            font-size: 10px;
+            font-weight: 900;
+            margin: 4px 0;
+            font-size: 11px;
+            color: #000000;
         }
         .tabela-parcelas {
-            margin: 10px 0;
+            margin: 8px 0;
             width: 100%;
             border-collapse: collapse;
-            font-size: 10px;
+            font-size: 11px;
+            font-weight: 700;
         }
         .tabela-parcelas th,
         .tabela-parcelas td {
-            border: 1px solid #000;
+            border: 1px solid #000000;
             padding: 3px;
             text-align: left;
+            color: #000000;
         }
         .tabela-parcelas th {
             background-color: #f0f0f0;
-            font-weight: bold;
+            font-weight: 900;
             text-align: center;
         }
         .tabela-parcelas .col-par {
@@ -1151,7 +1173,7 @@ async function gerarComprovanteOrcamento(carrinho, dadosPedido) {
         }
         .parcela-paga {
             text-decoration: line-through;
-            color: #666;
+            color: #000000;
         }
     </style>
 </head>
@@ -1184,6 +1206,17 @@ async function gerarComprovanteOrcamento(carrinho, dadosPedido) {
             ${dadosPedido.cliente.bairro ? `<div>${dadosPedido.cliente.bairro}` : ""}${dadosPedido.cliente.cidade ? ` - ${dadosPedido.cliente.cidade}` : ""}${dadosPedido.cliente.estado ? `/${dadosPedido.cliente.estado}` : ""}</div>
             ${dadosPedido.cliente.cep ? `<div>CEP: ${dadosPedido.cliente.cep.replace(/^(\d{5})(\d{3})$/, "$1-$2")}</div>` : ""}
         </div>
+    </div>
+    `
+        : ""
+    }
+
+    ${
+      dadosPedido.cpf_consumidor
+        ? `
+    <div style="margin: 6px 0; padding: 5px 0; border-top: 1px dashed #000000;">
+        <div style="font-weight: bold; font-size: 11px;">CONSUMIDOR CPF:</div>
+        <div style="font-size: 11px; font-weight: 700;">${dadosPedido.cpf_consumidor}</div>
     </div>
     `
         : ""
@@ -1244,7 +1277,7 @@ async function gerarComprovanteOrcamento(carrinho, dadosPedido) {
             ${
               valorDesconto > 0
                 ? `
-            <div class="item-detalhes" style="color: #444; font-size: 9px; margin-top: 1px;">
+            <div class="item-detalhes" style="color: #000000; font-weight: 700; font-size: 11px; margin-top: 1px;">
                 <span>Desconto (${descontoPercentual > 0 ? descontoPercentual.toFixed(2).replace(".", ",") + "%" : "R$"})</span>
                 <span>-${formatarValor(valorDesconto)}</span>
             </div>`
@@ -1257,22 +1290,22 @@ async function gerarComprovanteOrcamento(carrinho, dadosPedido) {
     
     <div class="separador">--------------------------------</div>
     
-    <div style="font-size: 11px; margin-bottom: 5px;">
+    <div style="font-size: 11px; font-weight: 700; color: #000000; margin-bottom: 5px;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
             <span>SUBTOTAL:</span>
             <span>${formatarMoeda(subtotalGeral)}</span>
         </div>
         ${totalDescontos > 0 ? `
-        <div style="display: flex; justify-content: space-between; margin-bottom: 2px; color: #444;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 2px; color: #000000;">
             <span>DESCONTOS:</span>
             <span>-${formatarMoeda(totalDescontos)}</span>
         </div>` : ''}
         ${acrescimoValor > 0 ? `
-        <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 2px; color: #000000;">
              <span>${acrescimoTipo || 'ACRÉSCIMO'}:</span>
              <span>+${formatarValor(acrescimoValor)}</span>
         </div>
-        ${acrescimoObs ? `<div style="font-size: 9px; color: #555; text-align: right; margin-bottom: 2px;">(${acrescimoObs})</div>` : ''}
+        ${acrescimoObs ? `<div style="font-size: 10px; color: #000000; font-weight: 700; text-align: right; margin-bottom: 2px;">(${acrescimoObs})</div>` : ''}
         ` : ''}
     </div>
     

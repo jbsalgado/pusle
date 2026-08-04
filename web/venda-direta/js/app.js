@@ -1861,7 +1861,7 @@ window.confirmarPedido = async function() {
         const selectParcelas = document.getElementById('numero-parcelas');
         let numeroParcelas = 1;
         if (usarMultiplos) {
-            numeroParcelas = pagamentosMultiplosArray.length;
+            numeroParcelas = 1; // Divisão de meios de pagamento ≠ parcelamento
         } else {
             numeroParcelas = parseInt(selectParcelas?.value || 1, 10);
             if (!permiteParcelamento && numeroParcelas > 1) {

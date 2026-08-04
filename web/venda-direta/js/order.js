@@ -28,6 +28,13 @@ function validarDadosPedido(dadosPedido, carrinho) {
     if (!GATEWAY_CONFIG.habilitado || GATEWAY_CONFIG.gateway === 'nenhum') {
 
         let numeroParcelas = parseInt(dadosPedido.numero_parcelas, 10) || 1;
+
+        // ✅ Pagamentos múltiplos = divisão de meios, NÃO parcelamento
+        if (dadosPedido.pagamentos_multiplos && Array.isArray(dadosPedido.pagamentos_multiplos) && dadosPedido.pagamentos_multiplos.length > 0) {
+            console.log('[Order] ℹ️ Pagamento dividido em', dadosPedido.pagamentos_multiplos.length, 'meios - tratando como à vista');
+            numeroParcelas = 1;
+            dadosPedido.numero_parcelas = 1;
+        }
         
         // ✅ VALIDAÇÃO: DINHEIRO e PIX não permitem parcelamento
         // Busca a forma de pagamento para verificar o tipo

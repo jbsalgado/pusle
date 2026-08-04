@@ -651,8 +651,48 @@
               <p class="mt-1 text-xs text-gray-500">
                 ℹ️ Para orçamentos parcelados (boleto/carnê), é necessário
                 cadastrar o cliente.
-              </p>
             </div>
+
+            <!-- Campo CPF e WhatsApp do Consumidor (Opcional) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label
+                  for="consumidor_cpf"
+                  class="block text-sm font-medium text-gray-700 mb-1"
+                  >CPF do Consumidor (Opcional)</label
+                >
+                <input
+                  type="text"
+                  id="consumidor_cpf"
+                  name="cpf_consumidor"
+                  placeholder="000.000.000-00"
+                  maxlength="14"
+                  data-mask="cpf"
+                  autocomplete="off"
+                  class="w-full p-2 border border-gray-300 rounded-md focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+              <div>
+                <label
+                  for="consumidor_whatsapp"
+                  class="block text-sm font-medium text-gray-700 mb-1"
+                  >WhatsApp do Consumidor (Opcional)</label
+                >
+                <input
+                  type="text"
+                  id="consumidor_whatsapp"
+                  name="whatsapp_consumidor"
+                  placeholder="(00) 00000-0000"
+                  maxlength="15"
+                  data-mask="phone"
+                  autocomplete="off"
+                  class="w-full p-2 border border-gray-300 rounded-md focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+            </div>
+            <p class="mt-1 text-xs text-gray-500">
+              ℹ️ Deixe em branco se não quiser registrar o CPF ou associar o WhatsApp. Se ambos forem informados e válidos, o cliente será cadastrado automaticamente.
+            </p>
 
             <div>
               <label

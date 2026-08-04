@@ -171,9 +171,11 @@ class Venda extends ActiveRecord
 
         // Se houver pagamentos múltiplos (divisão de pagamento)
         if (!empty($pagamentosMultiplos) && is_array($pagamentosMultiplos)) {
-            $this->numero_parcelas = count($pagamentosMultiplos);
-            // Salva o número correto de parcelas na venda sem rodar validações completas
-            $this->save(false, ['numero_parcelas']);
+        // ✅ CORREÇÃO: NÃO sobrescreve numero_parcelas com count dos meios de pagamento.
+            // Divisão de meios de pagamento (débito + crédito + PIX) ≠ parcelamento.
+            // numero_parcelas permanece 1 (à vista) para que dashboard, comprovante e
+            // cobrança classifiquem corretamente a venda.
+            // As parcelas financeiras individuais são criadas abaixo para cada meio.
 
             $i = 1;
             foreach ($pagamentosMultiplos as $pgto) {
