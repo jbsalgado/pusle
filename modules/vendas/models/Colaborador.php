@@ -241,7 +241,12 @@ class Colaborador extends ActiveRecord
         }
 
         // Se é dono, não é colaborador
-        if ($usuarioLogado->eh_dono_loja === true || $usuarioLogado->eh_dono_loja === 't' || $usuarioLogado->eh_dono_loja === 1) {
+        if (isset($usuarioLogado->eh_dono_loja) && ($usuarioLogado->eh_dono_loja === true || $usuarioLogado->eh_dono_loja === 't' || $usuarioLogado->eh_dono_loja === 1)) {
+            return null;
+        }
+
+        // Valida se o ID é um UUID válido de 36 caracteres antes de consultar colunas UUID no PostgreSQL
+        if (strlen((string)$usuarioLogado->id) !== 36) {
             return null;
         }
 

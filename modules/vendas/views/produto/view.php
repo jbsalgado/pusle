@@ -43,6 +43,13 @@ $this->params['breadcrumbs'][] = $this->title;
                 ) ?>
                 <?= Html::endForm() ?>
                 <?= Html::button(
+                    '<svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>Gerar Card Social',
+                    [
+                        'class' => 'inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition duration-300 shadow-md',
+                        'onclick' => 'abrirModalCardSocial()',
+                    ]
+                ) ?>
+                <?= Html::button(
                     '<svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>Imprimir Etiqueta',
                     [
                         'class' => 'inline-flex items-center px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white font-semibold rounded-lg transition duration-300',
@@ -416,12 +423,305 @@ $this->params['breadcrumbs'][] = $this->title;
     </div>
 </div>
 
+<!-- Modal Gerador de Card Social -->
+<div id="modalCardSocial" class="fixed inset-0 z-50 hidden overflow-y-auto bg-black bg-opacity-70 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden transform transition-all border border-gray-100">
+        <!-- Header Modal -->
+        <div class="bg-gradient-to-r from-purple-800 via-indigo-800 to-purple-900 px-6 py-5 text-white flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-purple-600/40 rounded-xl border border-purple-400/30">
+                    <svg class="w-6 h-6 text-purple-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </div>
+                <div>
+                    <h3 class="text-xl font-extrabold tracking-tight">Estúdio de Cards Profissionais</h3>
+                    <p class="text-xs text-purple-200 font-medium">Personalize modelo, cores e fundo do seu card de alta conversão</p>
+                </div>
+            </div>
+            <button onclick="fecharModalCardSocial()" class="text-purple-200 hover:text-white hover:bg-white/10 p-2 rounded-xl transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <!-- Body Modal -->
+        <div class="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+            <!-- Formulário de Personalização -->
+            <div id="secaoSelecaoFormato" class="space-y-6">
+                
+                <!-- 1. Formato da Publicação -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">1. Formato da Publicação</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="card_formato" value="feed" checked class="peer sr-only">
+                            <div class="p-3 border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-50 rounded-xl flex items-center gap-3 transition">
+                                <div class="w-10 h-10 border-2 border-purple-600 rounded-lg flex items-center justify-center bg-white font-bold text-xs text-purple-700">1:1</div>
+                                <div>
+                                    <div class="font-bold text-sm text-gray-900">Feed / Post</div>
+                                    <div class="text-xs text-gray-500">1080 x 1080 px</div>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="cursor-pointer">
+                            <input type="radio" name="card_formato" value="stories" class="peer sr-only">
+                            <div class="p-3 border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-50 rounded-xl flex items-center gap-3 transition">
+                                <div class="w-8 h-10 border-2 border-purple-600 rounded-lg flex items-center justify-center bg-white font-bold text-xs text-purple-700">9:16</div>
+                                <div>
+                                    <div class="font-bold text-sm text-gray-900">Stories / Reels</div>
+                                    <div class="text-xs text-gray-500">1080 x 1920 px</div>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 2. Modelo de Layout (Templates) -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">2. Modelo de Layout</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="card_template" value="modern_dark" checked class="peer sr-only">
+                            <div class="p-3 border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-50/60 rounded-xl transition flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center text-blue-400 font-bold text-xs">💎</div>
+                                <div>
+                                    <div class="font-bold text-sm text-gray-900">Modern Dark</div>
+                                    <div class="text-xs text-gray-500">Glassmorphism elegante escuro</div>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="cursor-pointer">
+                            <input type="radio" name="card_template" value="vibrant_gradient" class="peer sr-only">
+                            <div class="p-3 border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-50/60 rounded-xl transition flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs">🌈</div>
+                                <div>
+                                    <div class="font-bold text-sm text-gray-900">Vibrant Gradient</div>
+                                    <div class="text-xs text-gray-500">Colorido e alto contraste</div>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="cursor-pointer">
+                            <input type="radio" name="card_template" value="minimalist_light" class="peer sr-only">
+                            <div class="p-3 border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-50/60 rounded-xl transition flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-gray-100 border border-gray-300 flex items-center justify-center text-gray-800 font-bold text-xs">✨</div>
+                                <div>
+                                    <div class="font-bold text-sm text-gray-900">Minimalist Light</div>
+                                    <div class="text-xs text-gray-500">Limpo, claro e sofisticado</div>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="cursor-pointer">
+                            <input type="radio" name="card_template" value="neon_promo" class="peer sr-only">
+                            <div class="p-3 border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-50/60 rounded-xl transition flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-black border border-green-400 flex items-center justify-center text-green-400 font-bold text-xs">⚡</div>
+                                <div>
+                                    <div class="font-bold text-sm text-gray-900">Neon Promo</div>
+                                    <div class="text-xs text-gray-500">Futurista / Destaque Ofertas</div>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="cursor-pointer sm:col-span-2">
+                            <input type="radio" name="card_template" value="bold_banner" class="peer sr-only">
+                            <div class="p-3 border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-50/60 rounded-xl transition flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-indigo-900 border border-indigo-500 flex items-center justify-center text-yellow-300 font-bold text-xs">📣</div>
+                                <div>
+                                    <div class="font-bold text-sm text-gray-900">Bold Banner</div>
+                                    <div class="text-xs text-gray-500">Faixa dupla de grande impacto visual</div>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 3. Paleta de Cores do Tema -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">3. Paleta de Cores</label>
+                    <div class="flex flex-wrap gap-2">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="card_cor" value="dark" checked class="peer sr-only">
+                            <div class="px-3 py-2 border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-100 rounded-xl flex items-center gap-2 text-xs font-bold text-gray-800">
+                                <span class="w-4 h-4 rounded-full bg-slate-900 inline-block border border-slate-700"></span> Dark Slate
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="card_cor" value="ocean" class="peer sr-only">
+                            <div class="px-3 py-2 border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-100 rounded-xl flex items-center gap-2 text-xs font-bold text-gray-800">
+                                <span class="w-4 h-4 rounded-full bg-sky-600 inline-block"></span> Ocean Blue
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="card_cor" value="emerald" class="peer sr-only">
+                            <div class="px-3 py-2 border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-100 rounded-xl flex items-center gap-2 text-xs font-bold text-gray-800">
+                                <span class="w-4 h-4 rounded-full bg-emerald-600 inline-block"></span> Emerald Green
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="card_cor" value="purple" class="peer sr-only">
+                            <div class="px-3 py-2 border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-100 rounded-xl flex items-center gap-2 text-xs font-bold text-gray-800">
+                                <span class="w-4 h-4 rounded-full bg-purple-600 inline-block"></span> Purple Sunset
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="card_cor" value="sunset" class="peer sr-only">
+                            <div class="px-3 py-2 border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-100 rounded-xl flex items-center gap-2 text-xs font-bold text-gray-800">
+                                <span class="w-4 h-4 rounded-full bg-orange-600 inline-block"></span> Sunset Orange
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="card_cor" value="rose" class="peer sr-only">
+                            <div class="px-3 py-2 border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-100 rounded-xl flex items-center gap-2 text-xs font-bold text-gray-800">
+                                <span class="w-4 h-4 rounded-full bg-rose-600 inline-block"></span> Rose Pink
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="card_cor" value="gold" class="peer sr-only">
+                            <div class="px-3 py-2 border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-100 rounded-xl flex items-center gap-2 text-xs font-bold text-gray-800">
+                                <span class="w-4 h-4 rounded-full bg-amber-500 inline-block"></span> Premium Gold
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 4. Estilo de Fundo -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">4. Estilo de Fundo</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="card_fundo" value="gradient" checked class="peer sr-only">
+                            <div class="p-2 border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-50 rounded-lg text-center text-xs font-bold text-gray-800">Gradiente</div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="card_fundo" value="mesh" class="peer sr-only">
+                            <div class="p-2 border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-50 rounded-lg text-center text-xs font-bold text-gray-800">Mesh Fluid</div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="card_fundo" value="geometric" class="peer sr-only">
+                            <div class="p-2 border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-50 rounded-lg text-center text-xs font-bold text-gray-800">Geométrico</div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="card_fundo" value="dots" class="peer sr-only">
+                            <div class="p-2 border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-50 rounded-lg text-center text-xs font-bold text-gray-800">Grid Pontos</div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Botão Disparar Geração -->
+                <button onclick="dispararGeracaoCard()" class="w-full py-4 px-6 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white font-extrabold rounded-2xl transition duration-300 shadow-xl flex items-center justify-center gap-3 text-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    Gerar Card Agora
+                </button>
+
+            </div>
+
+            <!-- Loader State -->
+            <div id="secaoLoadingCard" class="hidden py-12 flex flex-col items-center justify-center gap-4 text-center">
+                <div class="relative w-16 h-16">
+                    <div class="w-16 h-16 border-4 border-purple-200 border-t-purple-700 rounded-full animate-spin"></div>
+                    <div class="absolute inset-0 flex items-center justify-center text-xl">✨</div>
+                </div>
+                <div>
+                    <h4 class="font-extrabold text-gray-900 text-xl">Gerando Card com Puppeteer Headless...</h4>
+                    <p class="text-sm text-gray-500 mt-1">Renderizando imagem em alta densidade (deviceScaleFactor: 2). Aguarde...</p>
+                </div>
+            </div>
+
+            <!-- Resultado / Preview State -->
+            <div id="secaoResultadoCard" class="hidden space-y-4">
+                <div class="flex items-center justify-between bg-green-50 border border-green-200 p-3 rounded-xl">
+                    <span class="text-sm font-bold text-green-700 flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Card Renderizado com Sucesso!
+                    </span>
+                    <button onclick="voltarSelecaoFormato()" class="text-xs text-purple-700 hover:underline font-bold">Personalizar Novamente</button>
+                </div>
+
+                <div class="bg-gray-950 rounded-2xl p-3 flex items-center justify-center max-h-[500px] overflow-hidden shadow-inner border border-gray-800">
+                    <img id="imgPreviewCard" src="" alt="Preview do Card" class="max-h-[460px] object-contain rounded-lg shadow-2xl">
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <a id="btnBaixarCard" href="#" download class="flex-1 text-center py-4 px-4 bg-purple-700 hover:bg-purple-800 text-white font-extrabold rounded-xl transition shadow-lg flex items-center justify-center gap-2 text-base">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Baixar PNG Alta Qualidade
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     function confirmDelete() {
         if (confirm('Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita.')) {
             document.getElementById('delete-form').submit();
         }
         return false;
+    }
+
+    function abrirModalCardSocial() {
+        document.getElementById('modalCardSocial').classList.remove('hidden');
+        voltarSelecaoFormato();
+    }
+
+    function fecharModalCardSocial() {
+        document.getElementById('modalCardSocial').classList.add('hidden');
+    }
+
+    function voltarSelecaoFormato() {
+        document.getElementById('secaoSelecaoFormato').classList.remove('hidden');
+        document.getElementById('secaoLoadingCard').classList.add('hidden');
+        document.getElementById('secaoResultadoCard').classList.add('hidden');
+    }
+
+    function dispararGeracaoCard() {
+        const formato = document.querySelector('input[name="card_formato"]:checked')?.value || 'feed';
+        const template = document.querySelector('input[name="card_template"]:checked')?.value || 'modern_dark';
+        const corTema = document.querySelector('input[name="card_cor"]:checked')?.value || 'dark';
+        const fundoEstilo = document.querySelector('input[name="card_fundo"]:checked')?.value || 'gradient';
+
+        document.getElementById('secaoSelecaoFormato').classList.add('hidden');
+        document.getElementById('secaoLoadingCard').classList.remove('hidden');
+        document.getElementById('secaoResultadoCard').classList.add('hidden');
+
+        const produtoId = '<?= $model->id ?>';
+        const urlAction = '<?= Url::to(['gerar-card']) ?>?id=' + produtoId;
+
+        const formData = new FormData();
+        formData.append('formato', formato);
+        formData.append('template', template);
+        formData.append('cor_tema', corTema);
+        formData.append('fundo_estilo', fundoEstilo);
+        formData.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->csrfToken ?>');
+
+        fetch(urlAction, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('secaoLoadingCard').classList.add('hidden');
+            if (data.success) {
+                document.getElementById('secaoResultadoCard').classList.remove('hidden');
+                document.getElementById('imgPreviewCard').src = data.card_url;
+                const btnBaixar = document.getElementById('btnBaixarCard');
+                btnBaixar.href = data.card_url;
+                btnBaixar.download = 'card_' + produtoId + '_' + template + '_' + formato + '.png';
+            } else {
+                alert('Erro ao gerar card: ' + (data.message || 'Falha na requisição.'));
+                voltarSelecaoFormato();
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            document.getElementById('secaoLoadingCard').classList.add('hidden');
+            alert('Erro de comunicação com o servidor: ' + err.message);
+            voltarSelecaoFormato();
+        });
     }
 
     function imprimirEtiqueta(nome, codigo, preco) {

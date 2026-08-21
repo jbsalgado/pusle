@@ -37,8 +37,39 @@ class EvolutionService
 
     public function __construct()
     {
-        $this->baseUrl      = rtrim(Yii::$app->params['evolution']['baseUrl'], '/');
+        $rawUrl             = rtrim(Yii::$app->params['evolution']['baseUrl'], '/');
+        $this->baseUrl      = $this->resolveBaseUrl($rawUrl);
         $this->globalApiKey = Yii::$app->params['evolution']['globalApiKey'];
+    }
+
+    /**
+     * Resolve dinamicamente a URL base ativa da Evolution API no servidor.
+     * Caso a porta configurada esteja indisponível, testa a porta alternativa (4000 <-> 8080).
+     */
+    private function resolveBaseUrl(string $configuredUrl): string
+    {
+        if (strpos($configuredUrl, 'localhost') === false && strpos($configuredUrl, '127.0.0.1') === false) {
+            return $configuredUrl;
+        }
+
+        $parsed = parse_url($configuredUrl);
+        $port   = $parsed['port'] ?? 8080;
+
+        $fp = @fsockopen('127.0.0.1', (int)$port, $errno, $errstr, 0.2);
+        if (is_resource($fp)) {
+            fclose($fp);
+            return $configuredUrl;
+        }
+
+        // Tenta a porta alternativa (4000 se configurado 8080, ou 8080 se configurado 4000)
+        $altPort = ((int)$port === 4000) ? 8080 : 4000;
+        $fpAlt   = @fsockopen('127.0.0.1', $altPort, $errno, $errstr, 0.2);
+        if (is_resource($fpAlt)) {
+            fclose($fpAlt);
+            return "http://localhost:{$altPort}";
+        }
+
+        return $configuredUrl;
     }
 
     // =========================================================================
@@ -69,13 +100,60 @@ class EvolutionService
         }
 
         try {
-            // Se já tivermos um token salvo, tentamos usar ele. Senão, gera um novo.
-            $instanceToken = $config->token ?: Yii::$app->security->generateRandomString(32);
+            $client = new Client(['baseUrl' => $this->baseUrl]);
 
-            $client   = new Client(['baseUrl' => $this->baseUrl]);
-            
-            // 1. Tenta CRIAR a instância
-            $response = $client->createRequest()
+            // 1. Consulta motor GO para verificar se a instância já existe
+            $existingUuid = null;
+            $isConnected  = false;
+
+            try {
+                $allResponse = $client->createRequest()
+                    ->setMethod('GET')
+                    ->setUrl('/instance/all')
+                    ->addHeaders(['apiKey' => $this->globalApiKey])
+                    ->send();
+
+                if ($allResponse->isOk) {
+                    $responseData = json_decode($allResponse->content, true);
+                    $instancesList = $responseData['data'] ?? (is_array($responseData) ? $responseData : []);
+                    foreach ($instancesList as $inst) {
+                        $name = $inst['name'] ?? $inst['instanceName'] ?? null;
+                        if ($name === $instanceName) {
+                            $existingUuid = $inst['id'] ?? null;
+                            $isConnected  = !empty($inst['connected']);
+                            break;
+                        }
+                    }
+                }
+            } catch (\Throwable $t) {
+                Yii::warn("EvolutionService::createInstance — erro ao consultar /instance/all: " . $t->getMessage(), __METHOD__);
+            }
+
+            // Se já estiver conectada no WhatsApp, salva status e encerra (não precisa de QR Code)
+            if ($isConnected) {
+                $config->status = 'CONNECTED';
+                $config->save(false);
+                return null;
+            }
+
+            // Para garantir que o Baileys abra um socket novo e envie o QR Code,
+            // deleta a instância antiga não pareada
+            if (!empty($existingUuid)) {
+                try {
+                    $client->createRequest()
+                        ->setMethod('DELETE')
+                        ->setUrl("/instance/delete/{$existingUuid}")
+                        ->addHeaders(['apiKey' => $this->globalApiKey])
+                        ->send();
+                    sleep(1);
+                } catch (\Throwable $t) {
+                    Yii::warn("EvolutionService::createInstance — erro ao deletar instância antiga: " . $t->getMessage(), __METHOD__);
+                }
+            }
+
+            // 2. Cria instância limpa no motor GO
+            $instanceToken = Yii::$app->security->generateRandomString(32);
+            $createResponse = $client->createRequest()
                 ->setMethod('POST')
                 ->setFormat(Client::FORMAT_JSON)
                 ->setUrl('/instance/create')
@@ -91,113 +169,57 @@ class EvolutionService
                 ])
                 ->send();
 
-            if ($response->isOk) {
-                // Criou com sucesso! Salva o novo token.
-                $config->token = $instanceToken;
-                $config->status = 'DISCONNECTED';
-                $config->save(false);
-            } else {
-                // Falhou ao criar (ex: instância já existe no motor Go com outro token)
-                // Busca no motor Go o token real atribuído à essa instância
-                $foundToken = null;
-                try {
-                    $allResponse = $client->createRequest()
-                        ->setMethod('GET')
-                        ->setUrl('/instance/all')
-                        ->addHeaders(['apiKey' => $this->globalApiKey])
-                        ->send();
-
-                    if ($allResponse->isOk) {
-                        $responseData = json_decode($allResponse->content, true);
-                        $instancesList = $responseData['data'] ?? (is_array($responseData) ? $responseData : []);
-                        foreach ($instancesList as $inst) {
-                            $name = $inst['name'] ?? $inst['instanceName'] ?? null;
-                            if ($name === $instanceName && !empty($inst['token'])) {
-                                $foundToken = $inst['token'];
-                                break;
-                            }
-                        }
-                    }
-                } catch (\Throwable $t) {
-                    Yii::warn("EvolutionService::createInstance — erro ao consultar /instance/all: " . $t->getMessage(), __METHOD__);
-                }
-
-                if ($foundToken !== null) {
-                    // Token recuperado com sucesso do motor Go!
-                    $instanceToken = $foundToken;
-                    $config->token = $instanceToken;
-                    $config->status = 'DISCONNECTED';
-                    $config->save(false);
-                } else {
-                    // Se não encontrou no Go, força a exclusão do registro estragado e recria
-                    $this->deleteInstance($empresaId);
-
-                    $instanceToken = Yii::$app->security->generateRandomString(32);
-                    $retryResponse = $client->createRequest()
-                        ->setMethod('POST')
-                        ->setFormat(Client::FORMAT_JSON)
-                        ->setUrl('/instance/create')
-                        ->addHeaders([
-                            'Content-Type' => 'application/json',
-                            'apiKey'       => $this->globalApiKey,
-                        ])
-                        ->setData([
-                            'name'         => $instanceName,
-                            'instanceName' => $instanceName,
-                            'token'        => $instanceToken,
-                            'qrcode'       => true,
-                        ])
-                        ->send();
-
-                    if ($retryResponse->isOk) {
-                        $config->token = $instanceToken;
-                        $config->status = 'DISCONNECTED';
-                        $config->save(false);
-                    } else {
-                        Yii::error("EvolutionService::createInstance — falha fatal ao recriar: " . $retryResponse->content, __METHOD__);
-                        return null;
-                    }
-                }
+            if (!$createResponse->isOk) {
+                Yii::error("EvolutionService::createInstance — falha ao criar instância: " . $createResponse->content, __METHOD__);
+                return null;
             }
 
-            // Fluxo novo v0.7.1: Conecta a instância
+            $config->token  = $instanceToken;
+            $config->status = 'DISCONNECTED';
+            $config->save(false);
+
+            // 3. Conecta para disparar emissão do QR Code pelo Baileys
             $client->createRequest()
                 ->setMethod('POST')
+                ->setFormat(Client::FORMAT_JSON)
                 ->setUrl('/instance/connect')
-                ->addHeaders([
-                    'Content-Type' => 'application/json',
-                    'apikey'       => $instanceToken,
-                ])
-                ->setData([]) // REQUIRED: Send empty JSON '{}' to prevent EOF error
+                ->addHeaders(['apikey' => $instanceToken])
+                ->setData(['qrcode' => true])
                 ->send();
 
-            // Pega o QR Code gerado após a conexão (o Baileys demora ~2s para gerar)
+            // 4. Polling do QR Code (até 8 segundos para o Baileys emitir a imagem)
             $qrBase64 = null;
-            for ($i = 0; $i < 4; $i++) {
-                sleep(1); // Espera 1s a cada tentativa
-                
+            for ($i = 0; $i < 8; $i++) {
+                sleep(1);
+
                 $qrResponse = $client->createRequest()
                     ->setMethod('GET')
                     ->setUrl('/instance/qr')
-                    ->addHeaders([
-                        'Content-Type' => 'application/json',
-                        'apikey'       => $instanceToken,
-                    ])
+                    ->addHeaders(['apikey' => $instanceToken])
                     ->send();
 
                 if ($qrResponse->isOk) {
                     $qrBody = $qrResponse->data ?? json_decode($qrResponse->content, true);
 
-                    // Extrai a string Base64 do QR Code (suportando a v0.7.1 e legados)
-                    $qrBase64 = $qrBody['data']['Qrcode'] 
+                    $rawQr = $qrBody['data']['Qrcode'] 
                         ?? $qrBody['qrcode']['base64'] 
+                        ?? $qrBody['qrcode'] 
                         ?? $qrBody['base64'] 
                         ?? null;
 
-                    if (!empty($qrBase64)) {
-                        break; // Se achou o QR Code, sai do loop imediatamente
+                    if (is_array($rawQr) && isset($rawQr['base64'])) {
+                        $rawQr = $rawQr['base64'];
+                    }
+
+                    if (!empty($rawQr) && is_string($rawQr)) {
+                        $qrBase64 = $rawQr;
+                        break;
                     }
                 }
+            }
+
+            if (!empty($qrBase64) && strpos($qrBase64, 'data:image') !== 0) {
+                $qrBase64 = 'data:image/png;base64,' . ltrim($qrBase64, 'data:image/png;base64,');
             }
 
             return $qrBase64;
@@ -485,6 +507,139 @@ class EvolutionService
         } catch (HttpClientException $e) {
             Yii::error(
                 "EvolutionService::sendDocument — falha HTTP: " . $e->getMessage(),
+                __METHOD__
+            );
+            return false;
+        }
+    }
+
+    /**
+     * Envia uma imagem/mídia (como o card de produto) via WhatsApp para um contato.
+     *
+     * @param string $empresaId UUID do tenant
+     * @param string $to        Número de destino
+     * @param string $mediaData Conteúdo em Base64 ou URL da imagem
+     * @param string $caption   Legenda/mensagem promocional
+     * @param string $mediaType Tipo de mídia (padrão 'image')
+     * @return bool             true em caso de sucesso
+     */
+    public function sendMedia(string $empresaId, string $to, string $mediaData, string $caption = '', string $mediaType = 'image'): bool
+    {
+        $config = WhatsappConfig::findByEmpresa($empresaId);
+
+        if ($config === null || empty($config->token)) {
+            Yii::error(
+                "EvolutionService::sendMedia — instância não encontrada ou sem token para empresa {$empresaId}.",
+                __METHOD__
+            );
+            return false;
+        }
+
+        $sanitizedNumber = $this->sanitizePhoneNumber($to);
+        $cleanBase64 = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', $mediaData);
+
+        $delayMin = isset($config->delay_min) ? (int)$config->delay_min : 2000;
+        $delayMax = isset($config->delay_max) ? (int)$config->delay_max : 4000;
+        $delay = rand($delayMin, $delayMax);
+
+        try {
+            $client   = new Client(['baseUrl' => $this->baseUrl]);
+            $response = $client->createRequest()
+                ->setMethod('POST')
+                ->setFormat(Client::FORMAT_JSON)
+                ->setUrl('/send/media')
+                ->addHeaders([
+                    'Content-Type' => 'application/json',
+                    'apikey'       => $config->token,
+                ])
+                ->setData([
+                    'number'  => $sanitizedNumber,
+                    'url'     => $cleanBase64,
+                    'type'    => $mediaType,
+                    'caption' => $caption,
+                    'delay'   => $delay,
+                ])
+                ->send();
+
+            if (!$response->isOk) {
+                Yii::error(
+                    "EvolutionService::sendMedia — resposta não-OK: "
+                    . $response->statusCode . ' ' . $response->content,
+                    __METHOD__
+                );
+                return false;
+            }
+
+            return true;
+        } catch (HttpClientException $e) {
+            Yii::error(
+                "EvolutionService::sendMedia — falha HTTP: " . $e->getMessage(),
+                __METHOD__
+            );
+            return false;
+        }
+    }
+
+    /**
+     * Posta uma imagem/mídia diretamente no Status/Stories do WhatsApp.
+     *
+     * @param string $empresaId UUID do tenant
+     * @param string $mediaData Conteúdo em Base64 ou URL da imagem
+     * @param string $caption   Legenda promocional do Status
+     * @return bool             true em caso de sucesso
+     */
+    public function sendWhatsAppStatus(string $empresaId, string $mediaData, string $caption = ''): bool
+    {
+        $config = WhatsappConfig::findByEmpresa($empresaId);
+
+        if ($config === null || empty($config->token)) {
+            Yii::error(
+                "EvolutionService::sendWhatsAppStatus — instância não encontrada para empresa {$empresaId}.",
+                __METHOD__
+            );
+            return false;
+        }
+
+        $cleanBase64 = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', $mediaData);
+
+        try {
+            $client   = new Client(['baseUrl' => $this->baseUrl]);
+            
+            // Tenta endpoint /send/status e /send/media com flag status
+            $endpoints = ['/send/status', '/send/media'];
+            $success = false;
+
+            foreach ($endpoints as $endpoint) {
+                $response = $client->createRequest()
+                    ->setMethod('POST')
+                    ->setFormat(Client::FORMAT_JSON)
+                    ->setUrl($endpoint)
+                    ->addHeaders([
+                        'Content-Type' => 'application/json',
+                        'apikey'       => $config->token,
+                    ])
+                    ->setData([
+                        'url'     => $cleanBase64,
+                        'type'    => 'image',
+                        'caption' => $caption,
+                        'status'  => true,
+                    ])
+                    ->send();
+
+                if ($response->isOk) {
+                    $success = true;
+                    break;
+                }
+            }
+
+            if (!$success) {
+                Yii::warn("EvolutionService::sendWhatsAppStatus — endpoints de status não retornaram OK.", __METHOD__);
+            }
+
+            return $success;
+        } catch (HttpClientException $e) {
+            Yii::error(
+                "EvolutionService::sendWhatsAppStatus — falha HTTP: " . $e->getMessage(),
                 __METHOD__
             );
             return false;

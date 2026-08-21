@@ -38,6 +38,11 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                 </div>
 
                 <div class="flex gap-2">
+                    <button type="button" onclick="dispararMassaSelecionados()" class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white font-bold rounded-lg shadow-md transition duration-300 gap-2">
+                        <svg class="w-5 h-5 text-purple-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                        Disparar Cards em Massa
+                    </button>
+
                     <?= Html::a(
                         '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>Voltar',
                         ['/vendas/inicio/index'],
@@ -173,6 +178,11 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
 
                         <!-- Imagem -->
                         <div class="relative h-48 bg-gray-200">
+                            <!-- Checkbox Seleção em Lote -->
+                            <div class="absolute top-2 left-2 z-10 bg-white/90 backdrop-blur-sm p-1 rounded-lg shadow border border-gray-200">
+                                <input type="checkbox" name="produto_massa_chk" value="<?= $model->id ?>" class="w-5 h-5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer block">
+                            </div>
+
                             <?php
                             // Carrega foto principal
                             $fotoPrincipal = $model->fotoPrincipal;
@@ -353,6 +363,9 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
+                                <th class="w-10 px-4 py-3 text-center">
+                                    <input type="checkbox" id="chk_select_all_grid" onclick="toggleSelectAllGrid(this.checked)" class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 cursor-pointer">
+                                </th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produto</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Categoria</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Marca</th>
@@ -365,6 +378,9 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                         <tbody class="bg-white divide-y divide-gray-200">
                             <?php foreach ($dataProvider->getModels() as $model): ?>
                                 <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-4 text-center whitespace-nowrap">
+                                        <input type="checkbox" name="produto_massa_chk" value="<?= $model->id ?>" class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 cursor-pointer">
+                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="flex items-center">
                                             <?php
@@ -721,4 +737,34 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
             }
         });
     }
+
+    // --- FUNÇÕES DE DISPARO EM MASSA DE CARDS ---
+    window.toggleSelectAllGrid = function(checked) {
+        const checkboxes = document.querySelectorAll('input[name="produto_massa_chk"]');
+        checkboxes.forEach(c => c.checked = checked);
+    };
+
+    window.dispararMassaSelecionados = function() {
+        const checkboxes = document.querySelectorAll('input[name="produto_massa_chk"]:checked');
+        const ids = Array.from(checkboxes).map(c => c.value);
+
+        if (ids.length === 0) {
+            // Se nenhum marcado especificamente, pergunta se deseja enviar todos visíveis na página
+            const todosNaPagina = Array.from(document.querySelectorAll('input[name="produto_massa_chk"]')).map(c => c.value);
+            if (todosNaPagina.length === 0) {
+                alert('Nenhum produto encontrado para o disparo.');
+                return;
+            }
+
+            if (confirm('Nenhum produto marcado especificamente. Deseja selecionar todos os ' + todosNaPagina.length + ' produtos exibidos nesta página?')) {
+                document.querySelectorAll('input[name="produto_massa_chk"]').forEach(c => c.checked = true);
+                abrirModalDisparoMassa(todosNaPagina);
+            }
+            return;
+        }
+
+        abrirModalDisparoMassa(ids);
+    };
 </script>
+
+<?= $this->render('_modal_disparo_massa') ?>

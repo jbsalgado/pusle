@@ -8,6 +8,7 @@ import { getToken } from './storage.js';
 export function inicializarGerenciamentoMaquinetas() {
     const btnAbrir = document.getElementById('btn-gerenciar-maquinetas');
     const btnSalvar = document.getElementById('btn-salvar-maquineta');
+    const btnOAuth = document.getElementById('btn-conectar-mercadopago');
 
     if (btnAbrir) {
         btnAbrir.onclick = abrirModalMaquinetas;
@@ -15,6 +16,40 @@ export function inicializarGerenciamentoMaquinetas() {
 
     if (btnSalvar) {
         btnSalvar.onclick = salvarNovaMaquineta;
+    }
+
+    if (btnOAuth) {
+        btnOAuth.onclick = conectarMercadoPagoOAuth;
+    }
+}
+
+/**
+ * Redireciona o lojista para o fluxo OAuth do Mercado Pago
+ */
+export async function conectarMercadoPagoOAuth() {
+    const btn = document.getElementById('btn-conectar-mercadopago');
+    try {
+        if (btn) {
+            btn.disabled = true;
+            btn.innerText = 'Gerando Link de Conexão...';
+        }
+        const tenantId = CONFIG.ID_USUARIO_LOJA;
+        const response = await fetchWithAuth(`${CONFIG.URL_API}/api/mercado-pago/connect-url?tenant_id=${tenantId}`);
+        const data = await response.json();
+
+        if (data.sucesso && data.url) {
+            window.location.href = data.url;
+        } else {
+            alert('Falha ao gerar link de conexão OAuth: ' + (data.erro || 'Erro desconhecido'));
+        }
+    } catch (e) {
+        console.error('[OAuth] ❌ Erro ao conectar:', e);
+        alert('Erro ao conectar com Mercado Pago: ' + e.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = 'Conectar / Reconectar Mercado Pago';
+        }
     }
 }
 

@@ -115,6 +115,8 @@ $config = [
                 'POST api/pedido' => 'api/pedido/create',
                 'GET api/pedido' => 'api/pedido/index',
                 // Regras REST específicas para produto
+                'POST api/v1/products/<id:[\w-]+>/generate-card' => 'api/produto/generate-card',
+                'POST api/produto/<id:[\w-]+>/generate-card' => 'api/produto/generate-card',
                 'GET api/produto/marcas' => 'api/produto/marcas',
                 'GET api/produto/<id:[\w-]+>' => 'api/produto/view',
                 // Regras REST específicas para cliente

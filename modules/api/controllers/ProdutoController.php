@@ -19,13 +19,14 @@ class ProdutoController extends BaseController
             'index' => ['GET', 'HEAD'],
             'view' => ['GET', 'HEAD'],
             'marcas' => ['GET', 'HEAD'],
+            'generate-card' => ['POST'],
         ];
     }
 
     public function behaviors()
     {
         $behaviors = parent::behaviors();
-        $behaviors['authenticator']['optional'] = ['index', 'view', 'marcas'];
+        $behaviors['authenticator']['optional'] = ['index', 'view', 'marcas', 'generate-card'];
         return $behaviors;
     }
 
@@ -158,5 +159,38 @@ class ProdutoController extends BaseController
             ->column();
 
         return $this->success($marcas);
+    }
+
+    /**
+     * Geração automatizada de card profissional de produto.
+     * POST /api/produto/<id>/generate-card
+     * POST /api/v1/products/<id>/generate-card
+     */
+    public function actionGenerateCard($id)
+    {
+        $request = \Yii::$app->request;
+        $formato = $request->post('formato') ?: $request->get('formato', 'feed');
+        $options = [
+            'template' => $request->post('template') ?: $request->get('template', 'modern_dark'),
+            'corTema' => $request->post('cor_tema') ?: $request->post('corTema') ?: $request->get('cor_tema', 'dark'),
+            'fundoEstilo' => $request->post('fundo_estilo') ?: $request->post('fundoEstilo') ?: $request->get('fundo_estilo', 'gradient'),
+            'imagemFundo' => $request->post('imagem_fundo') ?: $request->post('imagemFundo') ?: $request->get('imagem_fundo', null),
+        ];
+
+        try {
+            $service = new \app\modules\vendas\services\CardGeneratorService();
+            $card = $service->gerarCard($id, $formato, $options);
+
+            return $this->success([
+                'card_id' => $card->id,
+                'produto_id' => $card->produto_id,
+                'formato' => $card->formato,
+                'card_url' => $card->getUrlCompleta(),
+                'card_path' => $card->card_path,
+                'metadata' => $card->metadata
+            ], 'Card gerado com sucesso.');
+        } catch (\Exception $e) {
+            return $this->error($e->getMessage(), 400);
+        }
     }
 }

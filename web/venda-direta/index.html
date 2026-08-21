@@ -1677,6 +1677,21 @@
         </div>
         
         <div class="p-4 flex-1 overflow-y-auto">
+          <!-- Bloco Conexão Mercado Pago (OAuth) -->
+          <div class="mb-6 p-4 bg-sky-50 rounded-lg border border-sky-200 shadow-sm">
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="font-bold text-sky-900 text-xs uppercase flex items-center gap-1">
+                <svg class="w-4 h-4 text-sky-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                Conexão Mercado Pago (OAuth)
+              </h3>
+              <span id="mp-oauth-status" class="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">Ativa</span>
+            </div>
+            <p class="text-xs text-sky-700 mb-3">Autorize sua conta do Mercado Pago para receber vendas via PIX, Checkout e Maquinetas Point.</p>
+            <button id="btn-conectar-mercadopago" class="w-full bg-sky-600 text-white py-2 rounded text-xs font-bold hover:bg-sky-700 transition-colors flex items-center justify-center gap-2">
+              <span>Conectar / Reconectar Mercado Pago</span>
+            </button>
+          </div>
+
           <!-- Formulário Novo Vínculo -->
           <div class="mb-6 p-4 bg-brand-50 rounded-lg border border-brand-100">
             <h3 class="font-bold text-brand-800 mb-3 text-sm uppercase">Vincular Nova Maquineta</h3>

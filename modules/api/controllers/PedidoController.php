@@ -101,11 +101,20 @@ class PedidoController extends BaseController
             throw new NotFoundHttpException('Venda não encontrada');
         }
 
+        $isPago = ($venda->status_venda_codigo === 'QUITADA' || $venda->status_venda_codigo === 'PAGO');
+        $isRecusado = (
+            strpos($venda->status_venda_codigo ?? '', 'CANCELAD') !== false ||
+            strpos($venda->observacoes ?? '', 'RECUSAD') !== false ||
+            strpos($venda->observacoes ?? '', 'CANCELAD') !== false
+        );
+
         return [
             'sucesso' => true,
             'venda_id' => $venda->id,
             'status' => $venda->status_venda_codigo,
-            'pago' => ($venda->status_venda_codigo === 'QUITADA' || $venda->status_venda_codigo === 'PAGO'),
+            'pago' => $isPago,
+            'recusado' => $isRecusado,
+            'motivo' => $isRecusado ? 'Pagamento cancelado ou recusado na maquineta/gateway' : null,
             'data_atualizacao' => $venda->data_atualizacao
         ];
     }

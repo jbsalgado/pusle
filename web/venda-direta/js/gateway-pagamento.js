@@ -514,25 +514,34 @@ async function iniciarPollingStatusPoint(pedidoId, originalDadosPedido = null) {
                 if (data.sucesso && data.pago) {
                     console.log('[Point] ✅ Pagamento confirmado via polling!');
                     
-                    // Limpar polling
                     if (pollingIntervalId) {
                         clearInterval(pollingIntervalId);
                         pollingIntervalId = null;
                     }
 
-                    // Fechar modal de espera
                     const modal = document.getElementById('modal-status-point');
                     if (modal) modal.remove();
 
-                    // Disparar evento de finalização (abre o comprovante)
                     window.dispatchEvent(new CustomEvent('pagamentoConfirmado', {
                         detail: {
                             pedidoId: pedidoId,
                             gateway: 'mercadopago_point',
                             dados: data,
-                            originalDadosPedido: originalDadosPedido // Passa os dados para o comprovante
+                            originalDadosPedido: originalDadosPedido
                         }
                     }));
+                } else if (data.sucesso && data.recusado) {
+                    console.warn('[Point] ❌ Pagamento recusado ou cancelado na maquineta!');
+
+                    if (pollingIntervalId) {
+                        clearInterval(pollingIntervalId);
+                        pollingIntervalId = null;
+                    }
+
+                    const modal = document.getElementById('modal-status-point');
+                    if (modal) modal.remove();
+
+                    alert('❌ Transação recusada ou cancelada na maquineta Point: ' + (data.motivo || 'Pagamento não autorizado'));
                 }
             }
         } catch (error) {

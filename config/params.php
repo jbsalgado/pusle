@@ -95,7 +95,9 @@ return [
     // ATENÇÃO: Em produção, atualize os valores abaixo com as credenciais reais.
     // -------------------------------------------------------------------------
     'evolution' => [
-        'baseUrl'      => $_ENV['EVOLUTION_BASE_URL'] ?? getenv('EVOLUTION_BASE_URL') ?: 'http://localhost:8080',           // URL do motor Evolution API Go
+        'baseUrl'      => $_ENV['EVOLUTION_BASE_URL'] ?? getenv('EVOLUTION_BASE_URL') ?: (
+            (defined('YII_ENV') && YII_ENV === 'dev') ? 'http://localhost:4000' : 'http://localhost:8080'
+        ), // URL do motor Evolution API Go (autodetectada por ambiente)
         'globalApiKey' => $_ENV['EVOLUTION_API_KEY'] ?? getenv('EVOLUTION_API_KEY') ?: '429683C4C977415CAAFCCE10F7D57E11',  // Global API Key do motor Go
     ],
 

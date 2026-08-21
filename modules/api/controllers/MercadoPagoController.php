@@ -599,6 +599,12 @@ class MercadoPagoController extends Controller
             $type = $data['type'] ?? $data['topic'] ?? null;
             $tenantId = Yii::$app->request->get('tenant_id');
 
+            // 🔐 VALIDAÇÃO DE SEGURANÇA DA ASSINATURA (x-signature)
+            if (!$this->validarAssinaturaWebhook($data)) {
+                Yii::warning('Assinatura do webhook inválida (x-signature)', 'mercadopago');
+                return ['status' => 'error', 'message' => 'Assinatura x-signature inválida.'];
+            }
+
             // 🟢 TRATAMENTO PARA POINT (MAQUINETA)
             if ($type === 'payment_intent') {
                 $intentId = $data['data']['id'] ?? $data['id'] ?? null;
@@ -1769,6 +1775,8 @@ class MercadoPagoController extends Controller
 
     /**
      * Retorna token do vendedor com prioridade para OAuth.
+     * Se o mp_access_token estiver prestes a expirar (dentro de 7 dias) ou expirado,
+     * renova o token automaticamente usando o mp_refresh_token.
      */
     private function obterTokenVendedor(?array $usuario): ?string
     {
@@ -1777,10 +1785,127 @@ class MercadoPagoController extends Controller
         }
 
         if (!empty($usuario['mp_access_token'])) {
+            $expiration = $usuario['mp_token_expiration'] ?? null;
+            $precisaRenovar = false;
+
+            if (!empty($expiration)) {
+                $expTimestamp = strtotime($expiration);
+                if ($expTimestamp && ($expTimestamp - time() < 604800)) {
+                    $precisaRenovar = true;
+                }
+            }
+
+            if ($precisaRenovar && !empty($usuario['mp_refresh_token'])) {
+                $novoToken = $this->renovarTokenOauth($usuario);
+                if ($novoToken) {
+                    return $novoToken;
+                }
+            }
+
             return $usuario['mp_access_token'];
         }
 
         return $usuario['mercadopago_access_token'] ?? null;
+    }
+
+    /**
+     * Renova o token de acesso OAuth usando o refresh_token do vendedor.
+     */
+    private function renovarTokenOauth(array $usuario): ?string
+    {
+        $tenantId = $usuario['id'] ?? null;
+        $refreshToken = $usuario['mp_refresh_token'] ?? null;
+        $config = $this->getMpAppConfig();
+
+        if (!$tenantId || !$refreshToken || empty($config['client_secret'])) {
+            return null;
+        }
+
+        try {
+            Yii::info("Renovando token OAuth MP automaticamente para tenant {$tenantId}", 'mercadopago');
+            $client = new Client(['base_uri' => 'https://api.mercadopago.com']);
+
+            $response = $client->post('/oauth/token', [
+                'form_params' => [
+                    'grant_type' => 'refresh_token',
+                    'client_id' => $config['app_id'],
+                    'client_secret' => $config['client_secret'],
+                    'refresh_token' => $refreshToken,
+                ]
+            ]);
+
+            $payload = json_decode((string)$response->getBody(), true);
+            if (!empty($payload['access_token'])) {
+                $this->salvarTokensOauth($tenantId, $payload);
+                Yii::info("Token OAuth MP renovado com sucesso para tenant {$tenantId}", 'mercadopago');
+                return $payload['access_token'];
+            }
+        } catch (\Throwable $e) {
+            Yii::error([
+                'action' => 'renovar_token_oauth_erro',
+                'tenant_id' => $tenantId,
+                'error' => $e->getMessage()
+            ], 'mercadopago');
+        }
+
+        return null;
+    }
+
+    /**
+     * Valida a assinatura de segurança (x-signature) enviada pelo Mercado Pago.
+     */
+    private function validarAssinaturaWebhook($data): bool
+    {
+        $headers = getallheaders();
+        $headersNormalized = [];
+        foreach ($headers as $key => $value) {
+            $headersNormalized[strtolower($key)] = $value;
+        }
+
+        $xSignature = $headersNormalized['x-signature'] ?? null;
+        $xRequestId = $headersNormalized['x-request-id'] ?? null;
+
+        if (!$xSignature || !$xRequestId) {
+            Yii::info('Webhook sem x-signature/x-request-id, ignorando validação HMAC.', 'mercadopago');
+            return true;
+        }
+
+        $config = $this->getMpAppConfig();
+        $secret = $config['client_secret'];
+        if (empty($secret)) {
+            return true;
+        }
+
+        $ts = null;
+        $v1 = null;
+        $parts = explode(',', $xSignature);
+        foreach ($parts as $part) {
+            $keyValue = explode('=', trim($part), 2);
+            if (count($keyValue) === 2) {
+                if ($keyValue[0] === 'ts') $ts = $keyValue[1];
+                if ($keyValue[0] === 'v1') $v1 = $keyValue[1];
+            }
+        }
+
+        if (!$ts || !$v1) {
+            return false;
+        }
+
+        $dataId = $data['data']['id'] ?? $data['id'] ?? Yii::$app->request->get('id');
+        $manifest = "id:{$dataId};request-id:{$xRequestId};ts:{$ts};";
+        $hash = hash_hmac('sha256', $manifest, $secret);
+
+        $valido = hash_equals($hash, $v1);
+        if (!$valido) {
+            Yii::warning([
+                'action' => 'webhook_assinatura_invalida',
+                'manifest' => $manifest,
+                'hash_calculado' => $hash,
+                'v1_recebido' => $v1
+            ], 'mercadopago');
+        }
+
+        return $valido;
     }
 
     /**
@@ -2033,15 +2158,21 @@ class MercadoPagoController extends Controller
             ]);
 
             $intent = json_decode($response->getBody()->getContents(), true);
+            $statusIntent = $intent['status'] ?? null;
+            $orderId = $intent['additional_info']['external_reference'] ?? null;
 
-            if (isset($intent['status']) && $intent['status'] === 'FINISHED') {
-                $orderId = $intent['additional_info']['external_reference'] ?? null;
+            if ($statusIntent === 'FINISHED') {
                 $paymentId = $intent['payment']['id'] ?? null;
                 $amount = (float)($intent['amount'] / 100);
 
                 if ($orderId) {
                     $this->liberarPedido($tenantId, $orderId, $amount, $paymentId);
                     Yii::info("Pedido {$orderId} liberado via Webhook Point", 'mercadopago');
+                }
+            } elseif (in_array($statusIntent, ['CANCELED', 'CANCELLED', 'FAILED', 'EXPIRED', 'ABORTED', 'ERROR'])) {
+                if ($orderId) {
+                    $this->cancelarPedido($orderId, "Pagamento RECUSADO na maquineta Point ({$statusIntent})");
+                    Yii::warning("Pedido {$orderId} marcado como RECUSADO via Webhook Point ({$statusIntent})", 'mercadopago');
                 }
             }
 

@@ -318,6 +318,63 @@ class ProdutoController extends Controller
         ]);
     }
 
+    /**
+     * Ação Web/AJAX para gerar o card profissional do produto.
+     */
+    public function actionGerarCard($id)
+    {
+        if (!$this->isAdministrador()) {
+            throw new \yii\web\ForbiddenHttpException('Você não tem permissão para realizar esta operação.');
+        }
+
+        $lojaId = $this->getLojaId();
+        $produto = Produto::find()->where(['id' => $id, 'usuario_id' => $lojaId])->one();
+
+        if (!$produto) {
+            throw new NotFoundHttpException('Produto não encontrado.');
+        }
+
+        $request = Yii::$app->request;
+        $formato = $request->post('formato') ?: $request->get('formato', 'feed');
+        $options = [
+            'template' => $request->post('template') ?: $request->get('template', 'modern_dark'),
+            'corTema' => $request->post('cor_tema') ?: $request->post('corTema') ?: $request->get('cor_tema', 'dark'),
+            'fundoEstilo' => $request->post('fundo_estilo') ?: $request->post('fundoEstilo') ?: $request->get('fundo_estilo', 'gradient'),
+            'imagemFundo' => $request->post('imagem_fundo') ?: $request->post('imagemFundo') ?: $request->get('imagem_fundo', null),
+        ];
+
+        try {
+            $service = new \app\modules\vendas\services\CardGeneratorService();
+            $card = $service->gerarCard($produto, $formato, $options);
+
+            if (Yii::$app->request->isAjax || Yii::$app->request->isPost) {
+                Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+                return [
+                    'success' => true,
+                    'message' => 'Card gerado com sucesso!',
+                    'card_id' => $card->id,
+                    'card_url' => $card->getUrlCompleta(),
+                    'formato' => $card->formato,
+                ];
+            }
+
+            Yii::$app->session->setFlash('success', 'Card gerado com sucesso!');
+            return $this->redirect(['view', 'id' => $produto->id]);
+
+        } catch (\Exception $e) {
+            if (Yii::$app->request->isAjax || Yii::$app->request->isPost) {
+                Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+                return [
+                    'success' => false,
+                    'message' => 'Erro ao gerar card: ' . $e->getMessage()
+                ];
+            }
+
+            Yii::$app->session->setFlash('error', 'Erro ao gerar card: ' . $e->getMessage());
+            return $this->redirect(['view', 'id' => $produto->id]);
+        }
+    }
+
     public function actionCreate()
     {
         // Verifica se é administrador
