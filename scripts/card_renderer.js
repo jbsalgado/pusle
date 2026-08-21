@@ -29,14 +29,63 @@ async function main() {
     let browser;
     try {
         const launchOptions = {
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--font-render-hinting=medium'],
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-crash-reporter',
+                '--disable-gpu',
+                '--user-data-dir=/tmp/puppeteer_user_data',
+                '--font-render-hinting=medium'
+            ],
             headless: 'new'
         };
 
-        if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-            launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-        } else if (fs.existsSync('/usr/bin/chromium')) {
-            launchOptions.executablePath = '/usr/bin/chromium';
+        let executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+
+        if (!executablePath) {
+            const possiblePaths = [
+                '/srv/http/.cache/puppeteer',
+                '/root/.cache/puppeteer',
+                path.join(process.env.HOME || '', '.cache/puppeteer')
+            ];
+
+            for (const cacheDir of possiblePaths) {
+                if (fs.existsSync(cacheDir)) {
+                    try {
+                        const findExecutable = (dir, targetName) => {
+                            const files = fs.readdirSync(dir);
+                            for (const file of files) {
+                                const fullPath = path.join(dir, file);
+                                const stat = fs.statSync(fullPath);
+                                if (stat.isDirectory()) {
+                                    const found = findExecutable(fullPath, targetName);
+                                    if (found) return found;
+                                } else if (file === targetName && (stat.mode & 0o111)) {
+                                    return fullPath;
+                                }
+                            }
+                            return null;
+                        };
+
+                        const foundHeadless = findExecutable(cacheDir, 'chrome-headless-shell');
+                        if (foundHeadless) {
+                            executablePath = foundHeadless;
+                            break;
+                        }
+
+                        const foundChrome = findExecutable(cacheDir, 'chrome');
+                        if (foundChrome) {
+                            executablePath = foundChrome;
+                            break;
+                        }
+                    } catch (e) {}
+                }
+            }
+        }
+
+        if (executablePath) {
+            launchOptions.executablePath = executablePath;
         }
 
         browser = await puppeteer.launch(launchOptions);

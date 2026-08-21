@@ -43,6 +43,7 @@ class EmailDisparoService
 
         try {
             $mailer = Yii::$app->mailer->compose();
+            $mailer->setFrom(['only.code.cru@gmail.com' => $nomeLoja]);
             $mailer->setTo($emailDestino);
             $mailer->setSubject($assunto);
             $mailer->setHtmlBody($html);

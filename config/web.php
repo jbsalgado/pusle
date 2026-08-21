@@ -88,8 +88,14 @@ $config = [
         'mailer' => [
             'class' => 'yii\symfonymailer\Mailer',
             'viewPath' => '@app/mail',
-            // send all mails to a file by default.
-            'useFileTransport' => true,
+            'useFileTransport' => false,
+            'transport' => [
+                'scheme' => 'smtps',
+                'host' => 'smtp.gmail.com',
+                'username' => 'only.code.cru@gmail.com',
+                'password' => 'dxnctubwrfcnbeus',
+                'port' => 465,
+            ],
         ],
         'log' => [
             'traceLevel' => YII_DEBUG ? 3 : 0,

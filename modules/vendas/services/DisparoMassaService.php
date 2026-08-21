@@ -81,9 +81,7 @@ class DisparoMassaService
             // Processar lista de telefones manuais
             $listaTelefonesManuais = $this->extrairLinhasDestino($telefonesManuais);
             // Processar lista de e-mails manuais
-            $listaEmailsManuais = array_filter($this->extrairLinhasDestino($emailsManuais), function($e) {
-                return filter_var($e, FILTER_VALIDATE_EMAIL);
-            });
+            $listaEmailsManuais = array_filter(array_map('trim', $this->extrairLinhasDestino($emailsManuais)));
 
             $totalAgendados = 0;
 
@@ -117,7 +115,7 @@ class DisparoMassaService
                 // 3. Agendar canal: WhatsApp Direto para Clientes Cadastrados
                 if (in_array(DisparoMassa::CANAL_WHATSAPP, $canais)) {
                     foreach ($clientes as $cliente) {
-                        $telefone = $cliente->celular ?: $cliente->telefone;
+                        $telefone = !empty($cliente->telefone) ? $cliente->telefone : $cliente->celular;
                         if (empty($telefone)) {
                             continue;
                         }
@@ -279,19 +277,21 @@ class DisparoMassaService
                         break;
 
                     case DisparoMassa::CANAL_EMAIL:
-                        if (!empty($item->destino)) {
+                        $emailDest = trim((string)$item->destino);
+                        if (empty($emailDest) || !filter_var($emailDest, FILTER_VALIDATE_EMAIL)) {
+                            $sucesso = false;
+                            $erroMsg = "E-mail de destino inválido ou incompleto: '{$item->destino}'. Certifique-se de informar o endereço completo com domínio (ex: usuario@gmail.com).";
+                        } else {
                             $sucesso = $this->emailService->enviarEmailCard(
-                                $item->destino,
+                                $emailDest,
                                 $produto,
                                 $cardAbsPath,
                                 $item->card_url,
                                 $item->mensagem_personalizada
                             );
                             if (!$sucesso) {
-                                $erroMsg = "Falha ao disparar e-mail para {$item->destino}. Verifique a configuração de SMTP/Mailer.";
+                                $erroMsg = "Falha ao disparar e-mail para {$emailDest}. Verifique a configuração de SMTP/Mailer.";
                             }
-                        } else {
-                            $erroMsg = "E-mail de destino não informado ou inválido.";
                         }
                         break;
                 }
@@ -336,7 +336,40 @@ class DisparoMassaService
     }
 
     /**
-     * Extrai linhas ou valores separados por vírgula/quebra de linha.
+     * Reseta os itens de uma campanha que apresentaram erro para 'pendente' e reprocessa a fila.
+     *
+     * @param string $disparoId
+     * @return int Quantidade de itens reprocessados
+     */
+    public function retentarItensComErro(string $disparoId): int
+    {
+        $campanha = DisparoMassa::findOne($disparoId);
+        if (!$campanha) {
+            return 0;
+        }
+
+        $itensErro = DisparoItem::findAll(['disparo_id' => $disparoId, 'status' => DisparoItem::STATUS_ERRO]);
+        if (empty($itensErro)) {
+            return 0;
+        }
+
+        foreach ($itensErro as $item) {
+            $item->status = DisparoItem::STATUS_PENDENTE;
+            $item->erro_mensagem = null;
+            $item->save(false);
+        }
+
+        // Recalcular contadores da campanha
+        $campanha->itens_erro = max(0, (int)$campanha->itens_erro - count($itensErro));
+        $campanha->status = DisparoMassa::STATUS_PENDENTE;
+        $campanha->save(false);
+
+        // Processar a fila imediatamente
+        return $this->processarFilaDisparo($disparoId, 50);
+    }
+
+    /**
+     * Extrai linhas ou valores separados por vírgula, ponto e vírgula, espaço ou quebra de linha.
      */
     private function extrairLinhasDestino($input): array
     {
@@ -348,7 +381,7 @@ class DisparoMassaService
             return [];
         }
 
-        $linhas = preg_split('/[\n\r,;]+/', $input);
+        $linhas = preg_split('/[\n\r,;\s]+/', $input);
         return array_values(array_filter(array_map('trim', $linhas)));
     }
 
@@ -368,7 +401,7 @@ class DisparoMassaService
             '{PRODUTO}' => $produto->nome,
             '{PRECO}' => $preco,
             '{MARCA}' => $produto->marca ?: '',
-            '{NOME}' => $cliente ? $cliente->nome : 'Cliente',
+            '{NOME}' => $cliente ? (!empty($cliente->nome_completo) ? $cliente->nome_completo : $cliente->nome) : 'Cliente',
         ];
 
         return strtr($texto, $replacements);

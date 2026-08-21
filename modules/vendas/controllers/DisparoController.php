@@ -21,6 +21,8 @@ use app\modules\evolution\models\WhatsappConfig;
  */
 class DisparoController extends Controller
 {
+    public $enableCsrfValidation = false;
+
     /**
      * Retorna o ID da loja (dono) para usar nas queries
      */
@@ -215,5 +217,35 @@ class DisparoController extends Controller
             'progresso_percentual' => $campanha->getProgressoPercentual(),
             'erros' => $errosItens
         ];
+    }
+
+    /**
+     * Re-executa os envios dos itens que falharam em uma campanha.
+     */
+    public function actionReenviarErros($id)
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        $campanha = DisparoMassa::findOne($id);
+        if (!$campanha) {
+            return ['success' => false, 'message' => 'Campanha não encontrada.'];
+        }
+
+        try {
+            $service = new DisparoMassaService();
+            $reprocessados = $service->retentarItensComErro($campanha->id);
+
+            return [
+                'success' => true,
+                'message' => "Re-processamento iniciado para {$reprocessados} item(ns) com falha.",
+                'disparo_id' => $campanha->id,
+                'reprocessados' => $reprocessados,
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Erro ao reprocessar disparos: ' . $e->getMessage()
+            ];
+        }
     }
 }

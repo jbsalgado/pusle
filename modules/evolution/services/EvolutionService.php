@@ -256,6 +256,10 @@ class EvolutionService
         }
 
         $sanitizedNumber = $this->sanitizePhoneNumber($to);
+        if (strlen($sanitizedNumber) > 13 || strlen($sanitizedNumber) < 10) {
+            Yii::error("EvolutionService::sendMessage — número de telefone inválido: '{$to}' (sanitizado: '{$sanitizedNumber}')", __METHOD__);
+            return false;
+        }
 
         try {
             $client   = new Client(['baseUrl' => $this->baseUrl]);
@@ -536,6 +540,11 @@ class EvolutionService
         }
 
         $sanitizedNumber = $this->sanitizePhoneNumber($to);
+        if (strlen($sanitizedNumber) > 13 || strlen($sanitizedNumber) < 10) {
+            Yii::error("EvolutionService::sendMedia — número de telefone inválido ou concatenado: '{$to}' (sanitizado: '{$sanitizedNumber}')", __METHOD__);
+            return false;
+        }
+
         $cleanBase64 = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', $mediaData);
 
         $delayMin = isset($config->delay_min) ? (int)$config->delay_min : 2000;

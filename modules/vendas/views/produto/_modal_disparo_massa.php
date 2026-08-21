@@ -155,12 +155,12 @@ use yii\helpers\Url;
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                         <div>
                             <label class="block text-[11px] font-bold text-gray-700 mb-1">💬 Números de WhatsApp Adicionais (Manuais)</label>
-                            <textarea id="telefones_manuais" rows="2" class="w-full p-2.5 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-purple-600" placeholder="Cole números adicionais separados por vírgula ou linha (ex: 11999998888, 11988887777)"></textarea>
+                            <textarea id="telefones_manuais" rows="2" class="w-full p-2.5 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-purple-600" placeholder="Cole números adicionais separados por espaço, vírgula ou linha (ex: 81999998888 81988887777, 11977776666)"></textarea>
                         </div>
 
                         <div>
                             <label class="block text-[11px] font-bold text-gray-700 mb-1">✉️ E-mails Adicionais (Manuais)</label>
-                            <textarea id="emails_manuais" rows="2" class="w-full p-2.5 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-purple-600" placeholder="Cole e-mails adicionais separados por vírgula ou linha (ex: cliente1@email.com, cliente2@email.com)"></textarea>
+                            <textarea id="emails_manuais" rows="2" class="w-full p-2.5 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-purple-600" placeholder="Cole e-mails adicionais separados por espaço, vírgula ou linha (ex: cliente1@email.com cliente2@email.com)"></textarea>
                         </div>
                     </div>
                 </div>
@@ -218,12 +218,16 @@ Garanta o seu antes que acabe o estoque!</textarea>
                 </div>
 
                 <!-- Relatório de Erros se Houver -->
-                <div id="containerErrosDisparo" class="hidden text-left bg-red-50 border border-red-200 rounded-2xl p-4 space-y-2 max-h-40 overflow-y-auto">
+                <div id="containerErrosDisparo" class="hidden text-left bg-red-50 border border-red-200 rounded-2xl p-4 space-y-3 max-h-52 overflow-y-auto">
                     <h5 class="text-xs font-bold text-red-800 uppercase tracking-wider flex items-center gap-1">
                         <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         Relatório Detalhado de Falhas
                     </h5>
                     <div id="listaErrosDisparo" class="text-xs text-red-700 space-y-1"></div>
+                    <button id="btnReenviarErros" onclick="reenviarErrosDisparo()" class="w-full py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition text-xs shadow flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        Reenviar Apenas Itens com Falha
+                    </button>
                 </div>
 
                 <div class="pt-4 flex gap-3">
@@ -242,6 +246,7 @@ Garanta o seu antes que acabe o estoque!</textarea>
     let intervalMonitoramento = null;
     let listaClientesCache = [];
     let whatsappConectadoCache = false;
+    let ultimoDisparoIdAtivo = null;
 
     function abrirModalDisparoMassa(produtosIds = []) {
         produtosSelecionadosDisparo = produtosIds;
@@ -416,11 +421,20 @@ Garanta o seu antes que acabe o estoque!</textarea>
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>',
                 'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify(payload)
         })
-        .then(r => r.json())
+        .then(async r => {
+            const text = await r.text();
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                const textSnippet = text.replace(/<[^>]*>?/gm, '').trim().substring(0, 150);
+                throw new Error(textSnippet || 'O servidor retornou uma resposta inválida.');
+            }
+        })
         .then(data => {
             if (data.success && data.disparo_id) {
                 iniciarMonitoramentoStatus(data.disparo_id);
@@ -438,6 +452,7 @@ Garanta o seu antes que acabe o estoque!</textarea>
     }
 
     function iniciarMonitoramentoStatus(disparoId) {
+        ultimoDisparoIdAtivo = disparoId;
         function checarStatus() {
             fetch('<?= Url::to(['/vendas/disparo/status']) ?>?id=' + disparoId)
             .then(r => r.json())
@@ -476,5 +491,29 @@ Garanta o seu antes que acabe o estoque!</textarea>
 
         checarStatus();
         intervalMonitoramento = setInterval(checarStatus, 2500);
+    }
+
+    function reenviarErrosDisparo() {
+        if (!ultimoDisparoIdAtivo) return;
+        const btn = document.getElementById('btnReenviarErros');
+        btn.disabled = true;
+        btn.innerHTML = '⌛ Reenviando falhas...';
+        fetch('<?= Url::to(['/vendas/disparo/reenviar-erros']) ?>?id=' + ultimoDisparoIdAtivo, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Reenviar Apenas Itens com Falha`;
+            if (data.success) {
+                document.getElementById('containerErrosDisparo').classList.add('hidden');
+                iniciarMonitoramentoStatus(ultimoDisparoIdAtivo);
+            } else {
+                alert('Erro ao reenviar: ' + (data.message || 'Falha na requisição.'));
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Reenviar Apenas Itens com Falha`;
+            alert('Erro de comunicação: ' + err.message);
+        });
     }
 </script>

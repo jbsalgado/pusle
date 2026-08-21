@@ -227,6 +227,22 @@ class Cliente extends ActiveRecord
         return $this->telefone;
     }
 
+    /**
+     * Getter virtual para celular (alias de telefone)
+     */
+    public function getCelular()
+    {
+        return $this->telefone;
+    }
+
+    /**
+     * Getter virtual para nome (alias de nome_completo)
+     */
+    public function getNome()
+    {
+        return $this->nome_completo;
+    }
+
     // Relacionamentos
     public function getUsuario()
     {

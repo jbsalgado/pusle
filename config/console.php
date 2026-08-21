@@ -51,6 +51,18 @@ $config = [
             'thousandSeparator' => '.',
         ],
         'db' => $db,
+        'mailer' => [
+            'class' => 'yii\symfonymailer\Mailer',
+            'viewPath' => '@app/mail',
+            'useFileTransport' => false,
+            'transport' => [
+                'scheme' => 'smtps',
+                'host' => 'smtp.gmail.com',
+                'username' => 'only.code.cru@gmail.com',
+                'password' => 'dxnctubwrfcnbeus',
+                'port' => 465,
+            ],
+        ],
     ],
     'params' => $params,
     /*
