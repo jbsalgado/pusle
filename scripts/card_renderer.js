@@ -84,6 +84,23 @@ async function main() {
             }
         }
 
+        if (!executablePath) {
+            const systemExecutables = [
+                '/usr/bin/google-chrome-stable',
+                '/usr/bin/google-chrome',
+                '/usr/bin/chromium',
+                '/usr/bin/chromium-browser',
+                '/snap/bin/chromium'
+            ];
+
+            for (const sysPath of systemExecutables) {
+                if (fs.existsSync(sysPath)) {
+                    executablePath = sysPath;
+                    break;
+                }
+            }
+        }
+
         if (executablePath) {
             launchOptions.executablePath = executablePath;
         }

@@ -145,7 +145,13 @@ class CardGeneratorService
         $scriptPath = Yii::getAlias('@app/scripts/card_renderer.js');
         $nodeBin = 'node';
 
-        $cmd = sprintf('%s %s %s 2>&1', escapeshellcmd($nodeBin), escapeshellarg($scriptPath), escapeshellarg($payloadTmpFile));
+        $envPrefix = '';
+        $puppeteerEnv = getenv('PUPPETEER_EXECUTABLE_PATH') ?: ($_ENV['PUPPETEER_EXECUTABLE_PATH'] ?? null);
+        if ($puppeteerEnv) {
+            $envPrefix = sprintf('PUPPETEER_EXECUTABLE_PATH=%s ', escapeshellarg($puppeteerEnv));
+        }
+
+        $cmd = sprintf('%s%s %s %s 2>&1', $envPrefix, escapeshellcmd($nodeBin), escapeshellarg($scriptPath), escapeshellarg($payloadTmpFile));
         $output = [];
         $returnCode = 0;
         exec($cmd, $output, $returnCode);
