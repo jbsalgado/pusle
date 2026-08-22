@@ -313,8 +313,14 @@ class ProdutoController extends Controller
             throw new NotFoundHttpException('Produto não encontrado.');
         }
 
+        $cardsHistorico = \app\modules\vendas\models\ProdutoCard::find()
+            ->where(['produto_id' => $id, 'usuario_id' => $lojaId])
+            ->orderBy(['data_criacao' => SORT_DESC])
+            ->all();
+
         return $this->render('view', [
             'model' => $model,
+            'cardsHistorico' => $cardsHistorico,
         ]);
     }
 
@@ -341,6 +347,7 @@ class ProdutoController extends Controller
             'corTema' => $request->post('cor_tema') ?: $request->post('corTema') ?: $request->get('cor_tema', 'dark'),
             'fundoEstilo' => $request->post('fundo_estilo') ?: $request->post('fundoEstilo') ?: $request->get('fundo_estilo', 'gradient'),
             'imagemFundo' => $request->post('imagem_fundo') ?: $request->post('imagemFundo') ?: $request->get('imagem_fundo', null),
+            'fotoId' => $request->post('foto_id') ?: $request->post('fotoId') ?: $request->get('foto_id', null),
         ];
 
         try {
@@ -355,6 +362,7 @@ class ProdutoController extends Controller
                     'card_id' => $card->id,
                     'card_url' => $card->getUrlCompleta(),
                     'formato' => $card->formato,
+                    'stats' => \app\modules\vendas\services\MediaStorageService::getEstatisticasCards(),
                 ];
             }
 
@@ -373,6 +381,110 @@ class ProdutoController extends Controller
             Yii::$app->session->setFlash('error', 'Erro ao gerar card: ' . $e->getMessage());
             return $this->redirect(['view', 'id' => $produto->id]);
         }
+    }
+
+    /**
+     * Exclui um card gerado do banco e remove a imagem .png física do servidor para liberar cota.
+     */
+    public function actionDeleteCard($id)
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        if (!$this->isAdministrador()) {
+            Yii::$app->response->statusCode = 403;
+            return ['success' => false, 'message' => 'Sem permissão para esta ação.'];
+        }
+
+        $lojaId = $this->getLojaId();
+        $card = \app\modules\vendas\models\ProdutoCard::findOne(['id' => $id, 'usuario_id' => $lojaId]);
+
+        if (!$card) {
+            Yii::$app->response->statusCode = 404;
+            return ['success' => false, 'message' => 'Card não encontrado.'];
+        }
+
+        if (!empty($card->card_path)) {
+            $caminhoAbsoluto = Yii::getAlias('@app/web/') . ltrim($card->card_path, '/');
+            if (file_exists($caminhoAbsoluto)) {
+                @unlink($caminhoAbsoluto);
+            }
+        }
+
+        if ($card->delete()) {
+            return [
+                'success' => true,
+                'message' => 'Card excluído com sucesso e espaço em disco liberado.',
+                'stats' => \app\modules\vendas\services\MediaStorageService::getEstatisticasCards()
+            ];
+        }
+
+        Yii::$app->response->statusCode = 500;
+        return ['success' => false, 'message' => 'Erro ao excluir o registro do card.'];
+    }
+
+    /**
+     * Exclui em lote uma seleção de cards gerados do banco e remove as imagens .png físicas do servidor.
+     */
+    public function actionDeleteCardsBatch()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        if (!$this->isAdministrador()) {
+            Yii::$app->response->statusCode = 403;
+            return ['success' => false, 'message' => 'Sem permissão para esta ação.'];
+        }
+
+        $lojaId = $this->getLojaId();
+        $request = Yii::$app->request;
+        $ids = $request->post('ids');
+
+        if (empty($ids)) {
+            $idsRaw = $request->post('ids_raw');
+            if (!empty($idsRaw)) {
+                $ids = is_array($idsRaw) ? $idsRaw : explode(',', $idsRaw);
+            }
+        }
+
+        if (empty($ids) || !is_array($ids)) {
+            Yii::$app->response->statusCode = 400;
+            return ['success' => false, 'message' => 'Nenhum card foi selecionado para exclusão.'];
+        }
+
+        $cards = \app\modules\vendas\models\ProdutoCard::find()
+            ->where(['id' => $ids, 'usuario_id' => $lojaId])
+            ->all();
+
+        $deletadosCount = 0;
+        foreach ($cards as $card) {
+            if (!empty($card->card_path)) {
+                $caminhoAbsoluto = Yii::getAlias('@app/web/') . ltrim($card->card_path, '/');
+                if (file_exists($caminhoAbsoluto)) {
+                    @unlink($caminhoAbsoluto);
+                }
+            }
+            if ($card->delete()) {
+                $deletadosCount++;
+            }
+        }
+
+        return [
+            'success' => true,
+            'deletados_count' => $deletadosCount,
+            'message' => "{$deletadosCount} card(s) excluído(s) com sucesso e espaço liberado.",
+            'stats' => \app\modules\vendas\services\MediaStorageService::getEstatisticasCards()
+        ];
+    }
+
+    /**
+     * Retorna estatísticas de cota de armazenamento em megabytes dos cards do tenant.
+     */
+    public function actionCardStorageStatus()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+        return [
+            'success' => true,
+            'stats' => \app\modules\vendas\services\MediaStorageService::getEstatisticasCards()
+        ];
     }
 
     public function actionCreate()

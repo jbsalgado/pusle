@@ -324,6 +324,9 @@ function generateHtmlTemplate(data, isStories) {
 
     // Renders specific template style
     switch (templateName) {
+        case 'full_bleed_banner':
+        case 'full_bleed':
+            return renderFullBleedBannerTemplate({ isStories, palette, bgCss, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site });
         case 'vibrant_gradient':
             return renderVibrantGradientTemplate({ isStories, palette, bgCss, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site });
         case 'minimalist_light':
@@ -671,6 +674,167 @@ function renderBoldBannerTemplate(ctx) {
     <div class="contact-bar">
         <div>📞 ${telefone || 'CONSULTE NO WHATSAPP'}</div>
         <div>🌐 ${site || 'PEÇA AGORA'}</div>
+    </div>
+</body>
+</html>`;
+}
+
+/* =========================================================================================================
+ * TEMPLATE 6: FULL BLEED BANNER (Foto em Tela Cheia com Banners Topo e Rodapé)
+ * ========================================================================================================= */
+function renderFullBleedBannerTemplate(ctx) {
+    const { isStories, palette, bgCss, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site } = ctx;
+
+    const topBgColor = palette.primary || '#6b8e23';
+    const bottomBgColor = palette.badgeBg ? palette.badgeBg : '#ff5722';
+
+    return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            width: 1080px;
+            height: ${isStories ? 1920 : 1080}px;
+            font-family: 'Outfit', sans-serif;
+            background: #000000;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Background Full Screen Product Image */
+        .full-bg-image {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            object-position: center;
+            z-index: 1;
+        }
+
+        /* Overlay Top Banner */
+        .top-banner {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            z-index: 10;
+            background: ${topBgColor};
+            color: #ffffff;
+            padding: ${isStories ? '45px 40px 30px' : '25px 30px 20px'};
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        }
+
+        .top-subtitle {
+            font-family: 'Inter', sans-serif;
+            font-size: ${isStories ? '28px' : '22px'};
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.95);
+            margin-bottom: 6px;
+        }
+
+        .top-title {
+            font-size: ${isStories ? '64px' : '48px'};
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #ffffff;
+            line-height: 1.1;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        /* Overlay Bottom Banner */
+        .bottom-banner {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            z-index: 10;
+            background: ${bottomBgColor};
+            padding: ${isStories ? '40px 50px 45px' : '25px 40px'};
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.4);
+        }
+
+        .bottom-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .store-brand-name {
+            font-size: ${isStories ? '40px' : '30px'};
+            font-weight: 900;
+            color: #000000;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+            line-height: 1;
+        }
+
+        .main-headline {
+            font-size: ${isStories ? '48px' : '36px'};
+            font-weight: 900;
+            color: #ffffff;
+            text-transform: uppercase;
+            line-height: 1.1;
+            max-width: 650px;
+        }
+
+        .price-badge-text {
+            font-size: ${isStories ? '56px' : '42px'};
+            font-weight: 900;
+            color: #ffffff;
+            line-height: 1;
+        }
+
+        .whatsapp-contact-box {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: rgba(0, 0, 0, 0.15);
+            padding: 12px 24px;
+            border-radius: 60px;
+        }
+
+        .whatsapp-icon {
+            width: ${isStories ? '64px' : '48px'};
+            height: ${isStories ? '64px' : '48px'};
+        }
+
+        .phone-number {
+            font-size: ${isStories ? '46px' : '34px'};
+            font-weight: 900;
+            color: #000000;
+            font-family: 'Inter', sans-serif;
+            letter-spacing: -1px;
+        }
+    </style>
+</head>
+<body>
+    <img class="full-bg-image" src="${imagemProduto}" alt="Background">
+
+    <div class="top-banner">
+        <div class="top-subtitle">${marca ? marca : 'TUDO SOBRE'}</div>
+        <div class="top-title">${nomeProduto}</div>
+    </div>
+
+    <div class="bottom-banner">
+        <div class="bottom-info">
+            <div class="store-brand-name">${nomeLoja}</div>
+            <div class="main-headline">${emPromocao ? 'POR APENAS' : 'OFERTA ESPECIAL'}</div>
+            <div class="price-badge-text">${precoPromocional}</div>
+        </div>
+
+        <div class="whatsapp-contact-box">
+            <svg class="whatsapp-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.982-1.385A9.956 9.956 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill="#25D366"/>
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414-.074-.124-.272-.198-.57-.346z" fill="#FFFFFF"/>
+            </svg>
+            <span class="phone-number">${telefone || '(81) 9386-1026'}</span>
+        </div>
     </div>
 </body>
 </html>`;

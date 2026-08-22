@@ -10,15 +10,18 @@ use app\models\Usuario;
 use app\modules\vendas\models\Produto;
 
 /**
- * Model: ProdutoCard
- * Tabela: prest_produto_cards
+ * Model: ProdutoVideo
+ * Tabela: prest_produto_videos
  *
  * @property string $id
  * @property string $produto_id
  * @property string $usuario_id
+ * @property int $duracao
  * @property string $formato
- * @property string $card_path
- * @property string $card_url
+ * @property string $status
+ * @property string $video_path
+ * @property string $video_url
+ * @property string $erro_mensagem
  * @property array $metadata
  * @property string $data_criacao
  * @property string $data_atualizacao
@@ -26,9 +29,13 @@ use app\modules\vendas\models\Produto;
  * @property Produto $produto
  * @property Usuario $usuario
  */
-class ProdutoCard extends ActiveRecord
+class ProdutoVideo extends ActiveRecord
 {
-    const FORMATO_FEED = 'feed';
+    const STATUS_PENDENTE = 'pendente';
+    const STATUS_PROCESSANDO = 'processando';
+    const STATUS_CONCLUIDO = 'concluido';
+    const STATUS_ERRO = 'erro';
+
     const FORMATO_STORIES = 'stories';
 
     /**
@@ -36,7 +43,7 @@ class ProdutoCard extends ActiveRecord
      */
     public static function tableName()
     {
-        return 'prest_produto_cards';
+        return 'prest_produto_videos';
     }
 
     /**
@@ -60,10 +67,15 @@ class ProdutoCard extends ActiveRecord
     public function rules()
     {
         return [
-            [['produto_id', 'usuario_id', 'formato', 'card_path'], 'required'],
+            [['produto_id', 'usuario_id'], 'required'],
             [['produto_id', 'usuario_id'], 'string', 'max' => 36],
-            [['formato'], 'in', 'range' => [self::FORMATO_FEED, self::FORMATO_STORIES]],
-            [['card_path', 'card_url'], 'string', 'max' => 500],
+            [['duracao'], 'integer'],
+            [['duracao'], 'in', 'range' => [5, 10, 15]],
+            [['formato'], 'default', 'value' => self::FORMATO_STORIES],
+            [['status'], 'default', 'value' => self::STATUS_PENDENTE],
+            [['status'], 'in', 'range' => [self::STATUS_PENDENTE, self::STATUS_PROCESSANDO, self::STATUS_CONCLUIDO, self::STATUS_ERRO]],
+            [['video_path', 'video_url'], 'string', 'max' => 500],
+            [['erro_mensagem'], 'string'],
             [['metadata'], 'safe'],
             [['produto_id'], 'exist', 'skipOnError' => true, 'targetClass' => Produto::class, 'targetAttribute' => ['produto_id' => 'id']],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
@@ -79,17 +91,20 @@ class ProdutoCard extends ActiveRecord
             'id' => 'ID',
             'produto_id' => 'Produto',
             'usuario_id' => 'Usuário',
-            'formato' => 'Formato (Feed / Stories)',
-            'card_path' => 'Caminho do Arquivo',
-            'card_url' => 'URL Pública',
+            'duracao' => 'Duração (segundos)',
+            'formato' => 'Formato (Stories/Reels 9:16)',
+            'status' => 'Status da Renderização',
+            'video_path' => 'Caminho do Vídeo MP4',
+            'video_url' => 'URL Pública do Vídeo',
+            'erro_mensagem' => 'Mensagem de Erro',
             'metadata' => 'Metadados',
-            'data_criacao' => 'Data de Geração',
+            'data_criacao' => 'Data de Criação',
             'data_atualizacao' => 'Data de Atualização',
         ];
     }
 
     /**
-     * Hook beforeSave para gerar UUID no PHP se necessário
+     * Hook beforeSave para gerar UUID se necessário e serializar JSON
      */
     public function beforeSave($insert)
     {
@@ -114,7 +129,6 @@ class ProdutoCard extends ActiveRecord
                 }
             }
 
-            // Encode json se for array
             if (is_array($this->metadata)) {
                 $this->metadata = json_encode($this->metadata, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
             }
@@ -125,7 +139,7 @@ class ProdutoCard extends ActiveRecord
     }
 
     /**
-     * Hook afterFind para decode de metadata em array
+     * Hook afterFind para deserializar metadata em array
      */
     public function afterFind()
     {
@@ -136,15 +150,19 @@ class ProdutoCard extends ActiveRecord
     }
 
     /**
-     * Retorna a URL pública completa do card
+     * Retorna a URL pública completa do vídeo .mp4
      */
     public function getUrlCompleta()
     {
-        if (!empty($this->card_url)) {
-            return $this->card_url;
+        if (!empty($this->video_url)) {
+            return $this->video_url;
         }
 
-        $caminhoRelativo = ltrim($this->card_path, '/');
+        if (empty($this->video_path)) {
+            return null;
+        }
+
+        $caminhoRelativo = ltrim($this->video_path, '/');
         if (Yii::$app->has('request') && Yii::$app->get('request') instanceof \yii\web\Request) {
             return \yii\helpers\Url::to('@web/' . $caminhoRelativo, true);
         }
@@ -159,35 +177,5 @@ class ProdutoCard extends ActiveRecord
     public function getUsuario()
     {
         return $this->hasOne(Usuario::class, ['id' => 'usuario_id']);
-    }
-
-    /**
-     * Retorna o tamanho do arquivo em bytes
-     * @return int
-     */
-    public function getTamanhoBytes()
-    {
-        if (!empty($this->card_path)) {
-            $path = Yii::getAlias('@app/web/') . ltrim($this->card_path, '/');
-            if (file_exists($path)) {
-                return filesize($path);
-            }
-        }
-        return 0;
-    }
-
-    /**
-     * Retorna o tamanho formatado em KB ou MB
-     * @return string
-     */
-    public function getTamanhoFormatado()
-    {
-        $bytes = $this->getTamanhoBytes();
-        if ($bytes >= 1048576) {
-            return number_format($bytes / 1048576, 2) . ' MB';
-        } elseif ($bytes >= 1024) {
-            return number_format($bytes / 1024, 2) . ' KB';
-        }
-        return $bytes . ' B';
     }
 }

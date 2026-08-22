@@ -50,14 +50,28 @@ class CardGeneratorService
             throw new \Exception("Produto não encontrado para o ID fornecido.");
         }
 
+        // Valida cota de armazenamento em MB para cards sociais
+        MediaStorageService::validarEspacoCards($produto->usuario_id);
+
         // 1. Carregar Configuração da Loja / Marca d'água
         $loja = LojaConfiguracao::findOne(['usuario_id' => $produto->usuario_id]);
         
         // 2. Foto do Produto
-        $fotoPrincipal = $produto->fotoPrincipal;
+        $fotoId = $options['fotoId'] ?? null;
+        $fotoEscolhida = null;
+        if ($fotoId) {
+            $fotoEscolhida = ProdutoFoto::findOne(['id' => $fotoId, 'produto_id' => $produto->id]);
+        }
+        if (!$fotoEscolhida) {
+            $fotoEscolhida = $produto->fotoPrincipal;
+        }
+        if (!$fotoEscolhida && !empty($produto->fotos)) {
+            $fotoEscolhida = $produto->fotos[0] ?? null;
+        }
+
         $imagemBase64 = null;
-        if ($fotoPrincipal && !empty($fotoPrincipal->arquivo_path)) {
-            $imagemBase64 = $this->converterImagemParaBase64($fotoPrincipal->arquivo_path);
+        if ($fotoEscolhida && !empty($fotoEscolhida->arquivo_path)) {
+            $imagemBase64 = $this->converterImagemParaBase64($fotoEscolhida->arquivo_path);
         }
 
         // 3. Logo da Loja

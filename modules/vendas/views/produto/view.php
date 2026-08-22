@@ -49,6 +49,11 @@ $this->params['breadcrumbs'][] = $this->title;
                         'onclick' => 'abrirModalCardSocial()',
                     ]
                 ) ?>
+                <?= Html::a(
+                    '<svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Criar Vídeo 9:16',
+                    ['/vendas/produto-video/studio', 'produto_id' => $model->id],
+                    ['class' => 'inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition duration-300 shadow-md']
+                ) ?>
                 <?= Html::button(
                     '<svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>Imprimir Etiqueta',
                     [
@@ -444,9 +449,127 @@ $this->params['breadcrumbs'][] = $this->title;
 
         <!-- Body Modal -->
         <div class="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+            
+            <!-- Card de Cota de Armazenamento de Cards -->
+            <?php $cardStats = \app\modules\vendas\services\MediaStorageService::getEstatisticasCards($model->usuario_id); ?>
+            <div id="container-cota-cards" class="bg-slate-900 text-white rounded-2xl p-4 border border-slate-700 mb-4">
+                <div class="flex justify-between items-center mb-2 flex-wrap gap-2">
+                    <span class="text-xs font-bold text-gray-200 flex items-center gap-2">
+                        <span>🖼️ Armazenamento de Cards da Loja:</span>
+                        <span id="card-lbl-uso-mb" class="text-purple-400 font-extrabold"><?= $cardStats['usado_mb'] ?> MB</span> / <span id="card-lbl-limite-mb" class="text-gray-400"><?= $cardStats['limite_mb'] ?> MB</span>
+                    </span>
+                    <span id="card-lbl-percentual" class="text-[10px] font-bold px-2 py-0.5 rounded-full text-white <?= $cardStats['excedido'] ? 'bg-red-500' : ($cardStats['percentual'] > 80 ? 'bg-amber-500' : 'bg-emerald-500') ?>">
+                        <?= $cardStats['percentual'] ?>% utilizado
+                    </span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden mb-1">
+                    <div id="card-bar-cota-progresso" class="h-full transition-all duration-300 <?= $cardStats['excedido'] ? 'bg-red-500' : ($cardStats['percentual'] > 80 ? 'bg-amber-500' : 'bg-purple-500') ?>" style="width: <?= $cardStats['percentual'] ?>%"></div>
+                </div>
+                <div id="card-alerta-excedido" class="mt-2 text-xs text-red-300 bg-red-900/40 p-2.5 rounded-xl border border-red-500/30 <?= $cardStats['excedido'] ? '' : 'hidden' ?>">
+                    ⚠️ <strong>Limite de Armazenamento Excedido (<?= $cardStats['limite_mb'] ?> MB)!</strong> Para gerar novos cards, apague cards antigos para liberar espaço em disco.
+                </div>
+            </div>
+
+            <!-- Grid / Galeria de Cards Criados Anteriormente para este Produto -->
+            <?php 
+            $cardsList = $cardsHistorico ?? \app\modules\vendas\models\ProdutoCard::find()->where(['produto_id' => $model->id, 'usuario_id' => $model->usuario_id])->orderBy(['data_criacao' => SORT_DESC])->all();
+            ?>
+            <div id="secao-historico-cards" class="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-4">
+                <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <div class="flex items-center gap-3">
+                        <h4 class="font-extrabold text-sm text-gray-900 flex items-center gap-2">
+                            <span>🖼️ Galeria de Cards Gerados</span>
+                            <span id="badge-total-cards" class="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-bold rounded-full"><?= count($cardsList) ?></span>
+                        </h4>
+                        <?php if (!empty($cardsList)): ?>
+                            <label class="inline-flex items-center gap-1.5 cursor-pointer text-xs text-gray-600 font-bold bg-white px-2.5 py-1 rounded-lg border border-gray-200 hover:bg-gray-100 transition shadow-sm">
+                                <input type="checkbox" id="chk-selecionar-todos-cards" onchange="toggleSelecionarTodosCards(this.checked)" class="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500">
+                                <span>Selecionar Todos</span>
+                            </label>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <span id="lbl-cards-selecionados" class="text-xs font-bold text-gray-500 hidden">0 selecionados</span>
+                        <button id="btn-excluir-selecionados-cards" onclick="excluirCardsSelecionados()" type="button" class="hidden py-1 px-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg transition flex items-center gap-1 shadow">
+                            🗑️ Excluir Selecionados (<span id="count-selecionados">0</span>)
+                        </button>
+                    </div>
+                </div>
+
+                <div id="grid-cards-historico" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    <?php if (empty($cardsList)): ?>
+                        <div id="msg-sem-cards" class="col-span-full py-6 text-center text-xs text-gray-400 font-medium bg-white rounded-xl border border-dashed border-gray-200">
+                            Nenhum card gerado ainda para este produto. Escolha as opções abaixo e clique em "Gerar Card Agora"!
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($cardsList as $c): ?>
+                            <?php 
+                            $urlCard = $c->getUrlCompleta();
+                            $fmtLabel = $c->formato === 'stories' ? 'Stories 9:16' : 'Feed 1:1';
+                            $fmtBadge = $c->formato === 'stories' ? 'bg-indigo-600' : 'bg-purple-600';
+                            $tamanho = $c->getTamanhoFormatado();
+                            ?>
+                            <div id="card-item-<?= $c->id ?>" class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col justify-between transition-all hover:shadow-md relative group">
+                                <div class="relative bg-gray-950 aspect-square flex items-center justify-center overflow-hidden">
+                                    <input type="checkbox" value="<?= $c->id ?>" onchange="atualizarSelecaoCards()" class="chk-card-item absolute top-2 left-2 z-10 w-4.5 h-4.5 text-purple-600 rounded border-gray-300 focus:ring-purple-500 cursor-pointer shadow-md">
+                                    <img src="<?= Html::encode($urlCard) ?>" alt="Card <?= Html::encode($fmtLabel) ?>" class="max-h-full max-w-full object-contain">
+                                    <span class="absolute top-2 left-8 text-[9px] font-bold text-white px-2 py-0.5 rounded shadow <?= $fmtBadge ?>">
+                                        <?= $fmtLabel ?>
+                                    </span>
+                                    <span class="absolute top-2 right-2 text-[9px] font-bold text-gray-200 bg-black/70 px-1.5 py-0.5 rounded backdrop-blur">
+                                        <?= $tamanho ?>
+                                    </span>
+                                </div>
+                                <div class="p-2.5 bg-white border-t border-gray-100 flex items-center justify-between gap-2">
+                                    <div class="text-[10px] text-gray-500 font-medium">
+                                        <?= date('d/m/Y H:i', strtotime($c->data_criacao)) ?>
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <a href="<?= Html::encode($urlCard) ?>" download class="p-1.5 text-xs text-purple-600 hover:bg-purple-50 rounded-lg font-bold transition" title="Baixar Imagem PNG">
+                                            📥
+                                        </a>
+                                        <button onclick="excluirCardHistorico('<?= $c->id ?>')" type="button" class="p-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg font-bold transition" title="Excluir Card e Liberar Espaço">
+                                            🗑️
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
+
             <!-- Formulário de Personalização -->
             <div id="secaoSelecaoFormato" class="space-y-6">
                 
+                <!-- 0. Escolha da Foto do Produto -->
+                <?php if (!empty($model->fotos)): ?>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                            Escolha a Foto para o Card (<?= count($model->fotos) ?> disponível(is))
+                        </label>
+                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                            <?php foreach ($model->fotos as $idx => $foto): ?>
+                                <?php
+                                $caminhoFoto = ltrim($foto->arquivo_path, '/');
+                                $urlFoto = Url::to('@web/' . $caminhoFoto, true);
+                                $isPrincipal = $foto->eh_principal || ($idx === 0);
+                                ?>
+                                <label class="cursor-pointer relative group">
+                                    <input type="radio" name="card_foto_id" value="<?= $foto->id ?>" <?= $isPrincipal ? 'checked' : '' ?> class="peer sr-only">
+                                    <div class="aspect-square rounded-xl border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:ring-4 peer-checked:ring-purple-200 overflow-hidden bg-gray-100 transition relative">
+                                        <img src="<?= $urlFoto ?>" class="w-full h-full object-cover" alt="Foto <?= $idx + 1 ?>">
+                                        <?php if ($isPrincipal): ?>
+                                            <span class="absolute top-1 left-1 bg-purple-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow">Principal</span>
+                                        <?php endif; ?>
+                                    </div>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
                 <!-- 1. Formato da Publicação -->
                 <div>
                     <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">1. Formato da Publicação</label>
@@ -519,6 +642,17 @@ $this->params['breadcrumbs'][] = $this->title;
                                 <div>
                                     <div class="font-bold text-sm text-gray-900">Neon Promo</div>
                                     <div class="text-xs text-gray-500">Futurista / Destaque Ofertas</div>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="cursor-pointer sm:col-span-2">
+                            <input type="radio" name="card_template" value="full_bleed_banner" class="peer sr-only">
+                            <div class="p-3 border-2 border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-50/60 rounded-xl transition flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-emerald-700 border border-emerald-500 flex items-center justify-center text-white font-bold text-xs">🖼️</div>
+                                <div>
+                                    <div class="font-bold text-sm text-gray-900">Foto em Tela Cheia (Banners Topo/Rodapé)</div>
+                                    <div class="text-xs text-gray-500">Imagem em 100% da tela com faixas de destaque superior e inferior</div>
                                 </div>
                             </div>
                         </label>
@@ -680,6 +814,7 @@ $this->params['breadcrumbs'][] = $this->title;
         const template = document.querySelector('input[name="card_template"]:checked')?.value || 'modern_dark';
         const corTema = document.querySelector('input[name="card_cor"]:checked')?.value || 'dark';
         const fundoEstilo = document.querySelector('input[name="card_fundo"]:checked')?.value || 'gradient';
+        const fotoId = document.querySelector('input[name="card_foto_id"]:checked')?.value || '';
 
         document.getElementById('secaoSelecaoFormato').classList.add('hidden');
         document.getElementById('secaoLoadingCard').classList.remove('hidden');
@@ -693,6 +828,9 @@ $this->params['breadcrumbs'][] = $this->title;
         formData.append('template', template);
         formData.append('cor_tema', corTema);
         formData.append('fundo_estilo', fundoEstilo);
+        if (fotoId) {
+            formData.append('foto_id', fotoId);
+        }
         formData.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->csrfToken ?>');
 
         fetch(urlAction, {
@@ -711,6 +849,12 @@ $this->params['breadcrumbs'][] = $this->title;
                 const btnBaixar = document.getElementById('btnBaixarCard');
                 btnBaixar.href = data.card_url;
                 btnBaixar.download = 'card_' + produtoId + '_' + template + '_' + formato + '.png';
+                if (data.stats) {
+                    atualizarBarraCotaCards(data.stats);
+                }
+                if (data.card_id) {
+                    adicionarCardAoGridHistorico(data.card_id, data.card_url, data.formato);
+                }
             } else {
                 alert('Erro ao gerar card: ' + (data.message || 'Falha na requisição.'));
                 voltarSelecaoFormato();
@@ -722,6 +866,224 @@ $this->params['breadcrumbs'][] = $this->title;
             alert('Erro de comunicação com o servidor: ' + err.message);
             voltarSelecaoFormato();
         });
+    }
+
+    function toggleSelecionarTodosCards(checked) {
+        document.querySelectorAll('.chk-card-item').forEach(chk => {
+            chk.checked = checked;
+        });
+        atualizarSelecaoCards();
+    }
+
+    function atualizarSelecaoCards() {
+        const checkboxes = document.querySelectorAll('.chk-card-item');
+        const marcados = document.querySelectorAll('.chk-card-item:checked');
+        const total = checkboxes.length;
+        const qtdMarcados = marcados.length;
+
+        const chkTodos = document.getElementById('chk-selecionar-todos-cards');
+        if (chkTodos) {
+            chkTodos.checked = total > 0 && qtdMarcados === total;
+        }
+
+        const lblSelecionados = document.getElementById('lbl-cards-selecionados');
+        const btnExcluir = document.getElementById('btn-excluir-selecionados-cards');
+        const countSpan = document.getElementById('count-selecionados');
+
+        if (qtdMarcados > 0) {
+            if (lblSelecionados) {
+                lblSelecionados.innerText = qtdMarcados + (qtdMarcados === 1 ? ' selecionado' : ' selecionados');
+                lblSelecionados.classList.remove('hidden');
+            }
+            if (btnExcluir) {
+                btnExcluir.classList.remove('hidden');
+            }
+            if (countSpan) {
+                countSpan.innerText = qtdMarcados;
+            }
+        } else {
+            if (lblSelecionados) lblSelecionados.classList.add('hidden');
+            if (btnExcluir) btnExcluir.classList.add('hidden');
+        }
+    }
+
+    function excluirCardsSelecionados() {
+        const marcados = Array.from(document.querySelectorAll('.chk-card-item:checked')).map(c => c.value);
+        if (marcados.length === 0) {
+            alert('Nenhum card foi selecionado.');
+            return;
+        }
+
+        const texto = marcados.length === 1 
+            ? 'Deseja realmente excluir o card selecionado?' 
+            : 'Deseja realmente excluir os ' + marcados.length + ' cards selecionados? As imagens PNG serão removidas permanentemente do servidor.';
+
+        if (!confirm(texto)) {
+            return;
+        }
+
+        const urlAction = '<?= Url::to(['delete-cards-batch']) ?>';
+        const formData = new FormData();
+        marcados.forEach(id => formData.append('ids[]', id));
+        formData.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->csrfToken ?>');
+
+        fetch(urlAction, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                marcados.forEach(cardId => {
+                    const elem = document.getElementById('card-item-' + cardId);
+                    if (elem) {
+                        elem.style.transition = 'all 0.3s ease';
+                        elem.style.opacity = '0';
+                        elem.style.transform = 'scale(0.8)';
+                        setTimeout(() => elem.remove(), 300);
+                    }
+                });
+
+                const badgeTotal = document.getElementById('badge-total-cards');
+                if (badgeTotal) {
+                    const atual = Math.max(0, parseInt(badgeTotal.innerText || '0') - (data.deletados_count || marcados.length));
+                    badgeTotal.innerText = atual;
+                }
+
+                setTimeout(() => {
+                    atualizarSelecaoCards();
+                }, 350);
+
+                if (data.stats) {
+                    atualizarBarraCotaCards(data.stats);
+                }
+            } else {
+                alert('Erro ao excluir cards: ' + (data.message || 'Erro desconhecido.'));
+            }
+        })
+        .catch(err => alert('Erro de conexão ao excluir cards em lote: ' + err.message));
+    }
+
+    function excluirCardHistorico(cardId) {
+        if (!confirm('Deseja realmente excluir este card? A imagem PNG será removida permanentemente do servidor para liberar cota de armazenamento.')) {
+            return;
+        }
+
+        const urlAction = '<?= Url::to(['delete-card']) ?>?id=' + encodeURIComponent(cardId);
+        fetch(urlAction, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: '<?= Yii::$app->request->csrfParam ?>=<?= Yii::$app->request->csrfToken ?>'
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const elem = document.getElementById('card-item-' + cardId);
+                if (elem) {
+                    elem.style.transition = 'all 0.3s ease';
+                    elem.style.opacity = '0';
+                    elem.style.transform = 'scale(0.8)';
+                    setTimeout(() => elem.remove(), 300);
+                }
+                const badgeTotal = document.getElementById('badge-total-cards');
+                if (badgeTotal) {
+                    const atual = Math.max(0, parseInt(badgeTotal.innerText || '0') - 1);
+                    badgeTotal.innerText = atual;
+                }
+                setTimeout(() => {
+                    atualizarSelecaoCards();
+                }, 350);
+                if (data.stats) {
+                    atualizarBarraCotaCards(data.stats);
+                }
+            } else {
+                alert('Erro ao excluir card: ' + (data.message || 'Erro desconhecido.'));
+            }
+        })
+        .catch(err => alert('Erro de conexão ao excluir card: ' + err.message));
+    }
+
+    function adicionarCardAoGridHistorico(cardId, cardUrl, formato) {
+        const grid = document.getElementById('grid-cards-historico');
+        if (!grid) return;
+
+        const msgSemCards = document.getElementById('msg-sem-cards');
+        if (msgSemCards) msgSemCards.remove();
+
+        const fmtLabel = formato === 'stories' ? 'Stories 9:16' : 'Feed 1:1';
+        const fmtBadge = formato === 'stories' ? 'bg-indigo-600' : 'bg-purple-600';
+        const dataAtual = new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+
+        const div = document.createElement('div');
+        div.id = 'card-item-' + cardId;
+        div.className = 'bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col justify-between transition-all hover:shadow-md relative group';
+        div.innerHTML = `
+            <div class="relative bg-gray-950 aspect-square flex items-center justify-center overflow-hidden">
+                <input type="checkbox" value="${cardId}" onchange="atualizarSelecaoCards()" class="chk-card-item absolute top-2 left-2 z-10 w-4.5 h-4.5 text-purple-600 rounded border-gray-300 focus:ring-purple-500 cursor-pointer shadow-md">
+                <img src="${cardUrl}" alt="Card ${fmtLabel}" class="max-h-full max-w-full object-contain">
+                <span class="absolute top-2 left-8 text-[9px] font-bold text-white px-2 py-0.5 rounded shadow ${fmtBadge}">
+                    ${fmtLabel}
+                </span>
+                <span class="absolute top-2 right-2 text-[9px] font-bold text-gray-200 bg-black/70 px-1.5 py-0.5 rounded backdrop-blur">
+                    Novo
+                </span>
+            </div>
+            <div class="p-2.5 bg-white border-t border-gray-100 flex items-center justify-between gap-2">
+                <div class="text-[10px] text-gray-500 font-medium">${dataAtual}</div>
+                <div class="flex items-center gap-1">
+                    <a href="${cardUrl}" download class="p-1.5 text-xs text-purple-600 hover:bg-purple-50 rounded-lg font-bold transition" title="Baixar Imagem PNG">
+                        📥
+                    </a>
+                    <button onclick="excluirCardHistorico('${cardId}')" type="button" class="p-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg font-bold transition" title="Excluir Card e Liberar Espaço">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+        `;
+
+        grid.insertBefore(div, grid.firstChild);
+
+        const badgeTotal = document.getElementById('badge-total-cards');
+        if (badgeTotal) {
+            badgeTotal.innerText = parseInt(badgeTotal.innerText || '0') + 1;
+        }
+
+        atualizarSelecaoCards();
+    }
+
+    function atualizarBarraCotaCards(stats) {
+        if (!stats) return;
+        const usoElem = document.getElementById('card-lbl-uso-mb');
+        const limiteElem = document.getElementById('card-lbl-limite-mb');
+        const percElem = document.getElementById('card-lbl-percentual');
+        const progressBar = document.getElementById('card-bar-cota-progresso');
+        const alertaElem = document.getElementById('card-alerta-excedido');
+        const btnDisparar = document.querySelector('button[onclick="dispararGeracaoCard()"]');
+
+        if (usoElem) usoElem.innerText = stats.usado_mb + ' MB';
+        if (limiteElem) limiteElem.innerText = stats.limite_mb + ' MB';
+        if (percElem) {
+            percElem.innerText = stats.percentual + '% utilizado';
+            percElem.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full text-white ' + (stats.excedido ? 'bg-red-500' : (stats.percentual > 80 ? 'bg-amber-500' : 'bg-emerald-500'));
+        }
+        if (progressBar) {
+            progressBar.style.width = stats.percentual + '%';
+            progressBar.className = 'h-full transition-all duration-300 ' + (stats.excedido ? 'bg-red-500' : (stats.percentual > 80 ? 'bg-amber-500' : 'bg-purple-500'));
+        }
+        if (alertaElem) {
+            if (stats.excedido) alertaElem.classList.remove('hidden');
+            else alertaElem.classList.add('hidden');
+        }
+        if (btnDisparar) {
+            btnDisparar.disabled = stats.excedido;
+            btnDisparar.style.opacity = stats.excedido ? '0.5' : '1';
+        }
     }
 
     function imprimirEtiqueta(nome, codigo, preco) {

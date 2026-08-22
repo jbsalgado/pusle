@@ -93,6 +93,7 @@ class LojaConfiguracao extends ActiveRecord
             // Validação de email
             ['email', 'email'],
 
+            [['limite_armazenamento_videos_mb', 'limite_armazenamento_cards_mb'], 'integer', 'min' => 5, 'max' => 5000],
             // Validação de URL
             ['site', 'url'],
         ];
