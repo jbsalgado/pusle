@@ -23,6 +23,14 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                     ['class' => 'inline-flex items-center px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-lg shadow-md transition duration-300 text-sm sm:text-base w-full sm:w-auto justify-center']
                 ) ?>
                 <?= Html::a(
+                    '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>Importar CSV',
+                    ['importar-csv'],
+                    [
+                        'id' => 'btn-open-import-modal',
+                        'class' => 'inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition duration-300 text-sm sm:text-base w-full sm:w-auto justify-center'
+                    ]
+                ) ?>
+                <?= Html::a(
                     '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Novo Cliente',
                     ['create'],
                     ['class' => 'inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-300 text-sm sm:text-base w-full sm:w-auto justify-center']
@@ -332,3 +340,81 @@ $viewMode = Yii::$app->request->get('view', 'cards');
 
     </div>
 </div>
+
+<!-- Modal Importar CSV -->
+<div id="modal-importar-csv" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <!-- Overlay -->
+        <div id="modal-importar-overlay" class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <!-- Conteúdo do Modal -->
+        <div class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex justify-between items-center text-white">
+                <h3 class="text-lg font-bold flex items-center gap-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                    </svg>
+                    Importar Clientes via CSV
+                </h3>
+                <button type="button" id="btn-close-import-modal" class="text-white hover:text-gray-200 focus:outline-none text-2xl font-bold">&times;</button>
+            </div>
+
+            <?= Html::beginForm(['importar-csv'], 'post', ['enctype' => 'multipart/form-data', 'class' => 'p-6 space-y-4']) ?>
+                
+                <div class="bg-amber-50 border-l-4 border-amber-500 p-3 rounded text-xs text-amber-800">
+                    <strong>Nota:</strong> Clientes com CPFs já cadastrados nesta loja serão <strong>ignorados automaticamente</strong> e o sistema prosseguirá para os próximos registros.
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Selecione o arquivo CSV (.csv ou .txt)</label>
+                    <input type="file" name="csv_file" accept=".csv, .txt" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-100">
+                    <span>Campos suportados: nome, cpf, telefone, email, endereco, cidade, uf, cep, obs...</span>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-2 pt-4 border-t border-gray-200 justify-end">
+                    <?= Html::a(
+                        '<svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>Baixar Modelo',
+                        ['baixar-modelo-csv'],
+                        ['class' => 'px-3 py-2 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 font-semibold rounded text-xs text-center transition flex items-center justify-center']
+                    ) ?>
+                    <button type="button" id="btn-cancel-import-modal" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-semibold rounded transition">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded shadow transition flex items-center justify-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                        Importar
+                    </button>
+                </div>
+
+            <?= Html::endForm() ?>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('modal-importar-csv');
+    const openBtn = document.getElementById('btn-open-import-modal');
+    const closeBtn = document.getElementById('btn-close-import-modal');
+    const cancelBtn = document.getElementById('btn-cancel-import-modal');
+    const overlay = document.getElementById('modal-importar-overlay');
+
+    function openModal(e) {
+        // Se a tela for sm ou maior, abre o modal. Se preferir navegar direto, pode abrir o modal no click
+        if (e) e.preventDefault();
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+        if (modal) modal.classList.add('hidden');
+    }
+
+    if (openBtn) openBtn.addEventListener('click', openModal);
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+    if (overlay) overlay.addEventListener('click', closeModal);
+});
+</script>
