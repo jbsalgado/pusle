@@ -615,6 +615,8 @@ class EvolutionService
                 __METHOD__
             );
             return false;
+        }
+
         if (strpos($mediaData, '/') === 0 && strpos($mediaData, 'http') !== 0) {
             $domain = Yii::$app->params['domain'] ?? 'https://alex-birds.oncode.app.br';
             $mediaData = rtrim($domain, '/') . '/' . ltrim($mediaData, '/');
