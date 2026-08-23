@@ -132,7 +132,7 @@ class EvolutionService
                                         ->send();
                                     sleep(1);
                                 } catch (\Throwable $dt) {
-                                    Yii::warn("EvolutionService::createInstance — aviso ao deletar instância antiga: " . $dt->getMessage(), __METHOD__);
+                                    Yii::warning("EvolutionService::createInstance — aviso ao deletar instância antiga: " . $dt->getMessage(), __METHOD__);
                                 }
                             }
                             break;
@@ -140,7 +140,7 @@ class EvolutionService
                     }
                 }
             } catch (\Throwable $t) {
-                Yii::warn("EvolutionService::createInstance — erro ao consultar /instance/all: " . $t->getMessage(), __METHOD__);
+                Yii::warning("EvolutionService::createInstance — erro ao consultar /instance/all: " . $t->getMessage(), __METHOD__);
             }
 
             // Se já estiver conectada no WhatsApp, salva status e encerra (não precisa de QR Code)
@@ -641,12 +641,12 @@ class EvolutionService
                     $success = true;
                     break;
                 } else {
-                    Yii::warn("EvolutionService::sendWhatsAppStatus — endpoint {$endpoint} retornou HTTP {$response->statusCode}: {$response->content}", __METHOD__);
+                    Yii::warning("EvolutionService::sendWhatsAppStatus — endpoint {$endpoint} retornou HTTP {$response->statusCode}: {$response->content}", __METHOD__);
                 }
             }
 
             if (!$success) {
-                Yii::warn("EvolutionService::sendWhatsAppStatus — endpoints de status não retornaram OK.", __METHOD__);
+                Yii::warning("EvolutionService::sendWhatsAppStatus — endpoints de status não retornaram OK.", __METHOD__);
             }
 
             return $success;

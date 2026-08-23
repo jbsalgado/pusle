@@ -187,7 +187,7 @@ class DisparoController extends Controller
             try {
                 $service->processarFilaDisparo($campanha->id, 5);
             } catch (\Throwable $t) {
-                Yii::warn("DisparoController::actionCriar — aviso no processamento inicial da fila: " . $t->getMessage(), __METHOD__);
+                Yii::warning("DisparoController::actionCriar — aviso no processamento inicial da fila: " . $t->getMessage(), __METHOD__);
             }
 
             return [
@@ -224,7 +224,7 @@ class DisparoController extends Controller
                 $service->processarFilaDisparo($campanha->id, 10);
                 $campanha->refresh();
             } catch (\Throwable $t) {
-                Yii::warn("DisparoController::actionStatus — aviso ao processar rodada: " . $t->getMessage(), __METHOD__);
+                Yii::warning("DisparoController::actionStatus — aviso ao processar rodada: " . $t->getMessage(), __METHOD__);
             }
         }
 
