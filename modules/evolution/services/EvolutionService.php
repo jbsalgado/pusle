@@ -102,7 +102,7 @@ class EvolutionService
         try {
             $client = new Client(['baseUrl' => $this->baseUrl]);
 
-            // 1. Consulta motor GO para verificar se a instância já existe
+            // 1. Consulta motor GO para verificar se a instância já existe e recuperar seu UUID
             $existingUuid = null;
             $isConnected  = false;
 
@@ -121,6 +121,20 @@ class EvolutionService
                         if ($name === $instanceName) {
                             $existingUuid = $inst['id'] ?? null;
                             $isConnected  = !empty($inst['connected']);
+
+                            // Se encontrou uma instância antiga não conectada, deleta usando seu UUID
+                            if (!$isConnected && !empty($existingUuid)) {
+                                try {
+                                    $client->createRequest()
+                                        ->setMethod('DELETE')
+                                        ->setUrl("/instance/delete/{$existingUuid}")
+                                        ->addHeaders(['apiKey' => $this->globalApiKey])
+                                        ->send();
+                                    sleep(1);
+                                } catch (\Throwable $dt) {
+                                    Yii::warn("EvolutionService::createInstance — aviso ao deletar instância antiga: " . $dt->getMessage(), __METHOD__);
+                                }
+                            }
                             break;
                         }
                     }
@@ -134,21 +148,6 @@ class EvolutionService
                 $config->status = 'CONNECTED';
                 $config->save(false);
                 return null;
-            }
-
-            // Para garantir que o Baileys abra um socket novo e envie o QR Code,
-            // deleta a instância antiga não pareada
-            if (!empty($existingUuid)) {
-                try {
-                    $client->createRequest()
-                        ->setMethod('DELETE')
-                        ->setUrl("/instance/delete/{$existingUuid}")
-                        ->addHeaders(['apiKey' => $this->globalApiKey])
-                        ->send();
-                    sleep(1);
-                } catch (\Throwable $t) {
-                    Yii::warn("EvolutionService::createInstance — erro ao deletar instância antiga: " . $t->getMessage(), __METHOD__);
-                }
             }
 
             // 2. Cria instância limpa no motor GO
@@ -187,9 +186,9 @@ class EvolutionService
                 ->setData(['qrcode' => true])
                 ->send();
 
-            // 4. Polling do QR Code (até 8 segundos para o Baileys emitir a imagem)
+            // 4. Polling do QR Code (até 12 segundos para o Baileys emitir a imagem)
             $qrBase64 = null;
-            for ($i = 0; $i < 8; $i++) {
+            for ($i = 0; $i < 12; $i++) {
                 sleep(1);
 
                 $qrResponse = $client->createRequest()
@@ -202,6 +201,7 @@ class EvolutionService
                     $qrBody = $qrResponse->data ?? json_decode($qrResponse->content, true);
 
                     $rawQr = $qrBody['data']['Qrcode'] 
+                        ?? $qrBody['data']['qrcode']
                         ?? $qrBody['qrcode']['base64'] 
                         ?? $qrBody['qrcode'] 
                         ?? $qrBody['base64'] 
