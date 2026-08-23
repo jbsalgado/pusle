@@ -616,8 +616,8 @@ class EvolutionService
         try {
             $client   = new Client(['baseUrl' => $this->baseUrl]);
             
-            // Tenta endpoint /send/status e /send/media com flag status
-            $endpoints = ['/send/status', '/send/media'];
+            // Endpoints suportados para envio de status (stories): /send/status/media (Go v0.7.1), /send/status, /send/media
+            $endpoints = ['/send/status/media', '/send/status', '/send/media'];
             $success = false;
 
             foreach ($endpoints as $endpoint) {
@@ -640,6 +640,8 @@ class EvolutionService
                 if ($response->isOk) {
                     $success = true;
                     break;
+                } else {
+                    Yii::warn("EvolutionService::sendWhatsAppStatus — endpoint {$endpoint} retornou HTTP {$response->statusCode}: {$response->content}", __METHOD__);
                 }
             }
 
