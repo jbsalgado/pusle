@@ -183,8 +183,12 @@ class DisparoController extends Controller
                 );
             }
 
-            // Disparar worker assíncrono para processar o lote inicial imediato
-            $service->processarFilaDisparo($campanha->id, 50);
+            // Tentar processar a rodada inicial de forma isolada
+            try {
+                $service->processarFilaDisparo($campanha->id, 5);
+            } catch (\Throwable $t) {
+                Yii::warn("DisparoController::actionCriar — aviso no processamento inicial da fila: " . $t->getMessage(), __METHOD__);
+            }
 
             return [
                 'success' => true,
@@ -192,7 +196,8 @@ class DisparoController extends Controller
                 'disparo_id' => $campanha->id,
                 'total_itens' => $campanha->total_itens,
             ];
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Yii::error("DisparoController::actionCriar — Erro ao criar disparo: " . $e->getMessage() . "\n" . $e->getTraceAsString(), __METHOD__);
             return [
                 'success' => false,
                 'message' => 'Erro ao criar disparo em massa: ' . $e->getMessage()
@@ -214,9 +219,13 @@ class DisparoController extends Controller
 
         // Tentar processar mais uma rodada da fila se ainda houver pendentes
         if ($campanha->status === DisparoMassa::STATUS_PENDENTE || $campanha->status === DisparoMassa::STATUS_PROCESSANDO) {
-            $service = new DisparoMassaService();
-            $service->processarFilaDisparo($campanha->id, 10);
-            $campanha->refresh();
+            try {
+                $service = new DisparoMassaService();
+                $service->processarFilaDisparo($campanha->id, 10);
+                $campanha->refresh();
+            } catch (\Throwable $t) {
+                Yii::warn("DisparoController::actionStatus — aviso ao processar rodada: " . $t->getMessage(), __METHOD__);
+            }
         }
 
         // Buscar histórico de erros caso existam itens com falha
