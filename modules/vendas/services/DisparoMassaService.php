@@ -255,8 +255,9 @@ class DisparoMassaService
 
                 switch ($item->canal) {
                     case DisparoMassa::CANAL_STATUS:
-                        if ($cardBase64) {
-                            $sucesso = $this->evolutionService->sendWhatsAppStatus($usuarioId, $cardBase64, $item->mensagem_personalizada ?: $produto->nome);
+                        $mediaParam = !empty($item->card_url) ? $item->card_url : $cardBase64;
+                        if ($mediaParam) {
+                            $sucesso = $this->evolutionService->sendWhatsAppStatus($usuarioId, $mediaParam, $item->mensagem_personalizada ?: $produto->nome);
                             if (!$sucesso) {
                                 $erroMsg = "Falha ao postar no Status do WhatsApp via Evolution API. Verifique a conexão.";
                             }
