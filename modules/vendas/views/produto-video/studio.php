@@ -1102,35 +1102,46 @@ function monitorarProgressoVideoDisparo(disparoId) {
     const lblPerc = document.getElementById('lblProgressoPercentualVideo');
     const btnConcluir = document.getElementById('btnFecharDisparoVideoConcluido');
 
-    intervalMonitoramentoVideo = setInterval(function() {
+    function checarStatusVideo() {
         fetch('<?= Url::to(['/vendas/disparo/status']) ?>?id=' + disparoId)
         .then(r => r.json())
         .then(data => {
-            if (data.success && data.disparo) {
-                const disp = data.disparo;
-                const total = disp.total_itens || 1;
-                const processados = (disp.total_enviados || 0) + (disp.total_erros || 0);
-                const perc = Math.min(Math.round((processados / total) * 100), 100);
+            if (data && data.success) {
+                const total = data.total_itens !== undefined ? data.total_itens : (data.disparo ? data.disparo.total_itens : 1);
+                const enviados = data.itens_enviados !== undefined ? data.itens_enviados : (data.disparo ? data.disparo.total_enviados : 0);
+                const erros = data.itens_erro !== undefined ? data.itens_erro : (data.disparo ? data.disparo.total_erros : 0);
+                const processados = enviados + erros;
+                const status = data.status || (data.disparo ? data.disparo.status : 'processando');
+                const perc = data.progresso_percentual !== undefined ? data.progresso_percentual : Math.min(Math.round((processados / (total || 1)) * 100), 100);
 
-                barra.style.width = perc + '%';
-                lblItens.innerText = processados + ' / ' + total + ' processados (' + (disp.total_erros || 0) + ' erros)';
-                lblPerc.innerText = perc + '%';
+                if (barra) barra.style.width = perc + '%';
+                if (lblItens) lblItens.innerText = processados + ' / ' + total + ' enviados (' + erros + ' erros)';
+                if (lblPerc) lblPerc.innerText = perc + '%';
 
-                if (disp.status === 'concluido' || processados >= total) {
-                    clearInterval(intervalMonitoramentoVideo);
-                    titulo.innerText = '✅ Disparo de Vídeos Concluído!';
-                    subtitulo.innerText = 'Todos os envios foram processados com sucesso via Evolution API.';
-                    btnConcluir.classList.remove('hidden');
-                } else if (disp.status === 'erro') {
-                    clearInterval(intervalMonitoramentoVideo);
-                    titulo.innerText = '⚠️ Disparo Finalizado com Erros';
-                    subtitulo.innerText = 'Ocorreram falhas em alguns envios. Verifique o log.';
-                    btnConcluir.classList.remove('hidden');
+                if (status === 'concluido' || processados >= total) {
+                    if (intervalMonitoramentoVideo) {
+                        clearInterval(intervalMonitoramentoVideo);
+                        intervalMonitoramentoVideo = null;
+                    }
+                    if (titulo) titulo.innerText = (erros === 0) ? '✅ Disparo de Vídeos Concluído!' : '⚠️ Disparo Finalizado com Avisos';
+                    if (subtitulo) subtitulo.innerText = 'Todos os envios foram processados com sucesso via Evolution API.';
+                    if (btnConcluir) btnConcluir.classList.remove('hidden');
+                } else if (status === 'erro' || status === 'cancelado') {
+                    if (intervalMonitoramentoVideo) {
+                        clearInterval(intervalMonitoramentoVideo);
+                        intervalMonitoramentoVideo = null;
+                    }
+                    if (titulo) titulo.innerText = '⚠️ Disparo Finalizado com Erros';
+                    if (subtitulo) subtitulo.innerText = 'Ocorreram falhas em alguns envios. Verifique a conexão com a Evolution API.';
+                    if (btnConcluir) btnConcluir.classList.remove('hidden');
                 }
             }
         })
         .catch(err => console.error('Erro no polling do disparo de vídeo:', err));
-    }, 2000);
+    }
+
+    checarStatusVideo();
+    intervalMonitoramentoVideo = setInterval(checarStatusVideo, 2000);
 }
 </script>
 

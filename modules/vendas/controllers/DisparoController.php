@@ -249,9 +249,8 @@ class DisparoController extends Controller
                 ->all();
         }
 
-        return [
-            'success' => true,
-            'disparo_id' => $campanha->id,
+        $dispData = [
+            'id' => $campanha->id,
             'status' => $campanha->status,
             'total_itens' => (int)$campanha->total_itens,
             'itens_enviados' => (int)$campanha->itens_enviados,
@@ -259,6 +258,11 @@ class DisparoController extends Controller
             'progresso_percentual' => $campanha->getProgressoPercentual(),
             'erros' => $errosItens
         ];
+
+        return array_merge([
+            'success' => true,
+            'disparo' => $dispData,
+        ], $dispData);
     }
 
     /**
