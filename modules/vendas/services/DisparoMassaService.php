@@ -525,13 +525,12 @@ class DisparoMassaService
         try {
             $campanha = new DisparoMassa();
             $campanha->usuario_id = $lojaId;
-            $campanha->template = $antiBanConfig['template'] ?? 'stories_video';
-            $campanha->cor_tema = 'dark';
-            $campanha->fundo_estilo = 'video';
-            $campanha->delay_segundos = (int)($antiBanConfig['delay_segundos'] ?? 5);
-            $campanha->lote_tamanho = (int)($antiBanConfig['lote_tamanho'] ?? 10);
-            $campanha->pausa_lote_segundos = (int)($antiBanConfig['pausa_lote_segundos'] ?? 60);
-            $campanha->status = DisparoMassa::STATUS_EM_ANDAMENTO;
+            $campanha->titulo = 'Disparo de Vídeos - ' . date('d/m/Y H:i');
+            $campanha->canais = $canais;
+            $campanha->configuracoes = $antiBanConfig;
+            $campanha->mensagem_texto = $mensagemTexto;
+            $campanha->status = DisparoMassa::STATUS_PENDENTE;
+            $campanha->total_itens = 0;
             $campanha->save(false);
 
             $videos = \app\modules\vendas\models\ProdutoVideo::find()->where(['id' => $videosIds])->all();
