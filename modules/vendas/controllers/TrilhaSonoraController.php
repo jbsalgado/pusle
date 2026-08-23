@@ -52,7 +52,7 @@ class TrilhaSonoraController extends Controller
             ->orderBy(['created_at' => SORT_DESC])
             ->all();
 
-        $padrao = VideoGeneratorService::getMusicasDisponiveis();
+        $padrao = VideoGeneratorService::getMusicasDisponiveis(true);
 
         $newModel = new TrilhaSonora();
 

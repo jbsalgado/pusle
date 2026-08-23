@@ -73,16 +73,12 @@ class VideoGeneratorService
             return $this->processarGeracaoVideo($videoModel, $options);
         }
 
-        // Dispara Job na fila do Yii2
+        // Dispara Job na fila do Yii2 (processado em segundo plano pelo daemon pulse-queue)
         try {
             Yii::$app->queue->push(new GenerateProductVideoJob([
                 'videoId' => $videoModel->id,
                 'options' => $options,
             ]));
-
-            // Dispara o worker da fila em background de forma assíncrona (não-bloqueante)
-            $cmd = sprintf('php %s queue/run > /dev/null 2>&1 &', escapeshellarg(Yii::getAlias('@app/yii')));
-            exec($cmd);
         } catch (\Exception $e) {
             Yii::error("Falha ao agendar Job no yii2-queue: " . $e->getMessage(), __METHOD__);
             // Fallback: tenta executar diretamente se a fila falhar
@@ -197,7 +193,21 @@ class VideoGeneratorService
             // 7. Montar Payload JSON
             $trilhaKey = $options['trilhaSonora'] ?? ($videoModel->metadata['trilha_sonora'] ?? 'promo_bg.mp3');
             $musicasMap = self::getMusicasDisponiveis();
-            $trilhaSonora = $musicasMap[$trilhaKey]['arquivo'] ?? $trilhaKey;
+            $trilhaSonora = null;
+
+            if (isset($musicasMap[$trilhaKey])) {
+                $trilhaSonora = $musicasMap[$trilhaKey]['arquivo'];
+            } else if (strpos($trilhaKey, 'custom_') === 0) {
+                $customId = substr($trilhaKey, 7);
+                $trilhaModel = \app\modules\vendas\models\TrilhaSonora::findOne($customId);
+                if ($trilhaModel) {
+                    $trilhaSonora = $trilhaModel->arquivo_path;
+                }
+            }
+
+            if (!$trilhaSonora) {
+                $trilhaSonora = $trilhaKey;
+            }
 
             $payload = [
                 'duracao' => (int)$videoModel->duracao,
@@ -342,9 +352,10 @@ class VideoGeneratorService
     }
 
     /**
-     * Retorna a lista de trilhas sonoras disponíveis na biblioteca
+     * Retorna a lista de trilhas sonoras disponíveis na biblioteca.
+     * @param bool $apenasPadrao Se true, retorna apenas as 4 trilhas padrão nativas do sistema.
      */
-    public static function getMusicasDisponiveis()
+    public static function getMusicasDisponiveis($apenasPadrao = false)
     {
         $baseUrl = '/';
         if (Yii::$app->has('request') && method_exists(Yii::$app->request, 'getHostInfo') && Yii::$app->request->getHostInfo()) {
@@ -387,6 +398,10 @@ class VideoGeneratorService
             ],
         ];
 
+        if ($apenasPadrao) {
+            return $padrao;
+        }
+
         try {
             $usuarioId = \app\components\TenantHelper::getId();
             if ($usuarioId) {
@@ -406,9 +421,8 @@ class VideoGeneratorService
                         'tipo_audio' => $trilha->tipo ?: \app\modules\vendas\models\TrilhaSonora::TIPO_MUSICA,
                         'url' => $trilha->getUrl(),
                     ];
+                    // Insere APENAS UMA VEZ indexado pela chave única custom_<id>
                     $padrao[$key] = $item;
-                    $padrao[$trilha->arquivo_path] = $item;
-                    $padrao[basename($trilha->arquivo_path)] = $item;
                 }
             }
         } catch (\Exception $e) {

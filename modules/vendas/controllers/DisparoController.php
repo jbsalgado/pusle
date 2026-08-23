@@ -135,6 +135,7 @@ class DisparoController extends Controller
         // Se for requisição JSON, ler do body
         $rawBody = json_decode($request->getRawBody(), true) ?: [];
 
+        $cardsIds = $rawBody['cards_ids'] ?? $request->post('cards_ids', []);
         $produtosIds = $rawBody['produtos_ids'] ?? $request->post('produtos_ids', []);
         $canais = $rawBody['canais'] ?? $request->post('canais', []);
         $clientesIds = $rawBody['clientes_ids'] ?? $request->post('clientes_ids', []);
@@ -142,24 +143,45 @@ class DisparoController extends Controller
         $emailsManuais = $rawBody['emails_manuais'] ?? $request->post('emails_manuais', '');
         $mensagemTexto = $rawBody['mensagem_texto'] ?? $request->post('mensagem_texto');
         
+        $antiBanConfig = [
+            'delay_segundos' => (int)($rawBody['delay_segundos'] ?? $request->post('delay_segundos', 5)),
+            'lote_tamanho' => (int)($rawBody['lote_tamanho'] ?? $request->post('lote_tamanho', 10)),
+            'pausa_lote_segundos' => (int)($rawBody['pausa_lote_segundos'] ?? $request->post('pausa_lote_segundos', 60)),
+            'incluir_optout' => !empty($rawBody['incluir_optout'] ?? $request->post('incluir_optout', false)),
+        ];
+
         $visualOptions = [
             'template' => $rawBody['template'] ?? $request->post('template', 'modern_dark'),
             'corTema' => $rawBody['cor_tema'] ?? $request->post('cor_tema', 'dark'),
             'fundoEstilo' => $rawBody['fundo_estilo'] ?? $request->post('fundo_estilo', 'gradient'),
         ];
+        $visualOptions = array_merge($visualOptions, $antiBanConfig);
 
         try {
             $service = new DisparoMassaService();
-            $campanha = $service->criarCampanhaDisparo(
-                $lojaId,
-                $produtosIds,
-                $canais,
-                $clientesIds,
-                $visualOptions,
-                $mensagemTexto,
-                $telefonesManuais,
-                $emailsManuais
-            );
+
+            if (!empty($cardsIds)) {
+                $campanha = $service->criarCampanhaDisparoCardsExistentes(
+                    $lojaId,
+                    (array)$cardsIds,
+                    (array)$canais,
+                    (array)$clientesIds,
+                    $mensagemTexto,
+                    $telefonesManuais,
+                    $antiBanConfig
+                );
+            } else {
+                $campanha = $service->criarCampanhaDisparo(
+                    $lojaId,
+                    (array)$produtosIds,
+                    (array)$canais,
+                    (array)$clientesIds,
+                    $visualOptions,
+                    $mensagemTexto,
+                    $telefonesManuais,
+                    $emailsManuais
+                );
+            }
 
             // Disparar worker assíncrono para processar o lote inicial imediato
             $service->processarFilaDisparo($campanha->id, 50);

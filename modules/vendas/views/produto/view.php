@@ -491,8 +491,11 @@ $this->params['breadcrumbs'][] = $this->title;
 
                     <div class="flex items-center gap-2">
                         <span id="lbl-cards-selecionados" class="text-xs font-bold text-gray-500 hidden">0 selecionados</span>
+                        <button id="btn-disparar-selecionados-cards" onclick="abrirDisparoCardsExistentesSelecionados()" type="button" class="hidden py-1 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition flex items-center gap-1 shadow">
+                            📱 Enviar Selecionados (<span id="count-disparo">0</span>)
+                        </button>
                         <button id="btn-excluir-selecionados-cards" onclick="excluirCardsSelecionados()" type="button" class="hidden py-1 px-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg transition flex items-center gap-1 shadow">
-                            🗑️ Excluir Selecionados (<span id="count-selecionados">0</span>)
+                            🗑️ Excluir (<span id="count-selecionados">0</span>)
                         </button>
                     </div>
                 </div>
@@ -511,7 +514,7 @@ $this->params['breadcrumbs'][] = $this->title;
                             $tamanho = $c->getTamanhoFormatado();
                             ?>
                             <div id="card-item-<?= $c->id ?>" class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col justify-between transition-all hover:shadow-md relative group">
-                                <div class="relative bg-gray-950 aspect-square flex items-center justify-center overflow-hidden">
+                                <div onclick="toggleCardSelection('<?= $c->id ?>', event)" class="relative bg-gray-950 aspect-square flex items-center justify-center overflow-hidden cursor-pointer">
                                     <input type="checkbox" value="<?= $c->id ?>" onchange="atualizarSelecaoCards()" class="chk-card-item absolute top-2 left-2 z-10 w-4.5 h-4.5 text-purple-600 rounded border-gray-300 focus:ring-purple-500 cursor-pointer shadow-md">
                                     <img src="<?= Html::encode($urlCard) ?>" alt="Card <?= Html::encode($fmtLabel) ?>" class="max-h-full max-w-full object-contain">
                                     <span class="absolute top-2 left-8 text-[9px] font-bold text-white px-2 py-0.5 rounded shadow <?= $fmtBadge ?>">
@@ -526,6 +529,9 @@ $this->params['breadcrumbs'][] = $this->title;
                                         <?= date('d/m/Y H:i', strtotime($c->data_criacao)) ?>
                                     </div>
                                     <div class="flex items-center gap-1">
+                                        <button onclick="abrirDisparoCardUnico('<?= $c->id ?>', '<?= Html::encode($urlCard) ?>')" type="button" class="p-1.5 text-xs text-emerald-600 hover:bg-emerald-50 rounded-lg font-bold transition" title="Enviar este Card via WhatsApp">
+                                            📱
+                                        </button>
                                         <a href="<?= Html::encode($urlCard) ?>" download class="p-1.5 text-xs text-purple-600 hover:bg-purple-50 rounded-lg font-bold transition" title="Baixar Imagem PNG">
                                             📥
                                         </a>
@@ -778,8 +784,220 @@ $this->params['breadcrumbs'][] = $this->title;
                 <div class="flex gap-3 pt-2">
                     <a id="btnBaixarCard" href="#" download class="flex-1 text-center py-4 px-4 bg-purple-700 hover:bg-purple-800 text-white font-extrabold rounded-xl transition shadow-lg flex items-center justify-center gap-2 text-base">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                        Baixar PNG Alta Qualidade
+                        Baixar PNG
                     </a>
+                    <button id="btnDispararCardGerado" onclick="abrirDisparoCardGeradoAtual()" type="button" class="flex-1 text-center py-4 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold rounded-xl transition shadow-lg flex items-center justify-center gap-2 text-base">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                        Enviar via WhatsApp
+                    </button>
+                </div>
+            </div>
+
+            <!-- Seção de Envio do Card para WhatsApp via Evolution API (com Anti-Ban) -->
+            <div id="secaoDisparoWhatsappCard" class="hidden space-y-5">
+                <div class="flex items-center justify-between bg-purple-50 border border-purple-200 p-3.5 rounded-2xl">
+                    <span class="text-sm font-extrabold text-purple-900 flex items-center gap-2">
+                        <span>📱 Disparo de Cards via Evolution API</span>
+                    </span>
+                    <button onclick="voltarSelecaoFormato()" class="text-xs text-purple-700 hover:underline font-bold">← Voltar para Personalização</button>
+                </div>
+
+                <!-- Banner Status Conexão WhatsApp -->
+                <div id="bannerStatusWhatsappCard" class="bg-gray-50 border border-gray-200 p-3.5 rounded-2xl flex items-center justify-between flex-wrap gap-2">
+                    <div class="flex items-center gap-3">
+                        <span id="indicadorDotWhatsappCard" class="w-3.5 h-3.5 rounded-full bg-gray-400 animate-pulse inline-block"></span>
+                        <div>
+                            <div class="text-xs font-bold text-gray-800" id="textoStatusWhatsappCard">Verificando Evolution API...</div>
+                            <div class="text-[11px] text-gray-500" id="subtextoStatusWhatsappCard">Consultando status da instância da sua loja.</div>
+                        </div>
+                    </div>
+                    <a href="<?= Url::to(['/evolution/default/index']) ?>" target="_blank" id="btnConectarWhatsappCard" class="hidden text-xs font-bold px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-xl transition shadow-sm">
+                        Conectar WhatsApp
+                    </a>
+                </div>
+
+                <!-- Preview dos Cards Selecionados -->
+                <div class="bg-slate-900 border border-slate-800 text-white p-3.5 rounded-2xl flex items-center gap-4">
+                    <div id="containerThumbnailsDisparo" class="flex gap-2 overflow-x-auto max-w-[180px] p-1">
+                        <!-- Thumbnails injetadas via JS -->
+                    </div>
+                    <div class="flex-1">
+                        <div class="text-xs font-bold text-purple-300 uppercase tracking-wider">Lote Selecionado</div>
+                        <div class="text-sm font-extrabold text-white" id="lblCardsDisparoResumo">1 card selecionado para envio</div>
+                        <div class="text-[11px] text-gray-400">Produto: <strong><?= Html::encode($model->nome) ?></strong> (R$ <?= number_format($model->preco_venda_sugerido, 2, ',', '.') ?>)</div>
+                        <div class="text-[11px] text-emerald-400 mt-1" id="lblEstimativaEnvioCard">📊 Resumo do Lote: 1 card selecionado.</div>
+                    </div>
+                </div>
+
+                <!-- Canais de Envio -->
+                <div class="border-b border-gray-100 pb-4">
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">1. Selecione os Canais de Envio</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label class="cursor-pointer">
+                            <input type="checkbox" id="canal_card_whatsapp" checked onchange="calcularResumoEnvioCard()" class="peer sr-only">
+                            <div class="p-3 border-2 border-gray-200 peer-checked:border-emerald-600 peer-checked:bg-emerald-50 rounded-xl transition flex flex-col gap-1">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-sm text-gray-900">💬 WhatsApp Direto (Conversas)</span>
+                                    <span class="w-4 h-4 rounded-full border border-emerald-600 flex items-center justify-center text-emerald-700 peer-checked:bg-emerald-600 peer-checked:text-white text-xs">✓</span>
+                                </div>
+                                <p class="text-xs text-gray-500">Envia o card + legenda com variáveis dinâmicas para os contatos.</p>
+                            </div>
+                        </label>
+
+                        <label class="cursor-pointer">
+                            <input type="checkbox" id="canal_card_status" checked onchange="calcularResumoEnvioCard()" class="peer sr-only">
+                            <div class="p-3 border-2 border-gray-200 peer-checked:border-emerald-600 peer-checked:bg-emerald-50 rounded-xl transition flex flex-col gap-1">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-sm text-gray-900">📲 Status WhatsApp (Stories)</span>
+                                    <span class="w-4 h-4 rounded-full border border-emerald-600 flex items-center justify-center text-emerald-700 peer-checked:bg-emerald-600 peer-checked:text-white text-xs">✓</span>
+                                </div>
+                                <p class="text-xs text-gray-500">Posta a imagem do card no Status da sua conta WhatsApp (100% orgânico).</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Destinatários -->
+                <div class="border-b border-gray-100 pb-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider">2. Escolha os Destinatários</label>
+                        <button type="button" onclick="alternarTodosClientesCard()" class="text-xs text-purple-700 hover:underline font-bold" id="btnToggleTodosClientesCard">Marcar Todos</button>
+                    </div>
+
+                    <input type="text" id="buscaClienteCardInput" onkeyup="filtrarClientesNaTelaCard(this.value)" placeholder="Buscar cliente por nome ou telefone..." class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-purple-600">
+
+                    <div class="bg-gray-50 border border-gray-200 rounded-xl p-2.5 max-h-36 overflow-y-auto space-y-1.5" id="listaClientesCardContainer">
+                        <div class="text-xs text-gray-500 text-center py-3">Carregando lista de clientes...</div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-700 mb-1">💬 Números de WhatsApp Adicionais (Manuais)</label>
+                        <textarea id="telefones_manuais_card" onkeyup="calcularResumoEnvioCard()" rows="2" class="w-full p-2.5 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-purple-600" placeholder="Cole telefones separados por vírgula, espaço ou linha (ex: 81999998888, 81988887777)"></textarea>
+                    </div>
+                </div>
+
+                <!-- Mensagem Promocional & SpinTax -->
+                <div class="border-b border-gray-100 pb-4 space-y-2">
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider">3. Legenda da Mensagem Promocional</label>
+                    <textarea id="mensagem_texto_card" rows="3" class="w-full p-3 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-purple-600" placeholder="Digite a legenda da promoção...">🔥 {OFERTA IMPERDÍVEL|PROMOÇÃO EXCLUSIVA|DESCONTO ESPECIAL} 🔥
+
+{Olá|Oi|Tudo bem} {NOME}! Confira este produto incrível:
+* {PRODUTO} por apenas {PRECO}!
+
+Garanta o seu antes que acabe o estoque!</textarea>
+                    <div class="flex items-center justify-between flex-wrap gap-1 text-[10px] text-gray-500">
+                        <span>Variáveis: <code class="bg-gray-100 text-purple-800 px-1 rounded">{NOME}</code>, <code class="bg-gray-100 text-purple-800 px-1 rounded">{PRODUTO}</code>, <code class="bg-gray-100 text-purple-800 px-1 rounded">{PRECO}</code>, <code class="bg-gray-100 text-purple-800 px-1 rounded">{MARCA}</code></span>
+                        <span class="text-emerald-700 font-bold">✨ SpinTax ativado: <code class="bg-emerald-50 text-emerald-800 px-1 rounded">{Opção 1|Opção 2}</code></span>
+                    </div>
+                </div>
+
+                <!-- Painel de Proteção Anti-Banimento (Configurações Avançadas) -->
+                <div class="bg-slate-900 text-white rounded-2xl p-4 border border-slate-800 space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-base">🛡️</span>
+                            <h4 class="font-extrabold text-xs tracking-wide uppercase text-emerald-400">Proteção Avançada Anti-Banimento de Chip</h4>
+                        </div>
+                        <span class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full font-bold">Segurança Ativa</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
+                            <label class="block font-bold text-gray-300 mb-1">⏱️ Intervalo Aleatório (Random Delay)</label>
+                            <select id="antiban_delay" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-medium focus:ring-2 focus:ring-emerald-500">
+                                <option value="5" selected>5 a 10 segundos (Recomendado)</option>
+                                <option value="10">10 a 20 segundos (Ultra Seguro)</option>
+                                <option value="15">15 a 30 segundos (Lento e Discreto)</option>
+                                <option value="2">2 a 5 segundos (Rápido - Usar com Cuidado)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-gray-300 mb-1">☕ Lotes e Micro-Pausas de Descanso</label>
+                            <select id="antiban_lote" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-medium focus:ring-2 focus:ring-emerald-500">
+                                <option value="10_60" selected>Pausar 60s a cada 10 disparos</option>
+                                <option value="15_120">Pausar 120s a cada 15 disparos</option>
+                                <option value="20_180">Pausar 180s a cada 20 disparos</option>
+                                <option value="0_0">Sem micro-pausa por lote</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3 pt-1">
+                        <label class="inline-flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="antiban_optout" checked class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-400 bg-slate-800 border-slate-700">
+                            <span class="text-xs text-gray-300 font-medium">Incluir aviso de descadastro (<code class="text-emerald-400 font-mono">PARAR</code>) no final da mensagem</span>
+                        </label>
+                    </div>
+
+                    <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700/60 text-[11px] text-gray-300 space-y-1">
+                        <p class="font-bold text-amber-300 flex items-center gap-1">
+                            <span>💡 Boas Práticas Recomendadas pela Meta/WhatsApp:</span>
+                        </p>
+                        <ul class="list-disc list-inside space-y-0.5 text-gray-400 pl-1">
+                            <li>Dispare prioritariamente para clientes cadastrados que têm o seu número salvo no celular.</li>
+                            <li>Use variação SpinTax na mensagem para que nenhuma mensagem seja idêntica à outra.</li>
+                            <li>Evite disparar mais de 100 mensagens por hora no mesmo número.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Botão de Disparo -->
+                <button onclick="iniciarDisparoCardWhatsappExec()" class="w-full py-4 px-6 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-extrabold rounded-2xl transition duration-300 shadow-xl flex items-center justify-center gap-3 text-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                    Iniciar Envio dos Cards via WhatsApp
+                </button>
+            </div>
+
+            <!-- Progresso ao Vivo do Disparo de Cards -->
+            <div id="secaoProgressoDisparoCard" class="hidden py-6 space-y-5 text-center">
+                <div class="relative w-16 h-16 mx-auto">
+                    <div class="w-16 h-16 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
+                    <div class="absolute inset-0 flex items-center justify-center text-xl" id="iconeStatusDisparoCard">🚀</div>
+                </div>
+
+                <div>
+                    <h4 class="font-extrabold text-gray-900 text-xl" id="tituloStatusDisparoCard">Disparando Cards via Evolution API...</h4>
+                    <p class="text-sm text-gray-500 mt-1" id="subtituloStatusDisparoCard">Aplicando delays anti-ban e enviando mensagens nas filas.</p>
+                </div>
+
+                <!-- Barra de Progresso -->
+                <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                    <div id="barraProgressoDisparoCard" class="bg-gradient-to-r from-emerald-600 to-teal-600 h-4 transition-all duration-500 rounded-full" style="width: 0%"></div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-4 bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                    <div>
+                        <div class="text-xs text-gray-500 font-bold uppercase">Total Agendado</div>
+                        <div class="text-xl font-extrabold text-gray-800" id="statTotalItensCard">0</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 font-bold uppercase">Enviados</div>
+                        <div class="text-xl font-extrabold text-green-600" id="statItensEnviadosCard">0</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 font-bold uppercase">Falhas / Erros</div>
+                        <div class="text-xl font-extrabold text-red-600" id="statItensErroCard">0</div>
+                    </div>
+                </div>
+
+                <!-- Relatório de Erros se Houver -->
+                <div id="containerErrosDisparoCard" class="hidden text-left bg-red-50 border border-red-200 rounded-2xl p-4 space-y-3 max-h-52 overflow-y-auto">
+                    <h5 class="text-xs font-bold text-red-800 uppercase tracking-wider flex items-center gap-1">
+                        <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Relatório Detalhado de Falhas
+                    </h5>
+                    <div id="listaErrosDisparoCard" class="text-xs text-red-700 space-y-1"></div>
+                    <button id="btnReenviarErrosCard" onclick="reenviarErrosDisparoCard()" class="w-full py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition text-xs shadow flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        Reenviar Apenas Itens com Falha
+                    </button>
+                </div>
+
+                <div class="pt-4 flex gap-3">
+                    <button id="btnFecharDisparoCardConcluido" onclick="voltarSelecaoFormato()" class="hidden w-full py-3 bg-purple-700 hover:bg-purple-800 text-white font-bold rounded-xl transition">
+                        Concluir e Voltar ao Estúdio
+                    </button>
                 </div>
             </div>
         </div>
@@ -807,6 +1025,14 @@ $this->params['breadcrumbs'][] = $this->title;
         document.getElementById('secaoSelecaoFormato').classList.remove('hidden');
         document.getElementById('secaoLoadingCard').classList.add('hidden');
         document.getElementById('secaoResultadoCard').classList.add('hidden');
+        const secaoWp = document.getElementById('secaoDisparoWhatsappCard');
+        if (secaoWp) secaoWp.classList.add('hidden');
+        const secaoProg = document.getElementById('secaoProgressoDisparoCard');
+        if (secaoProg) secaoProg.classList.add('hidden');
+        if (typeof intervalMonitoramentoCard !== 'undefined' && intervalMonitoramentoCard) {
+            clearInterval(intervalMonitoramentoCard);
+            intervalMonitoramentoCard = null;
+        }
     }
 
     function dispararGeracaoCard() {
@@ -844,6 +1070,8 @@ $this->params['breadcrumbs'][] = $this->title;
         .then(data => {
             document.getElementById('secaoLoadingCard').classList.add('hidden');
             if (data.success) {
+                cardRecemGeradoId = data.card_id;
+                cardRecemGeradoUrl = data.card_url;
                 document.getElementById('secaoResultadoCard').classList.remove('hidden');
                 document.getElementById('imgPreviewCard').src = data.card_url;
                 const btnBaixar = document.getElementById('btnBaixarCard');
@@ -875,11 +1103,36 @@ $this->params['breadcrumbs'][] = $this->title;
         atualizarSelecaoCards();
     }
 
+    function toggleCardSelection(cardId, event) {
+        if (event && (event.target.type === 'checkbox' || event.target.tagName === 'BUTTON' || event.target.tagName === 'A')) {
+            return;
+        }
+        const chk = document.querySelector(`#card-item-${cardId} .chk-card-item`);
+        if (chk) {
+            chk.checked = !chk.checked;
+            atualizarSelecaoCards();
+        }
+    }
+
     function atualizarSelecaoCards() {
         const checkboxes = document.querySelectorAll('.chk-card-item');
         const marcados = document.querySelectorAll('.chk-card-item:checked');
         const total = checkboxes.length;
         const qtdMarcados = marcados.length;
+
+        // Destaque visual nos cards selecionados no grid
+        checkboxes.forEach(chk => {
+            const itemDiv = document.getElementById('card-item-' + chk.value);
+            if (itemDiv) {
+                if (chk.checked) {
+                    itemDiv.classList.add('ring-2', 'ring-emerald-500', 'border-emerald-500', 'bg-emerald-50/20');
+                    itemDiv.classList.remove('border-gray-200');
+                } else {
+                    itemDiv.classList.remove('ring-2', 'ring-emerald-500', 'border-emerald-500', 'bg-emerald-50/20');
+                    itemDiv.classList.add('border-gray-200');
+                }
+            }
+        });
 
         const chkTodos = document.getElementById('chk-selecionar-todos-cards');
         if (chkTodos) {
@@ -888,22 +1141,31 @@ $this->params['breadcrumbs'][] = $this->title;
 
         const lblSelecionados = document.getElementById('lbl-cards-selecionados');
         const btnExcluir = document.getElementById('btn-excluir-selecionados-cards');
+        const btnDisparar = document.getElementById('btn-disparar-selecionados-cards');
         const countSpan = document.getElementById('count-selecionados');
+        const countDisparoSpan = document.getElementById('count-disparo');
 
         if (qtdMarcados > 0) {
             if (lblSelecionados) {
-                lblSelecionados.innerText = qtdMarcados + (qtdMarcados === 1 ? ' selecionado' : ' selecionados');
+                lblSelecionados.innerText = qtdMarcados + (qtdMarcados === 1 ? ' card selecionado' : ' cards selecionados');
                 lblSelecionados.classList.remove('hidden');
             }
             if (btnExcluir) {
                 btnExcluir.classList.remove('hidden');
             }
+            if (btnDisparar) {
+                btnDisparar.classList.remove('hidden');
+            }
             if (countSpan) {
                 countSpan.innerText = qtdMarcados;
+            }
+            if (countDisparoSpan) {
+                countDisparoSpan.innerText = qtdMarcados;
             }
         } else {
             if (lblSelecionados) lblSelecionados.classList.add('hidden');
             if (btnExcluir) btnExcluir.classList.add('hidden');
+            if (btnDisparar) btnDisparar.classList.add('hidden');
         }
     }
 
@@ -1024,7 +1286,7 @@ $this->params['breadcrumbs'][] = $this->title;
         div.id = 'card-item-' + cardId;
         div.className = 'bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col justify-between transition-all hover:shadow-md relative group';
         div.innerHTML = `
-            <div class="relative bg-gray-950 aspect-square flex items-center justify-center overflow-hidden">
+            <div onclick="toggleCardSelection('${cardId}', event)" class="relative bg-gray-950 aspect-square flex items-center justify-center overflow-hidden cursor-pointer">
                 <input type="checkbox" value="${cardId}" onchange="atualizarSelecaoCards()" class="chk-card-item absolute top-2 left-2 z-10 w-4.5 h-4.5 text-purple-600 rounded border-gray-300 focus:ring-purple-500 cursor-pointer shadow-md">
                 <img src="${cardUrl}" alt="Card ${fmtLabel}" class="max-h-full max-w-full object-contain">
                 <span class="absolute top-2 left-8 text-[9px] font-bold text-white px-2 py-0.5 rounded shadow ${fmtBadge}">
@@ -1037,6 +1299,9 @@ $this->params['breadcrumbs'][] = $this->title;
             <div class="p-2.5 bg-white border-t border-gray-100 flex items-center justify-between gap-2">
                 <div class="text-[10px] text-gray-500 font-medium">${dataAtual}</div>
                 <div class="flex items-center gap-1">
+                    <button onclick="abrirDisparoCardUnico('${cardId}', '${cardUrl}')" type="button" class="p-1.5 text-xs text-emerald-600 hover:bg-emerald-50 rounded-lg font-bold transition" title="Enviar este Card via WhatsApp">
+                        📱
+                    </button>
                     <a href="${cardUrl}" download class="p-1.5 text-xs text-purple-600 hover:bg-purple-50 rounded-lg font-bold transition" title="Baixar Imagem PNG">
                         📥
                     </a>
@@ -1130,5 +1395,336 @@ $this->params['breadcrumbs'][] = $this->title;
             '    }' +
             '};<\/script></body></html>');
         printWindow.document.close();
+    }
+
+    // =========================================================================
+    // LÓGICA DE DISPARO DE CARDS VIA WHATSAPP (EVOLUTION API + ANTI-BAN)
+    // =========================================================================
+    let cardsSelecionadosParaDisparo = [];
+    let cardRecemGeradoId = null;
+    let cardRecemGeradoUrl = null;
+    let listaClientesCardCache = [];
+    let whatsappCardConectadoCache = false;
+    let intervalMonitoramentoCard = null;
+    let ultimoDisparoCardIdAtivo = null;
+
+    function abrirDisparoCardGeradoAtual() {
+        if (!cardRecemGeradoId) {
+            alert('Aguarde a geração do card...');
+            return;
+        }
+        abrirDisparoComCards([cardRecemGeradoId], [cardRecemGeradoUrl]);
+    }
+
+    function abrirDisparoCardUnico(cardId, cardUrl) {
+        abrirDisparoComCards([cardId], [cardUrl]);
+    }
+
+    function abrirDisparoCardsExistentesSelecionados() {
+        const marcadosCheckboxes = document.querySelectorAll('.chk-card-item:checked');
+        const ids = Array.from(marcadosCheckboxes).map(c => c.value);
+        const urls = Array.from(marcadosCheckboxes).map(c => {
+            const img = c.closest('.group')?.querySelector('img');
+            return img ? img.src : '';
+        });
+
+        if (ids.length === 0) {
+            alert('Nenhum card foi selecionado.');
+            return;
+        }
+
+        abrirDisparoComCards(ids, urls);
+    }
+
+    function calcularResumoEnvioCard() {
+        const totalCards = cardsSelecionadosParaDisparo.length || 1;
+        const qtdClientes = document.querySelectorAll('input[name="cliente_card_chk"]:checked').length;
+        const telefonesManuais = document.getElementById('telefones_manuais_card')?.value || '';
+        const qtdManuais = (telefonesManuais.match(/\d{10,13}/g) || []).length;
+        const totalDestinatarios = qtdClientes + qtdManuais;
+        
+        const canalWp = document.getElementById('canal_card_whatsapp')?.checked ? 1 : 0;
+        const canalStatus = document.getElementById('canal_card_status')?.checked ? 1 : 0;
+
+        const enviosTotais = (totalCards * totalDestinatarios * canalWp) + (totalCards * canalStatus);
+        
+        const elemEstimativa = document.getElementById('lblEstimativaEnvioCard');
+        if (elemEstimativa) {
+            elemEstimativa.innerHTML = `📊 <strong>Resumo do Lote:</strong> ${totalCards} card(s) × ${totalDestinatarios} destinatários = <span class="text-emerald-400 font-extrabold font-mono text-xs">${enviosTotais} envio(s)</span> agendados via Evolution API.`;
+        }
+    }
+
+    function abrirDisparoComCards(cardIds = [], cardUrls = []) {
+        cardsSelecionadosParaDisparo = cardIds;
+
+        document.getElementById('secaoSelecaoFormato').classList.add('hidden');
+        document.getElementById('secaoResultadoCard').classList.add('hidden');
+        document.getElementById('secaoLoadingCard').classList.add('hidden');
+        document.getElementById('secaoProgressoDisparoCard').classList.add('hidden');
+        document.getElementById('containerErrosDisparoCard').classList.add('hidden');
+        document.getElementById('btnFecharDisparoCardConcluido').classList.add('hidden');
+        document.getElementById('secaoDisparoWhatsappCard').classList.remove('hidden');
+
+        const lblResumo = document.getElementById('lblCardsDisparoResumo');
+        if (lblResumo) {
+            lblResumo.innerText = cardIds.length === 1 ? '1 card selecionado para envio' : cardIds.length + ' cards selecionados para envio';
+        }
+
+        const containerThumbs = document.getElementById('containerThumbnailsDisparo');
+        if (containerThumbs) {
+            containerThumbs.innerHTML = cardUrls.map((url, i) => url ? `<img src="${url}" class="w-10 h-10 object-cover rounded-lg border border-purple-400/50 shadow">` : '').join('');
+        }
+
+        verificarStatusWhatsappCard();
+        carregarListaClientesCard();
+        setTimeout(calcularResumoEnvioCard, 200);
+    }
+
+    function verificarStatusWhatsappCard() {
+        const dot = document.getElementById('indicadorDotWhatsappCard');
+        const texto = document.getElementById('textoStatusWhatsappCard');
+        const subtexto = document.getElementById('subtextoStatusWhatsappCard');
+        const btnConectar = document.getElementById('btnConectarWhatsappCard');
+
+        dot.className = 'w-3.5 h-3.5 rounded-full bg-gray-400 animate-pulse inline-block';
+        texto.textContent = 'Verificando Evolution API...';
+        subtexto.textContent = 'Consultando status da instância da loja.';
+        btnConectar.classList.add('hidden');
+
+        fetch('<?= Url::to(['/vendas/disparo/status-whatsapp']) ?>')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.connected) {
+                whatsappCardConectadoCache = true;
+                dot.className = 'w-3.5 h-3.5 rounded-full bg-green-500 inline-block shadow';
+                texto.textContent = '🟢 WhatsApp Conectado via Evolution API';
+                subtexto.textContent = 'Instância: ' + (data.instance_name || 'Ativa') + ' (Pronto para disparos no Status e Mensagens)';
+            } else {
+                whatsappCardConectadoCache = false;
+                dot.className = 'w-3.5 h-3.5 rounded-full bg-red-500 inline-block shadow';
+                texto.textContent = '🔴 WhatsApp Desconectado';
+                subtexto.textContent = 'Conecte sua instância da Evolution API antes de disparar via WhatsApp.';
+                btnConectar.classList.remove('hidden');
+            }
+        })
+        .catch(err => {
+            whatsappCardConectadoCache = false;
+            dot.className = 'w-3.5 h-3.5 rounded-full bg-yellow-500 inline-block';
+            texto.textContent = '⚠️ Falha ao verificar Evolution API';
+            subtexto.textContent = 'Não foi possível consultar o status da conexão.';
+        });
+    }
+
+    function carregarListaClientesCard() {
+        const container = document.getElementById('listaClientesCardContainer');
+        fetch('<?= Url::to(['/vendas/disparo/clientes']) ?>')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.clientes) {
+                listaClientesCardCache = data.clientes;
+                renderizarListaClientesCard(listaClientesCardCache);
+            }
+        })
+        .catch(err => {
+            container.innerHTML = '<div class="text-xs text-red-500 text-center py-3">Erro ao carregar clientes.</div>';
+        });
+    }
+
+    function renderizarListaClientesCard(clientes) {
+        const container = document.getElementById('listaClientesCardContainer');
+        if (clientes.length === 0) {
+            container.innerHTML = '<div class="text-xs text-gray-500 text-center py-3">Nenhum cliente cadastrado.</div>';
+            return;
+        }
+
+        container.innerHTML = clientes.map(c => {
+            const badgeWp = c.tem_whatsapp ? '<span class="px-1.5 py-0.5 bg-green-100 text-green-800 text-[10px] font-bold rounded">📱 WhatsApp</span>' : '';
+            return `
+                <label class="flex items-center justify-between p-2 hover:bg-white rounded-lg transition cursor-pointer border border-transparent hover:border-gray-200">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" name="cliente_card_chk" value="${c.id}" checked onchange="calcularResumoEnvioCard()" class="rounded text-emerald-600 focus:ring-emerald-500">
+                        <div class="text-xs">
+                            <span class="font-bold text-gray-800">${c.nome}</span>
+                            <span class="text-gray-500 text-[11px]">(${c.celular || c.telefone || 'Sem tel'})</span>
+                        </div>
+                    </div>
+                    <div>${badgeWp}</div>
+                </label>
+            `;
+        }).join('');
+        calcularResumoEnvioCard();
+    }
+
+    function filtrarClientesNaTelaCard(termo) {
+        const termoLimpo = termo.toLowerCase().trim();
+        if (!termoLimpo) {
+            renderizarListaClientesCard(listaClientesCardCache);
+            return;
+        }
+        const filtrados = listaClientesCardCache.filter(c => 
+            (c.nome && c.nome.toLowerCase().includes(termoLimpo)) ||
+            (c.celular && c.celular.includes(termoLimpo)) ||
+            (c.telefone && c.telefone.includes(termoLimpo))
+        );
+        renderizarListaClientesCard(filtrados);
+    }
+
+    function alternarTodosClientesCard() {
+        const chks = document.querySelectorAll('input[name="cliente_card_chk"]');
+        const algumDesmarcado = Array.from(chks).some(c => !c.checked);
+        chks.forEach(c => c.checked = algumDesmarcado);
+        document.getElementById('btnToggleTodosClientesCard').textContent = algumDesmarcado ? 'Desmarcar Todos' : 'Marcar Todos';
+        calcularResumoEnvioCard();
+    }
+
+    function iniciarDisparoCardWhatsappExec() {
+        if (cardsSelecionadosParaDisparo.length === 0) {
+            alert('Nenhum card foi selecionado para disparo.');
+            return;
+        }
+
+        const canais = [];
+        if (document.getElementById('canal_card_whatsapp').checked) canais.push('whatsapp');
+        if (document.getElementById('canal_card_status').checked) canais.push('status');
+
+        if (canais.length === 0) {
+            alert('Selecione pelo menos um canal de envio.');
+            return;
+        }
+
+        if (!whatsappCardConectadoCache) {
+            if (!confirm('⚠️ Atenção: A instância do WhatsApp da sua loja na Evolution API parece estar DESCONECTADA. Deseja tentar o envio mesmo assim?')) {
+                return;
+            }
+        }
+
+        const clientesIds = Array.from(document.querySelectorAll('input[name="cliente_card_chk"]:checked')).map(c => c.value);
+        const telefonesManuais = document.getElementById('telefones_manuais_card').value;
+        const mensagemTexto = document.getElementById('mensagem_texto_card').value;
+
+        // Anti-ban settings
+        const delayVal = parseInt(document.getElementById('antiban_delay').value || '5');
+        const loteVal = document.getElementById('antiban_lote').value || '10_60';
+        const parts = loteVal.split('_');
+        const loteTamanho = parseInt(parts[0] || '10');
+        const pausaLote = parseInt(parts[1] || '60');
+        const incluirOptout = document.getElementById('antiban_optout').checked;
+
+        const payload = {
+            cards_ids: cardsSelecionadosParaDisparo,
+            canais: canais,
+            clientes_ids: clientesIds,
+            telefones_manuais: telefonesManuais,
+            mensagem_texto: mensagemTexto,
+            delay_segundos: delayVal,
+            lote_tamanho: loteTamanho,
+            pausa_lote_segundos: pausaLote,
+            incluir_optout: incluirOptout,
+            '<?= Yii::$app->request->csrfParam ?>': '<?= Yii::$app->request->csrfToken ?>'
+        };
+
+        document.getElementById('secaoDisparoWhatsappCard').classList.add('hidden');
+        document.getElementById('secaoProgressoDisparoCard').classList.remove('hidden');
+
+        fetch('<?= Url::to(['/vendas/disparo/criar']) ?>', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(async r => {
+            const text = await r.text();
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                throw new Error(text.replace(/<[^>]*>?/gm, '').trim().substring(0, 150) || 'Falha no servidor.');
+            }
+        })
+        .then(data => {
+            if (data.success && data.disparo_id) {
+                monitorarProgressoCardDisparo(data.disparo_id);
+            } else {
+                alert('Erro ao criar disparo: ' + (data.message || 'Falha na requisição.'));
+                document.getElementById('secaoDisparoWhatsappCard').classList.remove('hidden');
+                document.getElementById('secaoProgressoDisparoCard').classList.add('hidden');
+            }
+        })
+        .catch(err => {
+            alert('Erro de comunicação: ' + err.message);
+            document.getElementById('secaoDisparoWhatsappCard').classList.remove('hidden');
+            document.getElementById('secaoProgressoDisparoCard').classList.add('hidden');
+        });
+    }
+
+    function monitorarProgressoCardDisparo(disparoId) {
+        ultimoDisparoCardIdAtivo = disparoId;
+        function checarStatus() {
+            fetch('<?= Url::to(['/vendas/disparo/status']) ?>?id=' + disparoId)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('statTotalItensCard').textContent = data.total_itens;
+                    document.getElementById('statItensEnviadosCard').textContent = data.itens_enviados;
+                    document.getElementById('statItensErroCard').textContent = data.itens_erro;
+
+                    const percent = data.progresso_percentual || 0;
+                    document.getElementById('barraProgressoDisparoCard').style.width = percent + '%';
+
+                    if (data.erros && data.erros.length > 0) {
+                        const containerErros = document.getElementById('containerErrosDisparoCard');
+                        const listaErros = document.getElementById('listaErrosDisparoCard');
+                        containerErros.classList.remove('hidden');
+                        listaErros.innerHTML = data.erros.map(e => `
+                            <div class="p-1.5 bg-white border border-red-200 rounded-lg">
+                                <span class="font-bold uppercase">[${e.canal}]</span> 
+                                <span>${e.destino || 'Geral'}:</span> 
+                                <span class="italic text-red-600">${e.erro_mensagem}</span>
+                            </div>
+                        `).join('');
+                    }
+
+                    if (data.status === 'concluido' || percent >= 100) {
+                        if (intervalMonitoramentoCard) {
+                            clearInterval(intervalMonitoramentoCard);
+                            intervalMonitoramentoCard = null;
+                        }
+                        document.getElementById('iconeStatusDisparoCard').textContent = (data.itens_erro === 0) ? '🎉' : '⚠️';
+                        document.getElementById('tituloStatusDisparoCard').textContent = (data.itens_erro === 0) ? 'Disparo de Cards Concluído!' : 'Disparo Finalizado com Avisos';
+                        document.getElementById('subtituloStatusDisparoCard').textContent = 'Todos os cards foram enviadas pela Evolution API.';
+                        document.getElementById('btnFecharDisparoCardConcluido').classList.remove('hidden');
+                    }
+                }
+            });
+        }
+
+        checarStatus();
+        intervalMonitoramentoCard = setInterval(checarStatus, 2500);
+    }
+
+    function reenviarErrosDisparoCard() {
+        if (!ultimoDisparoCardIdAtivo) return;
+        const btn = document.getElementById('btnReenviarErrosCard');
+        btn.disabled = true;
+        btn.innerHTML = '⌛ Reenviando falhas...';
+        fetch('<?= Url::to(['/vendas/disparo/reenviar-erros']) ?>?id=' + ultimoDisparoCardIdAtivo, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Reenviar Apenas Itens com Falha`;
+            if (data.success) {
+                document.getElementById('containerErrosDisparoCard').classList.add('hidden');
+                monitorarProgressoCardDisparo(ultimoDisparoCardIdAtivo);
+            } else {
+                alert('Erro ao reenviar: ' + (data.message || 'Falha na requisição.'));
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Reenviar Apenas Itens com Falha`;
+            alert('Erro de comunicação: ' + err.message);
+        });
     }
 </script>

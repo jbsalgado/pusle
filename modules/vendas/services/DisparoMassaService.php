@@ -369,6 +369,137 @@ class DisparoMassaService
     }
 
     /**
+     * Cria uma nova campanha de disparo a partir de uma lista de IDs de ProdutoCard (cards pré-gerados).
+     *
+     * @param string $usuarioId
+     * @param array $cardsIds IDs dos ProdutoCard pré-gerados
+     * @param array $canais ('whatsapp', 'status')
+     * @param array $clientesIds
+     * @param string|null $mensagemTexto
+     * @param string|array $telefonesManuais
+     * @param array $antiBanConfig Opções anti-ban ('delay_min', 'delay_max', 'lote_tamanho', 'lote_pausa_segundos', 'incluir_optout')
+     * @return DisparoMassa
+     * @throws \Exception
+     */
+    public function criarCampanhaDisparoCardsExistentes(
+        string $usuarioId,
+        array $cardsIds,
+        array $canais,
+        array $clientesIds = [],
+        ?string $mensagemTexto = null,
+        $telefonesManuais = '',
+        array $antiBanConfig = []
+    ): DisparoMassa {
+        if (empty($cardsIds)) {
+            throw new \Exception("Nenhum card selecionado para o disparo.");
+        }
+
+        if (empty($canais)) {
+            throw new \Exception("Selecione pelo menos um canal de envio (WhatsApp Status ou WhatsApp Direto).");
+        }
+
+        $cards = \app\modules\vendas\models\ProdutoCard::find()
+            ->where(['id' => $cardsIds, 'usuario_id' => $usuarioId])
+            ->all();
+
+        if (empty($cards)) {
+            throw new \Exception("Nenhum card válido encontrado para envio.");
+        }
+
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            $campanha = new DisparoMassa();
+            $campanha->usuario_id = $usuarioId;
+            $campanha->titulo = 'Disparo de Cards - ' . date('d/m/Y H:i');
+            $campanha->canais = $canais;
+            $campanha->configuracoes = $antiBanConfig;
+            $campanha->mensagem_texto = $mensagemTexto;
+            $campanha->status = DisparoMassa::STATUS_PENDENTE;
+            $campanha->total_itens = 0;
+            $campanha->save(false);
+
+            $clientes = !empty($clientesIds) ? Cliente::findAll(['id' => $clientesIds]) : [];
+            $listaTelefonesManuais = $this->extrairLinhasDestino($telefonesManuais);
+            $totalAgendados = 0;
+
+            $incluirOptout = !empty($antiBanConfig['incluir_optout']);
+
+            foreach ($cards as $card) {
+                $produto = $card->produto;
+                if (!$produto) {
+                    continue;
+                }
+
+                $cardPath = $card->card_path;
+                $cardUrl = $card->getUrlCompleta();
+
+                // 1. WhatsApp Status
+                if (in_array(DisparoMassa::CANAL_STATUS, $canais)) {
+                    $item = new DisparoItem();
+                    $item->disparo_id = $campanha->id;
+                    $item->produto_id = $produto->id;
+                    $item->canal = DisparoMassa::CANAL_STATUS;
+                    $item->card_path = $cardPath;
+                    $item->card_url = $cardUrl;
+                    $item->mensagem_personalizada = $this->substituirVariaveis($mensagemTexto, $produto, null, $incluirOptout);
+                    $item->status = DisparoItem::STATUS_PENDENTE;
+                    $item->save(false);
+                    $totalAgendados++;
+                }
+
+                // 2. WhatsApp Direto para Clientes Cadastrados
+                if (in_array(DisparoMassa::CANAL_WHATSAPP, $canais)) {
+                    foreach ($clientes as $cliente) {
+                        $telefone = !empty($cliente->telefone) ? $cliente->telefone : $cliente->celular;
+                        if (empty($telefone)) {
+                            continue;
+                        }
+
+                        $item = new DisparoItem();
+                        $item->disparo_id = $campanha->id;
+                        $item->produto_id = $produto->id;
+                        $item->cliente_id = $cliente->id;
+                        $item->canal = DisparoMassa::CANAL_WHATSAPP;
+                        $item->destino = $telefone;
+                        $item->card_path = $cardPath;
+                        $item->card_url = $cardUrl;
+                        $item->mensagem_personalizada = $this->substituirVariaveis($mensagemTexto, $produto, $cliente, $incluirOptout);
+                        $item->status = DisparoItem::STATUS_PENDENTE;
+                        $item->save(false);
+                        $totalAgendados++;
+                    }
+
+                    // Agendar telefones manuais adicionais
+                    foreach ($listaTelefonesManuais as $telManual) {
+                        $item = new DisparoItem();
+                        $item->disparo_id = $campanha->id;
+                        $item->produto_id = $produto->id;
+                        $item->canal = DisparoMassa::CANAL_WHATSAPP;
+                        $item->destino = $telManual;
+                        $item->card_path = $cardPath;
+                        $item->card_url = $cardUrl;
+                        $item->mensagem_personalizada = $this->substituirVariaveis($mensagemTexto, $produto, null, $incluirOptout);
+                        $item->status = DisparoItem::STATUS_PENDENTE;
+                        $item->save(false);
+                        $totalAgendados++;
+                    }
+                }
+            }
+
+            $campanha->total_itens = $totalAgendados;
+            $campanha->save(false);
+
+            $transaction->commit();
+
+            return $campanha;
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+            Yii::error("Erro ao criar campanha de disparo de cards pré-gerados: " . $e->getMessage(), __METHOD__);
+            throw $e;
+        }
+    }
+
+    /**
      * Extrai linhas ou valores separados por vírgula, ponto e vírgula, espaço ou quebra de linha.
      */
     private function extrairLinhasDestino($input): array
@@ -386,24 +517,48 @@ class DisparoMassaService
     }
 
     /**
-     * Substitui variáveis dinâmicas no texto da mensagem ({NOME}, {PRODUTO}, {PRECO}).
+     * Substitui variáveis dinâmicas no texto da mensagem ({NOME}, {PRODUTO}, {PRECO}) e aplica SpinTax.
      */
-    private function substituirVariaveis(?string $texto, Produto $produto, ?Cliente $cliente = null): string
+    private function substituirVariaveis(?string $texto, Produto $produto, ?Cliente $cliente = null, bool $incluirOptout = false): string
     {
         if (empty($texto)) {
             $preco = 'R$ ' . number_format((float)$produto->getPrecoFinal(), 2, ',', '.');
-            return "🔥 *OFERTA ESPECIAL* 🔥\n\n*{$produto->nome}*\nPreço: *{$preco}*\n\nPeça já pelo nosso atendimento!";
+            $texto = "🔥 *OFERTA ESPECIAL* 🔥\n\n*{$produto->nome}*\nPreço: *{$preco}*\n\nPeça já pelo nosso atendimento!";
+        } else {
+            $preco = 'R$ ' . number_format((float)$produto->getPrecoFinal(), 2, ',', '.');
+
+            $replacements = [
+                '{PRODUTO}' => $produto->nome,
+                '{PRECO}' => $preco,
+                '{MARCA}' => $produto->marca ?: '',
+                '{NOME}' => $cliente ? (!empty($cliente->nome_completo) ? $cliente->nome_completo : $cliente->nome) : 'Cliente',
+            ];
+
+            $texto = strtr($texto, $replacements);
         }
 
-        $preco = 'R$ ' . number_format((float)$produto->getPrecoFinal(), 2, ',', '.');
+        // Processar sintaxe SpinTax {opção1|opção2|opção3}
+        $texto = $this->processarSpintax($texto);
 
-        $replacements = [
-            '{PRODUTO}' => $produto->nome,
-            '{PRECO}' => $preco,
-            '{MARCA}' => $produto->marca ?: '',
-            '{NOME}' => $cliente ? (!empty($cliente->nome_completo) ? $cliente->nome_completo : $cliente->nome) : 'Cliente',
-        ];
+        if ($incluirOptout && strpos($texto, 'PARAR') === false) {
+            $texto .= "\n\n_Para não receber mais ofertas, responda PARAR._";
+        }
 
-        return strtr($texto, $replacements);
+        return $texto;
+    }
+
+    /**
+     * Processa sintaxe SpinTax em strings no formato {opção1|opção2|opção3}
+     */
+    public function processarSpintax(string $texto): string
+    {
+        return preg_replace_callback('/\{([^{}]+)\}/', function ($matches) {
+            $choices = explode('|', $matches[1]);
+            if (count($choices) > 1) {
+                return $choices[array_rand($choices)];
+            }
+            return $matches[0];
+        }, $texto);
     }
 }
+
