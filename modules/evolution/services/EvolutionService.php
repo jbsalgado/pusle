@@ -198,22 +198,24 @@ class EvolutionService
                     ->send();
 
                 if ($qrResponse->isOk) {
-                    $qrBody = $qrResponse->data ?? json_decode($qrResponse->content, true);
+                    $qrBody = json_decode($qrResponse->content, true);
 
-                    $rawQr = $qrBody['data']['Qrcode'] 
-                        ?? $qrBody['data']['qrcode']
-                        ?? $qrBody['qrcode']['base64'] 
-                        ?? $qrBody['qrcode'] 
-                        ?? $qrBody['base64'] 
-                        ?? null;
+                    if (is_array($qrBody)) {
+                        $rawQr = $qrBody['data']['Qrcode'] 
+                            ?? $qrBody['data']['qrcode']
+                            ?? $qrBody['qrcode']['base64'] 
+                            ?? $qrBody['qrcode'] 
+                            ?? $qrBody['base64'] 
+                            ?? null;
 
-                    if (is_array($rawQr) && isset($rawQr['base64'])) {
-                        $rawQr = $rawQr['base64'];
-                    }
+                        if (is_array($rawQr) && isset($rawQr['base64'])) {
+                            $rawQr = $rawQr['base64'];
+                        }
 
-                    if (!empty($rawQr) && is_string($rawQr)) {
-                        $qrBase64 = $rawQr;
-                        break;
+                        if (!empty($rawQr) && is_string($rawQr)) {
+                            $qrBase64 = $rawQr;
+                            break;
+                        }
                     }
                 }
             }

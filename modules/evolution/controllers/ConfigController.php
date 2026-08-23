@@ -82,7 +82,7 @@ class ConfigController extends Controller
             }
         } catch (\Throwable $t) {
             Yii::error("ConfigController::actionConnect — Erro ao criar instância: " . $t->getMessage(), __METHOD__);
-            Yii::$app->session->setFlash('error', 'Falha ao comunicar com a Evolution API: ' . $t->getMessage());
+            Yii::$app->session->setFlash('error', 'Não foi possível estabelecer comunicação com a Evolution API. Verifique se o serviço está ativo.');
         }
 
         return $this->render('connect', [
