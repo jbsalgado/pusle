@@ -547,6 +547,11 @@ class EvolutionService
             return false;
         }
 
+        if (strpos($mediaData, '/') === 0 && strpos($mediaData, 'http') !== 0) {
+            $domain = Yii::$app->params['domain'] ?? 'https://alex-birds.oncode.app.br';
+            $mediaData = rtrim($domain, '/') . '/' . ltrim($mediaData, '/');
+        }
+
         $cleanBase64 = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', $mediaData);
 
         $delayMin = isset($config->delay_min) ? (int)$config->delay_min : 2000;
@@ -610,6 +615,9 @@ class EvolutionService
                 __METHOD__
             );
             return false;
+        if (strpos($mediaData, '/') === 0 && strpos($mediaData, 'http') !== 0) {
+            $domain = Yii::$app->params['domain'] ?? 'https://alex-birds.oncode.app.br';
+            $mediaData = rtrim($domain, '/') . '/' . ltrim($mediaData, '/');
         }
 
         $cleanBase64 = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', $mediaData);

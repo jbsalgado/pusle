@@ -154,19 +154,22 @@ class ProdutoVideo extends ActiveRecord
      */
     public function getUrlCompleta()
     {
-        if (!empty($this->video_url)) {
-            return $this->video_url;
-        }
-
-        if (empty($this->video_path)) {
+        $pathOrUrl = !empty($this->video_url) ? $this->video_url : $this->video_path;
+        if (empty($pathOrUrl)) {
             return null;
         }
 
-        $caminhoRelativo = ltrim($this->video_path, '/');
-        if (Yii::$app->has('request') && Yii::$app->get('request') instanceof \yii\web\Request) {
+        if (strpos($pathOrUrl, 'http://') === 0 || strpos($pathOrUrl, 'https://') === 0) {
+            return $pathOrUrl;
+        }
+
+        $caminhoRelativo = ltrim($pathOrUrl, '/');
+        if (Yii::$app->has('request') && Yii::$app->get('request') instanceof \yii\web\Request && !empty(Yii::$app->request->hostInfo)) {
             return \yii\helpers\Url::to('@web/' . $caminhoRelativo, true);
         }
-        return '/' . $caminhoRelativo;
+
+        $baseUrl = Yii::$app->params['domain'] ?? 'https://alex-birds.oncode.app.br';
+        return rtrim($baseUrl, '/') . '/' . $caminhoRelativo;
     }
 
     public function getProduto()

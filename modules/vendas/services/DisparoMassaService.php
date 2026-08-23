@@ -260,7 +260,11 @@ class DisparoMassaService
                         || (!empty($item->card_url) && strtolower(pathinfo(parse_url($item->card_url, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION)) === 'mp4');
 
                 $mediaType = $isVideo ? 'video' : 'image';
-                $mediaParam = !empty($item->card_url) ? $item->card_url : $cardBase64;
+                $rawMediaUrl = !empty($item->card_url) ? $item->card_url : ($item->card_path ?: $cardBase64);
+                $mediaParam = $this->garantirUrlAbsoluta($rawMediaUrl);
+                if (empty($mediaParam) && $cardBase64) {
+                    $mediaParam = $cardBase64;
+                }
 
                 switch ($item->canal) {
                     case DisparoMassa::CANAL_STATUS:
@@ -611,6 +615,10 @@ class DisparoMassaService
                 }
             }
 
+            if ($totalAgendados === 0) {
+                throw new \Exception("Nenhum destinatário válido foi selecionado. Selecione ao menos um cliente, insira um número manual ou marque a caixa do WhatsApp Status.");
+            }
+
             $campanha->total_itens = $totalAgendados;
             $campanha->save(false);
 
@@ -622,6 +630,28 @@ class DisparoMassaService
             Yii::error("Erro ao criar campanha de disparo de vídeos pré-gerados: " . $e->getMessage(), __METHOD__);
             throw $e;
         }
+    }
+
+    /**
+     * Garante que uma URL de mídia seja um link público absoluto com protocolo (https://...).
+     */
+    private function garantirUrlAbsoluta(?string $urlOrPath): ?string
+    {
+        if (empty($urlOrPath)) {
+            return null;
+        }
+
+        if (strpos($urlOrPath, 'http://') === 0 || strpos($urlOrPath, 'https://') === 0) {
+            return $urlOrPath;
+        }
+
+        $caminho = ltrim($urlOrPath, '/');
+        if (Yii::$app->has('request') && Yii::$app->get('request') instanceof \yii\web\Request && !empty(Yii::$app->request->hostInfo)) {
+            return \yii\helpers\Url::to('@web/' . $caminho, true);
+        }
+
+        $baseUrl = Yii::$app->params['domain'] ?? 'https://alex-birds.oncode.app.br';
+        return rtrim($baseUrl, '/') . '/' . $caminho;
     }
 
     /**
