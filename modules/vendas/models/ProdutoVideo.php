@@ -37,6 +37,7 @@ class ProdutoVideo extends ActiveRecord
     const STATUS_ERRO = 'erro';
 
     const FORMATO_STORIES = 'stories';
+    const FORMATO_FEED = 'feed';
 
     /**
      * {@inheritdoc}
