@@ -45,12 +45,20 @@ class ConfigController extends Controller
      */
     public function actionIndex(): string
     {
-        $empresaId = Yii::$app->user->identity->getTenantId();
-        $service   = new EvolutionService();
+        $connected = false;
+        $config    = null;
 
-        // Consulta o status em tempo real e sincroniza o banco local
-        $connected = $service->checkStatus($empresaId);
-        $config    = WhatsappConfig::findByEmpresa($empresaId);
+        try {
+            $empresaId = Yii::$app->user->identity ? Yii::$app->user->identity->getTenantId() : null;
+            if ($empresaId) {
+                $service   = new EvolutionService();
+                $connected = $service->checkStatus($empresaId);
+                $config    = WhatsappConfig::findByEmpresa($empresaId);
+            }
+        } catch (\Throwable $t) {
+            Yii::error("ConfigController::actionIndex — Erro ao verificar status: " . $t->getMessage(), __METHOD__);
+            Yii::$app->session->setFlash('warning', 'Não foi possível comunicar com o serviço do WhatsApp no momento.');
+        }
 
         return $this->render('index', [
             'config'    => $config,
@@ -64,10 +72,18 @@ class ConfigController extends Controller
      */
     public function actionConnect(): string
     {
-        $empresaId = Yii::$app->user->identity->getTenantId();
-        $service   = new EvolutionService();
+        $qrCodeBase64 = null;
 
-        $qrCodeBase64 = $service->createInstance($empresaId);
+        try {
+            $empresaId = Yii::$app->user->identity ? Yii::$app->user->identity->getTenantId() : null;
+            if ($empresaId) {
+                $service      = new EvolutionService();
+                $qrCodeBase64 = $service->createInstance($empresaId);
+            }
+        } catch (\Throwable $t) {
+            Yii::error("ConfigController::actionConnect — Erro ao criar instância: " . $t->getMessage(), __METHOD__);
+            Yii::$app->session->setFlash('error', 'Falha ao comunicar com a Evolution API: ' . $t->getMessage());
+        }
 
         return $this->render('connect', [
             'qrCodeBase64' => $qrCodeBase64,
@@ -80,14 +96,19 @@ class ConfigController extends Controller
      */
     public function actionDisconnect(): Response
     {
-        $empresaId = Yii::$app->user->identity->getTenantId();
-        $service   = new EvolutionService();
+        try {
+            $empresaId = Yii::$app->user->identity ? Yii::$app->user->identity->getTenantId() : null;
+            if ($empresaId) {
+                $service = new EvolutionService();
+                $service->deleteInstance($empresaId);
+                Yii::$app->session->setFlash('success', 'WhatsApp desconectado com sucesso.');
+            }
+        } catch (\Throwable $t) {
+            Yii::error("ConfigController::actionDisconnect — Erro ao desconectar: " . $t->getMessage(), __METHOD__);
+            Yii::$app->session->setFlash('error', 'Erro ao desconectar WhatsApp: ' . $t->getMessage());
+        }
 
-        $service->deleteInstance($empresaId);
-
-        Yii::$app->session->setFlash('success', 'WhatsApp desconectado com sucesso.');
-
-        return $this->redirect(['index']);
+        return $this->redirect(['/evolution/config/index']);
     }
 
     /**

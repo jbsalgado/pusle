@@ -83,7 +83,7 @@ $this->title = 'Integração WhatsApp — PULSE-PLUS';
                     <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
                         Configurações de Anti-Banimento (Intervalo e Digitação)
                     </h2>
-                    <?= Html::beginForm(['save-settings'], 'post', ['class' => 'text-sm']) ?>
+                    <?= Html::beginForm(['/evolution/config/save-settings'], 'post', ['class' => 'text-sm']) ?>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
                             <div>
                                 <label for="delay_min" class="block text-sm font-medium text-gray-700 mb-1">Delay Mínimo (ms)</label>
@@ -134,18 +134,18 @@ $this->title = 'Integração WhatsApp — PULSE-PLUS';
                 <?php if (!$connected): ?>
                     <?= Html::a(
                         '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg> Conectar WhatsApp',
-                        ['connect'],
+                        ['/evolution/config/connect'],
                         ['class' => 'w-full inline-flex justify-center items-center px-4 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors']
                     ) ?>
                 <?php else: ?>
                     <?= Html::a(
                         '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Reconectar / Atualizar QR Code',
-                        ['connect'],
+                        ['/evolution/config/connect'],
                         ['class' => 'w-full inline-flex justify-center items-center px-4 py-2 border border-green-600 text-base font-medium rounded-md text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors']
                     ) ?>
                     <?= Html::a(
                         '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg> Desconectar',
-                        ['disconnect'],
+                        ['/evolution/config/disconnect'],
                         [
                             'class' => 'w-full inline-flex justify-center items-center px-4 py-2 border border-red-300 text-base font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors',
                             'data'  => [
