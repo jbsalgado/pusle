@@ -135,6 +135,7 @@ class DisparoController extends Controller
         // Se for requisição JSON, ler do body
         $rawBody = json_decode($request->getRawBody(), true) ?: [];
 
+        $videosIds = $rawBody['videos_ids'] ?? $request->post('videos_ids', []);
         $cardsIds = $rawBody['cards_ids'] ?? $request->post('cards_ids', []);
         $produtosIds = $rawBody['produtos_ids'] ?? $request->post('produtos_ids', []);
         $canais = $rawBody['canais'] ?? $request->post('canais', []);
@@ -160,7 +161,17 @@ class DisparoController extends Controller
         try {
             $service = new DisparoMassaService();
 
-            if (!empty($cardsIds)) {
+            if (!empty($videosIds)) {
+                $campanha = $service->criarCampanhaDisparoVideosExistentes(
+                    $lojaId,
+                    (array)$videosIds,
+                    (array)$canais,
+                    (array)$clientesIds,
+                    $mensagemTexto,
+                    $telefonesManuais,
+                    $antiBanConfig
+                );
+            } elseif (!empty($cardsIds)) {
                 $campanha = $service->criarCampanhaDisparoCardsExistentes(
                     $lojaId,
                     (array)$cardsIds,

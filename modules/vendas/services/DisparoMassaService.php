@@ -249,31 +249,39 @@ class DisparoMassaService
 
                 $cardAbsPath = Yii::getAlias('@app/web/') . ltrim($item->card_path, '/');
                 $cardBase64 = null;
-                if (file_exists($cardAbsPath)) {
-                    $cardBase64 = $this->cardService->converterImagemParaBase64($cardAbsPath);
+                if (file_exists($cardAbsPath) && !empty($item->card_path)) {
+                    $ext = strtolower(pathinfo($item->card_path, PATHINFO_EXTENSION));
+                    if (in_array($ext, ['png', 'jpg', 'jpeg', 'webp'])) {
+                        $cardBase64 = $this->cardService->converterImagemParaBase64($cardAbsPath);
+                    }
                 }
+
+                $isVideo = (!empty($item->card_path) && strtolower(pathinfo($item->card_path, PATHINFO_EXTENSION)) === 'mp4')
+                        || (!empty($item->card_url) && strtolower(pathinfo(parse_url($item->card_url, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION)) === 'mp4');
+
+                $mediaType = $isVideo ? 'video' : 'image';
+                $mediaParam = !empty($item->card_url) ? $item->card_url : $cardBase64;
 
                 switch ($item->canal) {
                     case DisparoMassa::CANAL_STATUS:
-                        $mediaParam = !empty($item->card_url) ? $item->card_url : $cardBase64;
                         if ($mediaParam) {
-                            $sucesso = $this->evolutionService->sendWhatsAppStatus($usuarioId, $mediaParam, $item->mensagem_personalizada ?: $produto->nome);
+                            $sucesso = $this->evolutionService->sendWhatsAppStatus($usuarioId, $mediaParam, $item->mensagem_personalizada ?: $produto->nome, $mediaType);
                             if (!$sucesso) {
                                 $erroMsg = "Falha ao postar no Status do WhatsApp via Evolution API. Verifique a conexão.";
                             }
                         } else {
-                            $erroMsg = "Arquivo de imagem do card não encontrado.";
+                            $erroMsg = "Arquivo de mídia não encontrado.";
                         }
                         break;
 
                     case DisparoMassa::CANAL_WHATSAPP:
-                        if ($cardBase64 && !empty($item->destino)) {
-                            $sucesso = $this->evolutionService->sendMedia($usuarioId, $item->destino, $cardBase64, $item->mensagem_personalizada ?: $produto->nome, 'image');
+                        if ($mediaParam && !empty($item->destino)) {
+                            $sucesso = $this->evolutionService->sendMedia($usuarioId, $item->destino, $mediaParam, $item->mensagem_personalizada ?: $produto->nome, $mediaType);
                             if (!$sucesso) {
                                 $erroMsg = "Falha ao enviar mensagem de mídia para {$item->destino} via Evolution API.";
                             }
                         } else {
-                            $erroMsg = "Imagem do card ou número de telefone de destino ausente.";
+                            $erroMsg = "Mídia ou número de telefone de destino ausente.";
                         }
                         break;
 
@@ -496,6 +504,123 @@ class DisparoMassaService
         } catch (\Exception $e) {
             $transaction->rollBack();
             Yii::error("Erro ao criar campanha de disparo de cards pré-gerados: " . $e->getMessage(), __METHOD__);
+            throw $e;
+        }
+    }
+
+    /**
+     * Cria e enfileira uma nova campanha de disparo para VÍDEOS PROMOCIONAIS pré-gerados.
+     */
+    public function criarCampanhaDisparoVideosExistentes(
+        string $lojaId,
+        array $videosIds,
+        array $canais,
+        array $clientesIds,
+        ?string $mensagemTexto = null,
+        ?string $telefonesManuais = null,
+        array $antiBanConfig = []
+    ): DisparoMassa {
+        $transaction = Yii::$app->db->beginTransaction();
+
+        try {
+            $campanha = new DisparoMassa();
+            $campanha->usuario_id = $lojaId;
+            $campanha->template = $antiBanConfig['template'] ?? 'stories_video';
+            $campanha->cor_tema = 'dark';
+            $campanha->fundo_estilo = 'video';
+            $campanha->delay_segundos = (int)($antiBanConfig['delay_segundos'] ?? 5);
+            $campanha->lote_tamanho = (int)($antiBanConfig['lote_tamanho'] ?? 10);
+            $campanha->pausa_lote_segundos = (int)($antiBanConfig['pausa_lote_segundos'] ?? 60);
+            $campanha->status = DisparoMassa::STATUS_EM_ANDAMENTO;
+            $campanha->save(false);
+
+            $videos = \app\modules\vendas\models\ProdutoVideo::find()->where(['id' => $videosIds])->all();
+
+            if (empty($videos)) {
+                throw new \Exception("Nenhum vídeo válido encontrado para disparo.");
+            }
+
+            $clientes = [];
+            if (!empty($clientesIds)) {
+                $clientes = Cliente::find()->where(['id' => $clientesIds])->all();
+            }
+
+            $listaTelefonesManuais = $this->extrairLinhasDestino($telefonesManuais);
+            $incluirOptout = !empty($antiBanConfig['incluir_optout']);
+            $totalAgendados = 0;
+
+            foreach ($videos as $vid) {
+                $produto = $vid->produto;
+                if (!$produto) {
+                    continue;
+                }
+
+                $videoPath = $vid->video_path;
+                $videoUrl = $vid->getUrlCompleta();
+
+                // 1. WhatsApp Status
+                if (in_array(DisparoMassa::CANAL_STATUS, $canais)) {
+                    $item = new DisparoItem();
+                    $item->disparo_id = $campanha->id;
+                    $item->produto_id = $produto->id;
+                    $item->canal = DisparoMassa::CANAL_STATUS;
+                    $item->destino = 'status@broadcast';
+                    $item->card_path = $videoPath;
+                    $item->card_url = $videoUrl;
+                    $item->mensagem_personalizada = $this->substituirVariaveis($mensagemTexto, $produto, null, $incluirOptout);
+                    $item->status = DisparoItem::STATUS_PENDENTE;
+                    $item->save(false);
+                    $totalAgendados++;
+                }
+
+                // 2. WhatsApp Direto para Clientes Cadastrados
+                if (in_array(DisparoMassa::CANAL_WHATSAPP, $canais)) {
+                    foreach ($clientes as $cliente) {
+                        $telefone = !empty($cliente->telefone) ? $cliente->telefone : $cliente->celular;
+                        if (empty($telefone)) {
+                            continue;
+                        }
+
+                        $item = new DisparoItem();
+                        $item->disparo_id = $campanha->id;
+                        $item->produto_id = $produto->id;
+                        $item->cliente_id = $cliente->id;
+                        $item->canal = DisparoMassa::CANAL_WHATSAPP;
+                        $item->destino = $telefone;
+                        $item->card_path = $videoPath;
+                        $item->card_url = $videoUrl;
+                        $item->mensagem_personalizada = $this->substituirVariaveis($mensagemTexto, $produto, $cliente, $incluirOptout);
+                        $item->status = DisparoItem::STATUS_PENDENTE;
+                        $item->save(false);
+                        $totalAgendados++;
+                    }
+
+                    // Telefones Manuais
+                    foreach ($listaTelefonesManuais as $telManual) {
+                        $item = new DisparoItem();
+                        $item->disparo_id = $campanha->id;
+                        $item->produto_id = $produto->id;
+                        $item->canal = DisparoMassa::CANAL_WHATSAPP;
+                        $item->destino = $telManual;
+                        $item->card_path = $videoPath;
+                        $item->card_url = $videoUrl;
+                        $item->mensagem_personalizada = $this->substituirVariaveis($mensagemTexto, $produto, null, $incluirOptout);
+                        $item->status = DisparoItem::STATUS_PENDENTE;
+                        $item->save(false);
+                        $totalAgendados++;
+                    }
+                }
+            }
+
+            $campanha->total_itens = $totalAgendados;
+            $campanha->save(false);
+
+            $transaction->commit();
+
+            return $campanha;
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+            Yii::error("Erro ao criar campanha de disparo de vídeos pré-gerados: " . $e->getMessage(), __METHOD__);
             throw $e;
         }
     }

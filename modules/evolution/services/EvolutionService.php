@@ -595,11 +595,12 @@ class EvolutionService
      * Posta uma imagem/mídia diretamente no Status/Stories do WhatsApp.
      *
      * @param string $empresaId UUID do tenant
-     * @param string $mediaData Conteúdo em Base64 ou URL da imagem
+     * @param string $mediaData Conteúdo em Base64 ou URL da imagem/vídeo
      * @param string $caption   Legenda promocional do Status
+     * @param string $mediaType Tipo de mídia ('image' ou 'video')
      * @return bool             true em caso de sucesso
      */
-    public function sendWhatsAppStatus(string $empresaId, string $mediaData, string $caption = ''): bool
+    public function sendWhatsAppStatus(string $empresaId, string $mediaData, string $caption = '', string $mediaType = 'image'): bool
     {
         $config = WhatsappConfig::findByEmpresa($empresaId);
 
@@ -631,7 +632,7 @@ class EvolutionService
                     ])
                     ->setData([
                         'url'     => $cleanBase64,
-                        'type'    => 'image',
+                        'type'    => $mediaType ?: 'image',
                         'caption' => $caption,
                         'status'  => true,
                     ])

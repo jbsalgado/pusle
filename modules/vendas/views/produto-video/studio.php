@@ -432,9 +432,9 @@ $this->params['breadcrumbs'][] = $this->title;
                     <a id="btn-download-video" href="#" download class="btn-action-custom btn-action-download">
                         <span>⬇️ Baixar MP4</span>
                     </a>
-                    <a id="btn-share-whatsapp" href="#" target="_blank" class="btn-action-custom btn-action-whatsapp">
-                        <span>📱 Enviar WhatsApp</span>
-                    </a>
+                    <button type="button" onclick="abrirDisparoVideoAtual()" class="btn-action-custom btn-action-whatsapp border-0 shadow" style="cursor: pointer;">
+                        <span>📱 Disparar WhatsApp / Status</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -443,22 +443,35 @@ $this->params['breadcrumbs'][] = $this->title;
     <!-- Histórico de Vídeos Gerados -->
     <?php if (!empty($videosRecentes)): ?>
         <div class="mt-4 pt-3 border-top border-secondary" style="border-color: rgba(255,255,255,0.08) !important;">
-            <h3 style="font-size: 1.1rem; font-weight: 700; color: #cbd5e1; margin-bottom: 16px;">📹 Vídeos Recentes Deste Produto</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                <h3 style="font-size: 1.1rem; font-weight: 700; color: #cbd5e1; margin: 0;">📹 Vídeos Recentes Deste Produto</h3>
+                <button type="button" onclick="abrirDisparoVideosSelecionados()" class="btn btn-sm" style="border-radius: 10px; font-weight: 700; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; border: none; padding: 6px 14px;">
+                    📱 Disparar Vídeos Selecionados
+                </button>
+            </div>
             <div class="row">
                 <?php foreach ($videosRecentes as $vid): ?>
                     <div class="col-md-6 col-lg-4" id="history-col-<?= $vid->id ?>">
                         <div class="history-card" id="history-card-<?= $vid->id ?>">
-                            <div>
-                                <span class="badge" style="background: #0284c7; color: #fff; margin-right: 6px;"><?= $vid->duracao ?>s</span>
-                                <small style="color: #94a3b8;"><?= date('d/m/Y H:i', strtotime($vid->data_criacao)) ?></small>
-                                <div style="font-size: 0.85rem; color: #e2e8f0; margin-top: 4px;">
-                                    Status: <strong style="color: <?= $vid->status === 'concluido' ? '#34d399' : ($vid->status === 'erro' ? '#f87171' : '#fbbf24') ?>;"><?= strtoupper($vid->status) ?></strong>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <?php if ($vid->status === 'concluido'): ?>
+                                    <input type="checkbox" class="chk-video-item" value="<?= $vid->id ?>" data-url="<?= Html::encode($vid->getUrlCompleta()) ?>" style="width: 18px; height: 18px; cursor: pointer; accent-color: #38bdf8;">
+                                <?php endif; ?>
+                                <div>
+                                    <span class="badge" style="background: #0284c7; color: #fff; margin-right: 6px;"><?= $vid->duracao ?>s</span>
+                                    <small style="color: #94a3b8;"><?= date('d/m/Y H:i', strtotime($vid->data_criacao)) ?></small>
+                                    <div style="font-size: 0.85rem; color: #e2e8f0; margin-top: 4px;">
+                                        Status: <strong style="color: <?= $vid->status === 'concluido' ? '#34d399' : ($vid->status === 'erro' ? '#f87171' : '#fbbf24') ?>;"><?= strtoupper($vid->status) ?></strong>
+                                    </div>
                                 </div>
                             </div>
                             <div style="display: flex; gap: 6px; align-items: center;">
                                 <?php if ($vid->status === 'concluido' && $vid->video_url): ?>
                                     <button type="button" class="btn btn-sm btn-outline-info btn-play-history" data-url="<?= Html::encode($vid->getUrlCompleta()) ?>" style="border-radius: 8px;" title="Assistir Prévia">
                                         ▶
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-success" onclick="abrirDisparoVideoUnico('<?= $vid->id ?>', '<?= Html::encode($vid->getUrlCompleta()) ?>')" style="border-radius: 8px; background: #25d366; border: none; font-weight: 700; color: #fff;" title="Disparar no WhatsApp / Status">
+                                        📱 Enviar
                                     </button>
                                     <a href="<?= Url::to(['/vendas/produto-video/download', 'id' => $vid->id]) ?>" class="btn btn-sm btn-outline-success" style="border-radius: 8px;" title="Baixar Vídeo MP4">
                                         ⬇️ Baixar
@@ -475,6 +488,8 @@ $this->params['breadcrumbs'][] = $this->title;
         </div>
     <?php endif; ?>
 </div>
+
+<?= $this->render('_modal_disparo_video') ?>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -730,7 +745,8 @@ document.addEventListener('DOMContentLoaded', function() {
         videoPlayer.play().catch(e => console.log('Autoplay not allowed:', e));
 
         btnDownload.href = url;
-        btnWhatsapp.href = 'https://api.whatsapp.com/send?text=' + encodeURIComponent('Confira este vídeo promocional incrível do nosso produto: ' + url);
+        videoRecemGeradoId = currentVideoId;
+        videoRecemGeradoUrl = url;
 
         actionButtonsBox.style.display = 'flex';
     }
@@ -812,6 +828,310 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// =========================================================================
+// LÓGICA DE DISPARO DE VÍDEOS VIA WHATSAPP (EVOLUTION API + ANTI-BAN)
+// =========================================================================
+let videosSelecionadosParaDisparo = [];
+let videoRecemGeradoId = null;
+let videoRecemGeradoUrl = null;
+let listaClientesVideoCache = [];
+let whatsappVideoConectadoCache = false;
+let intervalMonitoramentoVideo = null;
+
+function abrirDisparoVideoAtual() {
+    if (!videoRecemGeradoId && !videoRecemGeradoUrl) {
+        alert('Gere um vídeo primeiro ou selecione um vídeo no histórico.');
+        return;
+    }
+    abrirModalDisparoVideo([videoRecemGeradoId], [videoRecemGeradoUrl]);
+}
+
+function abrirDisparoVideoUnico(videoId, videoUrl) {
+    abrirModalDisparoVideo([videoId], [videoUrl]);
+}
+
+function abrirDisparoVideosSelecionados() {
+    const marcados = document.querySelectorAll('.chk-video-item:checked');
+    const ids = Array.from(marcados).map(c => c.value);
+    const urls = Array.from(marcados).map(c => c.getAttribute('data-url'));
+
+    if (ids.length === 0) {
+        alert('Selecione ao menos um vídeo no histórico.');
+        return;
+    }
+
+    abrirModalDisparoVideo(ids, urls);
+}
+
+function abrirModalDisparoVideo(videoIds = [], videoUrls = []) {
+    videosSelecionadosParaDisparo = videoIds;
+
+    const modal = document.getElementById('modalDisparoVideo');
+    if (!modal) return;
+
+    document.getElementById('secaoDisparoWhatsappVideo').classList.remove('hidden');
+    document.getElementById('secaoProgressoDisparoVideo').classList.add('hidden');
+    document.getElementById('btnFecharDisparoVideoConcluido').classList.add('hidden');
+
+    const lblResumo = document.getElementById('lblVideosDisparoResumo');
+    if (lblResumo) {
+        lblResumo.innerText = videoIds.length === 1 ? '1 vídeo selecionado para envio' : videoIds.length + ' vídeos selecionados para envio';
+    }
+
+    const containerThumbs = document.getElementById('containerThumbnailsDisparoVideo');
+    if (containerThumbs) {
+        containerThumbs.innerHTML = videoUrls.map(url => url ? `<div class="w-10 h-10 rounded-lg bg-slate-800 border border-sky-400/50 flex items-center justify-center text-sky-400 text-xs font-bold shadow">🎬 MP4</div>` : '').join('');
+    }
+
+    modal.classList.remove('hidden');
+
+    verificarStatusWhatsappVideo();
+    carregarListaClientesVideo();
+    setTimeout(calcularResumoEnvioVideo, 200);
+}
+
+function fecharModalDisparoVideo() {
+    const modal = document.getElementById('modalDisparoVideo');
+    if (modal) modal.classList.add('hidden');
+}
+
+function verificarStatusWhatsappVideo() {
+    const dot = document.getElementById('indicadorDotWhatsappVideo');
+    const texto = document.getElementById('textoStatusWhatsappVideo');
+    const subtexto = document.getElementById('subtextoStatusWhatsappVideo');
+    const btnConectar = document.getElementById('btnConectarWhatsappVideo');
+
+    dot.className = 'w-3.5 h-3.5 rounded-full bg-slate-500 animate-pulse inline-block';
+    texto.textContent = 'Verificando Evolution API...';
+    subtexto.textContent = 'Consultando status da instância da loja.';
+    btnConectar.classList.add('hidden');
+
+    fetch('<?= Url::to(['/vendas/disparo/status-whatsapp']) ?>')
+    .then(r => r.json())
+    .then(data => {
+        if (data.success && data.connected) {
+            whatsappVideoConectadoCache = true;
+            dot.className = 'w-3.5 h-3.5 rounded-full bg-emerald-500 inline-block shadow';
+            texto.textContent = '🟢 WhatsApp Conectado via Evolution API';
+            subtexto.textContent = 'Instância: ' + (data.instance_name || 'Ativa') + ' (Pronto para disparos no Status e Mensagens)';
+        } else {
+            whatsappVideoConectadoCache = false;
+            dot.className = 'w-3.5 h-3.5 rounded-full bg-red-500 inline-block shadow';
+            texto.textContent = '🔴 WhatsApp Desconectado';
+            subtexto.textContent = 'Conecte sua instância da Evolution API antes de disparar via WhatsApp.';
+            btnConectar.classList.remove('hidden');
+        }
+    })
+    .catch(err => {
+        whatsappVideoConectadoCache = false;
+        dot.className = 'w-3.5 h-3.5 rounded-full bg-amber-500 inline-block';
+        texto.textContent = '⚠️ Falha ao verificar Evolution API';
+        subtexto.textContent = 'Não foi possível consultar o status da conexão.';
+    });
+}
+
+function carregarListaClientesVideo() {
+    const container = document.getElementById('listaClientesVideoContainer');
+    fetch('<?= Url::to(['/vendas/disparo/clientes']) ?>')
+    .then(r => r.json())
+    .then(data => {
+        if (data.success && data.clientes) {
+            listaClientesVideoCache = data.clientes;
+            renderizarListaClientesVideo(listaClientesVideoCache);
+        }
+    })
+    .catch(err => {
+        container.innerHTML = '<div class="text-xs text-red-400 text-center py-3">Erro ao carregar clientes.</div>';
+    });
+}
+
+function renderizarListaClientesVideo(clientes) {
+    const container = document.getElementById('listaClientesVideoContainer');
+    if (clientes.length === 0) {
+        container.innerHTML = '<div class="text-xs text-slate-500 text-center py-3">Nenhum cliente cadastrado.</div>';
+        return;
+    }
+
+    container.innerHTML = clientes.map(c => {
+        const badgeWp = c.tem_whatsapp ? '<span class="px-1.5 py-0.5 bg-emerald-950 text-emerald-300 border border-emerald-800 text-[10px] font-bold rounded">📱 WhatsApp</span>' : '';
+        return `
+            <label class="flex items-center justify-between p-2 hover:bg-slate-900 rounded-lg transition cursor-pointer border border-transparent hover:border-slate-800">
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" name="cliente_video_chk" value="${c.id}" checked onchange="calcularResumoEnvioVideo()" class="rounded text-sky-500 focus:ring-sky-400 accent-sky-500">
+                    <div class="text-xs">
+                        <span class="font-bold text-slate-200">${c.nome}</span>
+                        <span class="text-slate-400 text-[11px]">(${c.celular || c.telefone || 'Sem tel'})</span>
+                    </div>
+                </div>
+                <div>${badgeWp}</div>
+            </label>
+        `;
+    }).join('');
+    calcularResumoEnvioVideo();
+}
+
+function filtrarClientesNaTelaVideo(termo) {
+    const termoLimpo = termo.toLowerCase().trim();
+    if (!termoLimpo) {
+        renderizarListaClientesVideo(listaClientesVideoCache);
+        return;
+    }
+    const filtrados = listaClientesVideoCache.filter(c => 
+        (c.nome && c.nome.toLowerCase().includes(termoLimpo)) ||
+        (c.celular && c.celular.includes(termoLimpo)) ||
+        (c.telefone && c.telefone.includes(termoLimpo))
+    );
+    renderizarListaClientesVideo(filtrados);
+}
+
+function alternarTodosClientesVideo() {
+    const chks = document.querySelectorAll('input[name="cliente_video_chk"]');
+    const algumDesmarcado = Array.from(chks).some(c => !c.checked);
+    chks.forEach(c => c.checked = algumDesmarcado);
+    document.getElementById('btnToggleTodosClientesVideo').textContent = algumDesmarcado ? 'Desmarcar Todos' : 'Marcar Todos';
+    calcularResumoEnvioVideo();
+}
+
+function calcularResumoEnvioVideo() {
+    const totalVideos = videosSelecionadosParaDisparo.length || 1;
+    const qtdClientes = document.querySelectorAll('input[name="cliente_video_chk"]:checked').length;
+    const telefonesManuais = document.getElementById('telefones_manuais_video')?.value || '';
+    const qtdManuais = (telefonesManuais.match(/\d{10,13}/g) || []).length;
+    const totalDestinatarios = qtdClientes + qtdManuais;
+    
+    const canalWp = document.getElementById('canal_video_whatsapp')?.checked ? 1 : 0;
+    const canalStatus = document.getElementById('canal_video_status')?.checked ? 1 : 0;
+
+    const enviosTotais = (totalVideos * totalDestinatarios * canalWp) + (totalVideos * canalStatus);
+    
+    const elemEstimativa = document.getElementById('lblEstimativaEnvioVideo');
+    if (elemEstimativa) {
+        elemEstimativa.innerHTML = `📊 <strong>Resumo do Lote:</strong> ${totalVideos} vídeo(s) × ${totalDestinatarios} destinatário(s) = <span class="text-sky-400 font-extrabold font-mono text-xs">${enviosTotais} envio(s)</span> agendados via Evolution API.`;
+    }
+}
+
+function iniciarDisparoVideoWhatsappExec() {
+    if (videosSelecionadosParaDisparo.length === 0) {
+        alert('Nenhum vídeo foi selecionado para disparo.');
+        return;
+    }
+
+    const canais = [];
+    if (document.getElementById('canal_video_whatsapp').checked) canais.push('whatsapp');
+    if (document.getElementById('canal_video_status').checked) canais.push('status');
+
+    if (canais.length === 0) {
+        alert('Selecione pelo menos um canal de envio.');
+        return;
+    }
+
+    if (!whatsappVideoConectadoCache) {
+        if (!confirm('⚠️ Atenção: A instância do WhatsApp da sua loja na Evolution API parece estar DESCONECTADA. Deseja tentar o envio mesmo assim?')) {
+            return;
+        }
+    }
+
+    const clientesIds = Array.from(document.querySelectorAll('input[name="cliente_video_chk"]:checked')).map(c => c.value);
+    const telefonesManuais = document.getElementById('telefones_manuais_video').value;
+    const mensagemTexto = document.getElementById('disparo_mensagem_texto_video').value;
+
+    const delayVal = parseInt(document.getElementById('antiban_delay_video').value || '10');
+    const loteVal = document.getElementById('antiban_lote_video').value || '10_60';
+    const parts = loteVal.split('_');
+    const loteTamanho = parseInt(parts[0] || '10');
+    const pausaLote = parseInt(parts[1] || '60');
+    const incluirOptout = document.getElementById('antiban_optout_video').checked;
+
+    const payload = {
+        videos_ids: videosSelecionadosParaDisparo,
+        canais: canais,
+        clientes_ids: clientesIds,
+        telefones_manuais: telefonesManuais,
+        mensagem_texto: mensagemTexto,
+        delay_segundos: delayVal,
+        lote_tamanho: loteTamanho,
+        pausa_lote_segundos: pausaLote,
+        incluir_optout: incluirOptout,
+        '<?= Yii::$app->request->csrfParam ?>': '<?= Yii::$app->request->csrfToken ?>'
+    };
+
+    document.getElementById('secaoDisparoWhatsappVideo').classList.add('hidden');
+    document.getElementById('secaoProgressoDisparoVideo').classList.remove('hidden');
+
+    fetch('<?= Url::to(['/vendas/disparo/criar']) ?>', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(async r => {
+        const text = await r.text();
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            throw new Error(text.replace(/<[^>]*>?/gm, '').trim().substring(0, 150) || 'Falha no servidor.');
+        }
+    })
+    .then(data => {
+        if (data.success && data.disparo_id) {
+            monitorarProgressoVideoDisparo(data.disparo_id);
+        } else {
+            alert('Erro ao criar disparo de vídeo: ' + (data.message || 'Falha na requisição.'));
+            document.getElementById('secaoDisparoWhatsappVideo').classList.remove('hidden');
+            document.getElementById('secaoProgressoDisparoVideo').classList.add('hidden');
+        }
+    })
+    .catch(err => {
+        alert('Erro de comunicação: ' + err.message);
+        document.getElementById('secaoDisparoWhatsappVideo').classList.remove('hidden');
+        document.getElementById('secaoProgressoDisparoVideo').classList.add('hidden');
+    });
+}
+
+function monitorarProgressoVideoDisparo(disparoId) {
+    if (intervalMonitoramentoVideo) clearInterval(intervalMonitoramentoVideo);
+
+    const titulo = document.getElementById('tituloStatusDisparoVideo');
+    const subtitulo = document.getElementById('subtituloStatusDisparoVideo');
+    const barra = document.getElementById('barraProgressoDisparoVideo');
+    const lblItens = document.getElementById('lblProgressoItensVideo');
+    const lblPerc = document.getElementById('lblProgressoPercentualVideo');
+    const btnConcluir = document.getElementById('btnFecharDisparoVideoConcluido');
+
+    intervalMonitoramentoVideo = setInterval(function() {
+        fetch('<?= Url::to(['/vendas/disparo/status']) ?>?id=' + disparoId)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.disparo) {
+                const disp = data.disparo;
+                const total = disp.total_itens || 1;
+                const processados = (disp.total_enviados || 0) + (disp.total_erros || 0);
+                const perc = Math.min(Math.round((processados / total) * 100), 100);
+
+                barra.style.width = perc + '%';
+                lblItens.innerText = processados + ' / ' + total + ' processados (' + (disp.total_erros || 0) + ' erros)';
+                lblPerc.innerText = perc + '%';
+
+                if (disp.status === 'concluido' || processados >= total) {
+                    clearInterval(intervalMonitoramentoVideo);
+                    titulo.innerText = '✅ Disparo de Vídeos Concluído!';
+                    subtitulo.innerText = 'Todos os envios foram processados com sucesso via Evolution API.';
+                    btnConcluir.classList.remove('hidden');
+                } else if (disp.status === 'erro') {
+                    clearInterval(intervalMonitoramentoVideo);
+                    titulo.innerText = '⚠️ Disparo Finalizado com Erros';
+                    subtitulo.innerText = 'Ocorreram falhas em alguns envios. Verifique o log.';
+                    btnConcluir.classList.remove('hidden');
+                }
+            }
+        })
+        .catch(err => console.error('Erro no polling do disparo de vídeo:', err));
+    }, 2000);
+}
 </script>
 
 <!-- Modal Upload Rápido de Áudio no Studio -->
