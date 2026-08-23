@@ -194,9 +194,9 @@ class DisparoController extends Controller
                 );
             }
 
-            // Tentar processar a rodada inicial de forma isolada
+            // Tentar processar apenas o 1º item de forma síncrona para resposta rápida (< 1s) e liberar o frontend
             try {
-                $service->processarFilaDisparo($campanha->id, 5);
+                $service->processarFilaDisparo($campanha->id, 1);
             } catch (\Throwable $t) {
                 Yii::warning("DisparoController::actionCriar — aviso no processamento inicial da fila: " . $t->getMessage(), __METHOD__);
             }
@@ -228,11 +228,11 @@ class DisparoController extends Controller
             return ['success' => false, 'message' => 'Campanha não encontrada.'];
         }
 
-        // Tentar processar mais uma rodada da fila se ainda houver pendentes
+        // Tentar processar mais um item da fila se ainda houver pendentes
         if ($campanha->status === DisparoMassa::STATUS_PENDENTE || $campanha->status === DisparoMassa::STATUS_PROCESSANDO) {
             try {
                 $service = new DisparoMassaService();
-                $service->processarFilaDisparo($campanha->id, 10);
+                $service->processarFilaDisparo($campanha->id, 1);
                 $campanha->refresh();
             } catch (\Throwable $t) {
                 Yii::warning("DisparoController::actionStatus — aviso ao processar rodada: " . $t->getMessage(), __METHOD__);
