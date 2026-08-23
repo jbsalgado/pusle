@@ -157,8 +157,10 @@ class ProdutoVideoController extends Controller
 
         $produtoId = $params['produto_id'] ?? $request->post('produto_id') ?? $request->get('produto_id');
         $duracao = (int)($params['duracao'] ?? $request->post('duracao') ?? 15);
+        $formato = $params['formato'] ?? $request->post('formato') ?? 'stories';
         $template = $params['template'] ?? $request->post('template') ?? 'modern_dark';
-        $corTema = $params['corTema'] ?? $request->post('corTema') ?? 'dark';
+        $corTema = $params['corTema'] ?? $params['cor_tema'] ?? $request->post('corTema') ?? 'dark';
+        $fundoEstilo = $params['fundoEstilo'] ?? $params['fundo_estilo'] ?? $request->post('fundoEstilo') ?? 'gradient';
         $trilhaSonora = $params['trilhaSonora'] ?? $params['trilha_sonora'] ?? $request->post('trilha_sonora') ?? $request->post('trilhaSonora') ?? 'promo_bg.mp3';
 
         if (empty($produtoId)) {
@@ -172,8 +174,10 @@ class ProdutoVideoController extends Controller
         try {
             $service = new VideoGeneratorService();
             $videoModel = $service->solicitarGeracaoVideo($produtoId, $duracao, [
+                'formato' => $formato,
                 'template' => $template,
                 'corTema' => $corTema,
+                'fundoEstilo' => $fundoEstilo,
                 'trilhaSonora' => $trilhaSonora,
             ]);
 

@@ -50,16 +50,18 @@ class VideoGeneratorService
         // Valida se o tenant tem cota de armazenamento disponível para vídeos
         MediaStorageService::validarEspacoVideos($produto->usuario_id);
 
-        // Criar registro inicial no banco com status PENDENTE
+        $formatoVal = strtolower($options['formato'] ?? 'stories') === 'feed' ? ProdutoVideo::FORMATO_FEED : ProdutoVideo::FORMATO_STORIES;
         $videoModel = new ProdutoVideo();
         $videoModel->produto_id = $produto->id;
         $videoModel->usuario_id = $produto->usuario_id;
         $videoModel->duracao = $duracao;
-        $videoModel->formato = ProdutoVideo::FORMATO_STORIES;
+        $videoModel->formato = $formatoVal;
         $videoModel->status = ProdutoVideo::STATUS_PENDENTE;
         $videoModel->metadata = [
+            'formato' => $formatoVal,
             'template' => $options['template'] ?? 'modern_dark',
             'cor_tema' => $options['corTema'] ?? 'dark',
+            'fundo_estilo' => $options['fundoEstilo'] ?? 'gradient',
             'trilha_sonora' => $options['trilhaSonora'] ?? 'promo_bg.mp3',
             'solicitado_em' => date('Y-m-d H:i:s'),
         ];
@@ -211,8 +213,10 @@ class VideoGeneratorService
 
             $payload = [
                 'duracao' => (int)$videoModel->duracao,
+                'formato' => $options['formato'] ?? ($videoModel->metadata['formato'] ?? ($videoModel->formato ?: 'stories')),
                 'template' => $options['template'] ?? ($videoModel->metadata['template'] ?? 'modern_dark'),
                 'corTema' => $options['corTema'] ?? ($videoModel->metadata['cor_tema'] ?? 'dark'),
+                'fundoEstilo' => $options['fundoEstilo'] ?? ($videoModel->metadata['fundo_estilo'] ?? 'gradient'),
                 'trilhaSonora' => $trilhaSonora,
                 'outputPath' => $caminhoAbsolutoSaida,
                 'produto' => [

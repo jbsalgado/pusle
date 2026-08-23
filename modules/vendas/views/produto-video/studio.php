@@ -267,6 +267,54 @@ $this->params['breadcrumbs'][] = $this->title;
 .history-card:hover {
     background: rgba(30, 41, 59, 0.8);
 }
+
+.option-radio-card {
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    background: rgba(30, 41, 59, 0.6);
+    border-radius: 12px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.option-radio-card:hover {
+    border-color: rgba(56, 189, 248, 0.5);
+    background: rgba(30, 41, 59, 0.9);
+}
+
+input[type="radio"]:checked + .option-radio-card {
+    border-color: #38bdf8 !important;
+    background: rgba(56, 189, 248, 0.15) !important;
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+}
+
+.color-pill-card {
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    background: rgba(30, 41, 59, 0.6);
+    border-radius: 10px;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #e2e8f0;
+}
+
+.color-pill-card:hover {
+    border-color: rgba(56, 189, 248, 0.4);
+}
+
+input[type="radio"]:checked + .color-pill-card {
+    border-color: #38bdf8 !important;
+    background: rgba(56, 189, 248, 0.18) !important;
+    color: #ffffff;
+}
 </style>
 
 <div class="video-studio-container">
@@ -339,14 +387,194 @@ $this->params['breadcrumbs'][] = $this->title;
                         </div>
                     </div>
 
+                    <!-- 1. Formato da Publicação -->
                     <div class="mb-4">
-                        <label class="form-label-custom">3. Estilo e Tema Visual</label>
-                        <select id="select-template" class="select-custom">
-                            <option value="full_bleed_banner">Foto em Tela Cheia (Banners Topo & Rodapé Destaque)</option>
-                            <option value="modern_dark">Dark Moderno (Gradientes Vibrantes & Neon)</option>
-                            <option value="vibrant_gradient">Gradiente Vibrante (Laranja & Roxo)</option>
-                            <option value="minimal_clean">Clean Minimalista (Fundo Claro Elegante)</option>
-                        </select>
+                        <label class="form-label-custom">1. Formato da Publicação</label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="w-100 mb-0">
+                                    <input type="radio" name="video_formato" value="feed" class="d-none">
+                                    <div class="option-radio-card">
+                                        <div style="width: 38px; height: 38px; border: 2px solid #38bdf8; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: rgba(15,23,42,0.8); color: #38bdf8; font-weight: 800; font-size: 11px;">1:1</div>
+                                        <div>
+                                            <div style="font-weight: 700; font-size: 0.9rem; color: #f8fafc;">Feed / Post</div>
+                                            <div style="font-size: 0.75rem; color: #94a3b8;">1080 × 1080 px</div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="col-6">
+                                <label class="w-100 mb-0">
+                                    <input type="radio" name="video_formato" value="stories" checked class="d-none">
+                                    <div class="option-radio-card">
+                                        <div style="width: 32px; height: 38px; border: 2px solid #38bdf8; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: rgba(15,23,42,0.8); color: #38bdf8; font-weight: 800; font-size: 11px;">9:16</div>
+                                        <div>
+                                            <div style="font-weight: 700; font-size: 0.9rem; color: #f8fafc;">Stories / Reels</div>
+                                            <div style="font-size: 0.75rem; color: #94a3b8;">1080 × 1920 px</div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Modelo de Layout -->
+                    <div class="mb-4">
+                        <label class="form-label-custom">2. Modelo de Layout</label>
+                        <div class="row g-2">
+                            <div class="col-6 mb-2">
+                                <label class="w-100 mb-0">
+                                    <input type="radio" name="video_template" value="modern_dark" checked class="d-none">
+                                    <div class="option-radio-card">
+                                        <div style="width: 32px; height: 32px; border-radius: 8px; background: #0f172a; border: 1px solid #334155; display: flex; align-items: center; justify-content: center;">💎</div>
+                                        <div>
+                                            <div style="font-weight: 700; font-size: 0.85rem; color: #f8fafc;">Modern Dark</div>
+                                            <div style="font-size: 0.72rem; color: #94a3b8;">Glassmorphism escuro</div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="col-6 mb-2">
+                                <label class="w-100 mb-0">
+                                    <input type="radio" name="video_template" value="vibrant_gradient" class="d-none">
+                                    <div class="option-radio-card">
+                                        <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #3b82f6, #6366f1); display: flex; align-items: center; justify-content: center;">🌈</div>
+                                        <div>
+                                            <div style="font-weight: 700; font-size: 0.85rem; color: #f8fafc;">Vibrant Gradient</div>
+                                            <div style="font-size: 0.72rem; color: #94a3b8;">Colorido & alto contraste</div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="col-6 mb-2">
+                                <label class="w-100 mb-0">
+                                    <input type="radio" name="video_template" value="minimalist_light" class="d-none">
+                                    <div class="option-radio-card">
+                                        <div style="width: 32px; height: 32px; border-radius: 8px; background: #f8fafc; border: 1px solid #cbd5e1; display: flex; align-items: center; justify-content: center; color: #0f172a;">✨</div>
+                                        <div>
+                                            <div style="font-weight: 700; font-size: 0.85rem; color: #f8fafc;">Minimalist Light</div>
+                                            <div style="font-size: 0.72rem; color: #94a3b8;">Limpo, claro & sofisticado</div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="col-6 mb-2">
+                                <label class="w-100 mb-0">
+                                    <input type="radio" name="video_template" value="neon_promo" class="d-none">
+                                    <div class="option-radio-card">
+                                        <div style="width: 32px; height: 32px; border-radius: 8px; background: #000000; border: 1px solid #4ade80; display: flex; align-items: center; justify-content: center;">⚡</div>
+                                        <div>
+                                            <div style="font-weight: 700; font-size: 0.85rem; color: #f8fafc;">Neon Promo</div>
+                                            <div style="font-size: 0.72rem; color: #94a3b8;">Futurista / Destaque Ofertas</div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="col-12 mb-2">
+                                <label class="w-100 mb-0">
+                                    <input type="radio" name="video_template" value="full_bleed_banner" class="d-none">
+                                    <div class="option-radio-card">
+                                        <div style="width: 32px; height: 32px; border-radius: 8px; background: #047857; border: 1px solid #10b981; display: flex; align-items: center; justify-content: center;">🖼️</div>
+                                        <div>
+                                            <div style="font-weight: 700; font-size: 0.85rem; color: #f8fafc;">Foto em Tela Cheia (Banners Topo/Rodapé)</div>
+                                            <div style="font-size: 0.72rem; color: #94a3b8;">Imagem em 100% da tela com faixas superior e inferior</div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="col-12 mb-2">
+                                <label class="w-100 mb-0">
+                                    <input type="radio" name="video_template" value="bold_banner" class="d-none">
+                                    <div class="option-radio-card">
+                                        <div style="width: 32px; height: 32px; border-radius: 8px; background: #312e81; border: 1px solid #6366f1; display: flex; align-items: center; justify-content: center;">📣</div>
+                                        <div>
+                                            <div style="font-weight: 700; font-size: 0.85rem; color: #f8fafc;">Bold Banner</div>
+                                            <div style="font-size: 0.72rem; color: #94a3b8;">Faixa dupla de grande impacto visual</div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Paleta de Cores -->
+                    <div class="mb-4">
+                        <label class="form-label-custom">3. Paleta de Cores</label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            <label class="mb-0">
+                                <input type="radio" name="video_cor" value="dark" checked class="d-none">
+                                <div class="color-pill-card">
+                                    <span style="width: 14px; height: 14px; border-radius: 50%; background: #0f172a; border: 1px solid #475569; display: inline-block;"></span> Dark Slate
+                                </div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_cor" value="ocean" class="d-none">
+                                <div class="color-pill-card">
+                                    <span style="width: 14px; height: 14px; border-radius: 50%; background: #0284c7; display: inline-block;"></span> Ocean Blue
+                                </div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_cor" value="emerald" class="d-none">
+                                <div class="color-pill-card">
+                                    <span style="width: 14px; height: 14px; border-radius: 50%; background: #059669; display: inline-block;"></span> Emerald Green
+                                </div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_cor" value="purple" class="d-none">
+                                <div class="color-pill-card">
+                                    <span style="width: 14px; height: 14px; border-radius: 50%; background: #7c3aed; display: inline-block;"></span> Purple Sunset
+                                </div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_cor" value="sunset" class="d-none">
+                                <div class="color-pill-card">
+                                    <span style="width: 14px; height: 14px; border-radius: 50%; background: #ea580c; display: inline-block;"></span> Sunset Orange
+                                </div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_cor" value="rose" class="d-none">
+                                <div class="color-pill-card">
+                                    <span style="width: 14px; height: 14px; border-radius: 50%; background: #e11d48; display: inline-block;"></span> Rose Pink
+                                </div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_cor" value="gold" class="d-none">
+                                <div class="color-pill-card">
+                                    <span style="width: 14px; height: 14px; border-radius: 50%; background: #f59e0b; display: inline-block;"></span> Premium Gold
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 4. Estilo de Fundo -->
+                    <div class="mb-4">
+                        <label class="form-label-custom">4. Estilo de Fundo</label>
+                        <div class="row g-2">
+                            <div class="col-3">
+                                <label class="w-100 mb-0">
+                                    <input type="radio" name="video_fundo" value="gradient" checked class="d-none">
+                                    <div class="color-pill-card justify-content-center w-100">Gradiente</div>
+                                </label>
+                            </div>
+                            <div class="col-3">
+                                <label class="w-100 mb-0">
+                                    <input type="radio" name="video_fundo" value="mesh" class="d-none">
+                                    <div class="color-pill-card justify-content-center w-100">Mesh Fluid</div>
+                                </label>
+                            </div>
+                            <div class="col-3">
+                                <label class="w-100 mb-0">
+                                    <input type="radio" name="video_fundo" value="geometric" class="d-none">
+                                    <div class="color-pill-card justify-content-center w-100">Geométrico</div>
+                                </label>
+                            </div>
+                            <div class="col-3">
+                                <label class="w-100 mb-0">
+                                    <input type="radio" name="video_fundo" value="grid" class="d-none">
+                                    <div class="color-pill-card justify-content-center w-100">Grid Pontos</div>
+                                </label>
+                            </div>
+                        </div>
                     </div>
 
                     <?php 
@@ -668,6 +896,11 @@ document.addEventListener('DOMContentLoaded', function() {
         progressStatusText.innerText = 'Solicitando geração de vídeo...';
         progressDetailText.innerText = 'Enviando parâmetros para o renderizador local...';
 
+        const formatoVal = document.querySelector('input[name="video_formato"]:checked')?.value || 'stories';
+        const templateVal = document.querySelector('input[name="video_template"]:checked')?.value || 'modern_dark';
+        const corVal = document.querySelector('input[name="video_cor"]:checked')?.value || 'dark';
+        const fundoVal = document.querySelector('input[name="video_fundo"]:checked')?.value || 'gradient';
+
         fetch('<?= Url::to(['/vendas/produto-video/generate']) ?>', {
             method: 'POST',
             headers: {
@@ -677,8 +910,10 @@ document.addEventListener('DOMContentLoaded', function() {
             body: JSON.stringify({
                 produto_id: produtoId,
                 duracao: duracaoSelecionada,
-                template: selectTemplate.value,
-                corTema: 'dark',
+                formato: formatoVal,
+                template: templateVal,
+                corTema: corVal,
+                fundoEstilo: fundoVal,
                 trilhaSonora: selectTrilha ? selectTrilha.value : 'promo_bg.mp3'
             })
         })

@@ -48,8 +48,9 @@ async function main() {
     const data = JSON.parse(payloadRaw);
 
     const duracao = parseInt(data.duracao) || 15; // 5, 10 ou 15 segundos
+    const formato = (data.formato || 'stories').toLowerCase();
     const width = 1080;
-    const height = 1920;
+    const height = (formato === 'feed' || formato === '1:1') ? 1080 : 1920;
     const fps = 30;
     const totalFrames = duracao * fps;
     const outputPath = args[1] || data.outputPath || path.join(__dirname, `video_${Date.now()}.mp4`);
@@ -292,6 +293,30 @@ const COLOR_PALETTES = {
         badgeBg: 'linear-gradient(135deg, #FF3B30 0%, #E11D48 100%)',
         border: 'rgba(255, 255, 255, 0.15)'
     },
+    ocean: {
+        primary: '#0284C7',
+        secondary: '#0369A1',
+        bgGradient: 'linear-gradient(135deg, #0C4A6E 0%, #0369A1 50%, #075985 100%)',
+        cardBg: 'rgba(255, 255, 255, 0.08)',
+        infoBg: 'rgba(12, 74, 110, 0.92)',
+        textColor: '#FFFFFF',
+        mutedText: '#BAE6FD',
+        accent: '#38BDF8',
+        badgeBg: 'linear-gradient(135deg, #0284C7 0%, #2563EB 100%)',
+        border: 'rgba(186, 230, 253, 0.2)'
+    },
+    emerald: {
+        primary: '#059669',
+        secondary: '#047857',
+        bgGradient: 'linear-gradient(135deg, #064E3B 0%, #047857 50%, #065F46 100%)',
+        cardBg: 'rgba(255, 255, 255, 0.08)',
+        infoBg: 'rgba(6, 78, 59, 0.92)',
+        textColor: '#FFFFFF',
+        mutedText: '#A7F3D0',
+        accent: '#34D399',
+        badgeBg: 'linear-gradient(135deg, #059669 0%, #10B981 100%)',
+        border: 'rgba(167, 243, 208, 0.2)'
+    },
     purple: {
         primary: '#8B5CF6',
         secondary: '#7C3AED',
@@ -303,6 +328,30 @@ const COLOR_PALETTES = {
         accent: '#A78BFA',
         badgeBg: 'linear-gradient(135deg, #EC4899 0%, #D946EF 100%)',
         border: 'rgba(221, 214, 254, 0.2)'
+    },
+    sunset: {
+        primary: '#EA580C',
+        secondary: '#C2410C',
+        bgGradient: 'linear-gradient(135deg, #431407 0%, #7C2D12 50%, #9A3412 100%)',
+        cardBg: 'rgba(255, 255, 255, 0.08)',
+        infoBg: 'rgba(67, 20, 7, 0.92)',
+        textColor: '#FFFFFF',
+        mutedText: '#FFEDD5',
+        accent: '#FB923C',
+        badgeBg: 'linear-gradient(135deg, #EA580C 0%, #E11D48 100%)',
+        border: 'rgba(255, 237, 213, 0.2)'
+    },
+    rose: {
+        primary: '#E11D48',
+        secondary: '#BE123C',
+        bgGradient: 'linear-gradient(135deg, #4C0519 0%, #881337 50%, #9F1239 100%)',
+        cardBg: 'rgba(255, 255, 255, 0.08)',
+        infoBg: 'rgba(76, 5, 25, 0.92)',
+        textColor: '#FFFFFF',
+        mutedText: '#FECDD3',
+        accent: '#F43F5E',
+        badgeBg: 'linear-gradient(135deg, #E11D48 0%, #DB2777 100%)',
+        border: 'rgba(254, 205, 211, 0.2)'
     },
     gold: {
         primary: '#F59E0B',
@@ -346,6 +395,16 @@ function generateVideoHtmlTemplate(data, duracao) {
     const telefone = escapeHtml(l.telefone || '');
     const site = escapeHtml(l.site || '');
 
+    const fundoEstilo = (data.fundoEstilo || 'gradient').toLowerCase();
+    let bgStyle = palette.bgGradient;
+    if (fundoEstilo === 'mesh') {
+        bgStyle = `radial-gradient(at 0% 0%, ${palette.primary}99 0px, transparent 50%), radial-gradient(at 100% 0%, ${palette.secondary}99 0px, transparent 50%), radial-gradient(at 100% 100%, ${palette.accent}55 0px, transparent 50%), ${palette.bgGradient}`;
+    } else if (fundoEstilo === 'geometric') {
+        bgStyle = `repeating-linear-gradient(45deg, ${palette.primary}22 0, ${palette.primary}22 20px, transparent 20px, transparent 40px), ${palette.bgGradient}`;
+    } else if (fundoEstilo === 'grid') {
+        bgStyle = `radial-gradient(rgba(255, 255, 255, 0.18) 2px, transparent 2px) 0 0 / 30px 30px, ${palette.bgGradient}`;
+    }
+
     return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -356,7 +415,7 @@ function generateVideoHtmlTemplate(data, duracao) {
         body {
             width: 1080px; height: 1920px;
             font-family: 'Inter', sans-serif;
-            background: ${palette.bgGradient};
+            background: ${bgStyle};
             color: ${palette.textColor};
             display: flex; flex-direction: column; justify-content: space-between;
             overflow: hidden; position: relative;
