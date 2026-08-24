@@ -241,15 +241,16 @@ class DisparoMassaService
                 $produto = $item->produto;
                 $usuarioId = $campanha ? $campanha->usuario_id : $produto->usuario_id;
 
-                // Verificar conexão do WhatsApp antes de tentar envios via Evolution API
+                // Verificar conexão do WhatsApp DIRETAMENTE na Evolution API (ignora cache do banco local)
                 if ($item->canal === DisparoMassa::CANAL_STATUS || $item->canal === DisparoMassa::CANAL_WHATSAPP) {
                     $configWp = WhatsappConfig::findByEmpresa($usuarioId);
-                    if (!$configWp || empty($configWp->token) || $configWp->status !== 'CONNECTED') {
-                        // Tentar checar status via Evolution API
-                        $wpConectado = $this->evolutionService->checkStatus($usuarioId);
-                        if (!$wpConectado) {
-                            throw new \Exception("Instância do WhatsApp desconectada na Evolution API. Acesse as configurações e escaneie o QR Code.");
-                        }
+                    if (!$configWp || empty($configWp->token)) {
+                        throw new \Exception("WhatsApp não configurado para esta loja. Acesse Configurações → WhatsApp e conecte sua instância.");
+                    }
+                    // Sempre consultar o status ao vivo na Evolution API — não confiar no cache do banco local
+                    $wpConectado = $this->evolutionService->checkStatus($usuarioId);
+                    if (!$wpConectado) {
+                        throw new \Exception("Instância do WhatsApp desconectada na Evolution API. Acesse as configurações e escaneie o QR Code.");
                     }
                 }
 

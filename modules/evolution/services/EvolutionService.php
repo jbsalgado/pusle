@@ -727,7 +727,8 @@ class EvolutionService
             }
 
             if (!$success) {
-                Yii::warning("EvolutionService::sendWhatsAppStatus — endpoints de status não retornaram OK.", __METHOD__);
+                $this->lastError = "Falha ao postar no Status do WhatsApp. Endpoints testados: " . implode(', ', $endpoints) . ". Verifique se a versão da Evolution API suporta o envio de Status/Stories.";
+                Yii::warning("EvolutionService::sendWhatsAppStatus — {$this->lastError}", __METHOD__);
             }
 
             return $success;
