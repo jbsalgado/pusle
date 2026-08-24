@@ -82,7 +82,9 @@ class ConfigController extends Controller
         try {
             $empresaId = Yii::$app->user->identity ? Yii::$app->user->identity->getTenantId() : null;
             if ($empresaId) {
-                $service      = new EvolutionService();
+                $service = new EvolutionService();
+                // Deleta a instância antiga para invalidar a sessão desincronizada e forçar novo QR Code
+                $service->deleteInstance($empresaId);
                 $qrCodeBase64 = $service->createInstance($empresaId);
             }
         } catch (\Throwable $t) {
