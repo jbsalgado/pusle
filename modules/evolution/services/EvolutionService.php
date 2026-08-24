@@ -632,11 +632,14 @@ class EvolutionService
                         'apikey'       => $config->token,
                     ])
                     ->setData([
-                        'number'  => $targetNumber,
-                        'url'     => $cleanBase64,
-                        'type'    => $mediaType,
-                        'caption' => $caption,
-                        'delay'   => $delay,
+                        'number'    => $targetNumber,
+                        'url'       => $cleanBase64,
+                        'media'     => $cleanBase64,
+                        'mediaUrl'  => $cleanBase64,
+                        'type'      => $mediaType ?: 'image',
+                        'mediatype' => $mediaType ?: 'image',
+                        'caption'   => $caption,
+                        'delay'     => $delay,
                     ])
                     ->send();
 
@@ -711,10 +714,14 @@ class EvolutionService
                         'apikey'       => $config->token,
                     ])
                     ->setData([
-                        'url'     => $cleanBase64,
-                        'type'    => $mediaType ?: 'image',
-                        'caption' => $caption,
-                        'status'  => true,
+                        'number'    => 'status@broadcast',
+                        'url'       => $cleanBase64,
+                        'media'     => $cleanBase64,
+                        'mediaUrl'  => $cleanBase64,
+                        'type'      => $mediaType ?: 'image',
+                        'mediatype' => $mediaType ?: 'image',
+                        'caption'   => $caption,
+                        'status'    => true,
                     ])
                     ->send();
 
