@@ -239,15 +239,18 @@ class DisparoController extends Controller
             }
         }
 
-        // Buscar histórico de erros caso existam itens com falha
-        $errosItens = [];
-        if ($campanha->itens_erro > 0) {
-            $errosItens = DisparoItem::find()
-                ->select(['canal', 'destino', 'erro_mensagem'])
-                ->where(['disparo_id' => $campanha->id, 'status' => DisparoItem::STATUS_ERRO])
-                ->asArray()
-                ->all();
-        }
+        // Buscar histórico de todos os itens processados (enviados com sucesso e com erro)
+        $todosItens = DisparoItem::find()
+            ->select(['id', 'canal', 'destino', 'status', 'enviado_em', 'erro_mensagem'])
+            ->where(['disparo_id' => $campanha->id])
+            ->andWhere(['in', 'status', [DisparoItem::STATUS_ENVIADO, DisparoItem::STATUS_ERRO]])
+            ->orderBy(['id' => SORT_ASC])
+            ->asArray()
+            ->all();
+
+        $errosItens = array_values(array_filter($todosItens, function($i) {
+            return $i['status'] === DisparoItem::STATUS_ERRO;
+        }));
 
         $dispData = [
             'id' => $campanha->id,
@@ -256,6 +259,7 @@ class DisparoController extends Controller
             'itens_enviados' => (int)$campanha->itens_enviados,
             'itens_erro' => (int)$campanha->itens_erro,
             'progresso_percentual' => $campanha->getProgressoPercentual(),
+            'itens' => $todosItens,
             'erros' => $errosItens
         ];
 

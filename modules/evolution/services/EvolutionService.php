@@ -35,6 +35,11 @@ class EvolutionService
      */
     private string $globalApiKey;
 
+    /**
+     * Armazena a mensagem detalhada do último erro ocorrido na API.
+     */
+    public ?string $lastError = null;
+
     public function __construct()
     {
         $rawUrl             = rtrim(Yii::$app->params['evolution']['baseUrl'], '/');
@@ -575,69 +580,90 @@ class EvolutionService
      */
     public function sendMedia(string $empresaId, string $to, string $mediaData, string $caption = '', string $mediaType = 'image'): bool
     {
+        $this->lastError = null;
         $config = WhatsappConfig::findByEmpresa($empresaId);
 
         if ($config === null || empty($config->token)) {
-            Yii::error(
-                "EvolutionService::sendMedia — instância não encontrada ou sem token para empresa {$empresaId}.",
-                __METHOD__
-            );
+            $msg = "Instância do WhatsApp não configurada ou sem token para a loja.";
+            $this->lastError = $msg;
+            Yii::error("EvolutionService::sendMedia — {$msg} (empresa: {$empresaId})", __METHOD__);
             return false;
         }
 
-        $sanitizedNumber = $this->sanitizePhoneNumber($to);
-        if (strlen($sanitizedNumber) > 13 || strlen($sanitizedNumber) < 10) {
-            Yii::error("EvolutionService::sendMedia — número de telefone inválido ou concatenado: '{$to}' (sanitizado: '{$sanitizedNumber}')", __METHOD__);
+        $primaryNumber = $this->sanitizePhoneNumber($to);
+        if (strlen($primaryNumber) > 13 || strlen($primaryNumber) < 10) {
+            $msg = "Número de telefone inválido: '{$to}' (sanitizado: '{$primaryNumber}')";
+            $this->lastError = $msg;
+            Yii::error("EvolutionService::sendMedia — {$msg}", __METHOD__);
             return false;
         }
+
+        $alternativeNumber = $this->getAlternativePhoneNumber($primaryNumber);
+        $numbersToTry = array_values(array_unique(array_filter([$primaryNumber, $alternativeNumber])));
 
         if (strpos($mediaData, '/') === 0 && strpos($mediaData, 'http') !== 0) {
-            $domain = Yii::$app->params['domain'] ?? 'https://alex-birds.oncode.app.br';
+            $hostInfo = (Yii::$app->has('request') && Yii::$app->get('request') instanceof \yii\web\Request && !empty(Yii::$app->request->hostInfo))
+                ? Yii::$app->request->hostInfo
+                : null;
+            $domain = $hostInfo ?: (Yii::$app->params['domain'] ?? 'https://alex-bird.oncode.app.br');
             $mediaData = rtrim($domain, '/') . '/' . ltrim($mediaData, '/');
         }
 
         $cleanBase64 = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', $mediaData);
 
-        $delayMin = isset($config->delay_min) ? (int)$config->delay_min : 2000;
-        $delayMax = isset($config->delay_max) ? (int)$config->delay_max : 4000;
-        $delay = rand($delayMin, $delayMax);
+        $delayMin = isset($config->delay_min) ? (int)$config->delay_min : 1500;
+        $delayMax = isset($config->delay_max) ? (int)$config->delay_max : 3500;
 
-        try {
-            $client   = new Client(['baseUrl' => $this->baseUrl]);
-            $response = $client->createRequest()
-                ->setMethod('POST')
-                ->setFormat(Client::FORMAT_JSON)
-                ->setUrl('/send/media')
-                ->addHeaders([
-                    'Content-Type' => 'application/json',
-                    'apikey'       => $config->token,
-                ])
-                ->setData([
-                    'number'  => $sanitizedNumber,
-                    'url'     => $cleanBase64,
-                    'type'    => $mediaType,
-                    'caption' => $caption,
-                    'delay'   => $delay,
-                ])
-                ->send();
+        $client = new Client(['baseUrl' => $this->baseUrl]);
+        $attemptCount = 0;
+        $lastAttemptError = null;
 
-            if (!$response->isOk) {
-                Yii::error(
-                    "EvolutionService::sendMedia — resposta não-OK: "
-                    . $response->statusCode . ' ' . $response->content,
-                    __METHOD__
-                );
-                return false;
+        foreach ($numbersToTry as $targetNumber) {
+            $attemptCount++;
+            $delay = rand($delayMin, $delayMax);
+
+            try {
+                $response = $client->createRequest()
+                    ->setMethod('POST')
+                    ->setFormat(Client::FORMAT_JSON)
+                    ->setUrl('/send/media')
+                    ->addHeaders([
+                        'Content-Type' => 'application/json',
+                        'apikey'       => $config->token,
+                    ])
+                    ->setData([
+                        'number'  => $targetNumber,
+                        'url'     => $cleanBase64,
+                        'type'    => $mediaType,
+                        'caption' => $caption,
+                        'delay'   => $delay,
+                    ])
+                    ->send();
+
+                if ($response->isOk) {
+                    $this->lastError = null;
+                    if ($attemptCount > 1) {
+                        Yii::info("EvolutionService::sendMedia — Sucesso no envio para '{$targetNumber}' usando formato alternativo na tentativa #{$attemptCount}.", __METHOD__);
+                    }
+                    return true;
+                }
+
+                $bodyData = json_decode($response->content, true);
+                $detalhe = $bodyData['message'] ?? $bodyData['error'] ?? $response->content;
+                $lastAttemptError = "Tentativa #{$attemptCount} ({$targetNumber}) falhou [HTTP {$response->statusCode}]: " . (is_array($detalhe) ? json_encode($detalhe) : $detalhe);
+                Yii::warning("EvolutionService::sendMedia — {$lastAttemptError}", __METHOD__);
+            } catch (HttpClientException $e) {
+                $lastAttemptError = "Tentativa #{$attemptCount} ({$targetNumber}) erro HTTP: " . $e->getMessage();
+                Yii::warning("EvolutionService::sendMedia — {$lastAttemptError}", __METHOD__);
             }
 
-            return true;
-        } catch (HttpClientException $e) {
-            Yii::error(
-                "EvolutionService::sendMedia — falha HTTP: " . $e->getMessage(),
-                __METHOD__
-            );
-            return false;
+            if ($attemptCount < count($numbersToTry)) {
+                usleep(300000); // 300ms de pausa entre retries
+            }
         }
+
+        $this->lastError = $lastAttemptError ?: "Falha ao enviar mensagem de mídia para {$to} após testar os formatos de 12 e 13 dígitos.";
+        return false;
     }
 
     /**
@@ -759,32 +785,69 @@ class EvolutionService
         // Remove tudo que não for dígito
         $numero = preg_replace('/\D/', '', $number);
 
-        // Adicionar DDI 55 se necessário
+        if (empty($numero)) {
+            return '';
+        }
+
+        // Se já começa com DDI 55 (Brasil)
+        if (str_starts_with($numero, '55')) {
+            // Mantém os 12 ou 13 dígitos sem alterar ou remover o 9º dígito
+            if (strlen($numero) === 12 || strlen($numero) === 13) {
+                return $numero;
+            }
+        }
+
+        // Se o número possui 11 dígitos no Brasil (DDD + 9 dígitos de celular, ex: 81993861026)
         if (strlen($numero) === 11) {
+            return '55' . $numero;
+        }
+
+        // Se o número possui 10 dígitos no Brasil (DDD + 8 dígitos, ex: 8193861026)
+        if (strlen($numero) === 10) {
+            return '55' . $numero;
+        }
+
+        // Caso geral para números sem DDI
+        if (!str_starts_with($numero, '55') && strlen($numero) <= 11) {
             $numero = '55' . $numero;
-        } elseif (strlen($numero) === 10) {
-            $ddd  = substr($numero, 0, 2);
-            $rest = substr($numero, 2);
-            $numero = '55' . $ddd . '9' . $rest;
-        }
-
-        // Se o número não começar com 55 (DDI internacional), garante que tenha pelo menos o DDI se o usuário digitar completo
-        if (strlen($numero) < 10) {
-            // Número muito curto, apenas garante 55 no início
-            if (!str_starts_with($numero, '55')) {
-                $numero = '55' . $numero;
-            }
-        }
-
-        // Normalização do nono dígito:
-        // WhatsApp BR remove o 9 para DDDs >= 20 (fora de São Paulo).
-        if (strlen($numero) === 13 && strpos($numero, '55') === 0) {
-            $ddd = (int) substr($numero, 2, 2);
-            if ($ddd >= 20 && substr($numero, 4, 1) === '9') {
-                $numero = '55' . $ddd . substr($numero, 5);
-            }
         }
 
         return $numero;
+    }
+
+    /**
+     * Gera o número alternativo no formato de 12 ou 13 dígitos para o Brasil.
+     * Exemplo:
+     *   5581992127964 (13 dígitos) -> 558192127964 (12 dígitos, removendo o 9 extra após o DDD)
+     *   558192127964  (12 dígitos) -> 5581992127964 (13 dígitos, injetando o 9 após o DDD)
+     *
+     * @param string $number Número sanitizado no formato 55...
+     * @return string|null   Número alternativo ou null se não aplicável
+     */
+    public function getAlternativePhoneNumber(string $number): ?string
+    {
+        $clean = preg_replace('/\D/', '', $number);
+
+        if (empty($clean)) {
+            return null;
+        }
+
+        if (!str_starts_with($clean, '55')) {
+            $clean = '55' . $clean;
+        }
+
+        // Se tem 13 dígitos (55 + DDD + 9 + 8 dígitos)
+        if (strlen($clean) === 13 && substr($clean, 4, 1) === '9') {
+            // Remove o 9 após o DDD para gerar a versão de 12 dígitos
+            return substr($clean, 0, 4) . substr($clean, 5);
+        }
+
+        // Se tem 12 dígitos (55 + DDD + 8 dígitos)
+        if (strlen($clean) === 12) {
+            // Injete o 9 após o DDD para gerar a versão de 13 dígitos
+            return substr($clean, 0, 4) . '9' . substr($clean, 4);
+        }
+
+        return null;
     }
 }

@@ -224,8 +224,14 @@ class DisparoMassaService
         $processados = 0;
 
         foreach ($itens as $item) {
+            $affected = DisparoItem::updateAll(
+                ['status' => DisparoItem::STATUS_PROCESSANDO],
+                ['id' => $item->id, 'status' => DisparoItem::STATUS_PENDENTE]
+            );
+            if ($affected === 0) {
+                continue;
+            }
             $item->status = DisparoItem::STATUS_PROCESSANDO;
-            $item->save(false);
 
             $sucesso = false;
             $erroMsg = null;
@@ -271,7 +277,7 @@ class DisparoMassaService
                         if ($mediaParam) {
                             $sucesso = $this->evolutionService->sendWhatsAppStatus($usuarioId, $mediaParam, $item->mensagem_personalizada ?: $produto->nome, $mediaType);
                             if (!$sucesso) {
-                                $erroMsg = "Falha ao postar no Status do WhatsApp via Evolution API. Verifique a conexão.";
+                                $erroMsg = $this->evolutionService->lastError ?: "Falha ao postar no Status do WhatsApp via Evolution API. Verifique a conexão.";
                             }
                         } else {
                             $erroMsg = "Arquivo de mídia não encontrado.";
@@ -282,7 +288,7 @@ class DisparoMassaService
                         if ($mediaParam && !empty($item->destino)) {
                             $sucesso = $this->evolutionService->sendMedia($usuarioId, $item->destino, $mediaParam, $item->mensagem_personalizada ?: $produto->nome, $mediaType);
                             if (!$sucesso) {
-                                $erroMsg = "Falha ao enviar mensagem de mídia para {$item->destino} via Evolution API.";
+                                $erroMsg = $this->evolutionService->lastError ?: "Falha ao enviar mensagem de mídia para {$item->destino} via Evolution API.";
                             }
                         } else {
                             $erroMsg = "Mídia ou número de telefone de destino ausente.";
@@ -641,17 +647,30 @@ class DisparoMassaService
             return null;
         }
 
-        if (strpos($urlOrPath, 'http://') === 0 || strpos($urlOrPath, 'https://') === 0) {
+        if (strpos($urlOrPath, 'data:image') === 0 || strpos($urlOrPath, 'data:video') === 0) {
             return $urlOrPath;
         }
 
-        $caminho = ltrim($urlOrPath, '/');
-        if (Yii::$app->has('request') && Yii::$app->get('request') instanceof \yii\web\Request && !empty(Yii::$app->request->hostInfo)) {
-            return \yii\helpers\Url::to('@web/' . $caminho, true);
+        $resUrl = null;
+
+        if (strpos($urlOrPath, 'http://') === 0 || strpos($urlOrPath, 'https://') === 0) {
+            $resUrl = $urlOrPath;
+        } else {
+            $caminho = ltrim($urlOrPath, '/');
+            if (Yii::$app->has('request') && Yii::$app->get('request') instanceof \yii\web\Request && !empty(Yii::$app->request->hostInfo)) {
+                $resUrl = \yii\helpers\Url::to('@web/' . $caminho, true);
+            } else {
+                $baseUrl = Yii::$app->params['domain'] ?? 'https://alex-bird.oncode.app.br';
+                $resUrl = rtrim($baseUrl, '/') . '/' . $caminho;
+            }
         }
 
-        $baseUrl = Yii::$app->params['domain'] ?? 'https://alex-birds.oncode.app.br';
-        return rtrim($baseUrl, '/') . '/' . $caminho;
+        // Higieniza removendo trechos index.php/ de URLs de arquivos de mídia estáticos
+        if (!empty($resUrl) && (strpos($resUrl, '/uploads/') !== false || strpos($resUrl, '/assets/') !== false || strpos($resUrl, '/imagens/') !== false)) {
+            $resUrl = str_replace(['/index.php/', '/index.php'], ['/', ''], $resUrl);
+        }
+
+        return $resUrl;
     }
 
     /**

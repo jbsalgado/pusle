@@ -981,14 +981,28 @@ Garanta o seu antes que acabe o estoque!</textarea>
                     </div>
                 </div>
 
-                <!-- Relatório de Erros se Houver -->
-                <div id="containerErrosDisparoCard" class="hidden text-left bg-red-50 border border-red-200 rounded-2xl p-4 space-y-3 max-h-52 overflow-y-auto">
-                    <h5 class="text-xs font-bold text-red-800 uppercase tracking-wider flex items-center gap-1">
-                        <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        Relatório Detalhado de Falhas
-                    </h5>
-                    <div id="listaErrosDisparoCard" class="text-xs text-red-700 space-y-1"></div>
-                    <button id="btnReenviarErrosCard" onclick="reenviarErrosDisparoCard()" class="w-full py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition text-xs shadow flex items-center justify-center gap-2">
+                <!-- Relatório Detalhado de Envios (Sucessos e Falhas) -->
+                <div id="containerErrosDisparoCard" class="hidden text-left bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+                    <div class="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-slate-800">
+                        <h5 class="text-xs font-extrabold text-white uppercase tracking-wider flex items-center gap-1.5">
+                            <span>📊 Relatório Detalhado de Envios</span>
+                        </h5>
+                        <div class="flex items-center gap-1 text-[11px] font-bold">
+                            <button onclick="filtrarRelatorioModal('todos')" id="btnFiltroRelatorioTodos" type="button" class="px-2.5 py-1 rounded-lg bg-slate-700 text-white transition hover:bg-slate-600">
+                                Todos (<span id="cntRelatorioTodos">0</span>)
+                            </button>
+                            <button onclick="filtrarRelatorioModal('enviado')" id="btnFiltroRelatorioSucesso" type="button" class="px-2.5 py-1 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-800/60 transition hover:bg-emerald-900/50">
+                                🟢 Sucessos (<span id="cntRelatorioSucesso">0</span>)
+                            </button>
+                            <button onclick="filtrarRelatorioModal('erro')" id="btnFiltroRelatorioErro" type="button" class="px-2.5 py-1 rounded-lg bg-red-950 text-red-400 border border-red-800/60 transition hover:bg-red-900/50">
+                                🔴 Falhas (<span id="cntRelatorioErro">0</span>)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="listaErrosDisparoCard" class="text-xs space-y-1.5 max-h-60 overflow-y-auto pr-1"></div>
+
+                    <button id="btnReenviarErrosCard" onclick="reenviarErrosDisparoCard()" class="hidden w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition text-xs shadow flex items-center justify-center gap-2 mt-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                         Reenviar Apenas Itens com Falha
                     </button>
@@ -1659,6 +1673,63 @@ Garanta o seu antes que acabe o estoque!</textarea>
         });
     }
 
+    let relatorioItensCache = [];
+    let filtroRelatorioAtual = 'todos';
+
+    function filtrarRelatorioModal(filtro) {
+        filtroRelatorioAtual = filtro;
+        renderizarRelatorioModal(relatorioItensCache, filtro);
+    }
+
+    function renderizarRelatorioModal(itens, filtro) {
+        const listaErros = document.getElementById('listaErrosDisparoCard');
+        if (!listaErros) return;
+
+        // Atualizar estado visual dos botões de filtro
+        const btnTodos = document.getElementById('btnFiltroRelatorioTodos');
+        const btnSuc = document.getElementById('btnFiltroRelatorioSucesso');
+        const btnErr = document.getElementById('btnFiltroRelatorioErro');
+
+        if (btnTodos) btnTodos.className = 'px-2.5 py-1 rounded-lg transition ' + (filtro === 'todos' ? 'bg-slate-600 text-white font-black ring-2 ring-slate-400' : 'bg-slate-800 text-slate-300 hover:bg-slate-700');
+        if (btnSuc) btnSuc.className = 'px-2.5 py-1 rounded-lg transition border ' + (filtro === 'enviado' ? 'bg-emerald-900 text-emerald-300 font-black border-emerald-500 ring-2 ring-emerald-500/50' : 'bg-emerald-950/60 text-emerald-400 border-emerald-800/60 hover:bg-emerald-900/50');
+        if (btnErr) btnErr.className = 'px-2.5 py-1 rounded-lg transition border ' + (filtro === 'erro' ? 'bg-red-900 text-red-300 font-black border-red-500 ring-2 ring-red-500/50' : 'bg-red-950/60 text-red-400 border-red-800/60 hover:bg-red-900/50');
+
+        let filtrados = itens;
+        if (filtro === 'enviado') {
+            filtrados = itens.filter(i => i.status === 'enviado');
+        } else if (filtro === 'erro') {
+            filtrados = itens.filter(i => i.status === 'erro');
+        }
+
+        if (filtrados.length === 0) {
+            listaErros.innerHTML = '<div class="text-center py-3 text-slate-400 text-xs italic">Nenhum item neste filtro.</div>';
+            return;
+        }
+
+        listaErros.innerHTML = filtrados.map(e => {
+            const isOk = e.status === 'enviado';
+            const bgClass = isOk ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-200' : 'bg-red-950/40 border-red-800/60 text-red-200';
+            const badgeClass = isOk ? 'bg-emerald-800 text-emerald-100' : 'bg-red-800 text-red-100';
+            const icon = isOk ? '🟢' : '🔴';
+            const statusTxt = isOk 
+                ? 'Enviado com sucesso via Evolution API' + (e.enviado_em ? ' (' + e.enviado_em.substring(11, 16) + 'h)' : '') 
+                : (e.erro_mensagem || 'Falha ao enviar mensagem de mídia.');
+
+            return `
+                <div class="p-2 border rounded-xl flex items-center justify-between gap-2 shadow-sm transition ${bgClass}">
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <span class="text-xs flex-shrink-0">${icon}</span>
+                        <span class="font-extrabold uppercase text-[10px] px-1.5 py-0.5 rounded ${badgeClass}">${e.canal || 'whatsapp'}</span>
+                        <span class="font-bold font-mono text-white text-xs truncate">${e.destino || 'Geral'}</span>
+                    </div>
+                    <div class="text-[11px] font-medium text-right truncate max-w-[60%]">
+                        ${statusTxt}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
     function monitorarProgressoCardDisparo(disparoId) {
         ultimoDisparoCardIdAtivo = disparoId;
         function checarStatus() {
@@ -1673,17 +1744,29 @@ Garanta o seu antes que acabe o estoque!</textarea>
                     const percent = data.progresso_percentual || 0;
                     document.getElementById('barraProgressoDisparoCard').style.width = percent + '%';
 
-                    if (data.erros && data.erros.length > 0) {
+                    relatorioItensCache = data.itens || data.erros || [];
+                    if (relatorioItensCache.length > 0) {
                         const containerErros = document.getElementById('containerErrosDisparoCard');
-                        const listaErros = document.getElementById('listaErrosDisparoCard');
-                        containerErros.classList.remove('hidden');
-                        listaErros.innerHTML = data.erros.map(e => `
-                            <div class="p-1.5 bg-white border border-red-200 rounded-lg">
-                                <span class="font-bold uppercase">[${e.canal}]</span> 
-                                <span>${e.destino || 'Geral'}:</span> 
-                                <span class="italic text-red-600">${e.erro_mensagem}</span>
-                            </div>
-                        `).join('');
+                        if (containerErros) containerErros.classList.remove('hidden');
+                        
+                        const cntSucesso = relatorioItensCache.filter(i => i.status === 'enviado').length;
+                        const cntErro = relatorioItensCache.filter(i => i.status === 'erro').length;
+                        
+                        const elTodos = document.getElementById('cntRelatorioTodos');
+                        const elSuc = document.getElementById('cntRelatorioSucesso');
+                        const elErr = document.getElementById('cntRelatorioErro');
+
+                        if (elTodos) elTodos.textContent = relatorioItensCache.length;
+                        if (elSuc) elSuc.textContent = cntSucesso;
+                        if (elErr) elErr.textContent = cntErro;
+
+                        const btnReenviar = document.getElementById('btnReenviarErrosCard');
+                        if (btnReenviar) {
+                            if (cntErro > 0) btnReenviar.classList.remove('hidden');
+                            else btnReenviar.classList.add('hidden');
+                        }
+
+                        renderizarRelatorioModal(relatorioItensCache, filtroRelatorioAtual);
                     }
 
                     if (data.status === 'concluido' || percent >= 100) {
@@ -1693,7 +1776,7 @@ Garanta o seu antes que acabe o estoque!</textarea>
                         }
                         document.getElementById('iconeStatusDisparoCard').textContent = (data.itens_erro === 0) ? '🎉' : '⚠️';
                         document.getElementById('tituloStatusDisparoCard').textContent = (data.itens_erro === 0) ? 'Disparo de Cards Concluído!' : 'Disparo Finalizado com Avisos';
-                        document.getElementById('subtituloStatusDisparoCard').textContent = 'Todos os cards foram enviadas pela Evolution API.';
+                        document.getElementById('subtituloStatusDisparoCard').textContent = 'Todos os cards foram processados pela Evolution API.';
                         document.getElementById('btnFecharDisparoCardConcluido').classList.remove('hidden');
                     }
                 }
