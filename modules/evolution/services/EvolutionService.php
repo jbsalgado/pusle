@@ -700,7 +700,12 @@ class EvolutionService
 
                 $bodyData = json_decode($response->content, true);
                 $detalhe = $bodyData['message'] ?? $bodyData['error'] ?? $response->content;
-                $lastAttemptError = "Tentativa #{$attemptCount} ({$targetNumber}) falhou [HTTP {$response->statusCode}]: " . (is_array($detalhe) ? json_encode($detalhe) : $detalhe);
+                $detalheStr = is_array($detalhe) ? json_encode($detalhe) : (string)$detalhe;
+                if (strpos($detalheStr, '463') !== false || strpos((string)$response->content, '463') !== false) {
+                    $lastAttemptError = "Chaves do WhatsApp desatualizadas (Erro 463). Acesse Configurações → WhatsApp, clique em 'Reconectar / Atualizar QR Code' e escaneie o QR Code.";
+                } else {
+                    $lastAttemptError = "Tentativa #{$attemptCount} ({$targetNumber}) falhou [HTTP {$response->statusCode}]: " . $detalheStr;
+                }
                 Yii::warning("EvolutionService::sendMedia — {$lastAttemptError}", __METHOD__);
             } catch (HttpClientException $e) {
                 $lastAttemptError = "Tentativa #{$attemptCount} ({$targetNumber}) erro HTTP: " . $e->getMessage();
