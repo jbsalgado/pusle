@@ -606,7 +606,8 @@ class EvolutionService
             $mediaUrlParam = $mediaData;
             $mediaBase64Param = null;
         } else {
-            $rawBase64 = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', $mediaData);
+            $rawBase64 = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', trim($mediaData));
+            $rawBase64 = preg_replace('/\s+/', '', $rawBase64);
             $mime = ($mediaType === 'video') ? 'video/mp4' : 'image/png';
             $mediaUrlParam = "data:{$mime};base64," . $rawBase64;
             $mediaBase64Param = $rawBase64;
@@ -624,19 +625,29 @@ class EvolutionService
             $delay = rand($delayMin, $delayMax);
 
             try {
-                $payload = [
-                    'number'    => $targetNumber,
-                    'url'       => $mediaUrlParam,
-                    'mediaUrl'  => $mediaUrlParam,
-                    'media'     => $mediaUrlParam,
-                    'type'      => $mediaType ?: 'image',
-                    'mediatype' => $mediaType ?: 'image',
-                    'caption'   => $caption,
-                    'delay'     => $delay,
-                ];
-
-                if (!empty($mediaBase64Param)) {
-                    $payload['base64'] = $mediaBase64Param;
+                if ($isUrl) {
+                    $payload = [
+                        'number'    => $targetNumber,
+                        'url'       => $mediaUrlParam,
+                        'mediaUrl'  => $mediaUrlParam,
+                        'media'     => $mediaUrlParam,
+                        'type'      => $mediaType ?: 'image',
+                        'mediatype' => $mediaType ?: 'image',
+                        'caption'   => $caption,
+                        'delay'     => $delay,
+                    ];
+                } else {
+                    $payload = [
+                        'number'    => $targetNumber,
+                        'url'       => $mediaUrlParam,
+                        'mediaUrl'  => $mediaUrlParam,
+                        'media'     => $mediaBase64Param,
+                        'base64'    => $mediaBase64Param,
+                        'type'      => $mediaType ?: 'image',
+                        'mediatype' => $mediaType ?: 'image',
+                        'caption'   => $caption,
+                        'delay'     => $delay,
+                    ];
                 }
 
                 $response = $client->createRequest()
@@ -702,7 +713,8 @@ class EvolutionService
             $mediaUrlParam = $mediaData;
             $mediaBase64Param = null;
         } else {
-            $rawBase64 = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', $mediaData);
+            $rawBase64 = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', trim($mediaData));
+            $rawBase64 = preg_replace('/\s+/', '', $rawBase64);
             $mime = ($mediaType === 'video') ? 'video/mp4' : 'image/png';
             $mediaUrlParam = "data:{$mime};base64," . $rawBase64;
             $mediaBase64Param = $rawBase64;
@@ -715,21 +727,33 @@ class EvolutionService
             $endpoints = ['/message/sendStatus', '/send/status/media', '/send/status'];
             $success = false;
 
-            $payload = [
-                'number'        => 'status@broadcast',
-                'url'           => $mediaUrlParam,
-                'mediaUrl'      => $mediaUrlParam,
-                'media'         => $mediaUrlParam,
-                'content'       => $mediaUrlParam,
-                'type'          => $mediaType ?: 'image',
-                'mediatype'     => $mediaType ?: 'image',
-                'caption'       => $caption,
-                'status'        => true,
-                'statusJidList' => [],
-            ];
-
-            if (!empty($mediaBase64Param)) {
-                $payload['base64'] = $mediaBase64Param;
+            if ($isUrl) {
+                $payload = [
+                    'number'        => 'status@broadcast',
+                    'url'           => $mediaUrlParam,
+                    'mediaUrl'      => $mediaUrlParam,
+                    'media'         => $mediaUrlParam,
+                    'content'       => $mediaUrlParam,
+                    'type'          => $mediaType ?: 'image',
+                    'mediatype'     => $mediaType ?: 'image',
+                    'caption'       => $caption,
+                    'status'        => true,
+                    'statusJidList' => [],
+                ];
+            } else {
+                $payload = [
+                    'number'        => 'status@broadcast',
+                    'url'           => $mediaUrlParam,
+                    'mediaUrl'      => $mediaUrlParam,
+                    'media'         => $mediaBase64Param,
+                    'base64'        => $mediaBase64Param,
+                    'content'       => $mediaBase64Param,
+                    'type'          => $mediaType ?: 'image',
+                    'mediatype'     => $mediaType ?: 'image',
+                    'caption'       => $caption,
+                    'status'        => true,
+                    'statusJidList' => [],
+                ];
             }
 
             foreach ($endpoints as $endpoint) {
