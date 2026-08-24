@@ -717,6 +717,36 @@ class EvolutionService
             }
         }
 
+        // Fallback Inteligente: Se o envio direto de imagem/mídia falhou para 12 e 13 dígitos, tentar enviar como mensagem com link do card
+        if ($isUrl) {
+            foreach ($numbersToTry as $targetNumber) {
+                try {
+                    $textPayload = [
+                        'number' => $targetNumber,
+                        'text'   => trim(($caption ? $caption . "\n\n" : "") . "Visualizar Card: " . $mediaUrlParam),
+                    ];
+                    $textResponse = $client->createRequest()
+                        ->setMethod('POST')
+                        ->setFormat(Client::FORMAT_JSON)
+                        ->setUrl('/send/text')
+                        ->addHeaders([
+                            'Content-Type' => 'application/json',
+                            'apikey'       => $config->token,
+                        ])
+                        ->setData($textPayload)
+                        ->send();
+
+                    if ($textResponse->isOk) {
+                        $this->lastError = null;
+                        Yii::info("EvolutionService::sendMedia — Sucesso no envio de fallback via texto+link para '{$targetNumber}'.", __METHOD__);
+                        return true;
+                    }
+                } catch (\Throwable $te) {
+                    Yii::warning("EvolutionService::sendMedia — Erro no fallback de texto para '{$targetNumber}': " . $te->getMessage(), __METHOD__);
+                }
+            }
+        }
+
         $this->lastError = $lastAttemptError ?: "Falha ao enviar mensagem de mídia para {$to} após testar os formatos de 12 e 13 dígitos.";
         return false;
     }
