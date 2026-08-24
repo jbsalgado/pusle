@@ -355,12 +355,41 @@ class EvolutionService
                     ?? null;
 
                 if ($name === $instanceName) {
-                    $connected = (bool) (
-                        $instance['connected']
-                        ?? $instance['instance']['connected']
-                        ?? false
-                    );
+                    $isConn = !empty($instance['connected']) || !empty($instance['Connected']) || !empty($instance['instance']['connected']);
+                    // Se o motor retornar o campo LoggedIn / loggedIn, exigir que esteja true
+                    $hasLoggedInField = isset($instance['loggedIn']) || isset($instance['LoggedIn']) || isset($instance['instance']['loggedIn']);
+                    $isLoggedIn = true;
+                    if ($hasLoggedInField) {
+                        $isLoggedIn = !empty($instance['loggedIn']) || !empty($instance['LoggedIn']) || !empty($instance['instance']['loggedIn']);
+                    }
+
+                    $connected = ($isConn && $isLoggedIn);
                     break;
+                }
+            }
+
+            // Tentar validação direta por token via /instance/status para confirmação adicional
+            $config = WhatsappConfig::findByEmpresa($empresaId);
+            if ($connected && $config !== null && !empty($config->token)) {
+                try {
+                    $tokenResponse = $client->createRequest()
+                        ->setMethod('GET')
+                        ->setUrl('/instance/status')
+                        ->addHeaders(['apikey' => $config->token])
+                        ->send();
+
+                    if ($tokenResponse->isOk) {
+                        $tData = json_decode($tokenResponse->content, true);
+                        $info = $tData['data'] ?? $tData;
+                        $tConn = !empty($info['Connected']) || !empty($info['connected']);
+                        $hasTLogged = isset($info['LoggedIn']) || isset($info['loggedIn']);
+                        if ($hasTLogged) {
+                            $tLogged = !empty($info['LoggedIn']) || !empty($info['loggedIn']);
+                            $connected = ($tConn && $tLogged);
+                        }
+                    }
+                } catch (\Throwable $tt) {
+                    // Ignora erro secundário do endpoint por token
                 }
             }
 
