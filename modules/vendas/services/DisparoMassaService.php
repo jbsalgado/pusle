@@ -266,6 +266,7 @@ class DisparoMassaService
                 $isVideo = (!empty($item->card_path) && strtolower(pathinfo($item->card_path, PATHINFO_EXTENSION)) === 'mp4')
                         || (!empty($item->card_url) && strtolower(pathinfo(parse_url($item->card_url, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION)) === 'mp4');
 
+                $mediaType = $isVideo ? 'video' : 'image';
                 $urlAbsoluta = $this->garantirUrlAbsoluta(!empty($item->card_url) ? $item->card_url : $item->card_path);
                 $mediaParam = !empty($urlAbsoluta) ? $urlAbsoluta : $cardBase64;
 
