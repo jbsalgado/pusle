@@ -601,15 +601,16 @@ class EvolutionService
         $alternativeNumber = $this->getAlternativePhoneNumber($primaryNumber);
         $numbersToTry = array_values(array_unique(array_filter([$primaryNumber, $alternativeNumber])));
 
-        if (strpos($mediaData, '/') === 0 && strpos($mediaData, 'http') !== 0) {
-            $hostInfo = (Yii::$app->has('request') && Yii::$app->get('request') instanceof \yii\web\Request && !empty(Yii::$app->request->hostInfo))
-                ? Yii::$app->request->hostInfo
-                : null;
-            $domain = $hostInfo ?: (Yii::$app->params['domain'] ?? 'https://alex-bird.oncode.app.br');
-            $mediaData = rtrim($domain, '/') . '/' . ltrim($mediaData, '/');
+        $isUrl = (strpos($mediaData, 'http://') === 0 || strpos($mediaData, 'https://') === 0);
+        if ($isUrl) {
+            $mediaUrlParam = $mediaData;
+            $mediaBase64Param = null;
+        } else {
+            $rawBase64 = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', $mediaData);
+            $mime = ($mediaType === 'video') ? 'video/mp4' : 'image/png';
+            $mediaUrlParam = "data:{$mime};base64," . $rawBase64;
+            $mediaBase64Param = $rawBase64;
         }
-
-        $cleanBase64 = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', $mediaData);
 
         $delayMin = isset($config->delay_min) ? (int)$config->delay_min : 1500;
         $delayMax = isset($config->delay_max) ? (int)$config->delay_max : 3500;
@@ -623,6 +624,21 @@ class EvolutionService
             $delay = rand($delayMin, $delayMax);
 
             try {
+                $payload = [
+                    'number'    => $targetNumber,
+                    'url'       => $mediaUrlParam,
+                    'mediaUrl'  => $mediaUrlParam,
+                    'media'     => $mediaUrlParam,
+                    'type'      => $mediaType ?: 'image',
+                    'mediatype' => $mediaType ?: 'image',
+                    'caption'   => $caption,
+                    'delay'     => $delay,
+                ];
+
+                if (!empty($mediaBase64Param)) {
+                    $payload['base64'] = $mediaBase64Param;
+                }
+
                 $response = $client->createRequest()
                     ->setMethod('POST')
                     ->setFormat(Client::FORMAT_JSON)
@@ -631,16 +647,7 @@ class EvolutionService
                         'Content-Type' => 'application/json',
                         'apikey'       => $config->token,
                     ])
-                    ->setData([
-                        'number'    => $targetNumber,
-                        'url'       => $cleanBase64,
-                        'media'     => $cleanBase64,
-                        'mediaUrl'  => $cleanBase64,
-                        'type'      => $mediaType ?: 'image',
-                        'mediatype' => $mediaType ?: 'image',
-                        'caption'   => $caption,
-                        'delay'     => $delay,
-                    ])
+                    ->setData($payload)
                     ->send();
 
                 if ($response->isOk) {
@@ -690,19 +697,40 @@ class EvolutionService
             return false;
         }
 
-        if (strpos($mediaData, '/') === 0 && strpos($mediaData, 'http') !== 0) {
-            $domain = Yii::$app->params['domain'] ?? 'https://alex-birds.oncode.app.br';
-            $mediaData = rtrim($domain, '/') . '/' . ltrim($mediaData, '/');
+        $isUrl = (strpos($mediaData, 'http://') === 0 || strpos($mediaData, 'https://') === 0);
+        if ($isUrl) {
+            $mediaUrlParam = $mediaData;
+            $mediaBase64Param = null;
+        } else {
+            $rawBase64 = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', $mediaData);
+            $mime = ($mediaType === 'video') ? 'video/mp4' : 'image/png';
+            $mediaUrlParam = "data:{$mime};base64," . $rawBase64;
+            $mediaBase64Param = $rawBase64;
         }
-
-        $cleanBase64 = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', $mediaData);
 
         try {
             $client   = new Client(['baseUrl' => $this->baseUrl]);
             
-            // Endpoints suportados para envio de status (stories): /send/status/media (Go v0.7.1), /send/status, /send/media
-            $endpoints = ['/send/status/media', '/send/status', '/send/media'];
+            // Endpoints estritamente dedicados para postagem em Status/Stories:
+            $endpoints = ['/message/sendStatus', '/send/status/media', '/send/status'];
             $success = false;
+
+            $payload = [
+                'number'        => 'status@broadcast',
+                'url'           => $mediaUrlParam,
+                'mediaUrl'      => $mediaUrlParam,
+                'media'         => $mediaUrlParam,
+                'content'       => $mediaUrlParam,
+                'type'          => $mediaType ?: 'image',
+                'mediatype'     => $mediaType ?: 'image',
+                'caption'       => $caption,
+                'status'        => true,
+                'statusJidList' => [],
+            ];
+
+            if (!empty($mediaBase64Param)) {
+                $payload['base64'] = $mediaBase64Param;
+            }
 
             foreach ($endpoints as $endpoint) {
                 $response = $client->createRequest()
@@ -713,21 +741,16 @@ class EvolutionService
                         'Content-Type' => 'application/json',
                         'apikey'       => $config->token,
                     ])
-                    ->setData([
-                        'number'    => 'status@broadcast',
-                        'url'       => $cleanBase64,
-                        'media'     => $cleanBase64,
-                        'mediaUrl'  => $cleanBase64,
-                        'type'      => $mediaType ?: 'image',
-                        'mediatype' => $mediaType ?: 'image',
-                        'caption'   => $caption,
-                        'status'    => true,
-                    ])
+                    ->setData($payload)
                     ->send();
 
                 if ($response->isOk) {
-                    $success = true;
-                    break;
+                    $resData = json_decode($response->content, true);
+                    // Garantir que a resposta da API não contém indicador interno de falha
+                    if (!isset($resData['error']) && (!isset($resData['status']) || $resData['status'] !== false)) {
+                        $success = true;
+                        break;
+                    }
                 } else {
                     Yii::warning("EvolutionService::sendWhatsAppStatus — endpoint {$endpoint} retornou HTTP {$response->statusCode}: {$response->content}", __METHOD__);
                 }
