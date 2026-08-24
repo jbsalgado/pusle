@@ -377,6 +377,50 @@ class EvolutionService
     }
 
     /**
+     * Obtém o número de telefone do WhatsApp atualmente conectado na instância.
+     *
+     * @param string $empresaId
+     * @return string|null
+     */
+    public function getConnectedNumber(string $empresaId): ?string
+    {
+        $instanceName = $this->buildInstanceName($empresaId);
+
+        try {
+            $client   = new Client(['baseUrl' => $this->baseUrl]);
+            $response = $client->createRequest()
+                ->setMethod('GET')
+                ->setUrl('/instance/all')
+                ->addHeaders([
+                    'Content-Type' => 'application/json',
+                    'apiKey'       => $this->globalApiKey,
+                ])
+                ->send();
+
+            if ($response->isOk) {
+                $responseData = json_decode($response->content, true);
+                $instancesList = $responseData['data'] ?? (is_array($responseData) ? $responseData : []);
+                foreach ($instancesList as $instance) {
+                    $name = $instance['name'] ?? $instance['instanceName'] ?? null;
+                    if ($name === $instanceName && !empty($instance['connected'])) {
+                        $jid = $instance['jid'] ?? '';
+                        if (!empty($jid)) {
+                            // Extrai número do JID (ex: 558192888872:66@s.whatsapp.net -> 558192888872)
+                            $cleanJid = explode('@', $jid)[0];
+                            $cleanNumber = preg_replace('/:[0-9]+$/', '', $cleanJid);
+                            return $cleanNumber;
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $t) {
+            Yii::warning("EvolutionService::getConnectedNumber — Erro: " . $t->getMessage(), __METHOD__);
+        }
+
+        return null;
+    }
+
+    /**
      * Deleta/desconecta a instância da empresa no motor Go e atualiza o banco local.
      *
      * @param string $empresaId UUID do tenant em prest_usuarios

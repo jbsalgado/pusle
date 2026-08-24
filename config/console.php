@@ -58,7 +58,11 @@ $config = [
             'thousandSeparator' => '.',
         ],
         'db' => $db,
+        'metaGraphService' => [
+            'class' => 'app\components\MetaGraphService',
+        ],
         'mailer' => [
+
             'class' => 'yii\symfonymailer\Mailer',
             'viewPath' => '@app/mail',
             'useFileTransport' => false,

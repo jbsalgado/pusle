@@ -63,6 +63,17 @@ $this->title = 'Integração WhatsApp — PULSE-PLUS';
                         Detalhes da Conexão
                     </h2>
                     <dl class="grid grid-cols-1 sm:grid-cols-3 gap-y-4 gap-x-4 text-sm">
+                        <dt class="text-gray-500">Número Conectado</dt>
+                        <dd class="sm:col-span-2 text-gray-900 font-bold text-base flex items-center gap-2">
+                            <span class="text-emerald-600 font-mono">
+                                <?php if (!empty($connectedNumber)): ?>
+                                    +<?= Html::encode($connectedNumber) ?>
+                                <?php else: ?>
+                                    Conectado
+                                <?php endif; ?>
+                            </span>
+                        </dd>
+
                         <dt class="text-gray-500">Instância</dt>
                         <dd class="sm:col-span-2 text-gray-900 font-mono text-xs"><code class="bg-gray-100 px-2 py-1 rounded"><?= Html::encode($config->instance_name) ?></code></dd>
 

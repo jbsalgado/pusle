@@ -117,6 +117,9 @@ $config = [
         'nfwService' => [
             'class' => 'app\components\NFwService',
         ],
+        'metaGraphService' => [
+            'class' => 'app\components\MetaGraphService',
+        ],
         'urlManager' => [
             'enablePrettyUrl' => true, // Habilitado para suportar rotas REST
             // Detecta automaticamente se deve mostrar index.php baseado na URL atual
@@ -124,6 +127,12 @@ $config = [
             // Caso contrário, assume que o .htaccess está funcionando e não usa index.php
             'showScriptName' => $showScriptName,
             'rules' => [
+                // Regras da Integração Meta Social (Instagram / Facebook)
+                'POST social-integration/connect' => 'social-integration/connect',
+                'GET social-integration/accounts' => 'social-integration/accounts',
+                'POST social-integration/publish' => 'social-integration/publish',
+                'GET social-integration/posts' => 'social-integration/posts',
+                'GET social-integration/status' => 'social-integration/status',
                 // Regras REST específicas para pedido - POST vai para create
                 'POST api/pedido' => 'api/pedido/create',
                 'GET api/pedido' => 'api/pedido/index',
@@ -140,9 +149,7 @@ $config = [
                 'api/<controller:\w+>' => 'api/<controller>/index',
             ],
         ],
-        'nfwService' => [
-            'class' => 'app\components\NFwService',
-        ],
+
     ],
     'modules' => [
         'vendas' => [

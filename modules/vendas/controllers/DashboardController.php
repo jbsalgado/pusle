@@ -339,25 +339,30 @@ class DashboardController extends Controller
      */
     protected function getVendasPorDia($usuarioId, $dias = 30)
     {
-        $dataInicio = date('Y-m-d', strtotime("-{$dias} days"));
+        try {
+            $dataInicio = date('Y-m-d', strtotime("-{$dias} days"));
 
-        $sql = "
-            SELECT 
-                DATE(data_venda) as dia,
-                COUNT(*) as quantidade,
-                COALESCE(SUM(valor_total), 0) as valor_total
-            FROM prest_vendas
-            WHERE usuario_id = :usuario_id
-            AND status_venda_codigo NOT IN ('CANCELADA', 'ORCAMENTO')
-            AND data_venda >= :data_inicio
-            GROUP BY DATE(data_venda)
-            ORDER BY dia ASC
-        ";
+            $sql = "
+                SELECT 
+                    DATE(data_venda) as dia,
+                    COUNT(*) as quantidade,
+                    COALESCE(SUM(valor_total), 0) as valor_total
+                FROM prest_vendas
+                WHERE usuario_id = :usuario_id
+                AND status_venda_codigo NOT IN ('CANCELADA', 'ORCAMENTO')
+                AND data_venda >= :data_inicio
+                GROUP BY DATE(data_venda)
+                ORDER BY dia ASC
+            ";
 
-        return Yii::$app->db->createCommand($sql)
-            ->bindValue(':usuario_id', $usuarioId)
-            ->bindValue(':data_inicio', $dataInicio)
-            ->queryAll();
+            return Yii::$app->db->createCommand($sql)
+                ->bindValue(':usuario_id', $usuarioId)
+                ->bindValue(':data_inicio', $dataInicio)
+                ->queryAll();
+        } catch (\Exception $e) {
+            Yii::error("Erro ao buscar vendas por dia: {$e->getMessage()}", __METHOD__);
+            return [];
+        }
     }
 
     /**
@@ -365,25 +370,30 @@ class DashboardController extends Controller
      */
     protected function getVendasPorMes($usuarioId, $meses = 12)
     {
-        $dataInicio = date('Y-m-01', strtotime("-{$meses} months"));
+        try {
+            $dataInicio = date('Y-m-01', strtotime("-{$meses} months"));
 
-        $sql = "
-            SELECT 
-                TO_CHAR(data_venda, 'YYYY-MM') as mes,
-                COUNT(*) as quantidade,
-                COALESCE(SUM(valor_total), 0) as valor_total
-            FROM prest_vendas
-            WHERE usuario_id = :usuario_id
-            AND status_venda_codigo NOT IN ('CANCELADA', 'ORCAMENTO')
-            AND data_venda >= :data_inicio
-            GROUP BY TO_CHAR(data_venda, 'YYYY-MM')
-            ORDER BY mes ASC
-        ";
+            $sql = "
+                SELECT 
+                    TO_CHAR(data_venda, 'YYYY-MM') as mes,
+                    COUNT(*) as quantidade,
+                    COALESCE(SUM(valor_total), 0) as valor_total
+                FROM prest_vendas
+                WHERE usuario_id = :usuario_id
+                AND status_venda_codigo NOT IN ('CANCELADA', 'ORCAMENTO')
+                AND data_venda >= :data_inicio
+                GROUP BY TO_CHAR(data_venda, 'YYYY-MM')
+                ORDER BY mes ASC
+            ";
 
-        return Yii::$app->db->createCommand($sql)
-            ->bindValue(':usuario_id', $usuarioId)
-            ->bindValue(':data_inicio', $dataInicio)
-            ->queryAll();
+            return Yii::$app->db->createCommand($sql)
+                ->bindValue(':usuario_id', $usuarioId)
+                ->bindValue(':data_inicio', $dataInicio)
+                ->queryAll();
+        } catch (\Exception $e) {
+            Yii::error("Erro ao buscar vendas por mês: {$e->getMessage()}", __METHOD__);
+            return [];
+        }
     }
 
     /**
@@ -391,29 +401,34 @@ class DashboardController extends Controller
      */
     protected function getVendasPorFormaPagamento($usuarioId)
     {
-        $primeiroDiaMes = date('Y-m-01');
-        $ultimoDiaMes = date('Y-m-t');
+        try {
+            $primeiroDiaMes = date('Y-m-01');
+            $ultimoDiaMes = date('Y-m-t');
 
-        $sql = "
-            SELECT 
-                fp.nome as forma_pagamento,
-                COUNT(v.id) as quantidade,
-                COALESCE(SUM(v.valor_total), 0) as valor_total
-            FROM prest_vendas v
-            LEFT JOIN prest_formas_pagamento fp ON fp.id = v.forma_pagamento_id
-            WHERE v.usuario_id = :usuario_id
-            AND v.status_venda_codigo NOT IN ('CANCELADA', 'ORCAMENTO')
-            AND v.data_venda >= :data_inicio
-            AND v.data_venda <= :data_fim
-            GROUP BY fp.id, fp.nome
-            ORDER BY valor_total DESC
-        ";
+            $sql = "
+                SELECT 
+                    COALESCE(fp.nome, 'Outros / Não Informado') as forma_pagamento,
+                    COUNT(v.id) as quantidade,
+                    COALESCE(SUM(v.valor_total), 0) as valor_total
+                FROM prest_vendas v
+                LEFT JOIN prest_formas_pagamento fp ON fp.id = v.forma_pagamento_id
+                WHERE v.usuario_id = :usuario_id
+                AND v.status_venda_codigo NOT IN ('CANCELADA', 'ORCAMENTO')
+                AND v.data_venda >= :data_inicio
+                AND v.data_venda <= :data_fim
+                GROUP BY fp.id, fp.nome
+                ORDER BY valor_total DESC
+            ";
 
-        return Yii::$app->db->createCommand($sql)
-            ->bindValue(':usuario_id', $usuarioId)
-            ->bindValue(':data_inicio', $primeiroDiaMes)
-            ->bindValue(':data_fim', $ultimoDiaMes)
-            ->queryAll();
+            return Yii::$app->db->createCommand($sql)
+                ->bindValue(':usuario_id', $usuarioId)
+                ->bindValue(':data_inicio', $primeiroDiaMes)
+                ->bindValue(':data_fim', $ultimoDiaMes)
+                ->queryAll();
+        } catch (\Exception $e) {
+            Yii::error("Erro ao buscar vendas por forma de pagamento: {$e->getMessage()}", __METHOD__);
+            return [];
+        }
     }
 
     /**
@@ -421,33 +436,38 @@ class DashboardController extends Controller
      */
     protected function getVendasParceladasVsVista($usuarioId)
     {
-        $primeiroDiaMes = date('Y-m-01');
-        $ultimoDiaMes = date('Y-m-t');
+        try {
+            $primeiroDiaMes = date('Y-m-01');
+            $ultimoDiaMes = date('Y-m-t');
 
-        $sql = "
-            SELECT 
-                CASE 
+            $sql = "
+                SELECT 
+                    CASE 
+                        WHEN numero_parcelas > 1 THEN 'Parcelada'
+                        ELSE 'À Vista'
+                    END as tipo,
+                    COUNT(*) as quantidade,
+                    COALESCE(SUM(valor_total), 0) as valor_total
+                FROM prest_vendas
+                WHERE usuario_id = :usuario_id
+                AND status_venda_codigo NOT IN ('CANCELADA', 'ORCAMENTO')
+                AND data_venda >= :data_inicio
+                AND data_venda <= :data_fim
+                GROUP BY CASE 
                     WHEN numero_parcelas > 1 THEN 'Parcelada'
                     ELSE 'À Vista'
-                END as tipo,
-                COUNT(*) as quantidade,
-                COALESCE(SUM(valor_total), 0) as valor_total
-            FROM prest_vendas
-            WHERE usuario_id = :usuario_id
-            AND status_venda_codigo NOT IN ('CANCELADA', 'ORCAMENTO')
-            AND data_venda >= :data_inicio
-            AND data_venda <= :data_fim
-            GROUP BY CASE 
-                WHEN numero_parcelas > 1 THEN 'Parcelada'
-                ELSE 'À Vista'
-            END
-        ";
+                END
+            ";
 
-        return Yii::$app->db->createCommand($sql)
-            ->bindValue(':usuario_id', $usuarioId)
-            ->bindValue(':data_inicio', $primeiroDiaMes)
-            ->bindValue(':data_fim', $ultimoDiaMes)
-            ->queryAll();
+            return Yii::$app->db->createCommand($sql)
+                ->bindValue(':usuario_id', $usuarioId)
+                ->bindValue(':data_inicio', $primeiroDiaMes)
+                ->bindValue(':data_fim', $ultimoDiaMes)
+                ->queryAll();
+        } catch (\Exception $e) {
+            Yii::error("Erro ao buscar vendas parceladas vs à vista: {$e->getMessage()}", __METHOD__);
+            return [];
+        }
     }
 
     /**

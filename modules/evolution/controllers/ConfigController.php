@@ -45,15 +45,19 @@ class ConfigController extends Controller
      */
     public function actionIndex(): string
     {
-        $connected = false;
-        $config    = null;
+        $connected       = false;
+        $config          = null;
+        $connectedNumber = null;
 
         try {
             $empresaId = Yii::$app->user->identity ? Yii::$app->user->identity->getTenantId() : null;
             if ($empresaId) {
-                $service   = new EvolutionService();
-                $connected = $service->checkStatus($empresaId);
-                $config    = WhatsappConfig::findByEmpresa($empresaId);
+                $service         = new EvolutionService();
+                $connected       = $service->checkStatus($empresaId);
+                $config          = WhatsappConfig::findByEmpresa($empresaId);
+                if ($connected) {
+                    $connectedNumber = $service->getConnectedNumber($empresaId);
+                }
             }
         } catch (\Throwable $t) {
             Yii::error("ConfigController::actionIndex — Erro ao verificar status: " . $t->getMessage(), __METHOD__);
@@ -61,8 +65,9 @@ class ConfigController extends Controller
         }
 
         return $this->render('index', [
-            'config'    => $config,
-            'connected' => $connected,
+            'config'          => $config,
+            'connected'       => $connected,
+            'connectedNumber' => $connectedNumber,
         ]);
     }
 

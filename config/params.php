@@ -102,12 +102,11 @@ return [
     ],
 
     // -------------------------------------------------------------------------
-    // [LEGADO — Node Wrapper] Mantido apenas como referência histórica.
-    // Não utilizar. Substituído pelo bloco 'evolution' acima.
+    // Integração Meta Graph API (Instagram Business & Facebook Pages)
     // -------------------------------------------------------------------------
-    // 'whatsapp' => [
-    //     'api_url'  => 'http://localhost:8080/api/v1/whatsapp/send',
-    //     'api_key'  => '83e4060e-78e1-4fe5-9977-aeeccd46a2b8',
-    //     'base_url' => 'http://72.61.221.180',
-    // ],
+    'meta_app_id' => $_ENV['META_APP_ID'] ?? getenv('META_APP_ID') ?: '',
+    'meta_app_secret' => $_ENV['META_APP_SECRET'] ?? getenv('META_APP_SECRET') ?: '',
+    'meta_api_version' => 'v19.0',
+    'meta_token_encryption_key' => $_ENV['META_TOKEN_ENCRYPTION_KEY'] ?? getenv('META_TOKEN_ENCRYPTION_KEY') ?: 'pulse-meta-social-token-secret-key-2026',
 ];
+

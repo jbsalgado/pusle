@@ -18,7 +18,7 @@ Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
 // Set header to JSON
 header('Content-Type: application/json; charset=utf-8');
 
-// Resolve logged user with fallback for local dev
+// Resolve logged user with fallback for local dev / anonymous dashboard preview
 $usuarioId = Yii::$app->user->id;
 if (!$usuarioId) {
     try {
@@ -27,17 +27,25 @@ if (!$usuarioId) {
             FROM prest_usuarios u 
             LEFT JOIN prest_contas_pagar c ON c.usuario_id = u.id 
             GROUP BY u.id 
-            ORDER BY COUNT(c.id) DESC 
+            ORDER BY COUNT(c.id) DESC, u.eh_dono_loja DESC, u.data_criacao ASC 
             LIMIT 1
         ")->queryScalar();
+
+        if (!$usuarioId) {
+            $usuarioId = Yii::$app->db->createCommand("
+                SELECT id FROM prest_usuarios 
+                ORDER BY eh_dono_loja DESC, data_criacao ASC 
+                LIMIT 1
+            ")->queryScalar();
+        }
     } catch (\Exception $e) {
-        echo json_encode(['error' => 'Erro ao conectar ao banco de dados: ' . $e->getMessage()]);
+        echo json_encode(['success' => false, 'error' => 'Erro ao conectar ao banco de dados: ' . $e->getMessage()]);
         exit;
     }
 }
 
 if (!$usuarioId) {
-    echo json_encode(['error' => 'Nenhum usuário cadastrado no sistema.']);
+    echo json_encode(['success' => false, 'error' => 'Nenhum usuário cadastrado no sistema.']);
     exit;
 }
 
