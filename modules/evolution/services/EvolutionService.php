@@ -788,35 +788,33 @@ class EvolutionService
             $client   = new Client(['baseUrl' => $this->baseUrl]);
             
             // Endpoints estritamente dedicados para postagem em Status/Stories:
-            $endpoints = ['/message/sendStatus', '/send/status/media', '/send/status'];
+            $endpoints = ['/send/status/media', '/send/status', '/message/sendStatus'];
             $success = false;
 
             if ($isUrl) {
                 $payload = [
-                    'number'        => 'status@broadcast',
-                    'url'           => $mediaUrlParam,
-                    'mediaUrl'      => $mediaUrlParam,
-                    'media'         => $mediaUrlParam,
-                    'content'       => $mediaUrlParam,
-                    'type'          => $mediaType ?: 'image',
-                    'mediatype'     => $mediaType ?: 'image',
-                    'caption'       => $caption,
-                    'status'        => true,
-                    'statusJidList' => [],
+                    'number'    => 'status@broadcast',
+                    'url'       => $mediaUrlParam,
+                    'mediaUrl'  => $mediaUrlParam,
+                    'media'     => $mediaUrlParam,
+                    'content'   => $mediaUrlParam,
+                    'type'      => $mediaType ?: 'image',
+                    'mediatype' => $mediaType ?: 'image',
+                    'caption'   => $caption,
+                    'status'    => true,
                 ];
             } else {
                 $payload = [
-                    'number'        => 'status@broadcast',
-                    'url'           => $mediaBase64Param,
-                    'mediaUrl'      => $mediaBase64Param,
-                    'media'         => $mediaBase64Param,
-                    'base64'        => $mediaBase64Param,
-                    'content'       => $mediaBase64Param,
-                    'type'          => $mediaType ?: 'image',
-                    'mediatype'     => $mediaType ?: 'image',
-                    'caption'       => $caption,
-                    'status'        => true,
-                    'statusJidList' => [],
+                    'number'    => 'status@broadcast',
+                    'url'       => $mediaBase64Param,
+                    'mediaUrl'  => $mediaBase64Param,
+                    'media'     => $mediaBase64Param,
+                    'base64'    => $mediaBase64Param,
+                    'content'   => $mediaBase64Param,
+                    'type'      => $mediaType ?: 'image',
+                    'mediatype' => $mediaType ?: 'image',
+                    'caption'   => $caption,
+                    'status'    => true,
                 ];
             }
 
