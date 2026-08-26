@@ -89,17 +89,15 @@ class UsuarioController extends Controller
         $query = Usuario::find()
             ->orderBy(['nome' => SORT_ASC]);
 
-        // Isolamento de Tenant: se não for Super Admin do sistema, exibe apenas os usuários da loja atual
-        if (!TenantHelper::isAdmin()) {
-            $colaboradorUserIds = Colaborador::find()
-                ->select('prest_usuario_login_id')
-                ->where(['usuario_id' => $tenantId])
-                ->andWhere(['is not', 'prest_usuario_login_id', null])
-                ->column();
+        // Isolamento de Tenant: exibe APENAS os usuários da loja atual (o próprio Dono + seus colaboradores vinculados)
+        $colaboradorUserIds = Colaborador::find()
+            ->select('prest_usuario_login_id')
+            ->where(['usuario_id' => $tenantId])
+            ->andWhere(['is not', 'prest_usuario_login_id', null])
+            ->column();
 
-            $allowedUserIds = array_unique(array_merge([$tenantId], $colaboradorUserIds));
-            $query->andWhere(['in', 'prest_usuarios.id', $allowedUserIds]);
-        }
+        $allowedUserIds = array_unique(array_merge([$tenantId], $colaboradorUserIds));
+        $query->andWhere(['in', 'prest_usuarios.id', $allowedUserIds]);
 
         // Filtros
         $busca = Yii::$app->request->get('busca');
@@ -480,19 +478,17 @@ class UsuarioController extends Controller
      */
     protected function findModel($id)
     {
-        if (!TenantHelper::isAdmin()) {
-            $tenantId = TenantHelper::getId();
-            $colaboradorUserIds = Colaborador::find()
-                ->select('prest_usuario_login_id')
-                ->where(['usuario_id' => $tenantId])
-                ->andWhere(['is not', 'prest_usuario_login_id', null])
-                ->column();
+        $tenantId = TenantHelper::getId();
+        $colaboradorUserIds = Colaborador::find()
+            ->select('prest_usuario_login_id')
+            ->where(['usuario_id' => $tenantId])
+            ->andWhere(['is not', 'prest_usuario_login_id', null])
+            ->column();
 
-            $allowedUserIds = array_unique(array_merge([$tenantId], $colaboradorUserIds));
+        $allowedUserIds = array_unique(array_merge([$tenantId], $colaboradorUserIds));
 
-            if (!in_array($id, $allowedUserIds, true)) {
-                throw new NotFoundHttpException('O usuário solicitado não existe ou não pertence à sua loja.');
-            }
+        if (!in_array($id, $allowedUserIds, true)) {
+            throw new NotFoundHttpException('O usuário solicitado não existe ou não pertence à sua loja.');
         }
 
         if (($model = Usuario::findOne($id)) !== null) {
