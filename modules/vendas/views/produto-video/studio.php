@@ -586,6 +586,49 @@ input[type="radio"]:checked + .color-pill-card {
                         </div>
                     </div>
 
+                    <!-- 5. Efeitos Especiais de Animação / Partículas -->
+                    <div class="mb-4">
+                        <label class="form-label-custom">5. Efeitos Especiais de Animação (Partículas & Overlays)</label>
+                        <div class="row g-2">
+                            <div class="col-4 mb-2">
+                                <label class="w-100 mb-0">
+                                    <input type="radio" name="video_efeito_visual" value="none" checked class="d-none">
+                                    <div class="color-pill-card justify-content-center w-100">🚫 Sem Efeito</div>
+                                </label>
+                            </div>
+                            <div class="col-4 mb-2">
+                                <label class="w-100 mb-0">
+                                    <input type="radio" name="video_efeito_visual" value="fireworks" class="d-none">
+                                    <div class="color-pill-card justify-content-center w-100">🎆 Fogos Artifício</div>
+                                </label>
+                            </div>
+                            <div class="col-4 mb-2">
+                                <label class="w-100 mb-0">
+                                    <input type="radio" name="video_efeito_visual" value="confetti" class="d-none">
+                                    <div class="color-pill-card justify-content-center w-100">🎉 Confetes Festa</div>
+                                </label>
+                            </div>
+                            <div class="col-4 mb-2">
+                                <label class="w-100 mb-0">
+                                    <input type="radio" name="video_efeito_visual" value="sparks" class="d-none">
+                                    <div class="color-pill-card justify-content-center w-100">⚡ Faíscas & Neons</div>
+                                </label>
+                            </div>
+                            <div class="col-4 mb-2">
+                                <label class="w-100 mb-0">
+                                    <input type="radio" name="video_efeito_visual" value="stars" class="d-none">
+                                    <div class="color-pill-card justify-content-center w-100">✨ Estrelas & Glow</div>
+                                </label>
+                            </div>
+                            <div class="col-4 mb-2">
+                                <label class="w-100 mb-0">
+                                    <input type="radio" name="video_efeito_visual" value="hearts" class="d-none">
+                                    <div class="color-pill-card justify-content-center w-100">💖 Corações</div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
                     <?php 
                     $musicas = \app\modules\vendas\services\VideoGeneratorService::getMusicasDisponiveis(); 
                     $faixasMusica = array_filter($musicas, function($item) {
@@ -909,6 +952,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const templateVal = document.querySelector('input[name="video_template"]:checked')?.value || 'modern_dark';
         const corVal = document.querySelector('input[name="video_cor"]:checked')?.value || 'dark';
         const fundoVal = document.querySelector('input[name="video_fundo"]:checked')?.value || 'gradient';
+        const efeitoVal = document.querySelector('input[name="video_efeito_visual"]:checked')?.value || 'none';
 
         fetch('<?= Url::to(['/vendas/produto-video/generate']) ?>', {
             method: 'POST',
@@ -923,7 +967,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 template: templateVal,
                 corTema: corVal,
                 fundoEstilo: fundoVal,
-                trilhaSonora: selectTrilha ? selectTrilha.value : 'promo_bg.mp3'
+                trilhaSonora: selectTrilha ? selectTrilha.value : 'promo_bg.mp3',
+                efeitoVisual: efeitoVal
             })
         })
         .then(response => response.json())

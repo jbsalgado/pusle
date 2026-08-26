@@ -63,6 +63,7 @@ class VideoGeneratorService
             'cor_tema' => $options['corTema'] ?? 'dark',
             'fundo_estilo' => $options['fundoEstilo'] ?? 'gradient',
             'trilha_sonora' => $options['trilhaSonora'] ?? 'promo_bg.mp3',
+            'efeito_visual' => $options['efeitoVisual'] ?? $options['efeito_visual'] ?? 'none',
             'solicitado_em' => date('Y-m-d H:i:s'),
         ];
 
@@ -218,6 +219,7 @@ class VideoGeneratorService
                 'corTema' => $options['corTema'] ?? ($videoModel->metadata['cor_tema'] ?? 'dark'),
                 'fundoEstilo' => $options['fundoEstilo'] ?? ($videoModel->metadata['fundo_estilo'] ?? 'gradient'),
                 'trilhaSonora' => $trilhaSonora,
+                'efeitoVisual' => $options['efeitoVisual'] ?? ($options['efeito_visual'] ?? ($videoModel->metadata['efeito_visual'] ?? 'none')),
                 'outputPath' => $caminhoAbsolutoSaida,
                 'produto' => [
                     'id' => $produto->id,

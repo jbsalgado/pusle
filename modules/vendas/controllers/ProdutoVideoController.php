@@ -162,6 +162,7 @@ class ProdutoVideoController extends Controller
         $corTema = $params['corTema'] ?? $params['cor_tema'] ?? $request->post('corTema') ?? 'dark';
         $fundoEstilo = $params['fundoEstilo'] ?? $params['fundo_estilo'] ?? $request->post('fundoEstilo') ?? 'gradient';
         $trilhaSonora = $params['trilhaSonora'] ?? $params['trilha_sonora'] ?? $request->post('trilha_sonora') ?? $request->post('trilhaSonora') ?? 'promo_bg.mp3';
+        $efeitoVisual = $params['efeitoVisual'] ?? $params['efeito_visual'] ?? $request->post('efeitoVisual') ?? $request->post('efeito_visual') ?? 'none';
 
         if (empty($produtoId)) {
             Yii::$app->response->statusCode = 400;
@@ -179,6 +180,7 @@ class ProdutoVideoController extends Controller
                 'corTema' => $corTema,
                 'fundoEstilo' => $fundoEstilo,
                 'trilhaSonora' => $trilhaSonora,
+                'efeitoVisual' => $efeitoVisual,
             ]);
 
             return [

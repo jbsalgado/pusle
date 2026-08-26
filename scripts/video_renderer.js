@@ -436,10 +436,11 @@ function generateVideoHtmlTemplate(data, duracao) {
 
         /* Stage Photo Area */
         .stage { position: relative; flex: 1; display: flex; align-items: center; justify-content: center; margin: 40px 0; }
-        .image-card { position: relative; width: 100%; height: 920px; background: ${palette.cardBg}; backdrop-filter: blur(20px); border: 1px solid ${palette.border}; border-radius: 40px; box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; padding: 40px; overflow: hidden; opacity: 0; transform: scale(0.85); transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
-        .product-image { max-width: 90%; max-height: 90%; object-fit: contain; filter: drop-shadow(0 20px 35px rgba(0,0,0,0.6)); transition: transform 0.3s ease, opacity 0.3s ease; }
-        .brand-tag { position: absolute; top: 30px; left: 30px; background: rgba(15, 23, 42, 0.85); border: 1px solid ${palette.border}; color: ${palette.accent}; font-size: 22px; font-weight: 800; padding: 10px 24px; border-radius: 14px; text-transform: uppercase; letter-spacing: 1px; }
-        .photo-badge { position: absolute; bottom: 30px; right: 30px; background: rgba(15, 23, 42, 0.85); border: 1px solid ${palette.border}; color: #FFFFFF; font-size: 20px; font-weight: 700; padding: 8px 18px; border-radius: 12px; font-family: 'Outfit', sans-serif; }
+        .image-card { position: relative; width: 100%; height: 920px; background: ${palette.cardBg}; backdrop-filter: blur(20px); border: 1px solid ${palette.border}; border-radius: 40px; box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; padding: 12px; overflow: hidden; opacity: 0; transform: scale(0.85); transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+        .image-card-blur-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(30px) opacity(0.4); transform: scale(1.2); pointer-events: none; }
+        .product-image { position: relative; z-index: 2; width: 98%; height: 98%; max-width: 98%; max-height: 98%; object-fit: contain; filter: drop-shadow(0 20px 35px rgba(0,0,0,0.6)); transition: transform 0.3s ease, opacity 0.3s ease; }
+        .brand-tag { position: absolute; top: 30px; left: 30px; z-index: 3; background: rgba(15, 23, 42, 0.85); border: 1px solid ${palette.border}; color: ${palette.accent}; font-size: 22px; font-weight: 800; padding: 10px 24px; border-radius: 14px; text-transform: uppercase; letter-spacing: 1px; }
+        .photo-badge { position: absolute; bottom: 30px; right: 30px; z-index: 3; background: rgba(15, 23, 42, 0.85); border: 1px solid ${palette.border}; color: #FFFFFF; font-size: 20px; font-weight: 700; padding: 8px 18px; border-radius: 12px; font-family: 'Outfit', sans-serif; }
 
         /* Info Card */
         .info-card { background: ${palette.infoBg}; backdrop-filter: blur(30px); border: 1px solid ${palette.border}; border-radius: 36px; padding: 36px 40px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 16px; opacity: 0; transform: translateY(40px); transition: all 0.5s ease; }
@@ -461,6 +462,7 @@ function generateVideoHtmlTemplate(data, duracao) {
 <body>
     <div class="glow-1"></div>
     <div class="glow-2"></div>
+    <canvas id="canvasParticles" width="1080" height="${(data.formato || 'stories') === 'feed' ? 1080 : 1920}" style="position: absolute; top:0; left:0; width:100%; height:100%; z-index: 99; pointer-events: none;"></canvas>
     <div class="container">
         <div class="header" id="elemHeader">
             <div class="store-brand">
@@ -471,6 +473,7 @@ function generateVideoHtmlTemplate(data, duracao) {
         </div>
         <div class="stage">
             <div class="image-card" id="elemImgCard">
+                ${fotos[0] ? `<img class="image-card-blur-bg" id="elemBlurBg" src="${fotos[0]}">` : ''}
                 ${marca ? `<div class="brand-tag">${marca}</div>` : ''}
                 ${fotos.length > 1 ? `<div class="photo-badge" id="elemPhotoBadge">📷 1 / ${fotos.length}</div>` : ''}
                 <img class="product-image" id="elemProductImg" src="${fotos[0]}">
@@ -496,39 +499,203 @@ function generateVideoHtmlTemplate(data, duracao) {
     <script>
         const fotosList = ${JSON.stringify(fotos)};
         const duracaoTotal = ${duracao};
+        const efeitoVisual = "${(data.efeitoVisual || data.efeito_visual || 'none').toLowerCase()}";
 
         const elemHeader = document.getElementById('elemHeader');
         const elemImgCard = document.getElementById('elemImgCard');
         const elemProductImg = document.getElementById('elemProductImg');
+        const elemBlurBg = document.getElementById('elemBlurBg');
         const elemInfoCard = document.getElementById('elemInfoCard');
         const elemPrice = document.getElementById('elemPrice');
         const elemFooter = document.getElementById('elemFooter');
 
+        // Engine de Partículas Canvas
+        const canvas = document.getElementById('canvasParticles');
+        const ctx = canvas ? canvas.getContext('2d') : null;
+        let particles = [];
+        let lastSpawnTime = 0;
+
+        function initParticles(type) {
+            particles = [];
+            if (!ctx || type === 'none') return;
+            if (type === 'stars') {
+                for (let i = 0; i < 40; i++) {
+                    particles.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        size: Math.random() * 8 + 3,
+                        alpha: Math.random(),
+                        phase: Math.random() * Math.PI * 2,
+                        color: ['#FFD700', '#FFFFFF', '#38BDF8', '#F43F5E'][Math.floor(Math.random() * 4)]
+                    });
+                }
+            } else if (type === 'hearts') {
+                for (let i = 0; i < 25; i++) {
+                    particles.push({
+                        x: Math.random() * canvas.width,
+                        y: canvas.height + Math.random() * 200,
+                        size: Math.random() * 18 + 10,
+                        speedY: Math.random() * 2.5 + 1.5,
+                        alpha: Math.random() * 0.8 + 0.2,
+                        color: ['#EC4899', '#F43F5E', '#E11D48', '#FF69B4'][Math.floor(Math.random() * 4)]
+                    });
+                }
+            } else if (type === 'confetti') {
+                for (let i = 0; i < 75; i++) {
+                    particles.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * -canvas.height,
+                        w: Math.random() * 12 + 6,
+                        h: Math.random() * 8 + 4,
+                        speedY: Math.random() * 4 + 2,
+                        speedX: Math.random() * 2 - 1,
+                        rot: Math.random() * 360,
+                        rotSpeed: Math.random() * 6 - 3,
+                        color: ['#FF3B30', '#38BDF8', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'][Math.floor(Math.random() * 6)]
+                    });
+                }
+            }
+        }
+
+        function renderParticles(currentTime, type) {
+            if (!ctx || type === 'none') return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (type === 'fireworks') {
+                if (currentTime - lastSpawnTime > 1.2 || particles.length === 0) {
+                    lastSpawnTime = currentTime;
+                    const cx = Math.random() * (canvas.width - 300) + 150;
+                    const cy = Math.random() * (canvas.height * 0.5) + 200;
+                    const colors = ['#FFD700', '#FF3B30', '#38BDF8', '#10B981', '#F43F5E', '#A78BFA'];
+                    const burstColor = colors[Math.floor(Math.random() * colors.length)];
+                    for (let i = 0; i < 45; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const speed = Math.random() * 9 + 3;
+                        particles.push({
+                            x: cx, y: cy,
+                            vx: Math.cos(angle) * speed,
+                            vy: Math.sin(angle) * speed,
+                            alpha: 1.0,
+                            decay: Math.random() * 0.03 + 0.015,
+                            size: Math.random() * 6 + 3,
+                            color: burstColor
+                        });
+                    }
+                }
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.15;
+                    p.alpha -= p.decay;
+                    if (p.alpha <= 0) { particles.splice(i, 1); continue; }
+                    ctx.save();
+                    ctx.globalAlpha = Math.max(0, p.alpha);
+                    ctx.fillStyle = p.color;
+                    ctx.shadowColor = p.color;
+                    ctx.shadowBlur = 10;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            } else if (type === 'confetti') {
+                for (let i = 0; i < particles.length; i++) {
+                    const p = particles[i];
+                    p.y += p.speedY;
+                    p.x += Math.sin(p.y * 0.02) * p.speedX;
+                    p.rot += p.rotSpeed;
+                    if (p.y > canvas.height + 20) { p.y = -20; p.x = Math.random() * canvas.width; }
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate((p.rot * Math.PI) / 180);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                    ctx.restore();
+                }
+            } else if (type === 'sparks') {
+                if (currentTime - lastSpawnTime > 0.6 || particles.length < 20) {
+                    lastSpawnTime = currentTime;
+                    const cx = Math.random() * canvas.width;
+                    const cy = Math.random() * canvas.height;
+                    for (let i = 0; i < 15; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const speed = Math.random() * 12 + 4;
+                        particles.push({
+                            x: cx, y: cy,
+                            vx: Math.cos(angle) * speed,
+                            vy: Math.sin(angle) * speed,
+                            alpha: 1.0, decay: 0.04,
+                            size: Math.random() * 5 + 2,
+                            color: Math.random() > 0.5 ? '#F59E0B' : '#38BDF8'
+                        });
+                    }
+                }
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.x += p.vx; p.y += p.vy; p.alpha -= p.decay;
+                    if (p.alpha <= 0) { particles.splice(i, 1); continue; }
+                    ctx.save();
+                    ctx.globalAlpha = Math.max(0, p.alpha);
+                    ctx.fillStyle = p.color;
+                    ctx.shadowColor = p.color;
+                    ctx.shadowBlur = 12;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            } else if (type === 'stars') {
+                for (let i = 0; i < particles.length; i++) {
+                    const p = particles[i];
+                    p.alpha = 0.3 + 0.7 * Math.abs(Math.sin(currentTime * 3 + p.phase));
+                    ctx.save();
+                    ctx.globalAlpha = p.alpha;
+                    ctx.fillStyle = p.color;
+                    ctx.shadowColor = p.color;
+                    ctx.shadowBlur = 15;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            } else if (type === 'hearts') {
+                for (let i = 0; i < particles.length; i++) {
+                    const p = particles[i];
+                    p.y -= p.speedY;
+                    p.x += Math.sin(p.y * 0.03) * 0.8;
+                    if (p.y < -50) { p.y = canvas.height + 50; p.x = Math.random() * canvas.width; }
+                    ctx.save();
+                    ctx.globalAlpha = p.alpha;
+                    ctx.fillStyle = p.color;
+                    ctx.shadowColor = p.color;
+                    ctx.shadowBlur = 10;
+                    ctx.font = (p.size * 2) + 'px sans-serif';
+                    ctx.fillText('💖', p.x, p.y);
+                    ctx.restore();
+                }
+            }
+        }
+
+        initParticles(efeitoVisual);
+
         window.seekFrame = function(frame, totalFrames, fps) {
-            const progress = frame / totalFrames; // 0.0 a 1.0
-            const currentTime = frame / fps; // em segundos
+            const progress = frame / totalFrames;
+            const currentTime = frame / fps;
 
-            // 1. Apresentação do Header (0.2s)
-            if (currentTime >= 0.2) {
-                elemHeader.classList.add('visible');
-            }
+            if (currentTime >= 0.2) elemHeader.classList.add('visible');
+            if (currentTime >= 0.4) elemImgCard.classList.add('visible');
 
-            // 2. Apresentação do Card da Imagem (0.4s)
-            if (currentTime >= 0.4) {
-                elemImgCard.classList.add('visible');
-            }
-
-            // 3. Efeito Ken-Burns Zoom Suave na Foto
             const zoomFactor = 1 + (progress * 0.12);
             elemProductImg.style.transform = 'scale(' + zoomFactor + ')';
 
-            // 4. Troca dinâmica de Fotos na Galeria se houver mais de 1 foto
             if (fotosList.length > 1) {
                 const tempoPorFoto = duracaoTotal / fotosList.length;
                 let fotoIndex = Math.min(Math.floor(currentTime / tempoPorFoto), fotosList.length - 1);
 
                 if (elemProductImg.src !== fotosList[fotoIndex]) {
                     elemProductImg.src = fotosList[fotoIndex];
+                    if (elemBlurBg) elemBlurBg.src = fotosList[fotoIndex];
                     const elemPhotoBadge = document.getElementById('elemPhotoBadge');
                     if (elemPhotoBadge) {
                         elemPhotoBadge.innerText = '📷 ' + (fotoIndex + 1) + ' / ' + fotosList.length;
@@ -536,21 +703,15 @@ function generateVideoHtmlTemplate(data, duracao) {
                 }
             }
 
-            // 5. Apresentação do Card de Preços (0.8s)
-            if (currentTime >= 0.8) {
-                elemInfoCard.classList.add('visible');
-            }
+            if (currentTime >= 0.8) elemInfoCard.classList.add('visible');
+            if (currentTime >= 1.2) elemFooter.classList.add('visible');
 
-            // 6. Explosão do Preço e Footer CTA (1.2s em diante)
-            if (currentTime >= 1.2) {
-                elemFooter.classList.add('visible');
-            }
-
-            // 7. Pulso do preço nos últimos segundos da promoção
             if (currentTime > (duracaoTotal - 3.0)) {
                 const pulse = 1 + Math.sin((currentTime - (duracaoTotal - 3.0)) * 6) * 0.05;
                 elemPrice.style.transform = 'scale(' + pulse + ')';
             }
+
+            renderParticles(currentTime, efeitoVisual);
         };
     </script>
 </body>

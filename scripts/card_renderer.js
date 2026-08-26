@@ -370,9 +370,10 @@ function renderModernDarkTemplate(ctx) {
         .store-name { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '34px' : '30px'}; font-weight: 800; text-transform: uppercase; color: #FFFFFF; }
         .promo-badge { background: ${palette.badgeBg}; color: #FFFFFF; font-family: 'Outfit', sans-serif; font-weight: 900; font-size: ${isStories ? '28px' : '24px'}; padding: 10px 24px; border-radius: 50px; box-shadow: 0 8px 20px rgba(0,0,0,0.4); text-transform: uppercase; }
         .product-stage { position: relative; flex: 1; display: flex; align-items: center; justify-content: center; margin: ${isStories ? '40px 0' : '30px 0'}; }
-        .image-card { position: relative; width: 100%; height: ${isStories ? '920px' : '520px'}; background: ${palette.cardBg}; backdrop-filter: blur(20px); border: 1px solid ${palette.border}; border-radius: 36px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; padding: 35px; overflow: hidden; }
-        .product-image { max-width: 90%; max-height: 90%; object-fit: contain; filter: drop-shadow(0 15px 25px rgba(0,0,0,0.5)); }
-        .brand-tag { position: absolute; top: 24px; left: 24px; background: rgba(15, 23, 42, 0.75); border: 1px solid ${palette.border}; color: ${palette.mutedText}; font-size: 20px; font-weight: 700; padding: 8px 20px; border-radius: 12px; text-transform: uppercase; }
+        .image-card { position: relative; width: 100%; height: ${isStories ? '920px' : '520px'}; background: ${palette.cardBg}; backdrop-filter: blur(20px); border: 1px solid ${palette.border}; border-radius: 36px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; padding: 12px; overflow: hidden; }
+        .image-card-blur-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(30px) opacity(0.4); transform: scale(1.2); pointer-events: none; }
+        .product-image { position: relative; z-index: 2; width: 98%; height: 98%; max-width: 98%; max-height: 98%; object-fit: contain; filter: drop-shadow(0 15px 25px rgba(0,0,0,0.5)); }
+        .brand-tag { position: absolute; top: 24px; left: 24px; z-index: 3; background: rgba(15, 23, 42, 0.85); border: 1px solid ${palette.border}; color: ${palette.mutedText}; font-size: 20px; font-weight: 700; padding: 8px 20px; border-radius: 12px; text-transform: uppercase; }
         .info-card { background: ${palette.infoBg}; backdrop-filter: blur(25px); border: 1px solid ${palette.border}; border-radius: 32px; padding: ${isStories ? '36px 40px' : '30px 40px'}; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); display: flex; flex-direction: column; gap: 16px; }
         .product-title { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '42px' : '36px'}; font-weight: 800; line-height: 1.25; color: #FFFFFF; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .price-section { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 6px; }
@@ -397,6 +398,7 @@ function renderModernDarkTemplate(ctx) {
         </div>
         <div class="product-stage">
             <div class="image-card">
+                ${imagemProduto ? `<img class="image-card-blur-bg" src="${imagemProduto}">` : ''}
                 ${marca ? `<div class="brand-tag">${marca}</div>` : ''}
                 <img class="product-image" src="${imagemProduto}">
             </div>
@@ -509,9 +511,10 @@ function renderMinimalistLightTemplate(ctx) {
         .store-name { font-family: 'Outfit', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -0.5px; color: #0F172A; text-transform: uppercase; }
         .badge { background: #0F172A; color: #FFFFFF; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 22px; padding: 8px 20px; border-radius: 8px; text-transform: uppercase; }
         .stage { flex: 1; display: flex; align-items: center; justify-content: center; margin: 30px 0; }
-        .img-card { width: 100%; height: ${isStories ? '940px' : '540px'}; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 24px; display: flex; align-items: center; justify-content: center; padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); position: relative; }
-        .img-card img { max-width: 90%; max-height: 90%; object-fit: contain; }
-        .brand { position: absolute; top: 20px; left: 20px; color: #64748B; font-weight: 700; font-size: 18px; text-transform: uppercase; letter-spacing: 1px; }
+        .img-card { position: relative; width: 100%; height: ${isStories ? '940px' : '540px'}; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 24px; display: flex; align-items: center; justify-content: center; padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); overflow: hidden; }
+        .img-card-blur-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(30px) opacity(0.35); transform: scale(1.2); pointer-events: none; }
+        .img-card img.product-img-main { position: relative; z-index: 2; width: 98%; height: 98%; max-width: 98%; max-height: 98%; object-fit: contain; filter: drop-shadow(0 15px 25px rgba(0,0,0,0.15)); }
+        .brand { position: absolute; top: 20px; left: 20px; z-index: 3; color: #64748B; font-weight: 700; font-size: 18px; text-transform: uppercase; letter-spacing: 1px; background: rgba(255,255,255,0.85); padding: 4px 12px; border-radius: 8px; }
         .details { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 24px; padding: 35px 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 15px; }
         .title { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '42px' : '36px'}; font-weight: 800; color: #0F172A; line-height: 1.25; }
         .price-section { display: flex; align-items: flex-end; justify-content: space-between; }
@@ -531,8 +534,9 @@ function renderMinimalistLightTemplate(ctx) {
     </div>
     <div class="stage">
         <div class="img-card">
+            ${imagemProduto ? `<img class="img-card-blur-bg" src="${imagemProduto}">` : ''}
             ${marca ? `<div class="brand">${marca}</div>` : ''}
-            <img src="${imagemProduto}">
+            <img class="product-img-main" src="${imagemProduto}">
         </div>
     </div>
     <div class="details">
