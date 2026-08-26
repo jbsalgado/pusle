@@ -3,6 +3,11 @@
 use yii\helpers\Html;
 use yii\widgets\DetailView;
 
+$tenantId = \app\components\TenantHelper::getId();
+$userLogadoId = Yii::$app->user->id;
+$isSuperAdmin = \app\components\TenantHelper::isAdmin();
+$isAlvoDonoSemPermissao = ($model->id === $tenantId || $model->eh_dono_loja) && ($userLogadoId !== $tenantId) && !$isSuperAdmin;
+
 $this->title = 'Usuário: ' . $model->nome;
 $this->params['breadcrumbs'][] = ['label' => 'Usuários', 'url' => ['index']];
 $this->params['breadcrumbs'][] = $this->title;
@@ -21,12 +26,14 @@ $this->params['breadcrumbs'][] = $this->title;
                     <?= Html::a('Voltar', ['index'], [
                         'class' => 'inline-flex items-center px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-lg shadow-md transition duration-300'
                     ]) ?>
-                    <?= Html::a('Editar', ['update', 'id' => $model->id], [
-                        'class' => 'inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded-lg shadow-md transition duration-300'
-                    ]) ?>
-                    <?= Html::a('Mudar Senha', ['mudar-senha', 'id' => $model->id], [
-                        'class' => 'inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg shadow-md transition duration-300'
-                    ]) ?>
+                    <?php if (!$isAlvoDonoSemPermissao): ?>
+                        <?= Html::a('Editar', ['update', 'id' => $model->id], [
+                            'class' => 'inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded-lg shadow-md transition duration-300'
+                        ]) ?>
+                        <?= Html::a('Mudar Senha', ['mudar-senha', 'id' => $model->id], [
+                            'class' => 'inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg shadow-md transition duration-300'
+                        ]) ?>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -128,25 +135,27 @@ $this->params['breadcrumbs'][] = $this->title;
             </div>
             <div class="px-6 py-4">
                 <div class="flex flex-wrap gap-3">
-                    <?php if ($colaborador): ?>
-                        <?php if ($colaborador->ativo): ?>
-                            <?= Html::beginForm(['bloquear', 'id' => $model->id], 'post', [
-                                'style' => 'display: inline-block;',
-                                'onsubmit' => 'return confirm("Tem certeza que deseja bloquear este usuário?");'
-                            ]) ?>
-                                <?= Html::submitButton('Bloquear Usuário', [
-                                    'class' => 'inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md transition duration-300'
+                    <?php if (!$isAlvoDonoSemPermissao): ?>
+                        <?php if ($colaborador): ?>
+                            <?php if ($colaborador->ativo): ?>
+                                <?= Html::beginForm(['bloquear', 'id' => $model->id], 'post', [
+                                    'style' => 'display: inline-block;',
+                                    'onsubmit' => 'return confirm("Tem certeza que deseja bloquear este usuário?");'
                                 ]) ?>
-                            <?= Html::endForm() ?>
-                        <?php else: ?>
-                            <?= Html::beginForm(['ativar', 'id' => $model->id], 'post', [
-                                'style' => 'display: inline-block;',
-                                'onsubmit' => 'return confirm("Tem certeza que deseja ativar este usuário?");'
-                            ]) ?>
-                                <?= Html::submitButton('Ativar Usuário', [
-                                    'class' => 'inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-300'
+                                    <?= Html::submitButton('Bloquear Usuário', [
+                                        'class' => 'inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md transition duration-300'
+                                    ]) ?>
+                                <?= Html::endForm() ?>
+                            <?php else: ?>
+                                <?= Html::beginForm(['ativar', 'id' => $model->id], 'post', [
+                                    'style' => 'display: inline-block;',
+                                    'onsubmit' => 'return confirm("Tem certeza que deseja ativar este usuário?");'
                                 ]) ?>
-                            <?= Html::endForm() ?>
+                                    <?= Html::submitButton('Ativar Usuário', [
+                                        'class' => 'inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-300'
+                                    ]) ?>
+                                <?= Html::endForm() ?>
+                            <?php endif; ?>
                         <?php endif; ?>
                     <?php endif; ?>
                     

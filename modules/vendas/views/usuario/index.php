@@ -96,19 +96,27 @@ $this->params['breadcrumbs'][] = $this->title;
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
+                        <?php 
+                        $tenantId = \app\components\TenantHelper::getId();
+                        $userLogadoId = Yii::$app->user->id;
+                        $isSuperAdmin = \app\components\TenantHelper::isAdmin();
+                        ?>
                         <?php if ($dataProvider->totalCount > 0): ?>
                             <?php foreach ($dataProvider->getModels() as $usuario): ?>
                                 <?php
-                                // Busca colaborador associado (se for colaborador, não dono)
+                                // Busca colaborador associado ao login do usuário no contexto da loja
                                 $colaborador = null;
                                 if (!$usuario->eh_dono_loja) {
                                     $colaborador = \app\modules\vendas\models\Colaborador::find()
-                                        ->where(['usuario_id' => $usuario->id])
+                                        ->where(['prest_usuario_login_id' => $usuario->id])
+                                        ->andWhere(['usuario_id' => $tenantId])
                                         ->one();
                                 }
                                 $estaBloqueado = $usuario->isBlocked();
                                 // Se é dono da loja, tem acesso completo
                                 $ehAdmin = $usuario->eh_dono_loja ? true : ($colaborador ? $colaborador->eh_administrador : false);
+                                // Verifica se o usuário da linha é o Dono da Loja e o usuário logado é apenas colaborador admin
+                                $isAlvoDonoSemPermissao = ($usuario->id === $tenantId || $usuario->eh_dono_loja) && ($userLogadoId !== $tenantId) && !$isSuperAdmin;
                                 ?>
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-6 py-4 whitespace-nowrap">
@@ -162,31 +170,33 @@ $this->params['breadcrumbs'][] = $this->title;
                                             <?= Html::a('Ver', ['view', 'id' => $usuario->id], [
                                                 'class' => 'text-blue-600 hover:text-blue-900'
                                             ]) ?>
-                                            <?= Html::a('Editar', ['update', 'id' => $usuario->id], [
-                                                'class' => 'text-yellow-600 hover:text-yellow-900'
-                                            ]) ?>
-                                            <?= Html::a('Senha', ['mudar-senha', 'id' => $usuario->id], [
-                                                'class' => 'text-purple-600 hover:text-purple-900'
-                                            ]) ?>
-                                            
-                                            <?php if ($estaBloqueado): ?>
-                                                <?= Html::beginForm(['ativar', 'id' => $usuario->id], 'post', [
-                                                    'style' => 'display: inline-block;',
-                                                    'onsubmit' => 'return confirm("Tem certeza que deseja ativar este usuário?");'
+                                            <?php if (!$isAlvoDonoSemPermissao): ?>
+                                                <?= Html::a('Editar', ['update', 'id' => $usuario->id], [
+                                                    'class' => 'text-yellow-600 hover:text-yellow-900'
                                                 ]) ?>
-                                                    <?= Html::submitButton('Ativar', [
-                                                        'class' => 'text-green-600 hover:text-green-900 bg-transparent border-0 p-0 cursor-pointer'
-                                                    ]) ?>
-                                                <?= Html::endForm() ?>
-                                            <?php else: ?>
-                                                <?= Html::beginForm(['bloquear', 'id' => $usuario->id], 'post', [
-                                                    'style' => 'display: inline-block;',
-                                                    'onsubmit' => 'return confirm("Tem certeza que deseja bloquear este usuário?");'
+                                                <?= Html::a('Senha', ['mudar-senha', 'id' => $usuario->id], [
+                                                    'class' => 'text-purple-600 hover:text-purple-900'
                                                 ]) ?>
-                                                    <?= Html::submitButton('Bloquear', [
-                                                        'class' => 'text-red-600 hover:text-red-900 bg-transparent border-0 p-0 cursor-pointer'
+                                                
+                                                <?php if ($estaBloqueado): ?>
+                                                    <?= Html::beginForm(['ativar', 'id' => $usuario->id], 'post', [
+                                                        'style' => 'display: inline-block;',
+                                                        'onsubmit' => 'return confirm("Tem certeza que deseja ativar este usuário?");'
                                                     ]) ?>
-                                                <?= Html::endForm() ?>
+                                                        <?= Html::submitButton('Ativar', [
+                                                            'class' => 'text-green-600 hover:text-green-900 bg-transparent border-0 p-0 cursor-pointer'
+                                                        ]) ?>
+                                                    <?= Html::endForm() ?>
+                                                <?php else: ?>
+                                                    <?= Html::beginForm(['bloquear', 'id' => $usuario->id], 'post', [
+                                                        'style' => 'display: inline-block;',
+                                                        'onsubmit' => 'return confirm("Tem certeza que deseja bloquear este usuário?");'
+                                                    ]) ?>
+                                                        <?= Html::submitButton('Bloquear', [
+                                                            'class' => 'text-red-600 hover:text-red-900 bg-transparent border-0 p-0 cursor-pointer'
+                                                        ]) ?>
+                                                    <?= Html::endForm() ?>
+                                                <?php endif; ?>
                                             <?php endif; ?>
                                             
                                             <?php if (!$usuario->eh_dono_loja && !$colaborador): ?>

@@ -12,6 +12,7 @@ use yii\filters\AccessControl;
 use yii\data\ActiveDataProvider;
 use yii\helpers\ArrayHelper;
 use yii\db\Expression;
+use app\components\TenantHelper;
 
 class UsuarioController extends Controller
 {
@@ -79,15 +80,26 @@ class UsuarioController extends Controller
     }
 
     /**
-     * Lista todos os usuários
+     * Lista os usuários da loja atual (multitenancy)
      */
     public function actionIndex()
     {
-        $usuarioLogado = Yii::$app->user->identity;
+        $tenantId = TenantHelper::getId();
         
-        // Busca todos os usuários (ou apenas os relacionados ao mesmo usuário logado se necessário)
         $query = Usuario::find()
             ->orderBy(['nome' => SORT_ASC]);
+
+        // Isolamento de Tenant: se não for Super Admin do sistema, exibe apenas os usuários da loja atual
+        if (!TenantHelper::isAdmin()) {
+            $colaboradorUserIds = Colaborador::find()
+                ->select('prest_usuario_login_id')
+                ->where(['usuario_id' => $tenantId])
+                ->andWhere(['is not', 'prest_usuario_login_id', null])
+                ->column();
+
+            $allowedUserIds = array_unique(array_merge([$tenantId], $colaboradorUserIds));
+            $query->andWhere(['in', 'prest_usuarios.id', $allowedUserIds]);
+        }
 
         // Filtros
         $busca = Yii::$app->request->get('busca');
@@ -133,10 +145,12 @@ class UsuarioController extends Controller
     public function actionView($id)
     {
         $model = $this->findModel($id);
+        $tenantId = TenantHelper::getId();
         
-        // Busca colaborador associado
+        // Busca colaborador associado ao login do usuário no contexto da loja
         $colaborador = Colaborador::find()
-            ->where(['usuario_id' => $model->id])
+            ->where(['prest_usuario_login_id' => $model->id])
+            ->andWhere(['usuario_id' => $tenantId])
             ->one();
 
         return $this->render('view', [
@@ -173,9 +187,13 @@ class UsuarioController extends Controller
                 $model->username = !empty($model->email) ? $model->email : $model->cpf;
             }
             
-            // Define eh_dono_loja baseado no post (ou mantém false para colaborador)
-            $ehDono = Yii::$app->request->post('Usuario')['eh_dono_loja'] ?? false;
-            $model->eh_dono_loja = (bool)$ehDono;
+            // Apenas super admins do sistema podem definir eh_dono_loja = true
+            if (TenantHelper::isAdmin()) {
+                $ehDono = Yii::$app->request->post('Usuario')['eh_dono_loja'] ?? false;
+                $model->eh_dono_loja = (bool)$ehDono;
+            } else {
+                $model->eh_dono_loja = false;
+            }
             
             if (!$model->hasErrors() && $model->save()) {
                 Yii::$app->session->setFlash('success', 'Usuário criado com sucesso!');
@@ -205,15 +223,15 @@ class UsuarioController extends Controller
         // Gera UUID para colaborador (string)
         $colaborador->id = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
         
-        // Obtém o dono logado
-        $donoLogado = Yii::$app->user->identity;
-        if (!$donoLogado) {
-            Yii::$app->session->setFlash('error', 'Você precisa estar logado para criar colaboradores.');
+        // Obtém o tenant ID da loja
+        $tenantId = TenantHelper::getId();
+        if (empty($tenantId)) {
+            Yii::$app->session->setFlash('error', 'Você precisa estar logado em uma loja para criar colaboradores.');
             return $this->redirect(['index']);
         }
         
-        // Define usuario_id do colaborador como o dono logado
-        $colaborador->usuario_id = $donoLogado->id;
+        // Define usuario_id do colaborador como o dono da loja (tenant_id)
+        $colaborador->usuario_id = $tenantId;
         $colaborador->ativo = true; // Por padrão, ativo
         $colaborador->eh_vendedor = false; // Será definido no formulário
         $colaborador->eh_cobrador = false; // Será definido no formulário
@@ -269,8 +287,8 @@ class UsuarioController extends Controller
                         throw new \Exception('Erro ao salvar usuário: ' . json_encode($usuario->errors));
                     }
                     
-                    // Define o ID do usuário criado no colaborador (após salvar usuário)
-                    $colaborador->usuario_id = $donoLogado->id; // Loja do dono (identifica a loja)
+                    // Define o ID do dono da loja no colaborador
+                    $colaborador->usuario_id = $tenantId; // Loja do dono (identifica a loja)
                     $colaborador->prest_usuario_login_id = $usuario->id; // Login próprio do colaborador
                     
                     // Valida colaborador (agora que o usuário foi salvo, a FK existe)
@@ -323,9 +341,24 @@ class UsuarioController extends Controller
     public function actionUpdate($id)
     {
         $model = $this->findModel($id);
-        $senhaAnterior = $model->hash_senha; // Guarda senha anterior
+        $tenantId = TenantHelper::getId();
+        $userLogado = Yii::$app->user->identity;
+
+        // Proteção: colaborador admin não pode alterar os dados do Dono da Loja
+        if ($model->id === $tenantId && $userLogado->id !== $tenantId && !TenantHelper::isAdmin()) {
+            Yii::$app->session->setFlash('error', 'Apenas o próprio Dono da Loja ou um Administrador do Sistema pode alterar a conta do Dono.');
+            return $this->redirect(['view', 'id' => $model->id]);
+        }
+
+        $senhaAnterior = $model->hash_senha;
+        $ehDonoOriginal = $model->eh_dono_loja;
 
         if ($model->load(Yii::$app->request->post())) {
+            // Apenas super admin pode alterar a flag de dono da loja
+            if (!TenantHelper::isAdmin()) {
+                $model->eh_dono_loja = $ehDonoOriginal;
+            }
+
             // Se nova senha foi fornecida, atualiza
             $novaSenha = Yii::$app->request->post('Usuario')['nova_senha'] ?? null;
             if (!empty($novaSenha)) {
@@ -352,10 +385,18 @@ class UsuarioController extends Controller
     public function actionBloquear($id)
     {
         $model = $this->findModel($id);
+        $tenantId = TenantHelper::getId();
+        $userLogado = Yii::$app->user->identity;
         
         // Não permite bloquear a si mesmo
         if ($model->id === Yii::$app->user->id) {
             Yii::$app->session->setFlash('error', 'Você não pode bloquear seu próprio usuário.');
+            return $this->redirect(['view', 'id' => $model->id]);
+        }
+
+        // Proteção: colaborador admin não pode bloquear a conta do Dono da Loja
+        if ($model->id === $tenantId && $userLogado->id !== $tenantId && !TenantHelper::isAdmin()) {
+            Yii::$app->session->setFlash('error', 'Apenas o Administrador do Sistema pode bloquear a conta do Dono da Loja.');
             return $this->redirect(['view', 'id' => $model->id]);
         }
 
@@ -392,6 +433,14 @@ class UsuarioController extends Controller
     public function actionMudarSenha($id)
     {
         $model = $this->findModel($id);
+        $tenantId = TenantHelper::getId();
+        $userLogado = Yii::$app->user->identity;
+
+        // Proteção: colaborador admin não pode mudar a senha do Dono da Loja
+        if ($model->id === $tenantId && $userLogado->id !== $tenantId && !TenantHelper::isAdmin()) {
+            Yii::$app->session->setFlash('error', 'Apenas o próprio Dono da Loja ou um Administrador do Sistema pode alterar a senha do Dono.');
+            return $this->redirect(['view', 'id' => $model->id]);
+        }
 
         if (Yii::$app->request->isPost) {
             $novaSenha = Yii::$app->request->post('nova_senha');
@@ -427,10 +476,25 @@ class UsuarioController extends Controller
     }
 
     /**
-     * Encontra o modelo Usuario pelo ID
+     * Encontra o modelo Usuario pelo ID dentro do escopo da loja (multitenancy)
      */
     protected function findModel($id)
     {
+        if (!TenantHelper::isAdmin()) {
+            $tenantId = TenantHelper::getId();
+            $colaboradorUserIds = Colaborador::find()
+                ->select('prest_usuario_login_id')
+                ->where(['usuario_id' => $tenantId])
+                ->andWhere(['is not', 'prest_usuario_login_id', null])
+                ->column();
+
+            $allowedUserIds = array_unique(array_merge([$tenantId], $colaboradorUserIds));
+
+            if (!in_array($id, $allowedUserIds, true)) {
+                throw new NotFoundHttpException('O usuário solicitado não existe ou não pertence à sua loja.');
+            }
+        }
+
         if (($model = Usuario::findOne($id)) !== null) {
             return $model;
         }

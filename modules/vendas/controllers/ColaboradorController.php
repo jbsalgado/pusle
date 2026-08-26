@@ -222,11 +222,16 @@ class ColaboradorController extends Controller
      */
     protected function findModel($id)
     {
-        if (($model = Colaborador::findOne(['id' => $id, 'usuario_id' => Yii::$app->user->id])) !== null) {
+        $condition = ['id' => $id];
+        if (!\app\components\TenantHelper::isAdmin()) {
+            $condition['usuario_id'] = \app\components\TenantHelper::getId();
+        }
+
+        if (($model = Colaborador::findOne($condition)) !== null) {
             return $model;
         }
 
-        throw new NotFoundHttpException('O colaborador solicitado não existe.');
+        throw new NotFoundHttpException('O colaborador solicitado não existe ou não pertence à sua loja.');
     }
 
     /**
