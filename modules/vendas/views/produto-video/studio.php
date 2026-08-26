@@ -393,6 +393,8 @@ input[type="radio"]:checked + .color-pill-card {
                                 <span class="time-val">60s</span>
                                 <span class="time-label">Vídeo Completo</span>
                             </div>
+                        <div id="lbl-ritmo-fotos" style="margin-top: 10px; font-size: 0.8rem; color: #38bdf8; font-weight: 600; display: flex; align-items: center; gap: 6px; background: rgba(56,189,248,0.08); padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(56,189,248,0.2);">
+                            ⏱️ <span id="lbl-ritmo-texto">Ritmo Confortável: ~3.75s por foto (Máx: 4 fotos para 15s)</span>
                         </div>
                     </div>
 
@@ -738,7 +740,10 @@ input[type="radio"]:checked + .color-pill-card {
                                     <input type="checkbox" class="chk-video-item" value="<?= $vid->id ?>" data-url="<?= Html::encode($vid->getUrlCompleta()) ?>" style="width: 18px; height: 18px; cursor: pointer; accent-color: #38bdf8;">
                                 <?php endif; ?>
                                 <div>
-                                    <span class="badge" style="background: #0284c7; color: #fff; margin-right: 6px;"><?= $vid->duracao ?>s</span>
+                                    <span class="badge" style="background: #0284c7; color: #fff; margin-right: 4px;"><?= $vid->duracao ?>s</span>
+                                    <?php if ($vid->status === 'concluido'): ?>
+                                        <span class="badge" style="background: #334155; color: #38bdf8; border: 1px solid #475569; margin-right: 6px;">💾 <?= $vid->getTamanhoFormatado() ?></span>
+                                    <?php endif; ?>
                                     <small style="color: #94a3b8;"><?= date('d/m/Y H:i', strtotime($vid->data_criacao)) ?></small>
                                     <div style="font-size: 0.85rem; color: #e2e8f0; margin-top: 4px;">
                                         Status: <strong style="color: <?= $vid->status === 'concluido' ? '#34d399' : ($vid->status === 'erro' ? '#f87171' : '#fbbf24') ?>;"><?= strtoupper($vid->status) ?></strong>
@@ -848,6 +853,18 @@ document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.duration-pill').forEach(p => p.classList.remove('active'));
             this.classList.add('active');
             duracaoSelecionada = parseInt(this.getAttribute('data-duracao')) || 5;
+
+            const lblRitmo = document.getElementById('lbl-ritmo-texto');
+            if (lblRitmo) {
+                const infoMap = {
+                    5: 'Ritmo Confortável: ~2.5s por foto (Máx: 2 fotos para 5s)',
+                    10: 'Ritmo Confortável: ~3.3s por foto (Máx: 3 fotos para 10s)',
+                    15: 'Ritmo Confortável: ~3.75s por foto (Máx: 4 fotos para 15s)',
+                    30: 'Ritmo Confortável: ~3.75s por foto (Máx: 8 fotos para 30s)',
+                    60: 'Ritmo Confortável: ~5.0s por foto (Máx: 12 fotos para 60s)'
+                };
+                lblRitmo.innerText = infoMap[duracaoSelecionada] || 'Ritmo Confortável';
+            }
         });
     });
 

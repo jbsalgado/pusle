@@ -182,4 +182,37 @@ class ProdutoVideo extends ActiveRecord
     {
         return $this->hasOne(Usuario::class, ['id' => 'usuario_id']);
     }
+
+    /**
+     * Retorna o tamanho em bytes do arquivo MP4 do vídeo
+     */
+    public function getTamanhoBytes(): int
+    {
+        if (is_array($this->metadata) && isset($this->metadata['tamanho_bytes'])) {
+            return (int)$this->metadata['tamanho_bytes'];
+        }
+
+        if (!empty($this->video_path)) {
+            $absPath = \Yii::getAlias('@app/web/') . ltrim($this->video_path, '/');
+            if (file_exists($absPath)) {
+                return (int)filesize($absPath);
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Retorna o tamanho formatado em KB ou MB (ex: 1.25 MB ou 850 KB)
+     */
+    public function getTamanhoFormatado(): string
+    {
+        $bytes = $this->getTamanhoBytes();
+        if ($bytes <= 0) {
+            return 'N/A';
+        }
+        if ($bytes >= 1048576) {
+            return number_format($bytes / 1048576, 2, ',', '.') . ' MB';
+        }
+        return number_format($bytes / 1024, 1, ',', '.') . ' KB';
+    }
 }

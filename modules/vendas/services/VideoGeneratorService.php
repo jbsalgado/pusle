@@ -124,7 +124,17 @@ class VideoGeneratorService
             // 1. Carregar Configurações da Loja
             $loja = LojaConfiguracao::findOne(['usuario_id' => $produto->usuario_id]);
 
-            // 2. Coletar Fotos do Produto (Principal + Galeria)
+            // 2. Coletar Fotos do Produto (Principal + Galeria) respeitando o ritmo visual por duração
+            $duracaoSec = (int)($videoModel->duracao ?: 15);
+            $limiteFotos = match ($duracaoSec) {
+                5 => 2,
+                10 => 3,
+                15 => 4,
+                30 => 8,
+                60 => 12,
+                default => 4
+            };
+
             $fotosArray = [];
             $fotoPrincipal = $produto->fotoPrincipal;
             if ($fotoPrincipal && !empty($fotoPrincipal->arquivo_path)) {
@@ -137,7 +147,7 @@ class VideoGeneratorService
                 if ($fotoPrincipal && $foto->id === $fotoPrincipal->id) continue;
                 if (!empty($foto->arquivo_path)) {
                     $b64 = $this->converterImagemParaBase64($foto->arquivo_path);
-                    if ($b64 && count($fotosArray) < 5) { // limite de 5 fotos
+                    if ($b64 && count($fotosArray) < $limiteFotos) {
                         $fotosArray[] = $b64;
                     }
                 }
