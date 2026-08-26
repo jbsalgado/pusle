@@ -30,7 +30,7 @@ class VideoGeneratorService
      */
     public function solicitarGeracaoVideo($produtoOuId, $duracao = 15, $options = [], $executarSincrono = false)
     {
-        $duracao = in_array((int)$duracao, [5, 10, 15]) ? (int)$duracao : 15;
+        $duracao = in_array((int)$duracao, [5, 10, 15, 30, 60]) ? (int)$duracao : 15;
 
         /** @var Produto $produto */
         if ($produtoOuId instanceof Produto) {

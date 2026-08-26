@@ -111,7 +111,7 @@ class CardGeneratorService
 
         // 6. Definir caminhos de saída
         $uniqueId = sprintf('%s_%s_%s_%s', $produto->id, $formato, $template, time());
-        $nomeArquivo = "card_{$uniqueId}.png";
+        $nomeArquivo = "card_{$uniqueId}.webp";
         $diretorioUpload = Yii::getAlias('@app/web/uploads/cards');
         if (!is_dir($diretorioUpload)) {
             FileHelper::createDirectory($diretorioUpload, 0777, true);

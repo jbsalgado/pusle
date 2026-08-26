@@ -487,6 +487,80 @@ class ProdutoController extends Controller
         ];
     }
 
+    /**
+     * Retorna a lista de todos os cards gerados na loja (todos os produtos) para exibição na aba global.
+     */
+    public function actionListarCardsLoja()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        if (!$this->isAdministrador()) {
+            Yii::$app->response->statusCode = 403;
+            return ['success' => false, 'message' => 'Sem permissão para esta ação.'];
+        }
+
+        $lojaId = $this->getLojaId();
+        $produtoIdAtual = Yii::$app->request->get('produto_id');
+
+        $query = \app\modules\vendas\models\ProdutoCard::find()
+            ->where(['usuario_id' => $lojaId])
+            ->orderBy(['data_criacao' => SORT_DESC]);
+
+        $tipoFiltro = Yii::$app->request->get('filtro', 'todos');
+        if ($tipoFiltro === 'produto' && !empty($produtoIdAtual)) {
+            $query->andWhere(['produto_id' => $produtoIdAtual]);
+        }
+
+        $cards = $query->all();
+        $items = [];
+
+        foreach ($cards as $c) {
+            $p = $c->produto;
+            $items[] = [
+                'id' => $c->id,
+                'produto_id' => $c->produto_id,
+                'produto_nome' => $p ? $p->nome : 'Produto Desconhecido',
+                'formato' => $c->formato,
+                'formato_label' => $c->formato === 'stories' ? 'Stories 9:16' : 'Feed 1:1',
+                'url' => $c->getUrlCompleta(),
+                'tamanho' => $c->getTamanhoFormatado(),
+                'tamanho_bytes' => $c->getTamanhoBytes(),
+                'data_criacao' => date('d/m/Y H:i', strtotime($c->data_criacao)),
+                'is_produto_atual' => ($c->produto_id === $produtoIdAtual)
+            ];
+        }
+
+        return [
+            'success' => true,
+            'total' => count($items),
+            'items' => $items,
+            'stats' => \app\modules\vendas\services\MediaStorageService::getEstatisticasCards()
+        ];
+    }
+
+    /**
+     * Executa a purga/otimização de cards PNG legados da loja e limpa arquivos órfãos.
+     */
+    public function actionOtimizarCardsLegados()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        if (!$this->isAdministrador()) {
+            Yii::$app->response->statusCode = 403;
+            return ['success' => false, 'message' => 'Sem permissão para esta ação.'];
+        }
+
+        $lojaId = $this->getLojaId();
+        $resultado = \app\modules\vendas\services\MediaStorageService::otimizarCardsLegadosPng($lojaId);
+
+        return [
+            'success' => true,
+            'message' => 'Otimização de armazenamento concluída!',
+            'resultado' => $resultado,
+            'stats' => $resultado['stats']
+        ];
+    }
+
     public function actionCreate()
     {
         // Verifica se é administrador

@@ -71,7 +71,7 @@ class ProdutoVideo extends ActiveRecord
             [['produto_id', 'usuario_id'], 'required'],
             [['produto_id', 'usuario_id'], 'string', 'max' => 36],
             [['duracao'], 'integer'],
-            [['duracao'], 'in', 'range' => [5, 10, 15]],
+            [['duracao'], 'in', 'range' => [5, 10, 15, 30, 60]],
             [['formato'], 'default', 'value' => self::FORMATO_STORIES],
             [['status'], 'default', 'value' => self::STATUS_PENDENTE],
             [['status'], 'in', 'range' => [self::STATUS_PENDENTE, self::STATUS_PROCESSANDO, self::STATUS_CONCLUIDO, self::STATUS_ERRO]],

@@ -524,17 +524,8 @@ function generateVideoHtmlTemplate(data, duracao) {
 
             // 4. Troca dinâmica de Fotos na Galeria se houver mais de 1 foto
             if (fotosList.length > 1) {
-                let fotoIndex = 0;
-                if (duracaoTotal === 5) {
-                    if (currentTime >= 2.5) fotoIndex = 1 % fotosList.length;
-                } else if (duracaoTotal === 10) {
-                    if (currentTime >= 3.0 && currentTime < 6.5) fotoIndex = 1 % fotosList.length;
-                    else if (currentTime >= 6.5) fotoIndex = 2 % fotosList.length;
-                } else if (duracaoTotal === 15) {
-                    if (currentTime >= 3.5 && currentTime < 7.0) fotoIndex = 1 % fotosList.length;
-                    else if (currentTime >= 7.0 && currentTime < 11.0) fotoIndex = 2 % fotosList.length;
-                    else if (currentTime >= 11.0) fotoIndex = 3 % fotosList.length;
-                }
+                const tempoPorFoto = duracaoTotal / fotosList.length;
+                let fotoIndex = Math.min(Math.floor(currentTime / tempoPorFoto), fotosList.length - 1);
 
                 if (elemProductImg.src !== fotosList[fotoIndex]) {
                     elemProductImg.src = fotosList[fotoIndex];
@@ -717,17 +708,8 @@ function generateFullBleedVideoHtmlTemplate(data, duracao) {
 
             // 3. Troca de Fotos na Galeria
             if (fotosList.length > 1) {
-                let fotoIndex = 0;
-                if (duracaoTotal === 5) {
-                    if (currentTime >= 2.5) fotoIndex = 1 % fotosList.length;
-                } else if (duracaoTotal === 10) {
-                    if (currentTime >= 3.0 && currentTime < 6.5) fotoIndex = 1 % fotosList.length;
-                    else if (currentTime >= 6.5) fotoIndex = 2 % fotosList.length;
-                } else if (duracaoTotal === 15) {
-                    if (currentTime >= 3.5 && currentTime < 7.0) fotoIndex = 1 % fotosList.length;
-                    else if (currentTime >= 7.0 && currentTime < 11.0) fotoIndex = 2 % fotosList.length;
-                    else if (currentTime >= 11.0) fotoIndex = 3 % fotosList.length;
-                }
+                const tempoPorFoto = duracaoTotal / fotosList.length;
+                let fotoIndex = Math.min(Math.floor(currentTime / tempoPorFoto), fotosList.length - 1);
 
                 if (elemFullImg.src !== fotosList[fotoIndex]) {
                     elemFullImg.src = fotosList[fotoIndex];

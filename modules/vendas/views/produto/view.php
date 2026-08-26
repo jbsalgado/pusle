@@ -455,12 +455,17 @@ $this->params['breadcrumbs'][] = $this->title;
             <div id="container-cota-cards" class="bg-slate-900 text-white rounded-2xl p-4 border border-slate-700 mb-4">
                 <div class="flex justify-between items-center mb-2 flex-wrap gap-2">
                     <span class="text-xs font-bold text-gray-200 flex items-center gap-2">
-                        <span>🖼️ Armazenamento de Cards da Loja:</span>
+                        <span>🖼️ Armazenamento Total da Loja (Todos os Produtos):</span>
                         <span id="card-lbl-uso-mb" class="text-purple-400 font-extrabold"><?= $cardStats['usado_mb'] ?> MB</span> / <span id="card-lbl-limite-mb" class="text-gray-400"><?= $cardStats['limite_mb'] ?> MB</span>
                     </span>
-                    <span id="card-lbl-percentual" class="text-[10px] font-bold px-2 py-0.5 rounded-full text-white <?= $cardStats['excedido'] ? 'bg-red-500' : ($cardStats['percentual'] > 80 ? 'bg-amber-500' : 'bg-emerald-500') ?>">
-                        <?= $cardStats['percentual'] ?>% utilizado
-                    </span>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="otimizarCardsLegadosAjax()" class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition flex items-center gap-1 shadow cursor-pointer" title="Otimizar cards PNG antigos e liberar espaço em disco">
+                            🧹 Otimizar Cards Antigos
+                        </button>
+                        <span id="card-lbl-percentual" class="text-[10px] font-bold px-2 py-0.5 rounded-full text-white <?= $cardStats['excedido'] ? 'bg-red-500' : ($cardStats['percentual'] > 80 ? 'bg-amber-500' : 'bg-emerald-500') ?>">
+                            <?= $cardStats['percentual'] ?>% utilizado
+                        </span>
+                    </div>
                 </div>
                 <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden mb-1">
                     <div id="card-bar-cota-progresso" class="h-full transition-all duration-300 <?= $cardStats['excedido'] ? 'bg-red-500' : ($cardStats['percentual'] > 80 ? 'bg-amber-500' : 'bg-purple-500') ?>" style="width: <?= $cardStats['percentual'] ?>%"></div>
@@ -470,23 +475,28 @@ $this->params['breadcrumbs'][] = $this->title;
                 </div>
             </div>
 
-            <!-- Grid / Galeria de Cards Criados Anteriormente para este Produto -->
+            <!-- Grid / Galeria de Cards Criados Anteriormente -->
             <?php 
             $cardsList = $cardsHistorico ?? \app\modules\vendas\models\ProdutoCard::find()->where(['produto_id' => $model->id, 'usuario_id' => $model->usuario_id])->orderBy(['data_criacao' => SORT_DESC])->all();
             ?>
             <div id="secao-historico-cards" class="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-4">
+                <!-- Abas de Filtro de Cards -->
+                <div class="flex items-center gap-2 border-b border-gray-200 pb-2.5 mb-3 flex-wrap">
+                    <button type="button" id="tab-cards-produto" onclick="carregarCardsGaleria('produto')" class="px-3 py-1.5 text-xs font-extrabold rounded-lg bg-purple-600 text-white transition shadow-sm flex items-center gap-1.5 cursor-pointer">
+                        <span>📌 Cards deste Produto</span>
+                        <span id="badge-total-cards" class="px-2 py-0.5 bg-white/20 text-white text-[10px] font-bold rounded-full"><?= count($cardsList) ?></span>
+                    </button>
+                    <button type="button" id="tab-cards-loja" onclick="carregarCardsGaleria('todos')" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition flex items-center gap-1.5 cursor-pointer">
+                        <span>🌐 Todos os Cards da Loja</span>
+                    </button>
+                </div>
+
                 <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
                     <div class="flex items-center gap-3">
-                        <h4 class="font-extrabold text-sm text-gray-900 flex items-center gap-2">
-                            <span>🖼️ Galeria de Cards Gerados</span>
-                            <span id="badge-total-cards" class="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-bold rounded-full"><?= count($cardsList) ?></span>
-                        </h4>
-                        <?php if (!empty($cardsList)): ?>
-                            <label class="inline-flex items-center gap-1.5 cursor-pointer text-xs text-gray-600 font-bold bg-white px-2.5 py-1 rounded-lg border border-gray-200 hover:bg-gray-100 transition shadow-sm">
-                                <input type="checkbox" id="chk-selecionar-todos-cards" onchange="toggleSelecionarTodosCards(this.checked)" class="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500">
-                                <span>Selecionar Todos</span>
-                            </label>
-                        <?php endif; ?>
+                        <label class="inline-flex items-center gap-1.5 cursor-pointer text-xs text-gray-600 font-bold bg-white px-2.5 py-1 rounded-lg border border-gray-200 hover:bg-gray-100 transition shadow-sm">
+                            <input type="checkbox" id="chk-selecionar-todos-cards" onchange="toggleSelecionarTodosCards(this.checked)" class="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500">
+                            <span>Selecionar Todos</span>
+                        </label>
                     </div>
 
                     <div class="flex items-center gap-2">
@@ -532,7 +542,7 @@ $this->params['breadcrumbs'][] = $this->title;
                                         <button onclick="abrirDisparoCardUnico('<?= $c->id ?>', '<?= Html::encode($urlCard) ?>')" type="button" class="p-1.5 text-xs text-emerald-600 hover:bg-emerald-50 rounded-lg font-bold transition" title="Enviar este Card via WhatsApp">
                                             📱
                                         </button>
-                                        <a href="<?= Html::encode($urlCard) ?>" download class="p-1.5 text-xs text-purple-600 hover:bg-purple-50 rounded-lg font-bold transition" title="Baixar Imagem PNG">
+                                        <a href="<?= Html::encode($urlCard) ?>" download class="p-1.5 text-xs text-purple-600 hover:bg-purple-50 rounded-lg font-bold transition" title="Baixar Imagem do Card">
                                             📥
                                         </a>
                                         <button onclick="excluirCardHistorico('<?= $c->id ?>')" type="button" class="p-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg font-bold transition" title="Excluir Card e Liberar Espaço">
@@ -1241,6 +1251,151 @@ Garanta o seu antes que acabe o estoque!</textarea>
             }
         })
         .catch(err => alert('Erro de conexão ao excluir cards em lote: ' + err.message));
+    }
+
+    let filtroCardsAtual = 'produto';
+
+    function carregarCardsGaleria(filtro) {
+        filtroCardsAtual = filtro;
+        const btnProd = document.getElementById('tab-cards-produto');
+        const btnLoja = document.getElementById('tab-cards-loja');
+        const grid = document.getElementById('grid-cards-historico');
+
+        if (filtro === 'todos') {
+            if (btnProd) btnProd.className = 'px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition flex items-center gap-1.5 cursor-pointer';
+            if (btnLoja) btnLoja.className = 'px-3 py-1.5 text-xs font-extrabold rounded-lg bg-purple-600 text-white transition shadow-sm flex items-center gap-1.5 cursor-pointer';
+
+            if (grid) grid.innerHTML = '<div class="col-span-full py-8 text-center text-xs text-purple-600 font-bold">Carregando todos os cards da loja...</div>';
+
+            const urlList = '<?= Url::to(['listar-cards-loja']) ?>?produto_id=<?= $model->id ?>&filtro=todos';
+            fetch(urlList)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success && data.items) {
+                        renderizarCardsGrid(data.items);
+                    } else {
+                        if (grid) grid.innerHTML = '<div class="col-span-full py-6 text-center text-xs text-red-500 font-bold">Erro ao carregar cards da loja.</div>';
+                    }
+                })
+                .catch(err => {
+                    if (grid) grid.innerHTML = '<div class="col-span-full py-6 text-center text-xs text-red-500 font-bold">Erro de conexão ao carregar cards da loja.</div>';
+                });
+        } else {
+            if (btnProd) btnProd.className = 'px-3 py-1.5 text-xs font-extrabold rounded-lg bg-purple-600 text-white transition shadow-sm flex items-center gap-1.5 cursor-pointer';
+            if (btnLoja) btnLoja.className = 'px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition flex items-center gap-1.5 cursor-pointer';
+
+            if (grid) grid.innerHTML = '<div class="col-span-full py-8 text-center text-xs text-purple-600 font-bold">Carregando cards deste produto...</div>';
+
+            const urlList = '<?= Url::to(['listar-cards-loja']) ?>?produto_id=<?= $model->id ?>&filtro=produto';
+            fetch(urlList)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success && data.items) {
+                        renderizarCardsGrid(data.items);
+                        const badgeTotal = document.getElementById('badge-total-cards');
+                        if (badgeTotal) badgeTotal.innerText = data.items.length;
+                    } else {
+                        if (grid) grid.innerHTML = '<div class="col-span-full py-6 text-center text-xs text-red-500 font-bold">Erro ao carregar cards do produto.</div>';
+                    }
+                })
+                .catch(err => {
+                    if (grid) grid.innerHTML = '<div class="col-span-full py-6 text-center text-xs text-red-500 font-bold">Erro de conexão ao carregar cards.</div>';
+                });
+        }
+    }
+
+    function renderizarCardsGrid(items) {
+        const grid = document.getElementById('grid-cards-historico');
+        if (!grid) return;
+
+        if (!items || items.length === 0) {
+            grid.innerHTML = `
+                <div id="msg-sem-cards" class="col-span-full py-6 text-center text-xs text-gray-400 font-medium bg-white rounded-xl border border-dashed border-gray-200">
+                    Nenhum card encontrado nesta visualização.
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        items.forEach(c => {
+            const fmtBadge = c.formato === 'stories' ? 'bg-indigo-600' : 'bg-purple-600';
+            const prodTag = c.produto_nome ? `<div class="text-[9px] font-bold text-gray-600 truncate mt-1 bg-gray-100 px-1.5 py-0.5 rounded">📦 ${escapeHtml(c.produto_nome)}</div>` : '';
+
+            html += `
+                <div id="card-item-${c.id}" class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col justify-between transition-all hover:shadow-md relative group">
+                    <div onclick="toggleCardSelection('${c.id}', event)" class="relative bg-gray-950 aspect-square flex items-center justify-center overflow-hidden cursor-pointer">
+                        <input type="checkbox" value="${c.id}" onchange="atualizarSelecaoCards()" class="chk-card-item absolute top-2 left-2 z-10 w-4.5 h-4.5 text-purple-600 rounded border-gray-300 focus:ring-purple-500 cursor-pointer shadow-md">
+                        <img src="${escapeHtml(c.url)}" alt="Card ${escapeHtml(c.formato_label)}" class="max-h-full max-w-full object-contain">
+                        <span class="absolute top-2 left-8 text-[9px] font-bold text-white px-2 py-0.5 rounded shadow ${fmtBadge}">
+                            ${escapeHtml(c.formato_label)}
+                        </span>
+                        <span class="absolute top-2 right-2 text-[9px] font-bold text-gray-200 bg-black/70 px-1.5 py-0.5 rounded backdrop-blur">
+                            ${escapeHtml(c.tamanho)}
+                        </span>
+                    </div>
+                    <div class="p-2.5 bg-white border-t border-gray-100 flex flex-col gap-1">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="text-[10px] text-gray-500 font-medium">${c.data_criacao}</div>
+                            <div class="flex items-center gap-1">
+                                <button onclick="abrirDisparoCardUnico('${c.id}', '${escapeHtml(c.url)}')" type="button" class="p-1.5 text-xs text-emerald-600 hover:bg-emerald-50 rounded-lg font-bold transition" title="Enviar este Card via WhatsApp">
+                                    📱
+                                </button>
+                                <a href="${escapeHtml(c.url)}" download class="p-1.5 text-xs text-purple-600 hover:bg-purple-50 rounded-lg font-bold transition" title="Baixar Imagem do Card">
+                                    📥
+                                </a>
+                                <button onclick="excluirCardHistorico('${c.id}')" type="button" class="p-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg font-bold transition" title="Excluir Card e Liberar Espaço">
+                                    🗑️
+                                </button>
+                            </div>
+                        </div>
+                        ${prodTag}
+                    </div>
+                </div>
+            `;
+        });
+
+        grid.innerHTML = html;
+        atualizarSelecaoCards();
+    }
+
+    function otimizarCardsLegadosAjax() {
+        if (!confirm('Deseja otimizar os cards antigos da loja? Isso reduzirá o consumo de armazenamento convertendo PNGs pesados em WebP ultra leves e limpando arquivos antigos soltos.')) {
+            return;
+        }
+
+        const urlOpt = '<?= Url::to(['otimizar-cards-legados']) ?>';
+        fetch(urlOpt, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: '<?= Yii::$app->request->csrfParam ?>=<?= Yii::$app->request->csrfToken ?>'
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert('Otimização concluída com sucesso! Espaço liberado em disco: ' + (data.resultado ? data.resultado.espaco_liberado_mb : 0) + ' MB.');
+                if (data.stats) {
+                    atualizarBarraCotaCards(data.stats);
+                }
+                carregarCardsGaleria(filtroCardsAtual);
+            } else {
+                alert('Erro na otimização: ' + (data.message || 'Erro desconhecido.'));
+            }
+        })
+        .catch(err => alert('Erro de conexão ao otimizar cards: ' + err.message));
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
     function excluirCardHistorico(cardId) {

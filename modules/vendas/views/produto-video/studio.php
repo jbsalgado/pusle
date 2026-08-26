@@ -74,8 +74,9 @@ $this->params['breadcrumbs'][] = $this->title;
 }
 
 .duration-pills {
-    display: flex;
-    gap: 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    gap: 10px;
     margin-bottom: 20px;
 }
 
@@ -371,7 +372,7 @@ input[type="radio"]:checked + .color-pill-card {
 
                     <div class="mb-4">
                         <label class="form-label-custom">2. Escolha a Duração do Vídeo</label>
-                        <div class="duration-pills">
+                        <div class="duration-pills" style="flex-wrap: wrap;">
                             <div class="duration-pill active" data-duracao="5">
                                 <span class="time-val">5s</span>
                                 <span class="time-label">Oferta Rápida</span>
@@ -383,6 +384,14 @@ input[type="radio"]:checked + .color-pill-card {
                             <div class="duration-pill" data-duracao="15">
                                 <span class="time-val">15s</span>
                                 <span class="time-label">Apresentação</span>
+                            </div>
+                            <div class="duration-pill" data-duracao="30">
+                                <span class="time-val">30s</span>
+                                <span class="time-label">Comercial 30s</span>
+                            </div>
+                            <div class="duration-pill" data-duracao="60">
+                                <span class="time-val">60s</span>
+                                <span class="time-label">Vídeo Completo</span>
                             </div>
                         </div>
                     </div>

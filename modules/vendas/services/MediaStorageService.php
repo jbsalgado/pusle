@@ -214,6 +214,9 @@ class MediaStorageService
      */
     public static function validarEspacoCards($usuarioId = null)
     {
+        // Tenta purgar possíveis arquivos órfãos não vinculados para manter a integridade
+        self::limparArquivosOrfaosCards();
+
         $stats = self::getEstatisticasCards($usuarioId);
         if ($stats['excedido']) {
             throw new \Exception(sprintf(
@@ -222,5 +225,105 @@ class MediaStorageService
                 $stats['limite_mb']
             ));
         }
+    }
+
+    /**
+     * Remove arquivos de imagem órfãos no diretório uploads/cards que não estejam vinculados a nenhum registro no banco de dados.
+     *
+     * @return int Quantidade de arquivos removidos
+     */
+    public static function limparArquivosOrfaosCards()
+    {
+        $diretorio = Yii::getAlias('@app/web/uploads/cards');
+        if (!is_dir($diretorio)) {
+            return 0;
+        }
+
+        $todosCards = ProdutoCard::find()->select(['card_path'])->column();
+        $caminhosRegistrados = array_map(function ($p) {
+            return basename($p);
+        }, array_filter($todosCards));
+
+        $arquivosNoDisco = glob($diretorio . '/*');
+        $removidos = 0;
+
+        foreach ($arquivosNoDisco as $arquivo) {
+            if (!is_file($arquivo)) {
+                continue;
+            }
+            $nomeBase = basename($arquivo);
+            // Se o arquivo tiver mais de 30 minutos e não constar no DB, remove
+            if (!in_array($nomeBase, $caminhosRegistrados) && (time() - filemtime($arquivo) > 1800)) {
+                if (@unlink($arquivo)) {
+                    $removidos++;
+                }
+            }
+        }
+
+        return $removidos;
+    }
+
+    /**
+     * Otimiza ou remove cards legados PNG do usuário e limpa arquivos órfãos.
+     *
+     * @param string|null $usuarioId
+     * @return array
+     */
+    public static function otimizarCardsLegadosPng($usuarioId = null)
+    {
+        $usuarioId = self::resolveUsuarioId($usuarioId);
+        if (!$usuarioId) {
+            return ['otimizados' => 0, 'removidos_orfaos' => 0, 'espaco_liberado_mb' => 0];
+        }
+
+        $removidosOrfaos = self::limparArquivosOrfaosCards();
+
+        $cardsPng = ProdutoCard::find()
+            ->where(['usuario_id' => $usuarioId])
+            ->andWhere(['like', 'card_path', '.png'])
+            ->all();
+
+        $otimizadosCount = 0;
+        $bytesLiberados = 0;
+
+        foreach ($cardsPng as $c) {
+            $caminhoAbsoluto = Yii::getAlias('@app/web/') . ltrim($c->card_path, '/');
+            if (file_exists($caminhoAbsoluto)) {
+                $tamanhoOriginal = filesize($caminhoAbsoluto);
+                
+                // Se o arquivo for PNG, converte para WebP se GD estiver instalado
+                if (function_exists('imagecreatefrompng') && function_exists('imagewebp')) {
+                    $novoCaminhoRelativo = preg_replace('/\.png$/i', '.webp', $c->card_path);
+                    $novoCaminhoAbsoluto = Yii::getAlias('@app/web/') . ltrim($novoCaminhoRelativo, '/');
+
+                    $img = @imagecreatefrompng($caminhoAbsoluto);
+                    if ($img) {
+                        imagepalettetotruecolor($img);
+                        imagealphablending($img, true);
+                        imagesavealpha($img, true);
+                        if (@imagewebp($img, $novoCaminhoAbsoluto, 85)) {
+                            imagedestroy($img);
+                            @unlink($caminhoAbsoluto);
+                            $tamanhoNovo = filesize($novoCaminhoAbsoluto);
+                            $bytesLiberados += max(0, $tamanhoOriginal - $tamanhoNovo);
+                            
+                            $c->card_path = $novoCaminhoRelativo;
+                            $c->card_url = preg_replace('/\.png$/i', '.webp', $c->card_url);
+                            $c->save(false);
+                            $otimizadosCount++;
+                            continue;
+                        }
+                        imagedestroy($img);
+                    }
+                }
+            }
+        }
+
+        return [
+            'otimizados' => $otimizadosCount,
+            'removidos_orfaos' => $removidosOrfaos,
+            'espaco_liberado_mb' => round($bytesLiberados / (1024 * 1024), 2),
+            'stats' => self::getEstatisticasCards($usuarioId)
+        ];
     }
 }

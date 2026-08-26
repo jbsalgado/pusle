@@ -693,9 +693,15 @@ class DisparoMassaService
      */
     private function substituirVariaveis(?string $texto, Produto $produto, ?Cliente $cliente = null, bool $incluirOptout = false): string
     {
+        $baseUrl = Yii::$app->params['domain'] ?? 'https://alex-bird.oncode.app.br';
+        if (Yii::$app->has('request') && method_exists(Yii::$app->request, 'getHostInfo') && Yii::$app->request->getHostInfo()) {
+            $baseUrl = Yii::$app->request->getHostInfo();
+        }
+        $linkProduto = rtrim($baseUrl, '/') . '/vendas/produto/view?id=' . $produto->id;
+
         if (empty($texto)) {
             $preco = 'R$ ' . number_format((float)$produto->getPrecoFinal(), 2, ',', '.');
-            $texto = "🔥 *OFERTA ESPECIAL* 🔥\n\n*{$produto->nome}*\nPreço: *{$preco}*\n\nPeça já pelo nosso atendimento!";
+            $texto = "🔥 *OFERTA ESPECIAL* 🔥\n\n*{$produto->nome}*\nPreço: *{$preco}*\n\n🛒 *Compre aqui:* {$linkProduto}\n\nPeça já pelo nosso atendimento!";
         } else {
             $preco = 'R$ ' . number_format((float)$produto->getPrecoFinal(), 2, ',', '.');
 
@@ -704,6 +710,9 @@ class DisparoMassaService
                 '{PRECO}' => $preco,
                 '{MARCA}' => $produto->marca ?: '',
                 '{NOME}' => $cliente ? (!empty($cliente->nome_completo) ? $cliente->nome_completo : $cliente->nome) : 'Cliente',
+                '{LINK}' => $linkProduto,
+                '{URL_PRODUTO}' => $linkProduto,
+                '{URL}' => $linkProduto,
             ];
 
             $texto = strtr($texto, $replacements);

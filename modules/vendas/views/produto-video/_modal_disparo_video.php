@@ -139,13 +139,15 @@ use yii\helpers\Url;
                 <!-- 4. Texto da Mensagem Promocional -->
                 <div>
                     <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">4. Mensagem Promocional Customizada</label>
-                    <textarea id="disparo_mensagem_texto_video" rows="3" class="w-full p-3 bg-slate-950 border border-slate-700 rounded-xl text-xs text-slate-200 focus:ring-2 focus:ring-sky-500" placeholder="Digite o texto da legenda do vídeo. Variáveis: {NOME}, {PRODUTO}, {PRECO}">🎬 VÍDEO PROMOCIONAL IMPERDÍVEL! 🚀
+                    <textarea id="disparo_mensagem_texto_video" rows="4" class="w-full p-3 bg-slate-950 border border-slate-700 rounded-xl text-xs text-slate-200 focus:ring-2 focus:ring-sky-500" placeholder="Digite o texto da legenda do vídeo. Variáveis: {NOME}, {PRODUTO}, {PRECO}, {LINK}">🎬 VÍDEO PROMOCIONAL IMPERDÍVEL! 🚀
 
 Olá {NOME}! Confira este produto incrível:
 * {PRODUTO} por apenas {PRECO}!
 
+🛒 Acesse e compre online: {LINK}
+
 Peça agora mesmo pelo nosso atendimento!</textarea>
-                    <p class="text-[11px] text-slate-400 mt-1">Variáveis: <code class="bg-slate-800 text-sky-300 px-1 rounded">{NOME}</code>, <code class="bg-slate-800 text-sky-300 px-1 rounded">{PRODUTO}</code>, <code class="bg-slate-800 text-sky-300 px-1 rounded">{PRECO}</code></p>
+                    <p class="text-[11px] text-slate-400 mt-1">Variáveis dinâmicas: <code class="bg-slate-800 text-sky-300 px-1 rounded">{NOME}</code>, <code class="bg-slate-800 text-sky-300 px-1 rounded">{PRODUTO}</code>, <code class="bg-slate-800 text-sky-300 px-1 rounded">{PRECO}</code>, <code class="bg-slate-800 text-emerald-400 font-bold px-1 rounded">{LINK}</code> 🔗 (Link Clicável do Produto)</p>
                 </div>
 
                 <!-- Resumo Dinâmico -->

@@ -22,7 +22,7 @@ async function main() {
     const isStories = formato === 'stories';
     const width = 1080;
     const height = isStories ? 1920 : 1080;
-    const outputPath = args[1] || data.outputPath || path.join(__dirname, `card_${Date.now()}.png`);
+    const outputPath = args[1] || data.outputPath || path.join(__dirname, `card_${Date.now()}.webp`);
 
     const htmlContent = generateHtmlTemplate(data, isStories);
 
@@ -108,10 +108,12 @@ async function main() {
         browser = await puppeteer.launch(launchOptions);
         const page = await browser.newPage();
 
+        const scaleFactor = 1.25;
+
         await page.setViewport({
             width: width,
             height: height,
-            deviceScaleFactor: 2
+            deviceScaleFactor: scaleFactor
         });
 
         await page.setContent(htmlContent, { waitUntil: ['domcontentloaded', 'networkidle0'] });
@@ -129,7 +131,8 @@ async function main() {
 
         await page.screenshot({
             path: outputPath,
-            type: 'png',
+            type: 'webp',
+            quality: 85,
             fullPage: false,
             omitBackground: false
         });
@@ -140,8 +143,8 @@ async function main() {
             formato: formato,
             template: data.template || 'modern_dark',
             corTema: data.corTema || 'dark',
-            width: width * 2,
-            height: height * 2
+            width: Math.round(width * scaleFactor),
+            height: Math.round(height * scaleFactor)
         }));
 
     } catch (err) {
