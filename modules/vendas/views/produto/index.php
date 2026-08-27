@@ -38,6 +38,11 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                 </div>
 
                 <div class="flex gap-2">
+                    <button type="button" onclick="gerarEncarteSelecionados()" class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white font-bold rounded-lg shadow-md transition duration-300 gap-2">
+                        <svg class="w-5 h-5 text-amber-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                        📖 Encarte Digital (Flipsnack)
+                    </button>
+
                     <button type="button" onclick="dispararMassaSelecionados()" class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white font-bold rounded-lg shadow-md transition duration-300 gap-2">
                         <svg class="w-5 h-5 text-purple-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
                         Disparar Cards em Massa
@@ -777,6 +782,28 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
 
         abrirModalDisparoMassa(ids);
     };
+
+    window.gerarEncarteSelecionados = function() {
+        const checkboxes = document.querySelectorAll('input[name="produto_massa_chk"]:checked');
+        const ids = Array.from(checkboxes).map(c => c.value);
+
+        if (ids.length === 0) {
+            const todosNaPagina = Array.from(document.querySelectorAll('input[name="produto_massa_chk"]')).map(c => c.value);
+            if (todosNaPagina.length === 0) {
+                alert('Nenhum produto encontrado para o encarte.');
+                return;
+            }
+
+            if (confirm('Nenhum produto marcado especificamente. Deseja incluir todos os ' + todosNaPagina.length + ' produtos exibidos nesta página no Encarte Digital?')) {
+                document.querySelectorAll('input[name="produto_massa_chk"]').forEach(c => c.checked = true);
+                abrirModalGerarEncarte(todosNaPagina);
+            }
+            return;
+        }
+
+        abrirModalGerarEncarte(ids);
+    };
 </script>
 
 <?= $this->render('_modal_disparo_massa') ?>
+<?= $this->render('_modal_gerar_encarte') ?>

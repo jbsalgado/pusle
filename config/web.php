@@ -129,6 +129,9 @@ $config = [
             // Caso contrário, assume que o .htaccess está funcionando e não usa index.php
             'showScriptName' => $showScriptName,
             'rules' => [
+                // Regras para Encarte Digital Público
+                'GET encarte/pdf/<token:[\w-]+>' => 'vendas/encarte-publico/pdf',
+                'GET encarte/<token:[\w-]+>' => 'vendas/encarte-publico/ver',
                 // Regras da Integração Meta Social (Instagram / Facebook)
                 'POST social-integration/connect' => 'social-integration/connect',
                 'GET social-integration/accounts' => 'social-integration/accounts',
