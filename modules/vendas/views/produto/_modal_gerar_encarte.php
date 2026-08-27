@@ -71,6 +71,8 @@ use yii\helpers\Url;
                             <option value="6" selected>6 Produtos por Página (Recomendado)</option>
                             <option value="8">8 Produtos por Página (Compacto)</option>
                             <option value="12">12 Produtos por Página (Grade Densada)</option>
+                            <option value="15">15 Produtos por Página (Grade 5x3)</option>
+                            <option value="18">18 Produtos por Página (Grade Max 6x3)</option>
                         </select>
                     </div>
                 </div>

@@ -18,6 +18,8 @@ $totalPaginas = count($paginas);
 $urlPublica = $encarte->getUrlPublica();
 $urlPdf = $encarte->getUrlPdf();
 
+$fraseCreditoOnlyCode = "UM PRODUTO DESENVOLVIDO PELA ONLY CODE - WHATSAPP 81 9 9288-8872 - JOSE BARBOSA DOS SANTOS, CARUARU/PE";
+
 // Calcular maior quantidade de produtos em uma única lâmina para ajustar a altura do canvas 3D
 $maxItensPorPagina = 0;
 foreach ($paginas as $p) {
@@ -27,9 +29,13 @@ foreach ($paginas as $p) {
     }
 }
 
-// Altura proporcional do canvas 3D
+// Altura proporcional do canvas 3D baseada no número de itens
 $canvasHeight3D = 750;
-if ($maxItensPorPagina > 9) {
+if ($maxItensPorPagina > 15) {
+    $canvasHeight3D = 1180;
+} elseif ($maxItensPorPagina > 12) {
+    $canvasHeight3D = 1060;
+} elseif ($maxItensPorPagina > 9) {
     $canvasHeight3D = 940;
 } elseif ($maxItensPorPagina > 6) {
     $canvasHeight3D = 840;
@@ -79,7 +85,7 @@ if ($maxItensPorPagina > 9) {
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: calc(100vh - 120px);
+            min-height: calc(100vh - 140px);
             padding: 15px 10px;
         }
 
@@ -92,10 +98,10 @@ if ($maxItensPorPagina > 9) {
 
         /* Estilo da Lâmina do Tabloide */
         .page-sheet {
-            background-color: #ffffff;
+            background-color: #ffffff !important;
             color: #0f172a;
             box-sizing: border-box;
-            padding: 12px 14px;
+            padding: 10px 12px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -104,6 +110,19 @@ if ($maxItensPorPagina > 9) {
             border-radius: 16px;
             overflow: hidden;
             height: 100%;
+            transform: translateZ(0);
+        }
+
+        /* Correção da Transição 3D StPageFlip (Opacidade total nos 2 sentidos) */
+        .stpageflip--page, .stpageflip--page-back {
+            background-color: #ffffff !important;
+            backface-visibility: hidden !important;
+            -webkit-backface-visibility: hidden !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+        }
+
+        .stpageflip--canvas {
+            background-color: transparent !important;
         }
 
         /* Tema Red Gold */
@@ -149,6 +168,11 @@ if ($maxItensPorPagina > 9) {
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between theme-<?= Html::encode($encarte->cor_tema) ?>">
+
+    <!-- Top Banner Créditos Only Code -->
+    <div class="bg-gradient-to-r from-red-700 via-amber-600 to-red-700 text-white text-[10px] sm:text-xs font-bold py-1.5 px-4 text-center tracking-wide uppercase shadow-md flex items-center justify-center gap-2">
+        <span>⚡ <?= $fraseCreditoOnlyCode ?></span>
+    </div>
 
     <!-- Top Bar Navegação e Ações -->
     <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-3 shadow-xl">
@@ -215,8 +239,7 @@ if ($maxItensPorPagina > 9) {
                     $priceDecFontClass = 'text-xs';
                     $gapClass = 'gap-2.5 sm:gap-3';
                     $headerPaddingClass = 'p-2.5 sm:p-3';
-                } else {
-                    // Para 7 a 12+ itens por lâmina (Layout Denso)
+                } elseif ($countItensPag <= 12) {
                     $gridColsRows = 'grid-cols-2 sm:grid-cols-3';
                     $imgHeightClass = 'h-14 sm:h-16';
                     $cardPaddingClass = 'p-2';
@@ -225,21 +248,31 @@ if ($maxItensPorPagina > 9) {
                     $priceDecFontClass = 'text-[9px]';
                     $gapClass = 'gap-2';
                     $headerPaddingClass = 'p-2 sm:p-3';
+                } else {
+                    // Para 13 a 18+ itens por lâmina (Layout Ultra Denso 15/18 produtos)
+                    $gridColsRows = 'grid-cols-2 sm:grid-cols-3';
+                    $imgHeightClass = 'h-10 sm:h-12';
+                    $cardPaddingClass = 'p-1 sm:p-1.5';
+                    $titleFontClass = 'text-[8px] sm:text-[9px] line-clamp-1';
+                    $priceFontClass = 'text-xs sm:text-sm';
+                    $priceDecFontClass = 'text-[7px] sm:text-[8px]';
+                    $gapClass = 'gap-1 sm:gap-1.5';
+                    $headerPaddingClass = 'p-1.5 sm:p-2';
                 }
             ?>
-                <div id="lamina-<?= ($indexPagina + 1) ?>" class="page-sheet w-full h-full overflow-hidden flex flex-col justify-between p-3 sm:p-4 mb-6 sm:mb-0 shadow-lg border border-slate-100">
+                <div id="lamina-<?= ($indexPagina + 1) ?>" class="page-sheet w-full h-full overflow-hidden flex flex-col justify-between p-2 sm:p-3.5 mb-6 sm:mb-0 shadow-lg border border-slate-100">
                     
                     <!-- Topo Lâmina -->
-                    <div class="header-tabloide <?= $headerPaddingClass ?> rounded-xl shadow-sm mb-2 flex items-center justify-between flex-shrink-0">
+                    <div class="header-tabloide <?= $headerPaddingClass ?> rounded-xl shadow-sm mb-1 flex items-center justify-between flex-shrink-0">
                         <div>
-                            <span class="badge-promo px-2 py-0.5 rounded font-montserrat font-extrabold text-[8px] sm:text-[9px] uppercase tracking-wider">OFERTA ESPECIAL</span>
-                            <h2 class="font-montserrat font-black text-sm sm:text-base uppercase tracking-tight leading-none mt-1"><?= $titulo ?></h2>
-                            <p class="text-[9px] sm:text-[10px] opacity-90 font-medium truncate max-w-[260px] sm:max-w-xs"><?= $subtitulo ?></p>
+                            <span class="badge-promo px-2 py-0.5 rounded font-montserrat font-extrabold text-[7px] sm:text-[8px] uppercase tracking-wider">OFERTA ESPECIAL</span>
+                            <h2 class="font-montserrat font-black text-xs sm:text-base uppercase tracking-tight leading-none mt-0.5"><?= $titulo ?></h2>
+                            <p class="text-[8px] sm:text-[9px] opacity-90 font-medium truncate max-w-[260px] sm:max-w-xs"><?= $subtitulo ?></p>
                         </div>
                         <?php if ($telefoneLoja): ?>
                             <div class="hidden sm:block text-right">
-                                <div class="text-[8px] font-bold uppercase opacity-80">Peça no Zap</div>
-                                <div class="text-xs font-black"><?= $telefoneLoja ?></div>
+                                <div class="text-[7px] font-bold uppercase opacity-80">Peça no Zap</div>
+                                <div class="text-[10px] sm:text-xs font-black"><?= $telefoneLoja ?></div>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -307,10 +340,10 @@ if ($maxItensPorPagina > 9) {
                         <?php endforeach; ?>
                     </div>
 
-                    <!-- Rodapé da Lâmina -->
-                    <div class="mt-1 pt-1.5 border-t border-slate-200 flex items-center justify-between text-[8px] sm:text-[9px] text-slate-500 flex-shrink-0">
-                        <div>Ofertas válidas enquanto durarem os estoques. Imagens ilustrativas.</div>
-                        <div class="font-bold">Lâmina <?= ($indexPagina + 1) ?>/<?= $totalPaginas ?></div>
+                    <!-- Rodapé da Lâmina com Créditos -->
+                    <div class="mt-1 pt-1.5 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-[7px] sm:text-[8px] text-slate-500 gap-1 flex-shrink-0">
+                        <div class="truncate max-w-full">Ofertas válidas enquanto durarem os estoques. • <?= $fraseCreditoOnlyCode ?></div>
+                        <div class="font-bold whitespace-nowrap">Lâmina <?= ($indexPagina + 1) ?>/<?= $totalPaginas ?></div>
                     </div>
 
                 </div>
@@ -320,18 +353,20 @@ if ($maxItensPorPagina > 9) {
     </main>
 
     <!-- Rodapé Público -->
-    <footer class="bg-slate-900 border-t border-slate-800 py-3 text-center text-xs text-slate-400">
-        <?= $nomeLoja ?> © <?= date('Y') ?> • Catálogo Gerado via Pulse Vendas
+    <footer class="bg-slate-900 border-t border-slate-800 py-3 px-4 text-center text-xs text-slate-400 font-medium">
+        <?= $nomeLoja ?> © <?= date('Y') ?> • <?= $fraseCreditoOnlyCode ?>
     </footer>
 
     <!-- Modal Interativo de Detalhes do Produto (Hotspot Click / Touch) -->
-    <div id="modalDetalheProduto" class="fixed inset-0 z-[100] hidden glass-modal flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden text-slate-900 border border-slate-100 transform transition-all flex flex-col max-h-[90vh]">
+    <div id="modalDetalheProduto" class="fixed inset-0 z-[100] hidden glass-modal flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden text-slate-900 border border-slate-100 transform transition-all flex flex-col max-h-[92vh] relative">
             
+            <!-- Botão 'X' de Fechar Modal com Alto Contraste Destacado em Celulares -->
+            <button onclick="fecharModalDetalheProduto()" class="absolute top-3 right-3 sm:top-4 sm:right-4 z-30 bg-slate-900 hover:bg-slate-800 text-white rounded-full p-2.5 shadow-2xl transition border-2 border-white flex items-center justify-center w-10 h-10 cursor-pointer">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
             <div class="relative bg-slate-100 p-6 flex items-center justify-center h-64 border-b border-slate-200">
-                <button onclick="fecharModalDetalheProduto()" class="absolute top-4 right-4 bg-white/90 hover:bg-white text-slate-700 p-2.5 rounded-full shadow-lg transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
                 <img id="modalProdFoto" src="" class="max-h-full max-w-full object-contain drop-shadow-md">
             </div>
 
@@ -355,7 +390,7 @@ if ($maxItensPorPagina > 9) {
 
                 <!-- Botão Pedir pelo WhatsApp -->
                 <button id="btnPedirWhatsapp" onclick="enviarPedidoZap()" class="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-extrabold rounded-2xl shadow-xl transition flex items-center justify-center gap-2 text-base">
-                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.892-1.99-.001-3.951-.5-5.688-1.448l-6.705 1.754zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-1.15 4.2 4.293-1.125z"/></svg>
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.705 1.754zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-1.15 4.2 4.293-1.125z"/></svg>
                     Pedir no WhatsApp da Loja
                 </button>
             </div>
@@ -385,10 +420,13 @@ if ($maxItensPorPagina > 9) {
                         minWidth: 320,
                         maxWidth: 1000,
                         minHeight: 450,
-                        maxHeight: 1450,
-                        maxShadowOpacity: 0.5,
+                        maxHeight: 1600,
+                        drawShadow: true,
+                        maxShadowOpacity: 0.6,
                         showCover: false,
-                        mobileScrollSupport: true
+                        mobileScrollSupport: true,
+                        useMouseEvents: true,
+                        flippingTime: 700
                     });
 
                     pageFlipInstance.loadFromHTML(document.querySelectorAll('.page-sheet'));
