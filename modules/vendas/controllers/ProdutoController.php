@@ -1616,18 +1616,39 @@ class ProdutoController extends Controller
      */
     protected function processUploadVideos($model)
     {
+        @ini_set('upload_max_filesize', '10M');
+        @ini_set('post_max_size', '16M');
+
         $uploadPath = Yii::getAlias('@webroot/uploads/produtos/' . $model->id . '/videos');
 
         if (!is_dir($uploadPath)) {
             @mkdir($uploadPath, 0755, true);
         }
 
-        $files = UploadedFile::getInstances($model, 'videos');
-        if (empty($files)) {
-            $files = UploadedFile::getInstancesByName('Produto[videos]');
+        // Checar erros de upload no $_FILES primeiro para diagnosticar rejeição do servidor
+        if (!empty($_FILES)) {
+            Yii::info('🔍 $_FILES recebidos no controller: ' . json_encode($_FILES), __METHOD__);
+            
+            // Checar erros em $_FILES['Produto']['error']['videos'] ou $_FILES['videos']['error']
+            $errorList = $_FILES['Produto']['error']['videos'] ?? ($_FILES['videos']['error'] ?? []);
+            if (!is_array($errorList)) {
+                $errorList = [$errorList];
+            }
+            foreach ($errorList as $errCode) {
+                if ($errCode === UPLOAD_ERR_INI_SIZE || $errCode === UPLOAD_ERR_FORM_SIZE) {
+                    Yii::$app->session->setFlash('error', 'O arquivo de vídeo enviado excede o limite permitido pelo servidor PHP (máximo 5MB por vídeo).');
+                } elseif ($errCode > 0 && $errCode !== UPLOAD_ERR_NO_FILE) {
+                    Yii::$app->session->setFlash('error', 'Ocorreu um erro ao receber o vídeo enviado (Código de erro do servidor: ' . $errCode . ').');
+                }
+            }
         }
+
+        $files = UploadedFile::getInstancesByName('Produto[videos]');
         if (empty($files)) {
             $files = UploadedFile::getInstancesByName('videos');
+        }
+        if (empty($files)) {
+            $files = UploadedFile::getInstances($model, 'videos');
         }
 
         if (!$files || count($files) === 0) {
@@ -1652,6 +1673,14 @@ class ProdutoController extends Controller
         $lojaId = $this->getLojaId();
 
         foreach ($files as $file) {
+            if ($file->error > 0) {
+                Yii::error("Erro no arquivo de vídeo '{$file->name}': código {$file->error}", __METHOD__);
+                if ($file->error === UPLOAD_ERR_INI_SIZE || $file->error === UPLOAD_ERR_FORM_SIZE) {
+                    Yii::$app->session->setFlash('error', "O vídeo '{$file->name}' excede o tamanho máximo permitido pelo PHP (5MB).");
+                }
+                continue;
+            }
+
             if ($processados >= $restantesPermitidos) {
                 Yii::$app->session->setFlash('warning', "Apenas os primeiros vídeos dentro do limite de 2 vídeos por produto foram salvos.");
                 break;
@@ -1690,12 +1719,16 @@ class ProdutoController extends Controller
 
                 if ($videoModel->save()) {
                     $processados++;
+                    Yii::info("Vídeo do produto {$model->id} salvo com sucesso no HD ({$filePath}) e no banco (ID: {$videoModel->id})", __METHOD__);
                 } else {
                     Yii::error('Erro ao salvar registro do vídeo no banco: ' . json_encode($videoModel->errors), __METHOD__);
                     if (file_exists($filePath)) {
                         @unlink($filePath);
                     }
                 }
+            } else {
+                Yii::error("Erro ao executar saveAs para o arquivo de vídeo {$file->name} em {$filePath}", __METHOD__);
+                Yii::$app->session->setFlash('error', "Não foi possível salvar o arquivo de vídeo '{$file->name}' no servidor. Verifique permissões de pasta.");
             }
         }
 
