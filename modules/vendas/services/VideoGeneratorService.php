@@ -228,9 +228,17 @@ class VideoGeneratorService
                 $trilhaSonora = $trilhaKey;
             }
 
-            // Coletar Vídeos do Produto
+            // Coletar Vídeos Reais do Produto (Prioriza uploads manuais do lojista)
             $videosArray = [];
             $videosCadastrados = $produto->videos;
+
+            // Ordena colocando vídeos de upload_manual no topo
+            usort($videosCadastrados, function($a, $b) {
+                $isManualA = (strpos($a->video_path, 'uploads/produtos/') !== false || ($a->metadata['origem'] ?? '') === 'upload_manual') ? 1 : 0;
+                $isManualB = (strpos($b->video_path, 'uploads/produtos/') !== false || ($b->metadata['origem'] ?? '') === 'upload_manual') ? 1 : 0;
+                return $isManualB <=> $isManualA;
+            });
+
             foreach ($videosCadastrados as $vItem) {
                 if (!empty($vItem->video_path)) {
                     $caminhoRel = ltrim($vItem->video_path, '/');
@@ -243,7 +251,8 @@ class VideoGeneratorService
                             'id' => $vItem->id,
                             'url' => $vItem->getUrl(),
                             'path' => $absPathV,
-                            'duracao' => (int)($vItem->duracao ?: 15)
+                            'duracao' => (int)($vItem->duracao ?: 15),
+                            'origem' => $vItem->metadata['origem'] ?? (strpos($vItem->video_path, 'uploads/produtos/') !== false ? 'upload_manual' : 'estudio')
                         ];
                     }
                 }

@@ -1290,69 +1290,89 @@ function generateVideoHtmlTemplate(data, duracao) {
         initParticles(efeitoVisual);
 
         window.seekFrame = function(frame, totalFrames, fps) {
-            const progress = frame / totalFrames;
-            const currentTime = frame / fps;
+            return new Promise((resolve) => {
+                const progress = frame / totalFrames;
+                const currentTime = frame / fps;
 
-            if (currentTime >= 0.2) elemHeader.classList.add('visible');
-            if (currentTime >= 0.4) elemImgCard.classList.add('visible');
+                if (currentTime >= 0.2) elemHeader.classList.add('visible');
+                if (currentTime >= 0.4) elemImgCard.classList.add('visible');
 
-            const zoomFactor = 1 + (progress * 0.12);
-            elemProductImg.style.transform = 'scale(' + zoomFactor + ')';
+                const zoomFactor = 1 + (progress * 0.12);
+                if (elemProductImg) elemProductImg.style.transform = 'scale(' + zoomFactor + ')';
 
-            // 3. Alternância de Mídia (Fotos x Vídeo Real do Produto com Sincronização por Frame)
-            if (videosList.length > 0 && elemProductVideo) {
-                let showVideo = false;
-                if (modoComposicao === 'video_real') {
-                    showVideo = true;
-                } else if (modoComposicao === 'hibrido') {
-                    if (progress >= 0.30 && progress <= 0.85) {
+                let needsSeekWait = false;
+
+                // 3. Alternância de Mídia (Fotos x Vídeo Real do Produto com Sincronização por Frame)
+                if (videosList.length > 0 && elemProductVideo) {
+                    let showVideo = false;
+                    if (modoComposicao === 'video_real') {
                         showVideo = true;
+                    } else if (modoComposicao === 'hibrido') {
+                        if (progress >= 0.30 && progress <= 0.85) {
+                            showVideo = true;
+                        }
                     }
-                }
 
-                if (showVideo) {
-                    if (elemProductImg) elemProductImg.style.display = 'none';
-                    elemProductVideo.style.display = 'block';
+                    if (showVideo) {
+                        if (elemProductImg) elemProductImg.style.display = 'none';
+                        elemProductVideo.style.display = 'block';
 
-                    const vDuration = (elemProductVideo.duration && !isNaN(elemProductVideo.duration) && elemProductVideo.duration > 0) ? elemProductVideo.duration : 15;
-                    let targetTime = currentTime;
-                    if (ajusteDuracao === 'speedup') {
-                        targetTime = progress * vDuration;
+                        const vDuration = (elemProductVideo.duration && !isNaN(elemProductVideo.duration) && elemProductVideo.duration > 0) ? elemProductVideo.duration : 15;
+                        let targetTime = (ajusteDuracao === 'speedup') ? progress * vDuration : currentTime % vDuration;
+
+                        if (Math.abs(elemProductVideo.currentTime - targetTime) > 0.02) {
+                            needsSeekWait = true;
+                            let timerId;
+                            const onSeeked = () => {
+                                clearTimeout(timerId);
+                                elemProductVideo.removeEventListener('seeked', onSeeked);
+                                resolve();
+                            };
+                            elemProductVideo.addEventListener('seeked', onSeeked);
+                            try {
+                                elemProductVideo.currentTime = targetTime;
+                            } catch (e) {
+                                elemProductVideo.removeEventListener('seeked', onSeeked);
+                                needsSeekWait = false;
+                            }
+                            
+                            timerId = setTimeout(() => {
+                                elemProductVideo.removeEventListener('seeked', onSeeked);
+                                resolve();
+                            }, 30);
+                        }
                     } else {
-                        targetTime = currentTime % vDuration;
+                        elemProductVideo.style.display = 'none';
+                        if (elemProductImg) elemProductImg.style.display = 'block';
                     }
-                    try {
-                        elemProductVideo.currentTime = targetTime;
-                    } catch (e) {}
-                } else {
-                    elemProductVideo.style.display = 'none';
-                    if (elemProductImg) elemProductImg.style.display = 'block';
-                }
-            }
+                } else if (fotosList.length > 1) {
+                    const tempoPorFoto = duracaoTotal / fotosList.length;
+                    let fotoIndex = Math.min(Math.floor(currentTime / tempoPorFoto), fotosList.length - 1);
 
-            if (fotosList.length > 1) {
-                const tempoPorFoto = duracaoTotal / fotosList.length;
-                let fotoIndex = Math.min(Math.floor(currentTime / tempoPorFoto), fotosList.length - 1);
-
-                if (elemProductImg.src !== fotosList[fotoIndex]) {
-                    elemProductImg.src = fotosList[fotoIndex];
-                    if (elemBlurBg) elemBlurBg.src = fotosList[fotoIndex];
-                    const elemPhotoBadge = document.getElementById('elemPhotoBadge');
-                    if (elemPhotoBadge) {
-                        elemPhotoBadge.innerText = '📷 ' + (fotoIndex + 1) + ' / ' + fotosList.length;
+                    if (elemProductImg && elemProductImg.src !== fotosList[fotoIndex]) {
+                        elemProductImg.src = fotosList[fotoIndex];
+                        if (elemBlurBg) elemBlurBg.src = fotosList[fotoIndex];
+                        const elemPhotoBadge = document.getElementById('elemPhotoBadge');
+                        if (elemPhotoBadge) {
+                            elemPhotoBadge.innerText = '📷 ' + (fotoIndex + 1) + ' / ' + fotosList.length;
+                        }
                     }
                 }
-            }
 
-            if (currentTime >= 0.8) elemInfoCard.classList.add('visible');
-            if (currentTime >= 1.2) elemFooter.classList.add('visible');
+                if (currentTime >= 0.8) elemInfoCard.classList.add('visible');
+                if (currentTime >= 1.2) elemFooter.classList.add('visible');
 
-            if (currentTime > (duracaoTotal - 3.0)) {
-                const pulse = 1 + Math.sin((currentTime - (duracaoTotal - 3.0)) * 6) * 0.05;
-                elemPrice.style.transform = 'scale(' + pulse + ')';
-            }
+                if (currentTime > (duracaoTotal - 3.0)) {
+                    const pulse = 1 + Math.sin((currentTime - (duracaoTotal - 3.0)) * 6) * 0.05;
+                    elemPrice.style.transform = 'scale(' + pulse + ')';
+                }
 
-            renderParticles(currentTime, efeitoVisual);
+                renderParticles(currentTime, efeitoVisual);
+
+                if (!needsSeekWait) {
+                    resolve();
+                }
+            });
         };
     </script>
 </body>
@@ -1505,62 +1525,84 @@ function generateFullBleedVideoHtmlTemplate(data, duracao) {
         const elemFullVideo = document.getElementById('elemFullVideo');
 
         window.seekFrame = function(frame, totalFrames, fps) {
-            const progress = frame / totalFrames; // 0.0 a 1.0
-            const currentTime = frame / fps; // em segundos
+            return new Promise((resolve) => {
+                const progress = frame / totalFrames; // 0.0 a 1.0
+                const currentTime = frame / fps; // em segundos
 
-            // 1. Entrada dos Banners Topo e Rodapé
-            if (currentTime >= 0.2) {
-                elemTopBanner.classList.add('visible');
-            }
-            if (currentTime >= 0.4) {
-                elemBottomBanner.classList.add('visible');
-            }
+                // 1. Entrada dos Banners Topo e Rodapé
+                if (currentTime >= 0.2) {
+                    elemTopBanner.classList.add('visible');
+                }
+                if (currentTime >= 0.4) {
+                    elemBottomBanner.classList.add('visible');
+                }
 
-            // 2. Zoom Ken-Burns na Foto de Fundo
-            const zoomFactor = 1 + (progress * 0.15);
-            if (elemFullImg) elemFullImg.style.transform = 'scale(' + zoomFactor + ')';
+                // 2. Zoom Ken-Burns na Foto de Fundo
+                const zoomFactor = 1 + (progress * 0.15);
+                if (elemFullImg) elemFullImg.style.transform = 'scale(' + zoomFactor + ')';
 
-            // 3. Alternância de Mídia (Fotos x Vídeo Real do Produto)
-            if (videosList.length > 0 && elemFullVideo) {
-                let showVideo = false;
-                if (modoComposicao === 'video_real') {
-                    showVideo = true;
-                } else if (modoComposicao === 'hibrido') {
-                    if (progress >= 0.30 && progress <= 0.85) {
+                let needsSeekWait = false;
+
+                // 3. Alternância de Mídia (Fotos x Vídeo Real do Produto)
+                if (videosList.length > 0 && elemFullVideo) {
+                    let showVideo = false;
+                    if (modoComposicao === 'video_real') {
                         showVideo = true;
+                    } else if (modoComposicao === 'hibrido') {
+                        if (progress >= 0.30 && progress <= 0.85) {
+                            showVideo = true;
+                        }
                     }
-                }
 
-                if (showVideo) {
-                    if (elemFullImg) elemFullImg.style.display = 'none';
-                    elemFullVideo.style.display = 'block';
+                    if (showVideo) {
+                        if (elemFullImg) elemFullImg.style.display = 'none';
+                        elemFullVideo.style.display = 'block';
 
-                    const vDuration = (elemFullVideo.duration && !isNaN(elemFullVideo.duration) && elemFullVideo.duration > 0) ? elemFullVideo.duration : 15;
-                    let targetTime = currentTime;
-                    if (ajusteDuracao === 'speedup') {
-                        targetTime = progress * vDuration;
+                        const vDuration = (elemFullVideo.duration && !isNaN(elemFullVideo.duration) && elemFullVideo.duration > 0) ? elemFullVideo.duration : 15;
+                        let targetTime = (ajusteDuracao === 'speedup') ? progress * vDuration : currentTime % vDuration;
+
+                        if (Math.abs(elemFullVideo.currentTime - targetTime) > 0.02) {
+                            needsSeekWait = true;
+                            let timerId;
+                            const onSeeked = () => {
+                                clearTimeout(timerId);
+                                elemFullVideo.removeEventListener('seeked', onSeeked);
+                                resolve();
+                            };
+                            elemFullVideo.addEventListener('seeked', onSeeked);
+                            try {
+                                elemFullVideo.currentTime = targetTime;
+                            } catch (e) {
+                                elemFullVideo.removeEventListener('seeked', onSeeked);
+                                needsSeekWait = false;
+                            }
+                            
+                            timerId = setTimeout(() => {
+                                elemFullVideo.removeEventListener('seeked', onSeeked);
+                                resolve();
+                            }, 30);
+                        }
                     } else {
-                        targetTime = currentTime % vDuration;
+                        elemFullVideo.style.display = 'none';
+                        if (elemFullImg) elemFullImg.style.display = 'block';
                     }
-                    try {
-                        elemFullVideo.currentTime = targetTime;
-                    } catch (e) {}
-                } else {
-                    elemFullVideo.style.display = 'none';
-                    if (elemFullImg) elemFullImg.style.display = 'block';
-                }
-            } else if (fotosList.length > 1) {
-                const tempoPorFoto = duracaoTotal / fotosList.length;
-                let fotoIndex = Math.min(Math.floor(currentTime / tempoPorFoto), fotosList.length - 1);
+                } else if (fotosList.length > 1) {
+                    const tempoPorFoto = duracaoTotal / fotosList.length;
+                    let fotoIndex = Math.min(Math.floor(currentTime / tempoPorFoto), fotosList.length - 1);
 
-                if (elemFullImg && elemFullImg.src !== fotosList[fotoIndex]) {
-                    elemFullImg.src = fotosList[fotoIndex];
-                    const elemPhotoBadge = document.getElementById('elemPhotoBadge');
-                    if (elemPhotoBadge) {
-                        elemPhotoBadge.innerText = '📷 ' + (fotoIndex + 1) + ' / ' + fotosList.length;
+                    if (elemFullImg && elemFullImg.src !== fotosList[fotoIndex]) {
+                        elemFullImg.src = fotosList[fotoIndex];
+                        const elemPhotoBadge = document.getElementById('elemPhotoBadge');
+                        if (elemPhotoBadge) {
+                            elemPhotoBadge.innerText = '📷 ' + (fotoIndex + 1) + ' / ' + fotosList.length;
+                        }
                     }
                 }
-            }
+
+                if (!needsSeekWait) {
+                    resolve();
+                }
+            });
         };
     </script>
 </body>
