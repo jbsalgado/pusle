@@ -14,6 +14,8 @@ use app\modules\vendas\models\FormaPagamento;
 use app\modules\vendas\models\StatusVenda;
 use app\modules\vendas\models\Colaborador;
 use app\modules\vendas\models\Cliente;
+use app\modules\vendas\models\LojaConfiguracao;
+use app\modules\vendas\helpers\FormaPagamentoHelper;
 
 class VendaExpressaController extends Controller
 {
@@ -63,10 +65,22 @@ class VendaExpressaController extends Controller
             ->orderBy(['nome' => SORT_ASC])
             ->all();
 
+        // Formas de pagamento estritamente da loja logada (elimina duplicidades)
         $formasPagamento = FormaPagamento::find()
-            ->where(['ativo' => true])
+            ->where(['usuario_id' => $lojaId, 'ativo' => true])
             ->orderBy(['nome' => SORT_ASC])
             ->all();
+
+        if (empty($formasPagamento)) {
+            FormaPagamentoHelper::createDefaults($lojaId);
+            $formasPagamento = FormaPagamento::find()
+                ->where(['usuario_id' => $lojaId, 'ativo' => true])
+                ->orderBy(['nome' => SORT_ASC])
+                ->all();
+        }
+
+        // Carrega Dados da Loja para QR Code PIX e Mercado Pago
+        $lojaConfig = LojaConfiguracao::findOne(['usuario_id' => $lojaId]);
 
         // Resumo de Vendas de Hoje
         $resumoHoje = $this->getResumoHoje($lojaId);
@@ -75,6 +89,7 @@ class VendaExpressaController extends Controller
             'produtos' => $produtos,
             'formasPagamento' => $formasPagamento,
             'resumoHoje' => $resumoHoje,
+            'lojaConfig' => $lojaConfig,
             'lojaId' => $lojaId,
         ]);
     }

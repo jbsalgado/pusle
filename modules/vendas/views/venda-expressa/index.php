@@ -6,6 +6,10 @@ use yii\helpers\Url;
 $this->title = '⚡ Venda Expressa (Encarte & Catálogo)';
 $this->params['breadcrumbs'][] = ['label' => 'Vendas', 'url' => ['/vendas/venda/index']];
 $this->params['breadcrumbs'][] = $this->title;
+
+$pixChaveConfig = $lojaConfig ? $lojaConfig->pix_chave : '';
+$pixNomeConfig = $lojaConfig ? $lojaConfig->pix_nome : '';
+$pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
 ?>
 
 <div class="min-h-screen bg-slate-900 text-slate-100 py-6 px-3 sm:px-6">
@@ -192,10 +196,18 @@ $this->params['breadcrumbs'][] = $this->title;
                         <label class="block text-xs font-bold text-slate-300 uppercase mb-2">Forma de Pagamento</label>
                         <div class="grid grid-cols-2 gap-2">
                             <?php foreach ($formasPagamento as $index => $fp): 
-                                $isPix = (mb_stripos($fp->nome, 'pix') !== false || $index === 0);
+                                $nomeExibicao = $fp->nome;
+                                if (mb_stripos($nomeExibicao, 'boleto') !== false && mb_stripos($nomeExibicao, 'fiado') === false) {
+                                    $nomeExibicao = 'Boleto / Carnê / Fiado';
+                                }
+                                $isPix = (mb_stripos($nomeExibicao, 'pix') !== false || $index === 0);
                             ?>
-                                <button type="button" onclick="selecionarFormaPagamento('<?= $fp->id ?>', this)" class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 <?= $isPix ? 'bg-amber-400 text-slate-900 border-amber-300 shadow-md' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700' ?>" data-id="<?= $fp->id ?>">
-                                    <span><?= $fp->nome ?></span>
+                                <button type="button" onclick="selecionarFormaPagamento('<?= $fp->id ?>', this)" 
+                                        class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 <?= $isPix ? 'bg-amber-400 text-slate-900 border-amber-300 shadow-md' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700' ?>" 
+                                        data-id="<?= $fp->id ?>"
+                                        data-tipo="<?= $fp->tipo ?>"
+                                        data-nome="<?= Html::encode($nomeExibicao) ?>">
+                                    <span><?= Html::encode($nomeExibicao) ?></span>
                                 </button>
                             <?php endforeach; ?>
                         </div>
@@ -208,7 +220,7 @@ $this->params['breadcrumbs'][] = $this->title;
                     </div>
 
                     <!-- Botão de Efetivação Relâmpago -->
-                    <button type="button" id="btnEfetivarVenda" onclick="efetivarVendaExpressa()" class="w-full py-4 bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-600 hover:from-emerald-600 hover:to-green-700 text-white font-montserrat font-black text-base rounded-2xl shadow-xl transition transform active:scale-95 flex items-center justify-center gap-2 border border-white/20">
+                    <button type="button" id="btnEfetivarVenda" onclick="iniciarProcessoEfetivacao()" class="w-full py-4 bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-600 hover:from-emerald-600 hover:to-green-700 text-white font-montserrat font-black text-base rounded-2xl shadow-xl transition transform active:scale-95 flex items-center justify-center gap-2 border border-white/20">
                         <span>⚡ Efetivar Venda (R$ <span id="totalFinalBtn">0,00</span>)</span>
                     </button>
 
@@ -218,6 +230,56 @@ $this->params['breadcrumbs'][] = $this->title;
 
         </div>
 
+    </div>
+</div>
+
+<!-- Modal PIX Estático com QR Code e Copia e Cola -->
+<div id="modalPixEstatico" class="fixed inset-0 z-[150] hidden bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-5 text-white relative">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">📱</span>
+                <div>
+                    <h3 class="font-extrabold text-base text-amber-400">Pagamento via PIX</h3>
+                    <p class="text-[10px] text-slate-400">Apresente o QR Code ou copie a chave abaixo</p>
+                </div>
+            </div>
+            <button type="button" onclick="fecharModalPixEstatico()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <!-- Valor Total -->
+        <div class="bg-slate-800/80 border border-slate-700 p-3 rounded-2xl text-center space-y-0.5">
+            <div class="text-[10px] uppercase font-bold text-slate-400">Valor a Pagar</div>
+            <div class="text-2xl font-montserrat font-black text-emerald-400">R$ <span id="pixModalValor">0,00</span></div>
+        </div>
+
+        <!-- QR Code Visual -->
+        <div class="bg-white p-4 rounded-2xl shadow-inner flex items-center justify-center min-h-[220px]" id="pixQrCodeContainer">
+            <div class="text-slate-500 text-xs font-bold py-8">Gerando QR Code PIX...</div>
+        </div>
+
+        <!-- Código Copia e Cola -->
+        <div class="space-y-1.5">
+            <label class="block text-[10px] font-bold text-slate-400 uppercase">PIX Copia e Cola</label>
+            <div class="relative">
+                <textarea id="pixCodigoCopiaCola" readonly rows="2" class="w-full bg-slate-950 border border-slate-800 text-slate-300 rounded-xl p-2.5 text-[10px] font-mono select-all focus:outline-none resize-none"></textarea>
+            </div>
+            <button type="button" onclick="copiarCodigoPixEstatico()" id="btnCopiarPix" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center justify-center gap-1.5">
+                <span>📋 Copiar Código PIX</span>
+            </button>
+        </div>
+
+        <!-- Ações do Modal -->
+        <div class="space-y-2 pt-2 border-t border-slate-800">
+            <button type="button" onclick="confirmarEEfetivarVendaPix()" class="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-montserrat font-black text-sm rounded-xl shadow-lg transition flex items-center justify-center gap-2 border border-white/20">
+                <span>✅ Confirmar Recebimento &amp; Efetivar Venda</span>
+            </button>
+            <button type="button" onclick="fecharModalPixEstatico()" class="w-full py-2.5 text-xs font-bold text-slate-400 hover:text-white transition">
+                Cancelar
+            </button>
+        </div>
     </div>
 </div>
 
@@ -240,7 +302,17 @@ $this->params['breadcrumbs'][] = $this->title;
         <?php endforeach; ?>
     ];
 
+    const lojaPixConfig = {
+        chave: <?= json_encode($pixChaveConfig) ?>,
+        nome: <?= json_encode($pixNomeConfig) ?>,
+        cidade: <?= json_encode($pixCidadeConfig) ?>
+    };
+
     let itensVendaMap = {};
+    let formaPagamentoSelecionadaId = '<?= count($formasPagamento) > 0 ? $formasPagamento[0]->id : "" ?>';
+    let formaPagamentoSelecionadaNome = '<?= count($formasPagamento) > 0 ? Html::encode($formasPagamento[0]->nome) : "" ?>';
+    let indexItemFocado = -1;
+
     function aplicarMascaraMoedaInput(input, tipoSelectId) {
         const tipo = tipoSelectId ? document.getElementById(tipoSelectId).value : 'VALOR';
         if (tipo === 'PERCENTUAL') {
@@ -471,6 +543,7 @@ $this->params['breadcrumbs'][] = $this->title;
 
     function selecionarFormaPagamento(id, btn) {
         formaPagamentoSelecionadaId = id;
+        formaPagamentoSelecionadaNome = btn.getAttribute('data-nome') || btn.innerText;
         document.querySelectorAll('.btn-forma-pagamento').forEach(b => {
             b.className = 'btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700';
         });
@@ -577,6 +650,118 @@ $this->params['breadcrumbs'][] = $this->title;
         const totalFormatted = totalFinalCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         document.getElementById('displayTotalFinal').textContent = totalFormatted;
         document.getElementById('totalFinalBtn').textContent = totalFormatted;
+    }
+
+    function iniciarProcessoEfetivacao() {
+        const lista = Object.values(itensVendaMap);
+        if (lista.length === 0) {
+            alert('Adicione pelo menos um produto antes de efetivar a venda.');
+            return;
+        }
+
+        const ehPix = (formaPagamentoSelecionadaNome || '').toLowerCase().includes('pix');
+
+        if (ehPix) {
+            abrirModalPixEstatico();
+        } else {
+            efetivarVendaExpressa();
+        }
+    }
+
+    function gerarEMVPixString(chave, nome, cidade, valor) {
+        if (!chave) return '';
+        let chaveLimpa = chave.trim();
+        if (!chaveLimpa.includes('@') && !chaveLimpa.startsWith('+55')) {
+            let nums = chaveLimpa.replace(/\D/g, '');
+            if (nums.length === 10 || nums.length === 11) {
+                chaveLimpa = '+55' + nums;
+            } else if (nums.length === 14) {
+                chaveLimpa = nums;
+            }
+        }
+        
+        function cleanStr(s) {
+            return (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+        }
+
+        let payload = [];
+        payload.push('000201');
+        let merchantAccount = '0014br.gov.bcb.pix' + '01' + String(chaveLimpa.length).padStart(2, '0') + chaveLimpa;
+        payload.push('26' + String(merchantAccount.length).padStart(2, '0') + merchantAccount);
+        payload.push('52040000');
+        payload.push('5303986');
+        if (valor && parseFloat(valor) > 0) {
+            let vStr = parseFloat(valor).toFixed(2);
+            payload.push('54' + String(vStr.length).padStart(2, '0') + vStr);
+        }
+        payload.push('5802BR');
+        let nomeTratado = cleanStr(nome || 'LOJA').substring(0, 25);
+        payload.push('59' + String(nomeTratado.length).padStart(2, '0') + nomeTratado);
+        let cidadeTratada = cleanStr(cidade || 'CARUARU').substring(0, 15);
+        payload.push('60' + String(cidadeTratada.length).padStart(2, '0') + cidadeTratada);
+        payload.push('62070503***');
+        
+        let strSemCRC = payload.join('') + '6304';
+        
+        // CRC16
+        let crc = 0xFFFF;
+        for (let i = 0; i < strSemCRC.length; i++) {
+            crc ^= (strSemCRC.charCodeAt(i) << 8);
+            for (let j = 0; j < 8; j++) {
+                if (crc & 0x8000) {
+                    crc = ((crc << 1) ^ 0x1021) & 0xFFFF;
+                } else {
+                    crc = (crc << 1) & 0xFFFF;
+                }
+            }
+        }
+        let crcHex = crc.toString(16).toUpperCase().padStart(4, '0');
+        return strSemCRC + crcHex;
+    }
+
+    function abrirModalPixEstatico() {
+        const totalStr = document.getElementById('displayTotalFinal').textContent;
+        const valorNum = parseFloat(totalStr.replace('.', '').replace(',', '.')) || 0;
+
+        document.getElementById('pixModalValor').textContent = totalStr;
+
+        const chave = lojaPixConfig.chave || '81992888872';
+        const nome = lojaPixConfig.nome || 'ONLY CODE';
+        const cidade = lojaPixConfig.cidade || 'CARUARU';
+
+        const codigoPix = gerarEMVPixString(chave, nome, cidade, valorNum);
+
+        document.getElementById('pixCodigoCopiaCola').value = codigoPix;
+
+        const qrContainer = document.getElementById('pixQrCodeContainer');
+        qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(codigoPix)}" alt="QR Code PIX" class="mx-auto rounded-xl shadow-md border border-slate-200">`;
+
+        const modal = document.getElementById('modalPixEstatico');
+        modal.classList.remove('hidden');
+    }
+
+    function fecharModalPixEstatico() {
+        document.getElementById('modalPixEstatico').classList.add('hidden');
+    }
+
+    function copiarCodigoPixEstatico() {
+        const textarea = document.getElementById('pixCodigoCopiaCola');
+        textarea.select();
+        textarea.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(textarea.value).then(() => {
+            const btn = document.getElementById('btnCopiarPix');
+            btn.innerHTML = '<span>✅ Código PIX Copiado!</span>';
+            setTimeout(() => {
+                btn.innerHTML = '<span>📋 Copiar Código PIX</span>';
+            }, 2500);
+        }).catch(err => {
+            alert('Código selecionado! Use Ctrl+C para copiar.');
+        });
+    }
+
+    function confirmarEEfetivarVendaPix() {
+        fecharModalPixEstatico();
+        efetivarVendaExpressa();
     }
 
     function efetivarVendaExpressa() {
