@@ -693,10 +693,10 @@ input[type="radio"]:checked + .color-pill-card {
             </div>
         </div>
 
-        <!-- Coluna de Prévia do Vídeo (Player 9:16) -->
+        <!-- Coluna de Prévia do Vídeo (Player 9:16 / 1:1) -->
         <div class="col-lg-6 mb-4">
             <div class="glass-card text-center">
-                <label class="form-label-custom mb-3">Prévia do Vídeo Promocional (1080x1920)</label>
+                <label id="lbl-preview-title" class="form-label-custom mb-3">Prévia do Vídeo Promocional (1080x1920)</label>
 
                 <div class="preview-aspect-ratio">
                     <div id="placeholder-preview" class="placeholder-preview">
@@ -864,6 +864,28 @@ document.addEventListener('DOMContentLoaded', function() {
                     60: 'Ritmo Confortável: ~5.0s por foto (Máx: 12 fotos para 60s)'
                 };
                 lblRitmo.innerText = infoMap[duracaoSelecionada] || 'Ritmo Confortável';
+            }
+        });
+    });
+
+    // Troca de formato (1080x1080 vs 1080x1920) na interface do Studio
+    document.querySelectorAll('input[name="video_formato"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const val = this.value;
+            const titleElem = document.getElementById('lbl-preview-title');
+            const aspectBox = document.querySelector('.preview-aspect-ratio');
+            if (val === 'feed' || val === '1:1') {
+                if (titleElem) titleElem.innerText = 'Prévia do Vídeo Promocional (1080x1080)';
+                if (aspectBox) {
+                    aspectBox.style.paddingTop = '100%';
+                    aspectBox.style.maxWidth = '420px';
+                }
+            } else {
+                if (titleElem) titleElem.innerText = 'Prévia do Vídeo Promocional (1080x1920)';
+                if (aspectBox) {
+                    aspectBox.style.paddingTop = '177.77%';
+                    aspectBox.style.maxWidth = '360px';
+                }
             }
         });
     });
