@@ -954,6 +954,73 @@ class ProdutoController extends Controller
         return $this->redirect([$redirectTo, 'id' => $produtoId]);
     }
 
+    /**
+     * Exclui múltiplas fotos selecionadas em lote
+     */
+    public function actionDeleteFotosMassa()
+    {
+        if (!$this->isAdministrador()) {
+            throw new \yii\web\ForbiddenHttpException('Você não tem permissão para excluir fotos.');
+        }
+
+        $fotoIds = Yii::$app->request->post('foto_ids', []);
+        $produtoId = Yii::$app->request->post('produto_id');
+        $redirectTo = Yii::$app->request->post('redirect', 'update');
+
+        if (empty($fotoIds) || !is_array($fotoIds)) {
+            Yii::$app->session->setFlash('warning', 'Nenhuma foto foi selecionada para exclusão.');
+            return $this->redirect([$redirectTo ?: 'update', 'id' => $produtoId]);
+        }
+
+        $lojaId = $this->getLojaId();
+        $fotos = ProdutoFoto::find()
+            ->joinWith('produto')
+            ->where(['prest_produto_fotos.id' => $fotoIds, 'prest_produtos.usuario_id' => $lojaId])
+            ->all();
+
+        if (empty($fotos)) {
+            Yii::$app->session->setFlash('error', 'Nenhuma foto válida encontrada para exclusão.');
+            return $this->redirect([$redirectTo ?: 'update', 'id' => $produtoId]);
+        }
+
+        $deletadasCount = 0;
+        $tinhaPrincipal = false;
+        $prodIdFinal = $produtoId;
+
+        foreach ($fotos as $foto) {
+            if ($foto->eh_principal) {
+                $tinhaPrincipal = true;
+            }
+            if (!$prodIdFinal) {
+                $prodIdFinal = $foto->produto_id;
+            }
+
+            // Excluir arquivo físico
+            $this->deleteFotoFile($foto);
+            
+            // Excluir banco
+            if ($foto->delete()) {
+                $deletadasCount++;
+            }
+        }
+
+        // Se uma das fotos excluídas era a principal, reatribui para a primeira foto restante se houver
+        if ($tinhaPrincipal && $prodIdFinal) {
+            $outraFoto = ProdutoFoto::find()
+                ->where(['produto_id' => $prodIdFinal])
+                ->orderBy(['ordem' => SORT_ASC])
+                ->one();
+
+            if ($outraFoto) {
+                $outraFoto->eh_principal = true;
+                $outraFoto->save(false);
+            }
+        }
+
+        Yii::$app->session->setFlash('success', "{$deletadasCount} foto(s) excluída(s) com sucesso!");
+        return $this->redirect([$redirectTo ?: 'update', 'id' => $prodIdFinal]);
+    }
+
     public function actionSetFotoPrincipal($id)
     {
         if (!$this->isAdministrador()) {
