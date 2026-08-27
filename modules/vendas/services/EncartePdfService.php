@@ -156,14 +156,15 @@ class EncartePdfService
                 } else {
                     // 13 a 18 produtos (5x3 ou 6x3)
                     $colsPerRow = 3;
-                    $imgBoxHeight = 45;
-                    $imgMaxHeight = 40;
-                    $titleFontSize = '8px';
-                    $priceIntSize = '15px';
-                    $priceDecSize = '8px';
+                    $imgBoxHeight = 34;
+                    $imgMaxHeight = 30;
+                    $titleFontSize = '7.5px';
+                    $priceIntSize = '12px';
+                    $priceDecSize = '7px';
                 }
 
                 $colWidthPercent = ($colsPerRow == 3) ? '33.33%' : '50%';
+                $gridSpacing = ($countItens > 12) ? '3' : (($countItens > 6) ? '5' : '8');
             ?>
                 <div class="lamina-page <?= $indexPagina > 0 ? 'page-break' : '' ?>">
                     
@@ -191,7 +192,7 @@ class EncartePdfService
 
                     <!-- Grade de Produtos em Tabela mPDF Perfeita -->
                     <div class="grid-container">
-                        <table class="grid-table" width="100%" cellpadding="0" cellspacing="6">
+                        <table class="grid-table" width="100%" cellpadding="0" cellspacing="<?= $gridSpacing ?>">
                             <?php 
                             $chunksLinhas = array_chunk($itensPagina, $colsPerRow);
                             foreach ($chunksLinhas as $linha): 
