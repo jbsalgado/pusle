@@ -230,7 +230,17 @@ class VideoGeneratorService
 
             // Coletar Vídeos Reais do Produto (Prioriza uploads manuais do lojista)
             $videosArray = [];
-            $videosCadastrados = $produto->videos;
+            $videosCadastrados = ProdutoVideo::find()
+                ->where(['produto_id' => $produto->id])
+                ->orderBy(['data_criacao' => SORT_DESC])
+                ->all();
+
+            if (empty($videosCadastrados) && !empty($produto->parent_id)) {
+                $videosCadastrados = ProdutoVideo::find()
+                    ->where(['produto_id' => $produto->parent_id])
+                    ->orderBy(['data_criacao' => SORT_DESC])
+                    ->all();
+            }
 
             // Ordena colocando vídeos de upload_manual no topo
             usort($videosCadastrados, function($a, $b) {

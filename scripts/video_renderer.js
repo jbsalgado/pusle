@@ -508,11 +508,11 @@ function generateVideoHtmlTemplate(data, duracao) {
         </div>
         <div class="stage">
             <div class="image-card" id="elemImgCard">
-                ${fotos[0] ? `<img class="image-card-blur-bg" id="elemBlurBg" src="${fotos[0]}">` : ''}
+                ${fotos[0] && modoComposicao !== 'video_real' ? `<img class="image-card-blur-bg" id="elemBlurBg" src="${fotos[0]}">` : ''}
                 ${marca ? `<div class="brand-tag">${marca}</div>` : ''}
-                ${fotos.length > 1 ? `<div class="photo-badge" id="elemPhotoBadge">📷 1 / ${fotos.length}</div>` : ''}
-                <img class="product-image" id="elemProductImg" src="${fotos[0]}">
-                ${videosList.length > 0 ? `<video class="product-video" id="elemProductVideo" src="${videosList[0].path ? (videosList[0].path.startsWith('file://') ? videosList[0].path : 'file://' + videosList[0].path) : videosList[0].url}" autoplay muted loop playsinline preload="auto" style="display:block; opacity:0; pointer-events:none; position:relative; z-index:2; width:98%; height:98%; max-width:98%; max-height:98%; object-fit:${ajusteProporcao === 'cover' ? 'cover' : 'contain'}; border-radius: 20px; transition: opacity 0.3s ease;"></video>` : ''}
+                ${fotos.length > 1 && modoComposicao !== 'video_real' ? `<div class="photo-badge" id="elemPhotoBadge">📷 1 / ${fotos.length}</div>` : ''}
+                <img class="product-image" id="elemProductImg" src="${fotos[0]}" style="${modoComposicao === 'video_real' ? 'opacity:0; display:none;' : ''}">
+                ${videosList.length > 0 ? `<video class="product-video" id="elemProductVideo" src="${videosList[0].path ? (videosList[0].path.startsWith('file://') ? videosList[0].path : 'file://' + videosList[0].path) : videosList[0].url}" autoplay muted loop playsinline preload="auto" style="display:block; opacity:${modoComposicao === 'video_real' ? '1' : '0'}; pointer-events:none; position:relative; z-index:2; width:98%; height:98%; max-width:98%; max-height:98%; object-fit:${ajusteProporcao === 'cover' ? 'cover' : 'contain'}; border-radius: 20px; transition: opacity 0.3s ease;"></video>` : ''}
             </div>
         </div>
         <div class="info-card" id="elemInfoCard">
@@ -1371,7 +1371,7 @@ function generateVideoHtmlTemplate(data, duracao) {
                         elemProductVideo.style.opacity = '0';
                         if (elemProductImg) elemProductImg.style.opacity = '1';
                     }
-                } else if (fotosList.length > 1) {
+                } else if (modoComposicao !== 'video_real' && fotosList.length > 1) {
                     const tempoPorFoto = duracaoTotal / fotosList.length;
                     let fotoIndex = Math.min(Math.floor(currentTime / tempoPorFoto), fotosList.length - 1);
 
@@ -1512,9 +1512,9 @@ function generateFullBleedVideoHtmlTemplate(data, duracao) {
 </head>
 <body>
     <div class="full-bg-container">
-        <img class="full-bg-image" id="elemFullImg" src="${fotos[0]}" alt="Background">
-        ${videosList.length > 0 ? `<video class="full-bg-image" id="elemFullVideo" src="${videosList[0].path ? (videosList[0].path.startsWith('file://') ? videosList[0].path : 'file://' + videosList[0].path) : videosList[0].url}" autoplay muted loop playsinline preload="auto" style="display:block; opacity:0; pointer-events:none; width:100%; height:100%; object-fit:${ajusteProporcao === 'cover' ? 'cover' : 'contain'}; transition: opacity 0.3s ease;"></video>` : ''}
-        ${fotos.length > 1 ? `<div class="photo-badge" id="elemPhotoBadge">📷 1 / ${fotos.length}</div>` : ''}
+        <img class="full-bg-image" id="elemFullImg" src="${fotos[0]}" alt="Background" style="${modoComposicao === 'video_real' ? 'opacity:0; display:none;' : ''}">
+        ${videosList.length > 0 ? `<video class="full-bg-image" id="elemFullVideo" src="${videosList[0].path ? (videosList[0].path.startsWith('file://') ? videosList[0].path : 'file://' + videosList[0].path) : videosList[0].url}" autoplay muted loop playsinline preload="auto" style="display:block; opacity:${modoComposicao === 'video_real' ? '1' : '0'}; pointer-events:none; width:100%; height:100%; object-fit:${ajusteProporcao === 'cover' ? 'cover' : 'contain'}; transition: opacity 0.3s ease;"></video>` : ''}
+        ${fotos.length > 1 && modoComposicao !== 'video_real' ? `<div class="photo-badge" id="elemPhotoBadge">📷 1 / ${fotos.length}</div>` : ''}
     </div>
 
     <div class="top-banner" id="elemTopBanner">
@@ -1612,7 +1612,7 @@ function generateFullBleedVideoHtmlTemplate(data, duracao) {
                         elemFullVideo.style.opacity = '0';
                         if (elemFullImg) elemFullImg.style.opacity = '1';
                     }
-                } else if (fotosList.length > 1) {
+                } else if (modoComposicao !== 'video_real' && fotosList.length > 1) {
                     const tempoPorFoto = duracaoTotal / fotosList.length;
                     let fotoIndex = Math.min(Math.floor(currentTime / tempoPorFoto), fotosList.length - 1);
 
