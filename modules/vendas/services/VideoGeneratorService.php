@@ -266,6 +266,8 @@ class VideoGeneratorService
                         ];
                     }
                 }
+            }
+
             $modoComposicao = $options['modoComposicao'] ?? ($videoModel->metadata['modo_composicao'] ?? 'hibrido');
             if ($modoComposicao === 'video_real') {
                 if (empty($videosArray)) {
