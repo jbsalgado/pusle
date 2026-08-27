@@ -1851,7 +1851,7 @@ class ProdutoController extends Controller
             $produto->categoria_id = $categoriaId;
             $produto->nome = $nome;
             $produto->preco_venda_sugerido = $precoVenda;
-            $produto->preco_custo = $precoCusto;
+            $produto->preco_custo = ($precoCusto !== null && $precoCusto >= 0) ? (float)$precoCusto : 0.00;
             $produto->unidade_medida = $unidade;
             $produto->marca = !empty($marca) ? $marca : null;
             $produto->codigo_barras = !empty($codigoBarras) ? $codigoBarras : null;
