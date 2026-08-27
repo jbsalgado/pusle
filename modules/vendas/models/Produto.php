@@ -137,7 +137,7 @@ class Produto extends ActiveRecord
             [['tamanho'], 'string', 'max' => 20],
             [['porte'], 'string', 'max' => 1],
             [['porte'], 'default', 'value' => 'P'],
-            [['parent_id'], 'exist', 'skipOnError' => true, 'targetClass' => Produto::class, 'targetAttribute' => ['parent_id' => 'id']],
+            [['parent_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => Produto::class, 'targetAttribute' => ['parent_id' => 'id']],
 
             // NOVOS CAMPOS: Código de Barras e Marca
             [['codigo_barras', 'marca'], 'string', 'max' => 255],
@@ -173,6 +173,29 @@ class Produto extends ActiveRecord
             'G' => 'Grande (Eletros pequenos, Volumes)',
             'X' => 'Especial (Móveis, Cargas pesadas)',
         ];
+    }
+
+    /**
+     * Hook executado antes da validação para tratar e sanitizar parent_id
+     */
+    public function beforeValidate()
+    {
+        if (parent::beforeValidate()) {
+            if (empty($this->parent_id) || $this->parent_id === 'null' || $this->parent_id === 'undefined' || trim($this->parent_id) === '0' || trim($this->parent_id) === '') {
+                $this->parent_id = null;
+            } else {
+                $this->parent_id = (string)$this->parent_id;
+                // Se parent_id for o próprio ID do produto, limpa para null
+                if (!empty($this->id) && $this->parent_id === (string)$this->id) {
+                    $this->parent_id = null;
+                } elseif (!self::find()->where(['id' => $this->parent_id])->exists()) {
+                    // Se o produto pai informado não existir no banco (órfão), limpa para null para não bloquear a atualização
+                    $this->parent_id = null;
+                }
+            }
+            return true;
+        }
+        return false;
     }
 
     /**
