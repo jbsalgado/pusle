@@ -84,14 +84,116 @@ $colorMap = [
 ];
 
 $permissoesModulo = $permissoesModulo ?? [];
+$tokenJwt = $usuario ? $usuario->generateJwt() : '';
 
 /**
- * Array de configuração para os cards do dashboard.
+ * Array unificado de todos os acessos/cards do sistema.
  */
 $cards = [
+    // ⚡ AÇÕES RÁPIDAS
+    [
+        'key' => 'cadastrar-produto-rapido',
+        'grupo' => 'Ações Rápidas',
+        'order' => 1.1,
+        'label' => 'Cadastrar Produto Rápido',
+        'description' => 'Cadastre novo produto em 10 segundos',
+        'color' => 'green',
+        'type' => 'button',
+        'onclick' => 'abrirModalCadastroRapido()',
+        'badge' => 'Expresso',
+        'badge_bg' => 'bg-amber-300 text-gray-900',
+        'icon_emoji' => '⚡',
+        'card_bg' => 'bg-gradient-to-br from-emerald-500 via-green-600 to-emerald-700 text-white',
+    ],
+    [
+        'key' => 'venda-expressa',
+        'grupo' => 'Ações Rápidas',
+        'order' => 1.2,
+        'label' => 'Venda Expressa',
+        'description' => 'Lançamento relâmpago de vendas',
+        'color' => 'orange',
+        'url' => ['/vendas/venda-expressa/index'],
+        'badge' => 'Modo Encarte',
+        'badge_bg' => 'bg-emerald-300 text-gray-900',
+        'icon_emoji' => '⚡',
+        'card_bg' => 'bg-gradient-to-br from-amber-500 via-orange-600 to-amber-700 text-white',
+    ],
+    [
+        'key' => 'nova-venda',
+        'grupo' => 'Ações Rápidas',
+        'order' => 1.3,
+        'label' => 'Nova Venda',
+        'description' => 'Registar uma nova venda direta',
+        'color' => 'blue',
+        'url' => Yii::getAlias('@web') . '/venda-direta/?token=' . $tokenJwt,
+        'card_bg' => 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white',
+        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />',
+    ],
+    [
+        'key' => 'novo-orcamento',
+        'grupo' => 'Ações Rápidas',
+        'order' => 1.4,
+        'label' => 'Novo Orçamento',
+        'description' => 'Criar cotação (sem baixar estoque)',
+        'color' => 'orange',
+        'url' => Yii::getAlias('@web') . '/orcamento/',
+        'card_bg' => 'bg-gradient-to-br from-orange-500 to-orange-600 text-white',
+        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />',
+    ],
+    [
+        'key' => 'confirmar-pagamentos',
+        'grupo' => 'Ações Rápidas',
+        'order' => 1.5,
+        'label' => 'Confirmar Pagamentos On-line',
+        'description' => (isset($countVendasPendentes) && $countVendasPendentes > 0 ? "$countVendasPendentes venda(s) aguardando" : "Nenhuma venda pendente"),
+        'color' => 'green',
+        'url' => ['/vendas/inicio/confirmar-pagamentos'],
+        'card_bg' => 'bg-gradient-to-br from-green-500 to-emerald-600 text-white',
+        'visible' => (isset($ehAdministrador) || isset($ehDonoLoja)),
+        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />',
+    ],
+    [
+        'key' => 'dashboard-geral',
+        'grupo' => 'Ações Rápidas',
+        'order' => 1.6,
+        'label' => 'Dashboard Geral',
+        'description' => 'Visão geral de estatísticas',
+        'color' => 'indigo',
+        'url' => ['/vendas/dashboard/index'],
+        'card_bg' => 'bg-gradient-to-br from-indigo-500 to-indigo-700 text-white',
+        'visible' => isset($ehDonoLoja) && $ehDonoLoja,
+        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2" />',
+    ],
+    [
+        'key' => 'dashboard-executivo',
+        'grupo' => 'Ações Rápidas',
+        'order' => 1.7,
+        'label' => 'Dashboard Executivo',
+        'description' => 'Indicadores de BI e Metas',
+        'color' => 'purple',
+        'url' => ['/vendas/dashboard/executivo'],
+        'card_bg' => 'bg-gradient-to-br from-purple-600 to-indigo-800 text-white',
+        'visible' => isset($ehDonoLoja) && $ehDonoLoja,
+        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />',
+    ],
+    [
+        'key' => 'fluxo-caixa',
+        'grupo' => 'Ações Rápidas',
+        'order' => 1.8,
+        'label' => 'Fluxo de Caixa',
+        'description' => 'Dashboard Financeiro Real',
+        'color' => 'teal',
+        'url' => Yii::getAlias('@web') . '/financeiro/index.html',
+        'card_bg' => 'bg-gradient-to-br from-emerald-600 to-teal-700 text-white',
+        'visible' => isset($ehDonoLoja) && $ehDonoLoja,
+        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />',
+    ],
+
+    // 👥 GESTÃO GERAL
     [
         'key' => 'clientes',
-        'order' => 1,
+        'grupo' => 'Gestão Geral',
+        'order' => 2.1,
         'visible' => true,
         'label' => 'Clientes',
         'url' => ['/vendas/clientes/index'],
@@ -101,17 +203,19 @@ $cards = [
     ],
     [
         'key' => 'produtos',
-        'order' => 2,
+        'grupo' => 'Gestão Geral',
+        'order' => 2.2,
         'visible' => true,
         'label' => 'Produtos',
         'url' => ['/vendas/produto/index'],
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>',
         'color' => 'green',
-        'description' => 'Gerir produtos'
+        'description' => 'Gerir produtos e estoque'
     ],
     [
         'key' => 'categorias',
-        'order' => 2.1,
+        'grupo' => 'Gestão Geral',
+        'order' => 2.3,
         'visible' => true,
         'label' => 'Categorias',
         'url' => ['/vendas/categoria/index'],
@@ -121,7 +225,8 @@ $cards = [
     ],
     [
         'key' => 'trilha-sonora',
-        'order' => 2.2,
+        'grupo' => 'Gestão Geral',
+        'order' => 2.4,
         'visible' => true,
         'label' => 'Gestão de Músicas',
         'url' => ['/vendas/trilha-sonora/index'],
@@ -131,6 +236,7 @@ $cards = [
     ],
     [
         'key' => 'fornecedores',
+        'grupo' => 'Gestão Geral',
         'order' => 2.5,
         'visible' => true,
         'label' => 'Fornecedores',
@@ -141,6 +247,7 @@ $cards = [
     ],
     [
         'key' => 'compras',
+        'grupo' => 'Gestão Geral',
         'order' => 2.6,
         'visible' => true,
         'label' => 'Compras',
@@ -151,37 +258,30 @@ $cards = [
     ],
     [
         'key' => 'dados-financeiros',
+        'grupo' => 'Gestão Geral',
         'order' => 2.7,
         'visible' => true,
         'label' => 'Precificação',
         'url' => ['/vendas/dados-financeiros/index'],
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>',
         'color' => 'purple',
-        'description' => 'Precificação inteligente (Markup Divisor)'
+        'description' => 'Precificação inteligente (Markup)'
     ],
     [
         'key' => 'lojas',
+        'grupo' => 'Gestão Geral',
         'order' => 2.8,
         'visible' => true,
-        'label' => 'Lojas/Filiais',
+        'label' => 'Lojas / Filiais',
         'url' => ['/vendas/loja/index'],
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>',
         'color' => 'indigo',
-        'description' => 'Criar e gerenciar lojas/filiais'
-    ],
-    [
-        'key' => 'confirmar-pagamentos',
-        'order' => 2.9,
-        'visible' => true,
-        'label' => 'Confirmar Pagamento de Vendas On-line',
-        'url' => ['/vendas/inicio/confirmar-pagamentos'],
-        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>',
-        'color' => 'green',
-        'description' => 'Confirmar pagamentos de vendas on-line'
+        'description' => 'Criar e gerenciar filiais'
     ],
     [
         'key' => 'unidades-medida',
-        'order' => 3.5,
+        'grupo' => 'Gestão Geral',
+        'order' => 2.9,
         'visible' => true,
         'label' => 'Unidades de Medida',
         'url' => ['/vendas/unidade-medida/index'],
@@ -191,57 +291,67 @@ $cards = [
     ],
     [
         'key' => 'colaboradores',
-        'order' => 4,
+        'grupo' => 'Gestão Geral',
+        'order' => 2.10,
         'visible' => true,
         'label' => 'Colaboradores',
         'url' => ['/vendas/colaborador/index'],
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>',
         'color' => 'indigo',
-        'description' => 'Gerir colaboradores'
+        'description' => 'Gerir equipe e permissões'
     ],
+
+    // 💰 FINANCEIRO & CAIXA
     [
         'key' => 'caixa',
-        'order' => 4.5,
+        'grupo' => 'Financeiro & Caixa',
+        'order' => 3.1,
         'visible' => true,
         'label' => 'Caixa',
         'url' => ['/caixa/caixa/index'],
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>',
         'color' => 'green',
-        'description' => 'Fluxo de caixa'
+        'description' => 'Abertura, fechamento e fluxo de caixa'
     ],
     [
         'key' => 'contas-pagar',
-        'order' => 4.6,
+        'grupo' => 'Financeiro & Caixa',
+        'order' => 3.2,
         'visible' => true,
         'label' => 'Contas a Pagar',
         'url' => ['/contas-pagar/conta-pagar/index'],
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>',
         'color' => 'red',
-        'description' => 'Gerir contas a pagar'
+        'description' => 'Lançamento e quitação de despesas'
     ],
     [
         'key' => 'tipos-despesa',
-        'order' => 4.7,
+        'grupo' => 'Financeiro & Caixa',
+        'order' => 3.3,
         'visible' => true,
         'label' => 'Tipos de Despesa',
         'url' => ['/contas-pagar/tipo-despesa/index'],
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>',
         'color' => 'pink',
-        'description' => 'Categorias de despesas'
+        'description' => 'Categorias de custos e despesas'
     ],
+
+    // 💳 VENDAS & COBRANÇA
     [
         'key' => 'orcamentos',
-        'order' => 7,
+        'grupo' => 'Vendas & Cobrança',
+        'order' => 4.1,
         'visible' => true,
-        'label' => 'Orçamentos',
+        'label' => 'Orçamentos (Histórico)',
         'url' => ['/vendas/orcamento/index'],
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>',
         'color' => 'yellow',
-        'description' => 'Gerir orçamentos'
+        'description' => 'Histórico e gestão de cotações'
     ],
     [
         'key' => 'vendas',
-        'order' => 5,
+        'grupo' => 'Vendas & Cobrança',
+        'order' => 4.2,
         'visible' => true,
         'label' => 'Vendas Efetivadas',
         'url' => ['/vendas/venda/index'],
@@ -251,57 +361,63 @@ $cards = [
     ],
     [
         'key' => 'formas-pagamento',
-        'order' => 5.5,
+        'grupo' => 'Vendas & Cobrança',
+        'order' => 4.3,
         'visible' => true,
         'label' => 'Formas de Pgto.',
         'url' => ['/vendas/forma-pagamento/index'],
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>',
         'color' => 'teal',
-        'description' => 'Formas de pagamento'
+        'description' => 'Formas de pagamento da loja'
     ],
     [
         'key' => 'comissoes',
-        'order' => 6,
+        'grupo' => 'Vendas & Cobrança',
+        'order' => 4.4,
         'visible' => true,
         'label' => 'Comissões',
         'url' => ['/vendas/comissao/index'],
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>',
         'color' => 'purple',
-        'description' => 'Gerir comissões'
+        'description' => 'Relatórios e pagamento de comissões'
     ],
     [
         'key' => 'comissao-config',
-        'order' => 6.5,
+        'grupo' => 'Vendas & Cobrança',
+        'order' => 4.5,
         'visible' => true,
         'label' => 'Config. Comissões',
         'url' => ['/vendas/comissao-config/index'],
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>',
         'color' => 'purple',
-        'description' => 'Configurar comissões'
+        'description' => 'Regras e percentuais de comissão'
     ],
     [
         'key' => 'periodo-cobranca',
-        'order' => 7,
+        'grupo' => 'Vendas & Cobrança',
+        'order' => 4.6,
         'visible' => true,
         'label' => 'Período Cobrança',
         'url' => ['/vendas/periodo-cobranca/index'],
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>',
         'color' => 'orange',
-        'description' => 'Períodos de cobrança'
+        'description' => 'Ciclos e prazos de cobrança'
     ],
     [
         'key' => 'carteira-cobranca',
-        'order' => 8,
+        'grupo' => 'Vendas & Cobrança',
+        'order' => 4.7,
         'visible' => true,
         'label' => 'Carteira Cobrança',
         'url' => ['/vendas/carteira-cobranca/index'],
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>',
         'color' => 'red',
-        'description' => 'Carteira de cobrança'
+        'description' => 'Gestão de títulos e carteira'
     ],
     [
         'key' => 'itens-avulsos',
-        'order' => 8.5,
+        'grupo' => 'Vendas & Cobrança',
+        'order' => 4.8,
         'visible' => true,
         'label' => 'Itens Avulsos / Pendentes',
         'url' => ['/vendas/produto/itens-avulsos'],
@@ -311,17 +427,32 @@ $cards = [
     ],
     [
         'key' => 'historico-cobranca',
-        'order' => 9,
+        'grupo' => 'Vendas & Cobrança',
+        'order' => 4.9,
         'visible' => true,
         'label' => 'Histórico Cobrança',
         'url' => ['/vendas/historico-cobranca/index'],
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>',
         'color' => 'pink',
-        'description' => 'Histórico de cobranças'
+        'description' => 'Registro de cobranças realizadas'
     ],
     [
+        'key' => 'parcelas',
+        'grupo' => 'Vendas & Cobrança',
+        'order' => 4.10,
+        'visible' => true,
+        'label' => 'Parcelas',
+        'url' => ['/vendas/parcela/index'],
+        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>',
+        'color' => 'cyan',
+        'description' => 'Gestão detalhada de parcelas'
+    ],
+
+    // 🚚 LOGÍSTICA & REGIÕES
+    [
         'key' => 'taxa-entrega',
-        'order' => 9.5,
+        'grupo' => 'Logística & Regiões',
+        'order' => 5.1,
         'visible' => true,
         'label' => 'Gestão de Fretes',
         'url' => ['/vendas/taxa-entrega/index'],
@@ -330,133 +461,144 @@ $cards = [
         'description' => 'Taxas por Cidade, Bairro e CEP'
     ],
     [
-        'key' => 'parcelas',
-        'order' => 10,
-        'visible' => true,
-        'label' => 'Parcelas',
-        'url' => ['/vendas/parcela/index'],
-        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>',
-        'color' => 'cyan',
-        'description' => 'Gerir parcelas'
-    ],
-    [
         'key' => 'regioes',
-        'order' => 11,
+        'grupo' => 'Logística & Regiões',
+        'order' => 5.2,
         'visible' => true,
         'label' => 'Região',
         'url' => ['/vendas/regiao/index'],
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>',
         'color' => 'green',
-        'description' => 'Gerir regiões'
+        'description' => 'Territórios e regiões atendidas'
     ],
     [
         'key' => 'rotas-cobranca',
-        'order' => 12,
+        'grupo' => 'Logística & Regiões',
+        'order' => 5.3,
         'visible' => true,
         'label' => 'Rotas Cobrança',
         'url' => ['/vendas/rota-cobranca/index'],
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>',
         'color' => 'indigo',
-        'description' => 'Rotas de cobrança'
+        'description' => 'Roteiros de cobrança em campo'
     ],
-    [
-        'key' => 'status-parcela',
-        'order' => 13,
-        'visible' => true,
-        'label' => 'Status Parcela',
-        'url' => ['/vendas/status-parcela/index'],
-        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>',
-        'color' => 'blue',
-        'description' => 'Status de parcelas'
-    ],
-    [
-        'key' => 'status-venda',
-        'order' => 14,
-        'visible' => true,
-        'label' => 'Status Vendas',
-        'url' => ['/vendas/status-venda/index'],
-        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>',
-        'color' => 'purple',
-        'description' => 'Status de vendas'
-    ],
+
+    // 🌐 INTEGRAÇÕES
     [
         'key' => 'marketplaces',
-        'order' => 15,
+        'grupo' => 'Integrações',
+        'order' => 6.1,
         'visible' => true,
         'label' => 'Marketplaces',
         'url' => ['/marketplace/dashboard/index'],
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />',
         'color' => 'cyan',
-        'description' => 'Gerenciar integrações multicanal'
-    ],
-    [
-        'key' => 'usuarios',
-        'order' => 98,
-        'visible' => true,
-        'label' => 'Usuários',
-        'url' => ['/vendas/usuario/index'],
-        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>',
-        'color' => 'indigo',
-        'description' => 'Gerenciar usuários'
-    ],
-    [
-        'key' => 'configuracoes',
-        'order' => 99,
-        'visible' => true,
-        'label' => 'Configurações',
-        'url' => ['/vendas/configuracao/index'],
-        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>',
-        'color' => 'gray',
-        'description' => 'Configurações do sistema'
-    ],
-    [
-        'key' => 'dados-loja',
-        'order' => 99.5,
-        'visible' => true,
-        'label' => 'Dados da Loja',
-        'url' => ['/vendas/loja-configuracao/index'],
-        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>',
-        'color' => 'blue',
-        'description' => 'Configurar dados da loja (nome, endereço, CNPJ)'
+        'description' => 'Integrações multicanal e e-commerce'
     ],
     [
         'key' => 'whatsapp-evolution',
-        'order' => 99.6,
+        'grupo' => 'Integrações',
+        'order' => 6.2,
         'visible' => true,
         'label' => 'WhatsApp Evolution',
         'url' => ['/evolution/config/index'],
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>',
         'color' => 'green',
-        'description' => 'Configuração da integração com WhatsApp'
+        'description' => 'Instância e conexões do WhatsApp'
+    ],
+
+    // ⚙️ CONFIGURAÇÕES DO SISTEMA
+    [
+        'key' => 'status-parcela',
+        'grupo' => 'Configurações do Sistema',
+        'order' => 7.1,
+        'visible' => true,
+        'label' => 'Status Parcela',
+        'url' => ['/vendas/status-parcela/index'],
+        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>',
+        'color' => 'blue',
+        'description' => 'Tipos de status de parcelas'
+    ],
+    [
+        'key' => 'status-venda',
+        'grupo' => 'Configurações do Sistema',
+        'order' => 7.2,
+        'visible' => true,
+        'label' => 'Status Vendas',
+        'url' => ['/vendas/status-venda/index'],
+        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>',
+        'color' => 'purple',
+        'description' => 'Tipos de status de vendas'
+    ],
+    [
+        'key' => 'usuarios',
+        'grupo' => 'Configurações do Sistema',
+        'order' => 7.3,
+        'visible' => true,
+        'label' => 'Usuários',
+        'url' => ['/vendas/usuario/index'],
+        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>',
+        'color' => 'indigo',
+        'description' => 'Acessos e logins de usuários'
+    ],
+    [
+        'key' => 'configuracoes',
+        'grupo' => 'Configurações do Sistema',
+        'order' => 7.4,
+        'visible' => true,
+        'label' => 'Configurações',
+        'url' => ['/vendas/configuracao/index'],
+        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>',
+        'color' => 'gray',
+        'description' => 'Ajustes gerais do sistema'
+    ],
+    [
+        'key' => 'dados-loja',
+        'grupo' => 'Configurações do Sistema',
+        'order' => 7.5,
+        'visible' => true,
+        'label' => 'Dados da Loja',
+        'url' => ['/vendas/loja-configuracao/index'],
+        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>',
+        'color' => 'blue',
+        'description' => 'Nome, CNPJ, endereço e marca da loja'
     ],
 ];
 
-// Filtra cards visíveis baseado no flag de administrador e permissões ativas (Liga/Desliga)
-if (!isset($ehAdministrador)) {
-    $ehAdministrador = false;
-    \Yii::warning("⚠️ Variável ehAdministrador não foi passada pelo controller!", __METHOD__);
-} else {
-    if (is_string($ehAdministrador)) {
-        $ehAdministrador = (strtolower(trim($ehAdministrador)) === 't' || strtolower(trim($ehAdministrador)) === 'true' || $ehAdministrador === '1');
-    } else {
-        $ehAdministrador = (bool)$ehAdministrador;
-    }
-}
-
+// Filtra cards ativos (visíveis e com permissão TRUE no Liga/Desliga)
 $visibleCards = array_filter($cards, function ($card) use ($ehAdministrador, $permissoesModulo) {
-    if (!$ehAdministrador) {
+    if (isset($card['visible']) && $card['visible'] === false) {
         return false;
     }
     $key = $card['key'] ?? null;
     if ($key && isset($permissoesModulo[$key]) && $permissoesModulo[$key] === false) {
         return false;
     }
-    return isset($card['visible']) && $card['visible'] === true;
+    return true;
 });
 
+// Ordena por 'order'
 usort($visibleCards, function ($a, $b) {
     return ($a['order'] ?? 999) <=> ($b['order'] ?? 999);
 });
+
+// Agrupa por grupo
+$cardsPorGrupo = [];
+foreach ($visibleCards as $card) {
+    $g = $card['grupo'] ?? 'Outros';
+    $cardsPorGrupo[$g][] = $card;
+}
+
+$gruposOrdenados = [
+    'Ações Rápidas' => ['icone' => '⚡', 'subtitulo' => 'Atalhos principais e lançamentos relâmpago'],
+    'Gestão Geral' => ['icone' => '👥', 'subtitulo' => 'Catálogo, clientes, fornecedores e filiais'],
+    'Financeiro & Caixa' => ['icone' => '💰', 'subtitulo' => 'Fluxo financeiro, caixas e despesas'],
+    'Vendas & Cobrança' => ['icone' => '💳', 'subtitulo' => 'Relatórios de vendas, comissões e carteira'],
+    'Logística & Regiões' => ['icone' => '🚚', 'subtitulo' => 'Entregas, fretes por CEP e rotas'],
+    'Integrações' => ['icone' => '🌐', 'subtitulo' => 'Conexões multicanal e disparo de mensagens'],
+    'Configurações do Sistema' => ['icone' => '⚙️', 'subtitulo' => 'Parâmetros de status, usuários e dados da loja'],
+];
+
 ?>
 
 <!-- Container Principal com responsividade mobile-first -->
@@ -583,214 +725,111 @@ usort($visibleCards, function ($a, $b) {
             <p class="text-sm sm:text-base text-gray-600">Bem-vindo ao seu painel de vendas.</p>
         </div>
 
-        <!-- Cards de Ação Rápida -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <!-- Cadastrar Produto Rápido -->
-            <?php if (!isset($permissoesModulo['cadastrar-produto-rapido']) || $permissoesModulo['cadastrar-produto-rapido'] !== false): ?>
-                <button type="button" onclick="abrirModalCadastroRapido()"
-                    class="group text-left block w-full bg-gradient-to-br from-emerald-500 via-green-600 to-emerald-700 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95 border border-emerald-400/30 cursor-pointer">
-                    <div class="flex items-center space-x-3 sm:space-x-4">
-                        <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
-                            <span class="text-2xl sm:text-3xl">⚡</span>
-                        </div>
-                        <div class="flex-1 text-white">
-                            <div class="flex items-center gap-2">
-                                <h3 class="text-lg sm:text-xl font-bold mb-0.5">Cadastrar Produto Rápido</h3>
-                                <span class="bg-amber-300 text-gray-900 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Expresso</span>
+        <!-- Loop pelas Categorias Agrupadas -->
+        <div class="space-y-8 sm:space-y-10">
+            <?php foreach ($gruposOrdenados as $nomeGrupo => $infoGrupo): ?>
+                <?php if (!empty($cardsPorGrupo[$nomeGrupo])): ?>
+                    <div class="space-y-4">
+                        <!-- Cabeçalho da Categoria -->
+                        <div class="flex items-center justify-between border-b border-gray-200 pb-3">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl sm:text-3xl"><?= $infoGrupo['icone'] ?></span>
+                                <div>
+                                    <h2 class="text-lg sm:text-xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
+                                        <span><?= Html::encode($nomeGrupo) ?></span>
+                                        <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-0.5 rounded-full">
+                                            <?= count($cardsPorGrupo[$nomeGrupo]) ?>
+                                        </span>
+                                    </h2>
+                                    <p class="text-xs sm:text-sm text-gray-500 font-normal"><?= Html::encode($infoGrupo['subtitulo']) ?></p>
+                                </div>
                             </div>
-                            <p class="text-xs sm:text-sm opacity-90">Cadastre novo produto em 10 segundos</p>
                         </div>
-                    </div>
-                </button>
-            <?php endif; ?>
 
-            <!-- Venda Expressa -->
-            <?php if (!isset($permissoesModulo['venda-expressa']) || $permissoesModulo['venda-expressa'] !== false): ?>
-                <a href="<?= Url::to(['/vendas/venda-expressa/index']) ?>"
-                    class="group block bg-gradient-to-br from-amber-500 via-orange-600 to-amber-700 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95 border border-amber-400/30">
-                    <div class="flex items-center space-x-3 sm:space-x-4">
-                        <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
-                            <span class="text-2xl sm:text-3xl">⚡</span>
-                        </div>
-                        <div class="flex-1 text-white">
-                            <div class="flex items-center gap-2">
-                                <h3 class="text-lg sm:text-xl font-bold mb-0.5">Venda Expressa</h3>
-                                <span class="bg-emerald-300 text-gray-900 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Modo Encarte</span>
-                            </div>
-                            <p class="text-xs sm:text-sm opacity-90">Lançamento relâmpago de vendas</p>
-                        </div>
-                    </div>
-                </a>
-            <?php endif; ?>
+                        <!-- Grid de Cards da Categoria -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            <?php foreach ($cardsPorGrupo[$nomeGrupo] as $card): ?>
+                                <?php
+                                $colors = $colorMap[$card['color'] ?? 'blue'] ?? $colorMap['blue'];
+                                $isGradient = isset($card['card_bg']);
+                                ?>
 
-            <!-- Nova Venda -->
-            <?php
-            // ✅ Gera token JWT para SSO com o PWA
-            $tokenJwt = $usuario ? $usuario->generateJwt() : '';
-            ?>
-            <?php if (!isset($permissoesModulo['nova-venda']) || $permissoesModulo['nova-venda'] !== false): ?>
-                <a href="<?= Yii::getAlias('@web') ?>/venda-direta/?token=<?= $tokenJwt ?>"
-                    class="group block bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
-                    <div class="flex items-center space-x-3 sm:space-x-4">
-                        <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
-                            <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                            </svg>
-                        </div>
-                        <div class="flex-1 text-white">
-                            <h3 class="text-lg sm:text-xl font-bold mb-0.5">Nova Venda</h3>
-                            <p class="text-xs sm:text-sm opacity-90">Registar uma nova venda direta</p>
-                        </div>
-                    </div>
-                </a>
-            <?php endif; ?>
+                                <?php if (isset($card['type']) && $card['type'] === 'button'): ?>
+                                    <!-- Botão Interativo Expresso -->
+                                    <button type="button" onclick="<?= Html::encode($card['onclick']) ?>"
+                                        class="group text-left block w-full <?= $isGradient ? $card['card_bg'] : 'bg-white border border-gray-200 ' . $colors['border'] ?> rounded-xl p-5 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 active:scale-95 cursor-pointer relative overflow-hidden flex flex-col justify-between min-h-[120px]">
+                                        
+                                        <div class="flex items-center justify-between mb-3">
+                                            <div class="<?= $isGradient ? 'bg-white bg-opacity-20 text-white' : $colors['bg'] . ' ' . $colors['text'] ?> rounded-xl p-3 group-hover:scale-110 transition-transform">
+                                                <?php if (isset($card['icon_emoji'])): ?>
+                                                    <span class="text-2xl"><?= $card['icon_emoji'] ?></span>
+                                                <?php else: ?>
+                                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <?= $card['icon'] ?>
+                                                    </svg>
+                                                <?php endif; ?>
+                                            </div>
+                                            <?php if (isset($card['badge'])): ?>
+                                                <span class="<?= $card['badge_bg'] ?? 'bg-amber-300 text-gray-900' ?> text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                                    <?= Html::encode($card['badge']) ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div>
+                                            <h3 class="text-base font-bold <?= $isGradient ? 'text-white' : 'text-gray-900 group-hover:' . $colors['text'] ?> transition-colors">
+                                                <?= Html::encode($card['label']) ?>
+                                            </h3>
+                                            <p class="text-xs <?= $isGradient ? 'opacity-90 text-white' : 'text-gray-500' ?> mt-1 line-clamp-2">
+                                                <?= Html::encode($card['description']) ?>
+                                            </p>
+                                        </div>
+                                    </button>
 
-            <!-- Novo Orçamento -->
-            <?php if (!isset($permissoesModulo['novo-orcamento']) || $permissoesModulo['novo-orcamento'] !== false): ?>
-                <a href="<?= Yii::getAlias('@web') ?>/orcamento/"
-                    class="group block bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
-                    <div class="flex items-center space-x-3 sm:space-x-4">
-                        <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
-                            <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                            </svg>
-                        </div>
-                        <div class="flex-1 text-white">
-                            <h3 class="text-lg sm:text-xl font-bold mb-0.5">Novo Orçamento</h3>
-                            <p class="text-xs sm:text-sm opacity-90">Criar cotação (sem baixar estoque)</p>
-                        </div>
-                    </div>
-                </a>
-            <?php endif; ?>
-
-            <?php if ((!isset($permissoesModulo['confirmar-pagamentos']) || $permissoesModulo['confirmar-pagamentos'] !== false) && ($ehAdministrador || $ehDonoLoja)): ?>
-                <!-- Confirmar Pagamentos -->
-                <a href="<?= Url::to(['/vendas/inicio/confirmar-pagamentos']) ?>"
-                    class="group block bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95 relative">
-                    <?php if ($countVendasPendentes > 0): ?>
-                        <span class="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg">
-                            <?= $countVendasPendentes ?>
-                        </span>
-                    <?php endif; ?>
-                    <div class="flex items-center space-x-3 sm:space-x-4">
-                        <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
-                            <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                        </div>
-                        <div class="flex-1 text-white">
-                            <h3 class="text-lg sm:text-xl font-bold mb-0.5">Confirmar Pagamento de Vendas On-line</h3>
-                            <p class="text-xs sm:text-sm opacity-90">
-                                <?php if ($countVendasPendentes > 0): ?>
-                                    <?= $countVendasPendentes ?> venda(s) aguardando
                                 <?php else: ?>
-                                    Nenhuma venda pendente
+                                    <!-- Link Normal para o Módulo -->
+                                    <?php
+                                    $targetUrl = is_array($card['url']) ? Url::to($card['url']) : $card['url'];
+                                    ?>
+                                    <a href="<?= Html::encode($targetUrl) ?>"
+                                        class="group block w-full <?= $isGradient ? $card['card_bg'] : 'bg-white border border-gray-200 ' . $colors['border'] ?> rounded-xl p-5 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 active:scale-95 relative overflow-hidden flex flex-col justify-between min-h-[120px]">
+                                        
+                                        <div class="flex items-center justify-between mb-3">
+                                            <div class="<?= $isGradient ? 'bg-white bg-opacity-20 text-white' : $colors['bg'] . ' ' . $colors['text'] ?> rounded-xl p-3 group-hover:scale-110 transition-transform">
+                                                <?php if (isset($card['icon_emoji'])): ?>
+                                                    <span class="text-2xl"><?= $card['icon_emoji'] ?></span>
+                                                <?php else: ?>
+                                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <?= $card['icon'] ?>
+                                                    </svg>
+                                                <?php endif; ?>
+                                            </div>
+
+                                            <?php if (isset($card['counter']) && $card['counter'] > 0): ?>
+                                                <span class="bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg">
+                                                    <?= $card['counter'] ?>
+                                                </span>
+                                            <?php elseif (isset($card['badge'])): ?>
+                                                <span class="<?= $card['badge_bg'] ?? 'bg-emerald-300 text-gray-900' ?> text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                                    <?= Html::encode($card['badge']) ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div>
+                                            <h3 class="text-base font-bold <?= $isGradient ? 'text-white' : 'text-gray-900 group-hover:' . $colors['text'] ?> transition-colors">
+                                                <?= Html::encode($card['label']) ?>
+                                            </h3>
+                                            <p class="text-xs <?= $isGradient ? 'opacity-90 text-white' : 'text-gray-500' ?> mt-1 line-clamp-2">
+                                                <?= Html::encode($card['description']) ?>
+                                            </p>
+                                        </div>
+                                    </a>
                                 <?php endif; ?>
-                            </p>
+                            <?php endforeach; ?>
                         </div>
                     </div>
-                </a>
-            <?php endif; ?>
-
-            <?php if ($ehDonoLoja): ?>
-                <?php if (!isset($permissoesModulo['dashboard-geral']) || $permissoesModulo['dashboard-geral'] !== false): ?>
-                    <!-- Dashboard Geral -->
-                    <a href="<?= Url::to(['/vendas/dashboard/index']) ?>"
-                        class="group block bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
-                        <div class="flex items-center space-x-3 sm:space-x-4">
-                            <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
-                                <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2" />
-                                </svg>
-                            </div>
-                            <div class="flex-1 text-white">
-                                <h3 class="text-lg sm:text-xl font-bold mb-0.5">Dashboard Geral</h3>
-                                <p class="text-xs sm:text-sm opacity-90">Visão geral de estatísticas</p>
-                            </div>
-                        </div>
-                    </a>
                 <?php endif; ?>
-
-                <?php if (!isset($permissoesModulo['dashboard-executivo']) || $permissoesModulo['dashboard-executivo'] !== false): ?>
-                    <!-- Dashboard Executivo -->
-                    <a href="<?= Url::to(['/vendas/dashboard/executivo']) ?>"
-                        class="group block bg-gradient-to-br from-purple-600 to-indigo-800 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
-                        <div class="flex items-center space-x-3 sm:space-x-4">
-                            <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
-                                <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-                                </svg>
-                            </div>
-                            <div class="flex-1 text-white">
-                                <h3 class="text-lg sm:text-xl font-bold mb-0.5">Dashboard Executivo</h3>
-                                <p class="text-xs sm:text-sm opacity-90">Indicadores de BI e Metas</p>
-                            </div>
-                        </div>
-                    </a>
-                <?php endif; ?>
-
-                <?php if (!isset($permissoesModulo['fluxo-caixa']) || $permissoesModulo['fluxo-caixa'] !== false): ?>
-                    <!-- Dashboard Financeiro (Fluxo de Caixa) -->
-                    <a href="<?= Yii::getAlias('@web') ?>/financeiro/index.html"
-                        class="group block bg-gradient-to-br from-emerald-600 to-teal-700 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
-                        <div class="flex items-center space-x-3 sm:space-x-4">
-                            <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
-                                <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            </div>
-                            <div class="flex-1 text-white">
-                                <h3 class="text-lg sm:text-xl font-bold mb-0.5">Fluxo de Caixa</h3>
-                                <p class="text-xs sm:text-sm opacity-90">Dashboard Financeiro Real</p>
-                            </div>
-                        </div>
-                    </a>
-                <?php endif; ?>
-            <?php endif; ?>
+            <?php endforeach; ?>
         </div>
-
-
-        <?php if ($ehAdministrador): ?>
-            <!-- Seção de Gerenciamento (apenas para administradores) -->
-            <div class="space-y-4 sm:space-y-5">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Gerenciamento</h2>
-                    <span class="text-xs sm:text-sm text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
-                        <?= count($visibleCards) ?> módulos
-                    </span>
-                </div>
-
-                <!-- Grid de Cards de Gerenciamento -->
-                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-                    <?php foreach ($visibleCards as $card):
-                        $colors = $colorMap[$card['color']] ?? $colorMap['gray'];
-                    ?>
-                        <a href="<?= Url::to($card['url']) ?>"
-                            class="group block bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-lg border-2 border-transparent <?= $colors['border'] ?> transition-all duration-300 transform hover:-translate-y-1 active:scale-95 focus:outline-none focus:ring-2 <?= $colors['ring'] ?> focus:ring-offset-2">
-                            <div class="flex flex-col items-center text-center space-y-2 sm:space-y-3">
-                                <!-- Ícone -->
-                                <div class="<?= $colors['bg'] ?> rounded-lg sm:rounded-xl p-2.5 sm:p-3 inline-flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                                    <svg class="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 <?= $colors['text'] ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <?= $card['icon'] ?>
-                                    </svg>
-                                </div>
-
-                                <!-- Texto -->
-                                <div class="space-y-0.5 sm:space-y-1">
-                                    <h3 class="font-bold text-gray-900 text-sm sm:text-base leading-tight">
-                                        <?= Html::encode($card['label']) ?>
-                                    </h3>
-                                    <p class="text-xs text-gray-500 font-medium hidden sm:block">
-                                        <?= Html::encode($card['description'] ?? 'Gerir') ?>
-                                    </p>
-                                </div>
-                            </div>
-                        </a>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-        <?php endif; ?>
 
         <!-- Rodapé com informações adicionais -->
         <div class="pt-4 sm:pt-6 border-t border-gray-200">
