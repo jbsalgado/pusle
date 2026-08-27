@@ -8,6 +8,9 @@ $subtitulo = Html::encode($encarte->subtitulo ?: 'Ofertas Imbatíveis');
 $nomeLoja = $loja ? Html::encode($loja->nome ?: 'Nossa Loja') : 'Pulse Vendas';
 $telefoneLoja = $loja ? Html::encode($loja->telefone ?: '') : '';
 $whatsappClean = preg_replace('/[^0-9]/', '', $telefoneLoja);
+if (!empty($whatsappClean) && strlen($whatsappClean) >= 10 && strlen($whatsappClean) <= 11 && strpos($whatsappClean, '55') !== 0) {
+    $whatsappClean = '55' . $whatsappClean;
+}
 
 $ppp = $encarte->produtos_por_pagina ?: 6;
 $paginas = array_chunk($encarteProdutos, $ppp);
