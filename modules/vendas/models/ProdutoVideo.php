@@ -115,7 +115,17 @@ class ProdutoVideo extends ActiveRecord
 
         if (!empty($this->video_path)) {
             $caminho = ltrim($this->video_path, '/');
-            return \yii\helpers\Url::to('@web/' . $caminho, true);
+            if (Yii::$app->has('request') && method_exists(Yii::$app->request, 'getBaseUrl')) {
+                try {
+                    $baseUrl = Yii::$app->request->getBaseUrl();
+                    if ($baseUrl !== null && $baseUrl !== false) {
+                        return rtrim($baseUrl, '/') . '/' . $caminho;
+                    }
+                } catch (\Throwable $e) {
+                    // Fallback para caminho relativo se falhar no console
+                }
+            }
+            return '/' . $caminho;
         }
 
         return '';

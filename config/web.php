@@ -20,6 +20,7 @@ $config = [
         '@bower'   => '@vendor/bower-asset',
         '@npm'     => '@vendor/npm-asset',
         '@webroot' => '@app/web',
+        '@web'     => '',
     ],
     'components' => [
         'queue' => [

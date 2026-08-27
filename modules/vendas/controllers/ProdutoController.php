@@ -1710,7 +1710,8 @@ class ProdutoController extends Controller
                 $videoModel->formato = ProdutoVideo::FORMATO_FEED;
                 $videoModel->status = ProdutoVideo::STATUS_CONCLUIDO;
                 $videoModel->video_path = 'uploads/produtos/' . $model->id . '/videos/' . $filename;
-                $videoModel->video_url = Yii::getAlias('@web') . '/' . $videoModel->video_path;
+                $webAlias = Yii::getAlias('@web', false) ?: '';
+                $videoModel->video_url = '/' . ltrim($webAlias . '/' . $videoModel->video_path, '/');
                 $videoModel->metadata = [
                     'origem' => 'upload_manual',
                     'nome_original' => $file->name,

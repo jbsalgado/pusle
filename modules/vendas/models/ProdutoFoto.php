@@ -122,14 +122,17 @@ class ProdutoFoto extends ActiveRecord
     public function getUrl()
     {
         $caminhoFoto = ltrim($this->arquivo_path, '/');
-        // Usa Url::to() que é mais robusto que getAlias('@web')
-        $url = \yii\helpers\Url::to('@web/' . $caminhoFoto, true);
-        // Fallback: se Url::to falhar, usa getAlias
-        if (empty($url) || $url === '@web/' . $caminhoFoto) {
-            $webAlias = Yii::getAlias('@web');
-            $url = rtrim($webAlias, '/') . '/' . ltrim($caminhoFoto, '/');
+        if (Yii::$app->has('request') && method_exists(Yii::$app->request, 'getBaseUrl')) {
+            try {
+                $baseUrl = Yii::$app->request->getBaseUrl();
+                if ($baseUrl !== null && $baseUrl !== false) {
+                    return rtrim($baseUrl, '/') . '/' . $caminhoFoto;
+                }
+            } catch (\Throwable $e) {
+                // Fallback para caminho relativo
+            }
         }
-        return $url;
+        return '/' . $caminhoFoto;
     }
 
     public function getProduto()

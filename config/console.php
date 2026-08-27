@@ -9,9 +9,11 @@ $config = [
     'bootstrap' => ['log', 'queue'],
     'controllerNamespace' => 'app\commands',
     'aliases' => [
-        '@bower' => '@vendor/bower-asset',
-        '@npm'   => '@vendor/npm-asset',
-        '@tests' => '@app/tests',
+        '@bower'   => '@vendor/bower-asset',
+        '@npm'     => '@vendor/npm-asset',
+        '@tests'   => '@app/tests',
+        '@webroot' => '@app/web',
+        '@web'     => '',
     ],
     'modules' => [
         'vendas' => [
@@ -56,6 +58,14 @@ $config = [
             'currencyCode' => 'BRL',
             'decimalSeparator' => ',',
             'thousandSeparator' => '.',
+        ],
+        'urlManager' => [
+            'class' => 'yii\web\UrlManager',
+            'scriptUrl' => '/index.php',
+            'baseUrl' => '',
+            'hostInfo' => 'https://alex-bird.oncode.app.br',
+            'enablePrettyUrl' => true,
+            'showScriptName' => false,
         ],
         'db' => $db,
         'metaGraphService' => [
