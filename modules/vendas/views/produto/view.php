@@ -422,6 +422,99 @@ $this->params['breadcrumbs'][] = $this->title;
                     </div>
                 <?php endif; ?>
 
+                <!-- Vídeos do Produto -->
+                <?php
+                // Garante o carregamento dos vídeos ativos do produto
+                $videosProduto = $model->videos ?: [];
+                if (empty($videosProduto) && !$model->isRelationPopulated('videos')) {
+                    $videosProduto = $model->getVideos()->all();
+                }
+                ?>
+
+                <div class="bg-white rounded-lg shadow-md overflow-hidden mt-6">
+                    <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between flex-wrap gap-2">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            <h3 class="text-lg font-semibold text-gray-900">Vídeos do Produto (<?= count($videosProduto) ?>)</h3>
+                        </div>
+                        <?php if (count($videosProduto) < 2): ?>
+                            <?= Html::a(
+                                '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Adicionar Vídeo',
+                                ['update', 'id' => $model->id, '#' => 'secao-videos'],
+                                ['class' => 'inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition shadow-sm']
+                            ) ?>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="p-6">
+                        <?php if (!empty($videosProduto)): ?>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <?php foreach ($videosProduto as $idx => $video): ?>
+                                    <?php
+                                        $meta = is_array($video->metadata) ? $video->metadata : json_decode($video->metadata ?? '', true);
+                                        $tamanhoBytes = $meta['tamanho_bytes'] ?? null;
+                                        $tamanhoFormatted = $tamanhoBytes ? number_format($tamanhoBytes / (1024 * 1024), 2, ',', '.') . ' MB' : null;
+                                        $origem = $meta['origem'] ?? 'upload_manual';
+                                        $urlVideo = $video->getUrl();
+                                    ?>
+                                    <div class="bg-gray-900 rounded-xl overflow-hidden p-3 border border-gray-800 shadow-md flex flex-col justify-between">
+                                        <video src="<?= Html::encode($urlVideo) ?>" controls preload="metadata" class="w-full aspect-video rounded-lg bg-black object-cover mb-3"></video>
+                                        
+                                        <div class="space-y-2 pt-2 border-t border-gray-800">
+                                            <div class="flex items-center justify-between text-xs text-gray-300">
+                                                <span class="bg-purple-600/30 text-purple-300 px-2 py-0.5 rounded border border-purple-500/30 font-bold text-[11px]">
+                                                    🎥 Vídeo <?= $idx + 1 ?>
+                                                </span>
+                                                <?php if ($tamanhoFormatted): ?>
+                                                    <span class="text-gray-400 font-medium text-[11px]"><?= $tamanhoFormatted ?></span>
+                                                <?php endif; ?>
+                                            </div>
+
+                                            <div class="flex items-center justify-between text-[11px] text-gray-400">
+                                                <span>Origem: <strong class="text-gray-300 font-semibold"><?= $origem === 'studio_916' ? 'Estúdio 9:16' : 'Upload Manual' ?></strong></span>
+                                                <span>Status: <strong class="text-emerald-400 font-semibold">Concluído</strong></span>
+                                            </div>
+
+                                            <div class="flex items-center gap-2 pt-1">
+                                                <a href="<?= Html::encode($urlVideo) ?>" target="_blank" class="flex-1 text-center px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold rounded-lg transition">
+                                                    🔗 Nova Aba
+                                                </a>
+                                                <a href="<?= Html::encode($urlVideo) ?>" download class="flex-1 text-center px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition">
+                                                    ⬇️ Baixar
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php else: ?>
+                            <div class="p-8 text-center bg-purple-50/40 rounded-xl border border-dashed border-purple-200 flex flex-col items-center justify-center">
+                                <div class="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center mb-3">
+                                    <svg class="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
+                                <h4 class="text-base font-bold text-gray-800 mb-1">Nenhum vídeo cadastrado para este produto</h4>
+                                <p class="text-xs text-gray-500 max-w-sm mb-4">Adicione até 2 vídeos demonstrativos de até 5MB cada para aumentar o engajamento e as vendas do produto.</p>
+                                <div class="flex flex-wrap items-center justify-center gap-3">
+                                    <?= Html::a(
+                                        '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Fazer Upload de Vídeos',
+                                        ['update', 'id' => $model->id, '#' => 'secao-videos'],
+                                        ['class' => 'inline-flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition shadow-md']
+                                    ) ?>
+                                    <?= Html::a(
+                                        '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg> Estúdio de Vídeo 9:16',
+                                        ['/vendas/produto-video/studio', 'produto_id' => $model->id],
+                                        ['class' => 'inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition shadow-md']
+                                    ) ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
             </div>
         </div>
 
