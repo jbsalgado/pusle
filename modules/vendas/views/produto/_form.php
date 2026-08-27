@@ -1456,6 +1456,57 @@ if ($model->hasErrors()): ?>
     }
     // ==========================================
 
+    // --- GERENCIAMENTO DE EXCLUSÃO EM MASSA DE FOTOS EXISTENTES ---
+    window.atualizarContadorFotosSelecionadas = function() {
+        const checkboxes = document.querySelectorAll('.chk-foto-item');
+        const marcadas = document.querySelectorAll('.chk-foto-item:checked');
+        const total = checkboxes.length;
+        const qtdMarcadas = marcadas.length;
+
+        const contador = document.getElementById('contador-fotos-selecionadas');
+        if (contador) {
+            contador.innerText = `(${qtdMarcadas} de ${total} selecionadas)`;
+        }
+
+        const btnExcluir = document.getElementById('btn-excluir-fotos-selecionadas');
+        if (btnExcluir) {
+            if (qtdMarcadas > 0) {
+                btnExcluir.disabled = false;
+                btnExcluir.className = 'px-3 py-1.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white cursor-pointer text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 shadow-md transform hover:scale-105';
+            } else {
+                btnExcluir.disabled = true;
+                btnExcluir.className = 'px-3 py-1.5 bg-red-100 text-red-400 cursor-not-allowed text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 shadow-sm';
+            }
+        }
+
+        const chkTodas = document.getElementById('chk-selecionar-todas-fotos');
+        if (chkTodas) {
+            chkTodas.checked = (total > 0 && qtdMarcadas === total);
+        }
+    };
+
+    window.toggleSelecionarTodasFotos = function() {
+        const checkboxes = document.querySelectorAll('.chk-foto-item');
+        const chkTodas = document.getElementById('chk-selecionar-todas-fotos');
+        const novoEstado = chkTodas ? !chkTodas.checked : true;
+
+        checkboxes.forEach(chk => {
+            chk.checked = novoEstado;
+        });
+
+        window.atualizarContadorFotosSelecionadas();
+    };
+
+    window.submeterExclusaoFotosMassa = function() {
+        const marcadas = document.querySelectorAll('.chk-foto-item:checked');
+        if (marcadas.length === 0) return;
+
+        const msg = `Tem certeza que deseja excluir as ${marcadas.length} foto(s) selecionada(s)?`;
+        if (confirm(msg)) {
+            document.getElementById('form-delete-fotos-massa').submit();
+        }
+    };
+
     // Calcular margem e markup em tempo real
     document.addEventListener('DOMContentLoaded', function() {
         /**
@@ -3093,55 +3144,6 @@ if ($model->hasErrors()): ?>
                     }
                 }
             }
-        // --- GERENCIAMENTO DE EXCLUSÃO EM MASSA DE FOTOS EXISTENTES ---
-        window.atualizarContadorFotosSelecionadas = function() {
-            const checkboxes = document.querySelectorAll('.chk-foto-item');
-            const marcadas = document.querySelectorAll('.chk-foto-item:checked');
-            const total = checkboxes.length;
-            const qtdMarcadas = marcadas.length;
-
-            const contador = document.getElementById('contador-fotos-selecionadas');
-            if (contador) {
-                contador.innerText = `(${qtdMarcadas} de ${total} selecionadas)`;
-            }
-
-            const btnExcluir = document.getElementById('btn-excluir-fotos-selecionadas');
-            if (btnExcluir) {
-                if (qtdMarcadas > 0) {
-                    btnExcluir.disabled = false;
-                    btnExcluir.className = 'px-3 py-1.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white cursor-pointer text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 shadow-md transform hover:scale-105';
-                } else {
-                    btnExcluir.disabled = true;
-                    btnExcluir.className = 'px-3 py-1.5 bg-red-100 text-red-400 cursor-not-allowed text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 shadow-sm';
-                }
-            }
-
-            const chkTodas = document.getElementById('chk-selecionar-todas-fotos');
-            if (chkTodas) {
-                chkTodas.checked = (total > 0 && qtdMarcadas === total);
-            }
-        };
-
-        window.toggleSelecionarTodasFotos = function() {
-            const checkboxes = document.querySelectorAll('.chk-foto-item');
-            const chkTodas = document.getElementById('chk-selecionar-todas-fotos');
-            const novoEstado = chkTodas ? !chkTodas.checked : true;
-
-            checkboxes.forEach(chk => {
-                chk.checked = novoEstado;
-            });
-
-            window.atualizarContadorFotosSelecionadas();
-        };
-
-        window.submeterExclusaoFotosMassa = function() {
-            const marcadas = document.querySelectorAll('.chk-foto-item:checked');
-            if (marcadas.length === 0) return;
-
-            const msg = `Tem certeza que deseja excluir as ${marcadas.length} foto(s) selecionada(s)?`;
-            if (confirm(msg)) {
-                document.getElementById('form-delete-fotos-massa').submit();
-            }
-        };
+        }, 500);
     });
 </script>
