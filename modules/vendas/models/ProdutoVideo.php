@@ -272,6 +272,18 @@ class ProdutoVideo extends ActiveRecord
             'paws' => 'Patas de Pet',
             'balloons' => 'Balões Pastel',
             'gifts' => 'Caixas de Presente',
+            'christmas' => 'Natal & Festas',
+            'birthday' => 'Aniversário & Bolo',
+            'fashion' => 'Moda & Fashion',
+            'valentines' => 'Dia dos Namorados',
+            'shoes' => 'Sapatos & Calçados',
+            'handbags' => 'Bolsas & Acessórios',
+            'sweets' => 'Doces & Confeitos',
+            'shirts' => 'Blusas & Camisas',
+            'jeans' => 'Calças Jeans',
+            'sneakers' => 'Tênis Sneakers',
+            'woman' => 'Mulher Kawaii',
+            'man' => 'Homem Kawaii',
         ];
         $efeitoRaw = $meta['efeito_visual'] ?? $meta['efeitoVisual'] ?? 'none';
         $efeitoVal = $efeitoMap[$efeitoRaw] ?? 'Sem Efeito';
@@ -280,16 +292,11 @@ class ProdutoVideo extends ActiveRecord
     }
 
     /**
-     * Retorna o resumo dos recursos gravado no banco ou calcula e persiste se não existir
+     * Retorna o resumo dos recursos gravado no banco reavaliando dinamicamente os parâmetros
      */
     public function getResumoRecursosFormatted(): string
     {
         $meta = is_array($this->metadata) ? $this->metadata : (json_decode($this->metadata ?? '{}', true) ?: []);
-        if (!empty($meta['resumo_recursos'])) {
-            return (string)$meta['resumo_recursos'];
-        }
-
-        // Se for registro antigo sem resumo_recursos no metadata, gera a string a partir dos dados existentes
         $meta['formato'] = $meta['formato'] ?? $this->formato ?? 'stories';
         return self::gerarResumoRecursosTexto($meta);
     }

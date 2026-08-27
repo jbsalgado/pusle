@@ -577,6 +577,54 @@ input[type="radio"]:checked + .color-pill-card {
                                 <input type="radio" name="video_efeito_visual" value="gifts" class="d-none">
                                 <div class="color-pill-card">🎁 Caixas de Presente</div>
                             </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_efeito_visual" value="christmas" class="d-none">
+                                <div class="color-pill-card">🎄 Natal & Festas</div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_efeito_visual" value="birthday" class="d-none">
+                                <div class="color-pill-card">🎂 Aniversário & Bolo</div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_efeito_visual" value="fashion" class="d-none">
+                                <div class="color-pill-card">👗 Moda & Fashion</div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_efeito_visual" value="valentines" class="d-none">
+                                <div class="color-pill-card">💘 Dia dos Namorados</div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_efeito_visual" value="shoes" class="d-none">
+                                <div class="color-pill-card">👠 Sapatos & Calçados</div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_efeito_visual" value="handbags" class="d-none">
+                                <div class="color-pill-card">👜 Bolsas & Acessórios</div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_efeito_visual" value="sweets" class="d-none">
+                                <div class="color-pill-card">🍬 Doces & Confeitos</div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_efeito_visual" value="shirts" class="d-none">
+                                <div class="color-pill-card">👔 Blusas & Camisas</div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_efeito_visual" value="jeans" class="d-none">
+                                <div class="color-pill-card">👖 Calças Jeans</div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_efeito_visual" value="sneakers" class="d-none">
+                                <div class="color-pill-card">👟 Tênis Sneakers</div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_efeito_visual" value="woman" class="d-none">
+                                <div class="color-pill-card">👩 Mulher Kawaii</div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_efeito_visual" value="man" class="d-none">
+                                <div class="color-pill-card">👨 Homem Kawaii</div>
+                            </label>
                         </div>
                     </div>
 
@@ -1000,6 +1048,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         progressBox.style.display = 'none';
                         btnGerar.disabled = false;
                         mostrarVideoConcluido(resData.video_url);
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1200);
                     }, 800);
 
                 } else if (resData.status === 'erro') {

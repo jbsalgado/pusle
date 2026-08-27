@@ -539,7 +539,13 @@ function generateVideoHtmlTemplate(data, duracao) {
             if (!ctx || type === 'none') return;
             const contrastColors = getContrastParticleColors(corTemaVal);
 
-            if (['baby_kids', 'flowers', 'paws', 'balloons', 'gifts'].includes(type)) {
+            const allKawaiiTypes = [
+                'baby_kids', 'flowers', 'paws', 'balloons', 'gifts',
+                'christmas', 'birthday', 'fashion', 'valentines', 'shoes',
+                'handbags', 'sweets', 'shirts', 'jeans', 'sneakers', 'woman', 'man'
+            ];
+
+            if (allKawaiiTypes.includes(type)) {
                 for (let i = 0; i < 35; i++) {
                     particles.push({
                         x: Math.random() * canvas.width,
@@ -818,11 +824,306 @@ function generateVideoHtmlTemplate(data, duracao) {
             ctx.restore();
         }
 
+        function drawChristmasTree(ctx, x, y, size, color, alpha) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            ctx.fillStyle = '#10B981';
+            const h = size * 0.9;
+            const w = size * 0.7;
+
+            for (let i = 0; i < 3; i++) {
+                const layerY = y - h * 0.4 + i * (h * 0.25);
+                const layerW = w * (0.5 + i * 0.25);
+                ctx.beginPath();
+                ctx.moveTo(x, layerY - h * 0.3);
+                ctx.lineTo(x + layerW / 2, layerY + h * 0.15);
+                ctx.lineTo(x - layerW / 2, layerY + h * 0.15);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            ctx.fillStyle = '#78350F';
+            ctx.fillRect(x - w * 0.1, y + h * 0.35, w * 0.2, h * 0.15);
+
+            ctx.fillStyle = '#FDE047';
+            ctx.beginPath();
+            ctx.arc(x, y - h * 0.45, size * 0.12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawBirthdayCake(ctx, x, y, size, color, alpha) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            ctx.fillStyle = color;
+
+            const w = size * 0.75;
+            const h = size * 0.5;
+            const bx = x - w / 2;
+            const by = y - h / 2 + size * 0.1;
+
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(bx, by, w, h, size * 0.1);
+            else ctx.fillRect(bx, by, w, h);
+            ctx.fill();
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.beginPath();
+            ctx.arc(x - w * 0.3, by, size * 0.1, 0, Math.PI);
+            ctx.arc(x, by, size * 0.1, 0, Math.PI);
+            ctx.arc(x + w * 0.3, by, size * 0.1, 0, Math.PI);
+            ctx.fill();
+
+            ctx.fillStyle = '#F472B6';
+            ctx.fillRect(x - size * 0.04, by - size * 0.22, size * 0.08, size * 0.22);
+            ctx.fillStyle = '#FDE047';
+            ctx.beginPath();
+            ctx.arc(x, by - size * 0.28, size * 0.06, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawFashionHanger(ctx, x, y, size, color, alpha) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            ctx.strokeStyle = color;
+            ctx.lineWidth = Math.max(2, size * 0.1);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            ctx.beginPath();
+            ctx.arc(x, y - size * 0.3, size * 0.15, 0.2 * Math.PI, 1.8 * Math.PI, true);
+            ctx.stroke();
+
+            const w = size * 0.8;
+            const h = size * 0.35;
+            ctx.beginPath();
+            ctx.moveTo(x, y - size * 0.15);
+            ctx.lineTo(x + w / 2, y + h);
+            ctx.lineTo(x - w / 2, y + h);
+            ctx.closePath();
+            ctx.stroke();
+
+            ctx.fillStyle = '#FFB6C1';
+            ctx.beginPath();
+            ctx.arc(x, y - size * 0.15, size * 0.08, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawValentinesHeart(ctx, x, y, size, color, alpha) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+
+            drawHeartPath(ctx, x - size * 0.1, y, size * 0.8, color, alpha);
+
+            ctx.strokeStyle = '#FDE047';
+            ctx.lineWidth = Math.max(2, size * 0.08);
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(x - size * 0.6, y + size * 0.4);
+            ctx.lineTo(x + size * 0.6, y - size * 0.4);
+            ctx.stroke();
+
+            ctx.fillStyle = '#FDE047';
+            ctx.beginPath();
+            ctx.moveTo(x + size * 0.6, y - size * 0.4);
+            ctx.lineTo(x + size * 0.45, y - size * 0.4);
+            ctx.lineTo(x + size * 0.6, y - size * 0.25);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawHighHeelShoe(ctx, x, y, size, color, alpha) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            ctx.fillStyle = color;
+
+            ctx.fillRect(x - size * 0.35, y, size * 0.08, size * 0.45);
+
+            ctx.beginPath();
+            ctx.moveTo(x - size * 0.4, y - size * 0.1);
+            ctx.quadraticCurveTo(x - size * 0.1, y + size * 0.2, x + size * 0.4, y + size * 0.2);
+            ctx.quadraticCurveTo(x + size * 0.2, y - size * 0.2, x - size * 0.3, y - size * 0.2);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(x - size * 0.05, y - size * 0.05, size * 0.18, size * 0.06);
+            ctx.restore();
+        }
+
+        function drawHandbag(ctx, x, y, size, color, alpha) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            ctx.fillStyle = color;
+
+            const w = size * 0.7;
+            const h = size * 0.5;
+            const bx = x - w / 2;
+            const by = y - h / 2 + size * 0.1;
+
+            ctx.beginPath();
+            ctx.moveTo(bx + size * 0.1, by);
+            ctx.lineTo(bx + w - size * 0.1, by);
+            ctx.quadraticCurveTo(bx + w, by, bx + w, by + size * 0.1);
+            ctx.lineTo(bx + w * 0.9, by + h);
+            ctx.lineTo(bx + w * 0.1, by + h);
+            ctx.lineTo(bx, by + size * 0.1);
+            ctx.quadraticCurveTo(bx, by, bx + size * 0.1, by);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = Math.max(3, size * 0.09);
+            ctx.beginPath();
+            ctx.arc(x, by, size * 0.22, Math.PI, 0);
+            ctx.stroke();
+
+            ctx.fillStyle = '#FDE047';
+            ctx.beginPath();
+            ctx.arc(x, by + h * 0.4, size * 0.08, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawSweets(ctx, x, y, size, color, alpha) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            ctx.fillStyle = color;
+
+            ctx.beginPath();
+            ctx.ellipse(x, y, size * 0.32, size * 0.22, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(x - size * 0.3, y);
+            ctx.lineTo(x - size * 0.5, y - size * 0.15);
+            ctx.lineTo(x - size * 0.5, y + size * 0.15);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(x + size * 0.3, y);
+            ctx.lineTo(x + size * 0.5, y - size * 0.15);
+            ctx.lineTo(x + size * 0.5, y + size * 0.15);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawShirt(ctx, x, y, size, color, alpha) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            ctx.fillStyle = color;
+
+            const w = size * 0.7;
+            const h = size * 0.65;
+
+            ctx.beginPath();
+            ctx.moveTo(x - w * 0.25, y - h * 0.5);
+            ctx.lineTo(x - w * 0.5, y - h * 0.25);
+            ctx.lineTo(x - w * 0.35, y - h * 0.1);
+            ctx.lineTo(x - w * 0.35, y + h * 0.5);
+            ctx.lineTo(x + w * 0.35, y + h * 0.5);
+            ctx.lineTo(x + w * 0.35, y - h * 0.1);
+            ctx.lineTo(x + w * 0.5, y - h * 0.25);
+            ctx.lineTo(x + w * 0.25, y - h * 0.5);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.beginPath();
+            ctx.arc(x, y - h * 0.1, size * 0.04, 0, Math.PI * 2);
+            ctx.arc(x, y + h * 0.15, size * 0.04, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawJeans(ctx, x, y, size, color, alpha) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            ctx.fillStyle = '#3B82F6';
+
+            const w = size * 0.55;
+            const h = size * 0.75;
+
+            ctx.beginPath();
+            ctx.moveTo(x - w * 0.5, y - h * 0.5);
+            ctx.lineTo(x + w * 0.5, y - h * 0.5);
+            ctx.lineTo(x + w * 0.45, y + h * 0.5);
+            ctx.lineTo(x + w * 0.08, y + h * 0.5);
+            ctx.lineTo(x, y - h * 0.1);
+            ctx.lineTo(x - w * 0.08, y + h * 0.5);
+            ctx.lineTo(x - w * 0.45, y + h * 0.5);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#F59E0B';
+            ctx.fillRect(x - w * 0.5, y - h * 0.5, w, h * 0.08);
+            ctx.restore();
+        }
+
+        function drawSneakers(ctx, x, y, size, color, alpha) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            ctx.fillStyle = color;
+
+            ctx.beginPath();
+            ctx.ellipse(x, y, size * 0.45, size * 0.25, -0.1, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(x - size * 0.42, y + size * 0.12, size * 0.84, size * 0.1);
+
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = Math.max(2, size * 0.06);
+            ctx.beginPath();
+            ctx.moveTo(x - size * 0.15, y - size * 0.1);
+            ctx.lineTo(x + size * 0.1, y + size * 0.05);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawWomanHead(ctx, x, y, size, color, alpha) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+
+            drawBabyHead(ctx, x, y, size, color, alpha);
+
+            ctx.fillStyle = '#EC4899';
+            ctx.beginPath();
+            ctx.ellipse(x - size * 0.2, y - size * 0.4, size * 0.15, size * 0.09, -0.3, 0, Math.PI * 2);
+            ctx.ellipse(x + size * 0.2, y - size * 0.4, size * 0.15, size * 0.09, 0.3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawManHead(ctx, x, y, size, color, alpha) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+
+            drawBabyHead(ctx, x, y, size, color, alpha);
+
+            ctx.fillStyle = '#1E293B';
+            ctx.beginPath();
+            ctx.arc(x, y - size * 0.4, size * 0.22, 0, Math.PI);
+            ctx.fill();
+            ctx.restore();
+        }
+
         function renderParticles(currentTime, type) {
             if (!ctx || type === 'none') return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            if (['baby_kids', 'flowers', 'paws', 'balloons', 'gifts'].includes(type)) {
+            const allKawaiiTypes = [
+                'baby_kids', 'flowers', 'paws', 'balloons', 'gifts',
+                'christmas', 'birthday', 'fashion', 'valentines', 'shoes',
+                'handbags', 'sweets', 'shirts', 'jeans', 'sneakers', 'woman', 'man'
+            ];
+
+            if (allKawaiiTypes.includes(type)) {
                 for (let i = 0; i < particles.length; i++) {
                     const p = particles[i];
                     p.y -= p.speedY;
@@ -840,6 +1141,30 @@ function generateVideoHtmlTemplate(data, duracao) {
                         drawPastelBalloon(ctx, p.x, p.y, p.size, p.color, p.alpha);
                     } else if (type === 'gifts') {
                         drawGiftBox(ctx, p.x, p.y, p.size, p.color, p.alpha);
+                    } else if (type === 'christmas') {
+                        drawChristmasTree(ctx, p.x, p.y, p.size, p.color, p.alpha);
+                    } else if (type === 'birthday') {
+                        drawBirthdayCake(ctx, p.x, p.y, p.size, p.color, p.alpha);
+                    } else if (type === 'fashion') {
+                        drawFashionHanger(ctx, p.x, p.y, p.size, p.color, p.alpha);
+                    } else if (type === 'valentines') {
+                        drawValentinesHeart(ctx, p.x, p.y, p.size, p.color, p.alpha);
+                    } else if (type === 'shoes') {
+                        drawHighHeelShoe(ctx, p.x, p.y, p.size, p.color, p.alpha);
+                    } else if (type === 'handbags') {
+                        drawHandbag(ctx, p.x, p.y, p.size, p.color, p.alpha);
+                    } else if (type === 'sweets') {
+                        drawSweets(ctx, p.x, p.y, p.size, p.color, p.alpha);
+                    } else if (type === 'shirts') {
+                        drawShirt(ctx, p.x, p.y, p.size, p.color, p.alpha);
+                    } else if (type === 'jeans') {
+                        drawJeans(ctx, p.x, p.y, p.size, p.color, p.alpha);
+                    } else if (type === 'sneakers') {
+                        drawSneakers(ctx, p.x, p.y, p.size, p.color, p.alpha);
+                    } else if (type === 'woman') {
+                        drawWomanHead(ctx, p.x, p.y, p.size, p.color, p.alpha);
+                    } else if (type === 'man') {
+                        drawManHead(ctx, p.x, p.y, p.size, p.color, p.alpha);
                     }
                 }
             } else if (type === 'fireworks') {
