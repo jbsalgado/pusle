@@ -233,7 +233,11 @@ class VideoGeneratorService
             $videosCadastrados = $produto->videos;
             foreach ($videosCadastrados as $vItem) {
                 if (!empty($vItem->video_path)) {
-                    $absPathV = Yii::getAlias('@webroot/' . ltrim($vItem->video_path, '/'));
+                    $caminhoRel = ltrim($vItem->video_path, '/');
+                    $absPathV = Yii::getAlias('@app/web/' . $caminhoRel);
+                    if (!file_exists($absPathV)) {
+                        $absPathV = Yii::getAlias('@webroot/' . $caminhoRel);
+                    }
                     if (file_exists($absPathV)) {
                         $videosArray[] = [
                             'id' => $vItem->id,

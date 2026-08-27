@@ -17,8 +17,9 @@ $config = [
     'basePath' => dirname(__DIR__),
     'bootstrap' => ['log', 'queue'],
     'aliases' => [
-        '@bower' => '@vendor/bower-asset',
-        '@npm'   => '@vendor/npm-asset',
+        '@bower'   => '@vendor/bower-asset',
+        '@npm'     => '@vendor/npm-asset',
+        '@webroot' => '@app/web',
     ],
     'components' => [
         'queue' => [

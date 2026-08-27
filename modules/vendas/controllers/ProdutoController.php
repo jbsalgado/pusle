@@ -1619,7 +1619,7 @@ class ProdutoController extends Controller
         @ini_set('upload_max_filesize', '10M');
         @ini_set('post_max_size', '16M');
 
-        $uploadPath = Yii::getAlias('@webroot/uploads/produtos/' . $model->id . '/videos');
+        $uploadPath = Yii::getAlias('@app/web/uploads/produtos/' . $model->id . '/videos');
 
         if (!is_dir($uploadPath)) {
             @mkdir($uploadPath, 0755, true);
@@ -1776,7 +1776,11 @@ class ProdutoController extends Controller
 
         // Deletar arquivo físico se existir
         if (!empty($video->video_path)) {
-            $absPath = Yii::getAlias('@webroot/' . ltrim($video->video_path, '/'));
+            $caminhoRel = ltrim($video->video_path, '/');
+            $absPath = Yii::getAlias('@app/web/' . $caminhoRel);
+            if (!file_exists($absPath)) {
+                $absPath = Yii::getAlias('@webroot/' . $caminhoRel);
+            }
             if (file_exists($absPath)) {
                 @unlink($absPath);
             }
