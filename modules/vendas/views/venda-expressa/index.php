@@ -20,7 +20,7 @@ $this->params['breadcrumbs'][] = $this->title;
                     <h1 class="text-2xl font-black text-white tracking-tight">Venda Expressa</h1>
                     <span class="bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">Modo Encarte</span>
                 </div>
-                <p class="text-xs text-slate-400 mt-1">Registre suas vendas do WhatsApp ou balcão em 5 segundos</p>
+                <p class="text-xs text-slate-400 mt-1">Digite parte do nome do produto ou marca para adicionar em 1 clique</p>
             </div>
 
             <!-- Resumo Financeiro de Hoje -->
@@ -48,23 +48,30 @@ $this->params['breadcrumbs'][] = $this->title;
             <!-- Coluna Esquerda: Seletor de Produtos e Lista da Venda -->
             <div class="lg:col-span-8 space-y-4">
                 
-                <!-- Card Busca Rápida de Produto -->
-                <div class="bg-slate-800 border border-slate-700 p-4 rounded-3xl shadow-xl space-y-3">
-                    <label class="block text-xs font-bold text-amber-400 uppercase tracking-wider">🔍 Selecionar Produto para Venda</label>
+                <!-- Card Busca Rápida por Digitação de Produto -->
+                <div class="bg-slate-800 border border-slate-700 p-4 rounded-3xl shadow-xl space-y-2 relative" id="containerBuscaProduto">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold text-amber-400 uppercase tracking-wider">🔍 Digitar Nome ou Marca do Produto</label>
+                        <span class="text-[10px] text-slate-400 font-semibold">Pressione Enter ou clique para incluir</span>
+                    </div>
                     
                     <div class="relative">
-                        <select id="selectProduto" onchange="adicionarProdutoSelecionado()" class="w-full bg-slate-900 border border-slate-700 text-white rounded-2xl p-3.5 text-sm font-semibold focus:ring-2 focus:ring-amber-400 focus:outline-none cursor-pointer">
-                            <option value="" selected disabled>Clique ou comece a digitar para selecionar o produto...</option>
-                            <?php foreach ($produtos as $p): 
-                                $foto = $p->fotoPrincipal ?: ($p->fotos[0] ?? null);
-                                $urlFoto = $foto ? Url::to('@web/' . ltrim($foto->arquivo_path, '/'), true) : '';
-                                $precoStr = number_format($p->preco_venda_sugerido, 2, ',', '.');
-                            ?>
-                                <option value="<?= $p->id ?>" data-nome="<?= Html::encode($p->nome) ?>" data-preco="<?= $p->preco_venda_sugerido ?>" data-preco-str="<?= $precoStr ?>" data-unidade="<?= Html::encode($p->unidade_medida ?: 'UN') ?>" data-foto="<?= $urlFoto ?>">
-                                    <?= Html::encode($p->nome) ?> — R$ <?= $precoStr ?> / <?= Html::encode($p->unidade_medida ?: 'UN') ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+                        <input type="text" id="inputBuscaProduto" 
+                               placeholder="🔍 Digite para consultar (ex: Arroz, Feijão, Nestlé)..." 
+                               autocomplete="off"
+                               oninput="filtrarProdutosBusca(this.value)"
+                               onfocus="filtrarProdutosBusca(this.value)"
+                               onkeydown="tratarTeclasBusca(event)"
+                               class="w-full bg-slate-900 border border-slate-700 text-white rounded-2xl py-3.5 pl-4 pr-10 text-sm font-semibold focus:ring-2 focus:ring-amber-400 focus:outline-none placeholder-slate-500 shadow-inner">
+                        
+                        <button type="button" id="btnLimparBusca" onclick="limparBuscaProduto()" class="absolute right-3.5 top-3.5 text-slate-400 hover:text-white hidden transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+
+                    <!-- Dropdown de Resultados da Busca -->
+                    <div id="dropdownBuscaResultados" class="absolute left-4 right-4 top-full mt-1.5 bg-slate-800/95 border border-slate-600 rounded-2xl shadow-2xl z-50 max-h-72 overflow-y-auto hidden divide-y divide-slate-700/60 backdrop-blur-lg">
+                        <!-- Renderizado dinamicamente via JS -->
                     </div>
                 </div>
 
@@ -83,7 +90,7 @@ $this->params['breadcrumbs'][] = $this->title;
                         <div id="emptyStateVenda" class="text-center py-10 text-slate-400 space-y-2">
                             <span class="text-4xl block">🛍️</span>
                             <p class="text-xs font-bold">Nenhum produto adicionado ainda.</p>
-                            <p class="text-[10px]">Selecione um produto acima para registrar a venda em 5 segundos!</p>
+                            <p class="text-[10px]">Digite no campo acima para pesquisar e adicionar em 1 clique!</p>
                         </div>
                     </div>
                 </div>
@@ -140,37 +147,164 @@ $this->params['breadcrumbs'][] = $this->title;
 </div>
 
 <script>
+    const produtosArray = [
+        <?php foreach ($produtos as $p): 
+            $foto = $p->fotoPrincipal ?: ($p->fotos[0] ?? null);
+            $urlFoto = $foto ? Url::to('@web/' . ltrim($foto->arquivo_path, '/'), true) : '';
+            $precoStr = number_format($p->preco_venda_sugerido, 2, ',', '.');
+        ?>
+        {
+            id: <?= json_encode($p->id) ?>,
+            nome: <?= json_encode($p->nome) ?>,
+            marca: <?= json_encode($p->marca ?: '') ?>,
+            precoVal: <?= (float)$p->preco_venda_sugerido ?>,
+            precoStr: <?= json_encode($precoStr) ?>,
+            unidade: <?= json_encode($p->unidade_medida ?: 'UN') ?>,
+            foto: <?= json_encode($urlFoto) ?>
+        },
+        <?php endforeach; ?>
+    ];
+
     let itensVendaMap = {};
     let formaPagamentoSelecionadaId = '<?= count($formasPagamento) > 0 ? $formasPagamento[0]->id : "" ?>';
+    let indexItemFocado = -1;
 
-    function adicionarProdutoSelecionado() {
-        const select = document.getElementById('selectProduto');
-        const opt = select.options[select.selectedIndex];
-        if (!opt || !opt.value) return;
+    function filtrarProdutosBusca(termo) {
+        const dropdown = document.getElementById('dropdownBuscaResultados');
+        const btnLimpar = document.getElementById('btnLimparBusca');
+        const termoClean = (termo || '').trim().toLowerCase();
 
-        const id = opt.value;
-        const nome = opt.getAttribute('data-nome');
-        const precoVal = parseFloat(opt.getAttribute('data-preco')) || 0;
-        const unidade = opt.getAttribute('data-unidade') || 'UN';
-        const foto = opt.getAttribute('data-foto');
+        btnLimpar.style.display = termoClean ? 'block' : 'none';
 
-        if (!itensVendaMap[id]) {
+        if (!termoClean) {
+            dropdown.classList.add('hidden');
+            dropdown.innerHTML = '';
+            indexItemFocado = -1;
+            return;
+        }
+
+        const resultados = produtosArray.filter(p => 
+            p.nome.toLowerCase().includes(termoClean) || 
+            (p.marca && p.marca.toLowerCase().includes(termoClean))
+        );
+
+        if (resultados.length === 0) {
+            dropdown.innerHTML = `<div class="p-4 text-xs font-bold text-slate-400 text-center">Nenhum produto encontrado com "${termoClean}"</div>`;
+            dropdown.classList.remove('hidden');
+            indexItemFocado = -1;
+            return;
+        }
+
+        dropdown.innerHTML = '';
+        indexItemFocado = -1;
+
+        resultados.forEach((prod, idx) => {
+            const item = document.createElement('div');
+            item.className = 'item-resultado-busca p-3 hover:bg-amber-400/20 cursor-pointer flex items-center justify-between transition gap-3 group border-b border-slate-700/40 last:border-0';
+            item.setAttribute('data-index', idx);
+            item.onclick = function() {
+                selecionarProdutoDireto(prod);
+            };
+
+            const nomeHighlighted = highlightTermo(prod.nome, termoClean);
+
+            item.innerHTML = `
+                <div class="flex items-center gap-3 flex-1 min-w-0">
+                    ${prod.foto ? `<img src="${prod.foto}" class="w-9 h-9 object-contain rounded-lg bg-white p-0.5 flex-shrink-0">` : `<div class="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center text-[9px] font-bold text-slate-500 flex-shrink-0">FOTO</div>`}
+                    <div class="truncate">
+                        <div class="font-extrabold text-xs text-white group-hover:text-amber-300 truncate">${nomeHighlighted}</div>
+                        ${prod.marca ? `<div class="text-[10px] text-slate-400 font-semibold">${prod.marca}</div>` : ''}
+                    </div>
+                </div>
+                <div class="text-right flex-shrink-0">
+                    <div class="font-montserrat font-black text-xs text-emerald-400">R$ ${prod.precoStr}</div>
+                    <div class="text-[10px] text-slate-400 uppercase font-bold">/${prod.unidade}</div>
+                </div>
+            `;
+            dropdown.appendChild(item);
+        });
+
+        dropdown.classList.remove('hidden');
+    }
+
+    function highlightTermo(texto, termo) {
+        if (!termo) return texto;
+        const re = new RegExp('(' + termo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+        return texto.replace(re, '<span class="bg-amber-400/30 text-amber-200 px-0.5 rounded font-black">$1</span>');
+    }
+
+    function tratarTeclasBusca(e) {
+        const dropdown = document.getElementById('dropdownBuscaResultados');
+        const itens = dropdown.querySelectorAll('.item-resultado-busca');
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (itens.length === 0) return;
+            indexItemFocado = (indexItemFocado + 1) % itens.length;
+            atualizarItemFocado(itens);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (itens.length === 0) return;
+            indexItemFocado = (indexItemFocado - 1 + itens.length) % itens.length;
+            atualizarItemFocado(itens);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (indexItemFocado >= 0 && itens[indexItemFocado]) {
+                itens[indexItemFocado].click();
+            } else if (itens.length > 0) {
+                itens[0].click();
+            }
+        } else if (e.key === 'Escape') {
+            limparBuscaProduto();
+        }
+    }
+
+    function atualizarItemFocado(itens) {
+        itens.forEach((it, i) => {
+            if (i === indexItemFocado) {
+                it.classList.add('bg-amber-400/20', 'border-l-4', 'border-amber-400');
+                it.scrollIntoView({ block: 'nearest' });
+            } else {
+                it.classList.remove('bg-amber-400/20', 'border-l-4', 'border-amber-400');
+            }
+        });
+    }
+
+    function selecionarProdutoDireto(prod) {
+        if (!itensVendaMap[prod.id]) {
             // Quantidade padrão igual a 1
-            itensVendaMap[id] = {
-                id: id,
-                nome: nome,
-                precoVal: precoVal,
-                unidade: unidade,
-                foto: foto,
+            itensVendaMap[prod.id] = {
+                id: prod.id,
+                nome: prod.nome,
+                precoVal: prod.precoVal,
+                unidade: prod.unidade,
+                foto: prod.foto,
                 qtd: 1
             };
         } else {
-            itensVendaMap[id].qtd += 1;
+            itensVendaMap[prod.id].qtd += 1;
         }
 
-        select.selectedIndex = 0;
+        limparBuscaProduto();
         renderizarItensVenda();
+        document.getElementById('inputBuscaProduto').focus();
     }
+
+    function limparBuscaProduto() {
+        const input = document.getElementById('inputBuscaProduto');
+        input.value = '';
+        document.getElementById('dropdownBuscaResultados').classList.add('hidden');
+        document.getElementById('btnLimparBusca').style.display = 'none';
+        indexItemFocado = -1;
+    }
+
+    // Fechar dropdown se clicar fora
+    document.addEventListener('click', function(e) {
+        const container = document.getElementById('containerBuscaProduto');
+        if (container && !container.contains(e.target)) {
+            document.getElementById('dropdownBuscaResultados').classList.add('hidden');
+        }
+    });
 
     function alterarQtdItem(id, delta) {
         if (itensVendaMap[id]) {
@@ -329,6 +463,7 @@ $this->params['breadcrumbs'][] = $this->title;
                 }
 
                 alert('✅ Venda Expressa de R$ ' + data.valor_total + ' registrada com sucesso!');
+                document.getElementById('inputBuscaProduto').focus();
             } else {
                 alert('Erro ao registrar venda: ' + (data.message || 'Falha na conexão.'));
             }
