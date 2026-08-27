@@ -191,7 +191,12 @@ $urlPdf = $encarte->getUrlPdf();
                     </div>
 
                     <!-- Grade de Produtos -->
-                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 overflow-y-auto align-content-start">
+                    <?php 
+                    $countItensPag = count($itensPagina);
+                    $gridCols = ($countItensPag <= 2) ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 sm:grid-cols-3';
+                    $cardHeight = ($countItensPag <= 2) ? 'h-64 sm:h-80' : '';
+                    ?>
+                    <div class="grid <?= $gridCols ?> gap-4 flex-1 overflow-y-auto align-content-start">
                         <?php foreach ($itensPagina as $encarteProd): 
                             $produto = $encarteProd->produto;
                             if (!$produto) continue;

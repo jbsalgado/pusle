@@ -288,7 +288,7 @@ class EncartePdfService
                 vertical-align: middle;
             }
             .store-badge {
-                background-color: {$corSecundaria};
+                background-color: {$corSecundaria} !important;
                 color: #000000 !important;
                 font-weight: 900;
                 font-size: 11px;
@@ -298,7 +298,7 @@ class EncartePdfService
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
             }
-            .main-title {
+            h1, .main-title, h1.main-title {
                 color: {$corTextoTitulo} !important;
                 font-size: 22px;
                 font-weight: 900;
@@ -313,7 +313,7 @@ class EncartePdfService
                 font-weight: bold;
             }
             .whatsapp-box {
-                background-color: #ffffff;
+                background-color: #ffffff !important;
                 color: #0f172a !important;
                 border: 2px solid #22c55e;
                 padding: 6px 12px;
@@ -475,29 +475,29 @@ class EncartePdfService
             /* Ajustes Dinâmicos de Altura conforme a quantidade de produtos (Density) */
             /* Se 1 a 2 produtos na página: Cards grandes ocupando a lâmina de forma imersiva */
             .density-large-2 .product-card {
-                height: 440px;
-                padding: 20px;
+                height: 660px;
+                padding: 24px;
             }
             .density-large-2 .product-img-box {
-                height: 240px;
+                height: 360px;
             }
             .density-large-2 .product-img {
-                max-height: 230px;
-                max-width: 280px;
+                max-height: 350px;
+                max-width: 320px;
             }
             .density-large-2 .no-img {
-                height: 240px;
-                line-height: 240px;
+                height: 360px;
+                line-height: 360px;
             }
             .density-large-2 .product-name {
-                font-size: 16px;
-                height: 48px;
+                font-size: 18px;
+                height: 52px;
             }
             .density-large-2 .price-main {
-                font-size: 42px;
+                font-size: 54px;
             }
             .density-large-2 .price-cents {
-                font-size: 20px;
+                font-size: 26px;
             }
 
             /* Se 3 a 4 produtos na página */
