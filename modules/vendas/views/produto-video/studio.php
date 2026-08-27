@@ -154,8 +154,8 @@ $this->params['breadcrumbs'][] = $this->title;
 
 .preview-aspect-ratio {
     width: 100%;
-    max-width: 340px;
-    height: 604px; /* 9:16 ratio para 340px */
+    max-width: 320px;
+    aspect-ratio: 9 / 16;
     background: #090d16;
     border-radius: 20px;
     border: 2px dashed #334155;
@@ -167,12 +167,21 @@ $this->params['breadcrumbs'][] = $this->title;
     position: relative;
     overflow: hidden;
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+    transition: all 0.3s ease;
+}
+
+.preview-aspect-ratio.is-feed {
+    aspect-ratio: 1 / 1;
+    max-width: 380px;
 }
 
 .preview-aspect-ratio video {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     border-radius: 18px;
 }
 
@@ -876,16 +885,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const aspectBox = document.querySelector('.preview-aspect-ratio');
             if (val === 'feed' || val === '1:1') {
                 if (titleElem) titleElem.innerText = 'Prévia do Vídeo Promocional (1080x1080)';
-                if (aspectBox) {
-                    aspectBox.style.paddingTop = '100%';
-                    aspectBox.style.maxWidth = '420px';
-                }
+                if (aspectBox) aspectBox.classList.add('is-feed');
             } else {
                 if (titleElem) titleElem.innerText = 'Prévia do Vídeo Promocional (1080x1920)';
-                if (aspectBox) {
-                    aspectBox.style.paddingTop = '177.77%';
-                    aspectBox.style.maxWidth = '360px';
-                }
+                if (aspectBox) aspectBox.classList.remove('is-feed');
             }
         });
     });
