@@ -585,6 +585,44 @@ usort($visibleCards, function ($a, $b) {
 
         <!-- Cards de Ação Rápida -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <!-- Cadastrar Produto Rápido -->
+            <?php if (!isset($permissoesModulo['cadastrar-produto-rapido']) || $permissoesModulo['cadastrar-produto-rapido'] !== false): ?>
+                <button type="button" onclick="abrirModalCadastroRapido()"
+                    class="group text-left block w-full bg-gradient-to-br from-emerald-500 via-green-600 to-emerald-700 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95 border border-emerald-400/30 cursor-pointer">
+                    <div class="flex items-center space-x-3 sm:space-x-4">
+                        <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
+                            <span class="text-2xl sm:text-3xl">⚡</span>
+                        </div>
+                        <div class="flex-1 text-white">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-lg sm:text-xl font-bold mb-0.5">Cadastrar Produto Rápido</h3>
+                                <span class="bg-amber-300 text-gray-900 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Expresso</span>
+                            </div>
+                            <p class="text-xs sm:text-sm opacity-90">Cadastre novo produto em 10 segundos</p>
+                        </div>
+                    </div>
+                </button>
+            <?php endif; ?>
+
+            <!-- Venda Expressa -->
+            <?php if (!isset($permissoesModulo['venda-expressa']) || $permissoesModulo['venda-expressa'] !== false): ?>
+                <a href="<?= Url::to(['/vendas/venda-expressa/index']) ?>"
+                    class="group block bg-gradient-to-br from-amber-500 via-orange-600 to-amber-700 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95 border border-amber-400/30">
+                    <div class="flex items-center space-x-3 sm:space-x-4">
+                        <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
+                            <span class="text-2xl sm:text-3xl">⚡</span>
+                        </div>
+                        <div class="flex-1 text-white">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-lg sm:text-xl font-bold mb-0.5">Venda Expressa</h3>
+                                <span class="bg-emerald-300 text-gray-900 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Modo Encarte</span>
+                            </div>
+                            <p class="text-xs sm:text-sm opacity-90">Lançamento relâmpago de vendas</p>
+                        </div>
+                    </div>
+                </a>
+            <?php endif; ?>
+
             <!-- Nova Venda -->
             <?php
             // ✅ Gera token JWT para SSO com o PWA
@@ -842,3 +880,5 @@ usort($visibleCards, function ($a, $b) {
         }
     });
 </script>
+
+<?= $this->render('@app/modules/vendas/views/produto/_modal_cadastro_rapido', ['lojaId' => \app\components\TenantHelper::getId()]) ?>

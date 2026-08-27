@@ -80,6 +80,20 @@ class LojaPermissao extends ActiveRecord
     {
         return [
             // Ações Rápidas do Topo
+            'cadastrar-produto-rapido' => [
+                'grupo' => 'Ações Rápidas',
+                'label' => 'Cadastrar Produto Rápido',
+                'descricao' => 'Modal de cadastro expresso de produtos',
+                'icone' => '⚡',
+                'cor' => 'green',
+            ],
+            'venda-expressa' => [
+                'grupo' => 'Ações Rápidas',
+                'label' => 'Venda Expressa',
+                'descricao' => 'Módulo de lançamento relâmpago de vendas',
+                'icone' => '⚡',
+                'cor' => 'orange',
+            ],
             'nova-venda' => [
                 'grupo' => 'Ações Rápidas',
                 'label' => 'Nova Venda (PDV Direto)',
