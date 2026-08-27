@@ -16,6 +16,7 @@ use app\modules\vendas\models\Colaborador;
 use app\modules\vendas\models\Cliente;
 use app\modules\vendas\models\LojaConfiguracao;
 use app\modules\vendas\helpers\FormaPagamentoHelper;
+use app\models\Usuario;
 
 class VendaExpressaController extends Controller
 {
@@ -59,6 +60,8 @@ class VendaExpressaController extends Controller
     public function actionIndex()
     {
         $lojaId = $this->getLojaId();
+        $usuarioLoja = Usuario::findOne($lojaId);
+        $temMercadoPago = $usuarioLoja ? $usuarioLoja->temMercadoPagoConfigurado() : false;
 
         $produtos = Produto::find()
             ->where(['usuario_id' => $lojaId, 'ativo' => true])
@@ -90,6 +93,7 @@ class VendaExpressaController extends Controller
             'formasPagamento' => $formasPagamento,
             'resumoHoje' => $resumoHoje,
             'lojaConfig' => $lojaConfig,
+            'temMercadoPago' => $temMercadoPago,
             'lojaId' => $lojaId,
         ]);
     }
@@ -284,6 +288,7 @@ class VendaExpressaController extends Controller
                 'venda_id' => $venda->id,
                 'valor_total' => number_format($valorTotalFinal, 2, ',', '.'),
                 'cliente_nome' => $cliente ? $cliente->nome_completo : null,
+                'cliente_telefone' => $cliente ? $cliente->telefone : $clienteWhatsappRaw,
                 'resumoHoje' => $this->getResumoHoje($lojaId),
             ];
 

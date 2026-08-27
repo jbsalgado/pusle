@@ -201,14 +201,24 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                                     $nomeExibicao = 'Boleto / Carnê / Fiado';
                                 }
                                 $isPix = (mb_stripos($nomeExibicao, 'pix') !== false || $index === 0);
+                                $isMercadoPago = (mb_stripos($fp->nome, 'mercado') !== false || $fp->tipo === 'MERCADOPAGO');
+                                $mpDesativado = ($isMercadoPago && !$temMercadoPago);
                             ?>
-                                <button type="button" onclick="selecionarFormaPagamento('<?= $fp->id ?>', this)" 
-                                        class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 <?= $isPix ? 'bg-amber-400 text-slate-900 border-amber-300 shadow-md' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700' ?>" 
-                                        data-id="<?= $fp->id ?>"
-                                        data-tipo="<?= $fp->tipo ?>"
-                                        data-nome="<?= Html::encode($nomeExibicao) ?>">
-                                    <span><?= Html::encode($nomeExibicao) ?></span>
-                                </button>
+                                <?php if ($mpDesativado): ?>
+                                    <button type="button" onclick="alert('O Mercado Pago não está conectado nas configurações da sua loja. Conecte sua conta do Mercado Pago para ativar este canal de pagamento.')" 
+                                            class="p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1 bg-slate-900/40 text-slate-500 border-slate-800 opacity-60 cursor-not-allowed" 
+                                            title="Requer Integração Mercado Pago">
+                                        <span><?= Html::encode($nomeExibicao) ?> <span class="text-[9px] text-rose-400 font-extrabold">(Requer MP)</span></span>
+                                    </button>
+                                <?php else: ?>
+                                    <button type="button" onclick="selecionarFormaPagamento('<?= $fp->id ?>', this)" 
+                                            class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 <?= $isPix ? 'bg-amber-400 text-slate-900 border-amber-300 shadow-md' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700' ?>" 
+                                            data-id="<?= $fp->id ?>"
+                                            data-tipo="<?= $fp->tipo ?>"
+                                            data-nome="<?= Html::encode($nomeExibicao) ?>">
+                                        <span><?= Html::encode($nomeExibicao) ?></span>
+                                    </button>
+                                <?php endif; ?>
                             <?php endforeach; ?>
                         </div>
                     </div>
@@ -283,6 +293,46 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
     </div>
 </div>
 
+<!-- Modal Comprovante de Venda Expressa (Envio Evolution API) -->
+<div id="modalComprovanteVenda" class="fixed inset-0 z-[160] hidden bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl max-w-md w-full p-5 space-y-4 text-white relative my-8">
+        
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">⚡</span>
+                <div>
+                    <h3 class="font-extrabold text-base text-emerald-400">Venda Concluída com Sucesso!</h3>
+                    <p class="text-[10px] text-slate-400">Comprovante de Venda gerado automaticamente</p>
+                </div>
+            </div>
+            <button type="button" onclick="fecharModalComprovanteVenda()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <!-- Contêiner do Recibo Térmico (Capturado pelo HTML2Canvas) -->
+        <div id="comprovanteReciboContainer" class="bg-white text-slate-900 p-5 rounded-2xl shadow-inner font-sans text-xs space-y-3 border border-slate-200">
+            <!-- Renderizado dinamicamente via JS pós-venda -->
+        </div>
+
+        <!-- Botões de Ação -->
+        <div class="space-y-2 pt-2 border-t border-slate-800">
+            <button type="button" id="btnEnviarWhatsappEvolution" onclick="enviarComprovanteWhatsAppEvolution()" class="w-full py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-montserrat font-extrabold text-xs rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                <span>📱 Enviar Comprovante via WhatsApp (Evolution API)</span>
+            </button>
+            <div class="grid grid-cols-2 gap-2">
+                <button type="button" onclick="imprimirRecibo80mm()" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition">
+                    🖨️ Recibo 80mm
+                </button>
+                <button type="button" onclick="fecharModalComprovanteVenda()" class="py-2.5 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-bold text-xs rounded-xl shadow transition">
+                    ⚡ Próxima Venda
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
 <script>
     const produtosArray = [
         <?php foreach ($produtos as $p): 
@@ -312,6 +362,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
     let formaPagamentoSelecionadaId = '<?= count($formasPagamento) > 0 ? $formasPagamento[0]->id : "" ?>';
     let formaPagamentoSelecionadaNome = '<?= count($formasPagamento) > 0 ? Html::encode($formasPagamento[0]->nome) : "" ?>';
     let indexItemFocado = -1;
+    let dadosUltimaVendaFinalizada = null;
 
     function aplicarMascaraMoedaInput(input, tipoSelectId) {
         const tipo = tipoSelectId ? document.getElementById(tipoSelectId).value : 'VALOR';
@@ -781,13 +832,17 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             preco_unitario: item.precoVal
         }));
 
+        const clienteNomeInput = document.getElementById('clienteNome').value;
+        const clienteCpfInput = document.getElementById('clienteCpf').value;
+        const clienteWhatsappInput = document.getElementById('clienteWhatsapp').value;
+
         const payload = {
             itens: payloadItens,
             forma_pagamento_id: formaPagamentoSelecionadaId,
             observacoes: document.getElementById('inputObservacoes').value,
-            cliente_nome: document.getElementById('clienteNome').value,
-            cliente_cpf: document.getElementById('clienteCpf').value,
-            cliente_whatsapp: document.getElementById('clienteWhatsapp').value,
+            cliente_nome: clienteNomeInput,
+            cliente_cpf: clienteCpfInput,
+            cliente_whatsapp: clienteWhatsappInput,
             desconto_valor: document.getElementById('descontoGeral').value,
             desconto_tipo: document.getElementById('descontoTipo').value,
             acrescimo_valor: document.getElementById('acrescimoGeral').value,
@@ -810,11 +865,16 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             btn.innerHTML = `<span>⚡ Efetivar Venda (R$ <span id="totalFinalBtn">0,00</span>)</span>`;
 
             if (data.success) {
-                limparItensVenda();
-                document.getElementById('inputObservacoes').value = '';
-                document.getElementById('clienteNome').value = '';
-                document.getElementById('clienteCpf').value = '';
-                document.getElementById('clienteWhatsapp').value = '';
+                // Guarda dados da venda para o comprovante
+                dadosUltimaVendaFinalizada = {
+                    venda_id: data.venda_id,
+                    valor_total: data.valor_total,
+                    cliente_nome: data.cliente_nome || clienteNomeInput || 'Cliente Balcão',
+                    cliente_telefone: data.cliente_telefone || clienteWhatsappInput || '',
+                    data_hora: new Date().toLocaleString('pt-BR'),
+                    forma_pagamento: formaPagamentoSelecionadaNome,
+                    itens: [...lista]
+                };
 
                 // Atualizar Indicadores de Venda em Tempo Real
                 if (data.resumoHoje) {
@@ -823,12 +883,16 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                     document.getElementById('resumoTop').textContent = data.resumoHoje.top_produto;
                 }
 
-                let msg = '✅ Venda Expressa de R$ ' + data.valor_total + ' registrada com sucesso!';
-                if (data.cliente_nome) {
-                    msg += '\n👤 Cliente: ' + data.cliente_nome + ' (Cadastrado/Atualizado para Evolution API)';
-                }
-                alert(msg);
-                document.getElementById('inputBuscaProduto').focus();
+                // Esvaziar carrinho de entrada
+                limparItensVenda();
+                document.getElementById('inputObservacoes').value = '';
+                document.getElementById('clienteNome').value = '';
+                document.getElementById('clienteCpf').value = '';
+                document.getElementById('clienteWhatsapp').value = '';
+
+                // Abrir Modal de Comprovante de Venda com disparo por Evolution API
+                exibirModalComprovanteVenda(dadosUltimaVendaFinalizada);
+
             } else {
                 alert('Erro ao registrar venda: ' + (data.message || 'Falha na conexão.'));
             }
@@ -838,5 +902,147 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             btn.innerHTML = `<span>⚡ Efetivar Venda (R$ <span id="totalFinalBtn">0,00</span>)</span>`;
             alert('Erro ao comunicar com o servidor: ' + err.message);
         });
+    }
+
+    function exibirModalComprovanteVenda(vendaData) {
+        const container = document.getElementById('comprovanteReciboContainer');
+        const modal = document.getElementById('modalComprovanteVenda');
+
+        let itensHtml = (vendaData.itens || []).map(i => {
+            const sub = i.precoVal * i.qtd;
+            return `
+                <tr class="border-b border-slate-100">
+                    <td class="py-1 text-left font-semibold">${i.nome}</td>
+                    <td class="py-1 text-center font-bold">${i.qtd} ${i.unidade || 'UN'}</td>
+                    <td class="py-1 text-right">R$ ${i.precoVal.toFixed(2).replace('.', ',')}</td>
+                    <td class="py-1 text-right font-black">R$ ${sub.toFixed(2).replace('.', ',')}</td>
+                </tr>
+            `;
+        }).join('');
+
+        container.innerHTML = `
+            <div class="text-center border-b border-slate-200 pb-3 mb-3">
+                <h2 class="text-base font-black uppercase text-slate-900">${lojaPixConfig.nome || 'COMPROVANTE DE VENDA'}</h2>
+                <p class="text-[10px] text-slate-500">${lojaPixConfig.cidade || 'Caruaru/PE'} • ${vendaData.data_hora}</p>
+                <p class="text-[10px] font-mono font-bold text-slate-600 mt-0.5">VENDA ID: ${vendaData.venda_id.substring(0, 8).toUpperCase()}</p>
+            </div>
+
+            <div class="border-b border-slate-200 pb-2 mb-2 text-[11px]">
+                <p><strong>CLIENTE:</strong> ${vendaData.cliente_nome}</p>
+                ${vendaData.cliente_telefone ? `<p><strong>WHATSAPP:</strong> ${vendaData.cliente_telefone}</p>` : ''}
+                <p><strong>FORMA DE PAGAMENTO:</strong> ${vendaData.forma_pagamento}</p>
+            </div>
+
+            <table class="w-full text-[11px] mb-3">
+                <thead>
+                    <tr class="border-b-2 border-slate-300 uppercase text-[9px] text-slate-500 font-bold">
+                        <th class="text-left py-1">Item</th>
+                        <th class="text-center py-1">Qtd</th>
+                        <th class="text-right py-1">Vlr Unit</th>
+                        <th class="text-right py-1">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itensHtml}
+                </tbody>
+            </table>
+
+            <div class="border-t-2 border-slate-900 pt-2 flex items-center justify-between font-black text-sm">
+                <span>TOTAL PAGO:</span>
+                <span class="text-emerald-700">R$ ${vendaData.valor_total}</span>
+            </div>
+
+            <div class="text-center pt-3 border-t border-slate-200 text-[10px] text-slate-500 italic">
+                Obrigado pela preferência! Venda registrada no ERP.
+            </div>
+        `;
+
+        modal.classList.remove('hidden');
+    }
+
+    function fecharModalComprovanteVenda() {
+        document.getElementById('modalComprovanteVenda').classList.add('hidden');
+        document.getElementById('inputBuscaProduto').focus();
+    }
+
+    function imprimirRecibo80mm() {
+        if (dadosUltimaVendaFinalizada && dadosUltimaVendaFinalizada.venda_id) {
+            window.open(`<?= Url::to(['/vendas/venda/imprimir']) ?>?id=${dadosUltimaVendaFinalizada.venda_id}`, '_blank');
+        }
+    }
+
+    async function enviarComprovanteWhatsAppEvolution() {
+        if (!dadosUltimaVendaFinalizada) {
+            alert('Nenhuma venda finalizada encontrada.');
+            return;
+        }
+
+        let telPadrao = dadosUltimaVendaFinalizada.cliente_telefone || '';
+        let telLimpo = telPadrao.replace(/\D/g, '');
+        if (telLimpo.startsWith('55') && telLimpo.length > 11) telLimpo = telLimpo.substring(2);
+
+        let inputTel = prompt("Digite o número de WhatsApp do cliente (com DDD):", telLimpo);
+        if (inputTel === null) return;
+        let numFinal = inputTel.replace(/\D/g, '');
+        if (!numFinal) {
+            alert("Número de telefone é obrigatório.");
+            return;
+        }
+        if (numFinal.length <= 11) numFinal = "55" + numFinal;
+
+        const btn = document.getElementById('btnEnviarWhatsappEvolution');
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳ Fotografando recibo e enviando via Evolution API...</span>';
+
+        try {
+            if (typeof html2canvas === 'undefined') {
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                    script.onload = resolve;
+                    script.onerror = () => reject(new Error('Falha ao carregar html2canvas'));
+                    document.head.appendChild(script);
+                });
+            }
+
+            const container = document.getElementById('comprovanteReciboContainer');
+            const canvas = await html2canvas(container, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: "#ffffff",
+                logging: false
+            });
+
+            const base64data = canvas.toDataURL("image/jpeg", 0.9);
+            const baseUrl = window.location.origin;
+
+            const response = await fetch(`${baseUrl}/api/whatsapp/send`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-Token": "<?= Yii::$app->request->csrfToken ?>"
+                },
+                body: JSON.stringify({
+                    numero: numFinal,
+                    mensagem: "Olá! Segue o comprovante da sua compra. Obrigado pela preferência!",
+                    base64: base64data
+                })
+            });
+
+            const resData = await response.json();
+            btn.disabled = false;
+            btn.innerHTML = '<span>📱 Enviar Comprovante via WhatsApp (Evolution API)</span>';
+
+            if (response.ok && resData.success) {
+                alert('✅ Comprovante enviado com sucesso via WhatsApp / Evolution API!');
+            } else {
+                alert('❌ Erro ao enviar imagem: ' + (resData.message || resData.name || 'Falha na conexão com a Evolution API'));
+            }
+
+        } catch (err) {
+            btn.disabled = false;
+            btn.innerHTML = '<span>📱 Enviar Comprovante via WhatsApp (Evolution API)</span>';
+            alert('❌ Erro de comunicação ao gerar o comprovante: ' + err.message);
+        }
     }
 </script>
