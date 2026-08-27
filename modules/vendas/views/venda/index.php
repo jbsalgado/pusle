@@ -35,6 +35,14 @@ $this->title = 'Vendas Efetivadas';
                     </div>
                 </div>
 
+                <!-- Atalho para Venda Expressa -->
+                <div class="flex items-center gap-3">
+                    <a href="<?= Url::to(['/vendas/venda-expressa/index']) ?>" class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-extrabold rounded-xl shadow-md transition-all gap-2 text-sm">
+                        <span class="text-amber-300 text-lg">⚡</span>
+                        <span>Venda Expressa</span>
+                    </a>
+                </div>
+
                 <!-- Toggle de Visualização -->
                 <div class="flex bg-gray-100 p-1 rounded-lg self-start">
                     <button id="btn-view-grid"
