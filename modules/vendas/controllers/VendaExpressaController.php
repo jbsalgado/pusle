@@ -13,6 +13,7 @@ use app\modules\vendas\models\Produto;
 use app\modules\vendas\models\FormaPagamento;
 use app\modules\vendas\models\StatusVenda;
 use app\modules\vendas\models\Colaborador;
+use app\modules\vendas\models\Cliente;
 
 class VendaExpressaController extends Controller
 {
@@ -95,6 +96,17 @@ class VendaExpressaController extends Controller
         $formaPagamentoId = $request->post('forma_pagamento_id', null);
         $observacoes = trim($request->post('observacoes', ''));
 
+        // Dados do Cliente (para disparos WhatsApp via Evolution API)
+        $clienteNome = trim($request->post('cliente_nome', ''));
+        $clienteCpfRaw = trim($request->post('cliente_cpf', ''));
+        $clienteWhatsappRaw = trim($request->post('cliente_whatsapp', ''));
+
+        // Desconto e Acréscimo Geral
+        $descontoValorInput = (float)str_replace(',', '.', $request->post('desconto_valor', 0));
+        $descontoTipo = strtoupper(trim($request->post('desconto_tipo', 'VALOR'))); // VALOR ou PERCENTUAL
+        $acrescimoValorInput = (float)str_replace(',', '.', $request->post('acrescimo_valor', 0));
+        $acrescimoTipo = strtoupper(trim($request->post('acrescimo_tipo', 'VALOR'))); // VALOR ou PERCENTUAL
+
         if (empty($formaPagamentoId)) {
             $fpPadrao = FormaPagamento::find()->where(['ativo' => true])->orderBy(['nome' => SORT_ASC])->one();
             if ($fpPadrao) {
@@ -108,7 +120,45 @@ class VendaExpressaController extends Controller
 
         $transaction = Yii::$app->db->beginTransaction();
         try {
-            $valorTotalVenda = 0;
+            // Processamento do Cadastro de Cliente
+            $cliente = null;
+            $cpfClean = preg_replace('/[^0-9]/', '', $clienteCpfRaw);
+            $whatsappClean = preg_replace('/[^0-9]/', '', $clienteWhatsappRaw);
+
+            if (!empty($whatsappClean)) {
+                $cliente = Cliente::find()
+                    ->where(['usuario_id' => $lojaId])
+                    ->andWhere(['or', ['telefone' => $whatsappClean], ['like', 'telefone', $whatsappClean]])
+                    ->one();
+            }
+
+            if (!$cliente && !empty($cpfClean)) {
+                $cliente = Cliente::find()
+                    ->where(['usuario_id' => $lojaId, 'cpf' => $cpfClean])
+                    ->one();
+            }
+
+            if (!$cliente && (!empty($clienteNome) || !empty($whatsappClean) || !empty($cpfClean))) {
+                $cliente = new Cliente();
+                $cliente->usuario_id = $lojaId;
+                $cliente->nome_completo = !empty($clienteNome) ? $clienteNome : 'Cliente ' . ($whatsappClean ?: 'WhatsApp');
+                $cliente->telefone = !empty($whatsappClean) ? $whatsappClean : '00000000000';
+                $cliente->cpf = (!empty($cpfClean) && strlen($cpfClean) === 11) ? $cpfClean : null;
+                $cliente->ativo = true;
+                $cliente->senha = '1234';
+                $cliente->endereco_logradouro = 'Não informado';
+                $cliente->endereco_numero = 'S/N';
+                $cliente->endereco_bairro = 'Geral';
+                $cliente->endereco_cidade = 'Caruaru';
+                $cliente->save(false);
+            } else if ($cliente) {
+                if (!empty($clienteNome)) $cliente->nome_completo = $clienteNome;
+                if (!empty($cpfClean) && strlen($cpfClean) === 11) $cliente->cpf = $cpfClean;
+                if (!empty($whatsappClean)) $cliente->telefone = $whatsappClean;
+                $cliente->save(false);
+            }
+
+            $subtotalItens = 0;
             $itensValidados = [];
 
             foreach ($itensPost as $itemRaw) {
@@ -126,7 +176,7 @@ class VendaExpressaController extends Controller
                 }
 
                 $subtotal = $qtd * $precoUnit;
-                $valorTotalVenda += $subtotal;
+                $subtotalItens += $subtotal;
 
                 $itensValidados[] = [
                     'produto' => $produto,
@@ -140,15 +190,46 @@ class VendaExpressaController extends Controller
                 throw new \Exception('Nenhum produto válido foi encontrado para o registro da venda.');
             }
 
+            // Cálculo do Desconto Geral
+            $valDesconto = 0;
+            if ($descontoValorInput > 0) {
+                if ($descontoTipo === 'PERCENTUAL') {
+                    $valDesconto = $subtotalItens * ($descontoValorInput / 100);
+                } else {
+                    $valDesconto = $descontoValorInput;
+                }
+            }
+
+            // Cálculo do Acréscimo Geral
+            $valAcrescimo = 0;
+            if ($acrescimoValorInput > 0) {
+                if ($acrescimoTipo === 'PERCENTUAL') {
+                    $valAcrescimo = $subtotalItens * ($acrescimoValorInput / 100);
+                } else {
+                    $valAcrescimo = $acrescimoValorInput;
+                }
+            }
+
+            $valorTotalFinal = max(0, $subtotalItens - $valDesconto + $valAcrescimo);
+
             // Criar Venda
             $venda = new Venda();
             $venda->usuario_id = $lojaId;
+            $venda->cliente_id = $cliente ? $cliente->id : null;
+            $venda->cpf_consumidor = (!empty($cpfClean) && strlen($cpfClean) === 11) ? $cpfClean : ($cliente ? $cliente->cpf : null);
             $venda->data_venda = date('Y-m-d H:i:s');
-            $venda->valor_total = $valorTotalVenda;
+            $venda->valor_total = $valorTotalFinal;
+            $venda->acrescimo_valor = $valAcrescimo;
+            $venda->acrescimo_tipo = $valAcrescimo > 0 ? $acrescimoTipo : null;
             $venda->numero_parcelas = 1;
             $venda->status_venda_codigo = StatusVenda::QUITADA;
             $venda->forma_pagamento_id = !empty($formaPagamentoId) ? $formaPagamentoId : null;
-            $venda->observacoes = !empty($observacoes) ? $observacoes : 'Venda Expressa (Encarte & Catálogo)';
+
+            $obsCompleta = [];
+            if (!empty($observacoes)) $obsCompleta[] = $observacoes;
+            if ($valDesconto > 0) $obsCompleta[] = 'Desconto Aplicado: R$ ' . number_format($valDesconto, 2, ',', '.');
+            if ($valAcrescimo > 0) $obsCompleta[] = 'Acréscimo Aplicado: R$ ' . number_format($valAcrescimo, 2, ',', '.');
+            $venda->observacoes = implode(' | ', $obsCompleta) ?: 'Venda Expressa (Encarte & Catálogo)';
 
             if (!$venda->save()) {
                 throw new \Exception('Erro ao salvar venda: ' . implode(', ', $venda->getFirstErrors()));
@@ -186,7 +267,8 @@ class VendaExpressaController extends Controller
                 'success' => true,
                 'message' => 'Venda Expressa registrada com sucesso!',
                 'venda_id' => $venda->id,
-                'valor_total' => number_format($valorTotalVenda, 2, ',', '.'),
+                'valor_total' => number_format($valorTotalFinal, 2, ',', '.'),
+                'cliente_nome' => $cliente ? $cliente->nome_completo : null,
                 'resumoHoje' => $this->getResumoHoje($lojaId),
             ];
 

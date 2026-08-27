@@ -20,7 +20,7 @@ $this->params['breadcrumbs'][] = $this->title;
                     <h1 class="text-2xl font-black text-white tracking-tight">Venda Expressa</h1>
                     <span class="bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">Modo Encarte</span>
                 </div>
-                <p class="text-xs text-slate-400 mt-1">Digite parte do nome do produto ou marca para adicionar em 1 clique</p>
+                <p class="text-xs text-slate-400 mt-1">Registre suas vendas do WhatsApp ou balcão com cadastro de clientes para Evolution API</p>
             </div>
 
             <!-- Resumo Financeiro de Hoje -->
@@ -95,20 +95,89 @@ $this->params['breadcrumbs'][] = $this->title;
                     </div>
                 </div>
 
+                <!-- Seção Dados do Cliente (Cadastro para Disparos Evolution API) -->
+                <div class="bg-slate-800 border border-slate-700 p-4 rounded-3xl shadow-xl space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-700 pb-2">
+                        <h3 class="font-extrabold text-xs text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                            <span>👤 Cliente (Disparos WhatsApp / Evolution API)</span>
+                        </h3>
+                        <span class="text-[10px] text-slate-400 font-medium">Cadastra e salva na base automaticamente</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <!-- WhatsApp -->
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-300 uppercase mb-1">📱 WhatsApp / Fone</label>
+                            <input type="text" id="clienteWhatsapp" placeholder="(81) 99999-9999" oninput="aplicarMascaraTelefone(this)" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-amber-400">
+                        </div>
+
+                        <!-- Nome Completo -->
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-300 uppercase mb-1">👤 Nome Completo</label>
+                            <input type="text" id="clienteNome" placeholder="Ex: Maria Silva" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-amber-400">
+                        </div>
+
+                        <!-- CPF -->
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-300 uppercase mb-1">📄 CPF (Opcional)</label>
+                            <input type="text" id="clienteCpf" placeholder="000.000.000-00" oninput="aplicarMascaraCpf(this)" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-amber-400">
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
-            <!-- Coluna Direita: Checkout Relâmpago e Forma de Pagamento -->
+            <!-- Coluna Direita: Checkout Relâmpago, Desconto/Acréscimo e Pagamento -->
             <div class="lg:col-span-4 space-y-4">
                 
                 <div class="bg-slate-800 border border-slate-700 p-5 rounded-3xl shadow-xl space-y-4">
                     
                     <h3 class="font-extrabold text-sm text-white border-b border-slate-700 pb-2">💳 Finalização Relâmpago</h3>
 
-                    <!-- Totalizador -->
-                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-700 text-center">
-                        <div class="text-[10px] uppercase font-extrabold text-slate-400">Total a Receber</div>
-                        <div class="text-3xl font-montserrat font-black text-emerald-400 mt-1">
-                            R$ <span id="displayTotalFinal">0,00</span>
+                    <!-- Ajustes Finos: Desconto Geral e Acréscimo Geral -->
+                    <div class="grid grid-cols-2 gap-2 bg-slate-900/60 p-3 rounded-2xl border border-slate-700">
+                        <!-- Desconto Geral -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="text-[10px] font-bold text-rose-400 uppercase">🏷️ Desconto</label>
+                                <select id="descontoTipo" onchange="renderizarItensVenda()" class="bg-slate-800 text-[10px] font-bold text-rose-300 rounded px-1 py-0.5 border border-slate-700">
+                                    <option value="VALOR">R$</option>
+                                    <option value="PERCENTUAL">%</option>
+                                </select>
+                            </div>
+                            <input type="text" id="descontoGeral" placeholder="0,00" oninput="renderizarItensVenda()" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-rose-400 focus:outline-none text-right">
+                        </div>
+
+                        <!-- Acréscimo Geral -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="text-[10px] font-bold text-blue-400 uppercase">➕ Acréscimo</label>
+                                <select id="acrescimoTipo" onchange="renderizarItensVenda()" class="bg-slate-800 text-[10px] font-bold text-blue-300 rounded px-1 py-0.5 border border-slate-700">
+                                    <option value="VALOR">R$</option>
+                                    <option value="PERCENTUAL">%</option>
+                                </select>
+                            </div>
+                            <input type="text" id="acrescimoGeral" placeholder="0,00" oninput="renderizarItensVenda()" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-blue-400 focus:outline-none text-right">
+                        </div>
+                    </div>
+
+                    <!-- Totalizador com Subtotal, Desconto e Acréscimo -->
+                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-700 space-y-1.5">
+                        <div class="flex items-center justify-between text-xs text-slate-400">
+                            <span>Subtotal Itens:</span>
+                            <span class="font-bold text-white">R$ <span id="displaySubtotal">0,00</span></span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-rose-400 hidden" id="rowDisplayDesconto">
+                            <span>(-) Desconto Geral:</span>
+                            <span class="font-bold">- R$ <span id="displayDesconto">0,00</span></span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-blue-400 hidden" id="rowDisplayAcrescimo">
+                            <span>(+) Acréscimo Geral:</span>
+                            <span class="font-bold">+ R$ <span id="displayAcrescimo">0,00</span></span>
+                        </div>
+                        <div class="border-t border-slate-800 pt-2 flex items-center justify-between">
+                            <span class="text-xs uppercase font-extrabold text-slate-300">Total a Receber:</span>
+                            <span class="text-2xl font-montserrat font-black text-emerald-400">R$ <span id="displayTotalFinal">0,00</span></span>
                         </div>
                     </div>
 
@@ -168,6 +237,34 @@ $this->params['breadcrumbs'][] = $this->title;
     let itensVendaMap = {};
     let formaPagamentoSelecionadaId = '<?= count($formasPagamento) > 0 ? $formasPagamento[0]->id : "" ?>';
     let indexItemFocado = -1;
+
+    function aplicarMascaraTelefone(input) {
+        let v = input.value.replace(/\D/g, '');
+        if (v.length > 11) v = v.substring(0, 11);
+        if (v.length > 10) {
+            input.value = v.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+        } else if (v.length > 6) {
+            input.value = v.replace(/^(\d{2})(\d{4})(\d{0,4})$/, '($1) $2-$3');
+        } else if (v.length > 2) {
+            input.value = v.replace(/^(\d{2})(\d{0,5})$/, '($1) $2');
+        } else {
+            input.value = v;
+        }
+    }
+
+    function aplicarMascaraCpf(input) {
+        let v = input.value.replace(/\D/g, '');
+        if (v.length > 11) v = v.substring(0, 11);
+        if (v.length > 9) {
+            input.value = v.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+        } else if (v.length > 6) {
+            input.value = v.replace(/^(\d{3})(\d{3})(\d{0,3})$/, '$1.$2.$3');
+        } else if (v.length > 3) {
+            input.value = v.replace(/^(\d{3})(\d{0,3})$/, '$1.$2');
+        } else {
+            input.value = v;
+        }
+    }
 
     function filtrarProdutosBusca(termo) {
         const dropdown = document.getElementById('dropdownBuscaResultados');
@@ -339,6 +436,8 @@ $this->params['breadcrumbs'][] = $this->title;
 
     function limparItensVenda() {
         itensVendaMap = {};
+        document.getElementById('descontoGeral').value = '';
+        document.getElementById('acrescimoGeral').value = '';
         renderizarItensVenda();
     }
 
@@ -355,7 +454,7 @@ $this->params['breadcrumbs'][] = $this->title;
         const emptyState = document.getElementById('emptyStateVenda');
         const lista = Object.values(itensVendaMap);
 
-        let totalCalculado = 0;
+        let subtotalCalculado = 0;
         let totalQtdItens = 0;
 
         if (lista.length === 0) {
@@ -366,7 +465,7 @@ $this->params['breadcrumbs'][] = $this->title;
             container.innerHTML = '';
             lista.forEach(item => {
                 const sub = item.precoVal * item.qtd;
-                totalCalculado += sub;
+                subtotalCalculado += sub;
                 totalQtdItens += item.qtd;
 
                 const div = document.createElement('div');
@@ -407,8 +506,45 @@ $this->params['breadcrumbs'][] = $this->title;
             });
         }
 
-        const totalFormatted = totalCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        // Cálculo do Desconto Geral
+        const descInput = parseFloat((document.getElementById('descontoGeral').value || '0').replace(',', '.')) || 0;
+        const descTipo = document.getElementById('descontoTipo').value;
+        let valDesconto = 0;
+        if (descInput > 0) {
+            valDesconto = (descTipo === 'PERCENTUAL') ? subtotalCalculado * (descInput / 100) : descInput;
+        }
+
+        // Cálculo do Acréscimo Geral
+        $acresInput = parseFloat((document.getElementById('acrescimoGeral').value || '0').replace(',', '.')) || 0;
+        $acresTipo = document.getElementById('acrescimoTipo').value;
+        let valAcrescimo = 0;
+        if ($acresInput > 0) {
+            valAcrescimo = ($acresTipo === 'PERCENTUAL') ? subtotalCalculado * ($acresInput / 100) : $acresInput;
+        }
+
+        const totalFinalCalculado = Math.max(0, subtotalCalculado - valDesconto + valAcrescimo);
+
         document.getElementById('badgeCountItens').textContent = lista.length;
+        document.getElementById('displaySubtotal').textContent = subtotalCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        // Exibição condicional de Desconto e Acréscimo no Resumo
+        const rowDesc = document.getElementById('rowDisplayDesconto');
+        if (valDesconto > 0) {
+            rowDesc.classList.remove('hidden');
+            document.getElementById('displayDesconto').textContent = valDesconto.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        } else {
+            rowDesc.classList.add('hidden');
+        }
+
+        const rowAcres = document.getElementById('rowDisplayAcrescimo');
+        if (valAcrescimo > 0) {
+            rowAcres.classList.remove('hidden');
+            document.getElementById('displayAcrescimo').textContent = valAcrescimo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        } else {
+            rowAcres.classList.add('hidden');
+        }
+
+        const totalFormatted = totalFinalCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         document.getElementById('displayTotalFinal').textContent = totalFormatted;
         document.getElementById('totalFinalBtn').textContent = totalFormatted;
     }
@@ -434,6 +570,13 @@ $this->params['breadcrumbs'][] = $this->title;
             itens: payloadItens,
             forma_pagamento_id: formaPagamentoSelecionadaId,
             observacoes: document.getElementById('inputObservacoes').value,
+            cliente_nome: document.getElementById('clienteNome').value,
+            cliente_cpf: document.getElementById('clienteCpf').value,
+            cliente_whatsapp: document.getElementById('clienteWhatsapp').value,
+            desconto_valor: document.getElementById('descontoGeral').value,
+            desconto_tipo: document.getElementById('descontoTipo').value,
+            acrescimo_valor: document.getElementById('acrescimoGeral').value,
+            acrescimo_tipo: document.getElementById('acrescimoTipo').value,
             '<?= Yii::$app->request->csrfParam ?>': '<?= Yii::$app->request->csrfToken ?>'
         };
 
@@ -454,6 +597,9 @@ $this->params['breadcrumbs'][] = $this->title;
             if (data.success) {
                 limparItensVenda();
                 document.getElementById('inputObservacoes').value = '';
+                document.getElementById('clienteNome').value = '';
+                document.getElementById('clienteCpf').value = '';
+                document.getElementById('clienteWhatsapp').value = '';
 
                 // Atualizar Indicadores de Venda em Tempo Real
                 if (data.resumoHoje) {
@@ -462,7 +608,11 @@ $this->params['breadcrumbs'][] = $this->title;
                     document.getElementById('resumoTop').textContent = data.resumoHoje.top_produto;
                 }
 
-                alert('✅ Venda Expressa de R$ ' + data.valor_total + ' registrada com sucesso!');
+                let msg = '✅ Venda Expressa de R$ ' + data.valor_total + ' registrada com sucesso!';
+                if (data.cliente_nome) {
+                    msg += '\n👤 Cliente: ' + data.cliente_nome + ' (Cadastrado/Atualizado para Evolution API)';
+                }
+                alert(msg);
                 document.getElementById('inputBuscaProduto').focus();
             } else {
                 alert('Erro ao registrar venda: ' + (data.message || 'Falha na conexão.'));
