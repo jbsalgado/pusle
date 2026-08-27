@@ -281,10 +281,6 @@ if ($model->hasErrors()): ?>
                     </div>
                 </div>
 
-                <?= Html::beginForm(['delete-fotos-massa'], 'post', ['id' => 'form-delete-fotos-massa']) ?>
-                <input type="hidden" name="produto_id" value="<?= $model->id ?>">
-                <input type="hidden" name="redirect" value="update">
-
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     <?php foreach ($model->fotos as $foto): ?>
                         <div class="relative group aspect-square bg-gray-100 rounded-xl overflow-hidden border border-gray-200 shadow-sm photo-card-item">
@@ -327,7 +323,6 @@ if ($model->hasErrors()): ?>
                         </div>
                     <?php endforeach; ?>
                 </div>
-                <?= Html::endForm() ?>
             </div>
         <?php endif; ?>
 
@@ -1373,6 +1368,14 @@ if ($model->hasErrors()): ?>
 
     <?php ActiveForm::end(); ?>
 
+    <!-- Formulário Top-Level para Exclusão em Massa de Fotos -->
+    <form id="form-delete-fotos-massa" action="<?= Url::to(['delete-fotos-massa']) ?>" method="post" style="display:none;">
+        <input type="hidden" name="<?= Yii::$app->request->csrfParam ?>" value="<?= Yii::$app->request->getCsrfToken() ?>">
+        <input type="hidden" name="produto_id" value="<?= $model->id ?>">
+        <input type="hidden" name="redirect" value="update">
+        <div id="container-foto-ids-massa"></div>
+    </form>
+
 </div>
 
 <script>
@@ -1502,9 +1505,25 @@ if ($model->hasErrors()): ?>
         if (marcadas.length === 0) return;
 
         const msg = `Tem certeza que deseja excluir as ${marcadas.length} foto(s) selecionada(s)?`;
-        if (confirm(msg)) {
-            document.getElementById('form-delete-fotos-massa').submit();
+        if (!confirm(msg)) return;
+
+        const form = document.getElementById('form-delete-fotos-massa');
+        const container = document.getElementById('container-foto-ids-massa');
+        if (!form || !container) {
+            alert('Formulário de exclusão em massa não encontrado na página.');
+            return;
         }
+
+        container.innerHTML = '';
+        marcadas.forEach(chk => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'foto_ids[]';
+            input.value = chk.value;
+            container.appendChild(input);
+        });
+
+        form.submit();
     };
 
     // Calcular margem e markup em tempo real
