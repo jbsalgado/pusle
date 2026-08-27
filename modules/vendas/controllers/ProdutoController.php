@@ -1796,4 +1796,126 @@ class ProdutoController extends Controller
         $redirectTo = Yii::$app->request->get('redirect') ?: Yii::$app->request->post('redirect', 'update');
         return $this->redirect([$redirectTo ?: 'update', 'id' => $produtoId]);
     }
+
+    /**
+     * Ação AJAX para Cadastro Rápido Express de Produto (Encarte / Catálogo)
+     */
+    public function actionCadastroRapido()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $lojaId = $this->getLojaId();
+
+        if (!$lojaId) {
+            return ['success' => false, 'message' => 'Usuário não autenticado.'];
+        }
+
+        $request = Yii::$app->request;
+        $nome = trim($request->post('nome', ''));
+        $precoStr = str_replace(',', '.', trim($request->post('preco', '0')));
+        $precoVenda = (float)$precoStr;
+        $unidade = strtoupper(trim($request->post('unidade', 'UN'))) ?: 'UN';
+        $categoriaId = trim($request->post('categoria_id', ''));
+        $marca = trim($request->post('marca', ''));
+        $precoCustoStr = str_replace(',', '.', trim($request->post('preco_custo', '0')));
+        $precoCusto = (float)$precoCustoStr;
+        $codigoBarras = trim($request->post('codigo_barras', ''));
+
+        if (empty($nome)) {
+            return ['success' => false, 'message' => 'O nome do produto é obrigatório.'];
+        }
+
+        if ($precoVenda <= 0) {
+            return ['success' => false, 'message' => 'Informe um preço de venda válido maior que zero.'];
+        }
+
+        if (empty($categoriaId)) {
+            $catGeral = Categoria::find()
+                ->where(['usuario_id' => $lojaId, 'ativo' => true])
+                ->orderBy(['id' => SORT_ASC])
+                ->one();
+
+            if (!$catGeral) {
+                $catGeral = new Categoria();
+                $catGeral->usuario_id = $lojaId;
+                $catGeral->nome = 'Geral / Ofertas';
+                $catGeral->ativo = true;
+                $catGeral->save(false);
+            }
+            $categoriaId = $catGeral->id;
+        }
+
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            $produto = new Produto();
+            $produto->usuario_id = $lojaId;
+            $produto->categoria_id = $categoriaId;
+            $produto->nome = $nome;
+            $produto->preco_venda_sugerido = $precoVenda;
+            $produto->preco_custo = $precoCusto;
+            $produto->unidade_medida = $unidade;
+            $produto->marca = !empty($marca) ? $marca : null;
+            $produto->codigo_barras = !empty($codigoBarras) ? $codigoBarras : null;
+            $produto->ativo = true;
+            $produto->estoque_atual = 0;
+            $produto->estoque_minimo = 0;
+            $produto->ponto_corte = 0;
+
+            if (!$produto->save()) {
+                throw new \Exception('Erro ao salvar produto: ' . implode(', ', $produto->getFirstErrors()));
+            }
+
+            $files = UploadedFile::getInstancesByName('fotos');
+            $urlFotoPrincipal = null;
+
+            if ($files && count($files) > 0) {
+                $uploadPath = Yii::getAlias('@webroot/uploads/produtos/' . $produto->id);
+                if (!file_exists($uploadPath)) {
+                    @mkdir($uploadPath, 0777, true);
+                }
+
+                $ordem = 0;
+                foreach ($files as $file) {
+                    $filename = uniqid() . '.' . ($file->extension ?: 'jpg');
+                    $targetPath = $uploadPath . '/' . $filename;
+
+                    if ($file->saveAs($targetPath)) {
+                        $foto = new ProdutoFoto();
+                        $foto->produto_id = $produto->id;
+                        $foto->arquivo_nome = $file->name;
+                        $foto->arquivo_path = 'uploads/produtos/' . $produto->id . '/' . $filename;
+                        $foto->ordem = $ordem++;
+                        if ($ordem === 1) {
+                            $foto->eh_principal = true;
+                            $urlFotoPrincipal = \yii\helpers\Url::to('@web/' . $foto->arquivo_path, true);
+                        } else {
+                            $foto->eh_principal = false;
+                        }
+                        $foto->save(false);
+                    }
+                }
+            }
+
+            $transaction->commit();
+
+            return [
+                'success' => true,
+                'message' => 'Produto cadastrado com sucesso!',
+                'produto' => [
+                    'id' => $produto->id,
+                    'nome' => $produto->nome,
+                    'preco' => number_format($produto->preco_venda_sugerido, 2, ',', '.'),
+                    'precoVal' => $produto->preco_venda_sugerido,
+                    'unidade' => $produto->unidade_medida,
+                    'marca' => $produto->marca ?: '',
+                    'foto' => $urlFotoPrincipal,
+                    'categoria' => $produto->categoria ? $produto->categoria->nome : 'Geral'
+                ]
+            ];
+
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+            Yii::error("ProdutoController::actionCadastroRapido erro: " . $e->getMessage(), __METHOD__);
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
 }
