@@ -14,13 +14,19 @@ $this->params['breadcrumbs'][] = $this->title;
 
         <!-- Topo & Indicadores Relâmpago de Vendas do Dia -->
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-slate-800/90 border border-slate-700 p-5 rounded-3xl shadow-2xl backdrop-blur-md">
-            <div>
-                <div class="flex items-center gap-2">
-                    <span class="text-2xl">⚡</span>
-                    <h1 class="text-2xl font-black text-white tracking-tight">Venda Expressa</h1>
-                    <span class="bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">Modo Encarte</span>
+            <div class="flex items-center gap-3">
+                <a href="<?= Url::to(['/vendas/produto/index']) ?>" class="p-2.5 bg-slate-900 hover:bg-slate-700 text-slate-300 hover:text-white rounded-2xl border border-slate-700 transition flex items-center gap-1.5 text-xs font-bold shadow-md group">
+                    <svg class="w-4 h-4 transform group-hover:-translate-x-0.5 transition text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                    <span class="hidden sm:inline">Voltar aos Produtos</span>
+                </a>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">⚡</span>
+                        <h1 class="text-2xl font-black text-white tracking-tight">Venda Expressa</h1>
+                        <span class="bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">Modo Encarte</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">Registre suas vendas do WhatsApp ou balcão com cadastro de clientes para Evolution API</p>
                 </div>
-                <p class="text-xs text-slate-400 mt-1">Registre suas vendas do WhatsApp ou balcão com cadastro de clientes para Evolution API</p>
             </div>
 
             <!-- Resumo Financeiro de Hoje -->
