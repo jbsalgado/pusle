@@ -451,16 +451,18 @@ $this->params['breadcrumbs'][] = $this->title;
 
     function renderizarItensVenda() {
         const container = document.getElementById('listaItensVenda');
-        const emptyState = document.getElementById('emptyStateVenda');
         const lista = Object.values(itensVendaMap);
-
         let subtotalCalculado = 0;
         let totalQtdItens = 0;
 
         if (lista.length === 0) {
-            container.innerHTML = '';
-            container.appendChild(emptyState);
-            emptyState.style.display = 'block';
+            container.innerHTML = `
+                <div id="emptyStateVenda" class="text-center py-10 text-slate-400 space-y-2">
+                    <span class="text-4xl block">🛍️</span>
+                    <p class="text-xs font-bold">Nenhum produto adicionado ainda.</p>
+                    <p class="text-[10px]">Digite no campo acima para pesquisar e adicionar em 1 clique!</p>
+                </div>
+            `;
         } else {
             container.innerHTML = '';
             lista.forEach(item => {
