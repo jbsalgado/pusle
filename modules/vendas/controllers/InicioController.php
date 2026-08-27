@@ -102,8 +102,12 @@ class InicioController extends Controller
                 ->count();
         }
 
+        // Buscar permissões ativas de módulos da loja (Liga/Desliga)
+        $lojaId = \app\components\TenantHelper::getId();
+        $permissoesModulo = \app\modules\vendas\models\LojaPermissao::getPermissoesUsuario($lojaId);
+
         // Buscar configuração da loja atual (tenant) para personalização
-        $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => \app\components\TenantHelper::getId()]);
+        $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $lojaId]);
 
         return $this->render('index', [
             'colaborador' => $colaborador,
@@ -111,6 +115,7 @@ class InicioController extends Controller
             'ehDonoLoja' => $ehDonoLoja,
             'countVendasPendentes' => $countVendasPendentes,
             'lojaConfig' => $lojaConfig,
+            'permissoesModulo' => $permissoesModulo,
         ]);
     }
 

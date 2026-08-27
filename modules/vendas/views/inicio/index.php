@@ -83,11 +83,14 @@ $colorMap = [
     ],
 ];
 
+$permissoesModulo = $permissoesModulo ?? [];
+
 /**
  * Array de configuração para os cards do dashboard.
  */
 $cards = [
     [
+        'key' => 'clientes',
         'order' => 1,
         'visible' => true,
         'label' => 'Clientes',
@@ -97,6 +100,7 @@ $cards = [
         'description' => 'Gerir clientes'
     ],
     [
+        'key' => 'produtos',
         'order' => 2,
         'visible' => true,
         'label' => 'Produtos',
@@ -106,6 +110,7 @@ $cards = [
         'description' => 'Gerir produtos'
     ],
     [
+        'key' => 'categorias',
         'order' => 2.1,
         'visible' => true,
         'label' => 'Categorias',
@@ -115,6 +120,7 @@ $cards = [
         'description' => 'Gerir categorias de produtos'
     ],
     [
+        'key' => 'trilha-sonora',
         'order' => 2.2,
         'visible' => true,
         'label' => 'Gestão de Músicas',
@@ -124,6 +130,7 @@ $cards = [
         'description' => 'Trilhas e efeitos para vídeos 9:16'
     ],
     [
+        'key' => 'fornecedores',
         'order' => 2.5,
         'visible' => true,
         'label' => 'Fornecedores',
@@ -133,6 +140,7 @@ $cards = [
         'description' => 'Gerir fornecedores'
     ],
     [
+        'key' => 'compras',
         'order' => 2.6,
         'visible' => true,
         'label' => 'Compras',
@@ -142,6 +150,7 @@ $cards = [
         'description' => 'Gerir compras e resuprimentos'
     ],
     [
+        'key' => 'dados-financeiros',
         'order' => 2.7,
         'visible' => true,
         'label' => 'Precificação',
@@ -151,6 +160,7 @@ $cards = [
         'description' => 'Precificação inteligente (Markup Divisor)'
     ],
     [
+        'key' => 'lojas',
         'order' => 2.8,
         'visible' => true,
         'label' => 'Lojas/Filiais',
@@ -160,6 +170,7 @@ $cards = [
         'description' => 'Criar e gerenciar lojas/filiais'
     ],
     [
+        'key' => 'confirmar-pagamentos',
         'order' => 2.9,
         'visible' => true,
         'label' => 'Confirmar Pagamento de Vendas On-line',
@@ -169,6 +180,7 @@ $cards = [
         'description' => 'Confirmar pagamentos de vendas on-line'
     ],
     [
+        'key' => 'unidades-medida',
         'order' => 3.5,
         'visible' => true,
         'label' => 'Unidades de Medida',
@@ -178,6 +190,7 @@ $cards = [
         'description' => 'Gerir unidades e escalas'
     ],
     [
+        'key' => 'colaboradores',
         'order' => 4,
         'visible' => true,
         'label' => 'Colaboradores',
@@ -187,6 +200,7 @@ $cards = [
         'description' => 'Gerir colaboradores'
     ],
     [
+        'key' => 'caixa',
         'order' => 4.5,
         'visible' => true,
         'label' => 'Caixa',
@@ -196,6 +210,7 @@ $cards = [
         'description' => 'Fluxo de caixa'
     ],
     [
+        'key' => 'contas-pagar',
         'order' => 4.6,
         'visible' => true,
         'label' => 'Contas a Pagar',
@@ -205,6 +220,7 @@ $cards = [
         'description' => 'Gerir contas a pagar'
     ],
     [
+        'key' => 'tipos-despesa',
         'order' => 4.7,
         'visible' => true,
         'label' => 'Tipos de Despesa',
@@ -214,6 +230,7 @@ $cards = [
         'description' => 'Categorias de despesas'
     ],
     [
+        'key' => 'orcamentos',
         'order' => 7,
         'visible' => true,
         'label' => 'Orçamentos',
@@ -223,6 +240,7 @@ $cards = [
         'description' => 'Gerir orçamentos'
     ],
     [
+        'key' => 'vendas',
         'order' => 5,
         'visible' => true,
         'label' => 'Vendas Efetivadas',
@@ -232,6 +250,7 @@ $cards = [
         'description' => 'Histórico de vendas realizadas'
     ],
     [
+        'key' => 'formas-pagamento',
         'order' => 5.5,
         'visible' => true,
         'label' => 'Formas de Pgto.',
@@ -241,6 +260,7 @@ $cards = [
         'description' => 'Formas de pagamento'
     ],
     [
+        'key' => 'comissoes',
         'order' => 6,
         'visible' => true,
         'label' => 'Comissões',
@@ -250,6 +270,7 @@ $cards = [
         'description' => 'Gerir comissões'
     ],
     [
+        'key' => 'comissao-config',
         'order' => 6.5,
         'visible' => true,
         'label' => 'Config. Comissões',
@@ -259,6 +280,7 @@ $cards = [
         'description' => 'Configurar comissões'
     ],
     [
+        'key' => 'periodo-cobranca',
         'order' => 7,
         'visible' => true,
         'label' => 'Período Cobrança',
@@ -268,6 +290,7 @@ $cards = [
         'description' => 'Períodos de cobrança'
     ],
     [
+        'key' => 'carteira-cobranca',
         'order' => 8,
         'visible' => true,
         'label' => 'Carteira Cobrança',
@@ -277,6 +300,7 @@ $cards = [
         'description' => 'Carteira de cobrança'
     ],
     [
+        'key' => 'itens-avulsos',
         'order' => 8.5,
         'visible' => true,
         'label' => 'Itens Avulsos / Pendentes',
@@ -286,6 +310,7 @@ $cards = [
         'description' => 'Gerir itens vendidos sem cadastro'
     ],
     [
+        'key' => 'historico-cobranca',
         'order' => 9,
         'visible' => true,
         'label' => 'Histórico Cobrança',
@@ -295,6 +320,7 @@ $cards = [
         'description' => 'Histórico de cobranças'
     ],
     [
+        'key' => 'taxa-entrega',
         'order' => 9.5,
         'visible' => true,
         'label' => 'Gestão de Fretes',
@@ -304,6 +330,7 @@ $cards = [
         'description' => 'Taxas por Cidade, Bairro e CEP'
     ],
     [
+        'key' => 'parcelas',
         'order' => 10,
         'visible' => true,
         'label' => 'Parcelas',
@@ -313,6 +340,7 @@ $cards = [
         'description' => 'Gerir parcelas'
     ],
     [
+        'key' => 'regioes',
         'order' => 11,
         'visible' => true,
         'label' => 'Região',
@@ -322,6 +350,7 @@ $cards = [
         'description' => 'Gerir regiões'
     ],
     [
+        'key' => 'rotas-cobranca',
         'order' => 12,
         'visible' => true,
         'label' => 'Rotas Cobrança',
@@ -331,6 +360,7 @@ $cards = [
         'description' => 'Rotas de cobrança'
     ],
     [
+        'key' => 'status-parcela',
         'order' => 13,
         'visible' => true,
         'label' => 'Status Parcela',
@@ -340,6 +370,7 @@ $cards = [
         'description' => 'Status de parcelas'
     ],
     [
+        'key' => 'status-venda',
         'order' => 14,
         'visible' => true,
         'label' => 'Status Vendas',
@@ -349,6 +380,7 @@ $cards = [
         'description' => 'Status de vendas'
     ],
     [
+        'key' => 'marketplaces',
         'order' => 15,
         'visible' => true,
         'label' => 'Marketplaces',
@@ -358,6 +390,7 @@ $cards = [
         'description' => 'Gerenciar integrações multicanal'
     ],
     [
+        'key' => 'usuarios',
         'order' => 98,
         'visible' => true,
         'label' => 'Usuários',
@@ -367,6 +400,7 @@ $cards = [
         'description' => 'Gerenciar usuários'
     ],
     [
+        'key' => 'configuracoes',
         'order' => 99,
         'visible' => true,
         'label' => 'Configurações',
@@ -376,6 +410,7 @@ $cards = [
         'description' => 'Configurações do sistema'
     ],
     [
+        'key' => 'dados-loja',
         'order' => 99.5,
         'visible' => true,
         'label' => 'Dados da Loja',
@@ -385,6 +420,7 @@ $cards = [
         'description' => 'Configurar dados da loja (nome, endereço, CNPJ)'
     ],
     [
+        'key' => 'whatsapp-evolution',
         'order' => 99.6,
         'visible' => true,
         'label' => 'WhatsApp Evolution',
@@ -395,14 +431,11 @@ $cards = [
     ],
 ];
 
-// Filtra cards visíveis baseado no flag de administrador
-// A variável $ehAdministrador é passada pelo controller
-// Se não foi passada, assume false (não é administrador)
+// Filtra cards visíveis baseado no flag de administrador e permissões ativas (Liga/Desliga)
 if (!isset($ehAdministrador)) {
     $ehAdministrador = false;
     \Yii::warning("⚠️ Variável ehAdministrador não foi passada pelo controller!", __METHOD__);
 } else {
-    // Converte para boolean de forma robusta (pode vir como string 't'/'f' do PostgreSQL)
     if (is_string($ehAdministrador)) {
         $ehAdministrador = (strtolower(trim($ehAdministrador)) === 't' || strtolower(trim($ehAdministrador)) === 'true' || $ehAdministrador === '1');
     } else {
@@ -410,12 +443,13 @@ if (!isset($ehAdministrador)) {
     }
 }
 
-
-$visibleCards = array_filter($cards, function ($card) use ($ehAdministrador) {
-    // Se não for administrador, mostra apenas o card "Nova Venda" (que não está na lista de cards de gerenciamento)
-    // Todos os outros cards de gerenciamento só aparecem para administradores
+$visibleCards = array_filter($cards, function ($card) use ($ehAdministrador, $permissoesModulo) {
     if (!$ehAdministrador) {
-        return false; // Não mostra nenhum card de gerenciamento para não-administradores
+        return false;
+    }
+    $key = $card['key'] ?? null;
+    if ($key && isset($permissoesModulo[$key]) && $permissoesModulo[$key] === false) {
+        return false;
     }
     return isset($card['visible']) && $card['visible'] === true;
 });
@@ -556,38 +590,42 @@ usort($visibleCards, function ($a, $b) {
             // ✅ Gera token JWT para SSO com o PWA
             $tokenJwt = $usuario ? $usuario->generateJwt() : '';
             ?>
-            <a href="<?= Yii::getAlias('@web') ?>/venda-direta/?token=<?= $tokenJwt ?>"
-                class="group block bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
-                <div class="flex items-center space-x-3 sm:space-x-4">
-                    <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
-                        <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
+            <?php if (!isset($permissoesModulo['nova-venda']) || $permissoesModulo['nova-venda'] !== false): ?>
+                <a href="<?= Yii::getAlias('@web') ?>/venda-direta/?token=<?= $tokenJwt ?>"
+                    class="group block bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
+                    <div class="flex items-center space-x-3 sm:space-x-4">
+                        <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
+                            <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                        </div>
+                        <div class="flex-1 text-white">
+                            <h3 class="text-lg sm:text-xl font-bold mb-0.5">Nova Venda</h3>
+                            <p class="text-xs sm:text-sm opacity-90">Registar uma nova venda direta</p>
+                        </div>
                     </div>
-                    <div class="flex-1 text-white">
-                        <h3 class="text-lg sm:text-xl font-bold mb-0.5">Nova Venda</h3>
-                        <p class="text-xs sm:text-sm opacity-90">Registar uma nova venda direta</p>
-                    </div>
-                </div>
-            </a>
+                </a>
+            <?php endif; ?>
 
             <!-- Novo Orçamento -->
-            <a href="<?= Yii::getAlias('@web') ?>/orcamento/"
-                class="group block bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
-                <div class="flex items-center space-x-3 sm:space-x-4">
-                    <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
-                        <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
+            <?php if (!isset($permissoesModulo['novo-orcamento']) || $permissoesModulo['novo-orcamento'] !== false): ?>
+                <a href="<?= Yii::getAlias('@web') ?>/orcamento/"
+                    class="group block bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
+                    <div class="flex items-center space-x-3 sm:space-x-4">
+                        <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
+                            <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                        </div>
+                        <div class="flex-1 text-white">
+                            <h3 class="text-lg sm:text-xl font-bold mb-0.5">Novo Orçamento</h3>
+                            <p class="text-xs sm:text-sm opacity-90">Criar cotação (sem baixar estoque)</p>
+                        </div>
                     </div>
-                    <div class="flex-1 text-white">
-                        <h3 class="text-lg sm:text-xl font-bold mb-0.5">Novo Orçamento</h3>
-                        <p class="text-xs sm:text-sm opacity-90">Criar cotação (sem baixar estoque)</p>
-                    </div>
-                </div>
-            </a>
+                </a>
+            <?php endif; ?>
 
-            <?php if ($ehAdministrador || $ehDonoLoja): ?>
+            <?php if ((!isset($permissoesModulo['confirmar-pagamentos']) || $permissoesModulo['confirmar-pagamentos'] !== false) && ($ehAdministrador || $ehDonoLoja)): ?>
                 <!-- Confirmar Pagamentos -->
                 <a href="<?= Url::to(['/vendas/inicio/confirmar-pagamentos']) ?>"
                     class="group block bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95 relative">
@@ -617,54 +655,60 @@ usort($visibleCards, function ($a, $b) {
             <?php endif; ?>
 
             <?php if ($ehDonoLoja): ?>
-                <!-- Dashboard Geral -->
-                <a href="<?= Url::to(['/vendas/dashboard/index']) ?>"
-                    class="group block bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
-                    <div class="flex items-center space-x-3 sm:space-x-4">
-                        <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
-                            <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2" />
-                            </svg>
+                <?php if (!isset($permissoesModulo['dashboard-geral']) || $permissoesModulo['dashboard-geral'] !== false): ?>
+                    <!-- Dashboard Geral -->
+                    <a href="<?= Url::to(['/vendas/dashboard/index']) ?>"
+                        class="group block bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
+                        <div class="flex items-center space-x-3 sm:space-x-4">
+                            <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
+                                <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2" />
+                                </svg>
+                            </div>
+                            <div class="flex-1 text-white">
+                                <h3 class="text-lg sm:text-xl font-bold mb-0.5">Dashboard Geral</h3>
+                                <p class="text-xs sm:text-sm opacity-90">Visão geral de estatísticas</p>
+                            </div>
                         </div>
-                        <div class="flex-1 text-white">
-                            <h3 class="text-lg sm:text-xl font-bold mb-0.5">Dashboard Geral</h3>
-                            <p class="text-xs sm:text-sm opacity-90">Visão geral de estatísticas</p>
-                        </div>
-                    </div>
-                </a>
+                    </a>
+                <?php endif; ?>
 
-                <!-- Dashboard Executivo -->
-                <a href="<?= Url::to(['/vendas/dashboard/executivo']) ?>"
-                    class="group block bg-gradient-to-br from-purple-600 to-indigo-800 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
-                    <div class="flex items-center space-x-3 sm:space-x-4">
-                        <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
-                            <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-                            </svg>
+                <?php if (!isset($permissoesModulo['dashboard-executivo']) || $permissoesModulo['dashboard-executivo'] !== false): ?>
+                    <!-- Dashboard Executivo -->
+                    <a href="<?= Url::to(['/vendas/dashboard/executivo']) ?>"
+                        class="group block bg-gradient-to-br from-purple-600 to-indigo-800 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
+                        <div class="flex items-center space-x-3 sm:space-x-4">
+                            <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
+                                <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                                </svg>
+                            </div>
+                            <div class="flex-1 text-white">
+                                <h3 class="text-lg sm:text-xl font-bold mb-0.5">Dashboard Executivo</h3>
+                                <p class="text-xs sm:text-sm opacity-90">Indicadores de BI e Metas</p>
+                            </div>
                         </div>
-                        <div class="flex-1 text-white">
-                            <h3 class="text-lg sm:text-xl font-bold mb-0.5">Dashboard Executivo</h3>
-                            <p class="text-xs sm:text-sm opacity-90">Indicadores de BI e Metas</p>
-                        </div>
-                    </div>
-                </a>
+                    </a>
+                <?php endif; ?>
 
-                <!-- Dashboard Financeiro (Fluxo de Caixa) -->
-                <a href="<?= Yii::getAlias('@web') ?>/financeiro/index.html"
-                    class="group block bg-gradient-to-br from-emerald-600 to-teal-700 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
-                    <div class="flex items-center space-x-3 sm:space-x-4">
-                        <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
-                            <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                <?php if (!isset($permissoesModulo['fluxo-caixa']) || $permissoesModulo['fluxo-caixa'] !== false): ?>
+                    <!-- Dashboard Financeiro (Fluxo de Caixa) -->
+                    <a href="<?= Yii::getAlias('@web') ?>/financeiro/index.html"
+                        class="group block bg-gradient-to-br from-emerald-600 to-teal-700 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
+                        <div class="flex items-center space-x-3 sm:space-x-4">
+                            <div class="bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-2.5 sm:p-3 group-hover:bg-opacity-30 transition-all">
+                                <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div class="flex-1 text-white">
+                                <h3 class="text-lg sm:text-xl font-bold mb-0.5">Fluxo de Caixa</h3>
+                                <p class="text-xs sm:text-sm opacity-90">Dashboard Financeiro Real</p>
+                            </div>
                         </div>
-                        <div class="flex-1 text-white">
-                            <h3 class="text-lg sm:text-xl font-bold mb-0.5">Fluxo de Caixa</h3>
-                            <p class="text-xs sm:text-sm opacity-90">Dashboard Financeiro Real</p>
-                        </div>
-                    </div>
-                </a>
+                    </a>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
 

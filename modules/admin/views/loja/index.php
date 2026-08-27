@@ -390,6 +390,9 @@ $admin = Yii::$app->user->identity;
                                 </span>
                             </td>
                             <td>
+                                <a href="<?= Url::to(['/admin/loja/modulos', 'id' => $loja->id]) ?>" class="btn-action" style="background: var(--primary-light); color: var(--primary);" title="Gerenciar Módulos e Acessos">
+                                    ⚙️ Permissões
+                                </a>
                                 <?php if ($loja->status_loja === 'pendente'): ?>
                                     <button class="btn-action btn-approve" onclick="acao('aprovar', '<?= Html::encode($loja->id) ?>', '<?= Html::encode($loja->nome) ?>')">
                                         ✅ Aprovar

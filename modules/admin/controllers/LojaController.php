@@ -10,16 +10,19 @@ use yii\web\Response;
 use yii\filters\AccessControl;
 use app\models\Usuario;
 use app\modules\evolution\services\EvolutionService;
+use app\modules\vendas\models\LojaPermissao;
 
 /**
  * Admin\LojaController — Gerenciamento de Lojas no Painel SaaS.
  *
  * Ações disponíveis:
- *   index     → Lista todas as lojas com filtros de status
- *   aprovar   → Ativa uma loja pendente
- *   suspender → Suspende uma loja ativa
- *   rejeitar  → Rejeita um cadastro pendente
- *   view      → Detalhes de uma loja específica
+ *   index         → Lista todas as lojas com filtros de status
+ *   aprovar       → Ativa uma loja pendente
+ *   suspender     → Suspende uma loja ativa
+ *   rejeitar      → Rejeita um cadastro pendente
+ *   view          → Detalhes de uma loja específica
+ *   modulos       → Tela de ativação/desativação de módulos do dono da loja
+ *   toggle-modulo → Alterna o acesso liga/desliga via AJAX
  */
 class LojaController extends Controller
 {
@@ -45,6 +48,12 @@ class LojaController extends Controller
                     }
                     throw new ForbiddenHttpException('Acesso restrito ao administrador.');
                 },
+            ],
+            'verbs' => [
+                'class' => \yii\filters\VerbFilter::class,
+                'actions' => [
+                    'toggle-modulo' => ['POST'],
+                ],
             ],
         ];
     }
@@ -79,6 +88,55 @@ class LojaController extends Controller
             'status'     => $status,
             'contadores' => $contadores,
         ]);
+    }
+
+    /**
+     * Exibe a tela de gerenciamento de permissões de módulos para o Dono da Loja.
+     */
+    public function actionModulos($id)
+    {
+        $loja = $this->findLoja($id);
+        $modulosDisponiveis = LojaPermissao::getTodosModulosDisponiveis();
+        $permissoesAtuais = LojaPermissao::getPermissoesUsuario($loja->id);
+
+        return $this->render('modulos', [
+            'loja' => $loja,
+            'modulosDisponiveis' => $modulosDisponiveis,
+            'permissoesAtuais' => $permissoesAtuais,
+        ]);
+    }
+
+    /**
+     * Alterna (Liga/Desliga) a permissão de um módulo para o Dono da Loja via AJAX.
+     */
+    public function actionToggleModulo()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        $request = Yii::$app->request;
+        $usuarioId = $request->post('usuario_id');
+        $moduloChave = $request->post('modulo_chave');
+        $ativo = $request->post('ativo');
+
+        if (!$usuarioId || !$moduloChave) {
+            return ['success' => false, 'message' => 'Parâmetros inválidos.'];
+        }
+
+        $loja = $this->findLoja($usuarioId);
+        $boolAtivo = ($ativo === 'true' || $ativo === true || $ativo === '1' || $ativo === 1);
+
+        $salvo = LojaPermissao::setPermissao($loja->id, $moduloChave, $boolAtivo);
+
+        if ($salvo) {
+            $statusText = $boolAtivo ? 'ativado' : 'desativado';
+            return [
+                'success' => true,
+                'ativo' => $boolAtivo,
+                'message' => "Módulo \"{$moduloChave}\" {$statusText} para {$loja->nome}."
+            ];
+        }
+
+        return ['success' => false, 'message' => 'Erro ao atualizar permissão do módulo.'];
     }
 
     /**
