@@ -19,7 +19,7 @@ $urlPdf = $encarte->getUrlPdf();
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <title><?= $titulo ?> | <?= $nomeLoja ?></title>
     
     <!-- Meta Tags SEO & Redes Sociais -->
@@ -41,30 +41,31 @@ $urlPdf = $encarte->getUrlPdf();
     <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
 
     <style>
-        body {
+        html, body {
             font-family: 'Inter', sans-serif;
             background-color: #0f172a;
             color: #f8fafc;
             overflow-x: hidden;
+            touch-action: pan-y;
+            -webkit-overflow-scrolling: touch;
         }
 
         .font-montserrat {
             font-family: 'Montserrat', sans-serif;
         }
 
-        /* Container do Flipbook */
+        /* Container do Folheto */
         .flipbook-stage {
             display: flex;
             align-items: center;
             justify-content: center;
             min-height: calc(100vh - 120px);
-            padding: 20px 10px;
+            padding: 15px 10px;
         }
 
         .flipbook-container {
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-            border-radius: 8px;
-            overflow: hidden;
+            border-radius: 16px;
             background-color: #ffffff;
         }
 
@@ -73,13 +74,13 @@ $urlPdf = $encarte->getUrlPdf();
             background-color: #ffffff;
             color: #0f172a;
             box-sizing: border-box;
-            padding: 20px;
-            overflow: hidden;
+            padding: 16px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             position: relative;
             user-select: none;
+            border-radius: 16px;
         }
 
         /* Tema Red Gold */
@@ -104,19 +105,17 @@ $urlPdf = $encarte->getUrlPdf();
 
         /* Card de Produto Interativo (Hotspot) */
         .hotspot-card {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.25s ease;
             cursor: pointer;
-            border: 2px solid #f1f5f9;
+            border: 2px solid #e2e8f0;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: rgba(239, 68, 68, 0.2);
         }
 
-        .hotspot-card:hover {
-            transform: translateY(-4px);
+        .hotspot-card:active, .hotspot-card:hover {
+            transform: scale(0.98);
             border-color: #ef4444;
             box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.25);
-        }
-
-        .starburst {
-            clip-path: polygon(50% 0%, 63% 15%, 83% 12%, 87% 32%, 100% 43%, 92% 62%, 100% 80%, 80% 86%, 70% 100%, 50% 90%, 30% 100%, 20% 86%, 0% 80%, 8% 62%, 0% 43%, 13% 32%, 17% 12%, 37% 15%);
         }
 
         /* Modal Glassmorphism de Produto */
@@ -129,7 +128,7 @@ $urlPdf = $encarte->getUrlPdf();
 <body class="min-h-screen flex flex-col justify-between theme-<?= Html::encode($encarte->cor_tema) ?>">
 
     <!-- Top Bar Navegação e Ações -->
-    <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 shadow-xl">
+    <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-3 shadow-xl">
         <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
             
             <!-- Branding Loja -->
@@ -168,12 +167,15 @@ $urlPdf = $encarte->getUrlPdf();
         </div>
     </header>
 
-    <!-- Área Principal do Flipbook Flipsnack -->
+    <!-- Área Principal do Folheto (Suporta Feed Responsivo e Flipbook 3D) -->
     <main class="flipbook-stage">
-        <div id="flipbookContainer" class="flipbook-container w-full max-w-5xl aspect-[3/4] sm:aspect-[4/3] rounded-2xl shadow-2xl">
+        <div id="flipbookContainer" class="flipbook-container w-full max-w-5xl space-y-6 sm:space-y-0">
             
-            <?php foreach ($paginas as $indexPagina => $itensPagina): ?>
-                <div class="page-sheet w-full h-full flex flex-col justify-between p-4 sm:p-6">
+            <?php foreach ($paginas as $indexPagina => $itensPagina): 
+                $countItensPag = count($itensPagina);
+                $gridCols = ($countItensPag <= 2) ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 sm:grid-cols-3';
+            ?>
+                <div id="lamina-<?= ($indexPagina + 1) ?>" class="page-sheet w-full min-h-[500px] flex flex-col justify-between p-4 sm:p-6 mb-6 sm:mb-0 shadow-lg border border-slate-100">
                     
                     <!-- Topo Lâmina -->
                     <div class="header-tabloide p-4 rounded-2xl shadow-md mb-4 flex items-center justify-between">
@@ -190,13 +192,8 @@ $urlPdf = $encarte->getUrlPdf();
                         <?php endif; ?>
                     </div>
 
-                    <!-- Grade de Produtos -->
-                    <?php 
-                    $countItensPag = count($itensPagina);
-                    $gridCols = ($countItensPag <= 2) ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 sm:grid-cols-3';
-                    $cardHeight = ($countItensPag <= 2) ? 'h-64 sm:h-80' : '';
-                    ?>
-                    <div class="grid <?= $gridCols ?> gap-4 flex-1 overflow-y-auto align-content-start">
+                    <!-- Grade de Produtos Nativamente Rolável -->
+                    <div class="grid <?= $gridCols ?> gap-4 flex-1 align-content-start my-2">
                         <?php foreach ($itensPagina as $encarteProd): 
                             $produto = $encarteProd->produto;
                             if (!$produto) continue;
@@ -207,8 +204,8 @@ $urlPdf = $encarte->getUrlPdf();
 
                             $foto = $produto->fotoPrincipal ?: ($produto->fotos[0] ?? null);
                             $urlFoto = $foto ? Url::to('@web/' . ltrim($foto->arquivo_path, '/'), true) : null;
-                        ?>
-                            <div onclick="abrirModalDetalheProduto(<?= Html::encode(json_encode([
+
+                            $jsonProdData = Html::encode(json_encode([
                                 'id' => $produto->id,
                                 'nome' => $produto->nome,
                                 'marca' => $produto->marca ?: '',
@@ -218,38 +215,40 @@ $urlPdf = $encarte->getUrlPdf();
                                 'foto' => $urlFoto,
                                 'codigo' => $produto->codigo_barras ?: $produto->codigo_referencia ?: '',
                                 'estoque' => (float)$produto->estoque_atual
-                            ])) ?>)" class="hotspot-card bg-slate-50 rounded-2xl p-3 flex flex-col justify-between relative overflow-hidden group">
+                            ]));
+                        ?>
+                            <div onclick="abrirModalDetalheProduto(<?= $jsonProdData ?>)" ontouchend="abrirModalDetalheProduto(<?= $jsonProdData ?>)" class="hotspot-card bg-slate-50 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group">
                                 
                                 <!-- Badge Starburst Oferta -->
-                                <div class="absolute top-2 right-2 bg-amber-400 text-black font-montserrat font-black text-[9px] px-2 py-1 rounded-full uppercase tracking-tighter shadow z-10">
+                                <div class="absolute top-2 right-2 bg-amber-400 text-black font-montserrat font-black text-[9px] px-2.5 py-1 rounded-full uppercase tracking-tighter shadow-md z-10">
                                     OFERTA
                                 </div>
 
                                 <!-- Imagem -->
-                                <div class="h-28 sm:h-32 w-full flex items-center justify-center mb-2 p-1">
+                                <div class="h-40 sm:h-44 w-full flex items-center justify-center mb-3 p-2 bg-white rounded-xl">
                                     <?php if ($urlFoto): ?>
                                         <img src="<?= $urlFoto ?>" alt="<?= Html::encode($produto->nome) ?>" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300">
                                     <?php else: ?>
-                                        <div class="w-full h-full bg-slate-200 rounded-xl flex items-center justify-center text-slate-400 text-xs font-bold">FOTO</div>
+                                        <div class="w-full h-full bg-slate-200 rounded-xl flex items-center justify-center text-slate-400 text-xs font-bold">FOTO DO PRODUTO</div>
                                     <?php endif; ?>
                                 </div>
 
                                 <!-- Nome e Marca -->
-                                <div class="mb-2">
+                                <div class="mb-3 text-center">
                                     <?php if ($produto->marca): ?>
-                                        <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider"><?= Html::encode($produto->marca) ?></div>
+                                        <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5"><?= Html::encode($produto->marca) ?></div>
                                     <?php endif; ?>
-                                    <div class="text-xs font-bold text-slate-900 line-clamp-2 leading-snug group-hover:text-red-600 transition-colors">
+                                    <div class="text-xs sm:text-sm font-extrabold text-slate-900 line-clamp-2 leading-snug group-hover:text-red-600 transition-colors">
                                         <?= Html::encode($produto->nome) ?>
                                     </div>
                                 </div>
 
                                 <!-- Preço Destacado Tabloide -->
-                                <div class="price-tag p-2 rounded-xl text-center shadow-md flex items-baseline justify-center gap-0.5">
-                                    <span class="text-[10px] font-bold">R$</span>
-                                    <span class="font-montserrat font-black text-xl sm:text-2xl leading-none"><?= $partesPreco[0] ?></span>
-                                    <span class="text-xs font-bold">,<?= $partesPreco[1] ?></span>
-                                    <span class="text-[9px] font-medium opacity-80 ml-0.5">/<?= Html::encode($produto->unidade_medida ?: 'un') ?></span>
+                                <div class="price-tag p-2.5 rounded-xl text-center shadow-md flex items-baseline justify-center gap-0.5">
+                                    <span class="text-[11px] font-extrabold">R$</span>
+                                    <span class="font-montserrat font-black text-2xl sm:text-3xl leading-none"><?= $partesPreco[0] ?></span>
+                                    <span class="text-sm font-bold">,<?= $partesPreco[1] ?></span>
+                                    <span class="text-[10px] font-semibold opacity-90 ml-0.5">/<?= Html::encode($produto->unidade_medida ?: 'un') ?></span>
                                 </div>
 
                             </div>
@@ -269,22 +268,22 @@ $urlPdf = $encarte->getUrlPdf();
     </main>
 
     <!-- Rodapé Público -->
-    <footer class="bg-slate-900 border-t border-slate-800 py-3 text-center text-xs text-slate-400">
+    <footer class="bg-slate-900 border-t border-slate-800 py-4 text-center text-xs text-slate-400">
         <?= $nomeLoja ?> © <?= date('Y') ?> • Catálogo Gerado via Pulse Vendas
     </footer>
 
-    <!-- Modal Interativo de Detalhes do Produto (Hotspot Click) -->
-    <div id="modalDetalheProduto" class="fixed inset-0 z-50 hidden glass-modal flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden text-slate-900 border border-slate-100 transform transition-all flex flex-col">
+    <!-- Modal Interativo de Detalhes do Produto (Hotspot Click / Touch) -->
+    <div id="modalDetalheProduto" class="fixed inset-0 z-[100] hidden glass-modal flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden text-slate-900 border border-slate-100 transform transition-all flex flex-col max-h-[90vh]">
             
             <div class="relative bg-slate-100 p-6 flex items-center justify-center h-64 border-b border-slate-200">
-                <button onclick="fecharModalDetalheProduto()" class="absolute top-4 right-4 bg-white/80 hover:bg-white text-slate-700 p-2 rounded-full shadow-md transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                <button onclick="fecharModalDetalheProduto()" class="absolute top-4 right-4 bg-white/90 hover:bg-white text-slate-700 p-2.5 rounded-full shadow-lg transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
                 <img id="modalProdFoto" src="" class="max-h-full max-w-full object-contain drop-shadow-md">
             </div>
 
-            <div class="p-6 space-y-4">
+            <div class="p-6 space-y-4 overflow-y-auto">
                 <div>
                     <span id="modalProdCategoria" class="px-2.5 py-1 bg-red-100 text-red-800 font-bold text-[10px] rounded-md uppercase tracking-wider"></span>
                     <h3 id="modalProdNome" class="text-xl font-extrabold text-slate-900 mt-1"></h3>
@@ -315,14 +314,18 @@ $urlPdf = $encarte->getUrlPdf();
     <script>
         let pageFlipInstance = null;
         let produtoAtualModal = null;
+        let paginaAtualNum = 1;
         const totalPaginasCount = <?= $totalPaginas ?>;
         const whatsappLojaClean = '<?= $whatsappClean ?>';
         const nomeLojaStr = '<?= addslashes($nomeLoja) ?>';
 
         document.addEventListener("DOMContentLoaded", function() {
             const container = document.getElementById('flipbookContainer');
-            if (container && typeof St !== 'undefined' && St.PageFlip) {
+            const isDesktopScreen = window.innerWidth >= 768;
+
+            if (isDesktopScreen && container && typeof St !== 'undefined' && St.PageFlip) {
                 try {
+                    container.classList.add('aspect-[4/3]');
                     pageFlipInstance = new St.PageFlip(container, {
                         width: 550,
                         height: 750,
@@ -333,31 +336,57 @@ $urlPdf = $encarte->getUrlPdf();
                         maxHeight: 1350,
                         maxShadowOpacity: 0.5,
                         showCover: false,
-                        mobileScrollSupport: false
+                        mobileScrollSupport: true
                     });
 
                     pageFlipInstance.loadFromHTML(document.querySelectorAll('.page-sheet'));
 
                     pageFlipInstance.on('flip', (e) => {
-                        const pageNum = e.data + 1;
-                        document.getElementById('pageIndicator').textContent = `Página ${pageNum} / ${totalPaginasCount}`;
-                    });
-
-                    document.getElementById('btnPrevPage').addEventListener('click', () => {
-                        pageFlipInstance.flipPrev();
-                    });
-
-                    document.getElementById('btnNextPage').addEventListener('click', () => {
-                        pageFlipInstance.flipNext();
+                        paginaAtualNum = e.data + 1;
+                        document.getElementById('pageIndicator').textContent = `Página ${paginaAtualNum} / ${totalPaginasCount}`;
                     });
 
                 } catch(e) {
-                    console.warn("StPageFlip init warning, fallback to standard layout:", e);
+                    console.warn("StPageFlip init warning, fallback to scroll layout:", e);
                 }
             }
+
+            document.getElementById('btnPrevPage').addEventListener('click', () => {
+                if (pageFlipInstance) {
+                    pageFlipInstance.flipPrev();
+                } else {
+                    if (paginaAtualNum > 1) {
+                        paginaAtualNum--;
+                        irParaLamina(paginaAtualNum);
+                    }
+                }
+            });
+
+            document.getElementById('btnNextPage').addEventListener('click', () => {
+                if (pageFlipInstance) {
+                    pageFlipInstance.flipNext();
+                } else {
+                    if (paginaAtualNum < totalPaginasCount) {
+                        paginaAtualNum++;
+                        irParaLamina(paginaAtualNum);
+                    }
+                }
+            });
         });
 
-        function abrirModalDetalheProduto(prod) {
+        function irParaLamina(num) {
+            paginaAtualNum = num;
+            document.getElementById('pageIndicator').textContent = `Página ${num} / ${totalPaginasCount}`;
+            const el = document.getElementById('lamina-' + num);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        window.abrirModalDetalheProduto = function(prod) {
+            if (typeof prod === 'string') {
+                try { prod = JSON.parse(prod); } catch(e) {}
+            }
             produtoAtualModal = prod;
             document.getElementById('modalProdNome').textContent = prod.nome;
             document.getElementById('modalProdMarca').textContent = prod.marca ? 'Marca: ' + prod.marca : '';
@@ -374,11 +403,11 @@ $urlPdf = $encarte->getUrlPdf();
             }
 
             document.getElementById('modalDetalheProduto').classList.remove('hidden');
-        }
+        };
 
-        function fecharModalDetalheProduto() {
+        window.fecharModalDetalheProduto = function() {
             document.getElementById('modalDetalheProduto').classList.add('hidden');
-        }
+        };
 
         function enviarPedidoZap() {
             if (!produtoAtualModal) return;
