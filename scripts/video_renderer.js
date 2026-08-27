@@ -518,18 +518,48 @@ function generateVideoHtmlTemplate(data, duracao) {
         let particles = [];
         let lastSpawnTime = 0;
 
+        const corTemaVal = "${(data.corTema || data.cor_tema || 'dark').toLowerCase()}";
+
+        function getContrastParticleColors(theme) {
+            theme = (theme || 'dark').toLowerCase();
+            if (theme === 'dark' || theme === 'ocean') {
+                return ['#FDE047', '#38BDF8', '#FFB6C1', '#A7F3D0', '#FFFFFF', '#F472B6'];
+            } else if (theme === 'emerald' || theme === 'purple') {
+                return ['#FDE047', '#F472B6', '#38BDF8', '#FBBF24', '#FFFFFF', '#6EE7B7'];
+            } else if (theme === 'sunset' || theme === 'rose') {
+                return ['#38BDF8', '#6EE7B7', '#FDE047', '#FFFFFF', '#F472B6', '#A78BFA'];
+            } else if (theme === 'gold') {
+                return ['#581C87', '#0F172A', '#BE123C', '#FFFFFF', '#0369A1', '#4C1D95'];
+            }
+            return ['#38BDF8', '#FDE047', '#F472B6', '#6EE7B7', '#FFFFFF'];
+        }
+
         function initParticles(type) {
             particles = [];
             if (!ctx || type === 'none') return;
-            if (type === 'stars') {
+            const contrastColors = getContrastParticleColors(corTemaVal);
+
+            if (['baby_kids', 'flowers', 'paws', 'balloons', 'gifts'].includes(type)) {
+                for (let i = 0; i < 35; i++) {
+                    particles.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        size: Math.random() * 28 + 22,
+                        speedY: Math.random() * 2.2 + 1.2,
+                        speedX: Math.random() * 1.5 - 0.75,
+                        alpha: Math.random() * 0.85 + 0.15,
+                        color: contrastColors[Math.floor(Math.random() * contrastColors.length)]
+                    });
+                }
+            } else if (type === 'stars') {
                 for (let i = 0; i < 40; i++) {
                     particles.push({
                         x: Math.random() * canvas.width,
                         y: Math.random() * canvas.height,
-                        size: Math.random() * 8 + 3,
+                        size: Math.random() * 20 + 10,
                         alpha: Math.random(),
                         phase: Math.random() * Math.PI * 2,
-                        color: ['#FFD700', '#FFFFFF', '#38BDF8', '#F43F5E'][Math.floor(Math.random() * 4)]
+                        color: contrastColors[Math.floor(Math.random() * contrastColors.length)]
                     });
                 }
             } else if (type === 'hearts') {
@@ -580,11 +610,239 @@ function generateVideoHtmlTemplate(data, duracao) {
             ctx.restore();
         }
 
+        function drawBabyHead(ctx, x, y, size, color, alpha) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            const r = size / 2;
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = 'rgba(255, 182, 193, 0.85)';
+            ctx.beginPath();
+            ctx.ellipse(x - r * 0.45, y + r * 0.15, r * 0.22, r * 0.14, 0, 0, Math.PI * 2);
+            ctx.ellipse(x + r * 0.45, y + r * 0.15, r * 0.22, r * 0.14, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#0F172A';
+            ctx.beginPath();
+            ctx.arc(x - r * 0.3, y - r * 0.1, r * 0.12, 0, Math.PI * 2);
+            ctx.arc(x + r * 0.3, y - r * 0.1, r * 0.12, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#0F172A';
+            ctx.lineWidth = Math.max(2, r * 0.1);
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.arc(x, y + r * 0.05, r * 0.28, 0.2 * Math.PI, 0.8 * Math.PI);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(x, y - r * 1.1, r * 0.25, 0.5 * Math.PI, 1.3 * Math.PI);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawChildJumping(ctx, x, y, size, color, alpha) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            ctx.fillStyle = color;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = size * 0.22;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            const rHead = size * 0.25;
+            ctx.beginPath();
+            ctx.arc(x, y - size * 0.4, rHead, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(x, y, size * 0.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(x - size * 0.45, y - size * 0.35);
+            ctx.lineTo(x, y - size * 0.05);
+            ctx.lineTo(x + size * 0.45, y - size * 0.35);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(x - size * 0.35, y + size * 0.45);
+            ctx.lineTo(x, y + size * 0.1);
+            ctx.lineTo(x + size * 0.35, y + size * 0.45);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawDaisyFlower(ctx, x, y, size, color, alpha) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            const rCenter = size * 0.28;
+            const rPetal = size * 0.32;
+
+            ctx.fillStyle = color;
+            for (let i = 0; i < 6; i++) {
+                const angle = (i * Math.PI) / 3;
+                const px = x + Math.cos(angle) * (rCenter + rPetal * 0.6);
+                const py = y + Math.sin(angle) * (rCenter + rPetal * 0.6);
+                ctx.beginPath();
+                ctx.arc(px, py, rPetal, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.fillStyle = '#FDE047';
+            ctx.beginPath();
+            ctx.arc(x, y, rCenter, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawPetPaw(ctx, x, y, size, color, alpha) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            ctx.fillStyle = color;
+
+            ctx.beginPath();
+            ctx.ellipse(x, y + size * 0.15, size * 0.42, size * 0.32, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            const toes = [
+                { dx: -size * 0.4, dy: -size * 0.25, r: size * 0.14 },
+                { dx: -size * 0.15, dy: -size * 0.42, r: size * 0.16 },
+                { dx: size * 0.15, dy: -size * 0.42, r: size * 0.16 },
+                { dx: size * 0.4, dy: -size * 0.25, r: size * 0.14 }
+            ];
+            toes.forEach(t => {
+                ctx.beginPath();
+                ctx.arc(x + t.dx, y + t.dy, t.r, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.restore();
+        }
+
+        function drawStarChubby(ctx, x, y, size, color, alpha) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            ctx.fillStyle = color;
+
+            ctx.beginPath();
+            const points = 5;
+            const outerR = size * 0.6;
+            const innerR = size * 0.28;
+            for (let i = 0; i < points * 2; i++) {
+                const r = i % 2 === 0 ? outerR : innerR;
+                const angle = (i * Math.PI) / points - Math.PI / 2;
+                const px = x + Math.cos(angle) * r;
+                const py = y + Math.sin(angle) * r;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#0F172A';
+            ctx.beginPath();
+            ctx.arc(x - size * 0.15, y - size * 0.05, size * 0.07, 0, Math.PI * 2);
+            ctx.arc(x + size * 0.15, y - size * 0.05, size * 0.07, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#0F172A';
+            ctx.lineWidth = Math.max(2, size * 0.06);
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.arc(x, y + size * 0.05, size * 0.12, 0.2 * Math.PI, 0.8 * Math.PI);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawPastelBalloon(ctx, x, y, size, color, alpha) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            ctx.fillStyle = color;
+
+            ctx.beginPath();
+            ctx.ellipse(x, y - size * 0.1, size * 0.38, size * 0.48, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(x - size * 0.1, y + size * 0.38);
+            ctx.lineTo(x + size * 0.1, y + size * 0.38);
+            ctx.lineTo(x, y + size * 0.48);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+            ctx.lineWidth = Math.max(2, size * 0.05);
+            ctx.beginPath();
+            ctx.moveTo(x, y + size * 0.48);
+            ctx.quadraticCurveTo(x + size * 0.15, y + size * 0.7, x, y + size * 0.95);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawGiftBox(ctx, x, y, size, color, alpha) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            ctx.fillStyle = color;
+
+            const boxW = size * 0.7;
+            const boxH = size * 0.6;
+            const boxX = x - boxW / 2;
+            const boxY = y - boxH / 2 + size * 0.1;
+            const radius = size * 0.12;
+
+            ctx.beginPath();
+            ctx.moveTo(boxX + radius, boxY);
+            ctx.lineTo(boxX + boxW - radius, boxY);
+            ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + radius);
+            ctx.lineTo(boxX + boxW, boxY + boxH - radius);
+            ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - radius, boxY + boxH);
+            ctx.lineTo(boxX + radius, boxY + boxH);
+            ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - radius);
+            ctx.lineTo(boxX, boxY + radius);
+            ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#FFB6C1';
+            const ribbonW = size * 0.14;
+            ctx.fillRect(x - ribbonW / 2, boxY, ribbonW, boxH);
+            ctx.fillRect(boxX, y + size * 0.1 - ribbonW / 2, boxW, ribbonW);
+
+            ctx.beginPath();
+            ctx.ellipse(x - size * 0.16, boxY - size * 0.08, size * 0.16, size * 0.1, -0.2, 0, Math.PI * 2);
+            ctx.ellipse(x + size * 0.16, boxY - size * 0.08, size * 0.16, size * 0.1, 0.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
         function renderParticles(currentTime, type) {
             if (!ctx || type === 'none') return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            if (type === 'fireworks') {
+            if (['baby_kids', 'flowers', 'paws', 'balloons', 'gifts'].includes(type)) {
+                for (let i = 0; i < particles.length; i++) {
+                    const p = particles[i];
+                    p.y -= p.speedY;
+                    p.x += Math.sin(p.y * 0.02) * p.speedX;
+                    if (p.y < -60) { p.y = canvas.height + 60; p.x = Math.random() * canvas.width; }
+
+                    if (type === 'baby_kids') {
+                        if (i % 2 === 0) drawBabyHead(ctx, p.x, p.y, p.size, p.color, p.alpha);
+                        else drawChildJumping(ctx, p.x, p.y, p.size, p.color, p.alpha);
+                    } else if (type === 'flowers') {
+                        drawDaisyFlower(ctx, p.x, p.y, p.size, p.color, p.alpha);
+                    } else if (type === 'paws') {
+                        drawPetPaw(ctx, p.x, p.y, p.size, p.color, p.alpha);
+                    } else if (type === 'balloons') {
+                        drawPastelBalloon(ctx, p.x, p.y, p.size, p.color, p.alpha);
+                    } else if (type === 'gifts') {
+                        drawGiftBox(ctx, p.x, p.y, p.size, p.color, p.alpha);
+                    }
+                }
+            } else if (type === 'fireworks') {
                 if (currentTime - lastSpawnTime > 1.2 || particles.length === 0) {
                     lastSpawnTime = currentTime;
                     const cx = Math.random() * (canvas.width - 300) + 150;

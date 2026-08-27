@@ -267,6 +267,11 @@ class ProdutoVideo extends ActiveRecord
             'sparks' => 'Faíscas & Neons',
             'stars' => 'Estrelas & Glow',
             'hearts' => 'Corações',
+            'baby_kids' => 'Bebê Risonho & Kids',
+            'flowers' => 'Flores & Margaridas',
+            'paws' => 'Patas de Pet',
+            'balloons' => 'Balões Pastel',
+            'gifts' => 'Caixas de Presente',
         ];
         $efeitoRaw = $meta['efeito_visual'] ?? $meta['efeitoVisual'] ?? 'none';
         $efeitoVal = $efeitoMap[$efeitoRaw] ?? 'Sem Efeito';
