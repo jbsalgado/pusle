@@ -1143,11 +1143,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'X-CSRF-Token': '<?= Yii::$app->request->getCsrfToken() ?>'
                 },
                 body: formData
             })
-            .then(res => res.json())
+            .then(async res => {
+                if (!res.ok) {
+                    const textErr = await res.text();
+                    console.error('Upload Error Server Response:', res.status, textErr);
+                    throw new Error(res.status === 400 ? 'Validação de formulário inválida. Verifique o arquivo.' : ('Erro no servidor (' + res.status + ')'));
+                }
+                return res.json();
+            })
             .then(data => {
                 btnSubmit.disabled = false;
                 if (data.success && data.trilha) {
@@ -1514,6 +1522,7 @@ function monitorarProgressoVideoDisparo(disparoId) {
         </div>
 
         <form id="formStudioUploadAudio" enctype="multipart/form-data" style="padding:20px;">
+            <input type="hidden" name="<?= Yii::$app->request->csrfParam ?>" value="<?= Yii::$app->request->getCsrfToken() ?>">
             <div style="margin-bottom:14px;">
                 <label class="form-label-custom">1. Título do Áudio / Efeito</label>
                 <input type="text" name="TrilhaSonora[titulo]" required class="select-custom" placeholder="Ex: Vinheta Promocional Verão">

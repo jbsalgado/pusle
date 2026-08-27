@@ -74,10 +74,16 @@ class TrilhaSonoraController extends Controller
 
         $isAjax = Yii::$app->request->isAjax 
             || isset(Yii::$app->request->acceptableContentTypes['application/json'])
-            || (strpos((string)Yii::$app->request->headers->get('Accept'), 'application/json') !== false);
+            || (strpos((string)Yii::$app->request->headers->get('Accept'), 'application/json') !== false)
+            || (strpos((string)Yii::$app->request->headers->get('X-Requested-With'), 'XMLHttpRequest') !== false);
 
         if (Yii::$app->request->isPost) {
-            $model->load(Yii::$app->request->post());
+            $post = Yii::$app->request->post();
+            $model->load($post);
+            if (empty($model->titulo) && isset($post['titulo'])) $model->titulo = $post['titulo'];
+            if (empty($model->tipo) && isset($post['tipo'])) $model->tipo = $post['tipo'];
+            if (empty($model->descricao) && isset($post['descricao'])) $model->descricao = $post['descricao'];
+
             $model->audioFile = UploadedFile::getInstance($model, 'audioFile');
 
             if (!$model->audioFile) {
