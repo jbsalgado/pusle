@@ -78,7 +78,7 @@ $urlPdf = $encarte->getUrlPdf();
             background-color: #ffffff;
             color: #0f172a;
             box-sizing: border-box;
-            padding: 14px;
+            padding: 12px 14px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -181,12 +181,13 @@ $urlPdf = $encarte->getUrlPdf();
                 $gridCols = ($countItensPag <= 2) ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 sm:grid-cols-3';
 
                 // Regras de densidade responsiva por número de itens na lâmina
-                $imgHeightClass = 'h-32 sm:h-36';
+                $imgHeightClass = 'h-28 sm:h-32';
                 $cardPaddingClass = 'p-3';
                 $titleFontClass = 'text-xs sm:text-sm line-clamp-2';
                 $priceFontClass = 'text-xl sm:text-2xl';
                 $priceDecFontClass = 'text-xs';
                 $gapClass = 'gap-3';
+                $headerPaddingClass = 'p-3 sm:p-4';
 
                 if ($countItensPag <= 2) {
                     $imgHeightClass = 'h-52 sm:h-60';
@@ -197,33 +198,34 @@ $urlPdf = $encarte->getUrlPdf();
                     $gapClass = 'gap-4';
                 } elseif ($countItensPag > 6) {
                     // Para 7 a 12+ itens por lâmina (4 linhas x 3 colunas)
-                    $imgHeightClass = 'h-16 sm:h-20';
-                    $cardPaddingClass = 'p-2';
-                    $titleFontClass = 'text-[10px] sm:text-xs line-clamp-1';
-                    $priceFontClass = 'text-base sm:text-xl';
-                    $priceDecFontClass = 'text-[10px]';
-                    $gapClass = 'gap-2';
+                    $imgHeightClass = 'h-12 sm:h-14';
+                    $cardPaddingClass = 'p-1.5 sm:p-2';
+                    $titleFontClass = 'text-[9px] sm:text-[10px] line-clamp-1';
+                    $priceFontClass = 'text-sm sm:text-lg';
+                    $priceDecFontClass = 'text-[9px]';
+                    $gapClass = 'gap-1.5 sm:gap-2';
+                    $headerPaddingClass = 'p-2 sm:p-2.5';
                 }
             ?>
-                <div id="lamina-<?= ($indexPagina + 1) ?>" class="page-sheet w-full h-full overflow-hidden flex flex-col justify-between p-3 sm:p-5 mb-6 sm:mb-0 shadow-lg border border-slate-100">
+                <div id="lamina-<?= ($indexPagina + 1) ?>" class="page-sheet w-full h-full overflow-hidden flex flex-col justify-between p-3 sm:p-4 mb-6 sm:mb-0 shadow-lg border border-slate-100">
                     
                     <!-- Topo Lâmina -->
-                    <div class="header-tabloide p-3 sm:p-4 rounded-2xl shadow-md mb-3 flex items-center justify-between">
+                    <div class="header-tabloide <?= $headerPaddingClass ?> rounded-2xl shadow-md mb-2 flex items-center justify-between">
                         <div>
-                            <span class="badge-promo px-2 py-0.5 rounded-md font-montserrat font-extrabold text-[9px] sm:text-[10px] uppercase tracking-wider">OFERTA ESPECIAL</span>
-                            <h2 class="font-montserrat font-black text-base sm:text-xl uppercase tracking-tight leading-none mt-1"><?= $titulo ?></h2>
-                            <p class="text-[10px] sm:text-xs opacity-90 font-medium"><?= $subtitulo ?></p>
+                            <span class="badge-promo px-2 py-0.5 rounded-md font-montserrat font-extrabold text-[8px] sm:text-[9px] uppercase tracking-wider">OFERTA ESPECIAL</span>
+                            <h2 class="font-montserrat font-black text-sm sm:text-lg uppercase tracking-tight leading-none mt-0.5"><?= $titulo ?></h2>
+                            <p class="text-[9px] sm:text-[10px] opacity-90 font-medium"><?= $subtitulo ?></p>
                         </div>
                         <?php if ($telefoneLoja): ?>
                             <div class="hidden sm:block text-right">
-                                <div class="text-[9px] font-bold uppercase opacity-80">Peça no Zap</div>
-                                <div class="text-xs sm:text-sm font-black"><?= $telefoneLoja ?></div>
+                                <div class="text-[8px] font-bold uppercase opacity-80">Peça no Zap</div>
+                                <div class="text-xs font-black"><?= $telefoneLoja ?></div>
                             </div>
                         <?php endif; ?>
                     </div>
 
                     <!-- Grade de Produtos Dinamicamente Ajustada -->
-                    <div class="grid <?= $gridCols ?> <?= $gapClass ?> flex-1 overflow-y-auto align-content-start my-1 pr-1">
+                    <div class="grid <?= $gridCols ?> <?= $gapClass ?> flex-1 overflow-y-auto align-content-start my-1 pr-0.5">
                         <?php foreach ($itensPagina as $encarteProd): 
                             $produto = $encarteProd->produto;
                             if (!$produto) continue;
@@ -250,23 +252,23 @@ $urlPdf = $encarte->getUrlPdf();
                             <div onclick="abrirModalDetalheProduto(<?= $jsonProdData ?>)" ontouchend="abrirModalDetalheProduto(<?= $jsonProdData ?>)" class="hotspot-card bg-slate-50 rounded-xl <?= $cardPaddingClass ?> flex flex-col justify-between relative overflow-hidden group">
                                 
                                 <!-- Badge Starburst Oferta -->
-                                <div class="absolute top-1.5 right-1.5 bg-amber-400 text-black font-montserrat font-black text-[8px] sm:text-[9px] px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm z-10">
+                                <div class="absolute top-1 right-1 bg-amber-400 text-black font-montserrat font-black text-[7px] sm:text-[8px] px-1.5 py-0.5 rounded-full uppercase tracking-tighter shadow-sm z-10">
                                     OFERTA
                                 </div>
 
                                 <!-- Imagem -->
-                                <div class="<?= $imgHeightClass ?> w-full flex items-center justify-center mb-1.5 p-1 bg-white rounded-lg">
+                                <div class="<?= $imgHeightClass ?> w-full flex items-center justify-center mb-1 p-0.5 bg-white rounded-lg">
                                     <?php if ($urlFoto): ?>
                                         <img src="<?= $urlFoto ?>" alt="<?= Html::encode($produto->nome) ?>" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300">
                                     <?php else: ?>
-                                        <div class="w-full h-full bg-slate-200 rounded-lg flex items-center justify-center text-slate-400 text-[10px] font-bold">FOTO</div>
+                                        <div class="w-full h-full bg-slate-200 rounded-lg flex items-center justify-center text-slate-400 text-[9px] font-bold">FOTO</div>
                                     <?php endif; ?>
                                 </div>
 
                                 <!-- Nome e Marca -->
-                                <div class="mb-1.5 text-center">
+                                <div class="mb-1 text-center">
                                     <?php if ($produto->marca): ?>
-                                        <div class="text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5"><?= Html::encode($produto->marca) ?></div>
+                                        <div class="text-[7px] sm:text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-0.5"><?= Html::encode($produto->marca) ?></div>
                                     <?php endif; ?>
                                     <div class="<?= $titleFontClass ?> font-extrabold text-slate-900 leading-snug group-hover:text-red-600 transition-colors">
                                         <?= Html::encode($produto->nome) ?>
@@ -274,11 +276,11 @@ $urlPdf = $encarte->getUrlPdf();
                                 </div>
 
                                 <!-- Preço Destacado Tabloide -->
-                                <div class="price-tag p-1.5 sm:p-2 rounded-lg text-center shadow-sm flex items-baseline justify-center gap-0.5">
-                                    <span class="text-[9px] sm:text-[10px] font-extrabold">R$</span>
+                                <div class="price-tag p-1 sm:p-1.5 rounded-lg text-center shadow-sm flex items-baseline justify-center gap-0.5">
+                                    <span class="text-[8px] sm:text-[9px] font-extrabold">R$</span>
                                     <span class="font-montserrat font-black <?= $priceFontClass ?> leading-none"><?= $partesPreco[0] ?></span>
                                     <span class="<?= $priceDecFontClass ?> font-bold">,<?= $partesPreco[1] ?></span>
-                                    <span class="text-[8px] sm:text-[9px] font-semibold opacity-90 ml-0.5">/<?= Html::encode($produto->unidade_medida ?: 'un') ?></span>
+                                    <span class="text-[7px] sm:text-[8px] font-semibold opacity-90 ml-0.5">/<?= Html::encode($produto->unidade_medida ?: 'un') ?></span>
                                 </div>
 
                             </div>
@@ -286,7 +288,7 @@ $urlPdf = $encarte->getUrlPdf();
                     </div>
 
                     <!-- Rodapé da Lâmina -->
-                    <div class="mt-2 pt-2 border-t border-slate-200 flex items-center justify-between text-[9px] sm:text-[10px] text-slate-500">
+                    <div class="mt-1 pt-1.5 border-t border-slate-200 flex items-center justify-between text-[8px] sm:text-[9px] text-slate-500">
                         <div>Ofertas válidas enquanto durarem os estoques. Imagens ilustrativas.</div>
                         <div class="font-bold">Lâmina <?= ($indexPagina + 1) ?>/<?= $totalPaginas ?></div>
                     </div>
