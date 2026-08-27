@@ -361,7 +361,92 @@ if ($model->hasErrors()): ?>
                 </div>
                 
                 <div id="preview-container" class="mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"></div>
+        <!-- Vídeos Existentes (se estiver editando) -->
+        <?php if (!$model->isNewRecord && $model->videos): ?>
+            <div class="mt-8 pt-8 border-t border-gray-100" id="secao-videos-existentes">
+                <label class="block text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Vídeos Cadastrados <span class="text-xs font-normal text-gray-500">(<?= count($model->videos) ?> de 2 vídeos)</span>
+                </label>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <?php foreach ($model->videos as $idx => $video): ?>
+                        <?php 
+                            $meta = is_array($video->metadata) ? $video->metadata : json_decode($video->metadata, true);
+                            $tamanhoBytes = $meta['tamanho_bytes'] ?? null;
+                            $tamanhoFormatted = $tamanhoBytes ? number_format($tamanhoBytes / (1024 * 1024), 2, ',', '.') . ' MB' : null;
+                        ?>
+                        <div class="bg-gray-900 rounded-xl overflow-hidden p-3 border border-gray-800 shadow-md flex flex-col justify-between">
+                            <video src="<?= $video->getUrl() ?>" controls preload="metadata" class="w-full aspect-video rounded-lg bg-black object-cover mb-3"></video>
+                            
+                            <div class="flex items-center justify-between gap-2 pt-2 border-t border-gray-800">
+                                <div class="flex items-center gap-2 text-xs text-gray-300 font-semibold truncate">
+                                    <span class="bg-purple-600/30 text-purple-300 px-2 py-0.5 rounded border border-purple-500/30 text-[11px]">
+                                        🎥 Vídeo <?= $idx + 1 ?>
+                                    </span>
+                                    <?php if ($tamanhoFormatted): ?>
+                                        <span class="text-gray-400 text-[11px]"><?= $tamanhoFormatted ?></span>
+                                    <?php endif; ?>
+                                </div>
+
+                                <?= Html::beginForm(['delete-video', 'id' => $video->id, 'redirect' => 'update'], 'post', [
+                                    'class' => 'inline',
+                                    'onsubmit' => "return confirm('Tem certeza que deseja excluir este vídeo?')"
+                                ]) ?>
+                                <?= Html::submitButton('🗑️ Excluir', [
+                                    'class' => 'px-3 py-1 bg-red-600/80 hover:bg-red-600 text-white text-xs font-bold rounded-lg transition-all cursor-pointer'
+                                ]) ?>
+                                <?= Html::endForm() ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
             </div>
+        <?php endif; ?>
+
+        <!-- Upload de Vídeos (Aba Básico) -->
+        <div class="mt-8 pt-8 border-t border-gray-100">
+            <label class="block text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Adicionar Vídeos do Produto <span class="text-xs font-normal text-gray-500">(Máximo 2 vídeos de até 5MB)</span>
+            </label>
+
+            <?php 
+                $qtdVideosCadastrados = !$model->isNewRecord ? count($model->videos) : 0; 
+            ?>
+
+            <?php if ($qtdVideosCadastrados >= 2): ?>
+                <div class="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 text-amber-800 text-sm font-semibold">
+                    <svg class="w-6 h-6 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span>Este produto já atingiu o limite máximo de 2 vídeos cadastrados. Para adicionar um novo vídeo, exclua um dos vídeos existentes acima.</span>
+                </div>
+            <?php else: ?>
+                <div class="p-4 sm:p-8 bg-purple-50/30 rounded-2xl border-2 border-dashed border-purple-200 transition-all hover:bg-purple-50/50 hover:border-purple-300">
+                    <div class="flex flex-col items-center justify-center text-center gap-4">
+                        <div class="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center">
+                            <svg class="h-8 w-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                            </svg>
+                        </div>
+                        <div class="flex text-sm text-gray-600 justify-center">
+                            <label for="videos-input" class="relative cursor-pointer bg-purple-600 px-5 py-2.5 rounded-xl font-bold text-white hover:bg-purple-700 transition-colors shadow-md flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                <span>Selecionar Vídeos (<?= 2 - $qtdVideosCadastrados ?> restante<?= (2 - $qtdVideosCadastrados) > 1 ? 's' : '' ?>)</span>
+                                <input id="videos-input" name="Produto[videos][]" type="file" class="sr-only" multiple accept="video/mp4,video/webm,video/quicktime" onchange="validarVideosUpload(this)">
+                            </label>
+                        </div>
+                        <p class="text-xs text-gray-500 font-medium">Formatos: MP4, WebM, MOV • Máximo 5MB por vídeo • Limite de 2 vídeos por produto</p>
+                    </div>
+
+                    <div id="video-preview-container" class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+                </div>
+            <?php endif; ?>
         </div>
 
     </div><!-- /content-basico -->
@@ -1524,6 +1609,60 @@ if ($model->hasErrors()): ?>
         });
 
         form.submit();
+    };
+
+    // --- GERENCIAMENTO E VALIDAÇÃO DE UPLOAD DE VÍDEOS (MÁX 2 VÍDEOS DE 5MB) ---
+    window.validarVideosUpload = function(input) {
+        const files = Array.from(input.files || []);
+        if (files.length === 0) return;
+
+        const maxBytes = 5 * 1024 * 1024; // 5MB
+        const videosCadastrados = <?= !$model->isNewRecord ? count($model->videos) : 0 ?>;
+        const maxPermitido = 2 - videosCadastrados;
+
+        if (files.length > maxPermitido) {
+            alert(`Limite excedido! Você só pode adicionar mais ${maxPermitido} vídeo(s) para este produto.`);
+            input.value = '';
+            const container = document.getElementById('video-preview-container');
+            if (container) container.innerHTML = '';
+            return;
+        }
+
+        let erros = [];
+        files.forEach(file => {
+            if (file.size > maxBytes) {
+                const tamMB = (file.size / (1024 * 1024)).toFixed(2);
+                erros.push(`• O arquivo "${file.name}" possui ${tamMB}MB e excede o limite máximo de 5MB.`);
+            }
+        });
+
+        if (erros.length > 0) {
+            alert('Atenção para os limites de vídeo:\n\n' + erros.join('\n'));
+            input.value = '';
+            const container = document.getElementById('video-preview-container');
+            if (container) container.innerHTML = '';
+            return;
+        }
+
+        // Renderizar previews dos vídeos selecionados
+        const container = document.getElementById('video-preview-container');
+        if (container) {
+            container.innerHTML = '';
+            files.forEach(file => {
+                const url = URL.createObjectURL(file);
+                const tamMB = (file.size / (1024 * 1024)).toFixed(2);
+                const item = document.createElement('div');
+                item.className = 'bg-gray-900 rounded-xl overflow-hidden p-3 border border-gray-800 shadow-md';
+                item.innerHTML = `
+                    <video src="${url}" controls class="w-full aspect-video rounded-lg bg-black object-cover mb-2"></video>
+                    <div class="flex items-center justify-between text-xs text-white pt-1 border-t border-gray-800">
+                        <span class="truncate font-semibold max-w-[180px]">${file.name}</span>
+                        <span class="bg-purple-600 px-2 py-0.5 rounded text-[10px] font-bold">${tamMB} MB</span>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
     };
 
     // Calcular margem e markup em tempo real

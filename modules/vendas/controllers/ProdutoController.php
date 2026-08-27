@@ -628,13 +628,13 @@ class ProdutoController extends Controller
                 }
             }
 
-            // Upload de fotos (sempre executa, mesmo se houver erros anteriores)
+            // Upload de fotos e vídeos (sempre executa, mesmo se houver erros anteriores)
             try {
                 $this->processUploadFotos($model);
+                $this->processUploadVideos($model);
             } catch (\Exception $e) {
-                Yii::error('Erro ao processar upload de fotos: ' . $e->getMessage(), __METHOD__);
+                Yii::error('Erro ao processar upload de mídias: ' . $e->getMessage(), __METHOD__);
                 Yii::error('Stack trace: ' . $e->getTraceAsString(), __METHOD__);
-                // Não interrompe o fluxo, apenas loga o erro
             }
 
             Yii::$app->session->setFlash('success', 'Produto cadastrado com sucesso!');
@@ -763,13 +763,13 @@ class ProdutoController extends Controller
                 }
 
                 Yii::info('Produto salvo com sucesso. Estoque final: ' . $model->estoque_atual, __METHOD__);
-                // Upload de fotos (sempre executa, mesmo se houver erros anteriores)
+                // Upload de fotos e vídeos (sempre executa, mesmo se houver erros anteriores)
                 try {
                     $this->processUploadFotos($model);
+                    $this->processUploadVideos($model);
                 } catch (\Exception $e) {
-                    Yii::error('Erro ao processar upload de fotos: ' . $e->getMessage(), __METHOD__);
+                    Yii::error('Erro ao processar upload de mídias: ' . $e->getMessage(), __METHOD__);
                     Yii::error('Stack trace: ' . $e->getTraceAsString(), __METHOD__);
-                    // Não interrompe o fluxo, apenas loga o erro
                 }
 
                 Yii::$app->session->setFlash('success', 'Produto atualizado com sucesso!');
@@ -1608,5 +1608,139 @@ class ProdutoController extends Controller
             Yii::$app->session->setFlash('error', 'Erro ao salvar grade: ' . $e->getMessage());
             return false;
         }
+    }
+
+    /**
+     * Processa upload de vídeos do produto (máximo 2 vídeos de até 5MB cada)
+     */
+    protected function processUploadVideos($model)
+    {
+        $uploadPath = Yii::getAlias('@webroot/uploads/produtos/' . $model->id . '/videos');
+
+        if (!is_dir($uploadPath)) {
+            @mkdir($uploadPath, 0755, true);
+        }
+
+        $files = UploadedFile::getInstances($model, 'videos');
+        if (empty($files)) {
+            $files = UploadedFile::getInstancesByName('Produto[videos]');
+        }
+        if (empty($files)) {
+            $files = UploadedFile::getInstancesByName('videos');
+        }
+
+        if (!$files || count($files) === 0) {
+            return;
+        }
+
+        // Quantidade de vídeos concluídos/ativos já cadastrados para este produto
+        $existentesCount = ProdutoVideo::find()
+            ->where(['produto_id' => $model->id, 'status' => ProdutoVideo::STATUS_CONCLUIDO])
+            ->count();
+
+        $maxPermitido = 2;
+        $restantesPermitidos = $maxPermitido - $existentesCount;
+
+        if ($restantesPermitidos <= 0) {
+            Yii::$app->session->setFlash('warning', 'O produto já atingiu o limite máximo de 2 vídeos.');
+            return;
+        }
+
+        $processados = 0;
+        $maxSize = 5 * 1024 * 1024; // 5MB em bytes
+        $lojaId = $this->getLojaId();
+
+        foreach ($files as $file) {
+            if ($processados >= $restantesPermitidos) {
+                Yii::$app->session->setFlash('warning', "Apenas os primeiros vídeos dentro do limite de 2 vídeos por produto foram salvos.");
+                break;
+            }
+
+            // Validar tamanho máximo (5MB)
+            if ($file->size > $maxSize) {
+                Yii::$app->session->setFlash('error', "O vídeo '{$file->name}' excede o tamanho máximo permitido de 5MB e não foi salvo.");
+                continue;
+            }
+
+            // Validar extensões aceitas
+            $extension = strtolower($file->extension);
+            if (!in_array($extension, ['mp4', 'webm', 'mov'])) {
+                Yii::$app->session->setFlash('error', "O formato do arquivo '{$file->name}' é inválido. Aceitos: MP4, WebM, MOV.");
+                continue;
+            }
+
+            $filename = 'video_' . uniqid() . '.' . $extension;
+            $filePath = $uploadPath . '/' . $filename;
+
+            if ($file->saveAs($filePath)) {
+                $videoModel = new ProdutoVideo();
+                $videoModel->produto_id = (string)$model->id;
+                $videoModel->usuario_id = (string)$lojaId;
+                $videoModel->duracao = 15;
+                $videoModel->formato = ProdutoVideo::FORMATO_FEED;
+                $videoModel->status = ProdutoVideo::STATUS_CONCLUIDO;
+                $videoModel->video_path = 'uploads/produtos/' . $model->id . '/videos/' . $filename;
+                $videoModel->video_url = Yii::getAlias('@web') . '/' . $videoModel->video_path;
+                $videoModel->metadata = [
+                    'origem' => 'upload_manual',
+                    'nome_original' => $file->name,
+                    'tamanho_bytes' => $file->size,
+                ];
+
+                if ($videoModel->save()) {
+                    $processados++;
+                } else {
+                    Yii::error('Erro ao salvar registro do vídeo no banco: ' . json_encode($videoModel->errors), __METHOD__);
+                    if (file_exists($filePath)) {
+                        @unlink($filePath);
+                    }
+                }
+            }
+        }
+
+        if ($processados > 0) {
+            Yii::$app->session->setFlash('success', "{$processados} vídeo(s) enviado(s) com sucesso!");
+        }
+    }
+
+    /**
+     * Exclui um vídeo do produto
+     */
+    public function actionDeleteVideo($id)
+    {
+        if (!$this->isAdministrador()) {
+            throw new \yii\web\ForbiddenHttpException('Você não tem permissão para excluir vídeos.');
+        }
+
+        $lojaId = $this->getLojaId();
+        $video = ProdutoVideo::findOne($id);
+
+        if (!$video) {
+            throw new NotFoundHttpException('Vídeo não encontrado.');
+        }
+
+        $produto = $video->produto;
+        if (!$produto || $produto->usuario_id !== $lojaId) {
+            throw new NotFoundHttpException('Acesso negado.');
+        }
+
+        $produtoId = $produto->id;
+
+        // Deletar arquivo físico se existir
+        if (!empty($video->video_path)) {
+            $absPath = Yii::getAlias('@webroot/' . ltrim($video->video_path, '/'));
+            if (file_exists($absPath)) {
+                @unlink($absPath);
+            }
+        }
+
+        if ($video->delete()) {
+            Yii::$app->session->setFlash('success', 'Vídeo excluído com sucesso!');
+        } else {
+            Yii::$app->session->setFlash('error', 'Erro ao excluir registro do vídeo.');
+        }
+
+        $redirectTo = Yii::$app->request->get('redirect') ?: Yii::$app->request->post('redirect', 'update');
+        return $this->redirect([$redirectTo ?: 'update', 'id' => $produtoId]);
     }
 }

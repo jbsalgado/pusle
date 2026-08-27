@@ -16,3 +16,13 @@ RewriteCond %{REQUEST_FILENAME} !-d
 
 # Senão, redirecione a requisição para index.php
 RewriteRule . index.php
+
+# Aumenta os limites de upload do PHP para suportar vídeos de produtos (até 10MB)
+<IfModule mod_php7.c>
+    php_value upload_max_filesize 10M
+    php_value post_max_size 16M
+</IfModule>
+<IfModule mod_php.c>
+    php_value upload_max_filesize 10M
+    php_value post_max_size 16M
+</IfModule>

@@ -70,8 +70,8 @@ class ProdutoVideo extends ActiveRecord
         return [
             [['produto_id', 'usuario_id'], 'required'],
             [['produto_id', 'usuario_id'], 'string', 'max' => 36],
-            [['duracao'], 'integer'],
-            [['duracao'], 'in', 'range' => [5, 10, 15, 30, 60]],
+            [['duracao'], 'integer', 'min' => 0],
+            [['duracao'], 'default', 'value' => 15],
             [['formato'], 'default', 'value' => self::FORMATO_STORIES],
             [['status'], 'default', 'value' => self::STATUS_PENDENTE],
             [['status'], 'in', 'range' => [self::STATUS_PENDENTE, self::STATUS_PROCESSANDO, self::STATUS_CONCLUIDO, self::STATUS_ERRO]],
@@ -102,6 +102,23 @@ class ProdutoVideo extends ActiveRecord
             'data_criacao' => 'Data de Criação',
             'data_atualizacao' => 'Data de Atualização',
         ];
+    }
+
+    /**
+     * Retorna URL pública completa do vídeo
+     */
+    public function getUrl()
+    {
+        if (!empty($this->video_url) && (strpos($this->video_url, 'http://') === 0 || strpos($this->video_url, 'https://') === 0)) {
+            return $this->video_url;
+        }
+
+        if (!empty($this->video_path)) {
+            $caminho = ltrim($this->video_path, '/');
+            return \yii\helpers\Url::to('@web/' . $caminho, true);
+        }
+
+        return '';
     }
 
     /**

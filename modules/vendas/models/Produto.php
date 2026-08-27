@@ -10,6 +10,7 @@ use app\models\Usuario;
 use app\modules\vendas\models\Categoria;
 use app\modules\vendas\models\VendaItem;
 use app\modules\vendas\models\ProdutoFoto;
+use app\modules\vendas\models\ProdutoVideo;
 use app\modules\vendas\models\DadosFinanceiros;
 use app\modules\vendas\helpers\PricingHelper;
 use app\modules\marketplace\components\MarketplaceSyncManager;
@@ -658,6 +659,13 @@ class Produto extends ActiveRecord
         // Certifique-se de que a relação está correta e ordenada
         return $this->hasMany(ProdutoFoto::class, ['produto_id' => 'id'])
             ->orderBy(['eh_principal' => SORT_DESC, 'ordem' => SORT_ASC]);
+    }
+
+    public function getVideos()
+    {
+        return $this->hasMany(ProdutoVideo::class, ['produto_id' => 'id'])
+            ->where(['status' => ProdutoVideo::STATUS_CONCLUIDO])
+            ->orderBy(['data_criacao' => SORT_DESC]);
     }
 
     public function getVendaItens()
