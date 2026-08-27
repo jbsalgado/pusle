@@ -391,14 +391,9 @@ if ($model->hasErrors()): ?>
                                     <?php endif; ?>
                                 </div>
 
-                                <?= Html::beginForm(['delete-video', 'id' => $video->id, 'redirect' => 'update'], 'post', [
-                                    'class' => 'inline',
-                                    'onsubmit' => "return confirm('Tem certeza que deseja excluir este vídeo?')"
-                                ]) ?>
-                                <?= Html::submitButton('🗑️ Excluir', [
-                                    'class' => 'px-3 py-1 bg-red-600/80 hover:bg-red-600 text-white text-xs font-bold rounded-lg transition-all cursor-pointer'
-                                ]) ?>
-                                <?= Html::endForm() ?>
+                                <button type="button" onclick="excluirVideoProduto('<?= $video->id ?>')" class="px-3 py-1 bg-red-600/80 hover:bg-red-600 text-white text-xs font-bold rounded-lg transition-all cursor-pointer">
+                                    🗑️ Excluir
+                                </button>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -1461,6 +1456,13 @@ if ($model->hasErrors()): ?>
         <div id="container-foto-ids-massa"></div>
     </form>
 
+    <!-- Formulário Top-Level para Exclusão de Vídeo do HD e Banco -->
+    <form id="form-delete-video" action="<?= Url::to(['delete-video']) ?>" method="post" style="display:none;">
+        <input type="hidden" name="<?= Yii::$app->request->csrfParam ?>" value="<?= Yii::$app->request->getCsrfToken() ?>">
+        <input type="hidden" name="id" id="delete-video-id-input" value="">
+        <input type="hidden" name="redirect" value="update">
+    </form>
+
 </div>
 
 <script>
@@ -1662,6 +1664,21 @@ if ($model->hasErrors()): ?>
                 `;
                 container.appendChild(item);
             });
+        }
+    };
+
+    window.excluirVideoProduto = function(videoId) {
+        if (!videoId) return;
+
+        if (confirm('Tem certeza que deseja excluir este vídeo fisicamente do servidor?')) {
+            const form = document.getElementById('form-delete-video');
+            const inputId = document.getElementById('delete-video-id-input');
+            if (form && inputId) {
+                inputId.value = videoId;
+                form.submit();
+            } else {
+                alert('Formulário de exclusão de vídeo não encontrado na página.');
+            }
         }
     };
 

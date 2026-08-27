@@ -6,6 +6,7 @@ use Yii;
 use app\modules\vendas\models\Produto;
 use app\modules\vendas\models\Categoria;
 use app\modules\vendas\models\ProdutoFoto;
+use app\modules\vendas\models\ProdutoVideo;
 use app\modules\vendas\models\DadosFinanceiros;
 use app\modules\vendas\models\Colaborador;
 use yii\web\Controller;
