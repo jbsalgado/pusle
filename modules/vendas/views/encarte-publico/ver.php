@@ -20,6 +20,18 @@ $urlPdf = $encarte->getUrlPdf();
 
 $fraseCreditoOnlyCode = "UM PRODUTO DESENVOLVIDO PELA ONLY CODE - WHATSAPP 81 9 9288-8872 - JOSE BARBOSA DOS SANTOS, CARUARU/PE";
 
+// Coletar categorias únicas presentes no encarte para o filtro
+$categoriasPresentes = [];
+foreach ($encarteProdutos as $ep) {
+    if ($ep->produto && $ep->produto->categoria) {
+        $catNome = $ep->produto->categoria->nome;
+        if (!in_array($catNome, $categoriasPresentes)) {
+            $categoriasPresentes[] = $catNome;
+        }
+    }
+}
+sort($categoriasPresentes);
+
 // Calcular maior quantidade de produtos em uma única lâmina para ajustar a altura do canvas 3D
 $maxItensPorPagina = 0;
 foreach ($paginas as $p) {
@@ -29,7 +41,6 @@ foreach ($paginas as $p) {
     }
 }
 
-// Altura proporcional do canvas 3D baseada no número de itens
 $canvasHeight3D = 750;
 if ($maxItensPorPagina > 15) {
     $canvasHeight3D = 1180;
@@ -85,7 +96,7 @@ if ($maxItensPorPagina > 15) {
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: calc(100vh - 140px);
+            min-height: calc(100vh - 180px);
             padding: 15px 10px;
         }
 
@@ -113,7 +124,7 @@ if ($maxItensPorPagina > 15) {
             transform: translateZ(0);
         }
 
-        /* Correção da Transição 3D StPageFlip (Opacidade total nos 2 sentidos) */
+        /* Correção da Transição 3D StPageFlip */
         .stpageflip--page, .stpageflip--page-back {
             background-color: #ffffff !important;
             backface-visibility: hidden !important;
@@ -160,61 +171,95 @@ if ($maxItensPorPagina > 15) {
             box-shadow: 0 8px 20px -4px rgba(239, 68, 68, 0.25);
         }
 
-        /* Modal Glassmorphism de Produto */
         .glass-modal {
             background: rgba(15, 23, 42, 0.85);
             backdrop-filter: blur(16px);
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between theme-<?= Html::encode($encarte->cor_tema) ?>">
 
-    <!-- Top Banner Créditos Only Code -->
-    <div class="bg-gradient-to-r from-red-700 via-amber-600 to-red-700 text-white text-[10px] sm:text-xs font-bold py-1.5 px-4 text-center tracking-wide uppercase shadow-md flex items-center justify-center gap-2">
+    <!-- Top Banner Créditos Only Code & Cronômetro Regressivo -->
+    <div class="bg-gradient-to-r from-red-700 via-amber-600 to-red-700 text-white text-[10px] sm:text-xs font-bold py-1.5 px-4 text-center tracking-wide uppercase shadow-md flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
         <span>⚡ <?= $fraseCreditoOnlyCode ?></span>
+        <span class="bg-black/30 px-2.5 py-0.5 rounded-full border border-white/20 font-montserrat flex items-center gap-1 text-amber-300">
+            ⏱️ OFERTAS ENCERRAM EM: <strong id="timerDisplay">02D 18H 45M 30S</strong>
+        </span>
     </div>
 
     <!-- Top Bar Navegação e Ações -->
-    <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-3 shadow-xl">
-        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+    <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-2.5 shadow-xl">
+        <div class="max-w-7xl mx-auto flex flex-col gap-2.5">
             
-            <!-- Branding Loja -->
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-red-600 to-amber-500 flex items-center justify-center font-montserrat font-extrabold text-white text-lg shadow-lg">
-                    <?= mb_substr($nomeLoja, 0, 1) ?>
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <!-- Branding Loja -->
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-red-600 to-amber-500 flex items-center justify-center font-montserrat font-extrabold text-white text-lg shadow-lg">
+                        <?= mb_substr($nomeLoja, 0, 1) ?>
+                    </div>
+                    <div>
+                        <h1 class="font-extrabold text-sm sm:text-base text-white truncate max-w-xs sm:max-w-md"><?= $titulo ?></h1>
+                        <p class="text-xs text-slate-400 font-medium"><?= $nomeLoja ?> • <?= $subtitulo ?></p>
+                    </div>
                 </div>
-                <div>
-                    <h1 class="font-extrabold text-sm sm:text-base text-white truncate max-w-xs sm:max-w-md"><?= $titulo ?></h1>
-                    <p class="text-xs text-slate-400 font-medium"><?= $nomeLoja ?> • <?= $subtitulo ?></p>
+
+                <!-- Controles do Folheto -->
+                <div class="flex items-center gap-2 flex-wrap justify-center">
+                    <!-- Páginas -->
+                    <div class="bg-slate-800 text-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-700 flex items-center gap-2">
+                        <button id="btnPrevPage" class="hover:text-amber-400 transition p-1">◀</button>
+                        <span id="pageIndicator">Página 1 / <?= $totalPaginas ?></span>
+                        <button id="btnNextPage" class="hover:text-amber-400 transition p-1">▶</button>
+                    </div>
+
+                    <!-- Baixar PDF -->
+                    <a href="<?= $urlPdf ?>" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl transition shadow-md">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        PDF
+                    </a>
+
+                    <!-- Compartilhar WhatsApp -->
+                    <button onclick="compartilharEncarte()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl transition shadow-md">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.705 1.754zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-1.15 4.2 4.293-1.125z"/></svg>
+                        Compartilhar
+                    </button>
                 </div>
             </div>
 
-            <!-- Controles do Folheto -->
-            <div class="flex items-center gap-2 flex-wrap justify-center">
-                <!-- Páginas -->
-                <div class="bg-slate-800 text-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-700 flex items-center gap-2">
-                    <button id="btnPrevPage" class="hover:text-amber-400 transition p-1">◀</button>
-                    <span id="pageIndicator">Página 1 / <?= $totalPaginas ?></span>
-                    <button id="btnNextPage" class="hover:text-amber-400 transition p-1">▶</button>
+            <!-- Barra de Pesquisa Rápida e Filtros por Categoria -->
+            <div class="flex flex-col sm:flex-row items-center gap-2 pt-1 border-t border-slate-800">
+                <!-- Campo Busca -->
+                <div class="relative w-full sm:w-72">
+                    <input type="text" id="inputBuscaProduto" oninput="filtrarProdutos()" placeholder="🔍 Buscar produto no encarte..." class="w-full bg-slate-800 text-white placeholder-slate-400 text-xs rounded-xl px-3 py-1.5 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400">
                 </div>
 
-                <!-- Baixar PDF -->
-                <a href="<?= $urlPdf ?>" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl transition shadow-md">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    Baixar PDF
-                </a>
-
-                <!-- Compartilhar WhatsApp -->
-                <button onclick="compartilharEncarte()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl transition shadow-md">
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.705 1.754zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-1.15 4.2 4.293-1.125z"/></svg>
-                    Compartilhar
-                </button>
+                <!-- Chips Categorias -->
+                <?php if (!empty($categoriasPresentes)): ?>
+                    <div class="flex items-center gap-1.5 overflow-x-auto w-full no-scrollbar py-0.5">
+                        <button onclick="filtrarCategoria('TODAS')" class="btn-cat-chip bg-amber-400 text-slate-900 font-extrabold text-[10px] px-2.5 py-1 rounded-lg uppercase whitespace-nowrap shadow transition">
+                            Todas
+                        </button>
+                        <?php foreach ($categoriasPresentes as $catNome): ?>
+                            <button onclick="filtrarCategoria('<?= Html::encode($catNome) ?>')" class="btn-cat-chip bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[10px] px-2.5 py-1 rounded-lg uppercase whitespace-nowrap transition border border-slate-700">
+                                <?= Html::encode($catNome) ?>
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
             </div>
 
         </div>
     </header>
 
-    <!-- Área Principal do Folheto (Suporta Feed Responsivo e Flipbook 3D) -->
+    <!-- Área Principal do Folheto -->
     <main class="flipbook-stage">
         <div id="flipbookContainer" class="flipbook-container w-full max-w-5xl space-y-6 sm:space-y-0">
             
@@ -249,7 +294,6 @@ if ($maxItensPorPagina > 15) {
                     $gapClass = 'gap-2';
                     $headerPaddingClass = 'p-2 sm:p-3';
                 } else {
-                    // Para 13 a 18+ itens por lâmina (Layout Ultra Denso 15/18 produtos)
                     $gridColsRows = 'grid-cols-2 sm:grid-cols-3';
                     $imgHeightClass = 'h-10 sm:h-12';
                     $cardPaddingClass = 'p-1 sm:p-1.5';
@@ -279,7 +323,7 @@ if ($maxItensPorPagina > 15) {
 
                     <!-- Grade de Produtos Dinamicamente Ajustada -->
                     <div class="grid <?= $gridColsRows ?> <?= $gapClass ?> flex-1 items-start my-1 pr-0.5">
-                        <?php foreach ($itensPagina as $encarteProd): 
+                        <?php foreach ($itensPagina as $idxP => $encarteProd): 
                             $produto = $encarteProd->produto;
                             if (!$produto) continue;
 
@@ -289,24 +333,36 @@ if ($maxItensPorPagina > 15) {
 
                             $foto = $produto->fotoPrincipal ?: ($produto->fotos[0] ?? null);
                             $urlFoto = $foto ? Url::to('@web/' . ltrim($foto->arquivo_path, '/'), true) : null;
+                            $catNome = $produto->categoria ? $produto->categoria->nome : 'Geral';
+
+                            // Badges dinâmicos variados
+                            $badgeTexto = "OFERTA";
+                            $badgeColor = "bg-amber-400 text-black";
+                            if ($idxP % 4 === 1) {
+                                $badgeTexto = "🔥 SUPER OFERTA";
+                                $badgeColor = "bg-red-600 text-white";
+                            } elseif ($idxP % 4 === 2) {
+                                $badgeTexto = "⭐ MAIS VENDIDO";
+                                $badgeColor = "bg-amber-500 text-white";
+                            }
 
                             $jsonProdData = Html::encode(json_encode([
                                 'id' => $produto->id,
                                 'nome' => $produto->nome,
                                 'marca' => $produto->marca ?: '',
-                                'categoria' => $produto->categoria ? $produto->categoria->nome : '',
+                                'categoria' => $catNome,
+                                'precoVal' => $precoVal,
                                 'preco' => $precoFormatado,
                                 'unidade' => $produto->unidade_medida ?: 'un',
                                 'foto' => $urlFoto,
-                                'codigo' => $produto->codigo_barras ?: $produto->codigo_referencia ?: '',
-                                'estoque' => (float)$produto->estoque_atual
+                                'codigo' => $produto->codigo_barras ?: $produto->codigo_referencia ?: ''
                             ]));
                         ?>
-                            <div onclick="abrirModalDetalheProduto(<?= $jsonProdData ?>)" ontouchend="abrirModalDetalheProduto(<?= $jsonProdData ?>)" class="hotspot-card bg-slate-50 rounded-xl <?= $cardPaddingClass ?> flex flex-col justify-between relative overflow-hidden group">
+                            <div data-prod-nome="<?= Html::encode(mb_strtolower($produto->nome)) ?>" data-prod-cat="<?= Html::encode($catNome) ?>" onclick="abrirModalDetalheProduto(<?= $jsonProdData ?>)" ontouchend="abrirModalDetalheProduto(<?= $jsonProdData ?>)" class="hotspot-card bg-slate-50 rounded-xl <?= $cardPaddingClass ?> flex flex-col justify-between relative overflow-hidden group">
                                 
                                 <!-- Badge Starburst Oferta -->
-                                <div class="absolute top-1 right-1 bg-amber-400 text-black font-montserrat font-black text-[7px] sm:text-[8px] px-1.5 py-0.5 rounded-full uppercase tracking-tighter shadow-sm z-10">
-                                    OFERTA
+                                <div class="absolute top-1 right-1 <?= $badgeColor ?> font-montserrat font-black text-[7px] sm:text-[8px] px-1.5 py-0.5 rounded-full uppercase tracking-tighter shadow-sm z-10">
+                                    <?= $badgeTexto ?>
                                 </div>
 
                                 <!-- Imagem -->
@@ -328,12 +384,18 @@ if ($maxItensPorPagina > 15) {
                                     </div>
                                 </div>
 
-                                <!-- Preço Destacado Tabloide -->
-                                <div class="price-tag py-1 px-1.5 rounded-lg text-center shadow-sm flex items-baseline justify-center gap-0.5 flex-shrink-0">
-                                    <span class="text-[8px] sm:text-[9px] font-extrabold">R$</span>
-                                    <span class="font-montserrat font-black <?= $priceFontClass ?> leading-none"><?= $partesPreco[0] ?></span>
-                                    <span class="<?= $priceDecFontClass ?> font-bold">,<?= $partesPreco[1] ?></span>
-                                    <span class="text-[7px] sm:text-[8px] font-semibold opacity-90 ml-0.5">/<?= Html::encode($produto->unidade_medida ?: 'un') ?></span>
+                                <!-- Preço Destacado e Botão Sacola Rápida -->
+                                <div class="space-y-1 flex-shrink-0">
+                                    <div class="price-tag py-0.5 px-1.5 rounded-lg text-center shadow-sm flex items-baseline justify-center gap-0.5">
+                                        <span class="text-[8px] sm:text-[9px] font-extrabold">R$</span>
+                                        <span class="font-montserrat font-black <?= $priceFontClass ?> leading-none"><?= $partesPreco[0] ?></span>
+                                        <span class="<?= $priceDecFontClass ?> font-bold">,<?= $partesPreco[1] ?></span>
+                                        <span class="text-[7px] sm:text-[8px] font-semibold opacity-90 ml-0.5">/<?= Html::encode($produto->unidade_medida ?: 'un') ?></span>
+                                    </div>
+
+                                    <button onclick="event.stopPropagation(); adicionarDirectoSacola(<?= $jsonProdData ?>)" class="w-full py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[8px] sm:text-[9px] rounded-lg shadow transition flex items-center justify-center gap-1">
+                                        <span>+ Sacola</span>
+                                    </button>
                                 </div>
 
                             </div>
@@ -352,16 +414,31 @@ if ($maxItensPorPagina > 15) {
         </div>
     </main>
 
+    <!-- Barra Flutuante da Sacola de Ofertas no Canto Inferior -->
+    <div id="barrasacola" onclick="abrirModalSacola()" class="fixed bottom-4 right-4 z-50 bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-600 text-white shadow-2xl rounded-2xl p-3 sm:p-4 flex items-center gap-3 border-2 border-white/20 hover:scale-105 transition-all cursor-pointer">
+        <div class="relative bg-white/20 p-2.5 rounded-xl">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 11h14l1 12H4l1-12z"/></svg>
+            <span id="sacolaBadge" class="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">0</span>
+        </div>
+        <div>
+            <div class="text-[10px] uppercase font-extrabold text-emerald-100">Minha Sacola</div>
+            <div class="text-sm sm:text-base font-montserrat font-black">R$ <span id="sacolaTotalText">0,00</span></div>
+        </div>
+        <button class="bg-white text-emerald-900 font-extrabold text-xs px-3 py-2 rounded-xl shadow ml-1 flex items-center gap-1">
+            <span>Ver Pedido</span>
+            <span>➔</span>
+        </button>
+    </div>
+
     <!-- Rodapé Público -->
     <footer class="bg-slate-900 border-t border-slate-800 py-3 px-4 text-center text-xs text-slate-400 font-medium">
         <?= $nomeLoja ?> © <?= date('Y') ?> • <?= $fraseCreditoOnlyCode ?>
     </footer>
 
-    <!-- Modal Interativo de Detalhes do Produto (Hotspot Click / Touch) -->
+    <!-- Modal Interativo de Detalhes do Produto -->
     <div id="modalDetalheProduto" class="fixed inset-0 z-[100] hidden glass-modal flex items-center justify-center p-3 sm:p-4">
         <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden text-slate-900 border border-slate-100 transform transition-all flex flex-col max-h-[92vh] relative">
             
-            <!-- Botão 'X' de Fechar Modal com Alto Contraste Destacado em Celulares -->
             <button onclick="fecharModalDetalheProduto()" class="absolute top-3 right-3 sm:top-4 sm:right-4 z-30 bg-slate-900 hover:bg-slate-800 text-white rounded-full p-2.5 shadow-2xl transition border-2 border-white flex items-center justify-center w-10 h-10 cursor-pointer">
                 <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
@@ -388,10 +465,76 @@ if ($maxItensPorPagina > 15) {
                     </div>
                 </div>
 
-                <!-- Botão Pedir pelo WhatsApp -->
-                <button id="btnPedirWhatsapp" onclick="enviarPedidoZap()" class="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-extrabold rounded-2xl shadow-xl transition flex items-center justify-center gap-2 text-base">
+                <!-- Botões de Ação na Modal -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <button onclick="adicionarModalNaSacola()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm">
+                        🛒 Adicionar à Sacola
+                    </button>
+
+                    <button id="btnPedirWhatsapp" onclick="enviarPedidoZap()" class="w-full py-3.5 bg-green-600 hover:bg-green-700 text-white font-extrabold rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.705 1.754zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-1.15 4.2 4.293-1.125z"/></svg>
+                        Pedir Só Este Item
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal da Sacola de Ofertas (Checkout Multi-Itens) -->
+    <div id="modalSacola" class="fixed inset-0 z-[110] hidden glass-modal flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden text-slate-900 border border-slate-100 transform transition-all flex flex-col max-h-[92vh] relative">
+            
+            <!-- Header Modal Sacola -->
+            <div class="bg-slate-900 text-white p-4 flex items-center justify-between border-b border-slate-800">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">🛒</span>
+                    <div>
+                        <h3 class="font-extrabold text-base">Minha Sacola de Ofertas</h3>
+                        <p class="text-xs text-slate-400">Finalize e envie seu pedido completo pelo WhatsApp</p>
+                    </div>
+                </div>
+                <button onclick="fecharModalSacola()" class="text-slate-400 hover:text-white p-1">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Corpo Modal Sacola -->
+            <div class="p-4 space-y-4 overflow-y-auto flex-1">
+                
+                <!-- Lista de Itens -->
+                <div id="listaItensSacola" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    <!-- Gerado Dinamicamente por JS -->
+                </div>
+
+                <!-- Totalizador -->
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
+                    <span class="font-extrabold text-slate-700 text-sm">TOTAL DO PEDIDO:</span>
+                    <span class="font-montserrat font-black text-2xl text-emerald-600">R$ <span id="sacolaModalTotal">0,00</span></span>
+                </div>
+
+                <!-- Formulário Opcional do Cliente -->
+                <div class="space-y-2 pt-2 border-t border-slate-200">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Seu Nome (Opcional):</label>
+                        <input type="text" id="inputNomeCliente" placeholder="Ex: Maria Silva" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Endereço de Entrega / Obs (Opcional):</label>
+                        <input type="text" id="inputEnderecoCliente" placeholder="Ex: Rua das Flores, 123 - Centro" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Rodapé Modal Sacola -->
+            <div class="p-4 bg-slate-50 border-t border-slate-200 flex flex-col gap-2">
+                <button onclick="finalizarPedidoSacolaWhatsapp()" class="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-black text-base rounded-2xl shadow-xl transition flex items-center justify-center gap-2">
                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.705 1.754zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-1.15 4.2 4.293-1.125z"/></svg>
-                    Pedir no WhatsApp da Loja
+                    Enviar Pedido Completo no WhatsApp
+                </button>
+                <button onclick="limparSacola()" class="text-xs font-bold text-slate-500 hover:text-red-600 transition text-center py-1">
+                    Esvaziar Sacola
                 </button>
             </div>
 
@@ -407,7 +550,13 @@ if ($maxItensPorPagina > 15) {
         const nomeLojaStr = '<?= addslashes($nomeLoja) ?>';
         const canvasHeightDynamic = <?= $canvasHeight3D ?>;
 
+        // Estado da Sacola de Compras
+        let sacolaItens = {};
+
         document.addEventListener("DOMContentLoaded", function() {
+            carregarSacolaLocalStorage();
+            iniciarCronometroRegressivo();
+
             const container = document.getElementById('flipbookContainer');
             const isDesktopScreen = window.innerWidth >= 768;
 
@@ -464,6 +613,66 @@ if ($maxItensPorPagina > 15) {
             });
         });
 
+        // Cronômetro Regressivo Simulado (2 dias)
+        function iniciarCronometroRegressivo() {
+            let tempoSegundos = (2 * 24 * 3600) + (18 * 3600) + (45 * 60);
+            const el = document.getElementById('timerDisplay');
+            if (!el) return;
+
+            setInterval(() => {
+                if (tempoSegundos <= 0) return;
+                tempoSegundos--;
+
+                const d = Math.floor(tempoSegundos / (3600 * 24));
+                const h = Math.floor((tempoSegundos % (3600 * 24)) / 3600);
+                const m = Math.floor((tempoSegundos % 3600) / 60);
+                const s = tempoSegundos % 60;
+
+                el.textContent = `${String(d).padStart(2, '0')}D ${String(h).padStart(2, '0')}H ${String(m).padStart(2, '0')}M ${String(s).padStart(2, '0')}S`;
+            }, 1000);
+        }
+
+        // Filtro por Nome e Categoria
+        function filtrarProdutos() {
+            const termo = document.getElementById('inputBuscaProduto').value.toLowerCase().trim();
+            const cards = document.querySelectorAll('.hotspot-card');
+
+            cards.forEach(card => {
+                const nome = card.getAttribute('data-prod-nome') || '';
+                if (nome.includes(termo)) {
+                    card.style.opacity = '1';
+                    card.style.filter = 'none';
+                } else {
+                    card.style.opacity = '0.25';
+                    card.style.filter = 'grayscale(80%)';
+                }
+            });
+        }
+
+        function filtrarCategoria(catNome) {
+            const cards = document.querySelectorAll('.hotspot-card');
+            
+            // Atualizar botões
+            document.querySelectorAll('.btn-cat-chip').forEach(btn => {
+                if (btn.textContent.trim().toUpperCase() === catNome.toUpperCase() || (catNome === 'TODAS' && btn.textContent.trim() === 'Todas')) {
+                    btn.className = 'btn-cat-chip bg-amber-400 text-slate-900 font-extrabold text-[10px] px-2.5 py-1 rounded-lg uppercase whitespace-nowrap shadow transition';
+                } else {
+                    btn.className = 'btn-cat-chip bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[10px] px-2.5 py-1 rounded-lg uppercase whitespace-nowrap transition border border-slate-700';
+                }
+            });
+
+            cards.forEach(card => {
+                const cat = card.getAttribute('data-prod-cat') || '';
+                if (catNome === 'TODAS' || cat.toUpperCase() === catNome.toUpperCase()) {
+                    card.style.opacity = '1';
+                    card.style.filter = 'none';
+                } else {
+                    card.style.opacity = '0.2';
+                    card.style.filter = 'grayscale(100%)';
+                }
+            });
+        }
+
         function irParaLamina(num) {
             paginaAtualNum = num;
             document.getElementById('pageIndicator').textContent = `Página ${num} / ${totalPaginasCount}`;
@@ -498,6 +707,160 @@ if ($maxItensPorPagina > 15) {
         window.fecharModalDetalheProduto = function() {
             document.getElementById('modalDetalheProduto').classList.add('hidden');
         };
+
+        // Gerenciamento da Sacola de Ofertas
+        function adicionarDirectoSacola(prod) {
+            if (typeof prod === 'string') {
+                try { prod = JSON.parse(prod); } catch(e) {}
+            }
+            if (!sacolaItens[prod.id]) {
+                sacolaItens[prod.id] = {
+                    id: prod.id,
+                    nome: prod.nome,
+                    precoVal: parseFloat(prod.precoVal),
+                    precoStr: prod.preco,
+                    unidade: prod.unidade,
+                    qtd: 1
+                };
+            } else {
+                sacolaItens[prod.id].qtd++;
+            }
+            salvarAtualizarSacola();
+        }
+
+        function adicionarModalNaSacola() {
+            if (!produtoAtualModal) return;
+            adicionarDirectoSacola(produtoAtualModal);
+            fecharModalDetalheProduto();
+            abrirModalSacola();
+        }
+
+        function alterarQtdSacola(id, delta) {
+            if (sacolaItens[id]) {
+                sacolaItens[id].qtd += delta;
+                if (sacolaItens[id].qtd <= 0) {
+                    delete sacolaItens[id];
+                }
+                salvarAtualizarSacola();
+                renderizarModalSacola();
+            }
+        }
+
+        function limparSacola() {
+            sacolaItens = {};
+            salvarAtualizarSacola();
+            renderizarModalSacola();
+        }
+
+        function salvarAtualizarSacola() {
+            localStorage.setItem('sacola_encarte_pulse', JSON.stringify(sacolaItens));
+            
+            let totalVal = 0;
+            let totalQtd = 0;
+
+            Object.values(sacolaItens).forEach(item => {
+                totalVal += item.precoVal * item.qtd;
+                totalQtd += item.qtd;
+            });
+
+            document.getElementById('sacolaBadge').textContent = totalQtd;
+            document.getElementById('sacolaTotalText').textContent = totalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('sacolaModalTotal').textContent = totalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function carregarSacolaLocalStorage() {
+            try {
+                const data = localStorage.getItem('sacola_encarte_pulse');
+                if (data) {
+                    sacolaItens = JSON.parse(data);
+                }
+            } catch(e) {}
+            salvarAtualizarSacola();
+        }
+
+        function abrirModalSacola() {
+            renderizarModalSacola();
+            document.getElementById('modalSacola').classList.remove('hidden');
+        }
+
+        function fecharModalSacola() {
+            document.getElementById('modalSacola').classList.add('hidden');
+        }
+
+        function renderizarModalSacola() {
+            const container = document.getElementById('listaItensSacola');
+            container.innerHTML = '';
+
+            const lista = Object.values(sacolaItens);
+
+            if (lista.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-slate-400 space-y-2">
+                        <span class="text-4xl block">🛍️</span>
+                        <p class="text-xs font-bold">Sua sacola está vazia.</p>
+                        <p class="text-[10px]">Clique nos produtos do encarte para adicionar!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            lista.forEach(item => {
+                const subtotal = item.precoVal * item.qtd;
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs';
+                div.innerHTML = `
+                    <div class="flex-1 pr-2">
+                        <div class="font-extrabold text-slate-900 truncate">${item.nome}</div>
+                        <div class="text-slate-500 font-semibold text-[10px]">R$ ${item.precoStr} / ${item.unidade}</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="flex items-center bg-slate-200 rounded-lg">
+                            <button onclick="alterarQtdSacola('${item.id}', -1)" class="px-2 py-0.5 font-bold hover:bg-slate-300 rounded-l-lg">-</button>
+                            <span class="px-2 font-black">${item.qtd}</span>
+                            <button onclick="alterarQtdSacola('${item.id}', 1)" class="px-2 py-0.5 font-bold hover:bg-slate-300 rounded-r-lg">+</button>
+                        </div>
+                        <div class="font-montserrat font-black text-emerald-700 w-16 text-right">R$ ${subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function finalizarPedidoSacolaWhatsapp() {
+            const lista = Object.values(sacolaItens);
+            if (lista.length === 0) {
+                alert('Adicione pelo menos um produto à sacola antes de enviar.');
+                return;
+            }
+
+            const nomeCli = document.getElementById('inputNomeCliente').value.trim();
+            const endCli = document.getElementById('inputEnderecoCliente').value.trim();
+
+            let totalVal = 0;
+            let textoItens = '';
+
+            lista.forEach(item => {
+                const sub = item.precoVal * item.qtd;
+                totalVal += sub;
+                textoItens += `• *${item.qtd}x* ${item.nome} (R$ ${sub.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})\n`;
+            });
+
+            let textoFinal = `🛒 *NOVO PEDIDO DO ENCARTE DIGITAL*\n🏪 *Loja:* ${nomeLojaStr}\n\n📋 *ITENS SELECIONADOS:*\n${textoItens}\n💰 *TOTAL DO PEDIDO:* R$ ${totalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
+
+            if (nomeCli) textoFinal += `👤 *Cliente:* ${nomeCli}\n`;
+            if (endCli) textoFinal += `📍 *Endereço/Obs:* ${endCli}\n`;
+
+            textoFinal += `\nComo faço para confirmar a compra e entrega?`;
+
+            let urlZap = '';
+            if (whatsappLojaClean) {
+                urlZap = `https://wa.me/${whatsappLojaClean}?text=${encodeURIComponent(textoFinal)}`;
+            } else {
+                urlZap = `https://wa.me/?text=${encodeURIComponent(textoFinal)}`;
+            }
+
+            window.open(urlZap, '_blank');
+        }
 
         function enviarPedidoZap() {
             if (!produtoAtualModal) return;
