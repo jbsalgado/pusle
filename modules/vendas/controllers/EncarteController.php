@@ -176,12 +176,17 @@ class EncarteController extends Controller
         try {
             $evolution = new EvolutionService();
             $urlPublica = $encarte->getUrlPublica();
+            $urlPdf = $encarte->getUrlPdf();
 
             // Gera PDF em String Base64 para anexo
             $pdfContent = EncartePdfService::gerarPdf($encarte, Pdf::DEST_STRING);
             $base64Pdf = base64_encode($pdfContent);
 
-            $textoEnvio = trim($mensagemCustom) ?: "🔥 *CONFIRA NOSSO NOVO ENCARTE DE OFERTAS!* 🔥\n\n{$encarte->titulo}\n\n📖 Acesse o folheto digital completo: {$urlPublica}";
+            if (!empty($mensagemCustom)) {
+                $textoEnvio = trim($mensagemCustom) . "\n\n📖 *Folheto Digital:* {$urlPublica}\n📄 *Baixar PDF:* {$urlPdf}";
+            } else {
+                $textoEnvio = "🔥 *CONFIRA NOSSO NOVO ENCARTE DE OFERTAS!* 🔥\n\n*{$encarte->titulo}*\n{$encarte->subtitulo}\n\n📖 *Folheto Digital Interativo:* {$urlPublica}\n📄 *Baixar Encarte em PDF:* {$urlPdf}";
+            }
 
             $enviados = 0;
             $erros = 0;

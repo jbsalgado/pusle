@@ -414,17 +414,27 @@ if ($maxItensPorPagina > 15) {
         </div>
     </main>
 
+    <!-- Botões Flutuantes de Navegação Rápida (Subir / Descer Tela) -->
+    <div class="fixed bottom-24 right-4 z-40 flex flex-col gap-2">
+        <button onclick="rolarParaTopo()" title="Subir ao Topo" class="w-10 h-10 bg-slate-900/90 hover:bg-slate-800 text-white rounded-full shadow-2xl border-2 border-white/30 flex items-center justify-center backdrop-blur-md active:scale-95 transition cursor-pointer">
+            <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 15l7-7 7 7"/></svg>
+        </button>
+        <button onclick="rolarParaBaixo()" title="Rolar para Baixo" class="w-10 h-10 bg-slate-900/90 hover:bg-slate-800 text-white rounded-full shadow-2xl border-2 border-white/30 flex items-center justify-center backdrop-blur-md active:scale-95 transition cursor-pointer">
+            <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+    </div>
+
     <!-- Barra Flutuante da Sacola de Ofertas no Canto Inferior -->
-    <div id="barrasacola" onclick="abrirModalSacola()" class="fixed bottom-4 right-4 z-50 bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-600 text-white shadow-2xl rounded-2xl p-3 sm:p-4 flex items-center gap-3 border-2 border-white/20 hover:scale-105 transition-all cursor-pointer">
-        <div class="relative bg-white/20 p-2.5 rounded-xl">
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 11h14l1 12H4l1-12z"/></svg>
+    <div id="barrasacola" onclick="tratarCliqueSacola(event)" class="fixed bottom-3 right-4 z-50 bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-600 text-white shadow-2xl rounded-2xl p-2.5 sm:p-4 flex items-center gap-3 border-2 border-white/20 hover:scale-105 transition-all cursor-pointer">
+        <div class="relative bg-white/20 p-2 sm:p-2.5 rounded-xl">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 11h14l1 12H4l1-12z"/></svg>
             <span id="sacolaBadge" class="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">0</span>
         </div>
         <div>
-            <div class="text-[10px] uppercase font-extrabold text-emerald-100">Minha Sacola</div>
-            <div class="text-sm sm:text-base font-montserrat font-black">R$ <span id="sacolaTotalText">0,00</span></div>
+            <div class="text-[9px] sm:text-[10px] uppercase font-extrabold text-emerald-100">Minha Sacola</div>
+            <div class="text-xs sm:text-base font-montserrat font-black">R$ <span id="sacolaTotalText">0,00</span></div>
         </div>
-        <button class="bg-white text-emerald-900 font-extrabold text-xs px-3 py-2 rounded-xl shadow ml-1 flex items-center gap-1">
+        <button class="bg-white text-emerald-900 font-extrabold text-xs px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl shadow ml-1 flex items-center gap-1">
             <span>Ver Pedido</span>
             <span>➔</span>
         </button>
@@ -553,7 +563,43 @@ if ($maxItensPorPagina > 15) {
         // Estado da Sacola de Compras
         let sacolaItens = {};
 
+        // Funções de Rolagem Rápida Flutuante (Subir / Descer)
+        function rolarParaTopo() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function rolarParaBaixo() {
+            window.scrollBy({ top: 600, behavior: 'smooth' });
+        }
+
+        // Trava de Toque Anti-Arrasto na Sacola Flutuante
+        let sacolaTouchStartY = 0;
+        let sacolaIsDragging = false;
+
+        function tratarCliqueSacola(e) {
+            if (sacolaIsDragging) {
+                sacolaIsDragging = false;
+                return;
+            }
+            abrirModalSacola();
+        }
+
         document.addEventListener("DOMContentLoaded", function() {
+            const elSacola = document.getElementById('barrasacola');
+            if (elSacola) {
+                elSacola.addEventListener('touchstart', function(e) {
+                    sacolaTouchStartY = e.touches[0].clientY;
+                    sacolaIsDragging = false;
+                }, { passive: true });
+
+                elSacola.addEventListener('touchmove', function(e) {
+                    const diffY = Math.abs(e.touches[0].clientY - sacolaTouchStartY);
+                    if (diffY > 8) {
+                        sacolaIsDragging = true;
+                    }
+                }, { passive: true });
+            }
+
             carregarSacolaLocalStorage();
             iniciarCronometroRegressivo();
 
