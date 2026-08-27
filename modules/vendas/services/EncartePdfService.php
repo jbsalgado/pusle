@@ -11,6 +11,46 @@ use yii\helpers\Html;
 class EncartePdfService
 {
     /**
+     * Retorna o mapa centralizado de cores por tema
+     */
+    public static function getThemeColors($tema = 'red_gold')
+    {
+        $corPrimaria = '#dc2626';     // Vermelho Varejo
+        $corSecundaria = '#f59e0b';   // Amarelo Ouro
+        $corDark = '#991b1b';         // Vermelho Escuro
+        $corTextoTitulo = '#ffffff';  // Branco
+        $corSubtitulo = '#fef08a';    // Amarelo Suave
+
+        if ($tema === 'emerald_fresh') {
+            $corPrimaria = '#059669';
+            $corSecundaria = '#f59e0b';
+            $corDark = '#064e3b';
+            $corTextoTitulo = '#ffffff';
+            $corSubtitulo = '#a7f3d0';
+        } elseif ($tema === 'ocean_blue') {
+            $corPrimaria = '#1d4ed8';
+            $corSecundaria = '#f59e0b';
+            $corDark = '#1e3a8a';
+            $corTextoTitulo = '#ffffff';
+            $corSubtitulo = '#bfdbfe';
+        } elseif ($tema === 'dark_vip') {
+            $corPrimaria = '#18181b';
+            $corSecundaria = '#f59e0b';
+            $corDark = '#09090b';
+            $corTextoTitulo = '#fbbf24'; // Dourado VIP
+            $corSubtitulo = '#ffffff';
+        }
+
+        return [
+            'corPrimaria' => $corPrimaria,
+            'corSecundaria' => $corSecundaria,
+            'corDark' => $corDark,
+            'corTextoTitulo' => $corTextoTitulo,
+            'corSubtitulo' => $corSubtitulo,
+        ];
+    }
+
+    /**
      * Gera o objeto mPDF para o encarte informado.
      *
      * @param Encarte $encarte
@@ -63,6 +103,10 @@ class EncartePdfService
         $subtitulo = Html::encode($encarte->subtitulo ?: 'Ofertas válidas enquanto durarem os estoques!');
         $nomeLoja = $loja ? Html::encode($loja->nome ?: 'Nossa Loja') : 'Pulse Vendas';
         $telefoneLoja = $loja ? Html::encode($loja->telefone ?: '') : '';
+
+        $cores = self::getThemeColors($encarte->cor_tema);
+        $corPrimaria = $cores['corPrimaria'];
+        $corSecundaria = $cores['corSecundaria'];
 
         $totalPaginas = count($paginas);
 
@@ -185,24 +229,24 @@ class EncartePdfService
                                                     </td>
                                                 </tr>
 
-                                                <!-- 5. Splash de Preço -->
+                                                <!-- 5. Splash de Preço NATIVO mPDF -->
                                                 <tr>
                                                     <td align="center" style="padding: 6px 4px 8px 4px;">
-                                                        <div class="price-splash">
-                                                            <table width="100%" cellpadding="0" cellspacing="0">
-                                                                <tr>
-                                                                    <td align="center" class="price-label">PREÇO ESPECIAL</td>
-                                                                </tr>
-                                                                <tr>
-                                                                    <td align="center" valign="baseline" style="line-height: 1;">
-                                                                        <span class="price-curr">R$</span>
-                                                                        <span class="price-int" style="font-size: <?= $priceIntSize ?>;"><?= $partesPreco[0] ?></span>
-                                                                        <span class="price-dec" style="font-size: <?= $priceDecSize ?>;">,<?= $partesPreco[1] ?></span>
-                                                                        <span class="price-un">/<?= Html::encode(mb_strtoupper($produto->unidade_medida ?: 'UN')) ?></span>
-                                                                    </td>
-                                                                </tr>
-                                                            </table>
-                                                        </div>
+                                                        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: <?= $corPrimaria ?>; border: 2px solid <?= $corSecundaria ?>; border-radius: 8px;">
+                                                            <tr>
+                                                                <td align="center" style="font-size: 8px; font-weight: 900; color: <?= $corSecundaria ?>; letter-spacing: 0.5px; padding-top: 4px; padding-bottom: 2px; background-color: <?= $corPrimaria ?>;">
+                                                                    PREÇO ESPECIAL
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td align="center" valign="baseline" style="line-height: 1; padding-bottom: 6px; background-color: <?= $corPrimaria ?>;">
+                                                                    <span style="font-size: 13px; font-weight: 900; color: #ffffff; vertical-align: super;">R$</span>
+                                                                    <span style="font-size: <?= $priceIntSize ?>; font-weight: 900; color: #ffffff; letter-spacing: -1px;"><?= $partesPreco[0] ?></span>
+                                                                    <span style="font-size: <?= $priceDecSize ?>; font-weight: 900; color: #ffffff; vertical-align: super;">,<?= $partesPreco[1] ?></span>
+                                                                    <span style="font-size: 10px; font-weight: bold; color: <?= $corSecundaria ?>; margin-left: 2px;">/<?= Html::encode(mb_strtoupper($produto->unidade_medida ?: 'UN')) ?></span>
+                                                                </td>
+                                                            </tr>
+                                                        </table>
                                                     </td>
                                                 </tr>
 
@@ -245,32 +289,12 @@ class EncartePdfService
      */
     private static function getCssTabloide($tema = 'red_gold')
     {
-        // Paletas de Cores por Tema
-        $corPrimaria = '#dc2626';     // Vermelho Varejo
-        $corSecundaria = '#f59e0b';   // Amarelo Ouro
-        $corDark = '#991b1b';         // Vermelho Escuro
-        $corTextoTitulo = '#ffffff';  // Branco
-        $corSubtitulo = '#fef08a';    // Amarelo Suave
-
-        if ($tema === 'emerald_fresh') {
-            $corPrimaria = '#059669';
-            $corSecundaria = '#f59e0b';
-            $corDark = '#064e3b';
-            $corTextoTitulo = '#ffffff';
-            $corSubtitulo = '#a7f3d0';
-        } elseif ($tema === 'ocean_blue') {
-            $corPrimaria = '#1d4ed8';
-            $corSecundaria = '#f59e0b';
-            $corDark = '#1e3a8a';
-            $corTextoTitulo = '#ffffff';
-            $corSubtitulo = '#bfdbfe';
-        } elseif ($tema === 'dark_vip') {
-            $corPrimaria = '#18181b';
-            $corSecundaria = '#f59e0b';
-            $corDark = '#09090b';
-            $corTextoTitulo = '#fbbf24'; // Dourado VIP
-            $corSubtitulo = '#ffffff';
-        }
+        $cores = self::getThemeColors($tema);
+        $corPrimaria = $cores['corPrimaria'];
+        $corSecundaria = $cores['corSecundaria'];
+        $corDark = $cores['corDark'];
+        $corTextoTitulo = $cores['corTextoTitulo'];
+        $corSubtitulo = $cores['corSubtitulo'];
 
         return "
             @page {
@@ -392,45 +416,6 @@ class EncartePdfService
                 text-transform: uppercase;
                 line-height: 1.2;
                 text-align: center;
-            }
-
-            /* Container de Preço */
-            .price-splash {
-                background-color: {$corPrimaria};
-                color: #ffffff !important;
-                border-radius: 10px;
-                padding: 6px 8px;
-                border: 2px solid {$corSecundaria};
-                text-align: center;
-            }
-            .price-label {
-                font-size: 8px;
-                font-weight: 900;
-                color: {$corSecundaria} !important;
-                letter-spacing: 0.5px;
-                padding-bottom: 2px;
-            }
-            .price-curr {
-                font-size: 12px;
-                font-weight: 900;
-                color: #ffffff !important;
-                vertical-align: super;
-            }
-            .price-int {
-                font-weight: 900;
-                color: #ffffff !important;
-                letter-spacing: -1px;
-            }
-            .price-dec {
-                font-weight: 900;
-                color: #ffffff !important;
-                vertical-align: super;
-            }
-            .price-un {
-                font-size: 9px;
-                font-weight: bold;
-                color: {$corSecundaria} !important;
-                margin-left: 2px;
             }
 
             /* Rodapé Banner */
