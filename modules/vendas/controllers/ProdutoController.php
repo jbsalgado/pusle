@@ -1707,10 +1707,24 @@ class ProdutoController extends Controller
     /**
      * Exclui um vídeo do produto
      */
-    public function actionDeleteVideo($id)
+    public function actionDeleteVideo($id = null)
     {
         if (!$this->isAdministrador()) {
             throw new \yii\web\ForbiddenHttpException('Você não tem permissão para excluir vídeos.');
+        }
+
+        if (!$id) {
+            $id = Yii::$app->request->get('id') ?: Yii::$app->request->post('id');
+        }
+        if (!$id && isset($_POST['id'])) {
+            $id = $_POST['id'];
+        }
+        if (!$id && isset($_GET['id'])) {
+            $id = $_GET['id'];
+        }
+
+        if (!$id) {
+            throw new \yii\web\BadRequestHttpException('ID do vídeo não informado.');
         }
 
         $lojaId = $this->getLojaId();

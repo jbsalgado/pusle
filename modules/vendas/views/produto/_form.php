@@ -1675,6 +1675,8 @@ if ($model->hasErrors()): ?>
             const inputId = document.getElementById('delete-video-id-input');
             if (form && inputId) {
                 inputId.value = videoId;
+                const baseUrl = '<?= Url::to(['delete-video']) ?>';
+                form.action = baseUrl + (baseUrl.indexOf('?') !== -1 ? '&' : '?') + 'id=' + encodeURIComponent(videoId);
                 form.submit();
             } else {
                 alert('Formulário de exclusão de vídeo não encontrado na página.');
