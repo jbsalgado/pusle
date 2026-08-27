@@ -60,6 +60,7 @@ async function main() {
     const userDataDir = path.join('/tmp', `puppeteer_video_${Date.now()}_${Math.random().toString(36).substring(7)}`);
 
     let browser;
+    let tempHtmlPath = null;
     try {
         const launchOptions = {
             args: [
@@ -149,7 +150,10 @@ async function main() {
             deviceScaleFactor: 1
         });
 
-        await page.setContent(htmlContent, { waitUntil: ['domcontentloaded', 'networkidle0'] });
+        tempHtmlPath = path.join('/tmp', `video_template_${Date.now()}_${Math.random().toString(36).substring(7)}.html`);
+        fs.writeFileSync(tempHtmlPath, htmlContent, 'utf8');
+
+        await page.goto('file://' + tempHtmlPath, { waitUntil: ['domcontentloaded', 'networkidle0'] });
 
         await page.evaluate(async () => {
             if (document.fonts) {
@@ -249,7 +253,7 @@ async function main() {
         for (let frame = 0; frame < totalFrames; frame++) {
             await page.evaluate((currentFrame, total, fpsVal) => {
                 if (typeof window.seekFrame === 'function') {
-                    window.seekFrame(currentFrame, total, fpsVal);
+                    return window.seekFrame(currentFrame, total, fpsVal);
                 }
             }, frame, totalFrames, fps);
 
@@ -296,6 +300,11 @@ async function main() {
     } finally {
         if (browser) {
             await browser.close();
+        }
+        if (tempHtmlPath && fs.existsSync(tempHtmlPath)) {
+            try {
+                fs.unlinkSync(tempHtmlPath);
+            } catch (e) {}
         }
         if (fs.existsSync(userDataDir)) {
             try {
@@ -414,13 +423,15 @@ function generateVideoHtmlTemplate(data, duracao) {
     const badgeTexto = p.badgeTexto || (emPromocao ? 'OFERTA' : 'DESTAQUE');
     const parcelamento = escapeHtml(p.parcelamento || '');
 
-    const fotos = Array.isArray(p.fotosBase64) && p.fotosBase64.length > 0 ? p.fotosBase64 : [
-        'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 24 24" fill="none" stroke="%23cccccc" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'
-    ];
-
     const videosList = Array.isArray(p.videos) ? p.videos : [];
     const modoComposicao = (data.modoComposicao || 'hibrido').toLowerCase();
     const ajusteProporcao = (data.ajusteProporcao || 'smart_blur').toLowerCase();
+
+    let fotos = Array.isArray(p.fotosBase64) && p.fotosBase64.length > 0 ? p.fotosBase64 : [];
+    if (modoComposicao === 'video_real') { fotos = []; }
+    if (fotos.length === 0 && modoComposicao !== 'video_real') {
+        fotos = ['data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 24 24" fill="none" stroke="%23cccccc" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'];
+    }
 
     const nomeLoja = escapeHtml(l.nome || 'PULSE STORE');
     const logoLoja = l.logoBase64 || '';
@@ -1419,9 +1430,11 @@ function generateFullBleedVideoHtmlTemplate(data, duracao) {
     const marca = escapeHtml(p.marca || 'TUDO SOBRE');
     const precoPromocional = p.precoPromocional || 'R$ 0,00';
     const emPromocao = !!p.emPromocao;
-    const fotos = Array.isArray(p.fotosBase64) && p.fotosBase64.length > 0 ? p.fotosBase64 : [
-        'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 24 24" fill="none" stroke="%23cccccc" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'
-    ];
+    let fotos = Array.isArray(p.fotosBase64) && p.fotosBase64.length > 0 ? p.fotosBase64 : [];
+    if (modoComposicao === 'video_real') { fotos = []; }
+    if (fotos.length === 0 && modoComposicao !== 'video_real') {
+        fotos = ['data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 24 24" fill="none" stroke="%23cccccc" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'];
+    }
 
     const nomeLoja = escapeHtml(l.nome || 'PULSE STORE');
     const telefone = escapeHtml(l.telefone || '(81) 9386-1026');

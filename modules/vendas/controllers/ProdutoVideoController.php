@@ -163,6 +163,9 @@ class ProdutoVideoController extends Controller
         $fundoEstilo = $params['fundoEstilo'] ?? $params['fundo_estilo'] ?? $request->post('fundoEstilo') ?? 'gradient';
         $trilhaSonora = $params['trilhaSonora'] ?? $params['trilha_sonora'] ?? $request->post('trilha_sonora') ?? $request->post('trilhaSonora') ?? 'promo_bg.mp3';
         $efeitoVisual = $params['efeitoVisual'] ?? $params['efeito_visual'] ?? $request->post('efeitoVisual') ?? $request->post('efeito_visual') ?? 'none';
+        $modoComposicao = $params['modoComposicao'] ?? $params['modo_composicao'] ?? $request->post('modoComposicao') ?? $request->post('modo_composicao') ?? 'hibrido';
+        $ajusteDuracao = $params['ajusteDuracao'] ?? $params['ajuste_duracao'] ?? $request->post('ajusteDuracao') ?? $request->post('ajuste_duracao') ?? 'trim';
+        $ajusteProporcao = $params['ajusteProporcao'] ?? $params['ajuste_proporcao'] ?? $request->post('ajusteProporcao') ?? $request->post('ajuste_proporcao') ?? 'smart_blur';
 
         if (empty($produtoId)) {
             Yii::$app->response->statusCode = 400;
@@ -181,6 +184,9 @@ class ProdutoVideoController extends Controller
                 'fundoEstilo' => $fundoEstilo,
                 'trilhaSonora' => $trilhaSonora,
                 'efeitoVisual' => $efeitoVisual,
+                'modoComposicao' => $modoComposicao,
+                'ajusteDuracao' => $ajusteDuracao,
+                'ajusteProporcao' => $ajusteProporcao,
             ]);
 
             return [
