@@ -95,6 +95,13 @@ class VendaExpressaController extends Controller
         $formaPagamentoId = $request->post('forma_pagamento_id', null);
         $observacoes = trim($request->post('observacoes', ''));
 
+        if (empty($formaPagamentoId)) {
+            $fpPadrao = FormaPagamento::find()->where(['ativo' => true])->orderBy(['nome' => SORT_ASC])->one();
+            if ($fpPadrao) {
+                $formaPagamentoId = $fpPadrao->id;
+            }
+        }
+
         if (empty($itensPost) || !is_array($itensPost)) {
             return ['success' => false, 'message' => 'Nenhum produto foi adicionado à venda.'];
         }
