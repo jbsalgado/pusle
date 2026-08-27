@@ -335,15 +335,36 @@ if ($maxItensPorPagina > 15) {
                             $urlFoto = $foto ? Url::to('@web/' . ltrim($foto->arquivo_path, '/'), true) : null;
                             $catNome = $produto->categoria ? $produto->categoria->nome : 'Geral';
 
-                            // Badges dinâmicos variados
+                            // Badges dinâmicos ou personalizados
+                            $tagCustom = $encarteProd->tag_promocional;
                             $badgeTexto = "OFERTA";
                             $badgeColor = "bg-amber-400 text-black";
-                            if ($idxP % 4 === 1) {
-                                $badgeTexto = "🔥 SUPER OFERTA";
-                                $badgeColor = "bg-red-600 text-white";
-                            } elseif ($idxP % 4 === 2) {
-                                $badgeTexto = "⭐ MAIS VENDIDO";
-                                $badgeColor = "bg-amber-500 text-white";
+                            $exibirBadge = true;
+
+                            if (!empty($tagCustom) && $tagCustom !== 'AUTO') {
+                                if ($tagCustom === 'NENHUMA') {
+                                    $exibirBadge = false;
+                                } elseif ($tagCustom === 'OFERTA_ESPECIAL') {
+                                    $badgeTexto = "🌟 OFERTA ESPECIAL";
+                                    $badgeColor = "bg-amber-500 text-white";
+                                } elseif ($tagCustom === 'SUPER_OFERTA') {
+                                    $badgeTexto = "🔥 SUPER OFERTA";
+                                    $badgeColor = "bg-red-600 text-white";
+                                } elseif ($tagCustom === 'MAIS_VENDIDO') {
+                                    $badgeTexto = "⭐ MAIS VENDIDO";
+                                    $badgeColor = "bg-amber-500 text-white";
+                                } elseif ($tagCustom === 'OFERTA') {
+                                    $badgeTexto = "OFERTA";
+                                    $badgeColor = "bg-amber-400 text-black";
+                                }
+                            } else {
+                                if ($encarteProd->destaque || $idxP % 4 === 1) {
+                                    $badgeTexto = "🔥 SUPER OFERTA";
+                                    $badgeColor = "bg-red-600 text-white";
+                                } elseif ($idxP % 4 === 2) {
+                                    $badgeTexto = "⭐ MAIS VENDIDO";
+                                    $badgeColor = "bg-amber-500 text-white";
+                                }
                             }
 
                             $jsonProdData = Html::encode(json_encode([
@@ -360,10 +381,12 @@ if ($maxItensPorPagina > 15) {
                         ?>
                             <div data-prod-nome="<?= Html::encode(mb_strtolower($produto->nome)) ?>" data-prod-cat="<?= Html::encode($catNome) ?>" onclick="abrirModalDetalheProduto(<?= $jsonProdData ?>)" ontouchend="abrirModalDetalheProduto(<?= $jsonProdData ?>)" class="hotspot-card bg-slate-50 rounded-xl <?= $cardPaddingClass ?> flex flex-col justify-between relative overflow-hidden group">
                                 
-                                <!-- Badge Starburst Oferta -->
-                                <div class="absolute top-1 right-1 <?= $badgeColor ?> font-montserrat font-black text-[7px] sm:text-[8px] px-1.5 py-0.5 rounded-full uppercase tracking-tighter shadow-sm z-10">
-                                    <?= $badgeTexto ?>
-                                </div>
+                                <?php if ($exibirBadge): ?>
+                                    <!-- Badge Starburst Oferta -->
+                                    <div class="absolute top-1 right-1 <?= $badgeColor ?> font-montserrat font-black text-[7px] sm:text-[8px] px-1.5 py-0.5 rounded-full uppercase tracking-tighter shadow-sm z-10">
+                                        <?= $badgeTexto ?>
+                                    </div>
+                                <?php endif; ?>
 
                                 <!-- Imagem -->
                                 <div class="<?= $imgHeightClass ?> w-full flex items-center justify-center mb-1 p-1 bg-white rounded-lg flex-shrink-0">

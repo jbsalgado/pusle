@@ -96,12 +96,17 @@ class EncarteController extends Controller
                 throw new \Exception('Erro ao salvar encarte: ' . implode(', ', $encarte->getFirstErrors()));
             }
 
+            $produtosTags = $request->post('produtos_tags', []);
+
             $ordem = 1;
             foreach ($produtos as $p) {
                 $encarteItem = new EncarteProduto();
                 $encarteItem->encarte_id = $encarte->id;
                 $encarteItem->produto_id = $p->id;
                 $encarteItem->ordem = $ordem++;
+                if (isset($produtosTags[$p->id])) {
+                    $encarteItem->tag_promocional = $produtosTags[$p->id];
+                }
                 if (!$encarteItem->save()) {
                     throw new \Exception('Erro ao salvar item do encarte.');
                 }

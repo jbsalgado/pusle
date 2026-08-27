@@ -216,7 +216,27 @@ class EncartePdfService
                                             }
                                         }
 
-                                        $codigoRef = $produto->codigo_barras ?: $produto->codigo_referencia ?: '';
+                                        $tagCustom = $encarteProd->tag_promocional;
+                                        $badgeTextoPdf = "OFERTA IMPERDÍVEL";
+                                        $exibirBadgePdf = true;
+
+                                        if (!empty($tagCustom) && $tagCustom !== 'AUTO') {
+                                            if ($tagCustom === 'NENHUMA') {
+                                                $exibirBadgePdf = false;
+                                            } elseif ($tagCustom === 'OFERTA_ESPECIAL') {
+                                                $badgeTextoPdf = "OFERTA ESPECIAL";
+                                            } elseif ($tagCustom === 'SUPER_OFERTA') {
+                                                $badgeTextoPdf = "SUPER OFERTA";
+                                            } elseif ($tagCustom === 'MAIS_VENDIDO') {
+                                                $badgeTextoPdf = "MAIS VENDIDO";
+                                            } elseif ($tagCustom === 'OFERTA') {
+                                                $badgeTextoPdf = "OFERTA";
+                                            }
+                                        } else {
+                                            if ($encarteProd->destaque) {
+                                                $badgeTextoPdf = "SUPER OFERTA";
+                                            }
+                                        }
                                     ?>
                                         <td class="product-cell" width="<?= $colWidthPercent ?>" valign="top">
                                             <table class="card-inner-table" width="100%" cellpadding="0" cellspacing="0">
@@ -224,7 +244,11 @@ class EncartePdfService
                                                 <!-- 1. Tag de Oferta -->
                                                 <tr>
                                                     <td align="center" style="padding-top: 4px; padding-bottom: 2px;">
-                                                        <span class="starburst-badge">OFERTA IMPERDÍVEL</span>
+                                                        <?php if ($exibirBadgePdf): ?>
+                                                            <span class="starburst-badge"><?= $badgeTextoPdf ?></span>
+                                                        <?php else: ?>
+                                                            <span style="display:inline-block; height: 10px;"></span>
+                                                        <?php endif; ?>
                                                     </td>
                                                 </tr>
 

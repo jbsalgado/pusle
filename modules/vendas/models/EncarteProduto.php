@@ -33,11 +33,13 @@ class EncarteProduto extends ActiveRecord
             [['encarte_id', 'produto_id'], 'required'],
             [['encarte_id'], 'string', 'max' => 36],
             [['produto_id'], 'string', 'max' => 36],
+            [['tag_promocional'], 'string', 'max' => 50],
             [['preco_oferta'], 'number'],
             [['ordem'], 'integer'],
             [['destaque'], 'boolean'],
             [['ordem'], 'default', 'value' => 0],
             [['destaque'], 'default', 'value' => false],
+            [['tag_promocional'], 'default', 'value' => 'AUTO'],
         ];
     }
 
@@ -50,6 +52,7 @@ class EncarteProduto extends ActiveRecord
             'preco_oferta' => 'Preço de Oferta',
             'ordem' => 'Ordem',
             'destaque' => 'Destaque Especial',
+            'tag_promocional' => 'Tag Promocional',
             'created_at' => 'Data de Inserção',
         ];
     }

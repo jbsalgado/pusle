@@ -77,6 +77,17 @@ use yii\helpers\Url;
                     </div>
                 </div>
 
+                <!-- 3. Personalização Opcional de Tags por Produto -->
+                <div class="border-t border-gray-100 pt-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-xs font-bold text-gray-700 uppercase">🏷️ Tags dos Produtos (Opcional)</label>
+                        <span class="text-[10px] text-gray-500 font-medium">Deixe em 'Automático' para usar o padrão</span>
+                    </div>
+                    <div id="containerTagsProdutos" class="max-h-36 overflow-y-auto space-y-1.5 p-2.5 bg-gray-50 rounded-xl border border-gray-200 text-xs">
+                        <div class="text-gray-400 italic text-[11px] text-center py-2">Carregando itens selecionados...</div>
+                    </div>
+                </div>
+
                 <!-- Opções de Ação Rápida (Gerar / Copiar Link / PDF) -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button type="button" onclick="gerarLinkEncartePublico()" class="w-full py-3.5 px-4 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white font-extrabold rounded-2xl transition shadow-lg flex items-center justify-center gap-2">
@@ -144,6 +155,52 @@ Aproveite nossos preços especiais válidos esta semana!</textarea>
         document.getElementById('badgeQtdEncarte').textContent = produtosEncarteSelecionados.length;
         document.getElementById('modalGerarEncarte').classList.remove('hidden');
         document.getElementById('boxResultadoEncarte').classList.add('hidden');
+
+        renderizarTagsProdutosModal();
+    }
+
+    function renderizarTagsProdutosModal() {
+        const container = document.getElementById('containerTagsProdutos');
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (produtosEncarteSelecionados.length === 0) {
+            container.innerHTML = '<div class="text-gray-400 italic text-[11px] text-center py-2">Nenhum produto selecionado.</div>';
+            return;
+        }
+
+        produtosEncarteSelecionados.forEach((id, index) => {
+            let nomeProd = 'Produto #' + (index + 1);
+            const row = document.querySelector(`tr[data-key="${id}"]`);
+            if (row) {
+                const elNome = row.querySelector('.nome-produto, td:nth-child(3), td.font-bold');
+                if (elNome) nomeProd = elNome.textContent.trim();
+            }
+
+            const div = document.createElement('div');
+            div.className = 'flex items-center justify-between gap-2 p-1.5 bg-white border border-gray-200 rounded-lg text-xs';
+            div.innerHTML = `
+                <span class="font-semibold text-gray-800 truncate flex-1" title="${nomeProd}">${nomeProd}</span>
+                <select data-prod-id="${id}" class="select-tag-item px-2 py-1 bg-gray-50 border border-gray-300 rounded-lg text-[11px] font-medium focus:ring-1 focus:ring-red-500">
+                    <option value="AUTO" selected>⚡ Automático (Padrão)</option>
+                    <option value="OFERTA">🏷️ Oferta</option>
+                    <option value="OFERTA_ESPECIAL">🌟 Oferta Especial</option>
+                    <option value="SUPER_OFERTA">🔥 Super Oferta</option>
+                    <option value="MAIS_VENDIDO">⭐ Mais Vendido</option>
+                    <option value="NENHUMA">🚫 Sem Tag</option>
+                </select>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function coletarTagsProdutosMap() {
+        const map = {};
+        document.querySelectorAll('.select-tag-item').forEach(sel => {
+            const id = sel.getAttribute('data-prod-id');
+            if (id) map[id] = sel.value;
+        });
+        return map;
     }
 
     function fecharModalGerarEncarte() {
@@ -158,6 +215,7 @@ Aproveite nossos preços especiais válidos esta semana!</textarea>
 
         const payload = {
             produtos_ids: produtosEncarteSelecionados,
+            produtos_tags: coletarTagsProdutosMap(),
             titulo: document.getElementById('encarte_titulo').value,
             subtitulo: document.getElementById('encarte_subtitulo').value,
             cor_tema: document.getElementById('encarte_cor_tema').value,
@@ -206,6 +264,7 @@ Aproveite nossos preços especiais válidos esta semana!</textarea>
         // Se ainda não gerou no banco, gera primeiro
         const payload = {
             produtos_ids: produtosEncarteSelecionados,
+            produtos_tags: coletarTagsProdutosMap(),
             titulo: document.getElementById('encarte_titulo').value,
             subtitulo: document.getElementById('encarte_subtitulo').value,
             cor_tema: document.getElementById('encarte_cor_tema').value,
