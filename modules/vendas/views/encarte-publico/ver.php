@@ -17,6 +17,23 @@ $paginas = array_chunk($encarteProdutos, $ppp);
 $totalPaginas = count($paginas);
 $urlPublica = $encarte->getUrlPublica();
 $urlPdf = $encarte->getUrlPdf();
+
+// Calcular maior quantidade de produtos em uma única lâmina para ajustar a altura do canvas 3D
+$maxItensPorPagina = 0;
+foreach ($paginas as $p) {
+    $c = count($p);
+    if ($c > $maxItensPorPagina) {
+        $maxItensPorPagina = $c;
+    }
+}
+
+// Altura proporcional do canvas 3D
+$canvasHeight3D = 750;
+if ($maxItensPorPagina > 9) {
+    $canvasHeight3D = 940;
+} elseif ($maxItensPorPagina > 6) {
+    $canvasHeight3D = 840;
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -78,7 +95,7 @@ $urlPdf = $encarte->getUrlPdf();
             background-color: #ffffff;
             color: #0f172a;
             box-sizing: border-box;
-            padding: 10px 12px;
+            padding: 12px 14px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -165,7 +182,7 @@ $urlPdf = $encarte->getUrlPdf();
 
                 <!-- Compartilhar WhatsApp -->
                 <button onclick="compartilharEncarte()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl transition shadow-md">
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.892-1.99-.001-3.951-.5-5.688-1.448l-6.705 1.754zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-1.15 4.2 4.293-1.125z"/></svg>
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.705 1.754zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-1.15 4.2 4.293-1.125z"/></svg>
                     Compartilhar
                 </button>
             </div>
@@ -199,36 +216,36 @@ $urlPdf = $encarte->getUrlPdf();
                     $gapClass = 'gap-2.5 sm:gap-3';
                     $headerPaddingClass = 'p-2.5 sm:p-3';
                 } else {
-                    // Para 7 a 12+ itens por lâmina (Layout Ultra Denso: 4 linhas x 3 colunas)
-                    $gridColsRows = 'grid-cols-2 sm:grid-cols-3 sm:grid-rows-4';
-                    $imgHeightClass = 'h-8 sm:h-9';
-                    $cardPaddingClass = 'p-1 sm:p-1.5';
-                    $titleFontClass = 'text-[8px] sm:text-[9px] line-clamp-1';
-                    $priceFontClass = 'text-xs sm:text-sm';
-                    $priceDecFontClass = 'text-[7px] sm:text-[8px]';
-                    $gapClass = 'gap-1 sm:gap-1.5';
-                    $headerPaddingClass = 'p-1.5 sm:p-2';
+                    // Para 7 a 12+ itens por lâmina (Layout Denso)
+                    $gridColsRows = 'grid-cols-2 sm:grid-cols-3';
+                    $imgHeightClass = 'h-14 sm:h-16';
+                    $cardPaddingClass = 'p-2';
+                    $titleFontClass = 'text-[10px] sm:text-xs line-clamp-2';
+                    $priceFontClass = 'text-sm sm:text-lg';
+                    $priceDecFontClass = 'text-[9px]';
+                    $gapClass = 'gap-2';
+                    $headerPaddingClass = 'p-2 sm:p-3';
                 }
             ?>
-                <div id="lamina-<?= ($indexPagina + 1) ?>" class="page-sheet w-full h-full overflow-hidden flex flex-col justify-between p-2 sm:p-3 mb-6 sm:mb-0 shadow-lg border border-slate-100">
+                <div id="lamina-<?= ($indexPagina + 1) ?>" class="page-sheet w-full h-full overflow-hidden flex flex-col justify-between p-3 sm:p-4 mb-6 sm:mb-0 shadow-lg border border-slate-100">
                     
                     <!-- Topo Lâmina -->
-                    <div class="header-tabloide <?= $headerPaddingClass ?> rounded-xl shadow-sm mb-1 flex items-center justify-between flex-shrink-0">
+                    <div class="header-tabloide <?= $headerPaddingClass ?> rounded-xl shadow-sm mb-2 flex items-center justify-between flex-shrink-0">
                         <div>
-                            <span class="badge-promo px-1.5 py-0.5 rounded font-montserrat font-extrabold text-[7px] sm:text-[8px] uppercase tracking-wider">OFERTA ESPECIAL</span>
-                            <h2 class="font-montserrat font-black text-xs sm:text-sm uppercase tracking-tight leading-none mt-0.5"><?= $titulo ?></h2>
-                            <p class="text-[8px] opacity-90 font-medium truncate max-w-[240px] sm:max-w-xs"><?= $subtitulo ?></p>
+                            <span class="badge-promo px-2 py-0.5 rounded font-montserrat font-extrabold text-[8px] sm:text-[9px] uppercase tracking-wider">OFERTA ESPECIAL</span>
+                            <h2 class="font-montserrat font-black text-sm sm:text-base uppercase tracking-tight leading-none mt-1"><?= $titulo ?></h2>
+                            <p class="text-[9px] sm:text-[10px] opacity-90 font-medium truncate max-w-[260px] sm:max-w-xs"><?= $subtitulo ?></p>
                         </div>
                         <?php if ($telefoneLoja): ?>
                             <div class="hidden sm:block text-right">
-                                <div class="text-[7px] font-bold uppercase opacity-80">Peça no Zap</div>
-                                <div class="text-[10px] font-black"><?= $telefoneLoja ?></div>
+                                <div class="text-[8px] font-bold uppercase opacity-80">Peça no Zap</div>
+                                <div class="text-xs font-black"><?= $telefoneLoja ?></div>
                             </div>
                         <?php endif; ?>
                     </div>
 
                     <!-- Grade de Produtos Dinamicamente Ajustada -->
-                    <div class="grid <?= $gridColsRows ?> <?= $gapClass ?> flex-1 h-full min-h-0 my-0.5 pr-0.5">
+                    <div class="grid <?= $gridColsRows ?> <?= $gapClass ?> flex-1 items-start my-1 pr-0.5">
                         <?php foreach ($itensPagina as $encarteProd): 
                             $produto = $encarteProd->produto;
                             if (!$produto) continue;
@@ -252,26 +269,26 @@ $urlPdf = $encarte->getUrlPdf();
                                 'estoque' => (float)$produto->estoque_atual
                             ]));
                         ?>
-                            <div onclick="abrirModalDetalheProduto(<?= $jsonProdData ?>)" ontouchend="abrirModalDetalheProduto(<?= $jsonProdData ?>)" class="hotspot-card bg-slate-50 rounded-lg <?= $cardPaddingClass ?> flex flex-col justify-between relative overflow-hidden group h-full min-h-0">
+                            <div onclick="abrirModalDetalheProduto(<?= $jsonProdData ?>)" ontouchend="abrirModalDetalheProduto(<?= $jsonProdData ?>)" class="hotspot-card bg-slate-50 rounded-xl <?= $cardPaddingClass ?> flex flex-col justify-between relative overflow-hidden group">
                                 
                                 <!-- Badge Starburst Oferta -->
-                                <div class="absolute top-0.5 right-0.5 bg-amber-400 text-black font-montserrat font-black text-[6px] sm:text-[7px] px-1 py-0.5 rounded-full uppercase tracking-tighter shadow-sm z-10">
+                                <div class="absolute top-1 right-1 bg-amber-400 text-black font-montserrat font-black text-[7px] sm:text-[8px] px-1.5 py-0.5 rounded-full uppercase tracking-tighter shadow-sm z-10">
                                     OFERTA
                                 </div>
 
                                 <!-- Imagem -->
-                                <div class="<?= $imgHeightClass ?> w-full flex items-center justify-center mb-0.5 p-0.5 bg-white rounded flex-shrink max-h-[40px] sm:max-h-[45px]">
+                                <div class="<?= $imgHeightClass ?> w-full flex items-center justify-center mb-1 p-1 bg-white rounded-lg flex-shrink-0">
                                     <?php if ($urlFoto): ?>
                                         <img src="<?= $urlFoto ?>" alt="<?= Html::encode($produto->nome) ?>" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300">
                                     <?php else: ?>
-                                        <div class="w-full h-full bg-slate-200 rounded flex items-center justify-center text-slate-400 text-[7px] font-bold">FOTO</div>
+                                        <div class="w-full h-full bg-slate-200 rounded-lg flex items-center justify-center text-slate-400 text-[8px] font-bold">FOTO</div>
                                     <?php endif; ?>
                                 </div>
 
                                 <!-- Nome e Marca -->
-                                <div class="mb-0.5 text-center flex-1 flex flex-col justify-center min-h-0">
+                                <div class="mb-1 text-center flex-1">
                                     <?php if ($produto->marca): ?>
-                                        <div class="text-[6px] sm:text-[7px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 leading-none truncate"><?= Html::encode($produto->marca) ?></div>
+                                        <div class="text-[7px] sm:text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 leading-none truncate"><?= Html::encode($produto->marca) ?></div>
                                     <?php endif; ?>
                                     <div class="<?= $titleFontClass ?> font-extrabold text-slate-900 leading-tight group-hover:text-red-600 transition-colors">
                                         <?= Html::encode($produto->nome) ?>
@@ -279,11 +296,11 @@ $urlPdf = $encarte->getUrlPdf();
                                 </div>
 
                                 <!-- Preço Destacado Tabloide -->
-                                <div class="price-tag py-0.5 px-1 rounded text-center shadow-sm flex items-baseline justify-center gap-0.5 flex-shrink-0">
-                                    <span class="text-[7px] font-extrabold">R$</span>
+                                <div class="price-tag py-1 px-1.5 rounded-lg text-center shadow-sm flex items-baseline justify-center gap-0.5 flex-shrink-0">
+                                    <span class="text-[8px] sm:text-[9px] font-extrabold">R$</span>
                                     <span class="font-montserrat font-black <?= $priceFontClass ?> leading-none"><?= $partesPreco[0] ?></span>
                                     <span class="<?= $priceDecFontClass ?> font-bold">,<?= $partesPreco[1] ?></span>
-                                    <span class="text-[6px] font-semibold opacity-90 ml-0.5">/<?= Html::encode($produto->unidade_medida ?: 'un') ?></span>
+                                    <span class="text-[7px] sm:text-[8px] font-semibold opacity-90 ml-0.5">/<?= Html::encode($produto->unidade_medida ?: 'un') ?></span>
                                 </div>
 
                             </div>
@@ -291,7 +308,7 @@ $urlPdf = $encarte->getUrlPdf();
                     </div>
 
                     <!-- Rodapé da Lâmina -->
-                    <div class="mt-1 pt-1 border-t border-slate-200 flex items-center justify-between text-[7px] sm:text-[8px] text-slate-500 flex-shrink-0">
+                    <div class="mt-1 pt-1.5 border-t border-slate-200 flex items-center justify-between text-[8px] sm:text-[9px] text-slate-500 flex-shrink-0">
                         <div>Ofertas válidas enquanto durarem os estoques. Imagens ilustrativas.</div>
                         <div class="font-bold">Lâmina <?= ($indexPagina + 1) ?>/<?= $totalPaginas ?></div>
                     </div>
@@ -353,6 +370,7 @@ $urlPdf = $encarte->getUrlPdf();
         const totalPaginasCount = <?= $totalPaginas ?>;
         const whatsappLojaClean = '<?= $whatsappClean ?>';
         const nomeLojaStr = '<?= addslashes($nomeLoja) ?>';
+        const canvasHeightDynamic = <?= $canvasHeight3D ?>;
 
         document.addEventListener("DOMContentLoaded", function() {
             const container = document.getElementById('flipbookContainer');
@@ -360,15 +378,14 @@ $urlPdf = $encarte->getUrlPdf();
 
             if (isDesktopScreen && container && typeof St !== 'undefined' && St.PageFlip) {
                 try {
-                    container.classList.add('aspect-[4/3]');
                     pageFlipInstance = new St.PageFlip(container, {
                         width: 550,
-                        height: 750,
+                        height: canvasHeightDynamic,
                         size: "stretch",
                         minWidth: 320,
                         maxWidth: 1000,
                         minHeight: 450,
-                        maxHeight: 1350,
+                        maxHeight: 1450,
                         maxShadowOpacity: 0.5,
                         showCover: false,
                         mobileScrollSupport: true
