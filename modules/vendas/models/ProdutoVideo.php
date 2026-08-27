@@ -215,4 +215,77 @@ class ProdutoVideo extends ActiveRecord
         }
         return number_format($bytes / 1024, 1, ',', '.') . ' KB';
     }
+
+    /**
+     * Gera a string descritiva formatada das opções/recursos utilizados.
+     * Exemplo: FMTO-1080X1080,LAYOUT-Modern Dark,COR-Rose Pink,ESTILO-Geométrico,EFEITO-Fogos de Artifício
+     *
+     * @param array $meta
+     * @return string
+     */
+    public static function gerarResumoRecursosTexto($meta = []): string
+    {
+        $formatoRaw = strtolower($meta['formato'] ?? 'stories');
+        $fmtoStr = ($formatoRaw === 'feed' || $formatoRaw === '1:1') ? 'FMTO-1080X1080' : 'FMTO-1080X1920';
+
+        $templateMap = [
+            'modern_dark' => 'Modern Dark',
+            'vibrant_gradient' => 'Vibrant Gradient',
+            'minimalist_light' => 'Minimalist Light',
+            'neon_promo' => 'Neon Promo',
+            'full_bleed_banner' => 'Foto em Tela Cheia',
+            'bold_banner' => 'Bold Banner',
+        ];
+        $templateRaw = $meta['template'] ?? 'modern_dark';
+        $layoutVal = $templateMap[$templateRaw] ?? 'Modern Dark';
+
+        $corMap = [
+            'dark' => 'Dark Slate',
+            'ocean' => 'Ocean Blue',
+            'emerald' => 'Emerald Green',
+            'purple' => 'Purple Sunset',
+            'sunset' => 'Sunset Orange',
+            'rose' => 'Rose Pink',
+            'gold' => 'Premium Gold',
+        ];
+        $corRaw = $meta['cor_tema'] ?? $meta['corTema'] ?? 'dark';
+        $corVal = $corMap[$corRaw] ?? 'Dark Slate';
+
+        $fundoMap = [
+            'gradient' => 'Gradiente',
+            'mesh' => 'Mesh Fluid',
+            'geometric' => 'Geométrico',
+            'grid' => 'Grid Pontos',
+        ];
+        $fundoRaw = $meta['fundo_estilo'] ?? $meta['fundoEstilo'] ?? 'gradient';
+        $estiloVal = $fundoMap[$fundoRaw] ?? 'Gradiente';
+
+        $efeitoMap = [
+            'none' => 'Sem Efeito',
+            'fireworks' => 'Fogos de Artifício',
+            'confetti' => 'Confetes Festa',
+            'sparks' => 'Faíscas & Neons',
+            'stars' => 'Estrelas & Glow',
+            'hearts' => 'Corações',
+        ];
+        $efeitoRaw = $meta['efeito_visual'] ?? $meta['efeitoVisual'] ?? 'none';
+        $efeitoVal = $efeitoMap[$efeitoRaw] ?? 'Sem Efeito';
+
+        return "{$fmtoStr},LAYOUT-{$layoutVal},COR-{$corVal},ESTILO-{$estiloVal},EFEITO-{$efeitoVal}";
+    }
+
+    /**
+     * Retorna o resumo dos recursos gravado no banco ou calcula e persiste se não existir
+     */
+    public function getResumoRecursosFormatted(): string
+    {
+        $meta = is_array($this->metadata) ? $this->metadata : (json_decode($this->metadata ?? '{}', true) ?: []);
+        if (!empty($meta['resumo_recursos'])) {
+            return (string)$meta['resumo_recursos'];
+        }
+
+        // Se for registro antigo sem resumo_recursos no metadata, gera a string a partir dos dados existentes
+        $meta['formato'] = $meta['formato'] ?? $this->formato ?? 'stories';
+        return self::gerarResumoRecursosTexto($meta);
+    }
 }

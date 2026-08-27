@@ -57,15 +57,18 @@ class VideoGeneratorService
         $videoModel->duracao = $duracao;
         $videoModel->formato = $formatoVal;
         $videoModel->status = ProdutoVideo::STATUS_PENDENTE;
-        $videoModel->metadata = [
+        $metaParams = [
             'formato' => $formatoVal,
             'template' => $options['template'] ?? 'modern_dark',
             'cor_tema' => $options['corTema'] ?? 'dark',
             'fundo_estilo' => $options['fundoEstilo'] ?? 'gradient',
             'trilha_sonora' => $options['trilhaSonora'] ?? 'promo_bg.mp3',
             'efeito_visual' => $options['efeitoVisual'] ?? $options['efeito_visual'] ?? 'none',
-            'solicitado_em' => date('Y-m-d H:i:s'),
         ];
+        $metaParams['resumo_recursos'] = ProdutoVideo::gerarResumoRecursosTexto($metaParams);
+        $metaParams['solicitado_em'] = date('Y-m-d H:i:s');
+
+        $videoModel->metadata = $metaParams;
 
         if (!$videoModel->save()) {
             Yii::error("Erro ao salvar ProdutoVideo no banco: " . json_encode($videoModel->getErrors()), __METHOD__);

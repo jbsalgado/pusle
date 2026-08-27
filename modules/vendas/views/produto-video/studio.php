@@ -729,13 +729,15 @@ input[type="radio"]:checked + .color-pill-card {
                                     <input type="checkbox" class="chk-video-item" value="<?= $vid->id ?>" data-url="<?= Html::encode($vid->getUrlCompleta()) ?>" style="width: 18px; height: 18px; cursor: pointer; accent-color: #38bdf8;">
                                 <?php endif; ?>
                                 <div>
-                                    <span class="badge" style="background: #0284c7; color: #fff; margin-right: 4px;"><?= $vid->duracao ?>s</span>
-                                    <?php if ($vid->status === 'concluido'): ?>
-                                        <span class="badge" style="background: #334155; color: #38bdf8; border: 1px solid #475569; margin-right: 6px;">💾 <?= $vid->getTamanhoFormatado() ?></span>
-                                    <?php endif; ?>
-                                    <small style="color: #94a3b8;"><?= date('d/m/Y H:i', strtotime($vid->data_criacao)) ?></small>
-                                    <div style="font-size: 0.85rem; color: #e2e8f0; margin-top: 4px;">
-                                        Status: <strong style="color: <?= $vid->status === 'concluido' ? '#34d399' : ($vid->status === 'erro' ? '#f87171' : '#fbbf24') ?>;"><?= strtoupper($vid->status) ?></strong>
+                                    <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-bottom: 2px;">
+                                        <span class="badge" style="background: #0284c7; color: #fff; font-weight: 700;"><?= $vid->duracao ?>s</span>
+                                        <?php if ($vid->status === 'concluido'): ?>
+                                            <span class="badge" style="background: #334155; color: #38bdf8; border: 1px solid #475569;">💾 <?= $vid->getTamanhoFormatado() ?></span>
+                                        <?php endif; ?>
+                                        <small style="color: #94a3b8; font-weight: 600;"><?= date('d/m/Y H:i', strtotime($vid->data_criacao)) ?></small>
+                                    </div>
+                                    <div style="font-size: 0.78rem; color: #38bdf8; font-weight: 600; margin-top: 3px; line-height: 1.35; word-break: break-word;">
+                                        <?= Html::encode($vid->getResumoRecursosFormatted()) ?>
                                     </div>
                                 </div>
                             </div>
