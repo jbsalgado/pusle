@@ -68,6 +68,8 @@ async function main() {
                 '--disable-dev-shm-usage',
                 '--disable-crash-reporter',
                 '--disable-gpu',
+                '--allow-file-access-from-files',
+                '--autoplay-policy=no-user-gesture-required',
                 `--user-data-dir=${userDataDir}`,
                 '--font-render-hinting=medium'
             ],
@@ -484,7 +486,7 @@ function generateVideoHtmlTemplate(data, duracao) {
                 ${marca ? `<div class="brand-tag">${marca}</div>` : ''}
                 ${fotos.length > 1 ? `<div class="photo-badge" id="elemPhotoBadge">📷 1 / ${fotos.length}</div>` : ''}
                 <img class="product-image" id="elemProductImg" src="${fotos[0]}">
-                ${videosList.length > 0 ? `<video class="product-video" id="elemProductVideo" src="${videosList[0].url}" autoplay muted loop style="display:none; position:relative; z-index:2; width:98%; height:98%; max-width:98%; max-height:98%; object-fit:${ajusteProporcao === 'cover' ? 'cover' : 'contain'}; border-radius: 20px;"></video>` : ''}
+                ${videosList.length > 0 ? `<video class="product-video" id="elemProductVideo" src="${videosList[0].path ? (videosList[0].path.startsWith('file://') ? videosList[0].path : 'file://' + videosList[0].path) : videosList[0].url}" autoplay muted loop style="display:none; position:relative; z-index:2; width:98%; height:98%; max-width:98%; max-height:98%; object-fit:${ajusteProporcao === 'cover' ? 'cover' : 'contain'}; border-radius: 20px;"></video>` : ''}
             </div>
         </div>
         <div class="info-card" id="elemInfoCard">
@@ -508,6 +510,7 @@ function generateVideoHtmlTemplate(data, duracao) {
         const fotosList = ${JSON.stringify(fotos)};
         const videosList = ${JSON.stringify(videosList)};
         const modoComposicao = "${modoComposicao}";
+        const ajusteDuracao = "${(data.ajusteDuracao || 'trim').toLowerCase()}";
         const duracaoTotal = ${duracao};
         const efeitoVisual = "${(data.efeitoVisual || data.efeito_visual || 'none').toLowerCase()}";
 
@@ -1296,19 +1299,34 @@ function generateVideoHtmlTemplate(data, duracao) {
             const zoomFactor = 1 + (progress * 0.12);
             elemProductImg.style.transform = 'scale(' + zoomFactor + ')';
 
-            // 3. Alternância de Mídia (Fotos x Vídeo Real do Produto)
+            // 3. Alternância de Mídia (Fotos x Vídeo Real do Produto com Sincronização por Frame)
             if (videosList.length > 0 && elemProductVideo) {
+                let showVideo = false;
                 if (modoComposicao === 'video_real') {
-                    elemProductImg.style.display = 'none';
-                    elemProductVideo.style.display = 'block';
+                    showVideo = true;
                 } else if (modoComposicao === 'hibrido') {
                     if (progress >= 0.30 && progress <= 0.85) {
-                        elemProductImg.style.display = 'none';
-                        elemProductVideo.style.display = 'block';
-                    } else {
-                        elemProductVideo.style.display = 'none';
-                        elemProductImg.style.display = 'block';
+                        showVideo = true;
                     }
+                }
+
+                if (showVideo) {
+                    if (elemProductImg) elemProductImg.style.display = 'none';
+                    elemProductVideo.style.display = 'block';
+
+                    const vDuration = (elemProductVideo.duration && !isNaN(elemProductVideo.duration) && elemProductVideo.duration > 0) ? elemProductVideo.duration : 15;
+                    let targetTime = currentTime;
+                    if (ajusteDuracao === 'speedup') {
+                        targetTime = progress * vDuration;
+                    } else {
+                        targetTime = currentTime % vDuration;
+                    }
+                    try {
+                        elemProductVideo.currentTime = targetTime;
+                    } catch (e) {}
+                } else {
+                    elemProductVideo.style.display = 'none';
+                    if (elemProductImg) elemProductImg.style.display = 'block';
                 }
             }
 
@@ -1346,6 +1364,10 @@ function generateFullBleedVideoHtmlTemplate(data, duracao) {
     const p = data.produto || {};
     const l = data.loja || {};
     const palette = COLOR_PALETTES[corTema] || COLOR_PALETTES.dark;
+
+    const videosList = Array.isArray(p.videos) ? p.videos : [];
+    const modoComposicao = (data.modoComposicao || 'hibrido').toLowerCase();
+    const ajusteProporcao = (data.ajusteProporcao || 'smart_blur').toLowerCase();
 
     const nomeProduto = escapeHtml(p.nome || 'PRODUTO EM OFERTA');
     const marca = escapeHtml(p.marca || 'TUDO SOBRE');
@@ -1445,6 +1467,7 @@ function generateFullBleedVideoHtmlTemplate(data, duracao) {
 <body>
     <div class="full-bg-container">
         <img class="full-bg-image" id="elemFullImg" src="${fotos[0]}" alt="Background">
+        ${videosList.length > 0 ? `<video class="full-bg-image" id="elemFullVideo" src="${videosList[0].path ? (videosList[0].path.startsWith('file://') ? videosList[0].path : 'file://' + videosList[0].path) : videosList[0].url}" autoplay muted loop style="display:none; width:100%; height:100%; object-fit:${ajusteProporcao === 'cover' ? 'cover' : 'contain'};"></video>` : ''}
         ${fotos.length > 1 ? `<div class="photo-badge" id="elemPhotoBadge">📷 1 / ${fotos.length}</div>` : ''}
     </div>
 
@@ -1471,11 +1494,15 @@ function generateFullBleedVideoHtmlTemplate(data, duracao) {
 
     <script>
         const fotosList = ${JSON.stringify(fotos)};
+        const videosList = ${JSON.stringify(videosList)};
+        const modoComposicao = "${modoComposicao}";
+        const ajusteDuracao = "${(data.ajusteDuracao || 'trim').toLowerCase()}";
         const duracaoTotal = ${duracao};
 
         const elemTopBanner = document.getElementById('elemTopBanner');
         const elemBottomBanner = document.getElementById('elemBottomBanner');
         const elemFullImg = document.getElementById('elemFullImg');
+        const elemFullVideo = document.getElementById('elemFullVideo');
 
         window.seekFrame = function(frame, totalFrames, fps) {
             const progress = frame / totalFrames; // 0.0 a 1.0
@@ -1491,14 +1518,42 @@ function generateFullBleedVideoHtmlTemplate(data, duracao) {
 
             // 2. Zoom Ken-Burns na Foto de Fundo
             const zoomFactor = 1 + (progress * 0.15);
-            elemFullImg.style.transform = 'scale(' + zoomFactor + ')';
+            if (elemFullImg) elemFullImg.style.transform = 'scale(' + zoomFactor + ')';
 
-            // 3. Troca de Fotos na Galeria
-            if (fotosList.length > 1) {
+            // 3. Alternância de Mídia (Fotos x Vídeo Real do Produto)
+            if (videosList.length > 0 && elemFullVideo) {
+                let showVideo = false;
+                if (modoComposicao === 'video_real') {
+                    showVideo = true;
+                } else if (modoComposicao === 'hibrido') {
+                    if (progress >= 0.30 && progress <= 0.85) {
+                        showVideo = true;
+                    }
+                }
+
+                if (showVideo) {
+                    if (elemFullImg) elemFullImg.style.display = 'none';
+                    elemFullVideo.style.display = 'block';
+
+                    const vDuration = (elemFullVideo.duration && !isNaN(elemFullVideo.duration) && elemFullVideo.duration > 0) ? elemFullVideo.duration : 15;
+                    let targetTime = currentTime;
+                    if (ajusteDuracao === 'speedup') {
+                        targetTime = progress * vDuration;
+                    } else {
+                        targetTime = currentTime % vDuration;
+                    }
+                    try {
+                        elemFullVideo.currentTime = targetTime;
+                    } catch (e) {}
+                } else {
+                    elemFullVideo.style.display = 'none';
+                    if (elemFullImg) elemFullImg.style.display = 'block';
+                }
+            } else if (fotosList.length > 1) {
                 const tempoPorFoto = duracaoTotal / fotosList.length;
                 let fotoIndex = Math.min(Math.floor(currentTime / tempoPorFoto), fotosList.length - 1);
 
-                if (elemFullImg.src !== fotosList[fotoIndex]) {
+                if (elemFullImg && elemFullImg.src !== fotosList[fotoIndex]) {
                     elemFullImg.src = fotosList[fotoIndex];
                     const elemPhotoBadge = document.getElementById('elemPhotoBadge');
                     if (elemPhotoBadge) {
