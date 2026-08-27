@@ -569,74 +569,54 @@ input[type="radio"]:checked + .color-pill-card {
                     <!-- 4. Estilo de Fundo -->
                     <div class="mb-4">
                         <label class="form-label-custom">4. Estilo de Fundo</label>
-                        <div class="row g-2">
-                            <div class="col-3">
-                                <label class="w-100 mb-0">
-                                    <input type="radio" name="video_fundo" value="gradient" checked class="d-none">
-                                    <div class="color-pill-card justify-content-center w-100">Gradiente</div>
-                                </label>
-                            </div>
-                            <div class="col-3">
-                                <label class="w-100 mb-0">
-                                    <input type="radio" name="video_fundo" value="mesh" class="d-none">
-                                    <div class="color-pill-card justify-content-center w-100">Mesh Fluid</div>
-                                </label>
-                            </div>
-                            <div class="col-3">
-                                <label class="w-100 mb-0">
-                                    <input type="radio" name="video_fundo" value="geometric" class="d-none">
-                                    <div class="color-pill-card justify-content-center w-100">Geométrico</div>
-                                </label>
-                            </div>
-                            <div class="col-3">
-                                <label class="w-100 mb-0">
-                                    <input type="radio" name="video_fundo" value="grid" class="d-none">
-                                    <div class="color-pill-card justify-content-center w-100">Grid Pontos</div>
-                                </label>
-                            </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            <label class="mb-0">
+                                <input type="radio" name="video_fundo" value="gradient" checked class="d-none">
+                                <div class="color-pill-card">Gradiente</div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_fundo" value="mesh" class="d-none">
+                                <div class="color-pill-card">Mesh Fluid</div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_fundo" value="geometric" class="d-none">
+                                <div class="color-pill-card">Geométrico</div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_fundo" value="grid" class="d-none">
+                                <div class="color-pill-card">Grid Pontos</div>
+                            </label>
                         </div>
                     </div>
 
                     <!-- 5. Efeitos Especiais de Animação / Partículas -->
                     <div class="mb-4">
                         <label class="form-label-custom">5. Efeitos Especiais de Animação (Partículas & Overlays)</label>
-                        <div class="row g-2">
-                            <div class="col-4 mb-2">
-                                <label class="w-100 mb-0">
-                                    <input type="radio" name="video_efeito_visual" value="none" checked class="d-none">
-                                    <div class="color-pill-card justify-content-center w-100">🚫 Sem Efeito</div>
-                                </label>
-                            </div>
-                            <div class="col-4 mb-2">
-                                <label class="w-100 mb-0">
-                                    <input type="radio" name="video_efeito_visual" value="fireworks" class="d-none">
-                                    <div class="color-pill-card justify-content-center w-100">🎆 Fogos Artifício</div>
-                                </label>
-                            </div>
-                            <div class="col-4 mb-2">
-                                <label class="w-100 mb-0">
-                                    <input type="radio" name="video_efeito_visual" value="confetti" class="d-none">
-                                    <div class="color-pill-card justify-content-center w-100">🎉 Confetes Festa</div>
-                                </label>
-                            </div>
-                            <div class="col-4 mb-2">
-                                <label class="w-100 mb-0">
-                                    <input type="radio" name="video_efeito_visual" value="sparks" class="d-none">
-                                    <div class="color-pill-card justify-content-center w-100">⚡ Faíscas & Neons</div>
-                                </label>
-                            </div>
-                            <div class="col-4 mb-2">
-                                <label class="w-100 mb-0">
-                                    <input type="radio" name="video_efeito_visual" value="stars" class="d-none">
-                                    <div class="color-pill-card justify-content-center w-100">✨ Estrelas & Glow</div>
-                                </label>
-                            </div>
-                            <div class="col-4 mb-2">
-                                <label class="w-100 mb-0">
-                                    <input type="radio" name="video_efeito_visual" value="hearts" class="d-none">
-                                    <div class="color-pill-card justify-content-center w-100">💖 Corações</div>
-                                </label>
-                            </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            <label class="mb-0">
+                                <input type="radio" name="video_efeito_visual" value="none" checked class="d-none">
+                                <div class="color-pill-card">🚫 Sem Efeito</div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_efeito_visual" value="fireworks" class="d-none">
+                                <div class="color-pill-card">🎆 Fogos Artifício</div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_efeito_visual" value="confetti" class="d-none">
+                                <div class="color-pill-card">🎉 Confetes Festa</div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_efeito_visual" value="sparks" class="d-none">
+                                <div class="color-pill-card">⚡ Faíscas & Neons</div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_efeito_visual" value="stars" class="d-none">
+                                <div class="color-pill-card">✨ Estrelas & Glow</div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_efeito_visual" value="hearts" class="d-none">
+                                <div class="color-pill-card">💖 Corações</div>
+                            </label>
                         </div>
                     </div>
 
@@ -761,7 +741,7 @@ input[type="radio"]:checked + .color-pill-card {
                             </div>
                             <div style="display: flex; gap: 6px; align-items: center;">
                                 <?php if ($vid->status === 'concluido' && $vid->video_url): ?>
-                                    <button type="button" class="btn btn-sm btn-outline-info btn-play-history" data-url="<?= Html::encode($vid->getUrlCompleta()) ?>" style="border-radius: 8px;" title="Assistir Prévia">
+                                    <button type="button" class="btn btn-sm btn-outline-info btn-play-history" data-url="<?= Html::encode($vid->getUrlCompleta()) ?>" data-formato="<?= Html::encode($vid->formato ?? 'stories') ?>" style="border-radius: 8px;" title="Assistir Prévia">
                                         ▶
                                     </button>
                                     <button type="button" class="btn btn-sm btn-success" onclick="abrirDisparoVideoUnico('<?= $vid->id ?>', '<?= Html::encode($vid->getUrlCompleta()) ?>')" style="border-radius: 8px; background: #25d366; border: none; font-weight: 700; color: #fff;" title="Disparar no WhatsApp / Status">
@@ -897,8 +877,9 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.btn-play-history').forEach(btn => {
         btn.addEventListener('click', function() {
             const url = this.getAttribute('data-url');
+            const formato = this.getAttribute('data-formato') || 'stories';
             if (url) {
-                mostrarVideoConcluido(url);
+                mostrarVideoConcluido(url, formato);
             }
         });
     });
@@ -1068,7 +1049,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 2000);
     }
 
-    function mostrarVideoConcluido(url) {
+    function mostrarVideoConcluido(url, formato) {
+        if (!formato) {
+            formato = document.querySelector('input[name="video_formato"]:checked')?.value || 'stories';
+        }
+        ajustarTelaPreview(formato);
+
         placeholderPreview.style.display = 'none';
         videoPlayer.style.display = 'block';
         videoPlayer.src = url;
@@ -1080,6 +1066,32 @@ document.addEventListener('DOMContentLoaded', function() {
         videoRecemGeradoUrl = url;
 
         actionButtonsBox.style.display = 'flex';
+    }
+
+    function ajustarTelaPreview(formato) {
+        const titleElem = document.getElementById('lbl-preview-title');
+        const aspectBox = document.querySelector('.preview-aspect-ratio');
+        if (formato === 'feed' || formato === '1:1') {
+            if (titleElem) titleElem.innerText = 'Prévia do Vídeo Promocional (1080x1080)';
+            if (aspectBox) aspectBox.classList.add('is-feed');
+        } else {
+            if (titleElem) titleElem.innerText = 'Prévia do Vídeo Promocional (1080x1920)';
+            if (aspectBox) aspectBox.classList.remove('is-feed');
+        }
+    }
+
+    if (videoPlayer) {
+        videoPlayer.addEventListener('loadedmetadata', function() {
+            const w = this.videoWidth;
+            const h = this.videoHeight;
+            if (w > 0 && h > 0) {
+                if (Math.abs(w - h) < 20) {
+                    ajustarTelaPreview('feed');
+                } else if (h > w) {
+                    ajustarTelaPreview('stories');
+                }
+            }
+        });
     }
 
     function tratarErroGeracao(mensagem) {
