@@ -92,6 +92,20 @@ $tokenJwt = $usuario ? $usuario->generateJwt() : '';
 $cards = [
     // ⚡ AÇÕES RÁPIDAS
     [
+        'key' => 'super-admin-lojas',
+        'grupo' => 'Ações Rápidas',
+        'order' => 1.05,
+        'visible' => \app\components\TenantHelper::isAdmin(),
+        'label' => 'Painel Super Admin',
+        'description' => 'Gerenciar lojas, clientes e ativadores do SaaS',
+        'color' => 'purple',
+        'url' => ['/admin/loja/index'],
+        'badge' => 'Super Admin',
+        'badge_bg' => 'bg-purple-200 text-purple-900',
+        'icon_emoji' => '👑',
+        'card_bg' => 'bg-gradient-to-br from-purple-600 via-indigo-600 to-purple-800 text-white',
+    ],
+    [
         'key' => 'cadastrar-produto-rapido',
         'grupo' => 'Ações Rápidas',
         'order' => 1.1,
@@ -629,61 +643,80 @@ $gruposOrdenados = [
                     </span>
                 </div>
 
-                <!-- Menu de Usuário -->
-                <div class="relative" id="userMenuContainer">
-                    <button type="button"
-                        id="userMenuButton"
-                        class="flex items-center space-x-2 sm:space-x-3 bg-gray-50 hover:bg-gray-100 rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                        <!-- Avatar -->
-                        <div class="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center">
-                            <span class="text-white text-xs sm:text-sm font-bold">
-                                <?= $usuario ? strtoupper(substr($usuario->getPrimeiroNome(), 0, 1)) : 'U' ?>
+                <!-- Menu de Usuário & Atalhos -->
+                <div class="flex items-center space-x-2 sm:space-x-3">
+                    <?php if (\app\components\TenantHelper::isAdmin()): ?>
+                        <!-- Botão de Destaque Super Admin -->
+                        <a href="<?= Url::to(['/admin/loja/index']) ?>"
+                            class="inline-flex items-center space-x-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs sm:text-sm font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl shadow transition duration-200 border border-purple-400/30">
+                            <span>👑</span>
+                            <span class="hidden xs:inline">Painel Super Admin</span>
+                        </a>
+                    <?php endif; ?>
+
+                    <div class="relative" id="userMenuContainer">
+                        <button type="button"
+                            id="userMenuButton"
+                            class="flex items-center space-x-2 sm:space-x-3 bg-gray-50 hover:bg-gray-100 rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                            <!-- Avatar -->
+                            <div class="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center">
+                                <span class="text-white text-xs sm:text-sm font-bold">
+                                    <?= $usuario ? strtoupper(substr($usuario->getPrimeiroNome(), 0, 1)) : 'U' ?>
+                                </span>
+                            </div>
+                            <!-- Nome do usuário (oculto em mobile pequeno) -->
+                            <span class="text-sm font-medium text-gray-700 hidden md:inline max-w-32 truncate">
+                                <?= $usuario ? Html::encode($usuario->getPrimeiroNome()) : 'Utilizador' ?>
                             </span>
-                        </div>
-                        <!-- Nome do usuário (oculto em mobile pequeno) -->
-                        <span class="text-sm font-medium text-gray-700 hidden md:inline max-w-32 truncate">
-                            <?= $usuario ? Html::encode($usuario->getPrimeiroNome()) : 'Utilizador' ?>
-                        </span>
-                        <!-- Ícone dropdown -->
-                        <svg class="w-4 h-4 text-gray-500 transition-transform duration-200" id="chevronIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
+                            <!-- Ícone dropdown -->
+                            <svg class="w-4 h-4 text-gray-500 transition-transform duration-200" id="chevronIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
 
-                    <!-- Dropdown Menu -->
-                    <div id="userMenu"
-                        class="hidden absolute right-0 mt-2 w-56 sm:w-64 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50">
-                        <!-- Informações do usuário -->
-                        <div class="px-4 py-3 border-b border-gray-100">
-                            <p class="text-sm font-medium text-gray-900">
-                                <?= $usuario ? Html::encode($usuario->username ?? $usuario->getPrimeiroNome()) : 'Utilizador' ?>
-                            </p>
-                            <p class="text-xs text-gray-500 mt-0.5">
-                                <?= $usuario && isset($usuario->email) ? Html::encode($usuario->email) : 'utilizador@sistema.com' ?>
-                            </p>
-                        </div>
+                        <!-- Dropdown Menu -->
+                        <div id="userMenu"
+                            class="hidden absolute right-0 mt-2 w-56 sm:w-64 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50">
+                            <!-- Informações do usuário -->
+                            <div class="px-4 py-3 border-b border-gray-100">
+                                <p class="text-sm font-medium text-gray-900">
+                                    <?= $usuario ? Html::encode($usuario->username ?? $usuario->getPrimeiroNome()) : 'Utilizador' ?>
+                                </p>
+                                <p class="text-xs text-gray-500 mt-0.5">
+                                    <?= $usuario && isset($usuario->email) ? Html::encode($usuario->email) : 'utilizador@sistema.com' ?>
+                                </p>
+                            </div>
 
-                        <!-- Opções do menu -->
-                        <div class="py-1">
-                            <!-- Perfil -->
-                            <a href="<?= Url::to(['/site/perfil']) ?>"
-                                class="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150">
-                                <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                </svg>
-                                Meu Perfil
-                            </a>
+                            <!-- Opções do menu -->
+                            <div class="py-1">
+                                <?php if (\app\components\TenantHelper::isAdmin()): ?>
+                                    <!-- Painel Super Admin -->
+                                    <a href="<?= Url::to(['/admin/loja/index']) ?>"
+                                        class="flex items-center px-4 py-2.5 text-sm font-bold text-purple-700 hover:bg-purple-50 transition-colors duration-150 border-b border-gray-100">
+                                        <span class="mr-3 text-base">👑</span>
+                                        Painel Super Admin
+                                    </a>
+                                <?php endif; ?>
 
-                            <!-- Configurações -->
-                            <a href="<?= Url::to(['/site/configuracoes']) ?>"
-                                class="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150">
-                                <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                </svg>
-                                Configurações
-                            </a>
-                        </div>
+                                <!-- Perfil -->
+                                <a href="<?= Url::to(['/site/perfil']) ?>"
+                                    class="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150">
+                                    <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                    Meu Perfil
+                                </a>
+
+                                <!-- Configurações -->
+                                <a href="<?= Url::to(['/site/configuracoes']) ?>"
+                                    class="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150">
+                                    <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    Configurações
+                                </a>
+                            </div>
 
                         <!-- Logout -->
                         <div class="border-t border-gray-100 py-1">
