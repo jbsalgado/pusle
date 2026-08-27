@@ -64,6 +64,9 @@ class VideoGeneratorService
             'fundo_estilo' => $options['fundoEstilo'] ?? 'gradient',
             'trilha_sonora' => $options['trilhaSonora'] ?? 'promo_bg.mp3',
             'efeito_visual' => $options['efeitoVisual'] ?? $options['efeito_visual'] ?? 'none',
+            'modo_composicao' => $options['modoComposicao'] ?? 'hibrido',
+            'ajuste_duracao' => $options['ajusteDuracao'] ?? 'trim',
+            'ajuste_proporcao' => $options['ajusteProporcao'] ?? 'smart_blur',
         ];
         $metaParams['resumo_recursos'] = ProdutoVideo::gerarResumoRecursosTexto($metaParams);
         $metaParams['solicitado_em'] = date('Y-m-d H:i:s');
@@ -225,6 +228,23 @@ class VideoGeneratorService
                 $trilhaSonora = $trilhaKey;
             }
 
+            // Coletar Vídeos do Produto
+            $videosArray = [];
+            $videosCadastrados = $produto->videos;
+            foreach ($videosCadastrados as $vItem) {
+                if (!empty($vItem->video_path)) {
+                    $absPathV = Yii::getAlias('@webroot/' . ltrim($vItem->video_path, '/'));
+                    if (file_exists($absPathV)) {
+                        $videosArray[] = [
+                            'id' => $vItem->id,
+                            'url' => $vItem->getUrl(),
+                            'path' => $absPathV,
+                            'duracao' => (int)($vItem->duracao ?: 15)
+                        ];
+                    }
+                }
+            }
+
             $payload = [
                 'duracao' => (int)$videoModel->duracao,
                 'formato' => $options['formato'] ?? ($videoModel->metadata['formato'] ?? ($videoModel->formato ?: 'stories')),
@@ -233,6 +253,9 @@ class VideoGeneratorService
                 'fundoEstilo' => $options['fundoEstilo'] ?? ($videoModel->metadata['fundo_estilo'] ?? 'gradient'),
                 'trilhaSonora' => $trilhaSonora,
                 'efeitoVisual' => $options['efeitoVisual'] ?? ($options['efeito_visual'] ?? ($videoModel->metadata['efeito_visual'] ?? 'none')),
+                'modoComposicao' => $options['modoComposicao'] ?? ($videoModel->metadata['modo_composicao'] ?? 'hibrido'),
+                'ajusteDuracao' => $options['ajusteDuracao'] ?? ($videoModel->metadata['ajuste_duracao'] ?? 'trim'),
+                'ajusteProporcao' => $options['ajusteProporcao'] ?? ($videoModel->metadata['ajuste_proporcao'] ?? 'smart_blur'),
                 'outputPath' => $caminhoAbsolutoSaida,
                 'produto' => [
                     'id' => $produto->id,
@@ -246,6 +269,7 @@ class VideoGeneratorService
                     'badgeTexto' => $badgeTexto,
                     'parcelamento' => $parcelamentoText,
                     'fotosBase64' => $fotosArray,
+                    'videos' => $videosArray,
                     'unidade' => $produto->unidade_medida
                 ],
                 'loja' => [

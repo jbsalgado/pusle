@@ -390,6 +390,10 @@ function generateVideoHtmlTemplate(data, duracao) {
         'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 24 24" fill="none" stroke="%23cccccc" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'
     ];
 
+    const videosList = Array.isArray(p.videos) ? p.videos : [];
+    const modoComposicao = (data.modoComposicao || 'hibrido').toLowerCase();
+    const ajusteProporcao = (data.ajusteProporcao || 'smart_blur').toLowerCase();
+
     const nomeLoja = escapeHtml(l.nome || 'PULSE STORE');
     const logoLoja = l.logoBase64 || '';
     const telefone = escapeHtml(l.telefone || '');
@@ -480,6 +484,7 @@ function generateVideoHtmlTemplate(data, duracao) {
                 ${marca ? `<div class="brand-tag">${marca}</div>` : ''}
                 ${fotos.length > 1 ? `<div class="photo-badge" id="elemPhotoBadge">📷 1 / ${fotos.length}</div>` : ''}
                 <img class="product-image" id="elemProductImg" src="${fotos[0]}">
+                ${videosList.length > 0 ? `<video class="product-video" id="elemProductVideo" src="${videosList[0].url}" autoplay muted loop style="display:none; position:relative; z-index:2; width:98%; height:98%; max-width:98%; max-height:98%; object-fit:${ajusteProporcao === 'cover' ? 'cover' : 'contain'}; border-radius: 20px;"></video>` : ''}
             </div>
         </div>
         <div class="info-card" id="elemInfoCard">
@@ -501,12 +506,15 @@ function generateVideoHtmlTemplate(data, duracao) {
 
     <script>
         const fotosList = ${JSON.stringify(fotos)};
+        const videosList = ${JSON.stringify(videosList)};
+        const modoComposicao = "${modoComposicao}";
         const duracaoTotal = ${duracao};
         const efeitoVisual = "${(data.efeitoVisual || data.efeito_visual || 'none').toLowerCase()}";
 
         const elemHeader = document.getElementById('elemHeader');
         const elemImgCard = document.getElementById('elemImgCard');
         const elemProductImg = document.getElementById('elemProductImg');
+        const elemProductVideo = document.getElementById('elemProductVideo');
         const elemBlurBg = document.getElementById('elemBlurBg');
         const elemInfoCard = document.getElementById('elemInfoCard');
         const elemPrice = document.getElementById('elemPrice');
@@ -1287,6 +1295,22 @@ function generateVideoHtmlTemplate(data, duracao) {
 
             const zoomFactor = 1 + (progress * 0.12);
             elemProductImg.style.transform = 'scale(' + zoomFactor + ')';
+
+            // 3. Alternância de Mídia (Fotos x Vídeo Real do Produto)
+            if (videosList.length > 0 && elemProductVideo) {
+                if (modoComposicao === 'video_real') {
+                    elemProductImg.style.display = 'none';
+                    elemProductVideo.style.display = 'block';
+                } else if (modoComposicao === 'hibrido') {
+                    if (progress >= 0.30 && progress <= 0.85) {
+                        elemProductImg.style.display = 'none';
+                        elemProductVideo.style.display = 'block';
+                    } else {
+                        elemProductVideo.style.display = 'none';
+                        elemProductImg.style.display = 'block';
+                    }
+                }
+            }
 
             if (fotosList.length > 1) {
                 const tempoPorFoto = duracaoTotal / fotosList.length;

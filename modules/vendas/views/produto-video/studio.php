@@ -671,6 +671,77 @@ input[type="radio"]:checked + .color-pill-card {
                         <audio id="audio-preview-element" style="display:none;"></audio>
                     </div>
 
+                    <!-- 6. Modo de Composição de Mídia & Origem dos Vídeos -->
+                    <?php 
+                        $videosCadastradosDoProduto = $produtoSelecionado ? $produtoSelecionado->videos : [];
+                        $qtdVideosDoProduto = count($videosCadastradosDoProduto);
+                    ?>
+                    <div class="mb-4" id="box-modo-composicao">
+                        <label class="form-label-custom">6. Origem de Mídia & Modo de Composição</label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            <label class="mb-0">
+                                <input type="radio" name="video_modo_composicao" value="hibrido" <?= $qtdVideosDoProduto > 0 ? 'checked' : '' ?> class="d-none">
+                                <div class="color-pill-card">
+                                    🔀 Híbrido (Fotos + Vídeo Real)
+                                </div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_modo_composicao" value="apenas_fotos" <?= $qtdVideosDoProduto == 0 ? 'checked' : '' ?> class="d-none">
+                                <div class="color-pill-card">
+                                    📸 Apenas Fotos da Galeria
+                                </div>
+                            </label>
+                            <label class="mb-0">
+                                <input type="radio" name="video_modo_composicao" value="video_real" class="d-none">
+                                <div class="color-pill-card">
+                                    🎥 Apenas Vídeo Real com Overlays
+                                </div>
+                            </label>
+                        </div>
+                        <?php if ($qtdVideosDoProduto > 0): ?>
+                            <div style="margin-top: 8px; font-size: 0.8rem; color: #a855f7; font-weight: 600; background: rgba(168,85,247,0.1); padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(168,85,247,0.2);">
+                                📹 <strong><?= $qtdVideosDoProduto ?> vídeo(s) cadastrado(s)</strong> disponível(is) para este produto!
+                            </div>
+                        <?php else: ?>
+                            <div style="margin-top: 8px; font-size: 0.78rem; color: #94a3b8; font-weight: 500;">
+                                ℹ️ Este produto ainda não possui vídeos enviados na Aba Básico.
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- 7. Ajuste de Duração e Proporção para Vídeos do Produto -->
+                    <div class="mb-4" id="box-ajuste-video">
+                        <label class="form-label-custom">7. Ajuste Automático do Vídeo do Produto</label>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <div>
+                                <span style="font-size: 0.78rem; color: #94a3b8; font-weight: 600; display: block; margin-bottom: 4px;">Se o vídeo for maior que a duração selecionada:</span>
+                                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                    <label class="mb-0">
+                                        <input type="radio" name="video_ajuste_duracao" value="trim" checked class="d-none">
+                                        <div class="color-pill-card">✂️ Corte Inteligente (Trim)</div>
+                                    </label>
+                                    <label class="mb-0">
+                                        <input type="radio" name="video_ajuste_duracao" value="speedup" class="d-none">
+                                        <div class="color-pill-card">⚡ Acelerar Vídeo (Speedup)</div>
+                                    </label>
+                                </div>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.78rem; color: #94a3b8; font-weight: 600; display: block; margin-bottom: 4px;">Se o formato do vídeo for diferente (ex: horizontal 16:9 ➔ Stories 9:16):</span>
+                                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                    <label class="mb-0">
+                                        <input type="radio" name="video_ajuste_proporcao" value="smart_blur" checked class="d-none">
+                                        <div class="color-pill-card">🌌 Fundo Desfocado (Smart Blur)</div>
+                                    </label>
+                                    <label class="mb-0">
+                                        <input type="radio" name="video_ajuste_proporcao" value="cover" class="d-none">
+                                        <div class="color-pill-card">🖼️ Preencher Tela (Cover Crop)</div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <button type="button" id="btn-gerar-video" class="btn-generate-video">
                         <span>🎬 Gerar Vídeo Promocional 9:16</span>
                     </button>
@@ -986,6 +1057,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const corVal = document.querySelector('input[name="video_cor"]:checked')?.value || 'dark';
         const fundoVal = document.querySelector('input[name="video_fundo"]:checked')?.value || 'gradient';
         const efeitoVal = document.querySelector('input[name="video_efeito_visual"]:checked')?.value || 'none';
+        const modoComposicaoVal = document.querySelector('input[name="video_modo_composicao"]:checked')?.value || 'hibrido';
+        const ajusteDuracaoVal = document.querySelector('input[name="video_ajuste_duracao"]:checked')?.value || 'trim';
+        const ajusteProporcaoVal = document.querySelector('input[name="video_ajuste_proporcao"]:checked')?.value || 'smart_blur';
 
         fetch('<?= Url::to(['/vendas/produto-video/generate']) ?>', {
             method: 'POST',
@@ -1001,7 +1075,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 corTema: corVal,
                 fundoEstilo: fundoVal,
                 trilhaSonora: selectTrilha ? selectTrilha.value : 'promo_bg.mp3',
-                efeitoVisual: efeitoVal
+                efeitoVisual: efeitoVal,
+                modoComposicao: modoComposicaoVal,
+                ajusteDuracao: ajusteDuracaoVal,
+                ajusteProporcao: ajusteProporcaoVal
             })
         })
         .then(response => response.json())
