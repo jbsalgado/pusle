@@ -55,7 +55,7 @@ class EncartePdfService
     }
 
     /**
-     * Monta a estrutura HTML completa do folheto impresso A4
+     * Monta a estrutura HTML completa do folheto impresso A4 usando tabelas mPDF de alta precisão
      */
     private static function renderHtmlTabloide(Encarte $encarte, array $paginas, $loja)
     {
@@ -71,31 +71,43 @@ class EncartePdfService
         <div class="encarte-document">
             <?php foreach ($paginas as $indexPagina => $itensPagina): 
                 $countItens = count($itensPagina);
-                // Determina classe de densidade para ajuste dinâmico de altura dos cards
-                $densityClass = 'density-normal';
+                
+                // Configuração das alturas de imagem e tamanhos de fonte mPDF baseadas na densidade
+                $imgBoxHeight = 110;
+                $imgMaxHeight = 100;
+                $titleFontSize = '11px';
+                $priceIntSize = '28px';
+                $priceDecSize = '14px';
+
                 if ($countItens <= 2) {
-                    $densityClass = 'density-large-2';
+                    $imgBoxHeight = 260;
+                    $imgMaxHeight = 240;
+                    $titleFontSize = '15px';
+                    $priceIntSize = '42px';
+                    $priceDecSize = '20px';
                 } elseif ($countItens <= 4) {
-                    $densityClass = 'density-large-4';
-                } elseif ($countItens > 6) {
-                    $densityClass = 'density-compact';
+                    $imgBoxHeight = 160;
+                    $imgMaxHeight = 150;
+                    $titleFontSize = '13px';
+                    $priceIntSize = '34px';
+                    $priceDecSize = '16px';
                 }
             ?>
-                <div class="lamina-page <?= $indexPagina > 0 ? 'page-break' : '' ?> <?= $densityClass ?>">
+                <div class="lamina-page <?= $indexPagina > 0 ? 'page-break' : '' ?>">
                     
-                    <!-- Cabeçalho Promocional da Lâmina -->
+                    <!-- Cabeçalho Promocional Tabloide -->
                     <div class="header-banner">
-                        <table class="header-table">
+                        <table class="header-table" width="100%" cellpadding="0" cellspacing="0">
                             <tr>
-                                <td class="header-left">
+                                <td class="header-left" width="65%" valign="middle">
                                     <div class="store-badge"><?= mb_strtoupper($nomeLoja) ?></div>
                                     <h1 class="main-title"><?= mb_strtoupper($titulo) ?></h1>
                                     <div class="sub-title"><?= $subtitulo ?></div>
                                 </td>
-                                <td class="header-right">
+                                <td class="header-right" width="35%" valign="middle" align="right">
                                     <?php if ($telefoneLoja): ?>
                                         <div class="whatsapp-box">
-                                            <span class="wp-icon">📱</span> Peça pelo WhatsApp:<br>
+                                            Peça pelo WhatsApp:<br>
                                             <strong class="wp-number"><?= $telefoneLoja ?></strong>
                                         </div>
                                     <?php endif; ?>
@@ -105,11 +117,10 @@ class EncartePdfService
                         </table>
                     </div>
 
-                    <!-- Grade de Produtos da Lâmina -->
+                    <!-- Grade de Produtos em Tabela mPDF Perfeita -->
                     <div class="grid-container">
-                        <table class="grid-table">
+                        <table class="grid-table" width="100%" cellpadding="0" cellspacing="8">
                             <?php 
-                            // Renderiza em linhas de 2 produtos para formato A4 de alta legibilidade
                             $chunksLinhas = array_chunk($itensPagina, 2);
                             foreach ($chunksLinhas as $linha): 
                             ?>
@@ -134,55 +145,74 @@ class EncartePdfService
 
                                         $codigoRef = $produto->codigo_barras ?: $produto->codigo_referencia ?: '';
                                     ?>
-                                        <td class="product-cell <?= count($linha) == 1 ? 'cell-full' : '' ?>">
-                                            <div class="product-card">
+                                        <td class="product-cell" width="50%" valign="top">
+                                            <table class="card-inner-table" width="100%" cellpadding="0" cellspacing="0">
                                                 
-                                                <!-- Selo Promocional Starburst -->
-                                                <div class="starburst-badge">
-                                                    <span>OFERTA IMPERDÍVEL</span>
-                                                </div>
+                                                <!-- 1. Tag de Oferta -->
+                                                <tr>
+                                                    <td align="center" style="padding-top: 6px; padding-bottom: 4px;">
+                                                        <span class="starburst-badge">OFERTA IMPERDÍVEL</span>
+                                                    </td>
+                                                </tr>
 
-                                                <!-- Imagem do Produto -->
-                                                <div class="product-img-box">
-                                                    <?php if ($srcFoto): ?>
-                                                        <img src="<?= $srcFoto ?>" class="product-img" alt="<?= Html::encode($produto->nome) ?>">
-                                                    <?php else: ?>
-                                                        <div class="no-img">FOTO DO PRODUTO</div>
-                                                    <?php endif; ?>
-                                                </div>
+                                                <!-- 2. Box de Imagem com limitação estrita de altura -->
+                                                <tr>
+                                                    <td align="center" valign="middle" style="height: <?= $imgBoxHeight ?>px; background-color: #f8fafc; border-radius: 8px; padding: 6px;">
+                                                        <?php if ($srcFoto): ?>
+                                                            <img src="<?= $srcFoto ?>" style="max-height: <?= $imgMaxHeight ?>px; max-width: 95%; width: auto; height: auto;" alt="<?= Html::encode($produto->nome) ?>">
+                                                        <?php else: ?>
+                                                            <div style="line-height: <?= $imgMaxHeight ?>px; color: #94a3b8; font-size: 10px; font-weight: bold;">FOTO DO PRODUTO</div>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                </tr>
 
-                                                <!-- Informações do Produto -->
-                                                <div class="product-info">
-                                                    <div class="meta-row">
+                                                <!-- 3. Marca / Referência -->
+                                                <tr>
+                                                    <td align="center" style="padding-top: 6px; padding-bottom: 2px; font-size: 8px; color: #64748b; font-weight: bold;">
                                                         <?php if ($produto->marca): ?>
-                                                            <span class="product-brand"><?= Html::encode(mb_strtoupper($produto->marca)) ?></span>
+                                                            <span style="background-color: #e2e8f0; color: #334155; padding: 1px 4px; border-radius: 3px;"><?= Html::encode(mb_strtoupper($produto->marca)) ?></span>
                                                         <?php endif; ?>
                                                         <?php if ($codigoRef): ?>
-                                                            <span class="product-ref">REF: <?= Html::encode($codigoRef) ?></span>
+                                                            <span style="color: #94a3b8; margin-left: 4px;">REF: <?= Html::encode($codigoRef) ?></span>
                                                         <?php endif; ?>
-                                                    </div>
-                                                    
-                                                    <div class="product-name"><?= Html::encode(mb_strtoupper($produto->nome)) ?></div>
-                                                    
-                                                    <!-- Splash Container de Preço -->
-                                                    <div class="price-splash">
-                                                        <div class="price-label">PREÇO ESPECIAL</div>
-                                                        <div class="price-row">
-                                                            <span class="currency">R$</span>
-                                                            <span class="price-main"><?= $partesPreco[0] ?></span>
-                                                            <span class="price-cents">,<?= $partesPreco[1] ?></span>
-                                                            <span class="unit-label">/<?= Html::encode(mb_strtoupper($produto->unidade_medida ?: 'UN')) ?></span>
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                                    </td>
+                                                </tr>
 
-                                            </div>
+                                                <!-- 4. Nome do Produto -->
+                                                <tr>
+                                                    <td align="center" valign="middle" style="padding: 4px 6px;">
+                                                        <div class="product-title-text" style="font-size: <?= $titleFontSize ?>;"><?= Html::encode(mb_strtoupper($produto->nome)) ?></div>
+                                                    </td>
+                                                </tr>
+
+                                                <!-- 5. Splash de Preço -->
+                                                <tr>
+                                                    <td align="center" style="padding: 6px 4px 8px 4px;">
+                                                        <div class="price-splash">
+                                                            <table width="100%" cellpadding="0" cellspacing="0">
+                                                                <tr>
+                                                                    <td align="center" class="price-label">PREÇO ESPECIAL</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td align="center" valign="baseline" style="line-height: 1;">
+                                                                        <span class="price-curr">R$</span>
+                                                                        <span class="price-int" style="font-size: <?= $priceIntSize ?>;"><?= $partesPreco[0] ?></span>
+                                                                        <span class="price-dec" style="font-size: <?= $priceDecSize ?>;">,<?= $partesPreco[1] ?></span>
+                                                                        <span class="price-un">/<?= Html::encode(mb_strtoupper($produto->unidade_medida ?: 'UN')) ?></span>
+                                                                    </td>
+                                                                </tr>
+                                                            </table>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+
+                                            </table>
                                         </td>
                                     <?php endforeach; ?>
                                     
-                                    <!-- Célula vazia para alinhar se a linha tiver número ímpar de itens -->
+                                    <!-- Célula vazia se a linha for ímpar -->
                                     <?php if (count($linha) == 1): ?>
-                                        <td class="product-cell empty-cell"></td>
+                                        <td width="50%"></td>
                                     <?php endif; ?>
                                 </tr>
                             <?php endforeach; ?>
@@ -191,12 +221,12 @@ class EncartePdfService
 
                     <!-- Rodapé da Lâmina Pinned no Fim da Página -->
                     <div class="footer-banner">
-                        <table class="footer-table">
+                        <table class="footer-table" width="100%" cellpadding="0" cellspacing="0">
                             <tr>
-                                <td class="footer-left">
+                                <td class="footer-left" width="75%" align="left">
                                     *Ofertas válidas enquanto durarem os estoques. Fotos meramente ilustrativas. Reservamo-nos o direito de corrigir eventuais erros de digitação.
                                 </td>
-                                <td class="footer-right">
+                                <td class="footer-right" width="25%" align="right">
                                     <strong><?= mb_strtoupper($nomeLoja) ?></strong> • Pulse Vendas
                                 </td>
                             </tr>
@@ -211,7 +241,7 @@ class EncartePdfService
     }
 
     /**
-     * Retorna o CSS do Folheto Promocional para o mPDF
+     * Retorna o CSS do Folheto Promocional otimizado para o mPDF
      */
     private static function getCssTabloide($tema = 'red_gold')
     {
@@ -268,64 +298,55 @@ class EncartePdfService
             .header-banner {
                 background-color: {$corPrimaria};
                 color: {$corTextoTitulo};
-                padding: 12px 18px;
-                border-radius: 12px;
-                margin-bottom: 12px;
+                padding: 10px 14px;
+                border-radius: 10px;
+                margin-bottom: 10px;
                 border-bottom: 4px solid {$corSecundaria};
             }
             .header-table {
                 width: 100%;
                 border-collapse: collapse;
             }
-            .header-left {
-                text-align: left;
-                width: 65%;
-                vertical-align: middle;
-            }
-            .header-right {
-                text-align: right;
-                width: 35%;
-                vertical-align: middle;
-            }
             .store-badge {
                 background-color: {$corSecundaria} !important;
                 color: #000000 !important;
                 font-weight: 900;
-                font-size: 11px;
+                font-size: 10px;
                 display: inline-block;
-                padding: 3px 10px;
-                border-radius: 6px;
+                padding: 2px 8px;
+                border-radius: 4px;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
             }
             h1, .main-title, h1.main-title {
                 color: {$corTextoTitulo} !important;
-                font-size: 22px;
+                font-size: 20px;
                 font-weight: 900;
-                margin: 6px 0 2px 0;
+                margin: 4px 0 2px 0;
                 text-transform: uppercase;
                 letter-spacing: -0.5px;
                 line-height: 1.1;
             }
             .sub-title {
                 color: {$corSubtitulo} !important;
-                font-size: 11px;
+                font-size: 10px;
                 font-weight: bold;
             }
             .whatsapp-box {
                 background-color: #ffffff !important;
                 color: #0f172a !important;
                 border: 2px solid #22c55e;
-                padding: 6px 12px;
-                border-radius: 10px;
-                font-size: 10px;
+                padding: 4px 10px;
+                border-radius: 8px;
+                font-size: 9px;
+                font-weight: bold;
                 display: inline-block;
                 text-align: center;
                 margin-bottom: 4px;
             }
             .wp-number {
                 color: #16a34a !important;
-                font-size: 12px;
+                font-size: 11px;
                 font-weight: 900;
             }
             .page-badge {
@@ -334,262 +355,97 @@ class EncartePdfService
                 opacity: 0.85;
             }
 
-            /* Grade de Produtos */
-            .grid-container {
-                width: 100%;
-                margin-bottom: 10px;
-            }
+            /* Inner Card Table */
             .grid-table {
                 width: 100%;
                 border-collapse: separate;
-                border-spacing: 12px;
+                border-spacing: 10px;
             }
             .product-cell {
                 width: 50%;
                 vertical-align: top;
             }
-            .empty-cell {
-                visibility: hidden;
-            }
-            .product-card {
+            .card-inner-table {
                 border: 2px solid #cbd5e1;
-                border-radius: 16px;
-                padding: 12px;
-                position: relative;
+                border-radius: 12px;
                 background-color: #ffffff;
-                text-align: center;
-                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                padding: 6px;
             }
 
-            /* Selo Starburst Promo */
+            /* Selo Starburst */
             .starburst-badge {
-                background-color: {$corSecundaria};
-                color: #000000;
+                background-color: {$corSecundaria} !important;
+                color: #000000 !important;
                 font-weight: 900;
                 font-size: 9px;
-                padding: 4px 10px;
-                border-radius: 20px;
+                padding: 3px 8px;
+                border-radius: 12px;
                 display: inline-block;
-                margin-bottom: 8px;
                 text-transform: uppercase;
-                letter-spacing: 0.5px;
                 border: 1px solid #d97706;
             }
 
-            /* Imagem do Produto */
-            .product-img-box {
-                text-align: center;
-                margin-bottom: 8px;
-                background-color: #f8fafc;
-                border-radius: 10px;
-                padding: 6px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            .product-img {
-                object-fit: contain;
-                margin: 0 auto;
-            }
-            .no-img {
-                background-color: #e2e8f0;
-                color: #64748b;
-                font-size: 10px;
-                font-weight: bold;
-                border-radius: 8px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            /* Metadados e Nome do Produto */
-            .meta-row {
-                font-size: 8px;
-                font-weight: bold;
-                color: #64748b;
-                margin-bottom: 4px;
-            }
-            .product-brand {
-                background-color: #e2e8f0;
-                color: #334155;
-                padding: 1px 5px;
-                border-radius: 4px;
-                margin-right: 4px;
-            }
-            .product-ref {
-                color: #94a3b8;
-            }
-            .product-name {
-                font-size: 13px;
+            /* Titulo do Produto */
+            .product-title-text {
                 font-weight: 900;
                 color: #0f172a;
-                margin-bottom: 8px;
                 text-transform: uppercase;
                 line-height: 1.2;
+                text-align: center;
             }
 
             /* Container de Preço */
             .price-splash {
                 background-color: {$corPrimaria};
                 color: #ffffff !important;
-                border-radius: 12px;
-                padding: 8px 12px;
+                border-radius: 10px;
+                padding: 6px 8px;
                 border: 2px solid {$corSecundaria};
                 text-align: center;
             }
             .price-label {
                 font-size: 8px;
                 font-weight: 900;
-                color: {$corSecundaria};
+                color: {$corSecundaria} !important;
                 letter-spacing: 0.5px;
-                margin-bottom: 2px;
+                padding-bottom: 2px;
             }
-            .price-row {
-                line-height: 1;
-            }
-            .currency {
-                font-size: 13px;
+            .price-curr {
+                font-size: 12px;
                 font-weight: 900;
-                color: #ffffff;
+                color: #ffffff !important;
                 vertical-align: super;
             }
-            .price-main {
-                font-size: 32px;
+            .price-int {
                 font-weight: 900;
                 color: #ffffff !important;
                 letter-spacing: -1px;
             }
-            .price-cents {
-                font-size: 16px;
+            .price-dec {
                 font-weight: 900;
                 color: #ffffff !important;
                 vertical-align: super;
             }
-            .unit-label {
-                font-size: 10px;
+            .price-un {
+                font-size: 9px;
                 font-weight: bold;
-                color: {$corSecundaria};
+                color: {$corSecundaria} !important;
                 margin-left: 2px;
-            }
-
-            /* Ajustes Dinâmicos de Altura conforme a quantidade de produtos (Density) */
-            /* Se 1 a 2 produtos na página: Cards grandes ocupando a lâmina de forma imersiva */
-            .density-large-2 .product-card {
-                height: 660px;
-                padding: 24px;
-            }
-            .density-large-2 .product-img-box {
-                height: 360px;
-            }
-            .density-large-2 .product-img {
-                max-height: 350px;
-                max-width: 320px;
-            }
-            .density-large-2 .no-img {
-                height: 360px;
-                line-height: 360px;
-            }
-            .density-large-2 .product-name {
-                font-size: 18px;
-                height: 52px;
-            }
-            .density-large-2 .price-main {
-                font-size: 54px;
-            }
-            .density-large-2 .price-cents {
-                font-size: 26px;
-            }
-
-            /* Se 3 a 4 produtos na página */
-            .density-large-4 .product-card {
-                height: 300px;
-                padding: 14px;
-            }
-            .density-large-4 .product-img-box {
-                height: 140px;
-            }
-            .density-large-4 .product-img {
-                max-height: 135px;
-                max-width: 200px;
-            }
-            .density-large-4 .no-img {
-                height: 140px;
-                line-height: 140px;
-            }
-            .density-large-4 .product-name {
-                font-size: 14px;
-                height: 38px;
-            }
-
-            /* Se 5 a 6 produtos na página (Normal) */
-            .density-normal .product-card {
-                height: 230px;
-            }
-            .density-normal .product-img-box {
-                height: 95px;
-            }
-            .density-normal .product-img {
-                max-height: 90px;
-                max-width: 150px;
-            }
-            .density-normal .no-img {
-                height: 95px;
-                line-height: 95px;
-            }
-            .density-normal .product-name {
-                font-size: 11px;
-                height: 30px;
-            }
-            .density-normal .price-main {
-                font-size: 26px;
-            }
-
-            /* Se mais de 6 produtos (Compacto) */
-            .density-compact .product-card {
-                height: 180px;
-                padding: 8px;
-            }
-            .density-compact .product-img-box {
-                height: 70px;
-            }
-            .density-compact .product-img {
-                max-height: 65px;
-                max-width: 120px;
-            }
-            .density-compact .no-img {
-                height: 70px;
-                line-height: 70px;
-            }
-            .density-compact .product-name {
-                font-size: 10px;
-                height: 24px;
-            }
-            .density-compact .price-main {
-                font-size: 22px;
             }
 
             /* Rodapé Banner */
             .footer-banner {
-                margin-top: 15px;
+                margin-top: 10px;
                 background-color: #f1f5f9;
                 border-top: 2px dashed #cbd5e1;
-                padding: 8px 12px;
-                border-radius: 8px;
+                padding: 6px 10px;
+                border-radius: 6px;
                 color: #475569;
-                font-size: 9px;
+                font-size: 8px;
             }
             .footer-table {
                 width: 100%;
                 border-collapse: collapse;
-            }
-            .footer-left {
-                text-align: left;
-                width: 75%;
-            }
-            .footer-right {
-                text-align: right;
-                width: 25%;
-                vertical-align: middle;
             }
         ";
     }
