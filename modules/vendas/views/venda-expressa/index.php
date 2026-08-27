@@ -140,24 +140,24 @@ $this->params['breadcrumbs'][] = $this->title;
                         <div>
                             <div class="flex items-center justify-between mb-1">
                                 <label class="text-[10px] font-bold text-rose-400 uppercase">🏷️ Desconto</label>
-                                <select id="descontoTipo" onchange="renderizarItensVenda()" class="bg-slate-800 text-[10px] font-bold text-rose-300 rounded px-1 py-0.5 border border-slate-700">
+                                <select id="descontoTipo" onchange="limparEMascarar('descontoGeral'); renderizarItensVenda()" class="bg-slate-800 text-[10px] font-bold text-rose-300 rounded px-1 py-0.5 border border-slate-700">
                                     <option value="VALOR">R$</option>
                                     <option value="PERCENTUAL">%</option>
                                 </select>
                             </div>
-                            <input type="text" id="descontoGeral" placeholder="0,00" oninput="renderizarItensVenda()" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-rose-400 focus:outline-none text-right">
+                            <input type="text" id="descontoGeral" placeholder="0,00" oninput="aplicarMascaraMoedaInput(this, 'descontoTipo'); renderizarItensVenda()" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-rose-400 focus:outline-none text-right">
                         </div>
 
                         <!-- Acréscimo Geral -->
                         <div>
                             <div class="flex items-center justify-between mb-1">
                                 <label class="text-[10px] font-bold text-blue-400 uppercase">➕ Acréscimo</label>
-                                <select id="acrescimoTipo" onchange="renderizarItensVenda()" class="bg-slate-800 text-[10px] font-bold text-blue-300 rounded px-1 py-0.5 border border-slate-700">
+                                <select id="acrescimoTipo" onchange="limparEMascarar('acrescimoGeral'); renderizarItensVenda()" class="bg-slate-800 text-[10px] font-bold text-blue-300 rounded px-1 py-0.5 border border-slate-700">
                                     <option value="VALOR">R$</option>
                                     <option value="PERCENTUAL">%</option>
                                 </select>
                             </div>
-                            <input type="text" id="acrescimoGeral" placeholder="0,00" oninput="renderizarItensVenda()" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-blue-400 focus:outline-none text-right">
+                            <input type="text" id="acrescimoGeral" placeholder="0,00" oninput="aplicarMascaraMoedaInput(this, 'acrescimoTipo'); renderizarItensVenda()" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-blue-400 focus:outline-none text-right">
                         </div>
                     </div>
 
@@ -235,8 +235,30 @@ $this->params['breadcrumbs'][] = $this->title;
     ];
 
     let itensVendaMap = {};
-    let formaPagamentoSelecionadaId = '<?= count($formasPagamento) > 0 ? $formasPagamento[0]->id : "" ?>';
-    let indexItemFocado = -1;
+    function aplicarMascaraMoedaInput(input, tipoSelectId) {
+        const tipo = tipoSelectId ? document.getElementById(tipoSelectId).value : 'VALOR';
+        if (tipo === 'PERCENTUAL') {
+            let v = input.value.replace(/[^0-9,.]/g, '');
+            input.value = v;
+            return;
+        }
+        let v = input.value.replace(/\D/g, '');
+        if (!v || v === '0') {
+            input.value = '';
+            return;
+        }
+        let num = (parseInt(v, 10) / 100).toFixed(2);
+        let parts = num.split('.');
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        input.value = parts.join(',');
+    }
+
+    function limparEMascarar(inputId) {
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.value = '';
+        }
+    }
 
     function aplicarMascaraTelefone(input) {
         let v = input.value.replace(/\D/g, '');
@@ -479,7 +501,7 @@ $this->params['breadcrumbs'][] = $this->title;
                             <div class="font-extrabold text-xs text-white truncate">${item.nome}</div>
                             <div class="flex items-center gap-1 mt-0.5 text-[11px] text-slate-400">
                                 <span>R$</span>
-                                <input type="text" value="${item.precoVal.toFixed(2).replace('.', ',')}" onchange="atualizarPrecoDireta('${item.id}', this.value)" class="w-16 bg-slate-800 text-amber-400 font-bold px-1 py-0.5 rounded border border-slate-700 text-center">
+                                <input type="text" value="${item.precoVal.toFixed(2).replace('.', ',')}" oninput="aplicarMascaraMoedaInput(this); atualizarPrecoDireta('${item.id}', this.value)" class="w-20 bg-slate-800 text-amber-400 font-bold px-1 py-0.5 rounded border border-slate-700 text-center">
                                 <span>/${item.unidade}</span>
                             </div>
                         </div>

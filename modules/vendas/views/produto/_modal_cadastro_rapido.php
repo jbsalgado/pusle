@@ -44,7 +44,7 @@ $categorias = Categoria::find()
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Preço de Venda / Oferta (R$) <span class="text-red-500">*</span></label>
                     <div class="relative">
                         <span class="absolute left-3.5 top-2.5 text-xs font-bold text-slate-500">R$</span>
-                        <input type="text" id="rapido_preco" required placeholder="0,00" class="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-montserrat font-black text-red-600 focus:ring-2 focus:ring-red-500 focus:bg-white focus:outline-none">
+                        <input type="text" id="rapido_preco" required placeholder="0,00" oninput="aplicarMascaraMoedaModal(this)" class="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-montserrat font-black text-red-600 focus:ring-2 focus:ring-red-500 focus:bg-white focus:outline-none">
                     </div>
                 </div>
 
@@ -102,7 +102,7 @@ $categorias = Categoria::find()
                 <div class="grid grid-cols-2 gap-3 pt-3">
                     <div>
                         <label class="block text-[10px] font-bold uppercase mb-1">Preço de Custo (R$)</label>
-                        <input type="text" id="rapido_preco_custo" placeholder="0,00" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs">
+                        <input type="text" id="rapido_preco_custo" placeholder="0,00" oninput="aplicarMascaraMoedaModal(this)" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold uppercase mb-1">Código de Barras / Ref</label>
@@ -128,6 +128,18 @@ $categorias = Categoria::find()
 
 <script>
     let arquivosFotosRapidas = [];
+
+    function aplicarMascaraMoedaModal(input) {
+        let v = input.value.replace(/\D/g, '');
+        if (!v || v === '0') {
+            input.value = '';
+            return;
+        }
+        let num = (parseInt(v, 10) / 100).toFixed(2);
+        let parts = num.split('.');
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        input.value = parts.join(',');
+    }
 
     function abrirModalCadastroRapido() {
         document.getElementById('formCadastroRapido').reset();
