@@ -213,6 +213,8 @@ $this->params['breadcrumbs'][] = $this->title;
                                         </button>
                                         <?= Html::endForm() ?>
                                     <?php endif; ?>
+                                </div>
+
                                 <button type="button" onclick="abrirModalTransferir('<?= $mesa->id ?>', '<?= Html::encode($mesa->numero_mesa) ?>')"
                                     class="w-full mt-1.5 py-1 bg-sky-100 hover:bg-sky-200 text-sky-800 font-bold text-[11px] rounded-lg transition duration-150 flex items-center justify-center gap-1 border border-sky-200">
                                     <span>🔀</span>
