@@ -132,6 +132,7 @@ class MesaController extends Controller
 
         $mesaId = $request['mesa_id'] ?? null;
         $clienteNome = $request['cliente_nome'] ?? 'Cliente';
+        $garcomNome = trim($request['garcom_nome'] ?? '');
 
         if (!$mesaId) {
             Yii::$app->session->setFlash('error', 'Mesa não informada.');
@@ -154,6 +155,9 @@ class MesaController extends Controller
         $comanda->mesa_id = $mesa->id;
         $comanda->numero_comanda = 'MESA-' . $mesa->numero_mesa;
         $comanda->cliente_nome = $clienteNome;
+        if (!empty($garcomNome)) {
+            $comanda->garcom_nome = $garcomNome;
+        }
         $comanda->status = Comanda::STATUS_ABERTA;
         $comanda->save(false);
 

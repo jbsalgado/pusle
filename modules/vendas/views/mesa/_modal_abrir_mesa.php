@@ -32,6 +32,11 @@ use yii\helpers\Url;
             <input type="text" name="cliente_nome" id="inputClienteNome" placeholder="Ex: João Silva ou Mesa Central" class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900">
         </div>
 
+        <div>
+            <label for="inputGarcomNome" class="block text-sm font-semibold text-gray-700 mb-1">Garçom Atendente (Opcional)</label>
+            <input type="text" name="garcom_nome" id="inputGarcomNome" placeholder="Ex: Carlos (Garçom)" class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900">
+        </div>
+
         <!-- Footer Actions -->
         <div class="pt-4 flex items-center justify-end space-x-3 border-t border-gray-100">
             <button type="button" onclick="fecharModalAbrirMesa()" class="px-5 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-xl transition duration-150">
