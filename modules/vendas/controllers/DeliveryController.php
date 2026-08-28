@@ -265,6 +265,13 @@ class DeliveryController extends Controller
         $comanda->motoboy_lng = $lng;
         $comanda->ultima_atualizacao_gps = new \yii\db\Expression('NOW()');
 
+        if (empty($comanda->motoboy_nome)) {
+            $colabLogado = Colaborador::getColaboradorLogado();
+            if ($colabLogado) {
+                $comanda->motoboy_nome = $colabLogado->nome_completo;
+            }
+        }
+
         if ($comanda->save(false)) {
             return ['success' => true, 'lat' => $lat, 'lng' => $lng];
         }

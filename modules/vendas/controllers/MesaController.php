@@ -162,6 +162,13 @@ class MesaController extends Controller
         $comanda->mesa_id = $mesa->id;
         $comanda->numero_comanda = 'MESA-' . $mesa->numero_mesa;
         $comanda->cliente_nome = $clienteNome;
+        if (empty($garcomNome)) {
+            $colabLogado = Colaborador::getColaboradorLogado();
+            if ($colabLogado) {
+                $garcomNome = $colabLogado->nome_completo;
+            }
+        }
+
         if (!empty($garcomNome)) {
             $comanda->garcom_nome = $garcomNome;
         }
