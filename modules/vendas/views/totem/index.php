@@ -15,6 +15,30 @@ $nomeLoja = $loja ? ($loja->nome ?: 'PULSE Fast Food') : 'PULSE Fast Food';
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; user-select: none; }
         .touch-scroll { -webkit-overflow-scrolling: touch; }
+        .btn-key-totem {
+            width: 52px;
+            height: 52px;
+            background-color: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 12px;
+            font-size: 20px;
+            font-weight: 900;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.1s ease;
+        }
+        .btn-key-totem:active {
+            background-color: #10b981;
+            color: #030712;
+            transform: scale(0.92);
+        }
+        @media print {
+            body * { visibility: hidden; }
+            #ticketImpressaoTotem, #ticketImpressaoTotem * { visibility: visible; }
+            #ticketImpressaoTotem { position: absolute; left: 0; top: 0; width: 80mm; font-family: monospace; font-size: 12px; color: black; background: white; padding: 10px; }
+        }
     </style>
 </head>
 <body class="bg-gray-950 text-white h-screen overflow-hidden flex flex-col justify-between">
@@ -197,6 +221,104 @@ $nomeLoja = $loja ? ($loja->nome ?: 'PULSE Fast Food') : 'PULSE Fast Food';
         </div>
     </div>
 
+    <!-- Modal Identificação & Teclado Virtual On-Screen (Sem necessidade de teclado físico) -->
+    <div id="modalIdentificacaoTotem" class="fixed inset-0 z-50 hidden bg-gray-950/90 backdrop-blur-md flex items-center justify-center p-6">
+        <div class="w-full max-w-2xl bg-gray-900 border-2 border-emerald-500/50 rounded-3xl p-6 shadow-2xl space-y-6 text-white text-center">
+            
+            <div>
+                <h3 class="text-2xl font-black text-white">Digite seu Nome para a Senha</h3>
+                <p class="text-xs text-gray-400 mt-1">Toque nas teclas virtuais abaixo para identificar seu pedido</p>
+            </div>
+
+            <!-- Display de Texto Digitado -->
+            <div class="bg-gray-950 border-2 border-emerald-500 rounded-2xl p-4 flex items-center justify-between">
+                <span id="displayNomeTotem" class="text-3xl font-black text-emerald-400 tracking-wider">CLIENTE</span>
+                <button type="button" onclick="apagarCaractereTotem()" class="px-4 py-2 bg-rose-600/30 text-rose-300 border border-rose-500/40 font-bold text-sm rounded-xl hover:bg-rose-600/50">⌫ APAGAR</button>
+            </div>
+
+            <!-- Teclado Virtual On-Screen Gigante -->
+            <div class="space-y-2 select-none">
+                <!-- Linha 1 -->
+                <div class="flex justify-center gap-2">
+                    <button type="button" onclick="teclaTouch('Q')" class="btn-key-totem">Q</button>
+                    <button type="button" onclick="teclaTouch('W')" class="btn-key-totem">W</button>
+                    <button type="button" onclick="teclaTouch('E')" class="btn-key-totem">E</button>
+                    <button type="button" onclick="teclaTouch('R')" class="btn-key-totem">R</button>
+                    <button type="button" onclick="teclaTouch('T')" class="btn-key-totem">T</button>
+                    <button type="button" onclick="teclaTouch('Y')" class="btn-key-totem">Y</button>
+                    <button type="button" onclick="teclaTouch('U')" class="btn-key-totem">U</button>
+                    <button type="button" onclick="teclaTouch('I')" class="btn-key-totem">I</button>
+                    <button type="button" onclick="teclaTouch('O')" class="btn-key-totem">O</button>
+                    <button type="button" onclick="teclaTouch('P')" class="btn-key-totem">P</button>
+                </div>
+                <!-- Linha 2 -->
+                <div class="flex justify-center gap-2">
+                    <button type="button" onclick="teclaTouch('A')" class="btn-key-totem">A</button>
+                    <button type="button" onclick="teclaTouch('S')" class="btn-key-totem">S</button>
+                    <button type="button" onclick="teclaTouch('D')" class="btn-key-totem">D</button>
+                    <button type="button" onclick="teclaTouch('F')" class="btn-key-totem">F</button>
+                    <button type="button" onclick="teclaTouch('G')" class="btn-key-totem">G</button>
+                    <button type="button" onclick="teclaTouch('H')" class="btn-key-totem">H</button>
+                    <button type="button" onclick="teclaTouch('J')" class="btn-key-totem">J</button>
+                    <button type="button" onclick="teclaTouch('K')" class="btn-key-totem">K</button>
+                    <button type="button" onclick="teclaTouch('L')" class="btn-key-totem">L</button>
+                </div>
+                <!-- Linha 3 -->
+                <div class="flex justify-center gap-2">
+                    <button type="button" onclick="teclaTouch('Z')" class="btn-key-totem">Z</button>
+                    <button type="button" onclick="teclaTouch('X')" class="btn-key-totem">X</button>
+                    <button type="button" onclick="teclaTouch('C')" class="btn-key-totem">C</button>
+                    <button type="button" onclick="teclaTouch('V')" class="btn-key-totem">V</button>
+                    <button type="button" onclick="teclaTouch('B')" class="btn-key-totem">B</button>
+                    <button type="button" onclick="teclaTouch('N')" class="btn-key-totem">N</button>
+                    <button type="button" onclick="teclaTouch('M')" class="btn-key-totem">M</button>
+                </div>
+                <!-- Linha 4: Espaço & Limpar -->
+                <div class="flex justify-center gap-3 pt-2">
+                    <button type="button" onclick="limparNomeTotem()" class="px-6 py-3 bg-gray-800 text-gray-300 font-bold text-sm rounded-xl">LIMPAR</button>
+                    <button type="button" onclick="teclaTouch(' ')" class="px-12 py-3 bg-gray-800 text-white font-black text-sm rounded-xl">␣ ESPAÇO</button>
+                </div>
+            </div>
+
+            <!-- Botões de Ação do Modal -->
+            <div class="flex items-center justify-between pt-4 border-t border-gray-800">
+                <button type="button" onclick="fecharModalIdentificacaoTotem()" class="px-6 py-3 bg-gray-800 text-gray-400 font-bold text-sm rounded-2xl">Voltar ao Cardápio</button>
+                <button type="button" onclick="enviarPedidoFinalTotem()" class="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-black text-base rounded-2xl shadow-2xl transition active:scale-95">
+                    🖨️ CONFIRMAR & GERAR SENHA →
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ticket de Impressão Térmica da Senha para Impressora do Totem (80mm) -->
+    <div id="ticketImpressaoTotem" class="hidden">
+        <div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">
+            <div style="font-size: 16px; font-weight: bold; text-transform: uppercase;"><?= Html::encode($nomeLoja) ?></div>
+            <div style="font-size: 10px;">TOTEM DE AUTOATENDIMENTO</div>
+            <div style="font-size: 10px;"><?= date('d/m/Y H:i:s') ?></div>
+        </div>
+
+        <div style="text-align: center; margin: 12px 0;">
+            <div style="font-size: 11px; text-transform: uppercase;">SUA SENHA DE RETIRADA É:</div>
+            <div id="printSenhaTexto" style="font-size: 38px; font-weight: 900; margin: 6px 0;">#000</div>
+            <div id="printClienteNome" style="font-size: 14px; font-weight: bold;">CLIENTE</div>
+            <div id="printTipoConsumo" style="font-size: 11px; margin-top: 4px;">[COMER AQUI]</div>
+        </div>
+
+        <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 6px 0; margin: 8px 0;">
+            <div id="printItensLista" style="font-size: 11px;"></div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 13px;">
+            <span>TOTAL PAGO:</span>
+            <span id="printTotalValor">R$ 0,00</span>
+        </div>
+
+        <div style="text-align: center; margin-top: 12px; font-size: 10px;">
+            Acompanhe sua senha no Painel da TV do Salão.<br>Obrigado e bom apetite!
+        </div>
+    </div>
+
     <script>
     let tipoConsumoAtual = 'comer_aqui';
     let produtoTotemAtual = null;
@@ -346,14 +468,49 @@ $nomeLoja = $loja ? ($loja->nome ?: 'PULSE Fast Food') : 'PULSE Fast Food';
         document.getElementById('lblTotalCarrinhoTotem').innerText = `Total: R$ ${total.toFixed(2).replace('.', ',')}`;
     }
 
-    async function irParaFinalizacaoTotem() {
+    let nomeClienteTotem = '';
+
+    function irParaFinalizacaoTotem() {
+        if (carrinhoTotem.length === 0) return;
+        nomeClienteTotem = '';
+        atualizarDisplayNomeTotem();
+        document.getElementById('modalIdentificacaoTotem').classList.remove('hidden');
+    }
+
+    function fecharModalIdentificacaoTotem() {
+        document.getElementById('modalIdentificacaoTotem').classList.add('hidden');
+    }
+
+    function teclaTouch(char) {
+        if (nomeClienteTotem.length < 20) {
+            nomeClienteTotem += char;
+            atualizarDisplayNomeTotem();
+        }
+    }
+
+    function apagarCaractereTotem() {
+        nomeClienteTotem = nomeClienteTotem.slice(0, -1);
+        atualizarDisplayNomeTotem();
+    }
+
+    function limparNomeTotem() {
+        nomeClienteTotem = '';
+        atualizarDisplayNomeTotem();
+    }
+
+    function atualizarDisplayNomeTotem() {
+        document.getElementById('displayNomeTotem').innerText = nomeClienteTotem.trim() || 'CLIENTE';
+    }
+
+    async function enviarPedidoFinalTotem() {
         if (carrinhoTotem.length === 0) return;
 
-        const nome = prompt("Digite seu Nome para a Senha (opcional):", "Cliente Totem") || "Cliente Totem";
+        const nomeFinal = nomeClienteTotem.trim() || 'Cliente Totem';
+        fecharModalIdentificacaoTotem();
 
         try {
             const formData = new FormData();
-            formData.append('cliente_nome', nome);
+            formData.append('cliente_nome', nomeFinal);
             formData.append('tipo_consumo', tipoConsumoAtual);
             formData.append('itens', JSON.stringify(carrinhoTotem));
 
@@ -367,6 +524,22 @@ $nomeLoja = $loja ? ($loja->nome ?: 'PULSE Fast Food') : 'PULSE Fast Food';
 
             const data = await resp.json();
             if (data.success) {
+                // Preenche ticket de impressão da impressora do Totem
+                document.getElementById('printSenhaTexto').innerText = data.senha;
+                document.getElementById('printClienteNome').innerText = nomeFinal;
+                document.getElementById('printTipoConsumo').innerText = tipoConsumoAtual === 'levar' ? '[PARA LEVAR]' : '[COMER AQUI]';
+                document.getElementById('printTotalValor').innerText = 'R$ ' + data.valor_total_formatado;
+
+                let printItensHtml = '';
+                carrinhoTotem.forEach(it => {
+                    printItensHtml += `<div style="display:flex; justify-content:space-between;"><span>${it.quantidade}x ${it.nome}</span><span>R$ ${(it.valor_unitario * it.quantidade).toFixed(2).replace('.', ',')}</span></div>`;
+                });
+                document.getElementById('printItensLista').innerHTML = printItensHtml;
+
+                // Dispara impressão térmica automática da fichinha de senha
+                setTimeout(() => window.print(), 300);
+
+                // Exibe senha na tela do Totem
                 document.getElementById('txtSenhaGerada').innerText = data.senha;
                 document.getElementById('txtTotalPagoTotem').innerText = 'Total Pago: R$ ' + data.valor_total_formatado;
 
@@ -380,6 +553,7 @@ $nomeLoja = $loja ? ($loja->nome ?: 'PULSE Fast Food') : 'PULSE Fast Food';
                 alert(data.message || 'Erro ao finalizar pedido.');
             }
         } catch(e) {
+            console.error(e);
             alert('Erro ao enviar pedido no totem.');
         }
     }
