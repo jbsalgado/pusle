@@ -211,7 +211,8 @@ class MesaController extends Controller
         $item->comanda_id = $comanda->id;
         $item->produto_id = $produto->id;
         $item->quantidade = $quantidade > 0 ? $quantidade : 1;
-        $item->valor_unitario = (float)$produto->getPrecoFinal();
+        $valorAdicional = (float)($request['valor_adicional'] ?? 0);
+        $item->valor_unitario = (float)$produto->getPrecoFinal() + $valorAdicional;
         $item->observacoes = $observacoes;
         $item->destino_preparo = $destino;
         $item->status_preparo = ComandaItem::STATUS_PENDENTE;
@@ -592,6 +593,28 @@ class MesaController extends Controller
 
         Yii::$app->session->setFlash('success', "{$criadas} novas mesas acrescentadas ao mapa com sucesso!");
         return $this->redirect(['index']);
+    }
+
+    /**
+     * Exibe o Cupom Térmico Não Fiscal para Impressão (80mm / 58mm)
+     */
+    public function actionImprimirComprovante($mesa_id)
+    {
+        $tenantId = \app\components\TenantHelper::getId();
+
+        $mesa = Mesa::findOne(['id' => $mesa_id, 'usuario_id' => $tenantId]);
+        if (!$mesa) {
+            throw new NotFoundHttpException('Mesa não encontrada.');
+        }
+
+        $comanda = $mesa->getOuCriarComandaAtiva();
+        $loja = Usuario::findOne($tenantId);
+
+        return $this->renderPartial('imprimir_comprovante', [
+            'mesa' => $mesa,
+            'comanda' => $comanda,
+            'loja' => $loja,
+        ]);
     }
 
     /**

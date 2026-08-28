@@ -19,6 +19,12 @@ use yii\helpers\Url;
             </div>
 
             <div class="flex items-center space-x-2">
+                <!-- Botão de Impressão Térmica -->
+                <a id="btnImprimirCupomModal" href="#" target="_blank" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-900 text-white font-bold text-xs rounded-xl shadow transition duration-150 flex items-center gap-1" title="Imprimir Cupom Térmico (80mm / 58mm)">
+                    <span>🖨️</span>
+                    <span>Imprimir Cupom</span>
+                </a>
+
                 <!-- Atalho para Cadastro Rápido de Produto -->
                 <button type="button" onclick="abrirCadastroRapidoDoModal()" class="px-3 py-1.5 bg-amber-400 hover:bg-amber-500 text-gray-900 font-bold text-xs rounded-xl shadow transition duration-150 flex items-center gap-1">
                     <span>⚡</span>
@@ -63,6 +69,12 @@ use yii\helpers\Url;
                             <option value="bar">🍹 Bar/Copa</option>
                             <option value="chapa">🍔 Chapa</option>
                         </select>
+                    </div>
+
+                    <!-- Container Dinâmico de Opcionais / Adicionais -->
+                    <div id="containerOpcionaisLancamento" class="sm:col-span-12 hidden bg-white p-3 rounded-xl border border-emerald-300 space-y-2">
+                        <span class="text-xs font-bold text-emerald-900 block">Adicionais & Opcionais:</span>
+                        <div id="listOpcionaisCheckboxes" class="flex flex-wrap gap-2 text-xs"></div>
                     </div>
 
                     <!-- Observação -->
@@ -129,6 +141,7 @@ function abrirModalLancamento(mesaId, numeroMesa, clienteNome) {
     mesaIdAtual = mesaId;
     document.getElementById('modalLancamentoMesaTitulo').innerText = 'Mesa ' + numeroMesa + ' — Consumo & Pedidos';
     document.getElementById('modalLancamentoClienteSubtitulo').innerText = 'Cliente: ' + (clienteNome || 'Cliente');
+    document.getElementById('btnImprimirCupomModal').href = '<?= Url::to(['/vendas/mesa/imprimir-comprovante']) ?>?mesa_id=' + mesaId;
     
     // Carrega produtos no select
     carregarProdutosLancamento();
@@ -160,6 +173,36 @@ async function carregarProdutosLancamento() {
         console.error('Erro ao carregar produtos:', e);
     }
 }
+
+document.getElementById('selectProdutoLancamento').addEventListener('change', async function() {
+    const prodId = this.value;
+    const container = document.getElementById('containerOpcionaisLancamento');
+    const list = document.getElementById('listOpcionaisCheckboxes');
+    list.innerHTML = '';
+    container.classList.add('hidden');
+
+    if (!prodId) return;
+
+    try {
+        const resp = await fetch('<?= Url::to(['/vendas/produto/opcionais-json']) ?>?produto_id=' + prodId);
+        const data = await resp.json();
+
+        if (data.success && data.opcionais && data.opcionais.length > 0) {
+            container.classList.remove('hidden');
+            let html = '';
+            data.opcionais.forEach(op => {
+                html += `
+                    <label class="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-lg cursor-pointer hover:bg-emerald-50">
+                        <input type="checkbox" class="chk-opcional text-emerald-600 rounded" data-id="${op.id}" data-nome="${op.nome}" data-valor="${op.valor_adicional}">
+                        <span class="font-bold text-gray-800">${op.nome}</span>
+                        <span class="text-emerald-700 font-extrabold">(+R$ ${op.valor_formatado})</span>
+                    </label>
+                `;
+            });
+            list.innerHTML = html;
+        }
+    } catch(e) {}
+});
 
 async function carregarExtratoMesa(mesaId) {
     try {
@@ -208,11 +251,27 @@ async function salvarItemComanda() {
     const produtoId = document.getElementById('selectProdutoLancamento').value;
     const quantidade = document.getElementById('inputQtdLancamento').value;
     const destino = document.getElementById('selectDestinoLancamento').value;
-    const observacoes = document.getElementById('inputObsLancamento').value;
+    let observacoes = document.getElementById('inputObsLancamento').value.trim();
 
     if (!produtoId) {
         alert('Selecione um produto!');
         return;
+    }
+
+    // Coleta adicionais/opcionais selecionados
+    let valorAdicionalTotal = 0.00;
+    const opcionaisNomes = [];
+    const chks = document.querySelectorAll('.chk-opcional:checked');
+    chks.forEach(chk => {
+        const val = parseFloat(chk.getAttribute('data-valor')) || 0.00;
+        const nome = chk.getAttribute('data-nome');
+        valorAdicionalTotal += val;
+        opcionaisNomes.push(nome);
+    });
+
+    if (opcionaisNomes.length > 0) {
+        const strOps = 'Adicionais: ' + opcionaisNomes.join(', ');
+        observacoes = observacoes ? (strOps + ' | ' + observacoes) : strOps;
     }
 
     const btn = document.getElementById('btnSalvarItem');
@@ -226,6 +285,7 @@ async function salvarItemComanda() {
         formData.append('quantidade', quantidade);
         formData.append('destino_preparo', destino);
         formData.append('observacoes', observacoes);
+        formData.append('valor_adicional', valorAdicionalTotal);
 
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         if (csrfToken) {
@@ -243,6 +303,8 @@ async function salvarItemComanda() {
             document.getElementById('selectProdutoLancamento').value = '';
             document.getElementById('inputObsLancamento').value = '';
             document.getElementById('inputQtdLancamento').value = '1';
+            document.getElementById('containerOpcionaisLancamento').classList.add('hidden');
+            document.getElementById('listOpcionaisCheckboxes').innerHTML = '';
             
             // Recarrega extrato
             carregarExtratoMesa(mesaIdAtual);

@@ -74,6 +74,12 @@ $this->params['breadcrumbs'][] = $this->title;
                     <span>Personalizada</span>
                 </button>
 
+                <a href="<?= Url::to(['/vendas/delivery/index']) ?>"
+                    class="inline-flex items-center px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl shadow-md transition duration-150 text-xs sm:text-sm">
+                    <span class="mr-1.5">🛵</span>
+                    <span>Delivery</span>
+                </a>
+
                 <a href="<?= Url::to(['/vendas/kds/index']) ?>"
                     class="inline-flex items-center px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-xl shadow-md transition duration-150 text-xs sm:text-sm">
                     <span class="mr-1.5">🍳</span>

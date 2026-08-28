@@ -1927,4 +1927,75 @@ class ProdutoController extends Controller
             return ['success' => false, 'message' => $e->getMessage()];
         }
     }
+
+    /**
+     * Retorna a lista de opcionais/adicionais ativos de um produto em formato JSON
+     */
+    public function actionOpcionaisJson($produto_id)
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $tenantId = \app\components\TenantHelper::getId();
+
+        $produto = Produto::findOne(['id' => $produto_id, 'usuario_id' => $tenantId]);
+        if (!$produto) {
+            return ['success' => false, 'opcionais' => []];
+        }
+
+        $opcionais = \app\modules\vendas\models\ProdutoOpcional::find()
+            ->where(['produto_id' => $produto->id, 'ativo' => true])
+            ->orderBy(['nome' => SORT_ASC])
+            ->all();
+
+        $data = [];
+        foreach ($opcionais as $op) {
+            $data[] = [
+                'id' => $op->id,
+                'nome' => $op->nome,
+                'valor_adicional' => (float)$op->valor_adicional,
+                'valor_formatado' => number_format($op->valor_adicional, 2, ',', '.'),
+            ];
+        }
+
+        return [
+            'success' => true,
+            'opcionais' => $data,
+        ];
+    }
+
+    /**
+     * Salva/Adiciona um opcional a um produto
+     */
+    public function actionSalvarOpcional()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $tenantId = \app\components\TenantHelper::getId();
+        $request = Yii::$app->request->post();
+
+        $produtoId = $request['produto_id'] ?? null;
+        $nome = trim($request['nome'] ?? '');
+        $valor = (float)str_replace(',', '.', trim($request['valor_adicional'] ?? '0'));
+
+        $produto = Produto::findOne(['id' => $produtoId, 'usuario_id' => $tenantId]);
+        if (!$produto || empty($nome)) {
+            return ['success' => false, 'message' => 'Dados inválidos do opcional.'];
+        }
+
+        $opcional = new \app\modules\vendas\models\ProdutoOpcional();
+        $opcional->id = sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x', mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0x0fff) | 0x4000, mt_rand(0, 0x3fff) | 0x8000, mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff));
+        $opcional->produto_id = $produto->id;
+        $opcional->nome = $nome;
+        $opcional->valor_adicional = $valor;
+        $opcional->ativo = true;
+
+        if ($opcional->save(false)) {
+            return ['success' => true, 'opcional' => [
+                'id' => $opcional->id,
+                'nome' => $opcional->nome,
+                'valor_adicional' => (float)$opcional->valor_adicional,
+                'valor_formatado' => number_format($opcional->valor_adicional, 2, ',', '.'),
+            ]];
+        }
+
+        return ['success' => false, 'message' => 'Erro ao salvar opcional.'];
+    }
 }

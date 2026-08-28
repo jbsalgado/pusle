@@ -329,6 +329,16 @@ class Produto extends ActiveRecord
     }
 
     /**
+     * Relacionamento com os Opcionais/Adicionais do Produto
+     */
+    public function getOpcionais()
+    {
+        return $this->hasMany(ProdutoOpcional::class, ['produto_id' => 'id'])
+            ->where(['ativo' => true])
+            ->orderBy(['nome' => SORT_ASC]);
+    }
+
+    /**
      * Hook antes de salvar para calcular margem e markup e garantir nome na descrição
      */
     public function beforeSave($insert)
