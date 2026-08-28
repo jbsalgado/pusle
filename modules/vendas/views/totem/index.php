@@ -35,9 +35,43 @@ $nomeLoja = $loja ? ($loja->nome ?: 'PULSE Fast Food') : 'PULSE Fast Food';
             transform: scale(0.92);
         }
         @media print {
-            body * { visibility: hidden; }
-            #ticketImpressaoTotem, #ticketImpressaoTotem * { visibility: visible; }
-            #ticketImpressaoTotem { position: absolute; left: 0; top: 0; width: 80mm; font-family: monospace; font-size: 12px; color: black; background: white; padding: 10px; }
+            @page {
+                size: 80mm auto;
+                margin: 0mm;
+            }
+            html, body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+            body > * {
+                display: none !important;
+            }
+            #ticketImpressaoTotem {
+                display: block !important;
+                visibility: visible !important;
+                position: relative !important;
+                width: 78mm !important;
+                margin: 0 auto !important;
+                padding: 10px !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+                font-family: 'Courier New', Courier, monospace !important;
+                box-sizing: border-box !important;
+            }
+            #ticketImpressaoTotem * {
+                display: block !important;
+                visibility: visible !important;
+                color: #000000 !important;
+            }
+            #ticketImpressaoTotem .flex-row {
+                display: flex !important;
+                justify-content: space-between !important;
+            }
         }
     </style>
 </head>
@@ -324,7 +358,7 @@ $nomeLoja = $loja ? ($loja->nome ?: 'PULSE Fast Food') : 'PULSE Fast Food';
     </div>
 
     <!-- Ticket de Impressão Térmica da Senha para Impressora do Totem (80mm) -->
-    <div id="ticketImpressaoTotem" class="hidden">
+    <div id="ticketImpressaoTotem" style="display: none;">
         <div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">
             <div style="font-size: 16px; font-weight: bold; text-transform: uppercase;"><?= Html::encode($nomeLoja) ?></div>
             <div style="font-size: 10px;">TOTEM DE AUTOATENDIMENTO</div>
@@ -612,7 +646,7 @@ $nomeLoja = $loja ? ($loja->nome ?: 'PULSE Fast Food') : 'PULSE Fast Food';
 
                 let printItensHtml = '';
                 carrinhoTotem.forEach(it => {
-                    printItensHtml += `<div style="display:flex; justify-content:space-between;"><span>${it.quantidade}x ${it.nome}</span><span>R$ ${(it.valor_unitario * it.quantidade).toFixed(2).replace('.', ',')}</span></div>`;
+                    printItensHtml += `<div class="flex-row" style="display:flex; justify-content:space-between;"><span>${it.quantidade}x ${it.nome}</span><span>R$ ${(it.valor_unitario * it.quantidade).toFixed(2).replace('.', ',')}</span></div>`;
                 });
                 document.getElementById('printItensLista').innerHTML = printItensHtml;
 
