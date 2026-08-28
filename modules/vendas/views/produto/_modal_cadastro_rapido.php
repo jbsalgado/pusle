@@ -179,6 +179,9 @@ $categorias = Categoria::find()
         btn.disabled = true;
         btn.innerHTML = '⚡ Salvando Produto...';
 
+        const csrfParam = document.querySelector('meta[name="csrf-param"]')?.content || '_csrf';
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '<?= Yii::$app->request->csrfToken ?>';
+
         const formData = new FormData();
         formData.append('nome', document.getElementById('rapido_nome').value);
         formData.append('preco', document.getElementById('rapido_preco').value);
@@ -187,7 +190,7 @@ $categorias = Categoria::find()
         formData.append('marca', document.getElementById('rapido_marca').value);
         formData.append('preco_custo', document.getElementById('rapido_preco_custo').value);
         formData.append('codigo_barras', document.getElementById('rapido_codigo_barras').value);
-        formData.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->csrfToken ?>');
+        formData.append(csrfParam, csrfToken);
 
         arquivosFotosRapidas.forEach((file, i) => {
             formData.append('fotos[]', file);
@@ -197,10 +200,17 @@ $categorias = Categoria::find()
             method: 'POST',
             body: formData,
             headers: {
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-Token': csrfToken
             }
         })
-        .then(r => r.json())
+        .then(async r => {
+            const contentType = r.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                throw new Error('Sessão expirada ou requisição inválida (código ' + r.status + '). Recarregue a página e tente novamente.');
+            }
+            return await r.json();
+        })
         .then(data => {
             btn.disabled = false;
             btn.innerHTML = '⚡ Salvar & Adicionar ao Encarte';
@@ -221,7 +231,7 @@ $categorias = Categoria::find()
         .catch(err => {
             btn.disabled = false;
             btn.innerHTML = '⚡ Salvar & Adicionar ao Encarte';
-            alert('Erro de conexão ao salvar: ' + err.message);
+            alert(err.message || 'Erro ao comunicar com o servidor.');
         });
     }
 </script>

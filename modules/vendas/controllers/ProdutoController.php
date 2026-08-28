@@ -20,6 +20,14 @@ use kartik\mpdf\Pdf;
 
 class ProdutoController extends Controller
 {
+    public function beforeAction($action)
+    {
+        if ($action->id === 'cadastro-rapido') {
+            $this->enableCsrfValidation = false;
+        }
+        return parent::beforeAction($action);
+    }
+
     public function behaviors()
     {
         return [
