@@ -53,6 +53,7 @@ class LojaController extends Controller
                 'class' => \yii\filters\VerbFilter::class,
                 'actions' => [
                     'toggle-modulo' => ['POST'],
+                    'toggle-admin'  => ['POST'],
                 ],
             ],
         ];
@@ -322,5 +323,62 @@ class LojaController extends Controller
         } catch (\Exception $e) {
             Yii::error('Admin: Erro ao notificar lojista: ' . $e->getMessage(), __METHOD__);
         }
+    }
+
+    /**
+     * Alterna o privilégio de Super Administrador (Concede ou Revoga)
+     */
+    public function actionToggleAdmin($id)
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        if (!\app\components\TenantHelper::isAdmin()) {
+            throw new ForbiddenHttpException('Acesso negado.');
+        }
+
+        $targetUser = Usuario::findOne($id);
+        if (!$targetUser) {
+            return ['success' => false, 'message' => 'Usuário não encontrado.'];
+        }
+
+        /** @var Usuario $currentUser */
+        $currentUser = Yii::$app->user->identity;
+
+        // Trava 1: Impede auto-revogação de acesso
+        if ($currentUser->id === $targetUser->id && $targetUser->is_admin) {
+            return ['success' => false, 'message' => 'Você não pode revogar seu próprio acesso de Super Admin.'];
+        }
+
+        // Trava 2: Garante no mínimo 1 Admin no sistema ao revogar
+        if ($targetUser->is_admin) {
+            $totalAdmins = Usuario::find()->where(['is_admin' => true])->count();
+            if ($totalAdmins <= 1) {
+                return ['success' => false, 'message' => 'Operação cancelada: O sistema deve possuir pelo menos 1 Super Admin ativo.'];
+            }
+        }
+
+        // Trava 3: Validação de Senha do Admin Logado
+        $senhaAdmin = Yii::$app->request->post('senha_admin');
+        if (empty($senhaAdmin) || !$currentUser->validatePassword($senhaAdmin)) {
+            return ['success' => false, 'message' => 'Senha de confirmação incorreta. Digite sua senha atual.'];
+        }
+
+        // Alterna o status
+        $targetUser->is_admin = !$targetUser->is_admin;
+
+        if ($targetUser->save(false)) {
+            $acao = $targetUser->is_admin ? 'PROMOVIDO A SUPER ADMIN' : 'REVOGADO PRIVILÉGIO DE SUPER ADMIN';
+            Yii::info("AUDITORIA: Admin {$currentUser->email} (IP: " . Yii::$app->request->userIP . ") alterou status do usuário {$targetUser->email} para: {$acao}", 'admin_audit');
+
+            return [
+                'success'  => true,
+                'is_admin' => $targetUser->is_admin,
+                'message'  => $targetUser->is_admin
+                    ? "Usuário {$targetUser->nome} agora possui privilégios de Super Admin!"
+                    : "Privilégios de Super Admin revogados para {$targetUser->nome}.",
+            ];
+        }
+
+        return ['success' => false, 'message' => 'Erro ao salvar privilégios no banco de dados.'];
     }
 }

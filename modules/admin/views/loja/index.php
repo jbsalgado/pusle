@@ -388,11 +388,24 @@ $admin = Yii::$app->user->identity;
                                 <span class="badge-status <?= Html::encode($loja->status_loja) ?>">
                                     <?= ucfirst($loja->status_loja) ?>
                                 </span>
+                                <?php if ($loja->is_admin): ?>
+                                    <span class="badge-status" style="background: rgba(139,92,246,0.2); color: #a78bfa; border: 1px solid rgba(139,92,246,0.3); margin-top: 4px; display: inline-flex;">🛡️ Super Admin</span>
+                                <?php endif; ?>
                             </td>
                             <td>
                                 <a href="<?= Url::to(['/admin/loja/modulos', 'id' => $loja->id]) ?>" class="btn-action" style="background: var(--primary-light); color: var(--primary);" title="Gerenciar Módulos e Acessos">
                                     ⚙️ Permissões
                                 </a>
+                                <?php if ($loja->is_admin): ?>
+                                    <button class="btn-action" style="background: rgba(239,68,68,0.15); color: #ef4444;" onclick="abrirModalToggleAdmin('<?= Html::encode($loja->id) ?>', '<?= Html::encode($loja->nome) ?>', true)" title="Revogar privilégio de Super Admin">
+                                        🛡️ Revogar Admin
+                                    </button>
+                                <?php else: ?>
+                                    <button class="btn-action" style="background: rgba(139,92,246,0.15); color: #a78bfa;" onclick="abrirModalToggleAdmin('<?= Html::encode($loja->id) ?>', '<?= Html::encode($loja->nome) ?>', false)" title="Tornar Super Administrador">
+                                        🛡️ Tornar Admin
+                                    </button>
+                                <?php endif; ?>
+
                                 <?php if ($loja->status_loja === 'pendente'): ?>
                                     <button class="btn-action btn-approve" onclick="acao('aprovar', '<?= Html::encode($loja->id) ?>', '<?= Html::encode($loja->nome) ?>')">
                                         ✅ Aprovar
@@ -423,6 +436,25 @@ $admin = Yii::$app->user->identity;
 
 <div id="toast"></div>
 
+<!-- Modal de Confirmação por Senha para Atribuição de Super Admin -->
+<div id="modalToggleAdmin" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(6px); z-index:99999; align-items:center; justify-content:center; padding: 20px;">
+    <div style="background:#141627; border:1px solid rgba(139,92,246,0.3); border-radius:18px; padding:28px; width:100%; max-width:440px; color:#fff; text-align:center; box-shadow: 0 20px 50px rgba(0,0,0,0.6);">
+        <div style="font-size:42px; margin-bottom:12px;" id="iconModalAdmin">🛡️</div>
+        <h3 id="tituloModalAdmin" style="font-size:18px; font-weight:700; margin-bottom:8px; color:#fff;">Privilégio Super Admin</h3>
+        <p id="descModalAdmin" style="font-size:13px; color:#7A7998; margin-bottom:20px; line-height:1.5;"></p>
+        
+        <div style="text-align:left; margin-bottom:20px;">
+            <label style="font-size:12px; font-weight:600; color:#a78bfa; display:block; margin-bottom:6px;">Digite SUA Senha Atual para Confirmar:</label>
+            <input type="password" id="inputSenhaAdminConfirm" placeholder="Sua senha atual de Super Admin" style="width:100%; padding:12px 16px; background:#1C1E35; border:1px solid rgba(255,255,255,0.12); border-radius:12px; color:#fff; font-size:14px; outline:none;">
+        </div>
+
+        <div style="display:flex; gap:12px; justify-content:flex-end;">
+            <button type="button" onclick="fecharModalAdmin()" style="padding:10px 18px; background:#1C1E35; color:#aaa; border:none; border-radius:10px; font-weight:600; cursor:pointer;">Cancelar</button>
+            <button type="button" id="btnConfirmarToggleAdmin" onclick="executarToggleAdmin()" style="padding:10px 20px; background:#6C63FF; color:#fff; border:none; border-radius:10px; font-weight:700; cursor:pointer;">Confirmar Alteração</button>
+        </div>
+    </div>
+</div>
+
 <script>
 const urls = {
     aprovar:   '<?= Url::to(['/admin/loja/aprovar']) ?>',
@@ -430,6 +462,77 @@ const urls = {
     rejeitar:  '<?= Url::to(['/admin/loja/rejeitar']) ?>',
     reativar:  '<?= Url::to(['/admin/loja/reativar']) ?>',
 };
+
+let targetAdminUserId = null;
+let targetAdminIsRevoking = false;
+
+function abrirModalToggleAdmin(id, nome, isRevoking) {
+    targetAdminUserId = id;
+    targetAdminIsRevoking = isRevoking;
+    document.getElementById('inputSenhaAdminConfirm').value = '';
+
+    const icon = document.getElementById('iconModalAdmin');
+    const titulo = document.getElementById('tituloModalAdmin');
+    const desc = document.getElementById('descModalAdmin');
+    const btn = document.getElementById('btnConfirmarToggleAdmin');
+
+    if (isRevoking) {
+        icon.innerText = '⚠️';
+        titulo.innerText = 'Revogar Privilégio Super Admin';
+        desc.innerText = `Você está prestes a revogar os privilégios de Super Admin do usuário "${nome}". Ele perderá o acesso global ao Painel SaaS.`;
+        btn.style.background = '#ef4444';
+        btn.innerText = 'Revogar Acesso';
+    } else {
+        icon.innerText = '🛡️';
+        titulo.innerText = 'Conceder Privilégio Super Admin';
+        desc.innerText = `ATENÇÃO: Você está prestes a tornar "${nome}" um Super Administrador! Ele terá acesso total e irrestrito a todas as lojas, dados financeiros e configurações da plataforma SaaS.`;
+        btn.style.background = '#6C63FF';
+        btn.innerText = 'Conceder Acesso Super Admin';
+    }
+
+    const modal = document.getElementById('modalToggleAdmin');
+    modal.style.display = 'flex';
+    document.getElementById('inputSenhaAdminConfirm').focus();
+}
+
+function fecharModalAdmin() {
+    document.getElementById('modalToggleAdmin').style.display = 'none';
+    targetAdminUserId = null;
+}
+
+async function executarToggleAdmin() {
+    if (!targetAdminUserId) return;
+
+    const senha = document.getElementById('inputSenhaAdminConfirm').value.trim();
+    if (!senha) {
+        showToast(false, 'Por favor, digite sua senha atual para confirmar.');
+        return;
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('senha_admin', senha);
+
+        const res = await fetch('<?= Url::to(['/admin/loja/toggle-admin']) ?>?id=' + encodeURIComponent(targetAdminUserId), {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>',
+            },
+            body: formData
+        });
+
+        const data = await res.json();
+        showToast(data.success, data.message);
+
+        if (data.success) {
+            fecharModalAdmin();
+            setTimeout(() => location.reload(), 1500);
+        }
+    } catch (e) {
+        showToast(false, 'Erro de comunicação com o servidor.');
+    }
+}
 
 async function acao(tipo, id, nome) {
     const labels = {
