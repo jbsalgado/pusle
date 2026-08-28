@@ -10,6 +10,7 @@ use app\modules\vendas\models\ProdutoVideo;
 use app\modules\vendas\models\DadosFinanceiros;
 use app\modules\vendas\models\Colaborador;
 use yii\web\Controller;
+use yii\web\Response;
 use yii\web\NotFoundHttpException;
 use yii\helpers\Url;
 use yii\filters\VerbFilter;
