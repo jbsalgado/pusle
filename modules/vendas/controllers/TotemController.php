@@ -20,6 +20,15 @@ class TotemController extends Controller
     public function behaviors()
     {
         return [
+            'access' => [
+                'class' => \yii\filters\AccessControl::class,
+                'rules' => [
+                    [
+                        'allow' => true,
+                        'roles' => ['?', '@'],
+                    ],
+                ],
+            ],
             'verbs' => [
                 'class' => VerbFilter::class,
                 'actions' => [
@@ -29,24 +38,35 @@ class TotemController extends Controller
         ];
     }
 
+    private function resolveTenantId()
+    {
+        $tenantId = \app\components\TenantHelper::getId();
+        if (!empty($tenantId)) {
+            return $tenantId;
+        }
+
+        $loja = Usuario::find()->one();
+        return $loja ? $loja->id : null;
+    }
+
     /**
      * Interface do Totem de Autoatendimento Fast-Food
      */
     public function actionIndex()
     {
-        $tenantId = \app\components\TenantHelper::getId();
-        $loja = Usuario::findOne($tenantId);
+        $tenantId = $this->resolveTenantId();
+        $loja = $tenantId ? Usuario::findOne($tenantId) : null;
 
-        $categorias = Categoria::find()
+        $categorias = $tenantId ? Categoria::find()
             ->where(['usuario_id' => $tenantId, 'ativo' => true])
             ->orderBy(['nome' => SORT_ASC])
-            ->all();
+            ->all() : [];
 
-        $produtos = Produto::find()
+        $produtos = $tenantId ? Produto::find()
             ->where(['usuario_id' => $tenantId, 'status' => 'ativo'])
             ->with(['opcionais'])
             ->orderBy(['nome' => SORT_ASC])
-            ->all();
+            ->all() : [];
 
         return $this->render('index', [
             'loja' => $loja,
@@ -61,7 +81,7 @@ class TotemController extends Controller
     public function actionFinalizarPedido()
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
-        $tenantId = \app\components\TenantHelper::getId();
+        $tenantId = $this->resolveTenantId();
         $request = Yii::$app->request->post();
 
         $clienteNome = trim($request['cliente_nome'] ?? 'Cliente Totem');
