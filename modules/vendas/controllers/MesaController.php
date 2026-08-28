@@ -202,7 +202,7 @@ class MesaController extends Controller
         $item->comanda_id = $comanda->id;
         $item->produto_id = $produto->id;
         $item->quantidade = $quantidade > 0 ? $quantidade : 1;
-        $item->valor_unitario = (float)$produto->preco_venda;
+        $item->valor_unitario = (float)$produto->getPrecoFinal();
         $item->observacoes = $observacoes;
         $item->destino_preparo = $destino;
         $item->status_preparo = ComandaItem::STATUS_PENDENTE;
@@ -316,11 +316,12 @@ class MesaController extends Controller
         $res = [];
 
         foreach ($produtos as $p) {
+            $precoFinal = (float)$p->getPrecoFinal();
             $res[] = [
                 'id' => $p->id,
                 'nome' => $p->nome,
-                'preco' => (float)$p->preco_venda,
-                'preco_formatado' => number_format($p->preco_venda, 2, ',', '.'),
+                'preco' => $precoFinal,
+                'preco_formatado' => number_format($precoFinal, 2, ',', '.'),
                 'codigo' => $p->codigo_barras,
             ];
         }
