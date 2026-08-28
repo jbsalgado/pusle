@@ -145,7 +145,42 @@ class TotemController extends Controller
                 try {
                     $loja = Usuario::findOne($tenantId);
                     $nomeLoja = $loja ? ($loja->nome ?: 'Nosso Estabelecimento') : 'Nosso Estabelecimento';
-                    $msg = "👋 Olá, *{$clienteNome}*! Seu pedido no *{$nomeLoja}* foi realizado com sucesso!\n\n🎟️ *SUA SENHA DE RETIRADA É: {$senhaTexto}*\n\nAcompanhe a sua senha no Painel da TV do Salão. Bom apetite! ❤️";
+                    $tipoTexto = ($tipoConsumo === 'levar') ? '🛍️ PARA LEVAR' : '🍽️ COMER AQUI';
+
+                    $msg = "👋 Olá, *{$clienteNome}*!\n";
+                    $msg .= "Seu pedido no *{$nomeLoja}* foi realizado com sucesso!\n\n";
+                    $msg .= "🎟️ *SUA SENHA DE RETIRADA É: {$senhaTexto}*\n";
+                    $msg .= "📌 *Tipo de Consumo:* {$tipoTexto}\n\n";
+                    $msg .= "🛒 *DETALHES DO PEDIDO:*\n";
+                    $msg .= "----------------------------------------\n";
+
+                    foreach ($itens as $it) {
+                        $prodId = $it['produto_id'] ?? null;
+                        $qtd = (int)($it['quantidade'] ?? 1);
+                        $valorAdicional = (float)($it['valor_adicional'] ?? 0);
+                        $obs = trim($it['observacoes'] ?? '');
+
+                        $produto = Produto::findOne(['id' => $prodId, 'usuario_id' => $tenantId]);
+                        if ($produto) {
+                            $precoUnit = (float)$produto->getPrecoFinal() + $valorAdicional;
+                            $subtotal = $precoUnit * $qtd;
+                            $precoFmt = number_format($subtotal, 2, ',', '.');
+
+                            $msg .= "🔹 *{$qtd}x {$produto->nome}* — R$ {$precoFmt}\n";
+                            if (!empty($produto->descricao)) {
+                                $msg .= "   ℹ️ _" . trim($produto->descricao) . "_\n";
+                            }
+                            if (!empty($obs)) {
+                                $msg .= "   ✏️ _Obs: {$obs}_\n";
+                            }
+                        }
+                    }
+
+                    $msg .= "----------------------------------------\n";
+                    $msg .= "💰 *TOTAL PAGO:* R$ " . number_format($valorTotal, 2, ',', '.') . "\n\n";
+                    $msg .= "📺 *Acompanhe a sua senha no Painel da TV do Salão.*\n";
+                    $msg .= "Obrigado e bom apetite! ❤️";
+
                     $evolution = new EvolutionService();
                     $evolution->sendMessage($tenantId, $clienteTelefone, $msg);
                 } catch (\Exception $e) {
