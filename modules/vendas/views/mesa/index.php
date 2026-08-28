@@ -86,6 +86,12 @@ $this->params['breadcrumbs'][] = $this->title;
                     <span>Monitor KDS</span>
                 </a>
 
+                <a href="<?= Url::to(['/vendas/mesa/relatorio']) ?>"
+                    class="inline-flex items-center px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-xl shadow-md transition duration-150 text-xs sm:text-sm">
+                    <span class="mr-1.5">📊</span>
+                    <span>Analytics</span>
+                </a>
+
                 <a href="<?= Url::to(['/vendas/inicio/index']) ?>"
                     class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition duration-150 text-sm">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -190,8 +196,21 @@ $this->params['breadcrumbs'][] = $this->title;
                             <?php endif; ?>
                         </div>
 
+                        <!-- Alerta Visual: Garçom Chamado -->
+                        <?php if ($mesa->chamada_garcom): ?>
+                            <div class="mt-2 bg-amber-500 text-gray-950 font-black text-center text-xs py-1 rounded-lg animate-pulse shadow flex items-center justify-center gap-1">
+                                <span>🔔</span>
+                                <span>GARÇOM CHAMADO!</span>
+                            </div>
+                        <?php endif; ?>
+
                         <!-- Botões de Ação Dinâmicos -->
                         <div class="mt-3 pt-2 border-t border-gray-100 flex flex-col gap-2">
+                            <button type="button" onclick="abrirModalQrCodeMesa('<?= $mesa->id ?>', '<?= Html::encode($mesa->numero_mesa) ?>')" class="w-full py-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs rounded-xl flex items-center justify-center gap-1 border border-gray-300 transition">
+                                <span>📱</span>
+                                <span>QR Code da Mesa</span>
+                            </button>
+
                             <?php if ($mesa->status === \app\modules\vendas\models\Mesa::STATUS_LIVRE): ?>
                                 <button type="button" onclick="abrirModalMesa('<?= $mesa->id ?>', '<?= Html::encode($mesa->numero_mesa) ?>')"
                                     class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition duration-150 flex items-center justify-center gap-1">
@@ -270,3 +289,4 @@ $this->params['breadcrumbs'][] = $this->title;
 <?= $this->render('_modal_transferir_mesa', ['mesas' => $mesas]) ?>
 <?= $this->render('_modal_criar_mesa') ?>
 <?= $this->render('_modal_gerar_lote_mesas') ?>
+<?= $this->render('_modal_qr_code_mesa') ?>

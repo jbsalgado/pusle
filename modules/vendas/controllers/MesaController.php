@@ -618,6 +618,87 @@ class MesaController extends Controller
     }
 
     /**
+     * Relatório Analítico do Food Service (Ticket Médio, Permanência & Horário de Pico)
+     */
+    public function actionRelatorio()
+    {
+        $tenantId = \app\components\TenantHelper::getId();
+
+        // 1. Total de Comandas Fechadas
+        $comandas = Comanda::find()
+            ->where(['usuario_id' => $tenantId, 'status' => Comanda::STATUS_FECHADA])
+            ->all();
+
+        $totalComandas = count($comandas);
+        $faturamentoTotal = 0.00;
+        $tempoTotalMinutos = 0;
+        $mesasCount = 0;
+        $deliveryCount = 0;
+
+        foreach ($comandas as $c) {
+            $totalVal = $c->getValorTotal() + (float)$c->taxa_entrega;
+            $faturamentoTotal += $totalVal;
+
+            if ($c->data_abertura && $c->data_fechamento) {
+                $diff = (strtotime($c->data_fechamento) - strtotime($c->data_abertura)) / 60;
+                if ($diff > 0 && $diff < 720) {
+                    $tempoTotalMinutos += $diff;
+                }
+            }
+
+            if ($c->tipo_atendimento === 'delivery') {
+                $deliveryCount++;
+            } else {
+                $mesasCount++;
+            }
+        }
+
+        $ticketMedio = $totalComandas > 0 ? ($faturamentoTotal / $totalComandas) : 0.00;
+        $tempoMedioPermanencia = $totalComandas > 0 ? round($tempoTotalMinutos / $totalComandas) : 0;
+
+        // 2. Vendas por Faixa Horária (Horário de Pico)
+        $faixasHorarias = [
+            'Manhã (06h - 11h)' => 0,
+            'Almoço (11h - 15h)' => 0,
+            'Tarde (15h - 18h)' => 0,
+            'Jantar (18h - 23h)' => 0,
+            'Madrugada (23h - 06h)' => 0,
+        ];
+
+        foreach ($comandas as $c) {
+            $hora = (int)date('H', strtotime($c->data_abertura));
+            if ($hora >= 6 && $hora < 11) $faixasHorarias['Manhã (06h - 11h)']++;
+            elseif ($hora >= 11 && $hora < 15) $faixasHorarias['Almoço (11h - 15h)']++;
+            elseif ($hora >= 15 && $hora < 18) $faixasHorarias['Tarde (15h - 18h)']++;
+            elseif ($hora >= 18 && $hora < 23) $faixasHorarias['Jantar (18h - 23h)']++;
+            else $faixasHorarias['Madrugada (23h - 06h)']++;
+        }
+
+        // 3. Top 5 Produtos Mais Vendidos
+        $topProdutos = Yii::$app->db->createCommand("
+            SELECT p.nome, SUM(ci.quantidade) as qtd_total, SUM(ci.quantidade * ci.valor_unitario) as total_vendas
+            FROM prest_comanda_itens ci
+            JOIN prest_comandas c ON c.id = ci.comanda_id
+            JOIN prest_produtos p ON p.id = ci.produto_id
+            WHERE c.usuario_id = :tenantId AND c.status = 'fechada'
+            GROUP BY p.nome
+            ORDER BY qtd_total DESC
+            LIMIT 5
+        ", [':tenantId' => $tenantId])->queryAll();
+
+        return $this->render('relatorio', [
+            'totalComandas' => $totalComandas,
+            'faturamentoTotal' => $faturamentoTotal,
+            'ticketMedio' => $ticketMedio,
+            'tempoMedioPermanencia' => $tempoMedioPermanencia,
+            'mesasCount' => $mesasCount,
+            'deliveryCount' => $deliveryCount,
+            'faixasHorarias' => $faixasHorarias,
+            'topProdutos' => $topProdutos,
+        ]);
+    }
+
+    /**
      * Retorna dados da mesa e lista de formas de pagamento para o modal de fechamento
      */
     public function actionDadosFechamentoJson($mesa_id)
