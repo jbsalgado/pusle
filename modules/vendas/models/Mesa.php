@@ -80,7 +80,27 @@ class Mesa extends ActiveRecord
     public function getComandaAtiva()
     {
         return $this->hasOne(Comanda::class, ['mesa_id' => 'id'])
-            ->andWhere(['status' => Comanda::STATUS_ABERTA]);
+            ->andWhere(['!=', 'status', Comanda::STATUS_FECHADA])
+            ->andWhere(['!=', 'status', Comanda::STATUS_CANCELADA])
+            ->orderBy(['data_abertura' => SORT_DESC]);
+    }
+
+    /**
+     * Retorna a comanda ativa existente ou cria uma comanda automatica se a mesa estiver em atendimento
+     */
+    public function getOuCriarComandaAtiva()
+    {
+        $comanda = $this->comandaAtiva;
+        if (!$comanda) {
+            $comanda = new Comanda();
+            $comanda->usuario_id = $this->usuario_id;
+            $comanda->mesa_id = $this->id;
+            $comanda->numero_comanda = 'MESA-' . $this->numero_mesa;
+            $comanda->cliente_nome = 'Cliente';
+            $comanda->status = Comanda::STATUS_ABERTA;
+            $comanda->save(false);
+        }
+        return $comanda;
     }
 
     /**

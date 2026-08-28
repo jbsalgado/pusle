@@ -231,11 +231,11 @@ class MesaController extends Controller
         $tenantId = \app\components\TenantHelper::getId();
 
         $mesa = Mesa::findOne(['id' => $mesa_id, 'usuario_id' => $tenantId]);
-        if (!$mesa || !$mesa->comandaAtiva) {
-            return ['success' => false, 'message' => 'Comanda não encontrada para esta mesa.'];
+        if (!$mesa) {
+            return ['success' => false, 'message' => 'Mesa não encontrada.'];
         }
 
-        $comanda = $mesa->comandaAtiva;
+        $comanda = $mesa->getOuCriarComandaAtiva();
         $itensData = [];
 
         foreach ($comanda->itens as $item) {
@@ -411,11 +411,11 @@ class MesaController extends Controller
         $tenantId = \app\components\TenantHelper::getId();
 
         $mesa = Mesa::findOne(['id' => $mesa_id, 'usuario_id' => $tenantId]);
-        if (!$mesa || !$mesa->comandaAtiva) {
-            return ['success' => false, 'message' => 'Comanda não encontrada para esta mesa.'];
+        if (!$mesa) {
+            return ['success' => false, 'message' => 'Mesa não encontrada.'];
         }
 
-        $comanda = $mesa->comandaAtiva;
+        $comanda = $mesa->getOuCriarComandaAtiva();
         $total = $comanda->getValorTotal();
 
         $formas = FormaPagamento::find()
@@ -457,11 +457,11 @@ class MesaController extends Controller
         $enviarWhatsapp = (int)($request['enviar_whatsapp'] ?? 0);
 
         $mesa = Mesa::findOne(['id' => $mesaId, 'usuario_id' => $tenantId]);
-        if (!$mesa || !$mesa->comandaAtiva) {
-            return ['success' => false, 'message' => 'Comanda não encontrada para esta mesa.'];
+        if (!$mesa) {
+            return ['success' => false, 'message' => 'Mesa não encontrada.'];
         }
 
-        $comanda = $mesa->comandaAtiva;
+        $comanda = $mesa->getOuCriarComandaAtiva();
         $totalConsumo = $comanda->getValorTotal();
 
         if ($totalConsumo <= 0) {
