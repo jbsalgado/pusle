@@ -54,16 +54,30 @@ $this->params['breadcrumbs'][] = $this->title;
             </div>
 
             <div class="flex flex-wrap items-center gap-2">
+                <?= Html::beginForm(Url::to(['/vendas/mesa/adicionar-mesa-rapida']), 'post', ['class' => 'm-0']) ?>
+                <button type="submit"
+                    class="inline-flex items-center px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl shadow-md transition duration-150 text-xs sm:text-sm" title="Adicionar +1 mesa sequencial instantaneamente com 1 clique">
+                    <span class="mr-1.5">⚡</span>
+                    <span>+1 Mesa</span>
+                </button>
+                <?= Html::endForm() ?>
+
+                <button type="button" onclick="abrirModalLoteMesas()"
+                    class="inline-flex items-center px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-xl shadow-md transition duration-150 text-xs sm:text-sm" title="Gerar um conjunto de várias mesas de uma vez só">
+                    <span class="mr-1.5">🚀</span>
+                    <span>+Várias Mesas</span>
+                </button>
+
                 <button type="button" onclick="abrirModalCriarMesa()"
-                    class="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl shadow-md transition duration-150 text-sm">
-                    <span class="mr-2">➕</span>
-                    <span>Nova Mesa</span>
+                    class="inline-flex items-center px-3.5 py-2 bg-gray-800 hover:bg-gray-900 text-white font-bold rounded-xl shadow-md transition duration-150 text-xs sm:text-sm">
+                    <span class="mr-1.5">⚙️</span>
+                    <span>Personalizada</span>
                 </button>
 
                 <a href="<?= Url::to(['/vendas/kds/index']) ?>"
-                    class="inline-flex items-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-xl shadow-md transition duration-150 text-sm">
-                    <span class="mr-2">🍳</span>
-                    <span>Monitor KDS (Cozinha)</span>
+                    class="inline-flex items-center px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-xl shadow-md transition duration-150 text-xs sm:text-sm">
+                    <span class="mr-1.5">🍳</span>
+                    <span>Monitor KDS</span>
                 </a>
 
                 <a href="<?= Url::to(['/vendas/inicio/index']) ?>"
@@ -249,3 +263,4 @@ $this->params['breadcrumbs'][] = $this->title;
 <?= $this->render('_modal_fechamento_mesa') ?>
 <?= $this->render('_modal_transferir_mesa', ['mesas' => $mesas]) ?>
 <?= $this->render('_modal_criar_mesa') ?>
+<?= $this->render('_modal_gerar_lote_mesas') ?>

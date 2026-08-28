@@ -45,6 +45,8 @@ class MesaController extends Controller
                     'transferir-mesa' => ['POST'],
                     'criar-mesa' => ['POST'],
                     'excluir-mesa' => ['POST'],
+                    'adicionar-mesa-rapida' => ['POST'],
+                    'gerar-lote-mesas' => ['POST'],
                 ],
             ],
         ];
@@ -520,6 +522,78 @@ class MesaController extends Controller
             Yii::$app->session->setFlash('error', "Erro ao excluir mesa.");
         }
 
+        return $this->redirect(['index']);
+    }
+
+    /**
+     * Ação: Adicionar +1 Mesa Rápida ao mapa (1-clique)
+     */
+    public function actionAdicionarMesaRapida()
+    {
+        $tenantId = \app\components\TenantHelper::getId();
+
+        // Encontra o maior número de mesa numérico existente
+        $mesas = Mesa::find()->where(['usuario_id' => $tenantId])->all();
+        $maxNum = 0;
+        foreach ($mesas as $m) {
+            $num = (int)preg_replace('/[^0-9]/', '', $m->numero_mesa);
+            if ($num > $maxNum) $maxNum = $num;
+        }
+
+        $novoNumero = str_pad($maxNum + 1, 2, '0', STR_PAD_LEFT);
+
+        $mesa = new Mesa();
+        $mesa->id = \Yii::$app->security->generateRandomString(36);
+        $mesa->usuario_id = $tenantId;
+        $mesa->numero_mesa = (string)$novoNumero;
+        $mesa->lugares = 4;
+        $mesa->status = Mesa::STATUS_LIVRE;
+
+        if ($mesa->save(false)) {
+            Yii::$app->session->setFlash('success', "Mesa {$novoNumero} acrescentada ao mapa!");
+        } else {
+            Yii::$app->session->setFlash('error', "Erro ao acrescentar mesa.");
+        }
+
+        return $this->redirect(['index']);
+    }
+
+    /**
+     * Ação: Gerar Lote de Múltiplas Mesas (Ex: 5 ou 10 mesas de uma vez)
+     */
+    public function actionGerarLoteMesas()
+    {
+        $tenantId = \app\components\TenantHelper::getId();
+        $request = Yii::$app->request->post();
+        $qtd = (int)($request['quantidade'] ?? 1);
+
+        if ($qtd < 1) $qtd = 1;
+        if ($qtd > 50) $qtd = 50;
+
+        $mesas = Mesa::find()->where(['usuario_id' => $tenantId])->all();
+        $maxNum = 0;
+        foreach ($mesas as $m) {
+            $num = (int)preg_replace('/[^0-9]/', '', $m->numero_mesa);
+            if ($num > $maxNum) $maxNum = $num;
+        }
+
+        $criadas = 0;
+        for ($i = 1; $i <= $qtd; $i++) {
+            $maxNum++;
+            $novoNumero = str_pad($maxNum, 2, '0', STR_PAD_LEFT);
+
+            $mesa = new Mesa();
+            $mesa->id = \Yii::$app->security->generateRandomString(36);
+            $mesa->usuario_id = $tenantId;
+            $mesa->numero_mesa = (string)$novoNumero;
+            $mesa->lugares = 4;
+            $mesa->status = Mesa::STATUS_LIVRE;
+            if ($mesa->save(false)) {
+                $criadas++;
+            }
+        }
+
+        Yii::$app->session->setFlash('success', "{$criadas} novas mesas acrescentadas ao mapa com sucesso!");
         return $this->redirect(['index']);
     }
 
