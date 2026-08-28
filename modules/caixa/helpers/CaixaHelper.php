@@ -90,6 +90,48 @@ class CaixaHelper
     }
 
     /**
+     * Registra uma entrada genérica no caixa aberto do usuário
+     * 
+     * @param float $valor Valor da entrada
+     * @param string $descricao Descrição da movimentação
+     * @param string|null $formaPagamentoId ID da forma de pagamento
+     * @param string|null $usuarioId ID do usuário
+     * @return bool|CaixaMovimentacao
+     */
+    public static function registrarEntrada($valor, $descricao = 'Entrada Diversa', $formaPagamentoId = null, $usuarioId = null)
+    {
+        try {
+            $usuarioId = $usuarioId ?: Yii::$app->user->id;
+            if (!$usuarioId) return false;
+
+            $caixa = self::getCaixaAberto($usuarioId);
+            if (!$caixa) {
+                Yii::warning("⚠️ ENTRADA REGISTRADA COM CAIXA FECHADO. Valor: R$ {$valor}, Descrição: {$descricao}.", 'caixa');
+                return false;
+            }
+
+            $movimentacao = new CaixaMovimentacao();
+            $movimentacao->caixa_id = $caixa->id;
+            $movimentacao->tipo = CaixaMovimentacao::TIPO_ENTRADA;
+            $movimentacao->categoria = CaixaMovimentacao::CATEGORIA_VENDA;
+            $movimentacao->valor = (float)$valor;
+            $movimentacao->descricao = $descricao;
+            $movimentacao->forma_pagamento_id = $formaPagamentoId;
+            $movimentacao->data_movimento = date('Y-m-d H:i:s');
+
+            if (!$movimentacao->save()) {
+                Yii::error("Erro ao salvar entrada no caixa: " . implode(', ', $movimentacao->getFirstErrors()), 'caixa');
+                return false;
+            }
+
+            return $movimentacao;
+        } catch (\Exception $e) {
+            Yii::error("Exceção ao registrar entrada no caixa: " . $e->getMessage(), 'caixa');
+            return false;
+        }
+    }
+
+    /**
      * Busca o caixa aberto atual do usuário (do dia atual)
      * 
      * @param string|null $usuarioId ID do usuário (se null, usa o usuário logado)
