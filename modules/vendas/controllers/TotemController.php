@@ -16,6 +16,7 @@ use app\models\Usuario;
 class TotemController extends Controller
 {
     public $layout = false; // Tela limpa em formato Kiosk Fullscreen
+    public $enableCsrfValidation = false;
 
     public function behaviors()
     {

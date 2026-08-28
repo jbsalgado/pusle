@@ -357,6 +357,9 @@ $nomeLoja = $loja ? ($loja->nome ?: 'PULSE Fast Food') : 'PULSE Fast Food';
             formData.append('tipo_consumo', tipoConsumoAtual);
             formData.append('itens', JSON.stringify(carrinhoTotem));
 
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            if (csrfToken) formData.append('_csrf', csrfToken);
+
             const resp = await fetch('<?= Url::to(['/vendas/totem/finalizar-pedido']) ?>', {
                 method: 'POST',
                 body: formData
