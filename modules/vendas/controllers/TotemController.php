@@ -11,7 +11,7 @@ use app\modules\vendas\models\Comanda;
 use app\modules\vendas\models\ComandaItem;
 use app\modules\vendas\models\Produto;
 use app\modules\vendas\models\Categoria;
-use app\modules\vendas\models\Usuario;
+use app\models\Usuario;
 
 class TotemController extends Controller
 {
