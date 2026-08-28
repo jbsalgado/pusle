@@ -6,8 +6,10 @@ use Yii;
 use app\modules\vendas\models\Mesa;
 use app\modules\vendas\models\Comanda;
 use app\modules\vendas\models\ComandaItem;
+use app\modules\vendas\models\Produto;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
+use yii\web\Response;
 use yii\filters\AccessControl;
 use yii\filters\VerbFilter;
 
@@ -34,6 +36,8 @@ class MesaController extends Controller
                     'abrir-mesa' => ['POST'],
                     'solicitar-conta' => ['POST'],
                     'liberar-mesa' => ['POST'],
+                    'adicionar-item' => ['POST'],
+                    'remover-item' => ['POST'],
                 ],
             ],
         ];
@@ -146,6 +150,182 @@ class MesaController extends Controller
 
         Yii::$app->session->setFlash('success', "Mesa {$mesa->numero_mesa} aberta com sucesso para {$clienteNome}!");
         return $this->redirect(['index']);
+    }
+
+    /**
+     * Ação: Adicionar Item/Pedido à Mesa (AJAX / POST)
+     */
+    public function actionAdicionarItem()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $tenantId = \app\components\TenantHelper::getId();
+        $request = Yii::$app->request->post();
+
+        $mesaId = $request['mesa_id'] ?? null;
+        $produtoId = $request['produto_id'] ?? null;
+        $quantidade = (float)($request['quantidade'] ?? 1);
+        $observacoes = trim($request['observacoes'] ?? '');
+        $destino = $request['destino_preparo'] ?? ComandaItem::DESTINO_COZINHA;
+
+        if (!$mesaId || !$produtoId) {
+            return ['success' => false, 'message' => 'Mesa e Produto são obrigatórios.'];
+        }
+
+        $mesa = Mesa::findOne(['id' => $mesaId, 'usuario_id' => $tenantId]);
+        if (!$mesa) {
+            return ['success' => false, 'message' => 'Mesa não encontrada.'];
+        }
+
+        // Se a mesa estiver livre por algum motivo, abre automaticamente
+        if (!$mesa->comandaAtiva) {
+            $mesa->status = Mesa::STATUS_OCUPADA;
+            $mesa->save(false);
+
+            $comanda = new Comanda();
+            $comanda->usuario_id = $tenantId;
+            $comanda->mesa_id = $mesa->id;
+            $comanda->numero_comanda = 'MESA-' . $mesa->numero_mesa;
+            $comanda->cliente_nome = 'Cliente';
+            $comanda->status = Comanda::STATUS_ABERTA;
+            $comanda->save(false);
+        } else {
+            $comanda = $mesa->comandaAtiva;
+        }
+
+        $produto = Produto::findOne(['id' => $produtoId, 'usuario_id' => $tenantId]);
+        if (!$produto) {
+            return ['success' => false, 'message' => 'Produto não encontrado.'];
+        }
+
+        // Cria o item da comanda
+        $item = new ComandaItem();
+        $item->comanda_id = $comanda->id;
+        $item->produto_id = $produto->id;
+        $item->quantidade = $quantidade > 0 ? $quantidade : 1;
+        $item->valor_unitario = (float)$produto->preco_venda;
+        $item->observacoes = $observacoes;
+        $item->destino_preparo = $destino;
+        $item->status_preparo = ComandaItem::STATUS_PENDENTE;
+
+        if ($item->save()) {
+            return [
+                'success' => true,
+                'message' => "{$produto->nome} adicionado à Mesa {$mesa->numero_mesa}!",
+                'consumo_total' => number_format($mesa->getConsumoTotal(), 2, ',', '.')
+            ];
+        }
+
+        return ['success' => false, 'message' => 'Erro ao salvar item da comanda: ' . implode(', ', $item->getFirstErrors())];
+    }
+
+    /**
+     * Retorna o Extrato do Consumo de uma Mesa (JSON para o Modal)
+     */
+    public function actionVerConsumoJson($mesa_id)
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $tenantId = \app\components\TenantHelper::getId();
+
+        $mesa = Mesa::findOne(['id' => $mesa_id, 'usuario_id' => $tenantId]);
+        if (!$mesa || !$mesa->comandaAtiva) {
+            return ['success' => false, 'message' => 'Comanda não encontrada para esta mesa.'];
+        }
+
+        $comanda = $mesa->comandaAtiva;
+        $itensData = [];
+
+        foreach ($comanda->itens as $item) {
+            $itensData[] = [
+                'id' => $item->id,
+                'produto_nome' => $item->produto ? $item->produto->nome : 'Produto Removido',
+                'quantidade' => (float)$item->quantidade,
+                'valor_unitario' => (float)$item->valor_unitario,
+                'valor_unitario_formatado' => number_format($item->valor_unitario, 2, ',', '.'),
+                'subtotal' => (float)$item->getSubtotal(),
+                'subtotal_formatado' => number_format($item->getSubtotal(), 2, ',', '.'),
+                'observacoes' => $item->observacoes,
+                'destino_preparo' => $item->destino_preparo,
+                'status_preparo' => $item->status_preparo,
+                'hora_pedido' => date('H:i', strtotime($item->data_pedido)),
+            ];
+        }
+
+        return [
+            'success' => true,
+            'mesa_numero' => $mesa->numero_mesa,
+            'cliente_nome' => $comanda->cliente_nome ?: 'Cliente',
+            'comanda_numero' => $comanda->numero_comanda,
+            'valor_total' => (float)$comanda->getValorTotal(),
+            'valor_total_formatado' => number_format($comanda->getValorTotal(), 2, ',', '.'),
+            'itens' => $itensData,
+        ];
+    }
+
+    /**
+     * Remove um item da comanda
+     */
+    public function actionRemoverItem()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $tenantId = \app\components\TenantHelper::getId();
+        $itemId = Yii::$app->request->post('item_id');
+
+        $item = ComandaItem::find()
+            ->alias('ci')
+            ->joinWith(['comanda c'])
+            ->where(['ci.id' => $itemId, 'c.usuario_id' => $tenantId])
+            ->one();
+
+        if ($item) {
+            $comandaId = $item->comanda_id;
+            $item->delete();
+
+            $comanda = Comanda::findOne($comandaId);
+            $total = $comanda ? $comanda->getValorTotal() : 0.00;
+
+            return [
+                'success' => true,
+                'message' => 'Item removido do consumo.',
+                'valor_total_formatado' => number_format($total, 2, ',', '.')
+            ];
+        }
+
+        return ['success' => false, 'message' => 'Item não encontrado.'];
+    }
+
+    /**
+     * Busca rápida de produtos ativos em JSON para o autocompletar do modal
+     */
+    public function actionBuscarProdutosJson($q = '')
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $tenantId = \app\components\TenantHelper::getId();
+
+        $query = Produto::find()
+            ->where(['usuario_id' => $tenantId, 'ativo' => true])
+            ->limit(20);
+
+        if (!empty($q)) {
+            $query->andWhere(['or',
+                ['ilike', 'nome', $q],
+                ['ilike', 'codigo_barras', $q]
+            ]);
+        }
+
+        $produtos = $query->orderBy(['nome' => SORT_ASC])->all();
+        $res = [];
+
+        foreach ($produtos as $p) {
+            $res[] = [
+                'id' => $p->id,
+                'nome' => $p->nome,
+                'preco' => (float)$p->preco_venda,
+                'preco_formatado' => number_format($p->preco_venda, 2, ',', '.'),
+                'codigo' => $p->codigo_barras,
+            ];
+        }
+
+        return $res;
     }
 
     /**

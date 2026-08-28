@@ -157,30 +157,30 @@ $this->params['breadcrumbs'][] = $this->title;
                                     <span>Abrir Mesa</span>
                                 </button>
 
-                            <?php elseif ($mesa->status === \app\modules\vendas\models\Mesa::STATUS_OCUPADA): ?>
-                                <div class="grid grid-cols-2 gap-1.5">
-                                    <?= Html::beginForm(Url::to(['/vendas/mesa/solicitar-conta']), 'post', ['class' => 'm-0']) ?>
-                                    <input type="hidden" name="mesa_id" value="<?= $mesa->id ?>">
-                                    <button type="submit" class="w-full py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] rounded-lg transition duration-150">
-                                        🟡 Pedir Conta
-                                    </button>
-                                    <?= Html::endForm() ?>
+                            <?php elseif ($mesa->status === \app\modules\vendas\models\Mesa::STATUS_OCUPADA || $mesa->status === \app\modules\vendas\models\Mesa::STATUS_AGUARDANDO_CONTA): ?>
+                                <button type="button" onclick="abrirModalLancamento('<?= $mesa->id ?>', '<?= Html::encode($mesa->numero_mesa) ?>', '<?= Html::encode($comanda ? $comanda->cliente_nome : '') ?>')"
+                                    class="w-full py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold text-xs rounded-xl shadow transition duration-150 flex items-center justify-center gap-1">
+                                    <span>➕</span>
+                                    <span>Lançar Pedidos / Extrato</span>
+                                </button>
+
+                                <div class="grid grid-cols-2 gap-1.5 mt-1">
+                                    <?php if ($mesa->status === \app\modules\vendas\models\Mesa::STATUS_OCUPADA): ?>
+                                        <?= Html::beginForm(Url::to(['/vendas/mesa/solicitar-conta']), 'post', ['class' => 'm-0']) ?>
+                                        <input type="hidden" name="mesa_id" value="<?= $mesa->id ?>">
+                                        <button type="submit" class="w-full py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] rounded-lg transition duration-150">
+                                            🟡 Pedir Conta
+                                        </button>
+                                        <?= Html::endForm() ?>
+                                    <?php endif; ?>
 
                                     <?= Html::beginForm(Url::to(['/vendas/mesa/liberar-mesa']), 'post', ['class' => 'm-0', 'onbeforeSubmit' => 'return confirm("Confirmar liberação da mesa?")']) ?>
                                     <input type="hidden" name="mesa_id" value="<?= $mesa->id ?>">
-                                    <button type="submit" class="w-full py-1.5 bg-gray-600 hover:bg-gray-700 text-white font-bold text-[11px] rounded-lg transition duration-150">
-                                        ✅ Liberar
+                                    <button type="submit" class="w-full py-1.5 bg-gray-600 hover:bg-gray-700 text-white font-bold text-[11px] rounded-lg transition duration-150 <?= $mesa->status === \app\modules\vendas\models\Mesa::STATUS_AGUARDANDO_CONTA ? 'col-span-2' : '' ?>">
+                                        ✅ Liberar Mesa
                                     </button>
                                     <?= Html::endForm() ?>
                                 </div>
-
-                            <?php elseif ($mesa->status === \app\modules\vendas\models\Mesa::STATUS_AGUARDANDO_CONTA): ?>
-                                <?= Html::beginForm(Url::to(['/vendas/mesa/liberar-mesa']), 'post', ['class' => 'm-0']) ?>
-                                <input type="hidden" name="mesa_id" value="<?= $mesa->id ?>">
-                                <button type="submit" class="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow transition duration-150">
-                                    🧾 Fechar & Liberar
-                                </button>
-                                <?= Html::endForm() ?>
                             <?php endif; ?>
                         </div>
 
@@ -193,3 +193,4 @@ $this->params['breadcrumbs'][] = $this->title;
 </div>
 
 <?= $this->render('_modal_abrir_mesa') ?>
+<?= $this->render('_modal_lancamento_item') ?>
