@@ -136,6 +136,20 @@ class LojaPermissao extends ActiveRecord
                 'icone' => '💰',
                 'cor' => 'teal',
             ],
+            'gestao-mesas-comandas' => [
+                'grupo' => 'Ações Rápidas',
+                'label' => 'Mapa de Mesas & Comandas',
+                'descricao' => 'Gestão em tempo real de consumo por mesa/comanda (Food Service)',
+                'icone' => '🍺',
+                'cor' => 'emerald',
+            ],
+            'display-cozinha' => [
+                'grupo' => 'Ações Rápidas',
+                'label' => 'Display de Cozinha (KDS)',
+                'descricao' => 'Monitor e alarme visual de preparo de pedidos (Food Service)',
+                'icone' => '🍳',
+                'cor' => 'amber',
+            ],
 
             // Cards de Gerenciamento
             'clientes' => [
