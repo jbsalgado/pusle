@@ -36,6 +36,7 @@ class MesaController extends Controller
                     'abrir-mesa' => ['POST'],
                     'solicitar-conta' => ['POST'],
                     'liberar-mesa' => ['POST'],
+                    'reverter-mesa' => ['POST'],
                     'adicionar-item' => ['POST'],
                     'remover-item' => ['POST'],
                 ],
@@ -339,9 +340,33 @@ class MesaController extends Controller
 
         $mesa = Mesa::findOne(['id' => $mesaId, 'usuario_id' => $tenantId]);
         if ($mesa) {
+            // Impedir pedir conta se a comanda estiver zerada/sem pedidos
+            if (!$mesa->comandaAtiva || $mesa->getConsumoTotal() <= 0) {
+                Yii::$app->session->setFlash('error', "Não é possível solicitar a conta da Mesa {$mesa->numero_mesa} pois ela não possui pedidos/consumo lançados.");
+                return $this->redirect(['index']);
+            }
+
             $mesa->status = Mesa::STATUS_AGUARDANDO_CONTA;
             $mesa->save(false);
             Yii::$app->session->setFlash('info', "Pré-conta solicitada para a Mesa {$mesa->numero_mesa}.");
+        }
+
+        return $this->redirect(['index']);
+    }
+
+    /**
+     * Ação: Reverter Mesa (Voltar de Aguardando Conta para Ocupada para continuar consumindo)
+     */
+    public function actionReverterMesa()
+    {
+        $tenantId = \app\components\TenantHelper::getId();
+        $mesaId = Yii::$app->request->post('mesa_id');
+
+        $mesa = Mesa::findOne(['id' => $mesaId, 'usuario_id' => $tenantId]);
+        if ($mesa && $mesa->status === Mesa::STATUS_AGUARDANDO_CONTA) {
+            $mesa->status = Mesa::STATUS_OCUPADA;
+            $mesa->save(false);
+            Yii::$app->session->setFlash('success', "Mesa {$mesa->numero_mesa} reaberta para continuar consumindo!");
         }
 
         return $this->redirect(['index']);

@@ -12,6 +12,16 @@ $this->params['breadcrumbs'][] = $this->title;
     <div class="max-w-7xl mx-auto space-y-6">
 
         <!-- Mensagens Flash -->
+        <?php if (Yii::$app->session->hasFlash('error')): ?>
+            <div class="bg-rose-50 border-l-4 border-rose-500 text-rose-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <span class="text-xl">⚠️</span>
+                    <p class="font-medium text-sm sm:text-base"><?= Yii::$app->session->getFlash('error') ?></p>
+                </div>
+                <button onclick="this.parentElement.remove()" class="text-rose-600 hover:text-rose-800 font-bold">&times;</button>
+            </div>
+        <?php endif; ?>
+
         <?php if (Yii::$app->session->hasFlash('success')): ?>
             <div class="bg-emerald-50 border-l-4 border-emerald-500 text-emerald-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
                 <div class="flex items-center space-x-3">
@@ -166,20 +176,41 @@ $this->params['breadcrumbs'][] = $this->title;
 
                                 <div class="grid grid-cols-2 gap-1.5 mt-1">
                                     <?php if ($mesa->status === \app\modules\vendas\models\Mesa::STATUS_OCUPADA): ?>
-                                        <?= Html::beginForm(Url::to(['/vendas/mesa/solicitar-conta']), 'post', ['class' => 'm-0']) ?>
+                                        <?php if ($consumo > 0): ?>
+                                            <?= Html::beginForm(Url::to(['/vendas/mesa/solicitar-conta']), 'post', ['class' => 'm-0']) ?>
+                                            <input type="hidden" name="mesa_id" value="<?= $mesa->id ?>">
+                                            <button type="submit" class="w-full py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] rounded-lg transition duration-150">
+                                                🟡 Pedir Conta
+                                            </button>
+                                            <?= Html::endForm() ?>
+                                        <?php else: ?>
+                                            <button type="button" onclick="alert('⚠️ Não é possível solicitar conta para uma mesa sem pedidos/consumo lançados.')" class="w-full py-1.5 bg-gray-200 text-gray-400 font-bold text-[11px] rounded-lg cursor-not-allowed">
+                                                🟡 Pedir Conta
+                                            </button>
+                                        <?php endif; ?>
+
+                                        <?= Html::beginForm(Url::to(['/vendas/mesa/liberar-mesa']), 'post', ['class' => 'm-0', 'onbeforeSubmit' => 'return confirm("Confirmar liberação da mesa?")']) ?>
                                         <input type="hidden" name="mesa_id" value="<?= $mesa->id ?>">
-                                        <button type="submit" class="w-full py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] rounded-lg transition duration-150">
-                                            🟡 Pedir Conta
+                                        <button type="submit" class="w-full py-1.5 bg-gray-600 hover:bg-gray-700 text-white font-bold text-[11px] rounded-lg transition duration-150">
+                                            ✅ Liberar Mesa
+                                        </button>
+                                        <?= Html::endForm() ?>
+
+                                    <?php elseif ($mesa->status === \app\modules\vendas\models\Mesa::STATUS_AGUARDANDO_CONTA): ?>
+                                        <?= Html::beginForm(Url::to(['/vendas/mesa/reverter-mesa']), 'post', ['class' => 'm-0']) ?>
+                                        <input type="hidden" name="mesa_id" value="<?= $mesa->id ?>">
+                                        <button type="submit" class="w-full py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-[11px] rounded-lg transition duration-150" title="Reabrir mesa para continuar lançando consumos">
+                                            🔄 Reabrir Mesa
+                                        </button>
+                                        <?= Html::endForm() ?>
+
+                                        <?= Html::beginForm(Url::to(['/vendas/mesa/liberar-mesa']), 'post', ['class' => 'm-0', 'onbeforeSubmit' => 'return confirm("Confirmar liberação e fechamento final da comanda?")']) ?>
+                                        <input type="hidden" name="mesa_id" value="<?= $mesa->id ?>">
+                                        <button type="submit" class="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg transition duration-150">
+                                            ✅ Liberar Mesa
                                         </button>
                                         <?= Html::endForm() ?>
                                     <?php endif; ?>
-
-                                    <?= Html::beginForm(Url::to(['/vendas/mesa/liberar-mesa']), 'post', ['class' => 'm-0', 'onbeforeSubmit' => 'return confirm("Confirmar liberação da mesa?")']) ?>
-                                    <input type="hidden" name="mesa_id" value="<?= $mesa->id ?>">
-                                    <button type="submit" class="w-full py-1.5 bg-gray-600 hover:bg-gray-700 text-white font-bold text-[11px] rounded-lg transition duration-150 <?= $mesa->status === \app\modules\vendas\models\Mesa::STATUS_AGUARDANDO_CONTA ? 'col-span-2' : '' ?>">
-                                        ✅ Liberar Mesa
-                                    </button>
-                                    <?= Html::endForm() ?>
                                 </div>
                             <?php endif; ?>
                         </div>
