@@ -42,6 +42,7 @@ class MesaController extends Controller
                     'adicionar-item' => ['POST'],
                     'remover-item' => ['POST'],
                     'processar-fechamento' => ['POST'],
+                    'transferir-mesa' => ['POST'],
                 ],
             ],
         ];
@@ -397,6 +398,54 @@ class MesaController extends Controller
             $mesa->save(false);
 
             Yii::$app->session->setFlash('success', "Mesa {$mesa->numero_mesa} foi liberada!");
+        }
+
+        return $this->redirect(['index']);
+    }
+
+    /**
+     * Ação: Transferir Consumo de uma Mesa para Outra
+     */
+    public function actionTransferirMesa()
+    {
+        $tenantId = \app\components\TenantHelper::getId();
+        $request = Yii::$app->request->post();
+
+        $origemId = $request['mesa_origem_id'] ?? null;
+        $destinoId = $request['mesa_destino_id'] ?? null;
+
+        if ($origemId === $destinoId) {
+            Yii::$app->session->setFlash('error', "Selecione uma mesa de destino diferente da mesa de origem.");
+            return $this->redirect(['index']);
+        }
+
+        $mesaOrigem = Mesa::findOne(['id' => $origemId, 'usuario_id' => $tenantId]);
+        $mesaDestino = Mesa::findOne(['id' => $destinoId, 'usuario_id' => $tenantId]);
+
+        if ($mesaOrigem && $mesaDestino) {
+            $comandaOrigem = $mesaOrigem->comandaAtiva;
+            if ($comandaOrigem) {
+                $comandaDestino = $mesaDestino->getOuCriarComandaAtiva();
+
+                // Move todos os itens da comanda de origem para a comanda de destino
+                foreach ($comandaOrigem->itens as $item) {
+                    $item->comanda_id = $comandaDestino->id;
+                    $item->save(false);
+                }
+
+                // Cancela/fecha comanda origem zerada
+                $comandaOrigem->status = Comanda::STATUS_CANCELADA;
+                $comandaOrigem->save(false);
+
+                // Libera mesa origem e ocupa mesa destino
+                $mesaOrigem->status = Mesa::STATUS_LIVRE;
+                $mesaOrigem->save(false);
+
+                $mesaDestino->status = Mesa::STATUS_OCUPADA;
+                $mesaDestino->save(false);
+
+                Yii::$app->session->setFlash('success', "Consumo transferido da Mesa {$mesaOrigem->numero_mesa} para a Mesa {$mesaDestino->numero_mesa} com sucesso!");
+            }
         }
 
         return $this->redirect(['index']);

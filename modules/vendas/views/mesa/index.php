@@ -54,6 +54,12 @@ $this->params['breadcrumbs'][] = $this->title;
             </div>
 
             <div class="flex items-center space-x-3">
+                <a href="<?= Url::to(['/vendas/kds/index']) ?>"
+                    class="inline-flex items-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-xl shadow-md transition duration-150 text-sm">
+                    <span class="mr-2">🍳</span>
+                    <span>Monitor KDS (Cozinha)</span>
+                </a>
+
                 <a href="<?= Url::to(['/vendas/inicio/index']) ?>"
                     class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition duration-150 text-sm">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -207,7 +213,11 @@ $this->params['breadcrumbs'][] = $this->title;
                                         </button>
                                         <?= Html::endForm() ?>
                                     <?php endif; ?>
-                                </div>
+                                <button type="button" onclick="abrirModalTransferir('<?= $mesa->id ?>', '<?= Html::encode($mesa->numero_mesa) ?>')"
+                                    class="w-full mt-1.5 py-1 bg-sky-100 hover:bg-sky-200 text-sky-800 font-bold text-[11px] rounded-lg transition duration-150 flex items-center justify-center gap-1 border border-sky-200">
+                                    <span>🔀</span>
+                                    <span>Transferir Mesa</span>
+                                </button>
                             <?php endif; ?>
                         </div>
 
@@ -222,3 +232,4 @@ $this->params['breadcrumbs'][] = $this->title;
 <?= $this->render('_modal_abrir_mesa') ?>
 <?= $this->render('_modal_lancamento_item') ?>
 <?= $this->render('_modal_fechamento_mesa') ?>
+<?= $this->render('_modal_transferir_mesa', ['mesas' => $mesas]) ?>
