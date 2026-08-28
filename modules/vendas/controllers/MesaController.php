@@ -43,6 +43,8 @@ class MesaController extends Controller
                     'remover-item' => ['POST'],
                     'processar-fechamento' => ['POST'],
                     'transferir-mesa' => ['POST'],
+                    'criar-mesa' => ['POST'],
+                    'excluir-mesa' => ['POST'],
                 ],
             ],
         ];
@@ -446,6 +448,76 @@ class MesaController extends Controller
 
                 Yii::$app->session->setFlash('success', "Consumo transferido da Mesa {$mesaOrigem->numero_mesa} para a Mesa {$mesaDestino->numero_mesa} com sucesso!");
             }
+        }
+
+        return $this->redirect(['index']);
+    }
+
+    /**
+     * Ação: Criar / Cadastrar Nova Mesa no Salão
+     */
+    public function actionCriarMesa()
+    {
+        $tenantId = \app\components\TenantHelper::getId();
+        $request = Yii::$app->request->post();
+
+        $numeroMesa = trim($request['numero_mesa'] ?? '');
+        $lugares = (int)($request['lugares'] ?? 4);
+        $identificador = trim($request['nome_identificador'] ?? '');
+
+        if (empty($numeroMesa)) {
+            Yii::$app->session->setFlash('error', "Informe o número da mesa.");
+            return $this->redirect(['index']);
+        }
+
+        // Verifica se a mesa já existe
+        $existe = Mesa::findOne(['usuario_id' => $tenantId, 'numero_mesa' => $numeroMesa]);
+        if ($existe) {
+            Yii::$app->session->setFlash('error', "A Mesa {$numeroMesa} já está cadastrada no sistema.");
+            return $this->redirect(['index']);
+        }
+
+        $mesa = new Mesa();
+        $mesa->id = \Yii::$app->security->generateRandomString(36);
+        $mesa->usuario_id = $tenantId;
+        $mesa->numero_mesa = $numeroMesa;
+        $mesa->lugares = $lugares > 0 ? $lugares : 4;
+        $mesa->nome_identificador = $identificador;
+        $mesa->status = Mesa::STATUS_LIVRE;
+
+        if ($mesa->save(false)) {
+            Yii::$app->session->setFlash('success', "Mesa {$numeroMesa} cadastrada com sucesso!");
+        } else {
+            Yii::$app->session->setFlash('error', "Erro ao cadastrar mesa.");
+        }
+
+        return $this->redirect(['index']);
+    }
+
+    /**
+     * Ação: Excluir / Remover Mesa do Salão
+     */
+    public function actionExcluirMesa()
+    {
+        $tenantId = \app\components\TenantHelper::getId();
+        $mesaId = Yii::$app->request->post('mesa_id');
+
+        $mesa = Mesa::findOne(['id' => $mesaId, 'usuario_id' => $tenantId]);
+        if (!$mesa) {
+            Yii::$app->session->setFlash('error', "Mesa não encontrada.");
+            return $this->redirect(['index']);
+        }
+
+        if ($mesa->getConsumoTotal() > 0 || $mesa->status !== Mesa::STATUS_LIVRE) {
+            Yii::$app->session->setFlash('error', "Não é possível excluir a Mesa {$mesa->numero_mesa} pois ela está ocupada ou possui consumo ativo.");
+            return $this->redirect(['index']);
+        }
+
+        $numero = $mesa->numero_mesa;
+        if ($mesa->delete()) {
+            Yii::$app->session->setFlash('success', "Mesa {$numero} excluída com sucesso!");
+        } else {
+            Yii::$app->session->setFlash('error', "Erro ao excluir mesa.");
         }
 
         return $this->redirect(['index']);

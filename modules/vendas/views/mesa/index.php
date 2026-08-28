@@ -53,7 +53,13 @@ $this->params['breadcrumbs'][] = $this->title;
                 <p class="text-sm text-gray-500 mt-1">Gestão gráfica em tempo real para bares, lanchonetes e restaurantes.</p>
             </div>
 
-            <div class="flex items-center space-x-3">
+            <div class="flex flex-wrap items-center gap-2">
+                <button type="button" onclick="abrirModalCriarMesa()"
+                    class="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl shadow-md transition duration-150 text-sm">
+                    <span class="mr-2">➕</span>
+                    <span>Nova Mesa</span>
+                </button>
+
                 <a href="<?= Url::to(['/vendas/kds/index']) ?>"
                     class="inline-flex items-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-xl shadow-md transition duration-150 text-sm">
                     <span class="mr-2">🍳</span>
@@ -173,6 +179,13 @@ $this->params['breadcrumbs'][] = $this->title;
                                     <span>Abrir Mesa</span>
                                 </button>
 
+                                <?= Html::beginForm(Url::to(['/vendas/mesa/excluir-mesa']), 'post', ['class' => 'm-0', 'onbeforeSubmit' => 'return confirm("Tem certeza que deseja excluir a Mesa ' . Html::encode($mesa->numero_mesa) . '?")']) ?>
+                                <input type="hidden" name="mesa_id" value="<?= $mesa->id ?>">
+                                <button type="submit" class="w-full py-1 text-rose-600 hover:text-rose-800 font-semibold text-[11px] flex items-center justify-center gap-1 hover:underline">
+                                    <span>🗑️ Excluir Mesa</span>
+                                </button>
+                                <?= Html::endForm() ?>
+
                             <?php elseif ($mesa->status === \app\modules\vendas\models\Mesa::STATUS_OCUPADA || $mesa->status === \app\modules\vendas\models\Mesa::STATUS_AGUARDANDO_CONTA): ?>
                                 <button type="button" onclick="abrirModalLancamento('<?= $mesa->id ?>', '<?= Html::encode($mesa->numero_mesa) ?>', '<?= Html::encode($comanda ? $comanda->cliente_nome : '') ?>')"
                                     class="w-full py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold text-xs rounded-xl shadow transition duration-150 flex items-center justify-center gap-1">
@@ -235,3 +248,4 @@ $this->params['breadcrumbs'][] = $this->title;
 <?= $this->render('_modal_lancamento_item') ?>
 <?= $this->render('_modal_fechamento_mesa') ?>
 <?= $this->render('_modal_transferir_mesa', ['mesas' => $mesas]) ?>
+<?= $this->render('_modal_criar_mesa') ?>
