@@ -500,7 +500,7 @@ class MesaController extends Controller
 
         // 3. Formata texto do Comprovante de Consumo
         $loja = Usuario::findOne($tenantId);
-        $nomeLoja = $loja ? ($loja->nome_loja ?: $loja->nome) : 'PULSE Food Service';
+        $nomeLoja = ($loja && !empty($loja->nome)) ? $loja->nome : 'PULSE Food Service';
 
         $msgComprovante = "🧾 *{$nomeLoja}*\n";
         $msgComprovante .= "-----------------------------------\n";
