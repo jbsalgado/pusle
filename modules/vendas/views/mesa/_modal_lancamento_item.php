@@ -116,7 +116,7 @@ use yii\helpers\Url;
         <div class="bg-gray-50 px-6 py-4 border-t border-gray-100 flex items-center justify-between flex-shrink-0">
             <span class="text-xs text-gray-500">Pedidos entram diretamente na fila de preparo.</span>
             <button type="button" onclick="fecharModalLancamentoItem()" class="px-5 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs rounded-xl">
-                Fechar Extrato
+                Fechar Janela
             </button>
         </div>
     </div>
