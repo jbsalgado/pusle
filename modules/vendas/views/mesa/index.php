@@ -189,25 +189,21 @@ $this->params['breadcrumbs'][] = $this->title;
                                             </button>
                                         <?php endif; ?>
 
-                                        <?= Html::beginForm(Url::to(['/vendas/mesa/liberar-mesa']), 'post', ['class' => 'm-0', 'onbeforeSubmit' => 'return confirm("Confirmar liberação da mesa?")']) ?>
-                                        <input type="hidden" name="mesa_id" value="<?= $mesa->id ?>">
-                                        <button type="submit" class="w-full py-1.5 bg-gray-600 hover:bg-gray-700 text-white font-bold text-[11px] rounded-lg transition duration-150">
-                                            ✅ Liberar Mesa
+                                        <button type="button" onclick="abrirModalFechamento('<?= $mesa->id ?>', '<?= Html::encode($mesa->numero_mesa) ?>', '<?= Html::encode($comanda ? $comanda->cliente_nome : '') ?>')"
+                                            class="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] rounded-lg transition duration-150 shadow-sm">
+                                            🧾 Fechar & Dividir
                                         </button>
-                                        <?= Html::endForm() ?>
 
                                     <?php elseif ($mesa->status === \app\modules\vendas\models\Mesa::STATUS_AGUARDANDO_CONTA): ?>
+                                        <button type="button" onclick="abrirModalFechamento('<?= $mesa->id ?>', '<?= Html::encode($mesa->numero_mesa) ?>', '<?= Html::encode($comanda ? $comanda->cliente_nome : '') ?>')"
+                                            class="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg transition duration-150 shadow-sm">
+                                            🧾 Fechar & Dividir
+                                        </button>
+
                                         <?= Html::beginForm(Url::to(['/vendas/mesa/reverter-mesa']), 'post', ['class' => 'm-0']) ?>
                                         <input type="hidden" name="mesa_id" value="<?= $mesa->id ?>">
                                         <button type="submit" class="w-full py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-[11px] rounded-lg transition duration-150" title="Reabrir mesa para continuar lançando consumos">
                                             🔄 Reabrir Mesa
-                                        </button>
-                                        <?= Html::endForm() ?>
-
-                                        <?= Html::beginForm(Url::to(['/vendas/mesa/liberar-mesa']), 'post', ['class' => 'm-0', 'onbeforeSubmit' => 'return confirm("Confirmar liberação e fechamento final da comanda?")']) ?>
-                                        <input type="hidden" name="mesa_id" value="<?= $mesa->id ?>">
-                                        <button type="submit" class="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg transition duration-150">
-                                            ✅ Liberar Mesa
                                         </button>
                                         <?= Html::endForm() ?>
                                     <?php endif; ?>
@@ -225,3 +221,4 @@ $this->params['breadcrumbs'][] = $this->title;
 
 <?= $this->render('_modal_abrir_mesa') ?>
 <?= $this->render('_modal_lancamento_item') ?>
+<?= $this->render('_modal_fechamento_mesa') ?>

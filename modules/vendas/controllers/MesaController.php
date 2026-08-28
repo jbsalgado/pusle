@@ -7,6 +7,8 @@ use app\modules\vendas\models\Mesa;
 use app\modules\vendas\models\Comanda;
 use app\modules\vendas\models\ComandaItem;
 use app\modules\vendas\models\Produto;
+use app\modules\vendas\models\FormaPagamento;
+use app\models\Usuario;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\web\Response;
@@ -39,6 +41,7 @@ class MesaController extends Controller
                     'reverter-mesa' => ['POST'],
                     'adicionar-item' => ['POST'],
                     'remover-item' => ['POST'],
+                    'processar-fechamento' => ['POST'],
                 ],
             ],
         ];
@@ -397,5 +400,165 @@ class MesaController extends Controller
         }
 
         return $this->redirect(['index']);
+    }
+
+    /**
+     * Retorna dados da mesa e lista de formas de pagamento para o modal de fechamento
+     */
+    public function actionDadosFechamentoJson($mesa_id)
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $tenantId = \app\components\TenantHelper::getId();
+
+        $mesa = Mesa::findOne(['id' => $mesa_id, 'usuario_id' => $tenantId]);
+        if (!$mesa || !$mesa->comandaAtiva) {
+            return ['success' => false, 'message' => 'Comanda não encontrada para esta mesa.'];
+        }
+
+        $comanda = $mesa->comandaAtiva;
+        $total = $comanda->getValorTotal();
+
+        $formas = FormaPagamento::find()
+            ->where(['usuario_id' => $tenantId, 'ativo' => true])
+            ->orderBy(['nome' => SORT_ASC])
+            ->all();
+
+        $formasData = [];
+        foreach ($formas as $f) {
+            $formasData[] = [
+                'id' => $f->id,
+                'nome' => $f->nome,
+            ];
+        }
+
+        return [
+            'success' => true,
+            'mesa_numero' => $mesa->numero_mesa,
+            'cliente_nome' => $comanda->cliente_nome ?: 'Cliente',
+            'valor_total' => (float)$total,
+            'valor_total_formatado' => number_format($total, 2, ',', '.'),
+            'formas_pagamento' => $formasData,
+        ];
+    }
+
+    /**
+     * Processa o Fechamento, Divisão de Conta, Baixa no Caixa e Envio de Comprovante via WhatsApp
+     */
+    public function actionProcessarFechamento()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $tenantId = \app\components\TenantHelper::getId();
+        $request = Yii::$app->request->post();
+
+        $mesaId = $request['mesa_id'] ?? null;
+        $pagamentosRaw = $request['pagamentos'] ?? '[]';
+        $numPessoas = (int)($request['num_pessoas'] ?? 1);
+        $whatsapp = trim($request['whatsapp'] ?? '');
+        $enviarWhatsapp = (int)($request['enviar_whatsapp'] ?? 0);
+
+        $mesa = Mesa::findOne(['id' => $mesaId, 'usuario_id' => $tenantId]);
+        if (!$mesa || !$mesa->comandaAtiva) {
+            return ['success' => false, 'message' => 'Comanda não encontrada para esta mesa.'];
+        }
+
+        $comanda = $mesa->comandaAtiva;
+        $totalConsumo = $comanda->getValorTotal();
+
+        if ($totalConsumo <= 0) {
+            return ['success' => false, 'message' => 'Não é possível fechar uma mesa sem consumo.'];
+        }
+
+        $pagamentos = json_decode($pagamentosRaw, true);
+        if (empty($pagamentos)) {
+            return ['success' => false, 'message' => 'Nenhum pagamento registrado.'];
+        }
+
+        // 1. Registra entradas no Caixa
+        $userId = Yii::$app->user->id;
+        foreach ($pagamentos as $p) {
+            $formaId = $p['forma_pagamento_id'] ?? null;
+            $val = (float)($p['valor'] ?? 0);
+            if ($val > 0) {
+                if (class_exists('app\modules\caixa\helpers\CaixaHelper')) {
+                    \app\modules\caixa\helpers\CaixaHelper::registrarEntrada(
+                        $val,
+                        "Fechamento Mesa {$mesa->numero_mesa} ({$comanda->numero_comanda})",
+                        $formaId,
+                        $userId
+                    );
+                }
+            }
+        }
+
+        // 2. Fecha a Comanda e libera a Mesa
+        $comanda->status = Comanda::STATUS_FECHADA;
+        $comanda->data_fechamento = date('Y-m-d H:i:s');
+        $comanda->save(false);
+
+        $mesa->status = Mesa::STATUS_LIVRE;
+        $mesa->save(false);
+
+        // 3. Formata texto do Comprovante de Consumo
+        $loja = Usuario::findOne($tenantId);
+        $nomeLoja = $loja ? ($loja->nome_loja ?: $loja->nome) : 'PULSE Food Service';
+
+        $msgComprovante = "🧾 *{$nomeLoja}*\n";
+        $msgComprovante .= "-----------------------------------\n";
+        $msgComprovante .= "📌 *RECIBO DE CONSUMO — MESA {$mesa->numero_mesa}*\n";
+        $msgComprovante .= "👤 *Cliente:* " . ($comanda->cliente_nome ?: 'Cliente') . "\n";
+        $msgComprovante .= "📅 *Data:* " . date('d/m/Y H:i') . "\n";
+        $msgComprovante .= "-----------------------------------\n";
+        $msgComprovante .= "📦 *ITENS CONSUMIDOS:*\n";
+
+        foreach ($comanda->itens as $item) {
+            $prodNome = $item->produto ? $item->produto->nome : 'Produto';
+            $msgComprovante .= "• {$item->quantidade}x {$prodNome} - R$ " . number_format($item->getSubtotal(), 2, ',', '.') . "\n";
+            if ($item->observacoes) {
+                $msgComprovante .= "  _(Obs: {$item->observacoes})_\n";
+            }
+        }
+
+        $msgComprovante .= "-----------------------------------\n";
+        $msgComprovante .= "💰 *TOTAL DA CONTA:* R$ " . number_format($totalConsumo, 2, ',', '.') . "\n";
+
+        if ($numPessoas > 1) {
+            $valPessoa = $totalConsumo / $numPessoas;
+            $msgComprovante .= "🧮 *Divisão por {$numPessoas} pessoas:* R$ " . number_format($valPessoa, 2, ',', '.') . " cada\n";
+        }
+
+        $msgComprovante .= "-----------------------------------\n";
+        $msgComprovante .= "💳 *PAGAMENTOS REGISTRADOS:*\n";
+        foreach ($pagamentos as $p) {
+            $fModel = FormaPagamento::findOne($p['forma_pagamento_id'] ?? null);
+            $fNome = $fModel ? $fModel->nome : 'Pagamento';
+            $msgComprovante .= "• {$fNome}: R$ " . number_format((float)$p['valor'], 2, ',', '.') . "\n";
+        }
+        $msgComprovante .= "-----------------------------------\n";
+        $msgComprovante .= "Obrigado pela preferência e volte sempre! 😊🚀";
+
+        // 4. Envio via WhatsApp (Evolution API) se solicitado
+        $wpEnviado = false;
+        if ($enviarWhatsapp == 1 && !empty($whatsapp)) {
+            $numLimpo = preg_replace('/[^0-9]/', '', $whatsapp);
+            if (!empty($numLimpo)) {
+                try {
+                    $evolution = new \app\modules\evolution\services\EvolutionService();
+                    $wpEnviado = $evolution->sendMessage($tenantId, $numLimpo, $msgComprovante);
+                } catch (\Exception $e) {
+                    Yii::error("Erro ao enviar recibo por WhatsApp: " . $e->getMessage(), __METHOD__);
+                }
+            }
+        }
+
+        $msgFinal = "Mesa {$mesa->numero_mesa} fechada e liberada com sucesso!";
+        if ($wpEnviado) {
+            $msgFinal .= " 📲 Comprovante enviado via WhatsApp!";
+        }
+
+        return [
+            'success' => true,
+            'message' => $msgFinal,
+            'recibo_texto' => $msgComprovante,
+        ];
     }
 }
