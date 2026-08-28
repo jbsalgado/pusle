@@ -92,7 +92,8 @@ $nomeLoja = $loja ? ($loja->nome ?: 'PULSE Fast Food') : 'PULSE Fast Food';
                 <?php foreach ($produtos as $p): ?>
                     <?php 
                         $catClass = $p->categoria_id ? 'cat-' . $p->categoria_id : 'cat-outras';
-                        $fotoUrl = $p->foto_principal ? $p->foto_principal : 'https://placehold.co/300x300?text=Lanche';
+                        $fotoObj = $p->getFotoPrincipal();
+                        $fotoUrl = $fotoObj ? $fotoObj->getUrl() : 'https://placehold.co/300x300?text=Lanche';
                     ?>
                     <div class="card-totem-prod <?= $catClass ?> bg-gray-800 border border-gray-700/80 rounded-3xl p-4 flex flex-col justify-between shadow-xl hover:border-emerald-500 transition">
                         <img src="<?= Html::encode($fotoUrl) ?>" class="w-full h-36 object-cover rounded-2xl bg-gray-900 mb-3" alt="<?= Html::encode($p->nome) ?>">
