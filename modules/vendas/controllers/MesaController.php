@@ -699,6 +699,59 @@ class MesaController extends Controller
     }
 
     /**
+     * Relatório de Apuração de Comissões de Garçons e Diárias/Taxas de Motoboys
+     */
+    public function actionComissoes()
+    {
+        $tenantId = \app\components\TenantHelper::getId();
+
+        $comandas = Comanda::find()
+            ->where(['usuario_id' => $tenantId, 'status' => Comanda::STATUS_FECHADA])
+            ->all();
+
+        $garconsData = [];
+        $motoboysData = [];
+
+        foreach ($comandas as $c) {
+            // Garçom
+            $garcom = $c->garcom_nome ?: 'Garçom Geral';
+            if (!isset($garconsData[$garcom])) {
+                $garconsData[$garcom] = [
+                    'nome' => $garcom,
+                    'qtd_atendimentos' => 0,
+                    'total_consumo' => 0.00,
+                    'total_comissao' => 0.00,
+                ];
+            }
+            $garconsData[$garcom]['qtd_atendimentos']++;
+            $consumoVal = $c->getValorTotal();
+            $garconsData[$garcom]['total_consumo'] += $consumoVal;
+            $garconsData[$garcom]['total_comissao'] += ($c->taxa_servico > 0 ? (float)$c->taxa_servico : ($consumoVal * 0.10));
+
+            // Motoboy
+            if ($c->tipo_atendimento === 'delivery' && !empty($c->motoboy_nome)) {
+                $mb = $c->motoboy_nome;
+                if (!isset($motoboysData[$mb])) {
+                    $motoboysData[$mb] = [
+                        'nome' => $mb,
+                        'qtd_corridas' => 0,
+                        'total_taxas_entrega' => 0.00,
+                        'total_pedidos_valor' => 0.00,
+                    ];
+                }
+                $motoboysData[$mb]['qtd_corridas']++;
+                $motoboysData[$mb]['total_taxas_entrega'] += (float)$c->taxa_entrega;
+                $motoboysData[$mb]['total_pedidos_valor'] += $consumoVal;
+            }
+        }
+
+        return $this->render('comissoes', [
+            'garconsData' => array_values($garconsData),
+            'motoboysData' => array_values($motoboysData),
+        ]);
+    }
+
+    /**
      * Retorna dados da mesa e lista de formas de pagamento para o modal de fechamento
      */
     public function actionDadosFechamentoJson($mesa_id)
