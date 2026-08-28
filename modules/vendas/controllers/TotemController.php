@@ -12,6 +12,7 @@ use app\modules\vendas\models\ComandaItem;
 use app\modules\vendas\models\Produto;
 use app\modules\vendas\models\Categoria;
 use app\models\Usuario;
+use app\modules\evolution\services\EvolutionService;
 
 class TotemController extends Controller
 {
@@ -86,6 +87,7 @@ class TotemController extends Controller
         $request = Yii::$app->request->post();
 
         $clienteNome = trim($request['cliente_nome'] ?? 'Cliente Totem');
+        $clienteTelefone = trim($request['cliente_telefone'] ?? '');
         $itensRaw = $request['itens'] ?? '[]';
         $tipoConsumo = trim($request['tipo_consumo'] ?? 'comer_aqui'); // 'comer_aqui' ou 'levar'
 
@@ -107,6 +109,7 @@ class TotemController extends Controller
         $comanda->usuario_id = $tenantId;
         $comanda->numero_comanda = 'TOTEM-' . $numSenha;
         $comanda->cliente_nome = $clienteNome . ($tipoConsumo === 'levar' ? ' (p/ Levar)' : ' (Comer Aqui)');
+        $comanda->cliente_telefone = $clienteTelefone;
         $comanda->senha_balcao = $senhaTexto;
         $comanda->tipo_atendimento = 'balcao';
         $comanda->status = Comanda::STATUS_ABERTA;
@@ -134,6 +137,19 @@ class TotemController extends Controller
                         $salvos++;
                         $valorTotal += $item->getSubtotal();
                     }
+                }
+            }
+
+            // Notifica por WhatsApp se o telefone foi informado
+            if (!empty($clienteTelefone)) {
+                try {
+                    $loja = Usuario::findOne($tenantId);
+                    $nomeLoja = $loja ? ($loja->nome ?: 'Nosso Estabelecimento') : 'Nosso Estabelecimento';
+                    $msg = "👋 Olá, *{$clienteNome}*! Seu pedido no *{$nomeLoja}* foi realizado com sucesso!\n\n🎟️ *SUA SENHA DE RETIRADA É: {$senhaTexto}*\n\nAcompanhe a sua senha no Painel da TV do Salão. Bom apetite! ❤️";
+                    $evolution = new EvolutionService();
+                    $evolution->sendMessage($tenantId, $clienteTelefone, $msg);
+                } catch (\Exception $e) {
+                    Yii::warning("Erro ao enviar senha via WhatsApp no Totem: " . $e->getMessage(), __METHOD__);
                 }
             }
 

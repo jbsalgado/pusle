@@ -223,22 +223,34 @@ $nomeLoja = $loja ? ($loja->nome ?: 'PULSE Fast Food') : 'PULSE Fast Food';
 
     <!-- Modal Identificação & Teclado Virtual On-Screen (Sem necessidade de teclado físico) -->
     <div id="modalIdentificacaoTotem" class="fixed inset-0 z-50 hidden bg-gray-950/90 backdrop-blur-md flex items-center justify-center p-6">
-        <div class="w-full max-w-2xl bg-gray-900 border-2 border-emerald-500/50 rounded-3xl p-6 shadow-2xl space-y-6 text-white text-center">
+        <div class="w-full max-w-2xl bg-gray-900 border-2 border-emerald-500/50 rounded-3xl p-6 shadow-2xl space-y-4 text-white text-center">
             
             <div>
-                <h3 class="text-2xl font-black text-white">Digite seu Nome para a Senha</h3>
-                <p class="text-xs text-gray-400 mt-1">Toque nas teclas virtuais abaixo para identificar seu pedido</p>
+                <h3 class="text-2xl font-black text-white">Identificação para a Senha</h3>
+                <p class="text-xs text-gray-400 mt-1">Digite seu nome e WhatsApp (opcional) para receber a senha no celular</p>
+            </div>
+
+            <!-- Abas de Seleção de Campo: Nome vs WhatsApp -->
+            <div class="flex justify-center gap-3">
+                <button type="button" id="btnTabNome" onclick="selecionarCampoTotem('nome')" class="px-6 py-2.5 bg-emerald-600 text-white font-black text-xs rounded-xl shadow border border-emerald-400">
+                    👤 NOME
+                </button>
+                <button type="button" id="btnTabTelefone" onclick="selecionarCampoTotem('telefone')" class="px-6 py-2.5 bg-gray-800 text-gray-400 font-bold text-xs rounded-xl border border-gray-700">
+                    💬 WHATSAPP (DDD + NÚMERO)
+                </button>
             </div>
 
             <!-- Display de Texto Digitado -->
             <div class="bg-gray-950 border-2 border-emerald-500 rounded-2xl p-4 flex items-center justify-between">
-                <span id="displayNomeTotem" class="text-3xl font-black text-emerald-400 tracking-wider">CLIENTE</span>
-                <button type="button" onclick="apagarCaractereTotem()" class="px-4 py-2 bg-rose-600/30 text-rose-300 border border-rose-500/40 font-bold text-sm rounded-xl hover:bg-rose-600/50">⌫ APAGAR</button>
+                <div>
+                    <span id="lblCampoAtivoTotem" class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block text-left">Nome do Cliente:</span>
+                    <span id="displayNomeTotem" class="text-2xl font-black text-emerald-400 tracking-wider">CLIENTE</span>
+                </div>
+                <button type="button" onclick="apagarCaractereTotem()" class="px-4 py-2 bg-rose-600/30 text-rose-300 border border-rose-500/40 font-bold text-xs rounded-xl hover:bg-rose-600/50">⌫ APAGAR</button>
             </div>
 
-            <!-- Teclado Virtual On-Screen Gigante -->
-            <div class="space-y-2 select-none">
-                <!-- Linha 1 -->
+            <!-- Teclado Alfabético (A-Z) -->
+            <div id="kbdAlfabeticoTotem" class="space-y-2 select-none">
                 <div class="flex justify-center gap-2">
                     <button type="button" onclick="teclaTouch('Q')" class="btn-key-totem">Q</button>
                     <button type="button" onclick="teclaTouch('W')" class="btn-key-totem">W</button>
@@ -251,7 +263,6 @@ $nomeLoja = $loja ? ($loja->nome ?: 'PULSE Fast Food') : 'PULSE Fast Food';
                     <button type="button" onclick="teclaTouch('O')" class="btn-key-totem">O</button>
                     <button type="button" onclick="teclaTouch('P')" class="btn-key-totem">P</button>
                 </div>
-                <!-- Linha 2 -->
                 <div class="flex justify-center gap-2">
                     <button type="button" onclick="teclaTouch('A')" class="btn-key-totem">A</button>
                     <button type="button" onclick="teclaTouch('S')" class="btn-key-totem">S</button>
@@ -263,7 +274,6 @@ $nomeLoja = $loja ? ($loja->nome ?: 'PULSE Fast Food') : 'PULSE Fast Food';
                     <button type="button" onclick="teclaTouch('K')" class="btn-key-totem">K</button>
                     <button type="button" onclick="teclaTouch('L')" class="btn-key-totem">L</button>
                 </div>
-                <!-- Linha 3 -->
                 <div class="flex justify-center gap-2">
                     <button type="button" onclick="teclaTouch('Z')" class="btn-key-totem">Z</button>
                     <button type="button" onclick="teclaTouch('X')" class="btn-key-totem">X</button>
@@ -273,10 +283,33 @@ $nomeLoja = $loja ? ($loja->nome ?: 'PULSE Fast Food') : 'PULSE Fast Food';
                     <button type="button" onclick="teclaTouch('N')" class="btn-key-totem">N</button>
                     <button type="button" onclick="teclaTouch('M')" class="btn-key-totem">M</button>
                 </div>
-                <!-- Linha 4: Espaço & Limpar -->
-                <div class="flex justify-center gap-3 pt-2">
-                    <button type="button" onclick="limparNomeTotem()" class="px-6 py-3 bg-gray-800 text-gray-300 font-bold text-sm rounded-xl">LIMPAR</button>
-                    <button type="button" onclick="teclaTouch(' ')" class="px-12 py-3 bg-gray-800 text-white font-black text-sm rounded-xl">␣ ESPAÇO</button>
+                <div class="flex justify-center gap-3 pt-1">
+                    <button type="button" onclick="limparNomeTotem()" class="px-6 py-2 bg-gray-800 text-gray-300 font-bold text-xs rounded-xl">LIMPAR</button>
+                    <button type="button" onclick="teclaTouch(' ')" class="px-12 py-2 bg-gray-800 text-white font-black text-xs rounded-xl">␣ ESPAÇO</button>
+                </div>
+            </div>
+
+            <!-- Teclado Numérico (0-9 para WhatsApp) -->
+            <div id="kbdNumericoTotem" class="hidden space-y-2 select-none">
+                <div class="flex justify-center gap-3">
+                    <button type="button" onclick="teclaTouch('1')" class="btn-key-totem w-16 h-14 text-2xl">1</button>
+                    <button type="button" onclick="teclaTouch('2')" class="btn-key-totem w-16 h-14 text-2xl">2</button>
+                    <button type="button" onclick="teclaTouch('3')" class="btn-key-totem w-16 h-14 text-2xl">3</button>
+                </div>
+                <div class="flex justify-center gap-3">
+                    <button type="button" onclick="teclaTouch('4')" class="btn-key-totem w-16 h-14 text-2xl">4</button>
+                    <button type="button" onclick="teclaTouch('5')" class="btn-key-totem w-16 h-14 text-2xl">5</button>
+                    <button type="button" onclick="teclaTouch('6')" class="btn-key-totem w-16 h-14 text-2xl">6</button>
+                </div>
+                <div class="flex justify-center gap-3">
+                    <button type="button" onclick="teclaTouch('7')" class="btn-key-totem w-16 h-14 text-2xl">7</button>
+                    <button type="button" onclick="teclaTouch('8')" class="btn-key-totem w-16 h-14 text-2xl">8</button>
+                    <button type="button" onclick="teclaTouch('9')" class="btn-key-totem w-16 h-14 text-2xl">9</button>
+                </div>
+                <div class="flex justify-center gap-3">
+                    <button type="button" onclick="limparNomeTotem()" class="px-5 py-2.5 bg-gray-800 text-gray-300 font-bold text-xs rounded-xl">LIMPAR</button>
+                    <button type="button" onclick="teclaTouch('0')" class="btn-key-totem w-16 h-14 text-2xl">0</button>
+                    <button type="button" onclick="apagarCaractereTotem()" class="px-5 py-2.5 bg-rose-600/30 text-rose-300 font-bold text-xs rounded-xl">⌫ APAGAR</button>
                 </div>
             </div>
 
@@ -284,7 +317,7 @@ $nomeLoja = $loja ? ($loja->nome ?: 'PULSE Fast Food') : 'PULSE Fast Food';
             <div class="flex items-center justify-between pt-4 border-t border-gray-800">
                 <button type="button" onclick="fecharModalIdentificacaoTotem()" class="px-6 py-3 bg-gray-800 text-gray-400 font-bold text-sm rounded-2xl">Voltar ao Cardápio</button>
                 <button type="button" onclick="enviarPedidoFinalTotem()" class="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-black text-base rounded-2xl shadow-2xl transition active:scale-95">
-                    🖨️ CONFIRMAR & GERAR SENHA →
+                    🖨️ CONFIRMAR & ENVIAR WHATSAPP →
                 </button>
             </div>
         </div>
@@ -469,11 +502,15 @@ $nomeLoja = $loja ? ($loja->nome ?: 'PULSE Fast Food') : 'PULSE Fast Food';
     }
 
     let nomeClienteTotem = '';
+    let telefoneClienteTotem = '';
+    let campoAtivoTotem = 'nome'; // 'nome' ou 'telefone'
 
     function irParaFinalizacaoTotem() {
         if (carrinhoTotem.length === 0) return;
         nomeClienteTotem = '';
-        atualizarDisplayNomeTotem();
+        telefoneClienteTotem = '';
+        campoAtivoTotem = 'nome';
+        selecionarCampoTotem('nome');
         document.getElementById('modalIdentificacaoTotem').classList.remove('hidden');
     }
 
@@ -481,25 +518,67 @@ $nomeLoja = $loja ? ($loja->nome ?: 'PULSE Fast Food') : 'PULSE Fast Food';
         document.getElementById('modalIdentificacaoTotem').classList.add('hidden');
     }
 
-    function teclaTouch(char) {
-        if (nomeClienteTotem.length < 20) {
-            nomeClienteTotem += char;
-            atualizarDisplayNomeTotem();
+    function selecionarCampoTotem(campo) {
+        campoAtivoTotem = campo;
+        const btnNome = document.getElementById('btnTabNome');
+        const btnTel = document.getElementById('btnTabTelefone');
+        const kbdAlf = document.getElementById('kbdAlfabeticoTotem');
+        const kbdNum = document.getElementById('kbdNumericoTotem');
+        const lblCap = document.getElementById('lblCampoAtivoTotem');
+
+        if (campo === 'nome') {
+            btnNome.className = "px-6 py-2.5 bg-emerald-600 text-white font-black text-xs rounded-xl shadow border border-emerald-400";
+            btnTel.className = "px-6 py-2.5 bg-gray-800 text-gray-400 font-bold text-xs rounded-xl border border-gray-700";
+            kbdAlf.classList.remove('hidden');
+            kbdNum.classList.add('hidden');
+            lblCap.innerText = "Nome do Cliente:";
+        } else {
+            btnTel.className = "px-6 py-2.5 bg-emerald-600 text-white font-black text-xs rounded-xl shadow border border-emerald-400";
+            btnNome.className = "px-6 py-2.5 bg-gray-800 text-gray-400 font-bold text-xs rounded-xl border border-gray-700";
+            kbdNum.classList.remove('hidden');
+            kbdAlf.classList.add('hidden');
+            lblCap.innerText = "WhatsApp (DDD + Número):";
         }
+        atualizarDisplayNomeTotem();
+    }
+
+    function teclaTouch(char) {
+        if (campoAtivoTotem === 'nome') {
+            if (nomeClienteTotem.length < 20) {
+                nomeClienteTotem += char;
+            }
+        } else {
+            if (telefoneClienteTotem.length < 15 && /\d/.test(char)) {
+                telefoneClienteTotem += char;
+            }
+        }
+        atualizarDisplayNomeTotem();
     }
 
     function apagarCaractereTotem() {
-        nomeClienteTotem = nomeClienteTotem.slice(0, -1);
+        if (campoAtivoTotem === 'nome') {
+            nomeClienteTotem = nomeClienteTotem.slice(0, -1);
+        } else {
+            telefoneClienteTotem = telefoneClienteTotem.slice(0, -1);
+        }
         atualizarDisplayNomeTotem();
     }
 
     function limparNomeTotem() {
-        nomeClienteTotem = '';
+        if (campoAtivoTotem === 'nome') {
+            nomeClienteTotem = '';
+        } else {
+            telefoneClienteTotem = '';
+        }
         atualizarDisplayNomeTotem();
     }
 
     function atualizarDisplayNomeTotem() {
-        document.getElementById('displayNomeTotem').innerText = nomeClienteTotem.trim() || 'CLIENTE';
+        if (campoAtivoTotem === 'nome') {
+            document.getElementById('displayNomeTotem').innerText = nomeClienteTotem.trim() || 'CLIENTE';
+        } else {
+            document.getElementById('displayNomeTotem').innerText = telefoneClienteTotem.trim() || '(opcional)';
+        }
     }
 
     async function enviarPedidoFinalTotem() {
@@ -511,6 +590,7 @@ $nomeLoja = $loja ? ($loja->nome ?: 'PULSE Fast Food') : 'PULSE Fast Food';
         try {
             const formData = new FormData();
             formData.append('cliente_nome', nomeFinal);
+            formData.append('cliente_telefone', telefoneClienteTotem.trim());
             formData.append('tipo_consumo', tipoConsumoAtual);
             formData.append('itens', JSON.stringify(carrinhoTotem));
 
