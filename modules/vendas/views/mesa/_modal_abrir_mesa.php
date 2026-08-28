@@ -33,8 +33,15 @@ use yii\helpers\Url;
         </div>
 
         <div>
-            <label for="inputGarcomNome" class="block text-sm font-semibold text-gray-700 mb-1">Garçom Atendente (Opcional)</label>
-            <input type="text" name="garcom_nome" id="inputGarcomNome" placeholder="Ex: Carlos (Garçom)" class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900">
+            <label for="inputGarcomNome" class="block text-sm font-semibold text-gray-700 mb-1">Garçom Atendente (Selecione do Cadastro)</label>
+            <select name="garcom_nome" id="inputGarcomNome" class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 bg-white font-semibold">
+                <option value="">-- Nenhum Garçom Especificado --</option>
+                <?php if (!empty($colaboradores)): ?>
+                    <?php foreach ($colaboradores as $colab): ?>
+                        <option value="<?= Html::encode($colab->nome_completo) ?>"><?= Html::encode($colab->nome_completo) ?></option>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </select>
         </div>
 
         <!-- Footer Actions -->

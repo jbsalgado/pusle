@@ -12,6 +12,7 @@ use app\modules\vendas\models\Comanda;
 use app\modules\vendas\models\ComandaItem;
 use app\modules\vendas\models\Produto;
 use app\modules\vendas\models\FormaPagamento;
+use app\modules\vendas\models\Colaborador;
 use app\modules\vendas\models\Usuario;
 use app\modules\evolution\services\EvolutionService;
 
@@ -58,8 +59,14 @@ class DeliveryController extends Controller
             ->orderBy(['nome' => SORT_ASC])
             ->all();
 
+        $colaboradores = Colaborador::find()
+            ->where(['usuario_id' => $tenantId, 'ativo' => true])
+            ->orderBy(['nome_completo' => SORT_ASC])
+            ->all();
+
         return $this->render('index', [
             'formasPagamento' => $formasPagamento,
+            'colaboradores' => $colaboradores,
         ]);
     }
 

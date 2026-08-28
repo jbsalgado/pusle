@@ -154,8 +154,15 @@ $this->title = 'Gestão de Delivery & Entregas — PULSE Food Service';
             </div>
 
             <div>
-                <label class="block text-xs font-semibold text-gray-300 mb-1">Entregador / Motoboy (Opcional)</label>
-                <input type="text" name="motoboy_nome" placeholder="Ex: João Motoboy" class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl text-sm text-white">
+                <label class="block text-xs font-semibold text-gray-300 mb-1">Entregador / Motoboy (Selecione do Cadastro)</label>
+                <select name="motoboy_nome" class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl text-sm font-semibold text-white">
+                    <option value="">-- Selecione o Motoboy --</option>
+                    <?php if (!empty($colaboradores)): ?>
+                        <?php foreach ($colaboradores as $c): ?>
+                            <option value="<?= Html::encode($c->nome_completo) ?>"><?= Html::encode($c->nome_completo) ?></option>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </select>
             </div>
 
             <div class="pt-4 border-t border-gray-800 flex items-center justify-end space-x-3">
@@ -164,6 +171,38 @@ $this->title = 'Gestão de Delivery & Entregas — PULSE Food Service';
             </div>
         <?= Html::endForm() ?>
 
+    </div>
+</div>
+
+<!-- Modal Seleção de Motoboy para Despacho -->
+<div id="modalSelecaoMotoboy" class="fixed inset-0 z-50 hidden overflow-y-auto bg-gray-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="relative w-full max-w-sm bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl overflow-hidden p-6 text-gray-100 space-y-4">
+        <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <span>🛵</span>
+                <span>Despachar para Motoboy</span>
+            </h3>
+            <button type="button" onclick="fecharModalSelecaoMotoboy()" class="text-gray-400 text-2xl font-bold px-2">&times;</button>
+        </div>
+
+        <input type="hidden" id="hdnDespachoPedidoId">
+
+        <div>
+            <label class="block text-xs font-semibold text-gray-300 mb-1">Selecione o Motoboy Cadastrado</label>
+            <select id="selDespachoMotoboy" class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl text-sm font-semibold text-white">
+                <option value="">-- Sem Motoboy Específico --</option>
+                <?php if (!empty($colaboradores)): ?>
+                    <?php foreach ($colaboradores as $c): ?>
+                        <option value="<?= Html::encode($c->nome_completo) ?>"><?= Html::encode($c->nome_completo) ?></option>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </select>
+        </div>
+
+        <div class="pt-2 flex items-center justify-end space-x-3 border-t border-gray-800">
+            <button type="button" onclick="fecharModalSelecaoMotoboy()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-xs rounded-xl">Cancelar</button>
+            <button type="button" onclick="confirmarDespachoMotoboy()" class="px-5 py-2 bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-xs rounded-xl shadow transition">🛵 Confirmar Despacho</button>
+        </div>
     </div>
 </div>
 
@@ -283,8 +322,19 @@ async function mudarStatus(pedidoId, novoStatus, motoboy = '') {
 }
 
 function mudarStatusComMotoboy(pedidoId, novoStatus) {
-    const motoboy = prompt("Nome do Entregador / Motoboy (Opcional):", "");
-    mudarStatus(pedidoId, novoStatus, motoboy);
+    document.getElementById('hdnDespachoPedidoId').value = pedidoId;
+    document.getElementById('modalSelecaoMotoboy').classList.remove('hidden');
+}
+
+function fecharModalSelecaoMotoboy() {
+    document.getElementById('modalSelecaoMotoboy').classList.add('hidden');
+}
+
+function confirmarDespachoMotoboy() {
+    const pedidoId = document.getElementById('hdnDespachoPedidoId').value;
+    const motoboy = document.getElementById('selDespachoMotoboy').value;
+    fecharModalSelecaoMotoboy();
+    mudarStatus(pedidoId, 'em_rota', motoboy);
 }
 
 function abrirModalNovoPedidoDelivery() {

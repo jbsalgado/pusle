@@ -8,6 +8,7 @@ use app\modules\vendas\models\Comanda;
 use app\modules\vendas\models\ComandaItem;
 use app\modules\vendas\models\Produto;
 use app\modules\vendas\models\FormaPagamento;
+use app\modules\vendas\models\Colaborador;
 use app\models\Usuario;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
@@ -111,8 +112,14 @@ class MesaController extends Controller
             }
         }
 
+        $colaboradores = Colaborador::find()
+            ->where(['usuario_id' => $tenantId, 'ativo' => true])
+            ->orderBy(['nome_completo' => SORT_ASC])
+            ->all();
+
         return $this->render('index', [
             'mesas' => $mesas,
+            'colaboradores' => $colaboradores,
             'totalMesas' => $totalMesas,
             'livres' => $livres,
             'ocupadas' => $ocupadas,

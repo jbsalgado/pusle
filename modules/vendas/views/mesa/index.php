@@ -289,7 +289,7 @@ $this->params['breadcrumbs'][] = $this->title;
     </div>
 </div>
 
-<?= $this->render('_modal_abrir_mesa') ?>
+<?= $this->render('_modal_abrir_mesa', ['colaboradores' => $colaboradores ?? []]) ?>
 <?= $this->render('_modal_lancamento_item') ?>
 <?= $this->render('_modal_fechamento_mesa') ?>
 <?= $this->render('_modal_transferir_mesa', ['mesas' => $mesas]) ?>
