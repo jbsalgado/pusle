@@ -25,7 +25,22 @@ $this->title = 'Gestão de Delivery & Entregas — PULSE Food Service';
                 <span>Novo Pedido Delivery</span>
             </button>
 
-            <a href="<?= Url::to(['/vendas/mesa/index']) ?>" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 font-bold text-xs sm:text-sm rounded-xl transition flex items-center gap-1.5">
+            <a href="<?= Url::to(['/vendas/totem/index']) ?>" target="_blank" class="px-3.5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs sm:text-sm rounded-xl transition flex items-center gap-1.5" title="Abrir Totem Kiosk Fast-Food">
+                <span>🖥️</span>
+                <span>Totem Kiosk</span>
+            </a>
+
+            <a href="<?= Url::to(['/vendas/kds/painel-senhas']) ?>" target="_blank" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm rounded-xl transition flex items-center gap-1.5" title="Abrir Painel da TV de Chamada de Senhas">
+                <span>📺</span>
+                <span>TV Senhas</span>
+            </a>
+
+            <a href="<?= Url::to(['/vendas/delivery/motoboy']) ?>" target="_blank" class="px-3.5 py-2 bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs sm:text-sm rounded-xl transition flex items-center gap-1.5" title="Abrir App de GPS do Motoboy">
+                <span>📡</span>
+                <span>App Motoboy</span>
+            </a>
+
+            <a href="<?= Url::to(['/vendas/mesa/index']) ?>" class="px-3.5 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 font-bold text-xs sm:text-sm rounded-xl transition flex items-center gap-1.5">
                 <span>🍽️</span>
                 <span>Mapa de Mesas</span>
             </a>

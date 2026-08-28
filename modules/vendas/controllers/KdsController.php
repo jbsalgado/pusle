@@ -146,4 +146,60 @@ class KdsController extends Controller
 
         return ['success' => false, 'message' => 'Erro ao atualizar status do pedido.'];
     }
+
+    /**
+     * Tela Fullscreen de Chamada de Senhas para exibição na TV do Salão
+     */
+    public function actionPainelSenhas()
+    {
+        $this->layout = false;
+        return $this->render('painel_senhas');
+    }
+
+    /**
+     * Retorna a lista de senhas em preparo e prontas para a TV
+     */
+    public function actionSenhasJson()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $tenantId = \app\components\TenantHelper::getId();
+
+        $comandas = Comanda::find()
+            ->where(['usuario_id' => $tenantId])
+            ->andWhere(['not', ['senha_balcao' => null]])
+            ->andWhere(['>=', 'data_abertura', date('Y-m-d 00:00:00')])
+            ->orderBy(['data_abertura' => SORT_DESC])
+            ->all();
+
+        $preparo = [];
+        $pronto = [];
+
+        foreach ($comandas as $c) {
+            $temPendente = false;
+            foreach ($c->itens as $it) {
+                if ($it->status_preparo === ComandaItem::STATUS_PENDENTE || $it->status_preparo === ComandaItem::STATUS_EM_PREPARO) {
+                    $temPendente = true;
+                    break;
+                }
+            }
+
+            if ($temPendente || (empty($c->itens) && $c->status === Comanda::STATUS_ABERTA)) {
+                $preparo[] = [
+                    'senha' => $c->senha_balcao,
+                    'cliente' => $c->cliente_nome,
+                ];
+            } else if ($c->status !== Comanda::STATUS_FECHADA) {
+                $pronto[] = [
+                    'senha' => $c->senha_balcao,
+                    'cliente' => $c->cliente_nome,
+                ];
+            }
+        }
+
+        return [
+            'success' => true,
+            'preparo' => array_slice($preparo, 0, 8),
+            'pronto' => array_slice($pronto, 0, 6),
+        ];
+    }
 }

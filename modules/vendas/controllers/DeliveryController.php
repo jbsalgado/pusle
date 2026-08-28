@@ -24,6 +24,11 @@ class DeliveryController extends Controller
                 'class' => AccessControl::class,
                 'rules' => [
                     [
+                        'actions' => ['rastreio', 'gps-json', 'atualizar-gps', 'motoboy'],
+                        'allow' => true,
+                        'roles' => ['?', '@'],
+                    ],
+                    [
                         'allow' => true,
                         'roles' => ['@'],
                     ],
@@ -34,6 +39,7 @@ class DeliveryController extends Controller
                 'actions' => [
                     'novo-pedido' => ['POST'],
                     'atualizar-status' => ['POST'],
+                    'atualizar-gps' => ['POST'],
                     'cancelar-pedido' => ['POST'],
                 ],
             ],
@@ -220,9 +226,100 @@ class DeliveryController extends Controller
             try {
                 $evolution = new EvolutionService();
                 $evolution->sendMessage($tenantId, $comanda->cliente_telefone, $mensagens[$status]);
+
+                if ($status === 'em_rota') {
+                    $linkRastreio = Url::to(['/vendas/delivery/rastreio', 'id' => $comanda->id], true);
+                    $evolution->sendMessage($tenantId, $comanda->cliente_telefone, "🗺️ Acompanhe o seu entregador ao vivo pelo mapa:\n" . $linkRastreio);
+                }
             } catch (\Exception $e) {
                 Yii::warning("Erro ao enviar mensagem WhatsApp de delivery: " . $e->getMessage(), __METHOD__);
             }
         }
+    }
+
+    /**
+     * Endpoint JSON: Motoboy atualiza a sua posição GPS (Lat, Lng)
+     */
+    public function actionAtualizarGps()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $request = Yii::$app->request->post();
+
+        $pedidoId = $request['pedido_id'] ?? null;
+        $lat = (float)($request['lat'] ?? 0);
+        $lng = (float)($request['lng'] ?? 0);
+
+        $comanda = Comanda::findOne($pedidoId);
+        if (!$comanda) {
+            return ['success' => false, 'message' => 'Pedido não encontrado.'];
+        }
+
+        $comanda->motoboy_lat = $lat;
+        $comanda->motoboy_lng = $lng;
+        $comanda->ultima_atualizacao_gps = new \yii\db\Expression('NOW()');
+
+        if ($comanda->save(false)) {
+            return ['success' => true, 'lat' => $lat, 'lng' => $lng];
+        }
+
+        return ['success' => false, 'message' => 'Erro ao gravar coordenadas GPS.'];
+    }
+
+    /**
+     * Endpoint JSON: Cliente consulta a posição GPS do Motoboy ao vivo
+     */
+    public function actionGpsJson($id)
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $comanda = Comanda::findOne($id);
+        if (!$comanda) {
+            return ['success' => false, 'message' => 'Pedido não encontrado.'];
+        }
+
+        return [
+            'success' => true,
+            'status_delivery' => $comanda->status_delivery,
+            'motoboy_nome' => $comanda->motoboy_nome ?: 'Entregador',
+            'lat' => (float)$comanda->motoboy_lat,
+            'lng' => (float)$comanda->motoboy_lng,
+            'ultima_atualizacao' => $comanda->ultima_atualizacao_gps,
+        ];
+    }
+
+    /**
+     * Página Pública de Rastreamento ao Vivo do Cliente (OpenStreetMap / Leaflet.js)
+     */
+    public function actionRastreio($id)
+    {
+        $this->layout = false;
+        $comanda = Comanda::findOne($id);
+        if (!$comanda) {
+            throw new NotFoundHttpException('Pedido de delivery não encontrado.');
+        }
+
+        $loja = Usuario::findOne($comanda->usuario_id);
+
+        return $this->render('rastreio', [
+            'comanda' => $comanda,
+            'loja' => $loja,
+        ]);
+    }
+
+    /**
+     * Web App do Motoboy (Painel de GPS no Celular do Entregador)
+     */
+    public function actionMotoboy()
+    {
+        $this->layout = false;
+        $tenantId = \app\components\TenantHelper::getId();
+
+        $pedidosEmRota = Comanda::find()
+            ->where(['usuario_id' => $tenantId, 'tipo_atendimento' => 'delivery', 'status_delivery' => 'em_rota'])
+            ->orderBy(['data_abertura' => SORT_DESC])
+            ->all();
+
+        return $this->render('motoboy', [
+            'pedidosEmRota' => $pedidosEmRota,
+        ]);
     }
 }
