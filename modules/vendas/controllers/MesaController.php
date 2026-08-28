@@ -480,7 +480,6 @@ class MesaController extends Controller
         }
 
         $mesa = new Mesa();
-        $mesa->id = \Yii::$app->security->generateRandomString(36);
         $mesa->usuario_id = $tenantId;
         $mesa->numero_mesa = $numeroMesa;
         $mesa->lugares = $lugares > 0 ? $lugares : 4;
@@ -543,7 +542,6 @@ class MesaController extends Controller
         $novoNumero = str_pad($maxNum + 1, 2, '0', STR_PAD_LEFT);
 
         $mesa = new Mesa();
-        $mesa->id = \Yii::$app->security->generateRandomString(36);
         $mesa->usuario_id = $tenantId;
         $mesa->numero_mesa = (string)$novoNumero;
         $mesa->lugares = 4;
@@ -583,7 +581,6 @@ class MesaController extends Controller
             $novoNumero = str_pad($maxNum, 2, '0', STR_PAD_LEFT);
 
             $mesa = new Mesa();
-            $mesa->id = \Yii::$app->security->generateRandomString(36);
             $mesa->usuario_id = $tenantId;
             $mesa->numero_mesa = (string)$novoNumero;
             $mesa->lugares = 4;
