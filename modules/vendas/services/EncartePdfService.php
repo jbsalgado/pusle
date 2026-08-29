@@ -205,6 +205,7 @@ class EncartePdfService
                                         $precoVal = $encarteProd->getPrecoFinal();
                                         $precoFormatado = number_format($precoVal, 2, ',', '.');
                                         $partesPreco = explode(',', $precoFormatado);
+                                        $codigoRef = $produto->codigo_referencia ?: $produto->codigo_barras;
 
                                         // Foto do produto
                                         $foto = $produto->fotoPrincipal ?: ($produto->fotos[0] ?? null);

@@ -55,6 +55,7 @@ class EncartePublicoController extends Controller
     {
         $encarte = Encarte::find()
             ->where(['token_publico' => $token, 'status' => 'ativo'])
+            ->with(['usuario', 'encarteProdutos.produto.fotos', 'encarteProdutos.produto.categoria'])
             ->one();
 
         if (!$encarte) {
