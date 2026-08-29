@@ -135,6 +135,26 @@ class ProdutoFoto extends ActiveRecord
         return '/' . $caminhoFoto;
     }
 
+    /**
+     * Retorna a URL absoluta completa (com protocolo https:// e domínio) da foto
+     */
+    public function getUrlCompleta()
+    {
+        $caminho = ltrim($this->arquivo_path, '/');
+        if (Yii::$app->has('request') && method_exists(Yii::$app->request, 'getHostInfo')) {
+            try {
+                $host = Yii::$app->request->getHostInfo();
+                $base = Yii::$app->request->getBaseUrl();
+                if ($host) {
+                    return rtrim($host, '/') . '/' . ltrim($base, '/') . ($base ? '/' : '') . $caminho;
+                }
+            } catch (\Throwable $e) {
+                // Fallback
+            }
+        }
+        return 'https://catalogos.oncode.app.br/' . $caminho;
+    }
+
     public function getProduto()
     {
         return $this->hasOne(Produto::class, ['id' => 'produto_id']);

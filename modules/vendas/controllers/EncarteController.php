@@ -309,7 +309,12 @@ class EncarteController extends Controller
             if ($primeiroItem && $primeiroItem->produto) {
                 $foto = $primeiroItem->produto->fotoPrincipal;
                 if ($foto) {
-                    $imagemCapaUrl = $foto->getUrlCompleta();
+                    if (method_exists($foto, 'getUrlCompleta')) {
+                        $imagemCapaUrl = $foto->getUrlCompleta();
+                    } elseif (method_exists($foto, 'getUrl')) {
+                        $c = ltrim($foto->getUrl(), '/');
+                        $imagemCapaUrl = 'https://catalogos.oncode.app.br/' . $c;
+                    }
                 }
             }
 
