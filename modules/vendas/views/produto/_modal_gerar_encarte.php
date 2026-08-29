@@ -78,12 +78,18 @@ use yii\helpers\Url;
                 </div>
 
                 <!-- 3. Personalização Opcional de Tags por Produto -->
-                <div class="border-t border-gray-100 pt-3">
-                    <div class="flex items-center justify-between mb-2">
+                <div class="border-t border-gray-100 pt-3 space-y-2">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                         <label class="block text-xs font-bold text-gray-700 uppercase">🏷️ Tags dos Produtos (Opcional)</label>
                         <span class="text-[10px] text-gray-500 font-medium">Deixe em 'Automático' para usar o padrão</span>
                     </div>
-                    <div id="containerTagsProdutos" class="max-h-36 overflow-y-auto space-y-1.5 p-2.5 bg-gray-50 rounded-xl border border-gray-200 text-xs">
+
+                    <!-- Campo de Busca/Filtro Rápido de Produtos nas Tags -->
+                    <div class="relative">
+                        <input type="text" id="inputBuscaTagsModal" oninput="filtrarTagsProdutosModal()" placeholder="🔍 Consultar produto por nome para aplicar tag..." class="w-full px-3 py-2 bg-white border border-gray-300 rounded-xl text-xs font-medium text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:outline-none shadow-sm transition">
+                    </div>
+
+                    <div id="containerTagsProdutos" class="max-h-48 overflow-y-auto space-y-1.5 p-2.5 bg-gray-50 rounded-xl border border-gray-200 text-xs">
                         <div class="text-gray-400 italic text-[11px] text-center py-2">Carregando itens selecionados...</div>
                     </div>
                 </div>
@@ -164,24 +170,54 @@ Aproveite nossos preços especiais válidos esta semana!</textarea>
         if (!container) return;
         container.innerHTML = '';
 
+        const inputBusca = document.getElementById('inputBuscaTagsModal');
+        if (inputBusca) inputBusca.value = '';
+
         if (produtosEncarteSelecionados.length === 0) {
             container.innerHTML = '<div class="text-gray-400 italic text-[11px] text-center py-2">Nenhum produto selecionado.</div>';
             return;
         }
 
         produtosEncarteSelecionados.forEach((id, index) => {
-            let nomeProd = 'Produto #' + (index + 1);
-            const row = document.querySelector(`tr[data-key="${id}"]`);
-            if (row) {
-                const elNome = row.querySelector('.nome-produto, td:nth-child(3), td.font-bold');
-                if (elNome) nomeProd = elNome.textContent.trim();
+            let nomeProd = '';
+
+            // 1. Busca na checkbox (cards ou tabela) com data-nome
+            const chk = document.querySelector(`input[name="produto_massa_chk"][value="${id}"]`);
+            if (chk && chk.dataset.nome) {
+                nomeProd = chk.dataset.nome.trim();
+            }
+
+            // 2. Fallback: Busca na linha da tabela
+            if (!nomeProd) {
+                const row = document.querySelector(`tr[data-key="${id}"]`) || (chk ? chk.closest('tr') : null);
+                if (row) {
+                    const elNome = row.querySelector('.nome-produto, td:nth-child(2) .font-medium, td:nth-child(3), td.font-bold');
+                    if (elNome) nomeProd = elNome.textContent.trim();
+                }
+            }
+
+            // 3. Fallback: Busca no card
+            if (!nomeProd && chk) {
+                const card = chk.closest('.bg-white');
+                if (card) {
+                    const elNome = card.querySelector('h3, .font-bold');
+                    if (elNome) nomeProd = elNome.textContent.trim();
+                }
+            }
+
+            if (!nomeProd) {
+                nomeProd = 'Produto #' + (index + 1);
             }
 
             const div = document.createElement('div');
-            div.className = 'flex items-center justify-between gap-2 p-1.5 bg-white border border-gray-200 rounded-lg text-xs';
+            div.className = 'item-tag-row flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 bg-white border border-gray-200 rounded-xl text-xs shadow-sm hover:border-amber-300 transition';
+            div.setAttribute('data-nome-busca', nomeProd.toLowerCase());
             div.innerHTML = `
-                <span class="font-semibold text-gray-800 truncate flex-1" title="${nomeProd}">${nomeProd}</span>
-                <select data-prod-id="${id}" class="select-tag-item px-2 py-1 bg-gray-50 border border-gray-300 rounded-lg text-[11px] font-medium focus:ring-1 focus:ring-red-500">
+                <div class="flex items-center gap-2 flex-1 min-w-0 pr-1">
+                    <span class="w-5 h-5 rounded-full bg-red-100 text-red-800 text-[10px] font-extrabold flex items-center justify-center flex-shrink-0">${index + 1}</span>
+                    <span class="font-bold text-gray-900 truncate flex-1 text-xs" title="${nomeProd}">${nomeProd}</span>
+                </div>
+                <select data-prod-id="${id}" class="select-tag-item px-2.5 py-1.5 bg-gray-50 border border-gray-300 rounded-lg text-xs font-semibold text-gray-800 focus:ring-2 focus:ring-red-500 focus:outline-none">
                     <option value="AUTO" selected>⚡ Automático (Padrão)</option>
                     <option value="OFERTA">🏷️ Oferta</option>
                     <option value="OFERTA_ESPECIAL">🌟 Oferta Especial</option>
@@ -191,6 +227,20 @@ Aproveite nossos preços especiais válidos esta semana!</textarea>
                 </select>
             `;
             container.appendChild(div);
+        });
+    }
+
+    function filtrarTagsProdutosModal() {
+        const termo = (document.getElementById('inputBuscaTagsModal')?.value || '').toLowerCase().trim();
+        const rows = document.querySelectorAll('#containerTagsProdutos .item-tag-row');
+        
+        rows.forEach(row => {
+            const nomeBusca = row.getAttribute('data-nome-busca') || '';
+            if (nomeBusca.includes(termo)) {
+                row.style.display = 'flex';
+            } else {
+                row.style.display = 'none';
+            }
         });
     }
 

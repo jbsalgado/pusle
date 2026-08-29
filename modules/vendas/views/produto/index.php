@@ -207,7 +207,7 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                         <div class="relative h-48 bg-gray-200">
                             <!-- Checkbox Seleção em Lote -->
                             <div class="absolute top-2 left-2 z-10 bg-white/90 backdrop-blur-sm p-1 rounded-lg shadow border border-gray-200">
-                                <input type="checkbox" name="produto_massa_chk" value="<?= $model->id ?>" class="w-5 h-5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer block">
+                                <input type="checkbox" name="produto_massa_chk" value="<?= $model->id ?>" data-nome="<?= Html::encode($model->nome) ?>" class="w-5 h-5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer block">
                             </div>
 
                             <?php
@@ -406,7 +406,7 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                             <?php foreach ($dataProvider->getModels() as $model): ?>
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-4 py-4 text-center whitespace-nowrap">
-                                        <input type="checkbox" name="produto_massa_chk" value="<?= $model->id ?>" class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 cursor-pointer">
+                                        <input type="checkbox" name="produto_massa_chk" value="<?= $model->id ?>" data-nome="<?= Html::encode($model->nome) ?>" class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 cursor-pointer">
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="flex items-center">
