@@ -945,13 +945,34 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         let valorTotalStr = (vendaData.valor_total || '0').toString().replace(/\./g, '').replace(',', '.');
         let totalPagoNum = parseFloat(valorTotalStr) || 0;
 
-        // Desconto real = Subtotal Bruto - Total Pago (se maior que 0.009)
-        let diferenca = subtotalBruto - totalPagoNum;
-        let valDesconto = diferenca > 0.009 ? diferenca : 0;
-        let valAcrescimo = diferenca < -0.009 ? Math.abs(diferenca) : 0;
+        // 1. Extração de Desconto (Explícito ou Rateado)
+        let valDesconto = 0;
+        let descInputStr = (vendaData.desconto_valor || '0').toString().replace(/\./g, '').replace(',', '.');
+        let descInputVal = parseFloat(descInputStr) || 0;
+        if (descInputVal > 0) {
+            valDesconto = (vendaData.desconto_tipo === 'PERCENTUAL') ? subtotalBruto * (descInputVal / 100) : descInputVal;
+        }
 
-        // Se houver desconto ou acréscimo ou subtotalBruto diferente do pago, exibe o detalhamento completo
-        let temAjuste = (valDesconto > 0.009 || valAcrescimo > 0.009);
+        // 2. Extração de Acréscimo (Explícito ou Rateado)
+        let valAcrescimo = 0;
+        let acresInputStr = (vendaData.acrescimo_valor || '0').toString().replace(/\./g, '').replace(',', '.');
+        let acresInputVal = parseFloat(acresInputStr) || 0;
+        if (acresInputVal > 0) {
+            valAcrescimo = (vendaData.acrescimo_tipo === 'PERCENTUAL') ? subtotalBruto * (acresInputVal / 100) : acresInputVal;
+        }
+
+        // 3. Fallback inteligente de diferença líquida se ambos forem 0 mas subtotalBruto != totalPagoNum
+        if (valDesconto <= 0.009 && valAcrescimo <= 0.009) {
+            let diferenca = subtotalBruto - totalPagoNum;
+            if (diferenca > 0.009) {
+                valDesconto = diferenca;
+            } else if (diferenca < -0.009) {
+                valAcrescimo = Math.abs(diferenca);
+            }
+        }
+
+        // Exibe detalhamento se houver qualquer ajuste (desconto ou acréscimo)
+        let temAjuste = (valDesconto > 0.009 || valAcrescimo > 0.009 || Math.abs(subtotalBruto - totalPagoNum) > 0.009);
 
         container.innerHTML = `
             <div class="text-center border-b border-slate-200 pb-3 mb-3">
