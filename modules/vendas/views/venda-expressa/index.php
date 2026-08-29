@@ -1040,9 +1040,6 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         modal.classList.remove('hidden');
     }
 
-        modal.classList.remove('hidden');
-    }
-
     function fecharModalComprovanteVenda() {
         document.getElementById('modalComprovanteVenda').classList.add('hidden');
         document.getElementById('inputBuscaProduto').focus();
