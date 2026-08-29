@@ -437,12 +437,15 @@ if ($maxItensPorPagina > 15) {
         </div>
     </main>
 
-    <!-- Botões Flutuantes de Navegação Rápida (Subir / Descer Tela) -->
-    <div class="fixed bottom-24 right-4 z-40 flex flex-col gap-2">
-        <button onclick="rolarParaTopo()" title="Subir ao Topo" class="w-10 h-10 bg-slate-900/90 hover:bg-slate-800 text-white rounded-full shadow-2xl border-2 border-white/30 flex items-center justify-center backdrop-blur-md active:scale-95 transition cursor-pointer">
+    <!-- Botões Flutuantes de Navegação de Lâminas / Páginas -->
+    <div class="fixed bottom-24 right-4 z-40 flex flex-col items-center gap-1.5 bg-slate-900/90 p-2 rounded-2xl shadow-2xl border-2 border-white/20 backdrop-blur-md">
+        <button onclick="paginaAnterior()" title="Lâmina Anterior" class="w-10 h-10 bg-slate-800 hover:bg-slate-700 active:scale-95 text-white rounded-xl flex items-center justify-center transition cursor-pointer">
             <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 15l7-7 7 7"/></svg>
         </button>
-        <button onclick="rolarParaBaixo()" title="Rolar para Baixo" class="w-10 h-10 bg-slate-900/90 hover:bg-slate-800 text-white rounded-full shadow-2xl border-2 border-white/30 flex items-center justify-center backdrop-blur-md active:scale-95 transition cursor-pointer">
+        <div id="floatingPageBadge" class="text-[10px] font-black text-amber-300 font-montserrat px-1 text-center py-0.5">
+            1/<?= $totalPaginas ?>
+        </div>
+        <button onclick="proximaPagina()" title="Próxima Lâmina" class="w-10 h-10 bg-slate-800 hover:bg-slate-700 active:scale-95 text-white rounded-xl flex items-center justify-center transition cursor-pointer">
             <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"/></svg>
         </button>
     </div>
@@ -650,8 +653,7 @@ if ($maxItensPorPagina > 15) {
                     pageFlipInstance.loadFromHTML(document.querySelectorAll('.page-sheet'));
 
                     pageFlipInstance.on('flip', (e) => {
-                        paginaAtualNum = e.data + 1;
-                        document.getElementById('pageIndicator').textContent = `Página ${paginaAtualNum} / ${totalPaginasCount}`;
+                        atualizarIndicadoresPagina(e.data + 1);
                     });
 
                 } catch(e) {
@@ -659,28 +661,88 @@ if ($maxItensPorPagina > 15) {
                 }
             }
 
-            document.getElementById('btnPrevPage').addEventListener('click', () => {
-                if (pageFlipInstance) {
-                    pageFlipInstance.flipPrev();
-                } else {
-                    if (paginaAtualNum > 1) {
-                        paginaAtualNum--;
-                        irParaLamina(paginaAtualNum);
-                    }
-                }
-            });
+            document.getElementById('btnPrevPage').addEventListener('click', paginaAnterior);
+            document.getElementById('btnNextPage').addEventListener('click', proximaPagina);
 
-            document.getElementById('btnNextPage').addEventListener('click', () => {
-                if (pageFlipInstance) {
-                    pageFlipInstance.flipNext();
-                } else {
-                    if (paginaAtualNum < totalPaginasCount) {
-                        paginaAtualNum++;
-                        irParaLamina(paginaAtualNum);
-                    }
-                }
-            });
+            observarLaminasScroll();
         });
+
+        function paginaAnterior() {
+            if (pageFlipInstance) {
+                pageFlipInstance.flipPrev();
+            } else {
+                if (paginaAtualNum > 1) {
+                    irParaLamina(paginaAtualNum - 1);
+                } else {
+                    rolarParaTopo();
+                }
+            }
+        }
+
+        function proximaPagina() {
+            if (pageFlipInstance) {
+                pageFlipInstance.flipNext();
+            } else {
+                if (paginaAtualNum < totalPaginasCount) {
+                    irParaLamina(paginaAtualNum + 1);
+                }
+            }
+        }
+
+        function atualizarIndicadoresPagina(num) {
+            paginaAtualNum = num;
+            const elHeader = document.getElementById('pageIndicator');
+            if (elHeader) elHeader.textContent = `Página ${num} / ${totalPaginasCount}`;
+
+            const elFloat = document.getElementById('floatingPageBadge');
+            if (elFloat) elFloat.textContent = `${num}/${totalPaginasCount}`;
+        }
+
+        function observarLaminasScroll() {
+            const laminas = document.querySelectorAll('.page-sheet');
+            if (!laminas.length || typeof IntersectionObserver === 'undefined') return;
+
+            const observerOptions = {
+                root: null,
+                rootMargin: '-30% 0px -40% 0px',
+                threshold: [0.1, 0.4]
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const id = entry.target.id;
+                        if (id && id.startsWith('lamina-')) {
+                            const num = parseInt(id.replace('lamina-', ''), 10);
+                            if (num) {
+                                atualizarIndicadoresPagina(num);
+                            }
+                        }
+                    }
+                });
+            }, observerOptions);
+
+            laminas.forEach(lam => observer.observe(lam));
+        }
+
+        function irParaLamina(num) {
+            if (num < 1) num = 1;
+            if (num > totalPaginasCount) num = totalPaginasCount;
+
+            atualizarIndicadoresPagina(num);
+
+            const el = document.getElementById('lamina-' + num);
+            if (el) {
+                const headerOffset = 110;
+                const elementPosition = el.getBoundingClientRect().top;
+                const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+                window.scrollTo({
+                    top: Math.max(0, offsetPosition),
+                    behavior: 'smooth'
+                });
+            }
+        }
 
         // Cronômetro Regressivo Simulado (2 dias)
         function iniciarCronometroRegressivo() {
@@ -740,15 +802,6 @@ if ($maxItensPorPagina > 15) {
                     card.style.filter = 'grayscale(100%)';
                 }
             });
-        }
-
-        function irParaLamina(num) {
-            paginaAtualNum = num;
-            document.getElementById('pageIndicator').textContent = `Página ${num} / ${totalPaginasCount}`;
-            const el = document.getElementById('lamina-' + num);
-            if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
         }
 
         window.abrirModalDetalheProduto = function(prod) {
