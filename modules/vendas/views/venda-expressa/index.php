@@ -928,105 +928,117 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         const modal = document.getElementById('modalComprovanteVenda');
 
         let subtotalBruto = 0;
+        let totalDescontosItens = 0;
+        let totalPecas = 0;
+
         let itensHtml = (vendaData.itens || []).map(i => {
-            const sub = (parseFloat(i.precoVal) || 0) * (parseFloat(i.qtd) || 0);
-            subtotalBruto += sub;
+            const qtd = parseFloat(i.qtd || i.quantidade) || 0;
+            const unit = parseFloat(i.preco_unitario || i.precoVal) || 0;
+            const subBrutoItem = qtd * unit;
+            subtotalBruto += subBrutoItem;
+            totalPecas += qtd;
+
+            const descVal = parseFloat(i.desconto_valor) || 0;
+            const descPerc = parseFloat(i.desconto_percentual) || 0;
+            totalDescontosItens += descVal;
+
+            let descHtml = '';
+            if (descVal > 0.009) {
+                let percText = descPerc > 0 ? `${descPerc.toFixed(2)}%` : '';
+                descHtml = `
+                    <div class="flex justify-between items-center text-[10px] italic text-slate-500 pl-2">
+                        <span>(-) DESCONTO ${percText}</span>
+                        <span>- R$ ${descVal.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                `;
+            }
+
             return `
-                <tr class="border-b border-slate-100">
-                    <td class="py-1 text-left font-semibold">${i.nome}</td>
-                    <td class="py-1 text-center font-bold">${i.qtd} ${i.unidade || 'UN'}</td>
-                    <td class="py-1 text-right">R$ ${(parseFloat(i.precoVal) || 0).toFixed(2).replace('.', ',')}</td>
-                    <td class="py-1 text-right font-black">R$ ${sub.toFixed(2).replace('.', ',')}</td>
-                </tr>
+                <div class="py-1.5 border-b border-dashed border-slate-200">
+                    <div class="font-bold text-slate-900 text-xs uppercase leading-tight">${i.nome}</div>
+                    <div class="flex justify-between items-center text-[11px] text-slate-700 mt-0.5">
+                        <span>${qtd} x R$ ${unit.toFixed(2).replace('.', ',')}</span>
+                        <span class="font-bold">R$ ${subBrutoItem.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                    ${descHtml}
+                </div>
             `;
         }).join('');
 
-        // Converte valor_total pago para número float seguro
-        let valorTotalStr = (vendaData.valor_total || '0').toString().replace(/\./g, '').replace(',', '.');
-        let totalPagoNum = parseFloat(valorTotalStr) || 0;
+        // Parse totals
+        let totalPagoNum = parseFloat((vendaData.valor_total || '0').toString().replace(/\./g, '').replace(',', '.')) || 0;
+        let subtotalBrutoBackend = parseFloat((vendaData.subtotal_bruto || '0').toString().replace(/\./g, '').replace(',', '.')) || subtotalBruto;
+        let totalDescontoBackend = parseFloat((vendaData.total_desconto || '0').toString().replace(/\./g, '').replace(',', '.')) || totalDescontosItens;
+        let acrescimoValBackend = parseFloat((vendaData.acrescimo_valor || '0').toString().replace(/\./g, '').replace(',', '.')) || 0;
 
-        // 1. Extração de Desconto (Explícito ou Rateado)
-        let valDesconto = 0;
-        let descInputStr = (vendaData.desconto_valor || '0').toString().replace(/\./g, '').replace(',', '.');
-        let descInputVal = parseFloat(descInputStr) || 0;
-        if (descInputVal > 0) {
-            valDesconto = (vendaData.desconto_tipo === 'PERCENTUAL') ? subtotalBruto * (descInputVal / 100) : descInputVal;
+        let valDescontoFinal = Math.max(totalDescontoBackend, totalDescontosItens);
+        let valAcrescimoFinal = acrescimoValBackend;
+
+        // Fallback de diferença se backend não retornou explícito
+        if (valDescontoFinal <= 0.009 && valAcrescimoFinal <= 0.009) {
+            let diferenca = subtotalBrutoBackend - totalPagoNum;
+            if (diferenca > 0.009) valDescontoFinal = diferenca;
+            else if (diferenca < -0.009) valAcrescimoFinal = Math.abs(diferenca);
         }
 
-        // 2. Extração de Acréscimo (Explícito ou Rateado)
-        let valAcrescimo = 0;
-        let acresInputStr = (vendaData.acrescimo_valor || '0').toString().replace(/\./g, '').replace(',', '.');
-        let acresInputVal = parseFloat(acresInputStr) || 0;
-        if (acresInputVal > 0) {
-            valAcrescimo = (vendaData.acrescimo_tipo === 'PERCENTUAL') ? subtotalBruto * (acresInputVal / 100) : acresInputVal;
-        }
-
-        // 3. Fallback inteligente de diferença líquida se ambos forem 0 mas subtotalBruto != totalPagoNum
-        if (valDesconto <= 0.009 && valAcrescimo <= 0.009) {
-            let diferenca = subtotalBruto - totalPagoNum;
-            if (diferenca > 0.009) {
-                valDesconto = diferenca;
-            } else if (diferenca < -0.009) {
-                valAcrescimo = Math.abs(diferenca);
-            }
-        }
-
-        // Exibe detalhamento se houver qualquer ajuste (desconto ou acréscimo)
-        let temAjuste = (valDesconto > 0.009 || valAcrescimo > 0.009 || Math.abs(subtotalBruto - totalPagoNum) > 0.009);
+        let temAjuste = (valDescontoFinal > 0.009 || valAcrescimoFinal > 0.009 || Math.abs(subtotalBrutoBackend - totalPagoNum) > 0.009);
 
         container.innerHTML = `
-            <div class="text-center border-b border-slate-200 pb-3 mb-3">
-                <h2 class="text-base font-black uppercase text-slate-900">${lojaPixConfig.nome || 'COMPROVANTE DE VENDA'}</h2>
-                <p class="text-[10px] text-slate-500">${lojaPixConfig.cidade || 'Caruaru/PE'} • ${vendaData.data_hora}</p>
-                <p class="text-[10px] font-mono font-bold text-slate-600 mt-0.5">VENDA ID: ${vendaData.venda_id.substring(0, 8).toUpperCase()}</p>
+            <div class="text-center border-b border-dashed border-slate-300 pb-3 mb-2 font-mono">
+                <h2 class="text-base font-black uppercase text-slate-900 leading-tight">${lojaPixConfig.nome || 'COMPROVANTE DE VENDA'}</h2>
+                <p class="text-[10px] text-slate-500 mt-0.5">${lojaPixConfig.cidade || 'Caruaru, PE'} ${vendaData.data_hora ? '• ' + vendaData.data_hora : ''}</p>
+                <p class="text-[11px] font-bold text-slate-700 mt-1">VENDA Nº: ${(vendaData.venda_id || '').substring(0, 8).toUpperCase()}</p>
+                ${vendaData.cliente_nome ? `<p class="text-[10px] text-slate-600 uppercase mt-0.5">CLIENTE: ${vendaData.cliente_nome}</p>` : ''}
             </div>
 
-            <div class="border-b border-slate-200 pb-2 mb-2 text-[11px]">
-                <p><strong>CLIENTE:</strong> ${vendaData.cliente_nome}</p>
-                ${vendaData.cliente_telefone ? `<p><strong>WHATSAPP:</strong> ${vendaData.cliente_telefone}</p>` : ''}
-                <p><strong>FORMA DE PAGAMENTO:</strong> ${vendaData.forma_pagamento}</p>
+            <div class="space-y-1 mb-2 font-mono">
+                ${itensHtml}
             </div>
 
-            <table class="w-full text-[11px] mb-3">
-                <thead>
-                    <tr class="border-b-2 border-slate-300 uppercase text-[9px] text-slate-500 font-bold">
-                        <th class="text-left py-1">Item</th>
-                        <th class="text-center py-1">Qtd</th>
-                        <th class="text-right py-1">Vlr Unit</th>
-                        <th class="text-right py-1">Subtotal</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${itensHtml}
-                </tbody>
-            </table>
-
-            <div class="border-t-2 border-slate-900 pt-2 space-y-1 text-xs">
+            <div class="border-t border-dashed border-slate-400 pt-2 space-y-1 text-xs font-mono">
                 ${temAjuste ? `
-                <div class="flex items-center justify-between text-slate-600 font-semibold">
+                <div class="flex items-center justify-between text-slate-700">
                     <span>SUBTOTAL BRUTO:</span>
-                    <span class="font-bold text-slate-800">R$ ${subtotalBruto.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span class="font-bold">R$ ${subtotalBrutoBackend.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>` : ''}
-                ${valDesconto > 0.009 ? `
+                ${valDescontoFinal > 0.009 ? `
                 <div class="flex items-center justify-between text-rose-600 font-bold">
-                    <span>(-) DESCONTO APLICADO:</span>
-                    <span>- R$ ${valDesconto.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span>TOTAL DESCONTOS:</span>
+                    <span>- R$ ${valDescontoFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>` : ''}
-                ${valAcrescimo > 0.009 ? `
+                ${valAcrescimoFinal > 0.009 ? `
                 <div class="flex items-center justify-between text-blue-600 font-bold">
-                    <span>(+) ACRÉSCIMO APLICADO:</span>
-                    <span>+ R$ ${valAcrescimo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span>ACRESCIMO (${vendaData.acrescimo_tipo || 'VALOR'}):</span>
+                    <span>+ R$ ${valAcrescimoFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>` : ''}
-                <div class="border-t border-slate-300 pt-1.5 flex items-center justify-between font-black text-sm">
-                    <span>TOTAL PAGO:</span>
-                    <span class="text-emerald-700">R$ ${vendaData.valor_total}</span>
+                <div class="flex items-center justify-between font-black text-sm text-slate-900 pt-1 border-t border-slate-300">
+                    <span>TOTAL LIQUIDO:</span>
+                    <span class="text-emerald-700">R$ ${vendaData.valor_total || totalPagoNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div class="text-[10px] text-slate-500 font-bold pt-0.5">
+                    TOTAL DE ITENS: ${totalPecas}
                 </div>
             </div>
 
-            <div class="text-center pt-3 border-t border-slate-200 text-[10px] text-slate-500 italic">
-                Obrigado pela preferência! Venda registrada no ERP.
+            <div class="border-t border-dashed border-slate-300 pt-2 text-[11px] font-mono space-y-1">
+                <p><strong>FORMA DE PAGAMENTO:</strong> ${vendaData.forma_pagamento || 'Dinheiro'}</p>
+                <p class="underline font-bold">VALOR PAGO: R$ ${vendaData.valor_total || totalPagoNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </div>
+
+            ${vendaData.observacoes ? `
+            <div class="border-t border-dashed border-slate-300 pt-2 text-[10px] font-mono text-slate-600">
+                <p class="font-bold uppercase text-slate-800">OBSERVACOES:</p>
+                <p class="break-words">${vendaData.observacoes}</p>
+            </div>` : ''}
+
+            <div class="text-center pt-3 border-t border-dashed border-slate-300 text-[10px] text-slate-500 italic font-mono">
+                Obrigado pela preferência!<br>
+                <span class="font-bold uppercase">${lojaPixConfig.nome || ''}</span>
             </div>
         `;
+
+        modal.classList.remove('hidden');
+    }
 
         modal.classList.remove('hidden');
     }

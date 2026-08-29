@@ -316,13 +316,39 @@ class VendaExpressaController extends Controller
 
             $transaction->commit();
 
+            $itensResponse = [];
+            $totalPecasCount = 0;
+            foreach ($venda->itens as $vItem) {
+                $subItemBruto = (float)($vItem->quantidade * $vItem->preco_unitario_venda);
+                $totalPecasCount += (float)$vItem->quantidade;
+                $itensResponse[] = [
+                    'id' => $vItem->produto_id,
+                    'nome' => $vItem->getNomeExibicao(),
+                    'qtd' => (float)$vItem->quantidade,
+                    'unidade' => ($vItem->produto && $vItem->produto->unidade_medida) ? $vItem->produto->unidade_medida : 'UN',
+                    'preco_unitario' => (float)$vItem->preco_unitario_venda,
+                    'precoVal' => (float)$vItem->preco_unitario_venda,
+                    'subtotal' => $subItemBruto,
+                    'desconto_valor' => (float)$vItem->desconto_valor,
+                    'desconto_percentual' => (float)$vItem->desconto_percentual,
+                ];
+            }
+
             return [
                 'success' => true,
                 'message' => 'Venda Expressa registrada com sucesso!',
                 'venda_id' => $venda->id,
+                'subtotal_bruto' => number_format($subtotalItens, 2, ',', '.'),
+                'total_desconto' => number_format($valDesconto, 2, ',', '.'),
+                'acrescimo_valor' => number_format($valAcrescimo, 2, ',', '.'),
+                'acrescimo_tipo' => $venda->acrescimo_tipo,
                 'valor_total' => number_format($valorTotalFinal, 2, ',', '.'),
-                'cliente_nome' => $cliente ? $cliente->nome_completo : null,
+                'total_pecas' => $totalPecasCount,
+                'cliente_nome' => $cliente ? $cliente->nome_completo : ($clienteNomeRaw ?: 'Cliente Balcão'),
                 'cliente_telefone' => $cliente ? $cliente->telefone : $clienteWhatsappRaw,
+                'forma_pagamento' => $formaPagamento ? $formaPagamento->nome : 'DINHEIRO',
+                'observacoes' => $venda->observacoes,
+                'itens' => $itensResponse,
                 'resumoHoje' => $this->getResumoHoje($lojaId),
             ];
 
