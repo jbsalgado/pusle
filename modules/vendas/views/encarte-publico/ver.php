@@ -379,7 +379,7 @@ if ($maxItensPorPagina > 15) {
                                 'codigo' => $produto->codigo_barras ?: $produto->codigo_referencia ?: ''
                             ]));
                         ?>
-                            <div data-prod-nome="<?= Html::encode(mb_strtolower($produto->nome)) ?>" data-prod-cat="<?= Html::encode($catNome) ?>" onclick="abrirModalDetalheProduto(<?= $jsonProdData ?>)" ontouchend="abrirModalDetalheProduto(<?= $jsonProdData ?>)" class="hotspot-card bg-slate-50 rounded-xl <?= $cardPaddingClass ?> flex flex-col justify-between relative overflow-hidden group">
+                            <div data-prod-nome="<?= Html::encode(mb_strtolower($produto->nome)) ?>" data-prod-cat="<?= Html::encode($catNome) ?>" onclick="abrirModalDetalheProduto(<?= $jsonProdData ?>)" class="hotspot-card bg-slate-50 rounded-xl <?= $cardPaddingClass ?> flex flex-col justify-between relative overflow-hidden group">
                                 
                                 <?php if ($exibirBadge): ?>
                                     <!-- Badge Starburst Oferta -->
