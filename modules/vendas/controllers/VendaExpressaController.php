@@ -254,26 +254,60 @@ class VendaExpressaController extends Controller
                 throw new \Exception('Erro ao salvar venda: ' . implode(', ', $venda->getFirstErrors()));
             }
 
-            // Criar VendaItens e dar baixa de estoque se configurado
-            foreach ($itensValidados as $itemData) {
+            // Criar VendaItens, ratear descontos e dar baixa de estoque real com histórico de movimentação
+            $totalItensCount = count($itensValidados);
+            $descontoDistribuido = 0;
+
+            foreach ($itensValidados as $idx => $itemData) {
                 $p = $itemData['produto'];
                 $vendaItem = new VendaItem();
                 $vendaItem->venda_id = $venda->id;
                 $vendaItem->produto_id = $p->id;
                 $vendaItem->quantidade = $itemData['quantidade'];
                 $vendaItem->preco_unitario_venda = $itemData['preco_unitario'];
-                $vendaItem->valor_total_item = $itemData['subtotal'];
-                $vendaItem->desconto_valor = 0;
-                $vendaItem->desconto_percentual = 0;
+
+                // Rateio proporcional do Desconto Geral nos itens
+                $itemDescontoVal = 0;
+                $itemDescontoPerc = 0;
+                if ($valDesconto > 0 && $subtotalItens > 0) {
+                    if ($idx === $totalItensCount - 1) {
+                        $itemDescontoVal = round($valDesconto - $descontoDistribuido, 2);
+                    } else {
+                        $itemDescontoVal = round(($itemData['subtotal'] / $subtotalItens) * $valDesconto, 2);
+                        $descontoDistribuido += $itemDescontoVal;
+                    }
+                    $itemDescontoPerc = ($itemData['subtotal'] > 0) ? round(($itemDescontoVal / $itemData['subtotal']) * 100, 2) : 0;
+                }
+
+                $vendaItem->desconto_valor = max(0, $itemDescontoVal);
+                $vendaItem->desconto_percentual = max(0, $itemDescontoPerc);
+                $vendaItem->valor_total_item = max(0, $itemData['subtotal'] - $vendaItem->desconto_valor);
 
                 if (!$vendaItem->save()) {
                     throw new \Exception('Erro ao salvar item da venda.');
                 }
 
-                // Baixa de estoque opcional (se produto tiver estoque_atual cadastrado > 0)
-                if ($p->estoque_atual !== null && $p->estoque_atual > 0) {
-                    $p->estoque_atual = max(0, $p->estoque_atual - $itemData['quantidade']);
-                    $p->save(false, ['estoque_atual']);
+                // Baixa de estoque real (permite saldo negativo se vendido sem estoque) e log de movimentação
+                $saldoAnterior = (float)($p->estoque_atual ?? 0);
+                $p->baixarEstoque($itemData['quantidade']);
+                $p->refresh();
+                $saldoNovo = (float)($p->estoque_atual ?? 0);
+
+                try {
+                    Yii::$app->db->createCommand()->insert('prest_estoque_movimentacoes', [
+                        'id' => Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar(),
+                        'produto_id' => $p->id,
+                        'usuario_id' => $lojaId,
+                        'tipo_movimentacao' => 'SAIDA',
+                        'quantidade' => $itemData['quantidade'],
+                        'saldo_anterior' => $saldoAnterior,
+                        'saldo_novo' => $saldoNovo,
+                        'venda_id' => $venda->id,
+                        'observacao' => 'Saída por Venda Expressa #' . strtoupper(substr($venda->id, 0, 8)),
+                        'data_movimentacao' => date('Y-m-d H:i:s'),
+                    ])->execute();
+                } catch (\Exception $eMov) {
+                    Yii::warning('Falha ao registrar movimentação de estoque: ' . $eMov->getMessage(), __METHOD__);
                 }
             }
 

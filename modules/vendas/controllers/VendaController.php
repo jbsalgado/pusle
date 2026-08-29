@@ -263,7 +263,7 @@ class VendaController extends Controller
             if (!$gift) {
                 $detalhes = number_format($item->quantidade, $decimais, ',', '.') . ' x R$ ' . number_format($item->preco_unitario_venda, 2, ',', '.');
                 $pdf->Cell(40, 4, $detalhes, 0, 0, 'L');
-                $pdf->Cell(40, 4, 'R$ ' . number_format($item->valor_total_item, 2, ',', '.'), 0, 1, 'R');
+                $pdf->Cell(40, 4, 'R$ ' . number_format($subBruto, 2, ',', '.'), 0, 1, 'R');
 
                 if ($item->desconto_valor > 0.01) {
                     $pdf->SetFont('Courier', 'I', 8);
@@ -283,14 +283,18 @@ class VendaController extends Controller
         // --- TOTAIS ---
         if (!$gift) {
             $pdf->SetFont('Courier', '', 10);
-            if ($totalDescontos > 0 || (float)$model->acrescimo_valor > 0.01) {
+            $diferencaDesconto = max(0, $totalBruto - (float)$model->valor_total + (float)$model->acrescimo_valor);
+            $temDesconto = ($totalDescontos > 0.01 || $diferencaDesconto > 0.01);
+            $valDescontoExibir = max($totalDescontos, $diferencaDesconto);
+
+            if ($temDesconto || (float)$model->acrescimo_valor > 0.01) {
                 $pdf->Cell(40, 5, 'SUBTOTAL BRUTO:', 0, 0, 'L');
                 $pdf->Cell(40, 5, 'R$ ' . number_format($totalBruto, 2, ',', '.'), 0, 1, 'R');
 
-                if ($totalDescontos > 0.01) {
+                if ($temDesconto) {
                     $pdf->SetTextColor(150, 0, 0);
                     $pdf->Cell(40, 5, 'TOTAL DESCONTOS:', 0, 0, 'L');
-                    $pdf->Cell(40, 5, '- R$ ' . number_format($totalDescontos, 2, ',', '.'), 0, 1, 'R');
+                    $pdf->Cell(40, 5, '- R$ ' . number_format($valDescontoExibir, 2, ',', '.'), 0, 1, 'R');
                     $pdf->SetTextColor(0, 0, 0);
                 }
 
@@ -481,19 +485,23 @@ class VendaController extends Controller
         $pdf->Cell(155, 6, utf8_decode("TOTAL DE ITENS:"), 0, 0, 'R');
         $pdf->Cell(35, 6, number_format($totalPecas, 0), 0, 1, 'R');
 
-        if ($totalDescontos > 0 || $model->acrescimo_valor > 0) {
+        $diferencaDescontoA4 = max(0, $subtotalBruto - (float)$model->valor_total + (float)$model->acrescimo_valor);
+        $temDescontoA4 = ($totalDescontos > 0.01 || $diferencaDescontoA4 > 0.01);
+        $valDescontoA4Exibir = max($totalDescontos, $diferencaDescontoA4);
+
+        if ($temDescontoA4 || (float)$model->acrescimo_valor > 0.01) {
             $pdf->SetFont('Arial', '', 10);
             $pdf->Cell(155, 6, utf8_decode("SUBTOTAL BRUTO:"), 0, 0, 'R');
             $pdf->Cell(35, 6, "R$ " . number_format($subtotalBruto, 2, ',', '.'), 0, 1, 'R');
 
-            if ($totalDescontos > 0) {
+            if ($temDescontoA4) {
                 $pdf->SetTextColor(150, 0, 0);
                 $pdf->Cell(155, 6, utf8_decode("(-) TOTAL DESCONTOS:"), 0, 0, 'R');
-                $pdf->Cell(35, 6, "-R$ " . number_format($totalDescontos, 2, ',', '.'), 0, 1, 'R');
+                $pdf->Cell(35, 6, "-R$ " . number_format($valDescontoA4Exibir, 2, ',', '.'), 0, 1, 'R');
                 $pdf->SetTextColor(0, 0, 0);
             }
 
-            if ($model->acrescimo_valor > 0) {
+            if ((float)$model->acrescimo_valor > 0.01) {
                 $pdf->SetTextColor(0, 0, 150);
                 $tipoAcrescimo = $model->acrescimo_tipo ? " ({$model->acrescimo_tipo})" : "";
                 $pdf->Cell(155, 6, utf8_decode("(+) ACRÉSCIMO{$tipoAcrescimo}:"), 0, 0, 'R');

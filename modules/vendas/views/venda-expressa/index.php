@@ -347,6 +347,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             precoVal: <?= (float)$p->preco_venda_sugerido ?>,
             precoStr: <?= json_encode($precoStr) ?>,
             unidade: <?= json_encode($p->unidade_medida ?: 'UN') ?>,
+            estoqueVal: <?= (float)($p->estoque_atual ?? 0) ?>,
             foto: <?= json_encode($urlFoto) ?>
         },
         <?php endforeach; ?>
@@ -455,13 +456,19 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             };
 
             const nomeHighlighted = highlightTermo(prod.nome, termoClean);
+            const estoqueBadge = prod.estoqueVal > 0 
+                ? `<span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-extrabold px-1.5 py-0.5 rounded">Estoque: ${prod.estoqueVal}</span>`
+                : `<span class="bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[9px] font-extrabold px-1.5 py-0.5 rounded">⚠️ Sem estoque (${prod.estoqueVal})</span>`;
 
             item.innerHTML = `
                 <div class="flex items-center gap-3 flex-1 min-w-0">
                     ${prod.foto ? `<img src="${prod.foto}" class="w-9 h-9 object-contain rounded-lg bg-white p-0.5 flex-shrink-0">` : `<div class="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center text-[9px] font-bold text-slate-500 flex-shrink-0">FOTO</div>`}
                     <div class="truncate">
                         <div class="font-extrabold text-xs text-white group-hover:text-amber-300 truncate">${nomeHighlighted}</div>
-                        ${prod.marca ? `<div class="text-[10px] text-slate-400 font-semibold">${prod.marca}</div>` : ''}
+                        <div class="flex items-center gap-2 mt-0.5">
+                            ${prod.marca ? `<span class="text-[10px] text-slate-400 font-semibold">${prod.marca}</span>` : ''}
+                            ${estoqueBadge}
+                        </div>
                     </div>
                 </div>
                 <div class="text-right flex-shrink-0">
@@ -526,6 +533,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                 nome: prod.nome,
                 precoVal: prod.precoVal,
                 unidade: prod.unidade,
+                estoqueVal: prod.estoqueVal,
                 foto: prod.foto,
                 qtd: 1
             };
@@ -622,13 +630,20 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                 subtotalCalculado += sub;
                 totalQtdItens += item.qtd;
 
+                const avisoEstoque = (item.estoqueVal <= 0 || item.qtd > item.estoqueVal)
+                    ? `<span class="bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[9px] font-bold px-1.5 py-0.5 rounded ml-1">⚠️ Sem estoque (saldo: ${item.estoqueVal})</span>`
+                    : '';
+
                 const div = document.createElement('div');
                 div.className = 'flex items-center justify-between p-3 bg-slate-900 border border-slate-700 rounded-2xl gap-3';
                 div.innerHTML = `
                     <div class="flex items-center gap-2.5 flex-1 min-w-0">
                         ${item.foto ? `<img src="${item.foto}" class="w-10 h-10 object-contain rounded-lg bg-white p-0.5 flex-shrink-0">` : `<div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-[9px] font-bold text-slate-500 flex-shrink-0">FOTO</div>`}
                         <div class="truncate">
-                            <div class="font-extrabold text-xs text-white truncate">${item.nome}</div>
+                            <div class="font-extrabold text-xs text-white truncate flex items-center flex-wrap gap-1">
+                                <span>${item.nome}</span>
+                                ${avisoEstoque}
+                            </div>
                             <div class="flex items-center gap-1 mt-0.5 text-[11px] text-slate-400">
                                 <span>R$</span>
                                 <input type="text" value="${item.precoVal.toFixed(2).replace('.', ',')}" oninput="aplicarMascaraMoedaInput(this); atualizarPrecoDireta('${item.id}', this.value)" class="w-20 bg-slate-800 text-amber-400 font-bold px-1 py-0.5 rounded border border-slate-700 text-center">
@@ -873,7 +888,11 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                     cliente_telefone: data.cliente_telefone || clienteWhatsappInput || '',
                     data_hora: new Date().toLocaleString('pt-BR'),
                     forma_pagamento: formaPagamentoSelecionadaNome,
-                    itens: [...lista]
+                    itens: [...lista],
+                    desconto_valor: payload.desconto_valor,
+                    desconto_tipo: payload.desconto_tipo,
+                    acrescimo_valor: payload.acrescimo_valor,
+                    acrescimo_tipo: payload.acrescimo_tipo
                 };
 
                 // Atualizar Indicadores de Venda em Tempo Real
@@ -908,17 +927,31 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         const container = document.getElementById('comprovanteReciboContainer');
         const modal = document.getElementById('modalComprovanteVenda');
 
+        let subtotalBruto = 0;
         let itensHtml = (vendaData.itens || []).map(i => {
-            const sub = i.precoVal * i.qtd;
+            const sub = (parseFloat(i.precoVal) || 0) * (parseFloat(i.qtd) || 0);
+            subtotalBruto += sub;
             return `
                 <tr class="border-b border-slate-100">
                     <td class="py-1 text-left font-semibold">${i.nome}</td>
                     <td class="py-1 text-center font-bold">${i.qtd} ${i.unidade || 'UN'}</td>
-                    <td class="py-1 text-right">R$ ${i.precoVal.toFixed(2).replace('.', ',')}</td>
+                    <td class="py-1 text-right">R$ ${(parseFloat(i.precoVal) || 0).toFixed(2).replace('.', ',')}</td>
                     <td class="py-1 text-right font-black">R$ ${sub.toFixed(2).replace('.', ',')}</td>
                 </tr>
             `;
         }).join('');
+
+        // Converte valor_total pago para número float seguro
+        let valorTotalStr = (vendaData.valor_total || '0').toString().replace(/\./g, '').replace(',', '.');
+        let totalPagoNum = parseFloat(valorTotalStr) || 0;
+
+        // Desconto real = Subtotal Bruto - Total Pago (se maior que 0.009)
+        let diferenca = subtotalBruto - totalPagoNum;
+        let valDesconto = diferenca > 0.009 ? diferenca : 0;
+        let valAcrescimo = diferenca < -0.009 ? Math.abs(diferenca) : 0;
+
+        // Se houver desconto ou acréscimo ou subtotalBruto diferente do pago, exibe o detalhamento completo
+        let temAjuste = (valDesconto > 0.009 || valAcrescimo > 0.009);
 
         container.innerHTML = `
             <div class="text-center border-b border-slate-200 pb-3 mb-3">
@@ -947,9 +980,26 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                 </tbody>
             </table>
 
-            <div class="border-t-2 border-slate-900 pt-2 flex items-center justify-between font-black text-sm">
-                <span>TOTAL PAGO:</span>
-                <span class="text-emerald-700">R$ ${vendaData.valor_total}</span>
+            <div class="border-t-2 border-slate-900 pt-2 space-y-1 text-xs">
+                ${temAjuste ? `
+                <div class="flex items-center justify-between text-slate-600 font-semibold">
+                    <span>SUBTOTAL BRUTO:</span>
+                    <span class="font-bold text-slate-800">R$ ${subtotalBruto.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>` : ''}
+                ${valDesconto > 0.009 ? `
+                <div class="flex items-center justify-between text-rose-600 font-bold">
+                    <span>(-) DESCONTO APLICADO:</span>
+                    <span>- R$ ${valDesconto.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>` : ''}
+                ${valAcrescimo > 0.009 ? `
+                <div class="flex items-center justify-between text-blue-600 font-bold">
+                    <span>(+) ACRÉSCIMO APLICADO:</span>
+                    <span>+ R$ ${valAcrescimo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>` : ''}
+                <div class="border-t border-slate-300 pt-1.5 flex items-center justify-between font-black text-sm">
+                    <span>TOTAL PAGO:</span>
+                    <span class="text-emerald-700">R$ ${vendaData.valor_total}</span>
+                </div>
             </div>
 
             <div class="text-center pt-3 border-t border-slate-200 text-[10px] text-slate-500 italic">
