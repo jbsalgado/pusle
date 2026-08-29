@@ -123,14 +123,40 @@ use yii\helpers\Url;
 
                 <!-- Seção Evolution API (Envio via WhatsApp) -->
                 <div class="border-t border-gray-100 pt-5 space-y-4">
-                    <h4 class="font-extrabold text-sm text-gray-900 flex items-center gap-2">
-                        <span class="p-1.5 bg-green-100 text-green-700 rounded-lg">💬</span>
-                        Disparar Link + PDF via WhatsApp (Evolution API)
-                    </h4>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <h4 class="font-extrabold text-sm text-gray-900 flex items-center gap-2">
+                            <span class="p-1.5 bg-green-100 text-green-700 rounded-lg">💬</span>
+                            Disparar Link + PDF via WhatsApp (Evolution API)
+                        </h4>
+                        <span id="badgeContadorTelefones" class="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
+                            📊 0 número(s) selecionado(s)
+                        </span>
+                    </div>
+
+                    <!-- Controles para Carregar Clientes da Base e Limpeza -->
+                    <div class="bg-slate-50 border border-slate-200 p-3 rounded-2xl space-y-2">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-xs font-bold text-slate-700 uppercase">👥 Clientes da Base (Lote Seguro):</span>
+                                <div class="inline-flex rounded-xl shadow-sm border border-slate-300 bg-white overflow-hidden text-xs">
+                                    <button type="button" onclick="carregarClientesBaseZap(5)" class="px-2.5 py-1.5 hover:bg-slate-100 border-r border-slate-200 font-extrabold text-slate-800 transition">5</button>
+                                    <button type="button" onclick="carregarClientesBaseZap(10)" class="px-2.5 py-1.5 hover:bg-slate-100 border-r border-slate-200 font-extrabold text-slate-800 transition">10</button>
+                                    <button type="button" onclick="carregarClientesBaseZap(20)" class="px-2.5 py-1.5 hover:bg-slate-100 border-r border-slate-200 font-extrabold text-green-700 transition">20 (Recomendado)</button>
+                                    <button type="button" onclick="carregarClientesBaseZap(50)" class="px-2.5 py-1.5 hover:bg-slate-100 font-extrabold text-slate-800 transition">50</button>
+                                </div>
+                            </div>
+                            <button type="button" onclick="limparTelefonesEncarte()" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold text-xs rounded-xl transition flex items-center gap-1">
+                                🗑️ Limpar Lista
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-slate-500 font-medium italic">
+                            * Seleciona clientes aleatórios da sua base com pausas automáticas entre envios para evitar bloqueios no WhatsApp.
+                        </p>
+                    </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Telefones Adicionais de Destino (opcional)</label>
-                        <textarea id="encarte_telefones" rows="2" class="w-full p-2.5 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-red-500" placeholder="Digite ou cole telefones separados por vírgula ou linha (ex: 81999998888, 81988887777)"></textarea>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Telefones / Contatos de Destino (Inclusão manual ou via base):</label>
+                        <textarea id="encarte_telefones" oninput="atualizarContadorTelefones()" rows="3" class="w-full p-2.5 border border-gray-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-red-500" placeholder="Cole ou digite números separados por vírgula ou linha (ex: 81999998888, 81988887777 ou 5581999998888 # Nome Cliente)"></textarea>
                     </div>
 
                     <div>
@@ -427,5 +453,68 @@ Aproveite nossos preços especiais válidos esta semana!</textarea>
             btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg> Disparar Encarte e PDF via WhatsApp (Evolution)';
             alert('Erro de conexão: ' + err.message);
         });
+    }
+
+    function carregarClientesBaseZap(qtd = 20) {
+        const txt = document.getElementById('encarte_telefones');
+        if (!txt) return;
+
+        txt.placeholder = '⌛ Carregando clientes aleatórios da base...';
+
+        fetch('<?= Url::to(['/vendas/encarte/carregar-clientes-zap']) ?>?qtd=' + qtd, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            txt.placeholder = 'Cole ou digite números separados por vírgula ou linha (ex: 81999998888, 81988887777 ou 5581999998888 # Nome Cliente)';
+            if (data.success && data.texto_formatado) {
+                let conteudoAtual = txt.value.trim();
+                if (conteudoAtual) {
+                    txt.value = conteudoAtual + "\n" + data.texto_formatado;
+                } else {
+                    txt.value = data.texto_formatado;
+                }
+                atualizarContadorTelefones();
+                alert(`✅ ${data.qtd} cliente(s) aleatório(s) carregado(s) da base com sucesso!`);
+            } else {
+                alert('Aviso: ' + (data.message || 'Nenhum cliente com telefone cadastrado foi encontrado.'));
+            }
+        })
+        .catch(err => {
+            txt.placeholder = 'Cole ou digite números separados por vírgula ou linha...';
+            alert('Erro ao carregar clientes: ' + err.message);
+        });
+    }
+
+    function limparTelefonesEncarte() {
+        const txt = document.getElementById('encarte_telefones');
+        if (txt) {
+            txt.value = '';
+            atualizarContadorTelefones();
+        }
+    }
+
+    function atualizarContadorTelefones() {
+        const txt = document.getElementById('encarte_telefones');
+        const badge = document.getElementById('badgeContadorTelefones');
+        if (!txt || !badge) return;
+
+        const val = txt.value.trim();
+        if (!val) {
+            badge.textContent = '📊 0 número(s) selecionado(s)';
+            return;
+        }
+
+        const linhas = val.split(/[\n,;]+/);
+        let count = 0;
+        linhas.forEach(l => {
+            const numClean = l.split('#')[0].replace(/\D/g, '');
+            if (numClean.length >= 10) count++;
+        });
+
+        badge.textContent = `📊 ${count} número(s) selecionado(s)`;
     }
 </script>

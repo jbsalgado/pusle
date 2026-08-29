@@ -196,7 +196,12 @@ class EncarteController extends Controller
             $enviados = 0;
             $erros = 0;
 
-            foreach ($numeros as $num) {
+            foreach ($numeros as $idx => $num) {
+                if ($idx > 0) {
+                    // Pausa humanizada entre disparos (1.2 a 2.5 segundos) para proteção anti-bloqueio WhatsApp
+                    usleep(rand(1200000, 2500000));
+                }
+
                 // 1. Envia Mensagem de Texto com Link
                 $resMsg = $evolution->sendMessage($lojaId, $num, $textoEnvio);
 
@@ -221,6 +226,56 @@ class EncarteController extends Controller
             Yii::error("EncarteController::actionEnviarWhatsapp erro: " . $e->getMessage(), __METHOD__);
             return ['success' => false, 'message' => 'Erro ao enviar via WhatsApp: ' . $e->getMessage()];
         }
+    }
+
+    /**
+     * Retorna contatos aleatórios de clientes da base para disparos de encarte em massa com proteção anti-bloqueio.
+     */
+    public function actionCarregarClientesZap()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $lojaId = $this->getLojaId();
+
+        $request = Yii::$app->request;
+        $qtd = max(1, min(100, (int)($request->post('qtd') ?: $request->get('qtd', 20))));
+
+        $clientes = \app\modules\vendas\models\Cliente::find()
+            ->where(['usuario_id' => $lojaId, 'ativo' => true])
+            ->andWhere(['or', ['not', ['telefone' => null]], ['not', ['telefone' => '']]])
+            ->orderBy(new \yii\db\Expression('RANDOM()'))
+            ->limit($qtd)
+            ->all();
+
+        if (empty($clientes)) {
+            $clientes = \app\modules\vendas\models\Clientes::find()
+                ->where(['usuario_id' => $lojaId, 'ativo' => true])
+                ->orderBy(new \yii\db\Expression('RANDOM()'))
+                ->limit($qtd)
+                ->all();
+        }
+
+        $listaTelefones = [];
+        $linhasFormatadas = [];
+
+        foreach ($clientes as $c) {
+            $numRaw = !empty($c->telefone) ? $c->telefone : (!empty($c->celular) ? $c->celular : '');
+            $clean = preg_replace('/[^0-9]/', '', $numRaw);
+            if (strlen($clean) >= 10) {
+                if (strlen($clean) <= 11 && strpos($clean, '55') !== 0) {
+                    $clean = '55' . $clean;
+                }
+                $nomeCli = !empty($c->nome_completo) ? $c->nome_completo : (!empty($c->nome) ? $c->nome : 'Cliente');
+                $listaTelefones[] = $clean;
+                $linhasFormatadas[] = "{$clean} # {$nomeCli}";
+            }
+        }
+
+        return [
+            'success' => true,
+            'qtd' => count($listaTelefones),
+            'texto_formatado' => implode("\n", $linhasFormatadas),
+            'message' => count($listaTelefones) . ' cliente(s) aleatório(s) carregado(s) da base com sucesso.'
+        ];
     }
 
     /**
