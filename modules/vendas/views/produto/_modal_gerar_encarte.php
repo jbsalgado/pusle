@@ -534,11 +534,10 @@ Aproveite nossos preços especiais válidos esta semana!</textarea>
             const payload = {
                 produtos_ids: produtosEncarteSelecionados,
                 produtos_tags: coletarTagsProdutosMap(),
-                titulo: document.getElementById('encarte_titulo').value,
-                subtitulo: document.getElementById('encarte_subtitulo').value,
-                estilo_layout: document.getElementById('encarte_estilo_layout').value,
-                cor_tema: document.getElementById('encarte_cor_tema').value,
-                produtos_por_pagina: document.getElementById('encarte_ppp').value,
+                titulo: document.getElementById('encarte_titulo')?.value || 'OFERTA IMBATÍVEL DA SEMANA',
+                subtitulo: document.getElementById('encarte_subtitulo')?.value || '',
+                cor_tema: document.getElementById('encarte_cor_tema')?.value || 'red_gold',
+                produtos_por_pagina: document.getElementById('encarte_ppp')?.value || '6',
                 '<?= Yii::$app->request->csrfParam ?>': '<?= Yii::$app->request->csrfToken ?>'
             };
 
