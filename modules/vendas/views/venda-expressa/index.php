@@ -882,17 +882,19 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             if (data.success) {
                 // Guarda dados da venda para o comprovante
                 dadosUltimaVendaFinalizada = {
+                    ...data,
                     venda_id: data.venda_id,
                     valor_total: data.valor_total,
+                    subtotal_bruto: data.subtotal_bruto,
+                    total_desconto: data.total_desconto,
+                    acrescimo_valor: data.acrescimo_valor,
+                    acrescimo_tipo: data.acrescimo_tipo || payload.acrescimo_tipo,
                     cliente_nome: data.cliente_nome || clienteNomeInput || 'Cliente Balcão',
                     cliente_telefone: data.cliente_telefone || clienteWhatsappInput || '',
                     data_hora: new Date().toLocaleString('pt-BR'),
-                    forma_pagamento: formaPagamentoSelecionadaNome,
-                    itens: [...lista],
-                    desconto_valor: payload.desconto_valor,
-                    desconto_tipo: payload.desconto_tipo,
-                    acrescimo_valor: payload.acrescimo_valor,
-                    acrescimo_tipo: payload.acrescimo_tipo
+                    forma_pagamento: data.forma_pagamento || formaPagamentoSelecionadaNome,
+                    observacoes: data.observacoes || document.getElementById('inputObservacoes').value,
+                    itens: (data.itens && data.itens.length > 0) ? data.itens : [...lista]
                 };
 
                 // Atualizar Indicadores de Venda em Tempo Real
