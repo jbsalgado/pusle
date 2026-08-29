@@ -133,6 +133,8 @@ class VendaExpressaController extends Controller
             }
         }
 
+        $formaPagamento = !empty($formaPagamentoId) ? FormaPagamento::findOne($formaPagamentoId) : null;
+
         if (empty($itensPost) || !is_array($itensPost)) {
             return ['success' => false, 'message' => 'Nenhum produto foi adicionado à venda.'];
         }
