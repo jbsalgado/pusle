@@ -166,10 +166,17 @@ use yii\helpers\Url;
 Aproveite nossos preços especiais válidos esta semana!</textarea>
                     </div>
 
-                    <button type="button" id="btnEnviarEncarteWp" onclick="dispararEncarteEvolution()" class="w-full py-3.5 bg-green-600 hover:bg-green-700 text-white font-extrabold rounded-2xl transition shadow-lg flex items-center justify-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-                        Disparar Encarte e PDF via WhatsApp (Evolution)
-                    </button>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button type="button" id="btnEnviarEncarteWp" onclick="dispararEncarteEvolution()" class="w-full py-3.5 bg-green-600 hover:bg-green-700 text-white font-extrabold rounded-2xl transition shadow-lg flex items-center justify-center gap-2 text-xs">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                            Disparar Contatos (Link + PDF)
+                        </button>
+
+                        <button type="button" id="btnPostarStatusWp" onclick="postarEncarteStatusEvolution()" class="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold rounded-2xl transition shadow-lg flex items-center justify-center gap-2 text-xs">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            📸 Postar Imagem no Status do WhatsApp
+                        </button>
+                    </div>
                 </div>
 
             </div>
@@ -516,5 +523,91 @@ Aproveite nossos preços especiais válidos esta semana!</textarea>
         });
 
         badge.textContent = `📊 ${count} número(s) selecionado(s)`;
+    }
+
+    function postarEncarteStatusEvolution() {
+        if (!ultimoEncarteId) {
+            const btnStatus = document.getElementById('btnPostarStatusWp');
+            btnStatus.disabled = true;
+            btnStatus.innerHTML = '⌛ Gerando Encarte Previo...';
+
+            const payload = {
+                produtos_ids: produtosEncarteSelecionados,
+                produtos_tags: coletarTagsProdutosMap(),
+                titulo: document.getElementById('encarte_titulo').value,
+                subtitulo: document.getElementById('encarte_subtitulo').value,
+                estilo_layout: document.getElementById('encarte_estilo_layout').value,
+                cor_tema: document.getElementById('encarte_cor_tema').value,
+                produtos_por_pagina: document.getElementById('encarte_ppp').value,
+                '<?= Yii::$app->request->csrfParam ?>': '<?= Yii::$app->request->csrfToken ?>'
+            };
+
+            fetch('<?= Url::to(['/vendas/encarte/gerar']) ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.encarte_id) {
+                    ultimoEncarteId = data.encarte_id;
+                    executarPostagemStatusServico();
+                } else {
+                    btnStatus.disabled = false;
+                    btnStatus.innerHTML = '📸 Postar Imagem no Status do WhatsApp';
+                    alert('Erro ao gerar encarte prévio: ' + data.message);
+                }
+            })
+            .catch(err => {
+                btnStatus.disabled = false;
+                btnStatus.innerHTML = '📸 Postar Imagem no Status do WhatsApp';
+                alert('Erro: ' + err.message);
+            });
+            return;
+        }
+
+        executarPostagemStatusServico();
+    }
+
+    function executarPostagemStatusServico() {
+        const btnStatus = document.getElementById('btnPostarStatusWp');
+        btnStatus.disabled = true;
+        btnStatus.innerHTML = '⌛ Publicando no Status do WhatsApp...';
+
+        const payload = {
+            encarte_id: ultimoEncarteId,
+            mensagem_texto: document.getElementById('encarte_mensagem').value,
+            '<?= Yii::$app->request->csrfParam ?>': '<?= Yii::$app->request->csrfToken ?>'
+        };
+
+        fetch('<?= Url::to(['/vendas/encarte/postar-status-whatsapp']) ?>', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(data => {
+            btnStatus.disabled = false;
+            btnStatus.innerHTML = '📸 Postar Imagem no Status do WhatsApp';
+
+            if (data.success) {
+                alert('🎉 ' + data.message);
+            } else {
+                alert('Aviso ao postar no Status: ' + (data.message || 'Falha na publicação.'));
+            }
+        })
+        .catch(err => {
+            btnStatus.disabled = false;
+            btnStatus.innerHTML = '📸 Postar Imagem no Status do WhatsApp';
+            alert('Erro de comunicação: ' + err.message);
+        });
     }
 </script>

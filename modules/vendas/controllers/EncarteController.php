@@ -35,6 +35,7 @@ class EncarteController extends Controller
                 'actions' => [
                     'gerar' => ['POST'],
                     'enviar-whatsapp' => ['POST'],
+                    'postar-status-whatsapp' => ['POST'],
                 ],
             ],
         ];
@@ -276,6 +277,73 @@ class EncarteController extends Controller
             'texto_formatado' => implode("\n", $linhasFormatadas),
             'message' => count($listaTelefones) . ' cliente(s) aleatório(s) carregado(s) da base com sucesso.'
         ];
+    }
+
+    /**
+     * Publica o Encarte Digital (Link Público + Imagem de Capa) diretamente no Status / Stories do WhatsApp via Evolution API.
+     */
+    public function actionPostarStatusWhatsapp()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $lojaId = $this->getLojaId();
+
+        $request = Yii::$app->request;
+        $encarteId = $request->post('encarte_id');
+        $mensagemCustom = $request->post('mensagem_texto', '');
+
+        $encarte = Encarte::findOne(['id' => $encarteId, 'usuario_id' => $lojaId]);
+        if (!$encarte) {
+            return ['success' => false, 'message' => 'Encarte não encontrado.'];
+        }
+
+        try {
+            $urlPublica = $encarte->getUrlPublica();
+            
+            // 1. Busca a imagem de capa (primeiro produto do encarte)
+            $imagemCapaUrl = null;
+            $primeiroItem = EncarteProduto::find()
+                ->where(['encarte_id' => $encarte->id])
+                ->orderBy(['ordem' => SORT_ASC])
+                ->one();
+
+            if ($primeiroItem && $primeiroItem->produto) {
+                $foto = $primeiroItem->produto->fotoPrincipal;
+                if ($foto) {
+                    $imagemCapaUrl = $foto->getUrlCompleta();
+                }
+            }
+
+            // Fallback para URL relativa ou imagem padrão se não houver foto principal
+            if (empty($imagemCapaUrl)) {
+                $baseUrl = \yii\helpers\Url::base(true);
+                $imagemCapaUrl = $baseUrl . '/img/encarte-cover-placeholder.png';
+            }
+
+            // 2. Monta o texto promocional para o Status do WhatsApp
+            if (!empty($mensagemCustom)) {
+                $textoStatus = trim($mensagemCustom) . "\n\n📖 *Acesse nosso Folheto Digital:* {$urlPublica}";
+            } else {
+                $textoStatus = "🔥 *CONFIRA NOSSO NOVO ENCARTE DE OFERTAS!* 🔥\n\n*{$encarte->titulo}*\n{$encarte->subtitulo}\n\n📖 *Acesse o Folheto Digital Interativo:* {$urlPublica}";
+            }
+
+            // 3. Executa envio para o Status (status@broadcast) via Evolution API
+            $evolution = new EvolutionService();
+            $sucesso = $evolution->sendWhatsAppStatus($lojaId, $imagemCapaUrl, $textoStatus);
+
+            if ($sucesso) {
+                return [
+                    'success' => true,
+                    'message' => 'Encarte postado no Status do WhatsApp com sucesso!'
+                ];
+            } else {
+                $erroMsg = $evolution->lastError ?: 'Erro ao publicar no Status do WhatsApp. Verifique se a sua Evolution API está conectada.';
+                return ['success' => false, 'message' => $erroMsg];
+            }
+
+        } catch (\Exception $e) {
+            Yii::error("EncarteController::actionPostarStatusWhatsapp erro: " . $e->getMessage(), __METHOD__);
+            return ['success' => false, 'message' => 'Erro ao publicar Status: ' . $e->getMessage()];
+        }
     }
 
     /**
