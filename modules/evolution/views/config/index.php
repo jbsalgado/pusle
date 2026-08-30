@@ -89,51 +89,134 @@ $this->title = 'Integração WhatsApp — PULSE-PLUS';
                     </dl>
                 </div>
 
-                <!-- Configurações de Anti-Banimento -->
+                <!-- Configurações de Anti-Banimento e Proteção -->
                 <div class="mb-6 border-t border-gray-100 pt-6">
-                    <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
-                        Configurações de Anti-Banimento (Intervalo e Digitação)
-                    </h2>
+                    <div class="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
+                        <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider m-0">
+                            Configurações de Anti-Banimento & Limites Diários
+                        </h2>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            Envios Hoje: <?= (int)($config->mensagens_enviadas_hoje ?? 0) ?> / <?= (int)($config->limite_diario_mensagens ?? 150) ?>
+                        </span>
+                    </div>
+
                     <?= Html::beginForm(['/evolution/config/save-settings'], 'post', ['class' => 'text-sm']) ?>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-                            <div>
-                                <label for="delay_min" class="block text-sm font-medium text-gray-700 mb-1">Delay Mínimo (ms)</label>
-                                <?= Html::input('number', 'delay_min', $config->delay_min ?? 1500, [
-                                    'class' => 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border outline-none',
-                                    'id' => 'delay_min',
-                                    'min' => 0,
-                                    'step' => 100
-                                ]) ?>
+                        
+                        <!-- Intervalos e Digitação -->
+                        <div class="bg-gray-50 p-4 rounded-lg mb-4 border border-gray-200">
+                            <h3 class="text-xs font-bold text-gray-700 uppercase mb-3">1. Intervalo Humano (Jitter) & Presença</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+                                <div>
+                                    <label for="delay_min" class="block text-xs font-medium text-gray-700 mb-1">Delay Mínimo (ms) — Padrão seguro: 15.000 (15s)</label>
+                                    <?= Html::input('number', 'delay_min', $config->delay_min ?? 15000, [
+                                        'class' => 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border outline-none bg-white',
+                                        'id' => 'delay_min',
+                                        'min' => 1000,
+                                        'step' => 1000
+                                    ]) ?>
+                                </div>
+                                <div>
+                                    <label for="delay_max" class="block text-xs font-medium text-gray-700 mb-1">Delay Máximo (ms) — Padrão seguro: 45.000 (45s)</label>
+                                    <?= Html::input('number', 'delay_max', $config->delay_max ?? 45000, [
+                                        'class' => 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border outline-none bg-white',
+                                        'id' => 'delay_max',
+                                        'min' => 1000,
+                                        'step' => 1000
+                                    ]) ?>
+                                </div>
                             </div>
-                            <div>
-                                <label for="delay_max" class="block text-sm font-medium text-gray-700 mb-1">Delay Máximo (ms)</label>
-                                <?= Html::input('number', 'delay_max', $config->delay_max ?? 2500, [
-                                    'class' => 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border outline-none',
-                                    'id' => 'delay_max',
-                                    'min' => 0,
-                                    'step' => 100
-                                ]) ?>
+                            <div class="flex items-center">
+                                <div class="flex items-center h-5">
+                                    <?= Html::checkbox('simular_digitacao', $config->simular_digitacao ?? true, [
+                                        'class' => 'focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded cursor-pointer',
+                                        'id' => 'simular_digitacao',
+                                        'value' => 1,
+                                        'uncheck' => 0
+                                    ]) ?>
+                                </div>
+                                <div class="ml-3 text-xs">
+                                    <label for="simular_digitacao" class="font-medium text-gray-700 cursor-pointer">
+                                        Simular Digitação Humana ("Digitando..." / presence composing antes do envio)
+                                    </label>
+                                </div>
                             </div>
                         </div>
-                        <div class="flex items-center mb-6">
-                            <div class="flex items-center h-5">
-                                <?= Html::checkbox('simular_digitacao', $config->simular_digitacao ?? true, [
-                                    'class' => 'focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded cursor-pointer',
-                                    'id' => 'simular_digitacao',
-                                    'value' => 1,
-                                    'uncheck' => 0
-                                ]) ?>
-                            </div>
-                            <div class="ml-3 text-sm">
-                                <label for="simular_digitacao" class="font-medium text-gray-700 cursor-pointer">
-                                    Simular Digitação ("Digitando..." / presence composing)
-                                </label>
+
+                        <!-- Limites Diários e Controle de Lotes -->
+                        <div class="bg-gray-50 p-4 rounded-lg mb-4 border border-gray-200">
+                            <h3 class="text-xs font-bold text-gray-700 uppercase mb-3">2. Teto Diário & Pausas de Lote</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div>
+                                    <label for="limite_diario_mensagens" class="block text-xs font-medium text-gray-700 mb-1">Limite Máximo Diário</label>
+                                    <?= Html::input('number', 'limite_diario_mensagens', $config->limite_diario_mensagens ?? 150, [
+                                        'class' => 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border outline-none bg-white',
+                                        'id' => 'limite_diario_mensagens',
+                                        'min' => 10,
+                                        'max' => 1000
+                                    ]) ?>
+                                    <span class="text-[11px] text-gray-500">Chips novos: 30 a 50 | Chips antigos: 150 a 250</span>
+                                </div>
+                                <div>
+                                    <label for="lote_tamanho" class="block text-xs font-medium text-gray-700 mb-1">Tamanho do Lote</label>
+                                    <?= Html::input('number', 'lote_tamanho', $config->lote_tamanho ?? 15, [
+                                        'class' => 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border outline-none bg-white',
+                                        'id' => 'lote_tamanho',
+                                        'min' => 5,
+                                        'max' => 100
+                                    ]) ?>
+                                    <span class="text-[11px] text-gray-500">Pausa após X mensagens (padrão: 15)</span>
+                                </div>
+                                <div>
+                                    <label for="lote_pausa_segundos" class="block text-xs font-medium text-gray-700 mb-1">Pausa do Lote (segundos)</label>
+                                    <?= Html::input('number', 'lote_pausa_segundos', $config->lote_pausa_segundos ?? 120, [
+                                        'class' => 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border outline-none bg-white',
+                                        'id' => 'lote_pausa_segundos',
+                                        'min' => 30,
+                                        'max' => 900
+                                    ]) ?>
+                                    <span class="text-[11px] text-gray-500">Tempo de descanso (padrão: 120s)</span>
+                                </div>
                             </div>
                         </div>
+
+                        <!-- Proxy Dedicado (Opcional) -->
+                        <div class="bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="text-xs font-bold text-gray-700 uppercase m-0">3. Proxy Dedicado (Opcional - Isolamento de IP)</h3>
+                                <span class="text-[11px] text-emerald-600 font-medium">Deixe vazio para usar a conexão padrão</span>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div>
+                                    <label for="proxy_host" class="block text-xs font-medium text-gray-700 mb-1">Host/IP e Porta</label>
+                                    <?= Html::input('text', 'proxy_host', $config->proxy_host ?? '', [
+                                        'class' => 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border outline-none bg-white',
+                                        'id' => 'proxy_host',
+                                        'placeholder' => 'ex: 177.54.12.8:8080'
+                                    ]) ?>
+                                </div>
+                                <div>
+                                    <label for="proxy_user" class="block text-xs font-medium text-gray-700 mb-1">Usuário do Proxy</label>
+                                    <?= Html::input('text', 'proxy_user', $config->proxy_user ?? '', [
+                                        'class' => 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border outline-none bg-white',
+                                        'id' => 'proxy_user',
+                                        'placeholder' => 'Opcional'
+                                    ]) ?>
+                                </div>
+                                <div>
+                                    <label for="proxy_pass" class="block text-xs font-medium text-gray-700 mb-1">Senha do Proxy</label>
+                                    <?= Html::input('password', 'proxy_pass', $config->proxy_pass ?? '', [
+                                        'class' => 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border outline-none bg-white',
+                                        'id' => 'proxy_pass',
+                                        'placeholder' => 'Opcional'
+                                    ]) ?>
+                                </div>
+                            </div>
+                        </div>
+
                         <div>
                             <button type="submit" class="w-full sm:w-auto inline-flex justify-center items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
                                 <svg class="mr-2 -ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
-                                Salvar Configurações
+                                Salvar Configurações Anti-Banimento
                             </button>
                         </div>
                     <?= Html::endForm() ?>

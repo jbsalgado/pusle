@@ -88,6 +88,11 @@ class WhatsappController extends BaseController
             throw new BadRequestHttpException('Integração com WhatsApp não configurada ou inativa para esta empresa.');
         }
 
+        // Validação de limite diário de mensagens por loja
+        if (!$config->podeEnviarHoje()) {
+            return $this->error("Limite diário de envios atingido para este WhatsApp ({$config->mensagens_enviadas_hoje}/{$config->limite_diario_mensagens}). Envios pausados por segurança anti-ban.", 429);
+        }
+
         // 2. Sanitização e normalização do número
         $numero = preg_replace('/[^0-9]/', '', $numero);
 
@@ -116,9 +121,9 @@ class WhatsappController extends BaseController
             $textoFinal .= "\n\n_Ref: " . substr(uniqid(), -5) . '_';
         }
 
-        // 3.5. Cálculo do delay dinâmico
-        $delayMin = isset($config->delay_min) ? (int)$config->delay_min : 1500;
-        $delayMax = isset($config->delay_max) ? (int)$config->delay_max : 2500;
+        // 3.5. Cálculo do delay dinâmico seguro
+        $delayMin = isset($config->delay_min) ? (int)$config->delay_min : 15000;
+        $delayMax = isset($config->delay_max) ? (int)$config->delay_max : 45000;
         if ($delayMin > $delayMax) {
             $delayMax = $delayMin;
         }
@@ -129,10 +134,7 @@ class WhatsappController extends BaseController
         if ($delay > 0) {
             if ($simularDigitacao) {
                 // Passa o delay diretamente para a API do Go para simular digitação (composing)
-                $apiDelay = $delay;
-            } else {
-                // Apenas aguarda localmente no PHP sem simular digitação
-                usleep($delay * 1000);
+                $apiDelay = min(3000, $delay);
             }
         }
 
@@ -147,9 +149,9 @@ class WhatsappController extends BaseController
             $client = new \yii\httpclient\Client(['baseUrl' => $baseUrl]);
 
             if ($base64) {
-                // Na versão Evolution Go v0.7.1, enviamos o código puro (Base64) direto para API.
-                // O motor vai entender sozinho, evitando problemas de download de URLs de Loopback!
-                $cleanBase64 = preg_replace('/^data:image\/[a-z]+;base64,/i', '', $base64);
+                // Aplica o Anti-Ban Media Randomizer para quebrar o hash de imagens duplicadas
+                $cleanBase64 = \app\modules\evolution\helpers\MediaRandomizerHelper::randomizeImageHash($base64);
+                $cleanBase64 = preg_replace('/^data:image\/[a-z]+;base64,/i', '', $cleanBase64);
                 
                 // Tenta descobrir a extensão a partir do prefixo original, senao assume jpg
                 $extension = 'jpg';
@@ -197,6 +199,7 @@ class WhatsappController extends BaseController
                 return $this->error('Erro ao enviar mensagem via WhatsApp: ' . $response->content, $response->statusCode);
             }
 
+            $config->incrementarEnvioHoje();
             $body = json_decode($response->content, true);
             return $this->success($body, 'Mensagem enviada com sucesso para o WhatsApp.');
 

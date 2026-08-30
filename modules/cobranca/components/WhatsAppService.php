@@ -131,12 +131,39 @@ class WhatsAppService extends Component
      */
     protected function enviarEvolution($telefone, $mensagem)
     {
-        // TODO: Implementar integração Evolution API
-        return [
-            'success' => false,
-            'message' => 'Evolution API não implementada ainda',
-            'data' => null,
-        ];
+        try {
+            $empresaId = $this->config->usuario_id;
+            if (empty($empresaId)) {
+                return [
+                    'success' => false,
+                    'message' => 'Empresa/Tenant não configurado para envio de cobrança.',
+                    'data' => null,
+                ];
+            }
+
+            $evolutionService = new \app\modules\evolution\services\EvolutionService();
+            $sucesso = $evolutionService->sendMessage($empresaId, $telefone, $mensagem);
+
+            if ($sucesso) {
+                return [
+                    'success' => true,
+                    'message' => 'Mensagem de cobrança enviada com sucesso via Evolution API',
+                    'data' => ['phone' => $telefone],
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => $evolutionService->lastError ?: 'Falha ao enviar cobrança via Evolution API.',
+                'data' => null,
+            ];
+        } catch (\Throwable $t) {
+            return [
+                'success' => false,
+                'message' => $t->getMessage(),
+                'data' => null,
+            ];
+        }
     }
 
     /**

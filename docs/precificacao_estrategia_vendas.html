@@ -1,0 +1,1657 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PULSE ERP — Master Blueprint: Estratégia de Precificação, Monetização SaaS, Marketing & Vendas</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        pulse: {
+                            50: '#f0f4ff',
+                            100: '#e0eaff',
+                            200: '#c7d7fe',
+                            300: '#a4bcfc',
+                            400: '#7c9af7',
+                            500: '#536df0',
+                            600: '#3b4ee4',
+                            700: '#2f3ec8',
+                            800: '#2834a2',
+                            900: '#252f80',
+                            950: '#171c4c',
+                        },
+                        emeraldGlow: '#10b981',
+                        violetGlow: '#8b5cf6',
+                        amberGlow: '#f59e0b',
+                        cyanGlow: '#06b6d4',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --bg-main: #090d16;
+            --bg-card: rgba(18, 24, 38, 0.75);
+            --border-card: rgba(255, 255, 255, 0.08);
+            --text-primary: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        html:not(.dark) {
+            --bg-main: #f8fafc;
+            --bg-card: rgba(255, 255, 255, 0.9);
+            --border-card: rgba(0, 0, 0, 0.08);
+            --text-primary: #0f172a;
+            --text-muted: #64748b;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Glassmorphism Styles */
+        .glass-panel {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-card);
+        }
+
+        .glass-card-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card-hover:hover {
+            transform: translateY(-4px);
+            border-color: rgba(99, 102, 241, 0.4);
+            box-shadow: 0 15px 30px -10px rgba(79, 70, 229, 0.2);
+        }
+
+        /* Gradients */
+        .gradient-text-pulse {
+            background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #34d399 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .gradient-text-gold {
+            background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 50%, #fcd34d 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .gradient-bg-hero {
+            background: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.18) 0%, rgba(139, 92, 246, 0.08) 45%, transparent 75%);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.4);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.7);
+        }
+
+        /* Toast Feedback */
+        #toast {
+            visibility: hidden;
+            min-width: 280px;
+            background: #10b981;
+            color: #fff;
+            text-align: center;
+            border-radius: 12px;
+            padding: 14px 24px;
+            position: fixed;
+            z-index: 1000;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-weight: 600;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+            opacity: 0;
+        }
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 40px;
+        }
+
+        /* Print Styling */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+            }
+            .glass-panel {
+                background: #ffffff !important;
+                border: 1px solid #e2e8f0 !important;
+                box-shadow: none !important;
+            }
+            .gradient-text-pulse, .gradient-text-gold {
+                -webkit-text-fill-color: #1e293b !important;
+            }
+        }
+    </style>
+</head>
+<body class="selection:bg-pulse-500 selection:text-white">
+
+    <!-- Toast Notification -->
+    <div id="toast" class="flex items-center gap-3">
+        <i class="fas fa-circle-check text-lg"></i>
+        <span id="toast-message">Copiado para a área de transferência!</span>
+    </div>
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-50 glass-panel border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-20 items-center">
+                <!-- Logo & Version -->
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-pulse-600 via-indigo-600 to-emerald-500 flex items-center justify-center text-white font-black text-2xl shadow-lg shadow-pulse-600/30">
+                        <i class="fas fa-bolt-lightning"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl font-extrabold tracking-tight text-white">PULSE <span class="gradient-text-pulse">ERP</span></span>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pulse-500/20 text-pulse-400 border border-pulse-500/30 uppercase tracking-wider">SaaS v2.4</span>
+                        </div>
+                        <span class="block text-xs font-semibold tracking-wider text-slate-400">Master Blueprint: Precificação & Go-To-Market 2026</span>
+                    </div>
+                </div>
+
+                <!-- Navigation Links -->
+                <nav class="hidden xl:flex items-center gap-6 text-sm font-semibold text-slate-300">
+                    <a href="#diagnostico" class="hover:text-pulse-400 transition-colors">1. Módulos & Dores</a>
+                    <a href="#precificacao" class="hover:text-pulse-400 transition-colors">2. Engenharia de Planos</a>
+                    <a href="#monetizacao" class="hover:text-pulse-400 transition-colors">3. Splits & Take Rate</a>
+                    <a href="#calculadora" class="hover:text-pulse-400 transition-colors">4. Simulador SaaS</a>
+                    <a href="#marketing" class="hover:text-pulse-400 transition-colors">5. Estratégia GTM</a>
+                    <a href="#vendas" class="hover:text-pulse-400 transition-colors">6. Playbook Comercial</a>
+                    <a href="#escala" class="hover:text-pulse-400 transition-colors">7. Metas & Roadmap</a>
+                </nav>
+
+                <!-- Actions (Theme Toggle & Print) -->
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleTheme()" id="theme-btn" class="p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-all text-sm flex items-center justify-center w-10 h-10" title="Alternar Tema">
+                        <i class="fas fa-moon" id="theme-icon"></i>
+                    </button>
+                    <button onclick="window.print()" class="no-print px-4 py-2.5 rounded-xl bg-gradient-to-r from-pulse-600 to-indigo-600 hover:from-pulse-500 hover:to-indigo-500 text-white text-sm font-bold shadow-lg shadow-pulse-600/30 transition-all flex items-center gap-2">
+                        <i class="fas fa-file-pdf"></i>
+                        <span>Exportar PDF</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-20">
+
+        <!-- ==========================================
+             HERO SECTION: EXECUTIVE SUMMARY
+             ========================================== -->
+        <section class="relative pt-6 pb-12 overflow-hidden gradient-bg-hero rounded-3xl p-8 lg:p-12 border border-slate-800/80">
+            <div class="max-w-4xl mx-auto text-center space-y-6">
+                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-pulse-500/10 border border-pulse-500/30 text-pulse-400 text-xs font-bold uppercase tracking-widest">
+                    <i class="fas fa-gem text-pulse-400"></i>
+                    Documento Estratégico Oficial de Monetização & Vendas
+                </div>
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight">
+                    Transformando o <span class="gradient-text-pulse">PULSE ERP</span> em uma Máquina Escalonável de <span class="text-emerald-400">ARR Recorrente</span>
+                </h1>
+                <p class="text-lg sm:text-xl text-slate-300 leading-relaxed font-normal">
+                    Análise holística de todos os <strong>10 módulos</strong> do sistema, engenharia de planos com modelo híbrido (Mensalidade Fixa + Split Mercado Pago + Take Rate Marketplaces), mapeamento de ICPs e playbook prático de aquisição acelerada de clientes.
+                </p>
+
+                <!-- High-Level KPI Badges -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 text-left">
+                    <div class="glass-panel p-4 rounded-2xl border-slate-800/80">
+                        <span class="text-xs text-slate-400 font-bold uppercase tracking-wider block">Modelo de Receita</span>
+                        <span class="text-lg font-extrabold text-emerald-400 flex items-center gap-1.5 mt-1">
+                            <i class="fas fa-layer-group text-sm"></i> Híbrido Triplo
+                        </span>
+                        <span class="text-[11px] text-slate-500 block mt-0.5">SaaS + Splits + Take Rate</span>
+                    </div>
+                    <div class="glass-panel p-4 rounded-2xl border-slate-800/80">
+                        <span class="text-xs text-slate-400 font-bold uppercase tracking-wider block">Ticket Médio Estimado</span>
+                        <span class="text-lg font-extrabold text-pulse-400 flex items-center gap-1.5 mt-1">
+                            <i class="fas fa-tag text-sm"></i> R$ 198,00/mês
+                        </span>
+                        <span class="text-[11px] text-slate-500 block mt-0.5">Por Loja (Base Ponderada)</span>
+                    </div>
+                    <div class="glass-panel p-4 rounded-2xl border-slate-800/80">
+                        <span class="text-xs text-slate-400 font-bold uppercase tracking-wider block">Diferencial Único</span>
+                        <span class="text-lg font-extrabold text-amber-400 flex items-center gap-1.5 mt-1">
+                            <i class="fas fa-route text-sm"></i> Rota + Zap Bot
+                        </span>
+                        <span class="text-[11px] text-slate-500 block mt-0.5">Prestamista + Evolution API</span>
+                    </div>
+                    <div class="glass-panel p-4 rounded-2xl border-slate-800/80">
+                        <span class="text-xs text-slate-400 font-bold uppercase tracking-wider block">Meta Ano 1</span>
+                        <span class="text-lg font-extrabold text-cyan-400 flex items-center gap-1.5 mt-1">
+                            <i class="fas fa-rocket text-sm"></i> 500 Lojas
+                        </span>
+                        <span class="text-[11px] text-slate-500 block mt-0.5">~R$ 1.45M ARR Global</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             SEÇÃO 1: DIAGNÓSTICO E MAPEAMENTO 360° DOS MÓDULOS
+             ========================================== -->
+        <section id="diagnostico" class="space-y-8">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-6">
+                <div>
+                    <span class="text-xs font-bold text-pulse-400 uppercase tracking-widest">Seção 01</span>
+                    <h2 class="text-3xl font-extrabold text-white tracking-tight mt-1 flex items-center gap-3">
+                        <i class="fas fa-cubes text-pulse-500"></i>
+                        Mapeamento 360° dos 10 Módulos do Sistema
+                    </h2>
+                    <p class="text-slate-400 text-sm mt-1">
+                        Cada funcionalidade do código fonte analisada sob a ótica de geração de valor, retenção e monetização direta.
+                    </p>
+                </div>
+                <div class="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    10 Módulos Conectados & Operacionais
+                </div>
+            </div>
+
+            <!-- Grid com os 10 Módulos Detalhados -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                <!-- Módulo 1: PDV & Venda Omnichannel -->
+                <div class="glass-panel p-6 rounded-2xl glass-card-hover border-slate-800/80 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 text-xl font-bold">
+                                <i class="fas fa-cash-register"></i>
+                            </div>
+                            <span class="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">Módulo 01</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-2">PDV & Venda Expressa</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed mb-4">
+                            Frente de caixa ultra-rápida, emissão de NFC-e/NF-e via NFePHP, orçamentos com leitor de código de barras por câmera do smartphone e impressão térmica 58mm/80mm.
+                        </p>
+                        <div class="space-y-1.5 text-xs text-slate-300 border-t border-slate-800/80 pt-3">
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Venda balcão sem travamento</div>
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Scanner por câmera mobile</div>
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Impressão térmica Bluetooth/USB</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-800/50 flex justify-between items-center text-[11px]">
+                        <span class="text-slate-400">Impacto no Lojista:</span>
+                        <span class="font-bold text-blue-400">Agilidade no Balcão</span>
+                    </div>
+                </div>
+
+                <!-- Módulo 2: Catálogo Digital & Marketing Visual -->
+                <div class="glass-panel p-6 rounded-2xl glass-card-hover border-slate-800/80 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-xl font-bold">
+                                <i class="fas fa-store"></i>
+                            </div>
+                            <span class="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Módulo 02</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-2">Catálogo Web & Encartes</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed mb-4">
+                            E-commerce próprio pronto para celular, encartes digitais dinâmicos para redes sociais, vídeos/reels de produtos, feed comercial interativo e trilha sonora da loja.
+                        </p>
+                        <div class="space-y-1.5 text-xs text-slate-300 border-t border-slate-800/80 pt-3">
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Catálogo com pedidos no WhatsApp</div>
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Encartes públicos para Instagram</div>
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Vídeos demonstrativos no produto</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-800/50 flex justify-between items-center text-[11px]">
+                        <span class="text-slate-400">Impacto no Lojista:</span>
+                        <span class="font-bold text-indigo-400">Geração de Vendas 24/7</span>
+                    </div>
+                </div>
+
+                <!-- Módulo 3: Food Service & Delivery -->
+                <div class="glass-panel p-6 rounded-2xl glass-card-hover border-slate-800/80 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-xl font-bold">
+                                <i class="fas fa-utensils"></i>
+                            </div>
+                            <span class="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">Módulo 03</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-2">Food Service, Mesas & KDS</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed mb-4">
+                            Gestão de mesas, comandas em tempo real, painel de cozinha (KDS), totens de autoatendimento, cardápio digital por QR Code e módulo de entrega com taxa por bairro.
+                        </p>
+                        <div class="space-y-1.5 text-xs text-slate-300 border-t border-slate-800/80 pt-3">
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> KDS em tempo real para cozinha</div>
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Mesas e comandas móveis</div>
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Delivery próprio sem taxas de 27%</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-800/50 flex justify-between items-center text-[11px]">
+                        <span class="text-slate-400">Impacto no Lojista:</span>
+                        <span class="font-bold text-amber-400">Economia Brutal de Apps</span>
+                    </div>
+                </div>
+
+                <!-- Módulo 4: Prestamista & Rotas de Cobrança -->
+                <div class="glass-panel p-6 rounded-2xl glass-card-hover border-emerald-500/30 bg-emerald-950/10 flex flex-col justify-between relative overflow-hidden">
+                    <div class="absolute top-0 right-0 px-3 py-1 bg-emerald-500 text-slate-950 font-black text-[10px] uppercase tracking-widest rounded-bl-xl shadow">
+                        Oceano Azul
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-xl font-bold">
+                                <i class="fas fa-route"></i>
+                            </div>
+                            <span class="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Módulo 04</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-2">Crediário, Rota & Mobile</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed mb-4">
+                            Módulo líder de mercado para cobrança externa/prestamistas. Carteira de clientes, rotas com geolocalização, carnezinhos, parcelamento e App Flutter com impressão térmica de rua.
+                        </p>
+                        <div class="space-y-1.5 text-xs text-slate-300 border-t border-slate-800/80 pt-3">
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> App Mobile para cobrador de rua</div>
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Impressão de recibo Bluetooth portátil</div>
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Roteirização de visitas e cobrança</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-800/50 flex justify-between items-center text-[11px]">
+                        <span class="text-slate-400">Impacto no Lojista:</span>
+                        <span class="font-bold text-emerald-400">Inadimplência Cai em 60%</span>
+                    </div>
+                </div>
+
+                <!-- Módulo 5: Automação WhatsApp & Evolution API -->
+                <div class="glass-panel p-6 rounded-2xl glass-card-hover border-slate-800/80 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-xl font-bold">
+                                <i class="fab fa-whatsapp"></i>
+                            </div>
+                            <span class="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Módulo 05</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-2">WhatsApp Bot & Disparador</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed mb-4">
+                            Integração multi-tenant via Evolution API / Z-API. Régua de cobrança 3D preventiva e pós-vencimento com Pix Copia e Cola automático e disparador de mensagens em massa.
+                        </p>
+                        <div class="space-y-1.5 text-xs text-slate-300 border-t border-slate-800/80 pt-3">
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Lembrete 3 dias antes e no vencimento</div>
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Pix dinâmico enviado no chat</div>
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Campanhas promocionais em massa</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-800/50 flex justify-between items-center text-[11px]">
+                        <span class="text-slate-400">Impacto no Lojista:</span>
+                        <span class="font-bold text-emerald-400">Cobrança 100% no Piloto Automático</span>
+                    </div>
+                </div>
+
+                <!-- Módulo 6: Hub de Marketplaces Integrado -->
+                <div class="glass-panel p-6 rounded-2xl glass-card-hover border-violet-500/30 bg-violet-950/10 flex flex-col justify-between relative overflow-hidden">
+                    <div class="absolute top-0 right-0 px-3 py-1 bg-violet-500 text-white font-black text-[10px] uppercase tracking-widest rounded-bl-xl shadow">
+                        Alto LTV
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 text-xl font-bold">
+                                <i class="fas fa-network-wired"></i>
+                            </div>
+                            <span class="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30">Módulo 06</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-2">Hub Multi-Marketplaces</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed mb-4">
+                            Sincronização bidirecional de estoque, preços e pedidos com Mercado Livre, Shopee, Magalu, Temu e iFood. Webhooks em tempo real e prevenção de furo de estoque.
+                        </p>
+                        <div class="space-y-1.5 text-xs text-slate-300 border-t border-slate-800/80 pt-3">
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Centraliza Mercado Livre, Shopee, Magalu</div>
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Atualização automática de estoque</div>
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Faturamento unificado no ERP</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-800/50 flex justify-between items-center text-[11px]">
+                        <span class="text-slate-400">Impacto no Lojista:</span>
+                        <span class="font-bold text-violet-400">Zero Furo de Estoque</span>
+                    </div>
+                </div>
+
+                <!-- Módulo 7: Financeiro & Fluxo de Caixa -->
+                <div class="glass-panel p-6 rounded-2xl glass-card-hover border-slate-800/80 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 text-xl font-bold">
+                                <i class="fas fa-wallet"></i>
+                            </div>
+                            <span class="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">Módulo 07</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-2">Caixa & Contas a Pagar</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed mb-4">
+                            Múltiplos caixas simultâneos (PDV, Delivery, Venda Direta), sangrias, suprimentos, fechamento cego, contas a pagar integradas com compras e fornecedores.
+                        </p>
+                        <div class="space-y-1.5 text-xs text-slate-300 border-t border-slate-800/80 pt-3">
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Fechamento cego de caixa por operador</div>
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Contas a pagar com alertas de vencimento</div>
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Entrada automática por XML de NFe</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-800/50 flex justify-between items-center text-[11px]">
+                        <span class="text-slate-400">Impacto no Lojista:</span>
+                        <span class="font-bold text-teal-400">Blindagem contra Desvios</span>
+                    </div>
+                </div>
+
+                <!-- Módulo 8: Precificação Inteligente & Markup Divisor -->
+                <div class="glass-panel p-6 rounded-2xl glass-card-hover border-slate-800/80 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 text-xl font-bold">
+                                <i class="fas fa-calculator"></i>
+                            </div>
+                            <span class="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">Módulo 08</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-2">Precificação & Anti-Prejuízo</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed mb-4">
+                            Motor matemático de Markup Divisor com Prova Real. Considera impostos, comissões, frete e taxa de gateway para garantir margem de lucro líquida real e bloquear prejuízos.
+                        </p>
+                        <div class="space-y-1.5 text-xs text-slate-300 border-t border-slate-800/80 pt-3">
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Cálculo com fórmula de Markup Divisor</div>
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Engenharia reversa "A Prova Real"</div>
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Alerta automático de margem negativa</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-800/50 flex justify-between items-center text-[11px]">
+                        <span class="text-slate-400">Impacto no Lojista:</span>
+                        <span class="font-bold text-rose-400">Lucro Garantido em Cada Venda</span>
+                    </div>
+                </div>
+
+                <!-- Módulo 9: Indicadores & Dashboards Gerenciais -->
+                <div class="glass-panel p-6 rounded-2xl glass-card-hover border-slate-800/80 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 text-xl font-bold">
+                                <i class="fas fa-chart-pie"></i>
+                            </div>
+                            <span class="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">Módulo 09</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-2">Indicadores, DRE & KPIs</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed mb-4">
+                            Visão 360° em tempo real: Curva ABC de produtos, lucratividade por canal de venda, ticket médio, desempenho de vendedores/cobradores e DRE sintético e analítico.
+                        </p>
+                        <div class="space-y-1.5 text-xs text-slate-300 border-t border-slate-800/80 pt-3">
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Curva ABC de produtos e clientes</div>
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> DRE gerencial simplificado</div>
+                            <div class="flex items-center gap-2"><i class="fas fa-check text-emerald-400 text-[10px]"></i> Ranking de comissões por colaborador</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-800/50 flex justify-between items-center text-[11px]">
+                        <span class="text-slate-400">Impacto no Lojista:</span>
+                        <span class="font-bold text-cyan-400">Decisões com Base em Dados</span>
+                    </div>
+                </div>
+
+                <!-- Módulo 10: Multi-Tenant & SuperAdmin SaaS -->
+                <div class="glass-panel p-6 rounded-2xl glass-card-hover border-pulse-500/40 bg-pulse-950/20 md:col-span-2 lg:col-span-3 flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-pulse-500/20 border border-pulse-500/30 flex items-center justify-center text-pulse-400 font-bold">
+                                <i class="fas fa-crown"></i>
+                            </div>
+                            <div>
+                                <span class="text-xs font-bold uppercase tracking-wider text-pulse-400">Módulo 10 • SuperAdmin & Infraestrutura SaaS</span>
+                                <h3 class="text-xl font-extrabold text-white">Motor de Cobrança, Split e Gestão Global de Lojas</h3>
+                            </div>
+                        </div>
+                        <p class="text-slate-300 text-sm max-w-3xl">
+                            Infraestrutura multi-tenant com isolamento seguro por UUID (`prest_usuarios`), faturamento automático mensal via <code>SaasBillingController</code>, integração com split do Mercado Pago, régua de suspensão de inadimplentes e relatórios consolidados de GMV para os fundadores do SaaS.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3 shrink-0">
+                        <span class="px-4 py-2 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center gap-2">
+                            <i class="fas fa-shield-halved"></i> Multi-Tenant Single DB
+                        </span>
+                        <span class="px-4 py-2 rounded-xl bg-pulse-500/20 text-pulse-300 border border-pulse-500/30 text-xs font-bold flex items-center gap-2">
+                            <i class="fas fa-gears"></i> Cron Fechamento Automático
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ==========================================
+             SEÇÃO 2: ENGENHARIA DE PLANOS E PRECIFICAÇÃO SAAS
+             ========================================== -->
+        <section id="precificacao" class="space-y-8">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-6">
+                <div>
+                    <span class="text-xs font-bold text-pulse-400 uppercase tracking-widest">Seção 02</span>
+                    <h2 class="text-3xl font-extrabold text-white tracking-tight mt-1 flex items-center gap-3">
+                        <i class="fas fa-tags text-pulse-500"></i>
+                        Arquitetura de Planos & Precificação Comercial
+                    </h2>
+                    <p class="text-slate-400 text-sm mt-1">
+                        Packaging estratégico estruturado para eliminar barreiras de entrada, acelerar o Up-Sell e maximizar o LTV.
+                    </p>
+                </div>
+
+                <!-- Toggle Ciclo de Pagamento (Mensal / Anual) -->
+                <div class="flex items-center gap-3 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800">
+                    <button onclick="setBillingCycle('monthly')" id="btn-monthly" class="px-4 py-2 rounded-xl text-xs font-bold transition-all bg-pulse-600 text-white shadow-md">
+                        Mensal
+                    </button>
+                    <button onclick="setBillingCycle('annual')" id="btn-annual" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
+                        Anual <span class="px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold">20% OFF</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabela dos 4 Planos Estratégicos -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+                <!-- PLANO 1: START -->
+                <div class="glass-panel p-6 rounded-3xl border-slate-800/80 flex flex-col justify-between glass-card-hover relative">
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs font-extrabold px-3 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">START</span>
+                            <span class="text-[11px] text-slate-400 font-semibold">MEI & Pequenas Lojas</span>
+                        </div>
+                        <h3 class="text-2xl font-black text-white">Varejo Essencial</h3>
+                        <p class="text-slate-400 text-xs mt-1 mb-6">Para quem precisa organizar o caixa, emitir pedidos rápidos e ter catálogo web.</p>
+                        
+                        <div class="mb-6 pb-6 border-b border-slate-800">
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-slate-400 text-sm font-bold">R$</span>
+                                <span class="text-4xl font-black text-white tracking-tight" id="price-start">89,90</span>
+                                <span class="text-slate-400 text-xs font-medium" id="cycle-start">/mês</span>
+                            </div>
+                            <span class="text-[11px] text-emerald-400 font-semibold block mt-1">+ 2.5% split no Catálogo Online</span>
+                        </div>
+
+                        <!-- Feature List -->
+                        <ul class="space-y-2.5 text-xs text-slate-300">
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> <strong>1 Operador</strong> de Caixa / PDV</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> Até <strong>300 produtos</strong> cadastrados</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> PDV Balcão & Venda Expressa</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> Catálogo Digital para WhatsApp</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> Controle de Estoque & Caixa Básico</li>
+                            <li class="flex items-start gap-2 text-slate-500"><i class="fas fa-times text-slate-600 mt-0.5"></i> Sem Módulo Prestamista / Rotas</li>
+                            <li class="flex items-start gap-2 text-slate-500"><i class="fas fa-times text-slate-600 mt-0.5"></i> Sem Integração com Marketplaces</li>
+                        </ul>
+                    </div>
+
+                    <div class="mt-8 pt-4 border-t border-slate-800">
+                        <button onclick="copyPlanPitch('START')" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-all border border-slate-700 flex items-center justify-center gap-2">
+                            <i class="fas fa-copy text-slate-400"></i> Copiar Argumento
+                        </button>
+                    </div>
+                </div>
+
+                <!-- PLANO 2: PRO PRESTAMISTA & ROTA (CAMPEÃO DE VENDAS) -->
+                <div class="glass-panel p-6 rounded-3xl border-emerald-500/40 bg-emerald-950/15 flex flex-col justify-between glass-card-hover relative shadow-xl shadow-emerald-950/30">
+                    <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-black text-[11px] uppercase tracking-wider shadow-lg">
+                        ⭐ Mais Vendido / Campeão de Margem
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-3 mt-2">
+                            <span class="text-xs font-extrabold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">PRO</span>
+                            <span class="text-[11px] text-emerald-400 font-semibold">Prestamistas & Crediário</span>
+                        </div>
+                        <h3 class="text-2xl font-black text-white">Rota & Cobrança</h3>
+                        <p class="text-slate-300 text-xs mt-1 mb-6">Solução definitiva para vendas porta a porta, carnês e estancamento de calote.</p>
+                        
+                        <div class="mb-6 pb-6 border-b border-slate-800">
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-slate-400 text-sm font-bold">R$</span>
+                                <span class="text-4xl font-black text-emerald-400 tracking-tight" id="price-pro">179,90</span>
+                                <span class="text-slate-400 text-xs font-medium" id="cycle-pro">/mês</span>
+                            </div>
+                            <span class="text-[11px] text-emerald-400 font-semibold block mt-1">+ WhatsApp Bot de Cobrança Incluso</span>
+                        </div>
+
+                        <!-- Feature List -->
+                        <ul class="space-y-2.5 text-xs text-slate-200">
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> <strong>Até 3 Cobradores / Vendedores</strong></li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> <strong>App Mobile Flutter</strong> com Impressão Bluetooth</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> <strong>Rotas de Cobrança</strong> & Carteiras por Cidade</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> <strong>WhatsApp Bot (Evolution API)</strong>: Lembretes automáticos 3D</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> Carnê digital com Pix Copia e Cola</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> Precificação com <strong>Markup Divisor & Prova Real</strong></li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> Produtos Ilimitados + Contas a Pagar</li>
+                        </ul>
+                    </div>
+
+                    <div class="mt-8 pt-4 border-t border-slate-800">
+                        <button onclick="copyPlanPitch('PRO')" class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs transition-all shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2">
+                            <i class="fas fa-copy"></i> Copiar Argumento PRO
+                        </button>
+                    </div>
+                </div>
+
+                <!-- PLANO 3: OMNICHANNEL & FOOD -->
+                <div class="glass-panel p-6 rounded-3xl border-slate-800/80 flex flex-col justify-between glass-card-hover relative">
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs font-extrabold px-3 py-1 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30">OMNI & FOOD</span>
+                            <span class="text-[11px] text-slate-400 font-semibold">Sellers & Restaurantes</span>
+                        </div>
+                        <h3 class="text-2xl font-black text-white">Hub Integrado</h3>
+                        <p class="text-slate-400 text-xs mt-1 mb-6">Para sellers de e-commerce e operações completas de food/delivery com KDS.</p>
+                        
+                        <div class="mb-6 pb-6 border-b border-slate-800">
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-slate-400 text-sm font-bold">R$</span>
+                                <span class="text-4xl font-black text-violet-400 tracking-tight" id="price-omni">289,90</span>
+                                <span class="text-slate-400 text-xs font-medium" id="cycle-omni">/mês</span>
+                            </div>
+                            <span class="text-[11px] text-violet-400 font-semibold block mt-1">+ 1.0% GMV Marketplaces (pós-pago)</span>
+                        </div>
+
+                        <!-- Feature List -->
+                        <ul class="space-y-2.5 text-xs text-slate-300">
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> <strong>Até 8 Usuários</strong> simultâneos</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> <strong>Hub Marketplaces:</strong> Mercado Livre, Shopee, Magalu, Temu</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> <strong>Food Service Completo:</strong> Mesas, Comandas, Totem & KDS</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> Módulo Delivery com taxa por raio/bairro</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> Emissor Fiscal NF-e & NFC-e Integrado</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> Disparador em Massa para Campanhas WhatsApp</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> DRE Gerencial & Curva ABC em tempo real</li>
+                        </ul>
+                    </div>
+
+                    <div class="mt-8 pt-4 border-t border-slate-800">
+                        <button onclick="copyPlanPitch('OMNI')" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-all border border-slate-700 flex items-center justify-center gap-2">
+                            <i class="fas fa-copy text-slate-400"></i> Copiar Argumento OMNI
+                        </button>
+                    </div>
+                </div>
+
+                <!-- PLANO 4: ENTERPRISE & REDES -->
+                <div class="glass-panel p-6 rounded-3xl border-slate-800/80 flex flex-col justify-between glass-card-hover relative">
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs font-extrabold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">ENTERPRISE</span>
+                            <span class="text-[11px] text-slate-400 font-semibold">Redes & Franquias</span>
+                        </div>
+                        <h3 class="text-2xl font-black text-white">Multi-Lojas VIP</h3>
+                        <p class="text-slate-400 text-xs mt-1 mb-6">Para distribuidoras, redes de lojas, grandes faturamentos e suporte dedicado.</p>
+                        
+                        <div class="mb-6 pb-6 border-b border-slate-800">
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-slate-400 text-sm font-bold">R$</span>
+                                <span class="text-4xl font-black text-amber-400 tracking-tight" id="price-enterprise">599,00</span>
+                                <span class="text-slate-400 text-xs font-medium" id="cycle-enterprise">/mês</span>
+                            </div>
+                            <span class="text-[11px] text-amber-400 font-semibold block mt-1">+ 0.5% GMV Marketplaces (Taxa VIP)</span>
+                        </div>
+
+                        <!-- Feature List -->
+                        <ul class="space-y-2.5 text-xs text-slate-300">
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> <strong>Usuários Ilimitados</strong> + Múltiplas Filiais</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> Todos os módulos do sistema desbloqueados</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> Multi-Instâncias WhatsApp dedicadas</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> Gestão de Vendedores Externos & Metas</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> Conciliação Financeira Avançada & DRE Total</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> Gerente de Contas Dedicado & Onboarding VIP</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> SLA de Atendimento Prioritário em até 15 min</li>
+                        </ul>
+                    </div>
+
+                    <div class="mt-8 pt-4 border-t border-slate-800">
+                        <button onclick="copyPlanPitch('ENTERPRISE')" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-all border border-slate-700 flex items-center justify-center gap-2">
+                            <i class="fas fa-copy text-slate-400"></i> Copiar Argumento VIP
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Matriz de Add-ons e Micro-Transações -->
+            <div class="glass-panel p-6 sm:p-8 rounded-3xl border-slate-800/80 space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+                    <div>
+                        <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fas fa-puzzle-piece text-pulse-400"></i>
+                            Menu de Add-ons & Expansão de Receita (Upselling)
+                        </h3>
+                        <p class="text-slate-400 text-xs mt-0.5">Itens adicionais contratados separadamente que aumentam o ARPU (Receita Média por Usuário).</p>
+                    </div>
+                    <span class="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20">
+                        +35% de Expansão de Ticket
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-bold text-slate-300">Instância WhatsApp Extra</span>
+                            <span class="text-xs font-extrabold text-emerald-400">R$ 39,90/mês</span>
+                        </div>
+                        <p class="text-slate-400 text-[11px]">Número adicional conectado via Evolution API para setores separados (Vendas vs Cobrança).</p>
+                    </div>
+
+                    <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-bold text-slate-300">Pacote 5.000 Disparos Zap</span>
+                            <span class="text-xs font-extrabold text-emerald-400">R$ 49,90/recarga</span>
+                        </div>
+                        <p class="text-slate-400 text-[11px]">Créditos de disparo para campanhas de Black Friday, promoções e queima de estoque.</p>
+                    </div>
+
+                    <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-bold text-slate-300">Cobrador / Usuário Extra</span>
+                            <span class="text-xs font-extrabold text-emerald-400">R$ 19,90/mês</span>
+                        </div>
+                        <p class="text-slate-400 text-[11px]">Acesso adicional ao app mobile Flutter para novo funcionário externo ou cobrador.</p>
+                    </div>
+
+                    <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-bold text-slate-300">Franquia Pedidos Excedente</span>
+                            <span class="text-xs font-extrabold text-emerald-400">R$ 0,40/pedido</span>
+                        </div>
+                        <p class="text-slate-400 text-[11px]">Calculado automaticamente pelo script <code>SaasBillingService</code> no fechamento mensal.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             SEÇÃO 3: MECANISMOS DE MONETIZAÇÃO HÍBRIDA & SPLITS
+             ========================================== -->
+        <section id="monetizacao" class="space-y-8">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-6">
+                <div>
+                    <span class="text-xs font-bold text-pulse-400 uppercase tracking-widest">Seção 03</span>
+                    <h2 class="text-3xl font-extrabold text-white tracking-tight mt-1 flex items-center gap-3">
+                        <i class="fas fa-money-bill-transfer text-emerald-400"></i>
+                        Engenharia Financeira: Os 3 Canais de Monetização do SaaS
+                    </h2>
+                    <p class="text-slate-400 text-sm mt-1">
+                        Como a arquitetura do Pulse captura receita em tempo real sem bitributação e com risco zero de inadimplência.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Diagrama dos 3 Canais -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                <!-- Canal 1: Split em Tempo Real -->
+                <div class="glass-panel p-6 rounded-3xl border-slate-800/80 space-y-4">
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-2xl font-bold">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <span class="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">Canal 01 • Instantâneo</span>
+                    <h3 class="text-xl font-bold text-white">Split Mercado Pago (Catálogo)</h3>
+                    <p class="text-slate-400 text-xs leading-relaxed">
+                        Quando o consumidor final compra pelo Catálogo Digital do lojista via Pix ou Cartão, o gateway divide o pagamento automaticamente.
+                    </p>
+
+                    <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800 text-xs space-y-2 font-mono">
+                        <div class="text-slate-400">Exemplo: Venda de R$ 200,00 (Taxa 2.5%)</div>
+                        <div class="flex justify-between text-emerald-400 font-bold pt-1 border-t border-slate-800">
+                            <span>➔ Loja Recebe:</span>
+                            <span>R$ 195,00</span>
+                        </div>
+                        <div class="flex justify-between text-pulse-400 font-bold">
+                            <span>➔ SaaS Master Recebe:</span>
+                            <span>R$ 5,00 (Instantâneo)</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1 text-xs text-slate-300">
+                        <div class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-400 text-[10px]"></i> Zero inadimplência (dinheiro cai na hora)</div>
+                        <div class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-400 text-[10px]"></i> Isenção de bitributação fiscal</div>
+                    </div>
+                </div>
+
+                <!-- Canal 2: Take Rate sobre GMV de Marketplaces -->
+                <div class="glass-panel p-6 rounded-3xl border-slate-800/80 space-y-4">
+                    <div class="w-12 h-12 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 text-2xl font-bold">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <span class="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 uppercase">Canal 02 • Pós-Pago</span>
+                    <h3 class="text-xl font-bold text-white">Take Rate de Marketplaces</h3>
+                    <p class="text-slate-400 text-xs leading-relaxed">
+                        Apuração mensal automatizada de vendas no Mercado Livre, Shopee, Magalu e Temu através do cron <code>SaasBillingController</code>.
+                    </p>
+
+                    <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800 text-xs space-y-2 font-mono">
+                        <div class="text-slate-400">Exemplo: Loja vendeu R$ 60.000 no mês</div>
+                        <div class="flex justify-between text-slate-300">
+                            <span>Mensalidade Base (PRO):</span>
+                            <span>R$ 179,90</span>
+                        </div>
+                        <div class="flex justify-between text-violet-400 font-bold">
+                            <span>Taxa GMV (1.0% de 60k):</span>
+                            <span>R$ 600,00</span>
+                        </div>
+                        <div class="flex justify-between text-emerald-400 font-bold pt-1 border-t border-slate-800">
+                            <span>➔ Fatura SaaS Total:</span>
+                            <span>R$ 779,90</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1 text-xs text-slate-300">
+                        <div class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-400 text-[10px]"></i> Alinha o ganho do SaaS ao sucesso da loja</div>
+                        <div class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-400 text-[10px]"></i> Geração de Pix com QR Code dinâmico</div>
+                    </div>
+                </div>
+
+                <!-- Canal 3: Mensalidade Recorrente & Bloqueio Automático -->
+                <div class="glass-panel p-6 rounded-3xl border-slate-800/80 space-y-4">
+                    <div class="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 text-2xl font-bold">
+                        <i class="fas fa-shield-halved"></i>
+                    </div>
+                    <span class="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 uppercase">Canal 03 • MRR Fixo</span>
+                    <h3 class="text-xl font-bold text-white">Recorrência com Régua Blindada</h3>
+                    <p class="text-slate-400 text-xs leading-relaxed">
+                        Previsibilidade de receita com cobrança no cartão/Pix e régua de cobrança automática via WhatsApp para garantir menos de 3% de churn.
+                    </p>
+
+                    <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800 text-xs space-y-2">
+                        <div class="flex items-center justify-between text-slate-400">
+                            <span>Fechamento:</span>
+                            <span class="font-bold text-white">Dia 1º do Mês</span>
+                        </div>
+                        <div class="flex items-center justify-between text-slate-400">
+                            <span>Vencimento da Fatura:</span>
+                            <span class="font-bold text-white">Dia 10 (10 dias)</span>
+                        </div>
+                        <div class="flex items-center justify-between text-amber-400">
+                            <span>Carência com Avisos:</span>
+                            <span class="font-bold">5 Dias (Zap diário)</span>
+                        </div>
+                        <div class="flex items-center justify-between text-rose-400 font-bold pt-1 border-t border-slate-800">
+                            <span>Suspensão Automática:</span>
+                            <span>16º dia sem pagamento</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1 text-xs text-slate-300">
+                        <div class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-400 text-[10px]"></i> Notificações automáticas no WhatsApp</div>
+                        <div class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-400 text-[10px]"></i> Reativação instantânea após pagamento Pix</div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ==========================================
+             SEÇÃO 4: SIMULADOR INTERATIVO DE RECEITA SAAS
+             ========================================== -->
+        <section id="calculadora" class="space-y-8">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-6">
+                <div>
+                    <span class="text-xs font-bold text-pulse-400 uppercase tracking-widest">Seção 04</span>
+                    <h2 class="text-3xl font-extrabold text-white tracking-tight mt-1 flex items-center gap-3">
+                        <i class="fas fa-calculator text-amber-400"></i>
+                        Simulador Dinâmico de Receita SaaS & Valuation
+                    </h2>
+                    <p class="text-slate-400 text-sm mt-1">
+                        Ajuste os parâmetros da sua base de lojistas e visualize a projeção de MRR, ARR, Splits e Valuation do negócio.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Painel Interativo com Sliders e Resultados -->
+            <div class="glass-panel p-6 lg:p-10 rounded-3xl border-slate-800/80 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                
+                <!-- Inputs & Sliders (7 colunas) -->
+                <div class="lg:col-span-7 space-y-6">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fas fa-sliders text-pulse-400"></i> Parâmetros da Base de Assinantes
+                    </h3>
+
+                    <!-- Slider 1: Total de Lojas Ativas -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center text-xs font-bold">
+                            <span class="text-slate-300">Total de Lojistas Ativos (Tenants):</span>
+                            <span class="text-pulse-400 text-base font-black font-mono" id="val-total-tenants">150</span>
+                        </div>
+                        <input type="range" id="input-tenants" min="10" max="2000" step="10" value="150" oninput="recalculateSaaSProjection()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-pulse-500">
+                        <div class="flex justify-between text-[10px] text-slate-500">
+                            <span>10 Lojas</span>
+                            <span>500 Lojas</span>
+                            <span>1.000 Lojas</span>
+                            <span>2.000 Lojas</span>
+                        </div>
+                    </div>
+
+                    <!-- Slider 2: % de Lojas no Plano PRO/OMNI -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center text-xs font-bold">
+                            <span class="text-slate-300">% de Lojas em Planos Avançados (PRO / Omni / Enterprise):</span>
+                            <span class="text-emerald-400 text-base font-black font-mono" id="val-pro-percent">65%</span>
+                        </div>
+                        <input type="range" id="input-pro-percent" min="20" max="90" step="5" value="65" oninput="recalculateSaaSProjection()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500">
+                    </div>
+
+                    <!-- Slider 3: GMV Médio Mensal por Loja em Marketplaces -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center text-xs font-bold">
+                            <span class="text-slate-300">GMV Médio por Loja em Marketplaces (R$/mês):</span>
+                            <span class="text-violet-400 text-base font-black font-mono" id="val-gmv-mktp">R$ 25.000</span>
+                        </div>
+                        <input type="range" id="input-gmv-mktp" min="5000" max="100000" step="5000" value="25000" oninput="recalculateSaaSProjection()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-violet-500">
+                    </div>
+
+                    <!-- Slider 4: Vendas Médias no Catálogo Digital com Split -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center text-xs font-bold">
+                            <span class="text-slate-300">Vendas no Catálogo Web / Split MP (R$/mês por loja):</span>
+                            <span class="text-cyan-400 text-base font-black font-mono" id="val-gmv-catalogo">R$ 8.000</span>
+                        </div>
+                        <input type="range" id="input-gmv-catalogo" min="1000" max="40000" step="1000" value="8000" oninput="recalculateSaaSProjection()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500">
+                    </div>
+                </div>
+
+                <!-- Resultados & Projeções (5 colunas) -->
+                <div class="lg:col-span-5 bg-slate-900/90 p-6 rounded-3xl border border-slate-800 space-y-5">
+                    <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Projeção Mensal & Anual</span>
+                        <span class="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Tempo Real</span>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-slate-400">MRR Mensalidades Fixas:</span>
+                            <span class="text-base font-black font-mono text-white" id="res-mrr-fixo">R$ 25.485,00</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-slate-400">Receita Split Catálogo (2.5%):</span>
+                            <span class="text-base font-black font-mono text-cyan-400" id="res-rec-split">R$ 30.000,00</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-slate-400">Take Rate Marketplaces (1.0%):</span>
+                            <span class="text-base font-black font-mono text-violet-400" id="res-rec-mktp">R$ 24.375,00</span>
+                        </div>
+                    </div>
+
+                    <!-- Total MRR -->
+                    <div class="pt-4 border-t border-slate-800">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block">MRR Total Consolidado</span>
+                        <div class="text-3xl sm:text-4xl font-black text-emerald-400 font-mono tracking-tight mt-1" id="res-mrr-total">
+                            R$ 79.860,00
+                        </div>
+                        <span class="text-xs text-slate-500 block mt-0.5" id="res-arr-total">ARR Anual: R$ 958.320,00 / ano</span>
+                    </div>
+
+                    <!-- Valuation Estimado -->
+                    <div class="pt-4 border-t border-slate-800 bg-pulse-950/40 p-4 rounded-2xl border border-pulse-500/20">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-slate-300">Valuation Estimado (5x ARR):</span>
+                            <span class="text-xs font-extrabold text-amber-400 font-mono" id="res-valuation">R$ 4.79M</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 mt-1">Múltiplo padrão de mercado para empresas B2B SaaS com alta retenção e receita transacional.</p>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ==========================================
+             SEÇÃO 5: ESTRATÉGIA DE MARKETING GO-TO-MARKET (GTM)
+             ========================================== -->
+        <section id="marketing" class="space-y-8">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-6">
+                <div>
+                    <span class="text-xs font-bold text-pulse-400 uppercase tracking-widest">Seção 05</span>
+                    <h2 class="text-3xl font-extrabold text-white tracking-tight mt-1 flex items-center gap-3">
+                        <i class="fas fa-bullseye text-rose-500"></i>
+                        Estratégia de Marketing Go-To-Market (GTM) 360°
+                    </h2>
+                    <p class="text-slate-400 text-sm mt-1">
+                        Posicionamento estratégico, mapeamento de ICPs e canais de tração para gerar 30+ leads qualificados por dia.
+                    </p>
+                </div>
+            </div>
+
+            <!-- ICP Tabs Interativos -->
+            <div class="glass-panel p-6 sm:p-8 rounded-3xl border-slate-800/80 space-y-6">
+                <div class="flex flex-wrap gap-2 border-b border-slate-800 pb-4">
+                    <button onclick="switchIcpTab('prestamista')" id="icp-tab-prestamista" class="px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all bg-emerald-600 text-white shadow-md flex items-center gap-2">
+                        <i class="fas fa-route"></i> 1. Prestamistas & Crediário de Rua
+                    </button>
+                    <button onclick="switchIcpTab('sellers')" id="icp-tab-sellers" class="px-4 py-2.5 rounded-xl text-xs font-extrabold text-slate-400 hover:text-white transition-all flex items-center gap-2">
+                        <i class="fas fa-network-wired"></i> 2. Sellers de Marketplaces
+                    </button>
+                    <button onclick="switchIcpTab('varejo')" id="icp-tab-varejo" class="px-4 py-2.5 rounded-xl text-xs font-extrabold text-slate-400 hover:text-white transition-all flex items-center gap-2">
+                        <i class="fas fa-store"></i> 3. Lojas Físicas & Varejo
+                    </button>
+                    <button onclick="switchIcpTab('food')" id="icp-tab-food" class="px-4 py-2.5 rounded-xl text-xs font-extrabold text-slate-400 hover:text-white transition-all flex items-center gap-2">
+                        <i class="fas fa-utensils"></i> 4. Bares, Food & Delivery
+                    </button>
+                </div>
+
+                <!-- Conteúdo ICP 1: Prestamistas -->
+                <div id="icp-content-prestamista" class="space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 space-y-3">
+                            <span class="text-xs font-extrabold text-emerald-400 uppercase tracking-wider block">Perfil & Quem São</span>
+                            <h4 class="text-base font-bold text-white">Vendedores de Rota, Crediaristas e Prestamistas</h4>
+                            <p class="text-slate-400 text-xs leading-relaxed">
+                                Empresários que vendem roupas, cosméticos, colchões, eletros e utensílios parcelados de porta em porta em cidades do interior e polos regionais.
+                            </p>
+                        </div>
+
+                        <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 space-y-3">
+                            <span class="text-xs font-extrabold text-rose-400 uppercase tracking-wider block">Maior Dor (Gatilho de Venda)</span>
+                            <h4 class="text-base font-bold text-white">Inadimplência, Fichas de Papel e Desvios de Cobradores</h4>
+                            <p class="text-slate-400 text-xs leading-relaxed">
+                                Usam cadernos de papel ou fichinhas que molham e perdem; não sabem quem pagou, quem está devendo há 30 dias e se o cobrador realmente repassou o dinheiro.
+                            </p>
+                        </div>
+
+                        <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 space-y-3">
+                            <span class="text-xs font-extrabold text-pulse-400 uppercase tracking-wider block">A Promessa Irresistível</span>
+                            <h4 class="text-base font-bold text-white">"Seu Cobrador com App no Celular + Recibo na Hora"</h4>
+                            <p class="text-slate-400 text-xs leading-relaxed">
+                                Sistema com aplicativo Flutter e impressora Bluetooth de bolso. O cliente recebe recibo impresso na hora e WhatsApp cobra automaticamente com Pix.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Conteúdo ICP 2: Sellers -->
+                <div id="icp-content-sellers" class="space-y-6 hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 space-y-3">
+                            <span class="text-xs font-extrabold text-violet-400 uppercase tracking-wider block">Perfil & Quem São</span>
+                            <h4 class="text-base font-bold text-white">Sellers Multi-Canais (Mercado Livre, Shopee, Magalu)</h4>
+                            <p class="text-slate-400 text-xs leading-relaxed">
+                                Empreendedores digitais que faturam de R$ 20k a R$ 300k/mês vendendo produtos em múltiplos marketplaces e precisam de controle centralizado.
+                            </p>
+                        </div>
+
+                        <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 space-y-3">
+                            <span class="text-xs font-extrabold text-rose-400 uppercase tracking-wider block">Maior Dor (Gatilho de Venda)</span>
+                            <h4 class="text-base font-bold text-white">Venda Duplicada sem Estoque e Falta de Margem Real</h4>
+                            <p class="text-slate-400 text-xs leading-relaxed">
+                                Vender o último item na Shopee e Mercado Livre ao mesmo tempo (levando cancelamento e queda de reputação) e não saber se está tendo lucro após todas as taxas.
+                            </p>
+                        </div>
+
+                        <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 space-y-3">
+                            <span class="text-xs font-extrabold text-pulse-400 uppercase tracking-wider block">A Promessa Irresistível</span>
+                            <h4 class="text-base font-bold text-white">"Estoque Sincronizado em Tempo Real + Markup Anti-Prejuízo"</h4>
+                            <p class="text-slate-400 text-xs leading-relaxed">
+                                Sincronização automática em segundos via Webhooks e precificação por Markup Divisor que alerta antes de você vender com prejuízo.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Conteúdo ICP 3: Varejo Físico -->
+                <div id="icp-content-varejo" class="space-y-6 hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 space-y-3">
+                            <span class="text-xs font-extrabold text-blue-400 uppercase tracking-wider block">Perfil & Quem São</span>
+                            <h4 class="text-base font-bold text-white">Comércio Local, Óticas, Vestuário e Materiais de Construção</h4>
+                            <p class="text-slate-400 text-xs leading-relaxed">
+                                Lojas de bairro e centros comerciais que operam com balcão físico, crediário próprio e precisam divulgar promoções nas redes sociais.
+                            </p>
+                        </div>
+
+                        <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 space-y-3">
+                            <span class="text-xs font-extrabold text-rose-400 uppercase tracking-wider block">Maior Dor (Gatilho de Venda)</span>
+                            <h4 class="text-base font-bold text-white">Sistemas Antigos, Lentos e Falta de Canal Online</h4>
+                            <p class="text-slate-400 text-xs leading-relaxed">
+                                Usam ERPs legados que travam no caixa, não funcionam no celular e exigem pagar designers caros para criar encartes promocionais.
+                            </p>
+                        </div>
+
+                        <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 space-y-3">
+                            <span class="text-xs font-extrabold text-pulse-400 uppercase tracking-wider block">A Promessa Irresistível</span>
+                            <h4 class="text-base font-bold text-white">"PDV Ágil + Encartes Prontos para o Instagram e WhatsApp"</h4>
+                            <p class="text-slate-400 text-xs leading-relaxed">
+                                Frente de caixa expressa, leitor de código de barras pela câmera do celular e gerador automático de encartes promocionais com 1 clique.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Conteúdo ICP 4: Food Service -->
+                <div id="icp-content-food" class="space-y-6 hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 space-y-3">
+                            <span class="text-xs font-extrabold text-amber-400 uppercase tracking-wider block">Perfil & Quem São</span>
+                            <h4 class="text-base font-bold text-white">Hamburguerias, Pizzarias, Bares e Restaurantes</h4>
+                            <p class="text-slate-400 text-xs leading-relaxed">
+                                Estabelecimentos gastronômicos que atendem salão físico com mesas/comandas e delivery próprio pelo WhatsApp.
+                            </p>
+                        </div>
+
+                        <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 space-y-3">
+                            <span class="text-xs font-extrabold text-rose-400 uppercase tracking-wider block">Maior Dor (Gatilho de Venda)</span>
+                            <h4 class="text-base font-bold text-white">Comissões Abusivas do iFood (27%) e Erros na Cozinha</h4>
+                            <p class="text-slate-400 text-xs leading-relaxed">
+                                Garçons anotando em papel com letra ilegível, demora na cozinha e perda de metade do lucro com taxas de marketplaces de delivery.
+                            </p>
+                        </div>
+
+                        <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 space-y-3">
+                            <span class="text-xs font-extrabold text-pulse-400 uppercase tracking-wider block">A Promessa Irresistível</span>
+                            <h4 class="text-base font-bold text-white">"Cardápio QR Code + Painel KDS na Cozinha + Delivery Zero Taxa"</h4>
+                            <p class="text-slate-400 text-xs leading-relaxed">
+                                Pedido cai direto na tela da cozinha, garçom atende pelo celular e delivery próprio com cálculo de taxa de entrega automático por bairro.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Canais de Aquisição Multicanal (Tráfego, Parcerias, PLG) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                <!-- Canal 1: Tráfego Pago Hiper-Segmentado -->
+                <div class="glass-panel p-6 rounded-3xl border-slate-800/80 space-y-4">
+                    <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 font-bold">
+                        <i class="fas fa-bullhorn"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white">1. Meta Ads & Google Ads</h3>
+                    <p class="text-slate-400 text-xs leading-relaxed">
+                        Anúncios em vídeo demonstrando a dor real: "Veja como funciona o app de cobrança com mini impressora portátil", "Como cobrar crediário pelo WhatsApp no piloto automático".
+                    </p>
+                    <div class="text-[11px] text-emerald-400 font-bold bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20">
+                        CPA Meta: R$ 35 - R$ 55 por lead qualificado
+                    </div>
+                </div>
+
+                <!-- Canal 2: Programa de Parcerias com Contadores -->
+                <div class="glass-panel p-6 rounded-3xl border-slate-800/80 space-y-4">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 font-bold">
+                        <i class="fas fa-handshake"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white">2. Canal Contadores & Técnicos de TI</h3>
+                    <p class="text-slate-400 text-xs leading-relaxed">
+                        Programa de canais com comissão vitalícia de 25% na mensalidade para escritórios de contabilidade e técnicos que instalam impressoras fiscais na região.
+                    </p>
+                    <div class="text-[11px] text-amber-400 font-bold bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
+                        Canal com CAC Zero e Churn &lt; 1.5%
+                    </div>
+                </div>
+
+                <!-- Canal 3: Product-Led Growth & Viralidade -->
+                <div class="glass-panel p-6 rounded-3xl border-slate-800/80 space-y-4">
+                    <div class="w-10 h-10 rounded-xl bg-pulse-500/10 border border-pulse-500/20 flex items-center justify-center text-pulse-400 font-bold">
+                        <i class="fas fa-share-nodes"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white">3. Viral Loops (PLG Nativo)</h3>
+                    <p class="text-slate-400 text-xs leading-relaxed">
+                        Cada Catálogo Web possui o rodapé: <em>"Criado com Pulse ERP — Teste grátis"</em>. Cada recibo térmico impresso possui o QR Code de indicação do sistema.
+                    </p>
+                    <div class="text-[11px] text-pulse-400 font-bold bg-pulse-500/10 p-2.5 rounded-xl border border-pulse-500/20">
+                        15% dos novos clientes vêm de catálogos de outros clientes
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ==========================================
+             SEÇÃO 6: PLAYBOOK COMERCIAL & SCRIPTS PRONTOS
+             ========================================== -->
+        <section id="vendas" class="space-y-8">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-6">
+                <div>
+                    <span class="text-xs font-bold text-pulse-400 uppercase tracking-widest">Seção 06</span>
+                    <h2 class="text-3xl font-extrabold text-white tracking-tight mt-1 flex items-center gap-3">
+                        <i class="fas fa-comments-dollar text-emerald-400"></i>
+                        Playbook de Vendas & Scripts de Conversão Imediata
+                    </h2>
+                    <p class="text-slate-400 text-sm mt-1">
+                        Copie e cole abordagens comprovadas de alta resposta para WhatsApp, Instagram Direct e Cold Calling.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Grid de Scripts com 1-Click Copy -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <!-- Script 1: Abordagem Prestamista / Crediário -->
+                <div class="glass-panel p-6 rounded-3xl border-slate-800/80 space-y-4 flex flex-col justify-between">
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-extrabold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">WhatsApp • Prestamistas</span>
+                            <span class="text-[11px] text-slate-400">Taxa Resposta: 42%</span>
+                        </div>
+                        <h4 class="text-lg font-bold text-white">Abordagem de Alto Impacto para Vendas em Rota</h4>
+                        <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-xs text-slate-300 leading-relaxed font-sans select-all" id="script-prestamista">
+Olá, [Nome do Lojista]! Tudo bem?
+
+Vi que você trabalha com vendas externas e crediário aqui na região de [Cidade].
+
+Queria te fazer uma pergunta rápida: como seus cobradores emitem o comprovante de pagamento hoje quando o cliente quita a parcela na rua? Ainda usam fichinha de papel?
+
+Desenvolvemos o **Pulse ERP Mobile**: seu cobrador usa um app no celular conectado a uma mini impressora Bluetooth no cinto. Ele recebe o valor, imprime o comprovante térmico na hora e o sistema já manda o lembrete da próxima parcela no WhatsApp do cliente com chave Pix.
+
+Gostaria de ver um vídeo de 1 minuto mostrando como funciona na prática?
+                        </div>
+                    </div>
+                    <button onclick="copyToClipboard('script-prestamista', 'Script Prestamista copiado!')" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2">
+                        <i class="fas fa-copy"></i> Copiar Mensagem de Abordagem
+                    </button>
+                </div>
+
+                <!-- Script 2: Abordagem Sellers Marketplace -->
+                <div class="glass-panel p-6 rounded-3xl border-slate-800/80 space-y-4 flex flex-col justify-between">
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-extrabold px-3 py-1 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30">WhatsApp • Sellers Mktp</span>
+                            <span class="text-[11px] text-slate-400">Taxa Resposta: 38%</span>
+                        </div>
+                        <h4 class="text-lg font-bold text-white">Abordagem para Sellers Mercado Livre & Shopee</h4>
+                        <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-xs text-slate-300 leading-relaxed font-sans select-all" id="script-sellers">
+Fala [Nome], tudo bem?
+
+Acompanho sua loja no [Mercado Livre / Shopee] e parabéns pelo catálogo de produtos!
+
+Uma dúvida rápida de gestão: vocês usam algum integrador para sincronizar o estoque entre a Shopee, Mercado Livre e a loja física de vocês, ou fazem o controle manual?
+
+O **Pulse ERP** centraliza todos os seus anúncios, sincroniza o estoque em tempo real via Webhook e tem uma calculadora de Markup Divisor que te mostra exatamente o seu lucro líquido em cada venda após abater a comissão do marketplace e impostos.
+
+Posso te liberar um acesso de demonstração de 7 dias sem compromisso para você testar com a sua conta?
+                        </div>
+                    </div>
+                    <button onclick="copyToClipboard('script-sellers', 'Script Sellers copiado!')" class="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs transition-all shadow-lg shadow-violet-600/30 flex items-center justify-center gap-2">
+                        <i class="fas fa-copy"></i> Copiar Mensagem Sellers
+                    </button>
+                </div>
+
+                <!-- Script 3: Quebra de Objeção "Já uso outro sistema" -->
+                <div class="glass-panel p-6 rounded-3xl border-slate-800/80 space-y-4 flex flex-col justify-between">
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-extrabold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">Objeção • Já tenho Sistema</span>
+                            <span class="text-[11px] text-slate-400">Conversão: 55%</span>
+                        </div>
+                        <h4 class="text-lg font-bold text-white">Como Converter Clientes Presos a Sistemas Antigos</h4>
+                        <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-xs text-slate-300 leading-relaxed font-sans select-all" id="script-objecao-sistema">
+Perfeito, [Nome]! É ótimo que você já tenha um sistema. A maioria dos nossos clientes atuais também usava outro software antes de vir para o Pulse.
+
+Geralmente eles migraram por 3 motivos principais:
+1. O sistema antigo não cobrava os clientes automaticamente no WhatsApp com Pix Copia e Cola.
+2. Não tinha o app de rota para o cobrador/vendedor de rua imprimir recibos térmicos no celular.
+3. Cobravam valores absurdos por cada usuário extra.
+
+Nossa equipe faz a **migração gratuita de todos os seus cadastros de clientes e produtos em menos de 15 minutos**. 
+
+Se eu te provar que o Pulse vai economizar pelo menos R$ 300/mês e recuperar clientes em atraso, valeria a pena uma demonstração rápida de 10 minutos hoje à tarde?
+                        </div>
+                    </div>
+                    <button onclick="copyToClipboard('script-objecao-sistema', 'Script Objeção copiado!')" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-all border border-slate-700 flex items-center justify-center gap-2">
+                        <i class="fas fa-copy"></i> Copiar Quebra de Objeção
+                    </button>
+                </div>
+
+                <!-- Script 4: Fechamento de Venda Rápido com Garantia -->
+                <div class="glass-panel p-6 rounded-3xl border-slate-800/80 space-y-4 flex flex-col justify-between">
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-extrabold px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">Fechamento • Urgência & Garantia</span>
+                            <span class="text-[11px] text-slate-400">Conversão: 68%</span>
+                        </div>
+                        <h4 class="text-lg font-bold text-white">Gatilho de Fechamento com Onboarding Acompanhado</h4>
+                        <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-xs text-slate-300 leading-relaxed font-sans select-all" id="script-fechamento">
+[Nome], para você não perder tempo e já começar a emitir suas vendas e organizar suas rotas ainda hoje:
+
+Vou liberar para a sua loja o **Plano PRO Completo com 7 dias de garantia incondicional**, com:
+✅ Configuração da sua instância de WhatsApp gratuita
+✅ Treinamento ao vivo de 30 minutos com seu operador
+✅ Importação do seu estoque via XML de notas fiscais
+
+Se em até 7 dias você achar que o sistema não facilitou o seu dia a dia, nós devolvemos 100% do valor na hora. 
+
+Posso gerar seu link de ativação com o desconto do plano anual agora?
+                        </div>
+                    </div>
+                    <button onclick="copyToClipboard('script-fechamento', 'Script Fechamento copiado!')" class="w-full py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs transition-all shadow-lg shadow-cyan-600/30 flex items-center justify-center gap-2">
+                        <i class="fas fa-copy"></i> Copiar Script de Fechamento
+                    </button>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ==========================================
+             SEÇÃO 7: ROADMAP DE CRESCIMENTO E METAS DE ESCALA
+             ========================================== -->
+        <section id="escala" class="space-y-8">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-6">
+                <div>
+                    <span class="text-xs font-bold text-pulse-400 uppercase tracking-widest">Seção 07</span>
+                    <h2 class="text-3xl font-extrabold text-white tracking-tight mt-1 flex items-center gap-3">
+                        <i class="fas fa-timeline text-pulse-400"></i>
+                        Roadmap de Lançamento & Metas de Escala (0 a 1.000 Lojas)
+                    </h2>
+                    <p class="text-slate-400 text-sm mt-1">
+                        Plano de execução tático dividido em 3 trimestres para atingir R$ 200k+ de faturamento recorrente mensal.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Timeline dos 3 Horizontes -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                <!-- Fase 1: Fundação & Primeiros 50 Clientes -->
+                <div class="glass-panel p-6 rounded-3xl border-slate-800/80 space-y-4 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs font-extrabold px-3 py-1 rounded-full bg-slate-800 text-slate-300">Mês 1 ao Mês 3</span>
+                            <span class="text-xs font-bold text-emerald-400">Fase 01</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-white">Tração Inicial & Validação Local</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed mt-2 mb-4">
+                            Foco total nos nichos de maior dor e menor ciclo de vendas: Prestamistas, vendedores de rota e comércio local.
+                        </p>
+                        <ul class="space-y-2 text-xs text-slate-300">
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> Prospecção ativa de 30 prestamistas locais</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> Lançamento de campanhas de Meta Ads geolocalizadas</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> Refinamento do onboarding assistido de 15 min</li>
+                        </ul>
+                    </div>
+                    <div class="pt-4 border-t border-slate-800 flex justify-between items-center text-xs">
+                        <span class="text-slate-400">Meta Fase 1:</span>
+                        <span class="font-black text-emerald-400">50 Lojas • R$ 9.500 MRR</span>
+                    </div>
+                </div>
+
+                <!-- Fase 2: Escala Regional & Hub Marketplaces -->
+                <div class="glass-panel p-6 rounded-3xl border-pulse-500/40 bg-pulse-950/10 space-y-4 flex flex-col justify-between shadow-lg shadow-pulse-950/30">
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs font-extrabold px-3 py-1 rounded-full bg-pulse-500/20 text-pulse-300 border border-pulse-500/30">Mês 4 ao Mês 6</span>
+                            <span class="text-xs font-bold text-pulse-400">Fase 02</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-white">Expansão Regional & Sellers</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed mt-2 mb-4">
+                            Ativação do Hub de Marketplaces (Mercado Livre, Shopee, Temu) e rede de parceiros contadores com comissão recorrente.
+                        </p>
+                        <ul class="space-y-2 text-xs text-slate-300">
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-pulse-400 mt-0.5"></i> Parceria com 20 escritórios de contabilidade</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-pulse-400 mt-0.5"></i> Lançamento do Plano OMNICHANNEL & FOOD</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-pulse-400 mt-0.5"></i> Ativação do faturamento pós-pago de GMV</li>
+                        </ul>
+                    </div>
+                    <div class="pt-4 border-t border-slate-800 flex justify-between items-center text-xs">
+                        <span class="text-slate-400">Meta Fase 2:</span>
+                        <span class="font-black text-pulse-400">250 Lojas • R$ 52.000 MRR</span>
+                    </div>
+                </div>
+
+                <!-- Fase 3: Escala Nacional & Enterprise -->
+                <div class="glass-panel p-6 rounded-3xl border-slate-800/80 space-y-4 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs font-extrabold px-3 py-1 rounded-full bg-slate-800 text-slate-300">Mês 7 ao Mês 12</span>
+                            <span class="text-xs font-bold text-amber-400">Fase 03</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-white">Escala Nacional & Domínio B2B</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed mt-2 mb-4">
+                            Operação comercial estruturada com SDRs, Growth Loops ativos nos catálogos públicos e planos Enterprise para redes de franquias.
+                        </p>
+                        <ul class="space-y-2 text-xs text-slate-300">
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> 1.000+ Lojas ativas gerando splits diários</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> Receita híbrida: 45% SaaS Fixo + 55% Variável</li>
+                            <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 mt-0.5"></i> Valuation acima de R$ 12 Milhões</li>
+                        </ul>
+                    </div>
+                    <div class="pt-4 border-t border-slate-800 flex justify-between items-center text-xs">
+                        <span class="text-slate-400">Meta Fase 3:</span>
+                        <span class="font-black text-amber-400">1.000 Lojas • R$ 218.000 MRR</span>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ==========================================
+             FOOTER & CONCLUSÃO EXECUTIVA
+             ========================================== -->
+        <footer class="pt-12 border-t border-slate-800/80 text-center space-y-4">
+            <div class="flex items-center justify-center gap-3">
+                <div class="w-8 h-8 rounded-xl bg-pulse-600 flex items-center justify-center text-white font-bold text-sm">
+                    <i class="fas fa-bolt-lightning"></i>
+                </div>
+                <span class="text-xl font-extrabold text-white">PULSE <span class="gradient-text-pulse">ERP SAAS</span></span>
+            </div>
+            <p class="text-xs text-slate-500 max-w-xl mx-auto">
+                Documento de Engenharia de Precificação e Estratégia de Go-to-Market gerado para a diretoria e equipe comercial do Pulse ERP. Todos os direitos reservados © 2026.
+            </p>
+        </footer>
+
+    </main>
+
+    <!-- ==========================================
+         SCRIPTS INTERATIVOS JS
+         ========================================== -->
+    <script>
+        // Preços Base Mensal e Anual (-20%)
+        const PLAN_PRICES = {
+            monthly: {
+                start: "89,90",
+                pro: "179,90",
+                omni: "289,90",
+                enterprise: "599,00",
+                cycleLabel: "/mês",
+                avgTicket: 198.00
+            },
+            annual: {
+                start: "71,90",
+                pro: "143,90",
+                omni: "231,90",
+                enterprise: "479,00",
+                cycleLabel: "/mês no anual",
+                avgTicket: 158.40
+            }
+        };
+
+        let currentBillingCycle = 'monthly';
+
+        // Alternar Ciclo de Faturamento
+        function setBillingCycle(cycle) {
+            currentBillingCycle = cycle;
+            const isAnnual = cycle === 'annual';
+
+            // Atualiza botões
+            const btnMonthly = document.getElementById('btn-monthly');
+            const btnAnnual = document.getElementById('btn-annual');
+
+            if (isAnnual) {
+                btnAnnual.className = "px-4 py-2 rounded-xl text-xs font-bold transition-all bg-pulse-600 text-white shadow-md flex items-center gap-1.5";
+                btnMonthly.className = "px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-all";
+            } else {
+                btnMonthly.className = "px-4 py-2 rounded-xl text-xs font-bold transition-all bg-pulse-600 text-white shadow-md";
+                btnAnnual.className = "px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-all flex items-center gap-1.5";
+            }
+
+            // Atualiza Valores na Tabela
+            const data = PLAN_PRICES[cycle];
+            document.getElementById('price-start').innerText = data.start;
+            document.getElementById('price-pro').innerText = data.pro;
+            document.getElementById('price-omni').innerText = data.omni;
+            document.getElementById('price-enterprise').innerText = data.enterprise;
+
+            document.getElementById('cycle-start').innerText = data.cycleLabel;
+            document.getElementById('cycle-pro').innerText = data.cycleLabel;
+            document.getElementById('cycle-omni').innerText = data.cycleLabel;
+            document.getElementById('cycle-enterprise').innerText = data.cycleLabel;
+
+            recalculateSaaSProjection();
+        }
+
+        // Alternar Abas de ICPs
+        function switchIcpTab(tabId) {
+            const tabs = ['prestamista', 'sellers', 'varejo', 'food'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`icp-tab-${t}`);
+                const content = document.getElementById(`icp-content-${t}`);
+                if (t === tabId) {
+                    btn.className = "px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all bg-emerald-600 text-white shadow-md flex items-center gap-2";
+                    content.classList.remove('hidden');
+                } else {
+                    btn.className = "px-4 py-2.5 rounded-xl text-xs font-extrabold text-slate-400 hover:text-white transition-all flex items-center gap-2";
+                    content.classList.add('hidden');
+                }
+            });
+        }
+
+        // Calculadora Dinâmica de SaaS e Valuation
+        function recalculateSaaSProjection() {
+            const tenants = parseInt(document.getElementById('input-tenants').value, 10);
+            const proPercent = parseInt(document.getElementById('input-pro-percent').value, 10) / 100;
+            const gmvMktp = parseFloat(document.getElementById('input-gmv-mktp').value);
+            const gmvCatalogo = parseFloat(document.getElementById('input-gmv-catalogo').value);
+
+            // Atualiza Labels dos Sliders
+            document.getElementById('val-total-tenants').innerText = tenants;
+            document.getElementById('val-pro-percent').innerText = `${Math.round(proPercent * 100)}%`;
+            document.getElementById('val-gmv-mktp').innerText = `R$ ${gmvMktp.toLocaleString('pt-BR')}`;
+            document.getElementById('val-gmv-catalogo').innerText = `R$ ${gmvCatalogo.toLocaleString('pt-BR')}`;
+
+            // Distribuição de Planos:
+            // Start: (1 - proPercent) * 100%
+            // Pro: proPercent * 70%
+            // Omni: proPercent * 25%
+            // Enterprise: proPercent * 5%
+            const startTenants = tenants * (1 - proPercent);
+            const proTenants = tenants * (proPercent * 0.70);
+            const omniTenants = tenants * (proPercent * 0.25);
+            const entTenants = tenants * (proPercent * 0.05);
+
+            const isAnnual = currentBillingCycle === 'annual';
+            const priceStart = isAnnual ? 71.90 : 89.90;
+            const pricePro = isAnnual ? 143.90 : 179.90;
+            const priceOmni = isAnnual ? 231.90 : 289.90;
+            const priceEnt = isAnnual ? 479.00 : 599.00;
+
+            const mrrFixo = (startTenants * priceStart) + (proTenants * pricePro) + (omniTenants * priceOmni) + (entTenants * priceEnt);
+
+            // Receita de Split Mercado Pago (2.5% em cima do catálogo dos lojistas)
+            const recSplit = tenants * gmvCatalogo * 0.025;
+
+            // Take Rate de Marketplaces (apenas lojistas Omni e Enterprise apuram, 1.0% de média)
+            const mktpTenants = omniTenants + entTenants + (proTenants * 0.3); // 30% do pro tb vende no mktp
+            const recMktp = mktpTenants * gmvMktp * 0.01;
+
+            const mrrTotal = mrrFixo + recSplit + recMktp;
+            const arrTotal = mrrTotal * 12;
+            const valuation = arrTotal * 5; // Múltiplo de 5x ARR
+
+            // Formatação BRL
+            document.getElementById('res-mrr-fixo').innerText = formatBRL(mrrFixo);
+            document.getElementById('res-rec-split').innerText = formatBRL(recSplit);
+            document.getElementById('res-rec-mktp').innerText = formatBRL(recMktp);
+            document.getElementById('res-mrr-total').innerText = formatBRL(mrrTotal);
+            document.getElementById('res-arr-total').innerText = `ARR Anual: ${formatBRL(arrTotal)} / ano`;
+            
+            if (valuation >= 1000000) {
+                document.getElementById('res-valuation').innerText = `R$ ${(valuation / 1000000).toFixed(2).replace('.', ',')} Milhões`;
+            } else {
+                document.getElementById('res-valuation').innerText = formatBRL(valuation);
+            }
+        }
+
+        function formatBRL(val) {
+            return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        // Copiar Texto para Clipboard com Toast
+        function copyToClipboard(elementId, customMessage) {
+            const text = document.getElementById(elementId).innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(customMessage || 'Texto copiado com sucesso!');
+            });
+        }
+
+        function copyPlanPitch(plan) {
+            let msg = '';
+            if (plan === 'START') {
+                msg = "Plano START Pulse ERP: Apenas R$ 89,90/mês para frente de caixa rápida, catálogo online no WhatsApp e controle total de estoque sem complicação.";
+            } else if (plan === 'PRO') {
+                msg = "Plano PRO Prestamista Pulse ERP: R$ 179,90/mês com App Mobile para cobrador de rua, impressão térmica Bluetooth portátil, rotas de cobrança e robô de WhatsApp que cobra no piloto automático com Pix.";
+            } else if (plan === 'OMNI') {
+                msg = "Plano OMNI & FOOD Pulse ERP: R$ 289,90/mês integrando Mercado Livre, Shopee, Magalu e iFood com estoque unificado, KDS na cozinha e mesas/delivery.";
+            } else {
+                msg = "Plano ENTERPRISE Pulse ERP: Multi-lojas ilimitadas, instâncias dedicadas de WhatsApp, DRE em tempo real e gerente de contas VIP.";
+            }
+            navigator.clipboard.writeText(msg).then(() => {
+                showToast(`Argumento do Plano ${plan} copiado!`);
+            });
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = message;
+            toast.className = 'show flex items-center gap-3';
+            setTimeout(() => {
+                toast.className = toast.className.replace('show', '');
+            }, 3000);
+        }
+
+        // Alternador de Tema Dark/Light
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                icon.className = 'fas fa-sun text-amber-400';
+                localStorage.setItem('pulse_theme', 'light');
+            } else {
+                html.classList.add('dark');
+                icon.className = 'fas fa-moon text-slate-300';
+                localStorage.setItem('pulse_theme', 'dark');
+            }
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('pulse_theme');
+            if (savedTheme === 'light') {
+                toggleTheme();
+            }
+            recalculateSaaSProjection();
+        });
+    </script>
+</body>
+</html>

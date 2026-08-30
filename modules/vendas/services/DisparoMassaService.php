@@ -208,6 +208,18 @@ class DisparoMassaService
      * @param int $limit Número máximo de itens a processar nesta rodada
      * @return int Quantidade de itens processados
      */
+    /**
+     * Processa os itens pendentes na fila de disparos com proteções ativas anti-banimento:
+     * - Isolamento por Tenant (Round-robin)
+     * - Teto Diário de Mensagens por WhatsApp
+     * - Circuit Breaker (pausa automática após 3 falhas consecutivas)
+     * - Pré-validação de números no WhatsApp
+     * - Jitter humano (15s a 45s) e pausas de lote
+     *
+     * @param string|null $disparoId ID específico do disparo ou null para todos pendentes
+     * @param int $limit Número máximo de itens a processar nesta rodada
+     * @return int Quantidade de itens processados
+     */
     public function processarFilaDisparo(?string $disparoId = null, int $limit = 50): int
     {
         $query = DisparoItem::find()
@@ -223,7 +235,64 @@ class DisparoMassaService
         $itens = $query->all();
         $processados = 0;
 
+        // Rastreamento por tenant para Circuit Breaker e controle de lotes
+        $tenantConsecutiveErrors = [];
+        $tenantBatchCount = [];
+
         foreach ($itens as $item) {
+            $campanha = $item->disparo;
+            $produto = $item->produto;
+            $usuarioId = $campanha ? $campanha->usuario_id : ($produto ? $produto->usuario_id : null);
+
+            if (empty($usuarioId)) {
+                $item->status = DisparoItem::STATUS_ERRO;
+                $item->erro_mensagem = "Tenant/Usuário não identificado.";
+                $item->save(false);
+                continue;
+            }
+
+            // 1. Inicializa contadores do tenant
+            if (!isset($tenantConsecutiveErrors[$usuarioId])) {
+                $tenantConsecutiveErrors[$usuarioId] = 0;
+            }
+            if (!isset($tenantBatchCount[$usuarioId])) {
+                $tenantBatchCount[$usuarioId] = 0;
+            }
+
+            // 2. Circuit Breaker Check: Se o tenant já teve 3 erros seguidos, pula seus itens
+            if ($tenantConsecutiveErrors[$usuarioId] >= 3) {
+                if ($campanha && $campanha->status !== DisparoMassa::STATUS_PAUSADO) {
+                    $campanha->status = DisparoMassa::STATUS_PAUSADO;
+                    $campanha->save(false);
+                    Yii::error("DisparoMassa: Campanha {$campanha->id} do tenant {$usuarioId} pausada pelo Circuit Breaker.", __METHOD__);
+                }
+                continue;
+            }
+
+            // 3. Checagem de Configuração e Limite Diário
+            $configWp = null;
+            if ($item->canal === DisparoMassa::CANAL_STATUS || $item->canal === DisparoMassa::CANAL_WHATSAPP) {
+                $configWp = WhatsappConfig::findByEmpresa($usuarioId);
+                if (!$configWp || empty($configWp->token)) {
+                    $item->status = DisparoItem::STATUS_ERRO;
+                    $item->erro_mensagem = "WhatsApp não configurado ou desconectado para esta loja.";
+                    $item->save(false);
+                    $tenantConsecutiveErrors[$usuarioId]++;
+                    continue;
+                }
+
+                // Teto diário de segurança
+                if (!$configWp->podeEnviarHoje()) {
+                    if ($campanha && $campanha->status !== DisparoMassa::STATUS_PAUSADO) {
+                        $campanha->status = DisparoMassa::STATUS_PAUSADO;
+                        $campanha->save(false);
+                    }
+                    Yii::warning("DisparoMassa: Limite diário atingido para tenant {$usuarioId} ({$configWp->mensagens_enviadas_hoje}/{$configWp->limite_diario_mensagens}). Campanha pausada.", __METHOD__);
+                    continue;
+                }
+            }
+
+            // Bloqueio atômico de status para evitar processamento concorrente
             $affected = DisparoItem::updateAll(
                 ['status' => DisparoItem::STATUS_PROCESSANDO],
                 ['id' => $item->id, 'status' => DisparoItem::STATUS_PENDENTE]
@@ -237,29 +306,13 @@ class DisparoMassaService
             $erroMsg = null;
 
             try {
-                $campanha = $item->disparo;
-                $produto = $item->produto;
-                $usuarioId = $campanha ? $campanha->usuario_id : $produto->usuario_id;
-
-                // Verificar conexão do WhatsApp DIRETAMENTE na Evolution API (ignora cache do banco local)
-                if ($item->canal === DisparoMassa::CANAL_STATUS || $item->canal === DisparoMassa::CANAL_WHATSAPP) {
-                    $configWp = WhatsappConfig::findByEmpresa($usuarioId);
-                    if (!$configWp || empty($configWp->token)) {
-                        throw new \Exception("WhatsApp não configurado para esta loja. Acesse Configurações → WhatsApp e conecte sua instância.");
-                    }
-                    // Sempre consultar o status ao vivo na Evolution API — não confiar no cache do banco local
-                    $wpConectado = $this->evolutionService->checkStatus($usuarioId);
-                    if (!$wpConectado) {
-                        throw new \Exception("Instância do WhatsApp desconectada na Evolution API. Acesse as configurações e escaneie o QR Code.");
-                    }
-                }
-
                 $cardAbsPath = Yii::getAlias('@app/web/') . ltrim($item->card_path, '/');
                 $cardBase64 = null;
                 if (file_exists($cardAbsPath) && !empty($item->card_path)) {
                     $ext = strtolower(pathinfo($item->card_path, PATHINFO_EXTENSION));
                     if (in_array($ext, ['png', 'jpg', 'jpeg', 'webp'])) {
-                        $cardBase64 = $this->cardService->converterImagemParaBase64($cardAbsPath);
+                        // Aplica randomização de hash de mídia a cada envio
+                        $cardBase64 = \app\modules\evolution\helpers\MediaRandomizerHelper::randomizeImageHash($cardAbsPath);
                     }
                 }
 
@@ -268,14 +321,19 @@ class DisparoMassaService
 
                 $mediaType = $isVideo ? 'video' : 'image';
                 $urlAbsoluta = $this->garantirUrlAbsoluta(!empty($item->card_url) ? $item->card_url : $item->card_path);
-                $mediaParam = !empty($urlAbsoluta) ? $urlAbsoluta : $cardBase64;
+                $mediaParam = !empty($cardBase64) ? $cardBase64 : (!empty($urlAbsoluta) ? $urlAbsoluta : null);
+
+                // Aplica Spintax dinâmico na mensagem personalizada
+                $textoPersonalizado = !empty($item->mensagem_personalizada)
+                    ? $this->processarSpintax($item->mensagem_personalizada)
+                    : ($produto ? $produto->nome : 'Oferta');
 
                 switch ($item->canal) {
                     case DisparoMassa::CANAL_STATUS:
                         if ($mediaParam) {
-                            $sucesso = $this->evolutionService->sendWhatsAppStatus($usuarioId, $mediaParam, $item->mensagem_personalizada ?: $produto->nome, $mediaType);
+                            $sucesso = $this->evolutionService->sendWhatsAppStatus($usuarioId, $mediaParam, $textoPersonalizado, $mediaType);
                             if (!$sucesso) {
-                                $erroMsg = $this->evolutionService->lastError ?: "Falha ao postar no Status do WhatsApp via Evolution API. Verifique a conexão.";
+                                $erroMsg = $this->evolutionService->lastError ?: "Falha ao postar no Status do WhatsApp.";
                             }
                         } else {
                             $erroMsg = "Arquivo de mídia não encontrado.";
@@ -284,9 +342,16 @@ class DisparoMassaService
 
                     case DisparoMassa::CANAL_WHATSAPP:
                         if ($mediaParam && !empty($item->destino)) {
-                            $sucesso = $this->evolutionService->sendMedia($usuarioId, $item->destino, $mediaParam, $item->mensagem_personalizada ?: $produto->nome, $mediaType);
-                            if (!$sucesso) {
-                                $erroMsg = $this->evolutionService->lastError ?: "Falha ao enviar mensagem de mídia para {$item->destino} via Evolution API.";
+                            // Pré-validação do número no WhatsApp
+                            $validJid = $this->evolutionService->validateWhatsappNumber($usuarioId, $item->destino);
+                            if (!$validJid) {
+                                $sucesso = false;
+                                $erroMsg = "O número {$item->destino} não está registrado ou ativo no WhatsApp.";
+                            } else {
+                                $sucesso = $this->evolutionService->sendMedia($usuarioId, $validJid, $mediaParam, $textoPersonalizado, $mediaType);
+                                if (!$sucesso) {
+                                    $erroMsg = $this->evolutionService->lastError ?: "Falha ao enviar mensagem de mídia para {$item->destino}.";
+                                }
                             }
                         } else {
                             $erroMsg = "Mídia ou número de telefone de destino ausente.";
@@ -297,17 +362,17 @@ class DisparoMassaService
                         $emailDest = trim((string)$item->destino);
                         if (empty($emailDest) || !filter_var($emailDest, FILTER_VALIDATE_EMAIL)) {
                             $sucesso = false;
-                            $erroMsg = "E-mail de destino inválido ou incompleto: '{$item->destino}'. Certifique-se de informar o endereço completo com domínio (ex: usuario@gmail.com).";
+                            $erroMsg = "E-mail de destino inválido: '{$item->destino}'.";
                         } else {
                             $sucesso = $this->emailService->enviarEmailCard(
                                 $emailDest,
                                 $produto,
                                 $cardAbsPath,
                                 $item->card_url,
-                                $item->mensagem_personalizada
+                                $textoPersonalizado
                             );
                             if (!$sucesso) {
-                                $erroMsg = "Falha ao disparar e-mail para {$emailDest}. Verifique a configuração de SMTP/Mailer.";
+                                $erroMsg = "Falha ao disparar e-mail para {$emailDest}.";
                             }
                         }
                         break;
@@ -321,14 +386,17 @@ class DisparoMassaService
                 $item->status = DisparoItem::STATUS_ENVIADO;
                 $item->enviado_em = date('Y-m-d H:i:s');
                 $item->erro_mensagem = null;
-                
+                $tenantConsecutiveErrors[$usuarioId] = 0; // Reseta Circuit Breaker
+                $tenantBatchCount[$usuarioId]++;
+
                 if ($item->disparo) {
                     $item->disparo->updateCounters(['itens_enviados' => 1]);
                 }
             } else {
                 $item->status = DisparoItem::STATUS_ERRO;
                 $item->erro_mensagem = $erroMsg ?: 'Falha de envio desconhecida.';
-                
+                $tenantConsecutiveErrors[$usuarioId]++;
+
                 if ($item->disparo) {
                     $item->disparo->updateCounters(['itens_erro' => 1]);
                 }
@@ -345,6 +413,22 @@ class DisparoMassaService
                 } else if ($c->status === DisparoMassa::STATUS_PENDENTE) {
                     $c->status = DisparoMassa::STATUS_PROCESSANDO;
                     $c->save(false);
+                }
+            }
+
+            // 4. Jitter e Pausa de Lote anti-banimento apenas para canais de WhatsApp
+            if ($item->canal === DisparoMassa::CANAL_WHATSAPP && $sucesso) {
+                $delayMinSec = $configWp ? max(10, (int)($configWp->delay_min / 1000)) : 15;
+                $delayMaxSec = $configWp ? max(15, (int)($configWp->delay_max / 1000)) : 45;
+                $jitter = rand($delayMinSec, $delayMaxSec);
+                sleep($jitter);
+
+                // Pausa de lote a cada lote_tamanho (default: 15 envios)
+                $loteTamanho = $configWp ? (int)$configWp->lote_tamanho : 15;
+                $lotePausa = $configWp ? (int)$configWp->lote_pausa_segundos : 120;
+                if ($loteTamanho > 0 && ($tenantBatchCount[$usuarioId] % $loteTamanho === 0)) {
+                    Yii::info("DisparoMassa: Pausa de lote de {$lotePausa}s acionada para tenant {$usuarioId}.", __METHOD__);
+                    sleep($lotePausa);
                 }
             }
         }
@@ -729,17 +813,31 @@ class DisparoMassaService
     }
 
     /**
-     * Processa sintaxe SpinTax em strings no formato {opção1|opção2|opção3}
+     * Processa sintaxe SpinTax recursiva em strings no formato {opção1|opção2|{sub1|sub2}}
+     *
+     * @param string $texto
+     * @param int $maxDepth Limite de profundidade para evitar loops infinitos
+     * @return string
      */
-    public function processarSpintax(string $texto): string
+    public function processarSpintax(string $texto, int $maxDepth = 5): string
     {
-        return preg_replace_callback('/\{([^{}]+)\}/', function ($matches) {
-            $choices = explode('|', $matches[1]);
-            if (count($choices) > 1) {
-                return $choices[array_rand($choices)];
-            }
-            return $matches[0];
-        }, $texto);
+        if (empty($texto) || $maxDepth <= 0) {
+            return $texto;
+        }
+
+        $pattern = '/\{([^{}]+)\}/';
+        while (preg_match($pattern, $texto) && $maxDepth > 0) {
+            $texto = preg_replace_callback($pattern, function ($matches) {
+                $choices = explode('|', $matches[1]);
+                if (count($choices) > 1) {
+                    return $choices[array_rand($choices)];
+                }
+                return $matches[0];
+            }, $texto);
+            $maxDepth--;
+        }
+
+        return $texto;
     }
 }
 

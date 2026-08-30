@@ -3,6 +3,7 @@
 namespace app\modules\evolution\services;
 
 use app\modules\evolution\models\WhatsappConfig;
+use app\modules\evolution\helpers\MediaRandomizerHelper;
 use Yii;
 use yii\httpclient\Client;
 use yii\httpclient\Exception as HttpClientException;
@@ -157,6 +158,22 @@ class EvolutionService
 
             // 2. Cria instância limpa no motor GO
             $instanceToken = Yii::$app->security->generateRandomString(32);
+            $createPayload = [
+                'name'         => $instanceName,
+                'instanceName' => $instanceName,
+                'token'        => $instanceToken,
+                'qrcode'       => true,
+            ];
+
+            // Injeta configurações de proxy se configurado para a empresa/tenant
+            if (!empty($config->proxy_host)) {
+                $createPayload['proxy'] = [
+                    'host'     => $config->proxy_host,
+                    'username' => $config->proxy_user ?: '',
+                    'password' => $config->proxy_pass ?: '',
+                ];
+            }
+
             $createResponse = $client->createRequest()
                 ->setMethod('POST')
                 ->setFormat(Client::FORMAT_JSON)
@@ -165,12 +182,7 @@ class EvolutionService
                     'Content-Type' => 'application/json',
                     'apiKey'       => $this->globalApiKey,
                 ])
-                ->setData([
-                    'name'         => $instanceName,
-                    'instanceName' => $instanceName,
-                    'token'        => $instanceToken,
-                    'qrcode'       => true,
-                ])
+                ->setData($createPayload)
                 ->send();
 
             if (!$createResponse->isOk) {
@@ -240,6 +252,97 @@ class EvolutionService
     }
 
     /**
+     * Valida previamente se o número existe no WhatsApp via Evolution API.
+     * Retorna o JID/número validado se existir, ou null se inexistente.
+     *
+     * @param string $empresaId UUID do tenant
+     * @param string $number    Número a verificar
+     * @return string|null      JID validado ou número ou null
+     */
+    public function validateWhatsappNumber(string $empresaId, string $number): ?string
+    {
+        $config = WhatsappConfig::findByEmpresa($empresaId);
+        if ($config === null || empty($config->token)) {
+            return null;
+        }
+
+        $sanitized = $this->sanitizePhoneNumber($number);
+        if (empty($sanitized)) {
+            return null;
+        }
+
+        try {
+            $client = new Client(['baseUrl' => $this->baseUrl]);
+            $response = $client->createRequest()
+                ->setMethod('POST')
+                ->setFormat(Client::FORMAT_JSON)
+                ->setUrl('/chat/whatsappNumbers')
+                ->addHeaders([
+                    'Content-Type' => 'application/json',
+                    'apikey'       => $config->token,
+                ])
+                ->setData(['numbers' => [$sanitized]])
+                ->send();
+
+            if ($response->isOk) {
+                $body = json_decode($response->content, true);
+                $list = $body['data'] ?? (is_array($body) ? $body : []);
+                if (is_array($list)) {
+                    foreach ($list as $entry) {
+                        if (!empty($entry['exists']) || !empty($entry['isInWhatsapp'])) {
+                            return $entry['jid'] ?? $entry['number'] ?? $sanitized;
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $t) {
+            Yii::warning("EvolutionService::validateWhatsappNumber — Erro ao validar número: " . $t->getMessage(), __METHOD__);
+        }
+
+        return $sanitized;
+    }
+
+    /**
+     * Simula presença humana (digitando / gravando áudio) no WhatsApp do destinatário.
+     *
+     * @param string $empresaId UUID do tenant
+     * @param string $to        Número do destinatário
+     * @param string $presence  'composing' ou 'recording'
+     * @param int    $delayMs   Tempo que deve permanecer no estado (ms)
+     * @return bool
+     */
+    public function sendPresence(string $empresaId, string $to, string $presence = 'composing', int $delayMs = 1200): bool
+    {
+        $config = WhatsappConfig::findByEmpresa($empresaId);
+        if ($config === null || empty($config->token)) {
+            return false;
+        }
+
+        $sanitized = $this->sanitizePhoneNumber($to);
+        try {
+            $client = new Client(['baseUrl' => $this->baseUrl]);
+            $response = $client->createRequest()
+                ->setMethod('POST')
+                ->setFormat(Client::FORMAT_JSON)
+                ->setUrl('/chat/sendPresence')
+                ->addHeaders([
+                    'Content-Type' => 'application/json',
+                    'apikey'       => $config->token,
+                ])
+                ->setData([
+                    'number'   => $sanitized,
+                    'presence' => $presence,
+                    'delay'    => $delayMs,
+                ])
+                ->send();
+
+            return $response->isOk;
+        } catch (\Throwable $t) {
+            return false;
+        }
+    }
+
+    /**
      * Envia uma mensagem de texto para um número via instância da empresa.
      *
      * Recupera o token específico do banco local, sanitiza o número de destino
@@ -252,9 +355,11 @@ class EvolutionService
      */
     public function sendMessage(string $empresaId, string $to, string $text): bool
     {
+        $this->lastError = null;
         $config = WhatsappConfig::findByEmpresa($empresaId);
 
         if ($config === null || empty($config->token)) {
+            $this->lastError = "Instância do WhatsApp não configurada ou sem token.";
             Yii::error(
                 "EvolutionService::sendMessage — instância não encontrada ou sem token para empresa {$empresaId}.",
                 __METHOD__
@@ -262,10 +367,28 @@ class EvolutionService
             return false;
         }
 
+        // Validação de limite diário de mensagens
+        if (!$config->podeEnviarHoje()) {
+            $this->lastError = "Limite diário de envios atingido para este WhatsApp ({$config->mensagens_enviadas_hoje}/{$config->limite_diario_mensagens}). Envios pausados por segurança anti-ban.";
+            Yii::warning("EvolutionService::sendMessage — {$this->lastError}", __METHOD__);
+            return false;
+        }
+
         $sanitizedNumber = $this->sanitizePhoneNumber($to);
         if (strlen($sanitizedNumber) > 13 || strlen($sanitizedNumber) < 10) {
-            Yii::error("EvolutionService::sendMessage — número de telefone inválido: '{$to}' (sanitizado: '{$sanitizedNumber}')", __METHOD__);
+            $this->lastError = "Número de telefone inválido: '{$to}' (sanitizado: '{$sanitizedNumber}')";
+            Yii::error("EvolutionService::sendMessage — {$this->lastError}", __METHOD__);
             return false;
+        }
+
+        // Delay e Jitter seguros
+        $delayMin = isset($config->delay_min) ? (int)$config->delay_min : 15000;
+        $delayMax = isset($config->delay_max) ? (int)$config->delay_max : 45000;
+        $delay = rand(min($delayMin, $delayMax), max($delayMin, $delayMax));
+
+        // Simulação de presença humana prévia
+        if (!empty($config->simular_digitacao)) {
+            $this->sendPresence($empresaId, $sanitizedNumber, 'composing', min(2500, $delay));
         }
 
         try {
@@ -281,11 +404,12 @@ class EvolutionService
                 ->setData([
                     'number'  => $sanitizedNumber,
                     'text'    => $text,
-                    'options' => ['delay' => 1200],
+                    'options' => ['delay' => $delay],
                 ])
                 ->send();
 
             if (!$response->isOk) {
+                $this->lastError = "HTTP {$response->statusCode}: {$response->content}";
                 Yii::error(
                     "EvolutionService::sendMessage — resposta não-OK: "
                     . $response->statusCode . ' ' . $response->content,
@@ -294,8 +418,11 @@ class EvolutionService
                 return false;
             }
 
+            // Incrementa contador diário com sucesso
+            $config->incrementarEnvioHoje();
             return true;
         } catch (HttpClientException $e) {
+            $this->lastError = $e->getMessage();
             Yii::error(
                 "EvolutionService::sendMessage — falha HTTP: " . $e->getMessage(),
                 __METHOD__
@@ -540,23 +667,34 @@ class EvolutionService
      */
     public function sendDocument(string $empresaId, string $to, string $base64, string $filename, string $caption = ''): bool
     {
+        $this->lastError = null;
         $config = WhatsappConfig::findByEmpresa($empresaId);
 
         if ($config === null || empty($config->token)) {
-            Yii::error(
-                "EvolutionService::sendDocument — instância não encontrada ou sem token para empresa {$empresaId}.",
-                __METHOD__
-            );
+            $this->lastError = "Instância do WhatsApp não configurada ou sem token para empresa {$empresaId}.";
+            Yii::error("EvolutionService::sendDocument — {$this->lastError}", __METHOD__);
+            return false;
+        }
+
+        // Validação de limite diário de mensagens
+        if (!$config->podeEnviarHoje()) {
+            $this->lastError = "Limite diário de envios atingido para este WhatsApp ({$config->mensagens_enviadas_hoje}/{$config->limite_diario_mensagens}). Envios pausados por segurança anti-ban.";
+            Yii::warning("EvolutionService::sendDocument — {$this->lastError}", __METHOD__);
             return false;
         }
 
         $sanitizedNumber = $this->sanitizePhoneNumber($to);
         $cleanBase64 = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', $base64);
 
-        // Configurações do delay e comportamento anti-ban
-        $delayMin = isset($config->delay_min) ? (int)$config->delay_min : 1500;
-        $delayMax = isset($config->delay_max) ? (int)$config->delay_max : 2500;
-        $delay = rand($delayMin, $delayMax);
+        // Configurações do delay e comportamento anti-ban seguro (15s a 45s)
+        $delayMin = isset($config->delay_min) ? (int)$config->delay_min : 15000;
+        $delayMax = isset($config->delay_max) ? (int)$config->delay_max : 45000;
+        $delay = rand(min($delayMin, $delayMax), max($delayMin, $delayMax));
+
+        // Simulação de presença humana prévia
+        if (!empty($config->simular_digitacao)) {
+            $this->sendPresence($empresaId, $sanitizedNumber, 'composing', min(2500, $delay));
+        }
 
         try {
             $client   = new Client(['baseUrl' => $this->baseUrl]);
@@ -579,20 +717,16 @@ class EvolutionService
                 ->send();
 
             if (!$response->isOk) {
-                Yii::error(
-                    "EvolutionService::sendDocument — resposta não-OK: "
-                    . $response->statusCode . ' ' . $response->content,
-                    __METHOD__
-                );
+                $this->lastError = "HTTP {$response->statusCode}: {$response->content}";
+                Yii::error("EvolutionService::sendDocument — resposta não-OK: {$this->lastError}", __METHOD__);
                 return false;
             }
 
+            $config->incrementarEnvioHoje();
             return true;
         } catch (HttpClientException $e) {
-            Yii::error(
-                "EvolutionService::sendDocument — falha HTTP: " . $e->getMessage(),
-                __METHOD__
-            );
+            $this->lastError = $e->getMessage();
+            Yii::error("EvolutionService::sendDocument — falha HTTP: " . $e->getMessage(), __METHOD__);
             return false;
         }
     }
@@ -619,6 +753,13 @@ class EvolutionService
             return false;
         }
 
+        // Validação de limite diário de mensagens
+        if (!$config->podeEnviarHoje()) {
+            $this->lastError = "Limite diário de envios atingido para este WhatsApp ({$config->mensagens_enviadas_hoje}/{$config->limite_diario_mensagens}). Envios pausados por segurança anti-ban.";
+            Yii::warning("EvolutionService::sendMedia — {$this->lastError}", __METHOD__);
+            return false;
+        }
+
         $primaryNumber = $this->sanitizePhoneNumber($to);
         if (strlen($primaryNumber) > 13 || strlen($primaryNumber) < 10) {
             $msg = "Número de telefone inválido: '{$to}' (sanitizado: '{$primaryNumber}')";
@@ -635,15 +776,20 @@ class EvolutionService
             $mediaUrlParam = $mediaData;
             $mediaBase64Param = null;
         } else {
-            $rawBase64 = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', trim($mediaData));
+            // Aplica o Anti-Ban Media Randomizer para quebrar o hash de imagens duplicadas
+            $processedBase64 = $mediaData;
+            if ($mediaType === 'image') {
+                $processedBase64 = MediaRandomizerHelper::randomizeImageHash($mediaData);
+            }
+            $rawBase64 = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', trim($processedBase64));
             $rawBase64 = preg_replace('/\s+/', '', $rawBase64);
-            $mime = ($mediaType === 'video') ? 'video/mp4' : 'image/png';
+            $mime = ($mediaType === 'video') ? 'video/mp4' : 'image/jpeg';
             $mediaUrlParam = "data:{$mime};base64," . $rawBase64;
             $mediaBase64Param = $rawBase64;
         }
 
-        $delayMin = isset($config->delay_min) ? (int)$config->delay_min : 1500;
-        $delayMax = isset($config->delay_max) ? (int)$config->delay_max : 3500;
+        $delayMin = isset($config->delay_min) ? (int)$config->delay_min : 15000;
+        $delayMax = isset($config->delay_max) ? (int)$config->delay_max : 45000;
 
         $client = new Client(['baseUrl' => $this->baseUrl]);
         $attemptCount = 0;
@@ -651,7 +797,12 @@ class EvolutionService
 
         foreach ($numbersToTry as $targetNumber) {
             $attemptCount++;
-            $delay = rand($delayMin, $delayMax);
+            $delay = rand(min($delayMin, $delayMax), max($delayMin, $delayMax));
+
+            // Simulação de presença humana prévia
+            if (!empty($config->simular_digitacao)) {
+                $this->sendPresence($empresaId, $targetNumber, 'composing', min(2500, $delay));
+            }
 
             try {
                 if ($isUrl) {
@@ -692,6 +843,7 @@ class EvolutionService
 
                 if ($response->isOk) {
                     $this->lastError = null;
+                    $config->incrementarEnvioHoje();
                     if ($attemptCount > 1) {
                         Yii::info("EvolutionService::sendMedia — Sucesso no envio para '{$targetNumber}' usando formato alternativo na tentativa #{$attemptCount}.", __METHOD__);
                     }
@@ -702,7 +854,7 @@ class EvolutionService
                 $detalhe = $bodyData['message'] ?? $bodyData['error'] ?? $response->content;
                 $detalheStr = is_array($detalhe) ? json_encode($detalhe) : (string)$detalhe;
                 if (strpos($detalheStr, '463') !== false || strpos((string)$response->content, '463') !== false) {
-                    $lastAttemptError = "O número {$targetNumber} não está cadastrado/ativo no WhatsApp ou a sessão necessita de repareamento. Verifique se o número de destino é um WhatsApp válido.";
+                    $lastAttemptError = "O número {$targetNumber} não está cadastrado/ativo no WhatsApp.";
                 } else {
                     $lastAttemptError = "Tentativa #{$attemptCount} ({$targetNumber}) falhou [HTTP {$response->statusCode}]: " . $detalheStr;
                 }
@@ -713,7 +865,7 @@ class EvolutionService
             }
 
             if ($attemptCount < count($numbersToTry)) {
-                usleep(300000); // 300ms de pausa entre retries
+                usleep(500000); // 500ms de pausa entre retries
             }
         }
 
@@ -738,6 +890,7 @@ class EvolutionService
 
                     if ($textResponse->isOk) {
                         $this->lastError = null;
+                        $config->incrementarEnvioHoje();
                         Yii::info("EvolutionService::sendMedia — Sucesso no envio de fallback via texto+link para '{$targetNumber}'.", __METHOD__);
                         return true;
                     }

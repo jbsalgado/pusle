@@ -154,12 +154,24 @@ class ConfigController extends Controller
         if (Yii::$app->request->isPost) {
             $post = Yii::$app->request->post();
             
-            $config->delay_min = isset($post['delay_min']) ? (int)$post['delay_min'] : 1500;
-            $config->delay_max = isset($post['delay_max']) ? (int)$post['delay_max'] : 2500;
-            $config->simular_digitacao = isset($post['simular_digitacao']) ? (int)$post['simular_digitacao'] : 0;
+            $config->delay_min = isset($post['delay_min']) ? (int)$post['delay_min'] : 15000;
+            $config->delay_max = isset($post['delay_max']) ? (int)$post['delay_max'] : 45000;
+            $config->simular_digitacao = isset($post['simular_digitacao']) ? (int)$post['simular_digitacao'] : 1;
+            
+            // Proxy dedicado
+            $config->proxy_host = !empty($post['proxy_host']) ? trim((string)$post['proxy_host']) : null;
+            $config->proxy_user = !empty($post['proxy_user']) ? trim((string)$post['proxy_user']) : null;
+            $config->proxy_pass = !empty($post['proxy_pass']) ? trim((string)$post['proxy_pass']) : null;
+
+            // Controle de lotes e pausas
+            $config->lote_tamanho = isset($post['lote_tamanho']) ? (int)$post['lote_tamanho'] : 15;
+            $config->lote_pausa_segundos = isset($post['lote_pausa_segundos']) ? (int)$post['lote_pausa_segundos'] : 120;
+
+            // Limite diário de mensagens
+            $config->limite_diario_mensagens = isset($post['limite_diario_mensagens']) ? (int)$post['limite_diario_mensagens'] : 150;
 
             if ($config->save()) {
-                Yii::$app->session->setFlash('success', 'Configurações de anti-banimento salvas com sucesso.');
+                Yii::$app->session->setFlash('success', 'Configurações de anti-banimento e limites salvas com sucesso.');
             } else {
                 $errors = implode(', ', $config->getErrorSummary(true));
                 Yii::$app->session->setFlash('error', 'Erro ao salvar configurações: ' . $errors);
