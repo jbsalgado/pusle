@@ -290,6 +290,18 @@ $admin = Yii::$app->user->identity;
         <a href="<?= Url::to(['/admin/loja/index']) ?>" class="nav-item active">
             <span class="nav-icon">🏪</span> Lojas
         </a>
+        <a href="<?= Url::to(['/admin/financeiro/index']) ?>" class="nav-item">
+            <span class="nav-icon">💰</span> Financeiro SaaS
+        </a>
+        <a href="<?= Url::to(['/admin/financeiro/faturas']) ?>" class="nav-item">
+            <span class="nav-icon">📄</span> Faturas Lojas
+        </a>
+        <a href="<?= Url::to(['/admin/financeiro/planos']) ?>" class="nav-item">
+            <span class="nav-icon">🏷️</span> Planos & Taxas
+        </a>
+        <a href="<?= Url::to(['/admin/financeiro/config']) ?>" class="nav-item">
+            <span class="nav-icon">⚙️</span> Config. Master
+        </a>
         <a href="<?= Url::to(['/vendas/inicio']) ?>" class="nav-item">
             <span class="nav-icon">🔙</span> Voltar ao Sistema
         </a>

@@ -158,6 +158,18 @@ class Produto extends ActiveRecord
                 'qtd_escala_4', 'preco_escala_4', 
                 'qtd_escala_5', 'preco_escala_5'
             ], 'number'],
+
+            // ✅ CAMPOS LOGÍSTICOS E FISCAIS PARA MARKETPLACES
+            [['peso_bruto', 'peso_liquido', 'altura_cm', 'largura_cm', 'comprimento_cm'], 'number', 'min' => 0],
+            [['peso_bruto', 'peso_liquido', 'altura_cm', 'largura_cm', 'comprimento_cm'], 'default', 'value' => 0],
+            [['ncm', 'cest', 'ean_gtin', 'origem_mercadoria'], 'string'],
+            [['ncm'], 'string', 'max' => 10],
+            [['cest'], 'string', 'max' => 10],
+            [['ean_gtin'], 'string', 'max' => 20],
+            [['origem_mercadoria'], 'string', 'max' => 1],
+            [['origem_mercadoria'], 'default', 'value' => '0'],
+            [['permite_estoque_negativo'], 'boolean'],
+            [['permite_estoque_negativo'], 'default', 'value' => false],
         ];
     }
 
@@ -511,19 +523,24 @@ class Produto extends ActiveRecord
     }
 
     /**
-     * Hook após salvar para disparar sincronização de estoque com marketplaces
+     * Hook após salvar para disparar sincronização de estoque com marketplaces via Fila Assíncrona
      */
     public function afterSave($insert, $changedAttributes)
     {
         parent::afterSave($insert, $changedAttributes);
 
-        // Se o estoque atual foi alterado, dispara sincronização global
+        // Se o estoque atual foi alterado, enfileira job assíncrono
         if (isset($changedAttributes['estoque_atual'])) {
             try {
-                $syncManager = new MarketplaceSyncManager();
-                $syncManager->syncEstoqueGlobal($this->usuario_id, $this->id, $this->estoque_atual);
-            } catch (\Exception $e) {
-                Yii::error("Falha ao disparar sincronização automática de estoque: " . $e->getMessage(), 'marketplace');
+                if (Yii::$app->has('queue')) {
+                    Yii::$app->queue->push(new \app\modules\marketplace\jobs\SyncEstoqueMarketplaceJob([
+                        'tenantId' => $this->usuario_id,
+                        'produtoId' => $this->id,
+                        'novoEstoque' => (int)max(0, $this->estoque_atual),
+                    ]));
+                }
+            } catch (\Throwable $e) {
+                Yii::error("Falha ao enfileirar sincronização de estoque para o produto {$this->id}: " . $e->getMessage(), 'marketplace');
             }
         }
     }

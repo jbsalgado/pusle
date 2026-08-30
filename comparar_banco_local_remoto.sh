@@ -7,7 +7,8 @@
 # Configurações do banco LOCAL
 LOCAL_HOST="localhost"
 LOCAL_PORT="5432"
-LOCAL_DB="pulse"
+#LOCAL_DB="pulse"
+LOCAL_DB="alex_birds"
 LOCAL_USER="postgres"
 LOCAL_PASS="postgres"
 

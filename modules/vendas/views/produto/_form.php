@@ -244,6 +244,72 @@ if ($model->hasErrors()): ?>
             </div>
         </div>
 
+        <!-- Dimensões, Peso e Fisco (Obrigatório para Marketplaces e Frete) -->
+        <div class="bg-gray-50/80 p-4 sm:p-5 rounded-lg border border-gray-200">
+            <h4 class="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+                Dimensões da Embalagem & Dados Fiscais (Marketplaces e Frete)
+            </h4>
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4 mb-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Peso Bruto (kg)</label>
+                    <?= $form->field($model, 'peso_bruto')->textInput([
+                        'type' => 'number',
+                        'step' => '0.001',
+                        'min' => '0',
+                        'class' => 'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                        'placeholder' => '0.500',
+                    ])->label(false) ?>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Altura (cm)</label>
+                    <?= $form->field($model, 'altura_cm')->textInput([
+                        'type' => 'number',
+                        'step' => '0.1',
+                        'min' => '0',
+                        'class' => 'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                        'placeholder' => '10',
+                    ])->label(false) ?>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Largura (cm)</label>
+                    <?= $form->field($model, 'largura_cm')->textInput([
+                        'type' => 'number',
+                        'step' => '0.1',
+                        'min' => '0',
+                        'class' => 'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                        'placeholder' => '15',
+                    ])->label(false) ?>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Comprimento (cm)</label>
+                    <?= $form->field($model, 'comprimento_cm')->textInput([
+                        'type' => 'number',
+                        'step' => '0.1',
+                        'min' => '0',
+                        'class' => 'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                        'placeholder' => '20',
+                    ])->label(false) ?>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">NCM (NF-e)</label>
+                    <?= $form->field($model, 'ncm')->textInput([
+                        'maxlength' => 10,
+                        'class' => 'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                        'placeholder' => 'Ex: 8517.12.31',
+                    ])->label(false) ?>
+                </div>
+            </div>
+            <div class="flex items-center">
+                <?= $form->field($model, 'permite_estoque_negativo')->checkbox([
+                    'class' => 'w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500',
+                    'labelOptions' => ['class' => 'ml-2 text-xs font-medium text-gray-700']
+                ]) ?>
+            </div>
+        </div>
+
         <!-- Descrição -->
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Descrição</label>

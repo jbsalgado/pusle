@@ -89,6 +89,17 @@ abstract class MarketplaceService extends Component
     abstract public function syncEstoque($produtoId, $quantidade);
 
     /**
+     * Atualiza preço de um produto no marketplace aplicando markup
+     * @param string $produtoId ID do produto local
+     * @param float|null $novoPreco Preço customizado ou nulo para calcular com markup
+     * @return bool
+     */
+    public function syncPreco($produtoId, $novoPreco = null)
+    {
+        return true;
+    }
+
+    /**
      * Importa pedidos do marketplace
      * @param string $dataInicio Data inicial (formato Y-m-d)
      * @param string $dataFim Data final (formato Y-m-d)

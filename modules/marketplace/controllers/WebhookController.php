@@ -6,12 +6,15 @@ use Yii;
 use yii\web\Controller;
 use yii\filters\AccessControl;
 use yii\web\Response;
-use app\modules\marketplace\components\MercadoLivreWebhookHandler;
-use app\modules\marketplace\components\WebhookSignatureValidator;
 use app\modules\marketplace\models\MarketplaceConfig;
+use app\modules\marketplace\jobs\ProcessarWebhookJob;
+use app\modules\marketplace\components\WebhookSignatureValidator;
 
 /**
- * Webhook Controller para receber notificações dos marketplaces
+ * WebhookController - Ingestão Assíncrona e Segura de Webhooks (Fast-ACK Architecture)
+ * 
+ * Recebe notificações de eventos dos marketplaces em tempo real, valida assinaturas,
+ * identifica o tenant determinísticamente e enfileira o processamento pesado na Queue.
  */
 class WebhookController extends Controller
 {
@@ -26,7 +29,7 @@ class WebhookController extends Controller
                 'rules' => [
                     [
                         'allow' => true,
-                        'actions' => ['receive'], // Webhook é público (sem autenticação)
+                        'actions' => ['receive'], // Webhook público
                     ],
                 ],
             ],
@@ -34,7 +37,7 @@ class WebhookController extends Controller
     }
 
     /**
-     * Desabilita CSRF para webhooks
+     * Desabilita validação CSRF para webhooks
      */
     public function beforeAction($action)
     {
@@ -45,9 +48,9 @@ class WebhookController extends Controller
     }
 
     /**
-     * Recebe webhook de marketplace
+     * Ponto de entrada universal para webhooks de marketplaces
      * 
-     * @param string $marketplace Nome do marketplace (mercado-livre, shopee, etc)
+     * @param string $marketplace Nome do marketplace (mercado-livre, shopee, magalu, temu, etc)
      * @return Response
      */
     public function actionReceive($marketplace)
@@ -56,158 +59,171 @@ class WebhookController extends Controller
 
         $rawBody = Yii::$app->request->getRawBody();
         $headers = $this->getHeadersArray();
+        $marketplaceName = $this->normalizeMarketplaceName($marketplace);
 
-        // Log inicial
         Yii::info(sprintf(
-            'Webhook recebido de %s - Headers: %s - Body: %s',
-            $marketplace,
+            "[WebhookController] Recebido de %s. Headers: %s. Body: %s",
+            $marketplaceName,
             json_encode($headers),
             $rawBody
-        ), __METHOD__);
+        ), 'marketplace');
 
         try {
-            // 1. Normalizar nome do marketplace
-            $marketplaceName = $this->normalizeMarketplaceName($marketplace);
-
-            // 2. Buscar configuração do marketplace
-            $config = $this->getMarketplaceConfig($marketplaceName, $rawBody, $headers);
+            // 1. Identificar configuração do seller de forma estritamente isolada (Sem Fallback Inseguro)
+            $config = $this->resolveMarketplaceConfig($marketplaceName, $rawBody, $headers);
 
             if (!$config) {
-                return $this->errorResponse('Marketplace não configurado', 404);
+                Yii::warning(sprintf(
+                    "[WebhookController] Nenhuma conta ativa encontrada para %s no payload fornecido.",
+                    $marketplaceName
+                ), 'marketplace');
+
+                // Retorna 200 OK para evitar reenvio infinito de contas desativadas ou testes de ping
+                return $this->successResponse([
+                    'status' => 'ignored',
+                    'reason' => 'Conta ou seller_id não associado a nenhum tenant ativo',
+                ]);
             }
 
-            // 3. Obter handler apropriado
-            $handler = $this->getHandler($marketplaceName, $config);
-
-            if (!$handler) {
-                return $this->errorResponse('Handler não disponível para este marketplace', 501);
+            // 2. Validação da assinatura criptográfica se configurada
+            if (!$this->validateWebhookSignature($marketplaceName, $config, $rawBody, $headers)) {
+                Yii::warning("[WebhookController] Assinatura do webhook inválida para {$marketplaceName}.", 'marketplace');
+                return $this->errorResponse('Assinatura inválida', 401);
             }
 
-            // 4. Processar webhook
-            $result = $handler->process($rawBody, $headers);
-
-            // 5. Retornar resultado
-            if ($result['success']) {
-                return $this->successResponse($result);
+            // 3. Fast ACK: Enfileira processamento assíncrono e responde imediatamente
+            if (Yii::$app->has('queue')) {
+                Yii::$app->queue->push(new ProcessarWebhookJob([
+                    'marketplace' => $marketplaceName,
+                    'configId' => $config->id,
+                    'rawBody' => $rawBody,
+                    'headers' => $headers,
+                ]));
             } else {
-                return $this->errorResponse($result['error'], 422, $result);
+                // Fallback síncrono emergencial caso fila esteja desativada
+                $job = new ProcessarWebhookJob([
+                    'marketplace' => $marketplaceName,
+                    'configId' => $config->id,
+                    'rawBody' => $rawBody,
+                    'headers' => $headers,
+                ]);
+                $job->execute(null);
             }
-        } catch (\Exception $e) {
-            Yii::error('Erro ao processar webhook: ' . $e->getMessage(), __METHOD__);
-            Yii::error($e->getTraceAsString(), __METHOD__);
 
+            return $this->successResponse([
+                'status' => 'queued',
+                'marketplace' => $marketplaceName,
+                'received_at' => date('Y-m-d H:i:s'),
+            ]);
+        } catch (\Throwable $e) {
+            Yii::error("[WebhookController] Exceção crítica: " . $e->getMessage(), 'marketplace');
             return $this->errorResponse('Erro interno ao processar webhook', 500, [
-                'message' => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
         }
     }
 
     /**
-     * Normaliza nome do marketplace
-     * 
-     * @param string $marketplace Nome recebido na URL
-     * @return string Nome normalizado
+     * Identifica a conta/configuração do seller sem risco de vazamento entre tenants
      */
-    protected function normalizeMarketplaceName($marketplace)
+    protected function resolveMarketplaceConfig(string $marketplace, string $rawBody, array $headers): ?MarketplaceConfig
+    {
+        $payload = json_decode($rawBody, true) ?: [];
+
+        // 1. Verificação por parâmetro explícito na URL (?config_id=UUID ou ?token=SECRET)
+        $configId = Yii::$app->request->get('config_id');
+        if ($configId) {
+            return MarketplaceConfig::findOne(['id' => $configId, 'ativo' => true]);
+        }
+
+        // 2. Extração do seller_id externo conforme cada plataforma
+        $sellerId = null;
+
+        switch ($marketplace) {
+            case MarketplaceConfig::MARKETPLACE_MERCADO_LIVRE:
+                // Mercado Livre envia "user_id" no JSON
+                $sellerId = $payload['user_id'] ?? null;
+                break;
+
+            case MarketplaceConfig::MARKETPLACE_SHOPEE:
+                // Shopee envia "shop_id" no JSON ou query param
+                $sellerId = $payload['shop_id'] ?? Yii::$app->request->get('shop_id');
+                break;
+
+            case MarketplaceConfig::MARKETPLACE_MAGAZINE_LUIZA:
+                $sellerId = $payload['seller_id'] ?? $headers['x-seller-id'] ?? Yii::$app->request->get('seller_id');
+                break;
+
+            case MarketplaceConfig::MARKETPLACE_TEMU:
+                $sellerId = $payload['seller_id'] ?? $payload['mall_id'] ?? Yii::$app->request->get('seller_id');
+                break;
+
+            case MarketplaceConfig::MARKETPLACE_IFOOD:
+                $sellerId = $payload['merchantId'] ?? $payload['merchant_id'] ?? null;
+                break;
+        }
+
+        if ($sellerId) {
+            $config = MarketplaceConfig::findBySellerIdExterno($marketplace, (string)$sellerId);
+            if ($config) {
+                return $config;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Valida assinatura criptográfica
+     */
+    protected function validateWebhookSignature(string $marketplace, MarketplaceConfig $config, string $rawBody, array $headers): bool
+    {
+        $validator = new WebhookSignatureValidator();
+
+        if ($marketplace === MarketplaceConfig::MARKETPLACE_MERCADO_LIVRE && !empty($config->client_secret)) {
+            $signature = $headers['x-signature'] ?? null;
+            if ($signature) {
+                return $validator->validateMercadoLivre($signature, $rawBody, $config->client_secret);
+            }
+        }
+
+        if ($marketplace === MarketplaceConfig::MARKETPLACE_SHOPEE && !empty($config->client_secret)) {
+            $authorization = $headers['authorization'] ?? null;
+            if ($authorization) {
+                return $validator->validateShopee($authorization, $rawBody, $config->client_secret);
+            }
+        }
+
+        // Por padrão, se não há header de assinatura obrigatório, aceita
+        return true;
+    }
+
+    /**
+     * Normaliza nome do marketplace
+     */
+    protected function normalizeMarketplaceName(string $marketplace): string
     {
         $map = [
-            'mercado-livre' => 'MERCADO_LIVRE',
-            'mercadolivre' => 'MERCADO_LIVRE',
-            'ml' => 'MERCADO_LIVRE',
-            'shopee' => 'SHOPEE',
-            'magazine-luiza' => 'MAGAZINE_LUIZA',
-            'magazineluiza' => 'MAGAZINE_LUIZA',
-            'magalu' => 'MAGAZINE_LUIZA',
-            'amazon' => 'AMAZON',
+            'mercado-livre' => MarketplaceConfig::MARKETPLACE_MERCADO_LIVRE,
+            'mercadolivre' => MarketplaceConfig::MARKETPLACE_MERCADO_LIVRE,
+            'ml' => MarketplaceConfig::MARKETPLACE_MERCADO_LIVRE,
+            'shopee' => MarketplaceConfig::MARKETPLACE_SHOPEE,
+            'magazine-luiza' => MarketplaceConfig::MARKETPLACE_MAGAZINE_LUIZA,
+            'magazineluiza' => MarketplaceConfig::MARKETPLACE_MAGAZINE_LUIZA,
+            'magalu' => MarketplaceConfig::MARKETPLACE_MAGAZINE_LUIZA,
+            'temu' => MarketplaceConfig::MARKETPLACE_TEMU,
+            'amazon' => MarketplaceConfig::MARKETPLACE_AMAZON,
+            'ifood' => MarketplaceConfig::MARKETPLACE_IFOOD,
         ];
 
-        $normalized = strtolower($marketplace);
+        $normalized = strtolower(trim($marketplace));
         return $map[$normalized] ?? strtoupper($marketplace);
     }
 
     /**
-     * Busca configuração do marketplace
-     * 
-     * @param string $marketplace Nome do marketplace
-     * @param string $rawBody Corpo da requisição
-     * @param array $headers Headers
-     * @return MarketplaceConfig|null
+     * Obtém headers normalizados em minúsculas
      */
-    protected function getMarketplaceConfig($marketplace, $rawBody, $headers)
-    {
-        // Para Mercado Livre, tenta identificar usuário pelo user_id no payload
-        if ($marketplace === 'MERCADO_LIVRE') {
-            $payload = json_decode($rawBody, true);
-            $userId = $payload['user_id'] ?? null;
-
-            if ($userId) {
-                // Busca config que tenha este user_id nas credenciais
-                // (Mercado Livre envia o user_id do vendedor)
-                $config = MarketplaceConfig::find()
-                    ->where(['marketplace' => $marketplace])
-                    ->andWhere(['ativo' => true])
-                    ->one();
-
-                if ($config) {
-                    return $config;
-                }
-            }
-        }
-
-        // Fallback: busca primeira configuração ativa do marketplace
-        return MarketplaceConfig::findOne([
-            'marketplace' => $marketplace,
-            'ativo' => true,
-        ]);
-    }
-
-    /**
-     * Obtém handler apropriado para o marketplace
-     * 
-     * @param string $marketplace Nome do marketplace
-     * @param MarketplaceConfig $config Configuração
-     * @return BaseWebhookHandler|null
-     */
-    protected function getHandler($marketplace, $config)
-    {
-        $handlerConfig = [
-            'usuario_id' => $config->usuario_id,
-            'client_id' => $config->client_id,
-            'client_secret' => $config->client_secret,
-            'access_token' => $config->access_token,
-        ];
-
-        switch ($marketplace) {
-            case 'MERCADO_LIVRE':
-                return new MercadoLivreWebhookHandler($marketplace, $handlerConfig);
-
-            case 'SHOPEE':
-                // TODO: Implementar ShopeeWebhookHandler
-                Yii::warning('ShopeeWebhookHandler ainda não implementado', __METHOD__);
-                return null;
-
-            case 'MAGAZINE_LUIZA':
-                // TODO: Implementar MagazineLuizaWebhookHandler
-                Yii::warning('MagazineLuizaWebhookHandler ainda não implementado', __METHOD__);
-                return null;
-
-            case 'AMAZON':
-                // TODO: Implementar AmazonWebhookHandler
-                Yii::warning('AmazonWebhookHandler ainda não implementado', __METHOD__);
-                return null;
-
-            default:
-                Yii::error("Marketplace não suportado: {$marketplace}", __METHOD__);
-                return null;
-        }
-    }
-
-    /**
-     * Obtém headers como array associativo
-     * 
-     * @return array
-     */
-    protected function getHeadersArray()
+    protected function getHeadersArray(): array
     {
         $headers = [];
         foreach (Yii::$app->request->headers as $name => $values) {
@@ -217,29 +233,21 @@ class WebhookController extends Controller
     }
 
     /**
-     * Retorna resposta de sucesso
-     * 
-     * @param array $data Dados adicionais
-     * @return array
+     * Resposta de sucesso padronizada
      */
-    protected function successResponse($data = [])
+    protected function successResponse(array $data = []): array
     {
         Yii::$app->response->statusCode = 200;
         return array_merge([
             'success' => true,
-            'message' => 'Webhook processado com sucesso',
+            'message' => 'Webhook recebido com sucesso',
         ], $data);
     }
 
     /**
-     * Retorna resposta de erro
-     * 
-     * @param string $message Mensagem de erro
-     * @param int $statusCode Código HTTP
-     * @param array $data Dados adicionais
-     * @return array
+     * Resposta de erro padronizada
      */
-    protected function errorResponse($message, $statusCode = 400, $data = [])
+    protected function errorResponse(string $message, int $statusCode = 400, array $data = []): array
     {
         Yii::$app->response->statusCode = $statusCode;
         return array_merge([

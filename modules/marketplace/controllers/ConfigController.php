@@ -6,11 +6,16 @@ use Yii;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\filters\AccessControl;
+use yii\helpers\Url;
 use app\modules\marketplace\models\MarketplaceConfig;
-use app\modules\marketplace\components\MarketplaceAuthManager;
+use app\modules\marketplace\components\MercadoLivreService;
+use app\modules\marketplace\components\ShopeeService;
+use app\modules\marketplace\components\MagaluService;
+use app\modules\marketplace\components\TemuService;
+use app\components\TenantHelper;
 
 /**
- * Config Controller para gerenciar configurações de marketplaces
+ * ConfigController - Gerenciamento de Contas e Autenticação OAuth de Marketplaces
  */
 class ConfigController extends Controller
 {
@@ -33,15 +38,15 @@ class ConfigController extends Controller
     }
 
     /**
-     * Lista todas as configurações do usuário
-     * @return string
+     * Lista todas as configurações e contas de marketplace do tenant
      */
     public function actionIndex()
     {
-        $usuarioId = \app\components\TenantHelper::getId();
+        $usuarioId = TenantHelper::getId();
 
         $configs = MarketplaceConfig::find()
             ->where(['usuario_id' => $usuarioId])
+            ->orderBy(['marketplace' => SORT_ASC, 'apelido_conta' => SORT_ASC])
             ->all();
 
         return $this->render('index', [
@@ -50,16 +55,15 @@ class ConfigController extends Controller
     }
 
     /**
-     * Cria nova configuração de marketplace
-     * @return string|\yii\web\Response
+     * Cria nova configuração / conexão
      */
     public function actionCreate()
     {
         $model = new MarketplaceConfig();
-        $model->usuario_id = \app\components\TenantHelper::getId();
+        $model->usuario_id = TenantHelper::getId();
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Configuração de marketplace criada com sucesso!');
+            Yii::$app->session->setFlash('success', 'Configuração de marketplace cadastrada com sucesso!');
             return $this->redirect(['index']);
         }
 
@@ -70,9 +74,6 @@ class ConfigController extends Controller
 
     /**
      * Atualiza configuração existente
-     * @param string $id
-     * @return string|\yii\web\Response
-     * @throws NotFoundHttpException
      */
     public function actionUpdate($id)
     {
@@ -89,10 +90,7 @@ class ConfigController extends Controller
     }
 
     /**
-     * Visualiza configuração
-     * @param string $id
-     * @return string
-     * @throws NotFoundHttpException
+     * Exibe detalhes da configuração
      */
     public function actionView($id)
     {
@@ -103,11 +101,6 @@ class ConfigController extends Controller
 
     /**
      * Deleta configuração
-     * @param string $id
-     * @return \yii\web\Response
-     * @throws NotFoundHttpException
-     * @throws \Throwable
-     * @throws \yii\db\StaleObjectException
      */
     public function actionDelete($id)
     {
@@ -119,82 +112,105 @@ class ConfigController extends Controller
     }
 
     /**
-     * Ativa/desativa marketplace
-     * @param string $id
-     * @return \yii\web\Response
-     * @throws NotFoundHttpException
+     * Ativa/desativa sincronização do marketplace
      */
     public function actionToggle($id)
     {
         $model = $this->findModel($id);
         $model->ativo = !$model->ativo;
-        $model->save();
+        $model->save(false);
 
-        $status = $model->ativo ? 'ativado' : 'desativado';
-        Yii::$app->session->setFlash('success', "Marketplace {$status} com sucesso!");
+        $status = $model->ativo ? 'ativada' : 'desativada';
+        Yii::$app->session->setFlash('success', "Integração {$model->getMarketplaceNome()} ({$model->apelido_conta}) {$status} com sucesso!");
 
         return $this->redirect(['index']);
     }
 
     /**
-     * Testa conexão com marketplace
-     * @param string $id
-     * @return \yii\web\Response
-     * @throws NotFoundHttpException
+     * Inicia fluxo de autorização OAuth
      */
-    public function actionTest($id)
+    public function actionAuth($id)
     {
         $model = $this->findModel($id);
+        $callbackUrl = Url::to(['/marketplace/config/callback', 'id' => $model->id], true);
 
-        // TODO: Implementar teste de conexão real quando tiver as integrações
-        Yii::$app->session->setFlash('info', 'Teste de conexão ainda não implementado. Aguarde a implementação da integração com ' . $model->getMarketplaceNome());
-
-        return $this->redirect(['view', 'id' => $id]);
-    }
-
-    /**
-     * Inicia fluxo de autorização do marketplace
-     * @param string $m Código do marketplace (ML, SHOPEE)
-     */
-    public function actionAuth($m)
-    {
-        $usuarioId = \app\components\TenantHelper::getId();
-
-        // Simulação de redirecionamento para o Provedor OAuth
-        // Na vida real, redirecionaríamos para: https://auth.mercadolivre.com.br/...
-
-        $mercado = '';
-        switch ($m) {
-            case 'ML':
-                $mercado = 'Mercado Livre';
-                break;
-            case 'SHOPEE':
-                $mercado = 'Shopee';
-                break;
-            default:
-                throw new NotFoundHttpException('Marketplace inválido.');
+        if ($model->marketplace === MarketplaceConfig::MARKETPLACE_MERCADO_LIVRE) {
+            if (empty($model->client_id)) {
+                Yii::$app->session->setFlash('error', 'Preencha o Client ID (App ID) do Mercado Livre antes de autenticar.');
+                return $this->redirect(['update', 'id' => $model->id]);
+            }
+            $authUrl = "https://auth.mercadolivre.com.br/authorization?response_type=code&client_id={$model->client_id}&redirect_uri=" . urlencode($callbackUrl);
+            return $this->redirect($authUrl);
         }
 
-        Yii::$app->session->setFlash('info', "Fluxo de autorização iniciado para $mercado. Em um ambiente real, você seria redirecionado para a página oficial do marketplace agora.");
+        if ($model->marketplace === MarketplaceConfig::MARKETPLACE_SHOPEE) {
+            if (empty($model->client_id) || empty($model->client_secret)) {
+                Yii::$app->session->setFlash('error', 'Preencha o Partner ID e Partner Key antes de autenticar com a Shopee.');
+                return $this->redirect(['update', 'id' => $model->id]);
+            }
+            $timestamp = time();
+            $path = '/api/v2/shop/auth_partner';
+            $sign = hash_hmac('sha256', $model->client_id . $path . $timestamp, $model->client_secret);
+            $authUrl = "https://partner.shopeemobile.com{$path}?partner_id={$model->client_id}&timestamp={$timestamp}&sign={$sign}&redirect=" . urlencode($callbackUrl);
+            return $this->redirect($authUrl);
+        }
 
-        return $this->redirect(['/marketplace/dashboard/index']);
+        Yii::$app->session->setFlash('info', "O marketplace {$model->getMarketplaceNome()} utiliza API Token estático. Basta salvar as credenciais.");
+        return $this->redirect(['view', 'id' => $model->id]);
     }
 
     /**
-     * Encontra model por ID
-     * @param string $id
-     * @return MarketplaceConfig
-     * @throws NotFoundHttpException
+     * Callback do OAuth para receber o authorization code
      */
-    protected function findModel($id)
+    public function actionCallback($id)
+    {
+        $model = $this->findModel($id);
+        $code = Yii::$app->request->get('code');
+        $shopId = Yii::$app->request->get('shop_id');
+        $callbackUrl = Url::to(['/marketplace/config/callback', 'id' => $model->id], true);
+
+        if (!$code) {
+            Yii::$app->session->setFlash('error', 'Código de autorização não recebido do marketplace.');
+            return $this->redirect(['view', 'id' => $model->id]);
+        }
+
+        $service = null;
+        if ($model->marketplace === MarketplaceConfig::MARKETPLACE_MERCADO_LIVRE) {
+            $service = new MercadoLivreService();
+            $service->setConfig($model->attributes);
+            $sucesso = $service->authenticate($code, $callbackUrl);
+        } elseif ($model->marketplace === MarketplaceConfig::MARKETPLACE_SHOPEE) {
+            $service = new ShopeeService();
+            $service->setConfig($model->attributes);
+            $sucesso = $service->authenticate($code, $shopId);
+        } else {
+            $sucesso = false;
+        }
+
+        if ($sucesso) {
+            $model->refresh();
+            $model->ativo = true;
+            $model->save(false);
+            Yii::$app->session->setFlash('success', "Autenticação realizada com sucesso no {$model->getMarketplaceNome()}!");
+        } else {
+            Yii::$app->session->setFlash('error', "Falha ao obter tokens de acesso do {$model->getMarketplaceNome()}. Verifique suas credenciais.");
+        }
+
+        return $this->redirect(['view', 'id' => $model->id]);
+    }
+
+    /**
+     * Busca o model garantindo isolamento do tenant
+     */
+    protected function findModel($id): MarketplaceConfig
     {
         $model = MarketplaceConfig::findOne([
             'id' => $id,
-            'usuario_id' => \app\components\TenantHelper::getId(), // Segurança: apenas configs do próprio usuário
+            'usuario_id' => TenantHelper::getId(),
         ]);
 
         if ($model === null) {
-            throw new NotFoundHttpException('Configuração não encontrada.');
+            throw new NotFoundHttpException('Configuração não encontrada ou acesso não autorizado.');
         }
 
         return $model;

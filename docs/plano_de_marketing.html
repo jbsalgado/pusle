@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PULSE ERP - Central de Marketing & Material Comercial</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        },
+                        emeraldCustom: '#10b981',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-card:hover {
+            transform: translateY(-6px);
+            border-color: rgba(99, 102, 241, 0.4);
+            box-shadow: 0 20px 30px -10px rgba(79, 70, 229, 0.25);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #34d399 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .gradient-bg-pulse {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #059669 100%);
+        }
+
+        .badge-sales {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #34d399;
+        }
+
+        .badge-management {
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            color: #818cf8;
+        }
+
+        /* Custom Toast Notification */
+        #toast {
+            visibility: hidden;
+            min-width: 280px;
+            margin-left: -140px;
+            background-color: #10b981;
+            color: #fff;
+            text-align: center;
+            border-radius: 12px;
+            padding: 14px 24px;
+            position: fixed;
+            z-index: 100;
+            left: 50%;
+            bottom: 30px;
+            font-weight: 600;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        #toast.show {
+            visibility: visible;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+
+        @keyframes fadein {
+            from { bottom: 0; opacity: 0; }
+            to { bottom: 30px; opacity: 1; }
+        }
+
+        @keyframes fadeout {
+            from { bottom: 30px; opacity: 1; }
+            to { bottom: 0; opacity: 0; }
+        }
+    </style>
+</head>
+<body class="min-h-screen selection:bg-indigo-500 selection:text-white pb-20">
+
+    <!-- Toast Notification -->
+    <div id="toast"><i class="fas fa-check-circle mr-2"></i> Texto copiado para a área de transferência!</div>
+
+    <!-- Top Navigation Bar -->
+    <nav class="sticky top-0 z-50 glass-panel border-b border-slate-800/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-20 items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl gradient-bg-pulse flex items-center justify-center text-white font-extrabold text-xl shadow-lg shadow-indigo-500/30">
+                        <i class="fas fa-bolt text-2xl"></i>
+                    </div>
+                    <div>
+                        <span class="text-2xl font-black tracking-tight text-white">PULSE <span class="gradient-text">ERP</span></span>
+                        <span class="block text-xs font-semibold tracking-widest text-slate-400 uppercase">Kit Comercial & Plano de Marketing</span>
+                    </div>
+                </div>
+
+                <div class="hidden lg:flex items-center gap-8 text-sm font-semibold text-slate-300">
+                    <a href="#overview" class="hover:text-indigo-400 transition-colors">Visão Geral</a>
+                    <a href="#modulos" class="hover:text-indigo-400 transition-colors">Módulos & Impacto</a>
+                    <a href="#promocionais" class="hover:text-indigo-400 transition-colors">Cards Redes Sociais</a>
+                    <a href="#whatsapp-scripts" class="hover:text-indigo-400 transition-colors">Scripts WhatsApp</a>
+                    <a href="#email-marketing" class="hover:text-indigo-400 transition-colors">E-mail Marketing</a>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button onclick="window.print()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold transition-all border border-slate-700 flex items-center gap-2">
+                        <i class="fas fa-print text-indigo-400"></i> Exportar PDF
+                    </button>
+                    <a href="#promocionais" class="px-5 py-2.5 rounded-xl gradient-bg-pulse hover:opacity-95 text-white font-bold text-sm shadow-lg shadow-indigo-500/25 transition-all">
+                        <i class="fas fa-download mr-1.5"></i> Baixar Mídias
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 space-y-16">
+
+        <!-- Hero Section -->
+        <header id="overview" class="relative overflow-hidden rounded-3xl glass-panel p-8 sm:p-12 border border-slate-700/60 shadow-2xl">
+            <div class="absolute -top-24 -right-24 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-24 -left-24 w-96 h-96 bg-emerald-600/20 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="relative z-10 max-w-4xl">
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-bold uppercase tracking-wider mb-6">
+                    <i class="fas fa-bullhorn text-indigo-400"></i> Estratégia Comercial & Mídias de Divulgação 2026
+                </div>
+
+                <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-white leading-tight mb-6">
+                    Transforme Gestão em Resultados com o <span class="gradient-text">Pulse ERP</span>
+                </h1>
+
+                <p class="text-slate-300 text-lg sm:text-xl leading-relaxed mb-8">
+                    Guia definitivo de posicionamento de mercado do <strong>Pulse ERP</strong>. Descubra os diferenciais competitivos de cada módulo, como justificar o investimento para clientes de varejo/atacado e utilize nossos <strong>cards promocionais profissionais</strong> para redes sociais, WhatsApp e e-mail marketing.
+                </p>
+
+                <!-- Key Value Drivers Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-slate-800">
+                    <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
+                        <div class="text-3xl font-extrabold text-emerald-400 mb-1">+45%</div>
+                        <div class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Agilidade em Vendas</div>
+                    </div>
+                    <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
+                        <div class="text-3xl font-extrabold text-indigo-400 mb-1">100%</div>
+                        <div class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Venda Direta Offline</div>
+                    </div>
+                    <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
+                        <div class="text-3xl font-extrabold text-cyan-400 mb-1">-60%</div>
+                        <div class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Inadimplência (WhatsApp)</div>
+                    </div>
+                    <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
+                        <div class="text-3xl font-extrabold text-purple-400 mb-1">3 seg</div>
+                        <div class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Emissão Fiscal NFe</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Section 1: Módulos Principais & Argumentação de Vendas vs Gestão -->
+        <section id="modulos" class="space-y-10">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-6">
+                <div>
+                    <span class="text-indigo-400 font-bold text-xs uppercase tracking-widest">Capítulo 1</span>
+                    <h2 class="text-3xl font-extrabold text-white mt-1">Módulos Estratégicos & <span class="gradient-text">Proposta de Valor</span></h2>
+                </div>
+                <p class="text-slate-400 text-sm max-w-xl">
+                    Cada funcionalidade do Pulse ERP foi projetada com dois focos claros: <strong>acelerar as vendas na ponta</strong> e <strong>trazer paz de espírito ao gestor</strong>.
+                </p>
+            </div>
+
+            <!-- Grid de 8 Módulos -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+                <!-- Módulo 1: PWA Venda Direta Mobile -->
+                <div class="glass-card rounded-3xl p-6 sm:p-8 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 text-xl font-bold">
+                                    <i class="fas fa-mobile-alt"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold text-white">1. PWA Venda Direta Mobile & Offline</h3>
+                                    <span class="text-xs font-semibold text-emerald-400">Venda Externa & Força de Vendas</span>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 rounded-full badge-sales text-xs font-bold uppercase">Multi-Dispositivo</span>
+                        </div>
+
+                        <p class="text-slate-300 text-sm mb-6 leading-relaxed">
+                            Aplicação web progressiva (PWA) de altíssima velocidade que permite ao vendedor navegar pelo catálogo completo com fotos, consultar estoque em tempo real e montar pedidos direto pelo celular ou tablet.
+                        </p>
+
+                        <!-- Mockup Image -->
+                        <div class="rounded-2xl overflow-hidden mb-6 border border-slate-700/60 shadow-lg bg-slate-900">
+                            <img src="assets/images/mockups/pwa_venda_direta.png" alt="PWA Venda Direta Pulse" class="w-full h-64 object-cover object-top hover:scale-105 transition-transform duration-500">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- Impacto em Vendas -->
+                            <div class="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/20">
+                                <div class="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase mb-2">
+                                    <i class="fas fa-rocket"></i> Por que AUMENTA as Vendas?
+                                </div>
+                                <p class="text-xs text-slate-300 leading-relaxed">
+                                    O vendedor realiza atendimentos consultivos no cliente sem depender de sinal de internet. Apresentação visual atraente com catálogo digital aumenta o ticket médio imediato.
+                                </p>
+                            </div>
+                            <!-- Impacto em Gestão -->
+                            <div class="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-500/20">
+                                <div class="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase mb-2">
+                                    <i class="fas fa-shield-alt"></i> Por que simplifica a GESTÃO?
+                                </div>
+                                <p class="text-xs text-slate-300 leading-relaxed">
+                                    Trava de preços unitários que impede descontos arbitrários não autorizados e sincronização automática instantânea ao reestabelecer conexão.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Módulo 2: Busca Inteligente & Preços em Escala -->
+                <div class="glass-card rounded-3xl p-6 sm:p-8 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-xl font-bold">
+                                    <i class="fas fa-tags"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold text-white">2. Busca Inteligente & Tabela Atacado</h3>
+                                    <span class="text-xs font-semibold text-emerald-400">Smart Search & Escala de Preços</span>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 rounded-full badge-sales text-xs font-bold uppercase">Atacado & Varejo</span>
+                        </div>
+
+                        <p class="text-slate-300 text-sm mb-6 leading-relaxed">
+                            Algoritmo de busca por palavras-chave (tokens) insensível a acentos (Unaccent) combinado com regras automáticas de precificação progressiva por quantidade (Escala de Atacado).
+                        </p>
+
+                        <!-- Mockup Image -->
+                        <div class="rounded-2xl overflow-hidden mb-6 border border-slate-700/60 shadow-lg bg-slate-900">
+                            <img src="assets/images/mockups/tabela_atacado.png" alt="Busca Inteligente e Tabela Atacado Pulse ERP" class="w-full h-64 object-cover object-top hover:scale-105 transition-transform duration-500">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- Impacto em Vendas -->
+                            <div class="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/20">
+                                <div class="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase mb-2">
+                                    <i class="fas fa-bolt"></i> Por que AUMENTA as Vendas?
+                                </div>
+                                <p class="text-xs text-slate-300 leading-relaxed">
+                                    Localização de produtos sem erros de digitação e aplicação automática do preço de atacado no carrinho quando o cliente atinge a quantidade de gatilho, estimulando vendas de maior volume.
+                                </p>
+                            </div>
+                            <!-- Impacto em Gestão -->
+                            <div class="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-500/20">
+                                <div class="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase mb-2">
+                                    <i class="fas fa-lock"></i> Por que simplifica a GESTÃO?
+                                </div>
+                                <p class="text-xs text-slate-300 leading-relaxed">
+                                    Garante que margens de lucro sejam preservadas automaticamente, eliminando a necessidade de aprovação manual constante por gerentes de loja.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Módulo 3: Gestão de Caixa & PDV Balcão -->
+                <div class="glass-card rounded-3xl p-6 sm:p-8 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-2xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 text-xl font-bold">
+                                    <i class="fas fa-cash-register"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold text-white">3. Gestão de Caixa & PDV de Balcão</h3>
+                                    <span class="text-xs font-semibold text-cyan-400">Controle Operacional Diário</span>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 rounded-full badge-management text-xs font-bold uppercase">Auditoria Viva</span>
+                        </div>
+
+                        <p class="text-slate-300 text-sm mb-6 leading-relaxed">
+                            Módulo de Frente de Caixa completo para registro de entradas, saídas, sangrias, suprimentos e fechamento automatizado de caixa com conferência em tempo real.
+                        </p>
+
+                        <!-- Mockup Image -->
+                        <div class="rounded-2xl overflow-hidden mb-6 border border-slate-700/60 shadow-lg bg-slate-900">
+                            <img src="assets/images/mockups/caixa_pdv.png" alt="Gestao de Caixa PDV Pulse" class="w-full h-64 object-cover object-top hover:scale-105 transition-transform duration-500">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- Impacto em Vendas -->
+                            <div class="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/20">
+                                <div class="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase mb-2">
+                                    <i class="fas fa-shipping-fast"></i> Por que AUMENTA as Vendas?
+                                </div>
+                                <p class="text-xs text-slate-300 leading-relaxed">
+                                    Atendimento ultra-rápido no balcão de loja, reduzindo filas de espera e aceitando múltiplos métodos de pagamento simultâneos (Dinheiro, Pix, Cartões).
+                                </p>
+                            </div>
+                            <!-- Impacto em Gestão -->
+                            <div class="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-500/20">
+                                <div class="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase mb-2">
+                                    <i class="fas fa-check-double"></i> Por que simplifica a GESTÃO?
+                                </div>
+                                <p class="text-xs text-slate-300 leading-relaxed">
+                                    Elimina furos de caixa com auditoria passo a passo, integração automática com parcelas recebidas e histórico imutável de movimentações por operador.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Módulo 4: Cobrança Automática & WhatsApp -->
+                <div class="glass-card rounded-3xl p-6 sm:p-8 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-xl font-bold">
+                                    <i class="fab fa-whatsapp"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold text-white">4. Cobrança WhatsApp & Evolution API</h3>
+                                    <span class="text-xs font-semibold text-emerald-400">Régua de Cobrança Automática</span>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 rounded-full badge-sales text-xs font-bold uppercase">Automação IA</span>
+                        </div>
+
+                        <p class="text-slate-300 text-sm mb-6 leading-relaxed">
+                            Integração nativa com Evolution API para notificação instantânea de vencimentos, emissão de chave Pix Copia e Cola por WhatsApp e gestão de carteiras de cobrança por rota.
+                        </p>
+
+                        <!-- Mockup Image -->
+                        <div class="rounded-2xl overflow-hidden mb-6 border border-slate-700/60 shadow-lg bg-slate-900">
+                            <img src="assets/images/mockups/cobranca_whatsapp.png" alt="Cobranca WhatsApp Evolution API Pulse" class="w-full h-64 object-cover object-top hover:scale-105 transition-transform duration-500">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- Impacto em Vendas -->
+                            <div class="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/20">
+                                <div class="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase mb-2">
+                                    <i class="fas fa-hand-holding-usd"></i> Por que AUMENTA as Vendas?
+                                </div>
+                                <p class="text-xs text-slate-300 leading-relaxed">
+                                    Recupera clientes inadimplentes oferecendo formas facilitadas de pagamento com QR Code Pix direto no celular, liberando limite para novas compras rapidamente.
+                                </p>
+                            </div>
+                            <!-- Impacto em Gestão -->
+                            <div class="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-500/20">
+                                <div class="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase mb-2">
+                                    <i class="fas fa-clock"></i> Por que simplifica a GESTÃO?
+                                </div>
+                                <p class="text-xs text-slate-300 leading-relaxed">
+                                    Reduz o custo com equipe de cobrança em até 80%, automatizando lembretes antes e depois do vencimento com dados totalmente auditáveis.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Módulo 5: Emissão Fiscal NFe & NFCe -->
+                <div class="glass-card rounded-3xl p-6 sm:p-8 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 text-xl font-bold">
+                                    <i class="fas fa-file-invoice"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold text-white">5. Central Fiscal NFe & NFCe</h3>
+                                    <span class="text-xs font-semibold text-rose-400">Emissão em Segundos & Contingência</span>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 rounded-full badge-management text-xs font-bold uppercase">SEFAZ Nativo</span>
+                        </div>
+
+                        <p class="text-slate-300 text-sm mb-6 leading-relaxed">
+                            Módulo fiscal integrado à biblioteca NFePHP para emissão de Nota Fiscal Eletrônica (Mod 55) e NFCe (Mod 65), com geração automática de DANFE em PDF e armazenamento de XML.
+                        </p>
+
+                        <!-- Mockup Image -->
+                        <div class="rounded-2xl overflow-hidden mb-6 border border-slate-700/60 shadow-lg bg-slate-900">
+                            <img src="assets/images/mockups/fiscal_nfe.png" alt="Emissao Fiscal NFe NFCe Pulse ERP" class="w-full h-64 object-cover object-top hover:scale-105 transition-transform duration-500">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- Impacto em Vendas -->
+                            <div class="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/20">
+                                <div class="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase mb-2">
+                                    <i class="fas fa-file-signature"></i> Por que AUMENTA as Vendas?
+                                </div>
+                                <p class="text-xs text-slate-300 leading-relaxed">
+                                    Faturamento imediato para vendas B2B e governamentais que exigem nota fiscal emitida no ato, além do envio automatizado do PDF/XML ao e-mail do cliente.
+                                </p>
+                            </div>
+                            <!-- Impacto em Gestão -->
+                            <div class="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-500/20">
+                                <div class="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase mb-2">
+                                    <i class="fas fa-balance-scale"></i> Por que simplifica a GESTÃO?
+                                </div>
+                                <p class="text-xs text-slate-300 leading-relaxed">
+                                    Conformidade fiscal total com cálculo automático de impostos (ICMS, IPI, PIS, COFINS) e exportação em lote organizada para a contabilidade.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Módulo 6: Indicadores, BI & Comissões -->
+                <div class="glass-card rounded-3xl p-6 sm:p-8 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-2xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400 text-xl font-bold">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold text-white">6. Indicadores, BI & Comissões</h3>
+                                    <span class="text-xs font-semibold text-purple-400">Inteligência Comercial & Incentivos</span>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 rounded-full badge-management text-xs font-bold uppercase">Executive Dash</span>
+                        </div>
+
+                        <p class="text-slate-300 text-sm mb-6 leading-relaxed">
+                            Dashboards analíticos completos com gráficos dinâmicos (Chart.js), ranking de comissões por colaborador (`ComissaoConfig`) e métricas em tempo real de faturamento por loja.
+                        </p>
+
+                        <!-- Mockup Image -->
+                        <div class="rounded-2xl overflow-hidden mb-6 border border-slate-700/60 shadow-lg bg-slate-900">
+                            <img src="assets/images/mockups/indicadores_bi.png" alt="Indicadores BI e Comissões Pulse ERP" class="w-full h-64 object-cover object-top hover:scale-105 transition-transform duration-500">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- Impacto em Vendas -->
+                            <div class="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/20">
+                                <div class="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase mb-2">
+                                    <i class="fas fa-trophy"></i> Por que AUMENTA as Vendas?
+                                </div>
+                                <p class="text-xs text-slate-300 leading-relaxed">
+                                    Vendedores acompanham suas próprias comissões em tempo real, gerando forte motivação e engajamento para atingir as metas mensais da empresa.
+                                </p>
+                            </div>
+                            <!-- Impacto em Gestão -->
+                            <div class="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-500/20">
+                                <div class="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase mb-2">
+                                    <i class="fas fa-eye"></i> Por que simplifica a GESTÃO?
+                                </div>
+                                <p class="text-xs text-slate-300 leading-relaxed">
+                                    Visão estratégica 360° do negócio, identificando produtos curva A, ticket médio real e projeção de margem de lucro sem planilhas paralelas.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Section 2: Studio de Cards Promocionais (Redes Sociais & Material Visual) -->
+        <section id="promocionais" class="space-y-8 pt-6">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-6">
+                <div>
+                    <span class="text-emerald-400 font-bold text-xs uppercase tracking-widest">Capítulo 2</span>
+                    <h2 class="text-3xl font-extrabold text-white mt-1">Cards Promocionais & <span class="gradient-text">Material Visual Pronto</span></h2>
+                </div>
+                <p class="text-slate-400 text-sm max-w-xl">
+                    Utilize nossos layouts profissionais pré-desenhados para divulgar o <strong>Pulse ERP</strong> no Instagram, LinkedIn, WhatsApp Status e campanhas de E-mail.
+                </p>
+            </div>
+
+            <!-- Format Selector Tabs -->
+            <div class="flex flex-wrap gap-3 bg-slate-900/80 p-2 rounded-2xl border border-slate-800 w-fit">
+                <button onclick="switchTab('feed')" id="tab-feed" class="px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-indigo-600 text-white shadow-lg">
+                    <i class="fab fa-instagram mr-2"></i> Instagram / LinkedIn Feed (1:1)
+                </button>
+                <button onclick="switchTab('stories')" id="tab-stories" class="px-5 py-2.5 rounded-xl font-bold text-sm text-slate-400 hover:text-white transition-all">
+                    <i class="fas fa-mobile-alt mr-2"></i> Stories / WA Status (9:16)
+                </button>
+                <button onclick="switchTab('banner')" id="tab-banner" class="px-5 py-2.5 rounded-xl font-bold text-sm text-slate-400 hover:text-white transition-all">
+                    <i class="fas fa-desktop mr-2"></i> E-mail Banner (16:9)
+                </button>
+            </div>
+
+            <!-- Tab Content: Feed 1:1 -->
+            <div id="content-feed" class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                
+                <!-- Card Promo 1 -->
+                <div class="glass-card rounded-3xl p-6 border border-slate-700/60 flex flex-col justify-between relative overflow-hidden group">
+                    <div class="aspect-square rounded-2xl gradient-bg-pulse p-6 text-white flex flex-col justify-between relative overflow-hidden shadow-xl">
+                        <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-xl"></div>
+                        <div class="flex justify-between items-center z-10">
+                            <span class="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-black uppercase tracking-wider text-white">Lançamento 2026</span>
+                            <i class="fas fa-bolt text-2xl text-yellow-300"></i>
+                        </div>
+                        <div class="z-10 my-4">
+                            <h4 class="text-2xl font-black leading-tight mb-2">Venda pelo Celular Mesmo Sem Internet! 🚀</h4>
+                            <p class="text-xs text-indigo-100 font-medium">Com o PWA Pulse ERP, sua equipe de vendas nunca para de faturar em campo.</p>
+                        </div>
+                        <div class="flex justify-between items-end z-10 pt-3 border-t border-white/20">
+                            <div>
+                                <span class="text-[10px] uppercase font-bold text-indigo-200 block">Demonstração Grátis</span>
+                                <span class="text-sm font-extrabold text-white">www.pulseerp.com.br</span>
+                            </div>
+                            <span class="w-8 h-8 rounded-full bg-white text-indigo-700 flex items-center justify-center font-bold text-sm">
+                                <i class="fas fa-arrow-right"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex justify-between items-center">
+                        <span class="text-xs text-slate-400 font-medium">Formato: 1080 x 1080 px</span>
+                        <button onclick="copyCardInfo('Venda pelo Celular Mesmo Sem Internet! 🚀 Com o PWA Pulse ERP, sua equipe de vendas nunca para de faturar em campo. Saiba mais: www.pulseerp.com.br')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-400 text-xs font-bold border border-slate-700">
+                            <i class="far fa-copy mr-1"></i> Copiar Legenda
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Card Promo 2 -->
+                <div class="glass-card rounded-3xl p-6 border border-slate-700/60 flex flex-col justify-between relative overflow-hidden group">
+                    <div class="aspect-square rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 p-6 text-white flex flex-col justify-between border border-emerald-500/30 shadow-xl">
+                        <div class="flex justify-between items-center">
+                            <span class="px-3 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-full text-xs font-black uppercase tracking-wider">Zero Inadimplência</span>
+                            <i class="fab fa-whatsapp text-2xl text-emerald-400"></i>
+                        </div>
+                        <div class="my-4">
+                            <h4 class="text-2xl font-black leading-tight text-white mb-2">Cobrança Automática via WhatsApp 📲</h4>
+                            <p class="text-xs text-slate-300 font-medium">Envie lembretes com chave Pix Copia e Cola antes do vencimento e reduza calotes em até 60%!</p>
+                        </div>
+                        <div class="flex justify-between items-end pt-3 border-t border-slate-700">
+                            <div>
+                                <span class="text-[10px] uppercase font-bold text-emerald-400 block">Sua Loja Automatizada</span>
+                                <span class="text-sm font-extrabold text-white">Pulse Evolution API</span>
+                            </div>
+                            <span class="w-8 h-8 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center font-bold text-sm">
+                                <i class="fas fa-check"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex justify-between items-center">
+                        <span class="text-xs text-slate-400 font-medium">Formato: 1080 x 1080 px</span>
+                        <button onclick="copyCardInfo('Cobrança Automática via WhatsApp! Envie lembretes com chave Pix Copia e Cola antes do vencimento e reduza a inadimplência da sua loja. Teste o Pulse ERP!')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-400 text-xs font-bold border border-slate-700">
+                            <i class="far fa-copy mr-1"></i> Copiar Legenda
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Card Promo 3 -->
+                <div class="glass-card rounded-3xl p-6 border border-slate-700/60 flex flex-col justify-between relative overflow-hidden group">
+                    <div class="aspect-square rounded-2xl bg-gradient-to-br from-purple-900 via-indigo-900 to-slate-900 p-6 text-white flex flex-col justify-between border border-purple-500/30 shadow-xl">
+                        <div class="flex justify-between items-center">
+                            <span class="px-3 py-1 bg-purple-500/20 text-purple-300 border border-purple-500/40 rounded-full text-xs font-black uppercase tracking-wider">Escala & Margem</span>
+                            <i class="fas fa-tags text-2xl text-purple-300"></i>
+                        </div>
+                        <div class="my-4">
+                            <h4 class="text-2xl font-black leading-tight text-white mb-2">Venda no Atacado sem Perder Margem! 📈</h4>
+                            <p class="text-xs text-slate-300 font-medium">Tabela de Preços por Escala Inteligente: mais volume para sua empresa, zero risco para seu caixa.</p>
+                        </div>
+                        <div class="flex justify-between items-end pt-3 border-t border-purple-500/30">
+                            <div>
+                                <span class="text-[10px] uppercase font-bold text-purple-300 block">Gestão de Atacado</span>
+                                <span class="text-sm font-extrabold text-white">PULSE ERP</span>
+                            </div>
+                            <span class="w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center font-bold text-sm">
+                                <i class="fas fa-chart-line"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex justify-between items-center">
+                        <span class="text-xs text-slate-400 font-medium">Formato: 1080 x 1080 px</span>
+                        <button onclick="copyCardInfo('Venda no Atacado sem perder margem de lucro! Descubra a Tabela de Preços em Escala do Pulse ERP e escale seu faturamento comercial.')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-400 text-xs font-bold border border-slate-700">
+                            <i class="far fa-copy mr-1"></i> Copiar Legenda
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Tab Content: Stories 9:16 -->
+            <div id="content-stories" class="hidden grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="glass-card rounded-3xl p-6 border border-slate-700/60 flex flex-col justify-between max-w-sm mx-auto w-full">
+                    <div class="aspect-[9/16] rounded-2xl gradient-bg-pulse p-6 text-white flex flex-col justify-between shadow-2xl relative">
+                        <div>
+                            <div class="flex justify-between items-center mb-6">
+                                <span class="text-xs font-black uppercase tracking-widest text-indigo-200">SEU ERP COMPLETO</span>
+                                <i class="fas fa-bolt text-yellow-300 text-xl"></i>
+                            </div>
+                            <h4 class="text-3xl font-black leading-tight mb-4">Chega de Furos de Caixa na Sua Loja! ⚡</h4>
+                            <p class="text-sm text-indigo-100 font-medium mb-6">Tenha controle total de estoque, vendas em campo, emissão fiscal em 3 segundos e régua de cobrança automática.</p>
+                            <div class="space-y-3">
+                                <div class="flex items-center gap-3 bg-white/10 p-3 rounded-xl backdrop-blur-md">
+                                    <i class="fas fa-check text-emerald-300"></i>
+                                    <span class="text-xs font-semibold">Caixa & PDV Integrados</span>
+                                </div>
+                                <div class="flex items-center gap-3 bg-white/10 p-3 rounded-xl backdrop-blur-md">
+                                    <i class="fas fa-check text-emerald-300"></i>
+                                    <span class="text-xs font-semibold">Emissão NFe / NFCe</span>
+                                </div>
+                                <div class="flex items-center gap-3 bg-white/10 p-3 rounded-xl backdrop-blur-md">
+                                    <i class="fas fa-check text-emerald-300"></i>
+                                    <span class="text-xs font-semibold">WhatsApp Automático</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center pt-6 border-t border-white/20">
+                            <span class="inline-block px-6 py-3 rounded-full bg-white text-indigo-900 font-black text-sm uppercase tracking-wider shadow-lg">Arraste pra Cima 👆</span>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex justify-between items-center">
+                        <span class="text-xs text-slate-400 font-medium">Formato: 1080 x 1920 px (9:16)</span>
+                        <button onclick="copyCardInfo('Chega de furos de caixa na sua loja! Conheça o Pulse ERP com PDV, NFe e WhatsApp integrado.')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-400 text-xs font-bold border border-slate-700">
+                            <i class="far fa-copy mr-1"></i> Copiar Texto
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Content: Banner 16:9 -->
+            <div id="content-banner" class="hidden space-y-6">
+                <div class="glass-card rounded-3xl p-8 border border-slate-700/60">
+                    <div class="aspect-[16/6] rounded-2xl bg-gradient-to-r from-indigo-950 via-slate-900 to-emerald-950 p-8 text-white flex flex-col justify-between border border-indigo-500/30 shadow-2xl relative overflow-hidden">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="px-3 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full text-xs font-black uppercase tracking-wider mb-3 inline-block">Solução Comercial 360°</span>
+                                <h4 class="text-3xl sm:text-4xl font-black leading-tight">PULSE ERP: A Plataforma Definitiva de Vendas e Gestão</h4>
+                            </div>
+                            <i class="fas fa-bolt text-4xl text-indigo-400"></i>
+                        </div>
+                        <div class="flex justify-between items-end pt-4 border-t border-slate-800">
+                            <p class="text-sm text-slate-300 max-w-xl">Do balcão ao vendedor de rua, da nota fiscal ao recebimento via Pix. Tudo automatizado em um só lugar.</p>
+                            <span class="px-6 py-2.5 rounded-xl gradient-bg-pulse font-bold text-sm text-white shadow-lg">Solicitar Demonstração</span>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex justify-between items-center">
+                        <span class="text-xs text-slate-400 font-medium">Formato: 1920 x 720 px (Horizontal E-mail)</span>
+                        <button onclick="copyCardInfo('PULSE ERP: A Plataforma Definitiva de Vendas e Gestão Comercial para Varejo e Atacado.')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-400 text-xs font-bold border border-slate-700">
+                            <i class="far fa-copy mr-1"></i> Copiar Texto Banner
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Central de Scripts Prontos para WhatsApp -->
+        <section id="whatsapp-scripts" class="space-y-8 pt-6">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-6">
+                <div>
+                    <span class="text-emerald-400 font-bold text-xs uppercase tracking-widest">Capítulo 3</span>
+                    <h2 class="text-3xl font-extrabold text-white mt-1">Scripts de Prospecção & <span class="gradient-text">Copy WhatsApp</span></h2>
+                </div>
+                <p class="text-slate-400 text-sm max-w-xl">
+                    Modelos de mensagens persuasivas prontos para envio direto aos clientes via WhatsApp. Clique no botão para copiar instantaneamente!
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+                <!-- Script 1: Abordagem Comercial Geral -->
+                <div class="glass-card rounded-3xl p-6 sm:p-8 border border-slate-700/60 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-full text-xs font-bold uppercase">Pitch Comercial Geral</span>
+                            <i class="fab fa-whatsapp text-emerald-400 text-xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-4">Abordagem para Novos Clientes (Varejo & Atacado)</h3>
+                        <div class="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-line mb-6" id="script-1">
+Olá, [Nome do Cliente]! Tudo bem? ⚡
+
+Seus vendedores perdem tempo para achar produtos ou aprovar descontos? 
+
+Conheça o **PULSE ERP** — o sistema de gestão feito para acelerar vendas e organizar seu caixa:
+
+✅ **Venda Direta no Celular:** Funciona até offline!
+✅ **Tabela de Atacado Automática:** Desconto por quantidade no carrinho.
+✅ **Cobrança via WhatsApp:** Envio automático de chave Pix.
+✅ **NFe e NFCe em Segundos:** Emissão fiscal sem complicação.
+
+Topa fazer uma demonstração rápida de 10 minutos esta semana? 🚀
+                        </div>
+                    </div>
+                    <button onclick="copyToClipboard('script-1')" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25">
+                        <i class="far fa-copy"></i> Copiar Mensagem para WhatsApp
+                    </button>
+                </div>
+
+                <!-- Script 2: Foco em Redução de Inadimplência -->
+                <div class="glass-card rounded-3xl p-6 sm:p-8 border border-slate-700/60 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="px-3 py-1 bg-emerald-500/20 text-emerald-300 rounded-full text-xs font-bold uppercase">Foco em Cobrança & Pix</span>
+                            <i class="fab fa-whatsapp text-emerald-400 text-xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-4">Mensagem para Lojas com Cobrança Manual</h3>
+                        <div class="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-line mb-6" id="script-2">
+Olá, [Nome do Gestor]! 💡
+
+Quanto tempo sua equipe perde cobrando clientes devedores um por um no WhatsApp?
+
+Com a **Régua de Cobrança do Pulse ERP**, o próprio sistema envia lembretes automáticos com **QR Code Pix Copia e Cola** antes e depois do vencimento.
+
+📉 Nossos clientes reduziram a inadimplência em até **60% no primeiro mês**.
+
+Quer ver como funciona na prática na sua empresa? Me avise por aqui! 💬
+                        </div>
+                    </div>
+                    <button onclick="copyToClipboard('script-2')" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25">
+                        <i class="far fa-copy"></i> Copiar Mensagem para WhatsApp
+                    </button>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Section 4: E-mail Marketing Template -->
+        <section id="email-marketing" class="space-y-8 pt-6">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-6">
+                <div>
+                    <span class="text-indigo-400 font-bold text-xs uppercase tracking-widest">Capítulo 4</span>
+                    <h2 class="text-3xl font-extrabold text-white mt-1">Template de <span class="gradient-text">E-mail Marketing</span></h2>
+                </div>
+                <p class="text-slate-400 text-sm max-w-xl">
+                    Modelo HTML de e-mail promocional pronto para campanhas de prospecção e newsletter comercial.
+                </p>
+            </div>
+
+            <div class="glass-card rounded-3xl p-6 sm:p-8 border border-slate-700/60">
+                <div class="flex justify-between items-center mb-6">
+                    <span class="text-xs font-bold uppercase text-slate-400">Assunto Sugerido: <strong class="text-white">[Nome], aumente suas vendas e elimine furos de caixa com o Pulse ERP 🚀</strong></span>
+                    <button onclick="copyToClipboard('email-code')" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs">
+                        <i class="far fa-copy mr-1"></i> Copiar Código HTML
+                    </button>
+                </div>
+
+                <div class="bg-slate-950 p-6 rounded-2xl border border-slate-800 text-xs text-slate-300 font-mono overflow-x-auto max-h-80" id="email-code">
+&lt;div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px; border-radius: 16px; color: #1e293b;"&gt;
+  &lt;div style="text-align: center; margin-bottom: 30px;"&gt;
+    &lt;h1 style="color: #4f46e5; margin: 0;"&gt;PULSE ERP&lt;/h1&gt;
+    &lt;p style="color: #64748b; font-size: 14px;"&gt;Gestão Comercial &amp; Venda Direta Inteligente&lt;/p&gt;
+  &lt;/div&gt;
+
+  &lt;h2 style="color: #0f172a;"&gt;Olá, {{nome}}!&lt;/h2&gt;
+  &lt;p style="font-size: 16px; line-height: 1.6; color: #334155;"&gt;
+    Sua empresa busca vender mais rápido e ter total controle sobre o fluxo de caixa? O **Pulse ERP** foi projetado para transformar a rotina comercial da sua loja!
+  &lt;/p&gt;
+
+  &lt;ul style="font-size: 15px; line-height: 1.8; color: #334155;"&gt;
+    &lt;li&gt;&lt;strong style="color: #4f46e5;"&gt;Venda Direta Mobile:&lt;/strong&gt; Catálogo completo e suporte 100% offline.&lt;/li&gt;
+    &lt;li&gt;&lt;strong style="color: #4f46e5;"&gt;Tabela de Atacado:&lt;/strong&gt; Descontos progressivos automatizados.&lt;/li&gt;
+    &lt;li&gt;&lt;strong style="color: #4f46e5;"&gt;Régua de WhatsApp:&lt;/strong&gt; Cobrança via Pix automática sem esforço.&lt;/li&gt;
+    &lt;li&gt;&lt;strong style="color: #4f46e5;"&gt;NFe &amp; NFCe:&lt;/strong&gt; Emissão fiscal em 3 segundos com DANFE em PDF.&lt;/li&gt;
+  &lt;/ul&gt;
+
+  &lt;div style="text-align: center; margin-top: 35px;"&gt;
+    &lt;a href="https://www.pulseerp.com.br" style="background-color: #4f46e5; color: #ffffff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;"&gt;Solicitar Demonstração Gratuita&lt;/a&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="border-t border-slate-800 pt-12 pb-6 text-center text-slate-500 text-xs">
+            <div class="flex justify-center items-center gap-2 text-slate-300 font-bold mb-2">
+                <div class="w-6 h-6 rounded-lg gradient-bg-pulse flex items-center justify-center text-white text-xs">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <span>PULSE ERP &copy; 2026</span>
+            </div>
+            <p>Documentação de Plano de Marketing & Material Promocional para Redes Sociais, WhatsApp e E-mail.</p>
+        </footer>
+
+    </main>
+
+    <!-- JavaScript Interatividade -->
+    <script>
+        // Copy to clipboard function with toast
+        function copyToClipboard(elementId) {
+            const el = document.getElementById(elementId);
+            const textToCopy = el.innerText || el.textContent;
+            
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showToast();
+            }).catch(err => {
+                console.error('Erro ao copiar: ', err);
+            });
+        }
+
+        function copyCardInfo(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast();
+            });
+        }
+
+        function showToast() {
+            const toast = document.getElementById("toast");
+            toast.className = "show";
+            setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 3000);
+        }
+
+        // Tab Switching for Promotional Cards
+        function switchTab(tabName) {
+            const feedContent = document.getElementById('content-feed');
+            const storiesContent = document.getElementById('content-stories');
+            const bannerContent = document.getElementById('content-banner');
+
+            const tabFeed = document.getElementById('tab-feed');
+            const tabStories = document.getElementById('tab-stories');
+            const tabBanner = document.getElementById('tab-banner');
+
+            // Hide all
+            feedContent.classList.add('hidden');
+            feedContent.classList.remove('grid');
+            storiesContent.classList.add('hidden');
+            storiesContent.classList.remove('grid');
+            bannerContent.classList.add('hidden');
+
+            // Reset tab styles
+            [tabFeed, tabStories, tabBanner].forEach(tab => {
+                tab.className = "px-5 py-2.5 rounded-xl font-bold text-sm text-slate-400 hover:text-white transition-all";
+            });
+
+            // Activate target
+            if (tabName === 'feed') {
+                feedContent.classList.remove('hidden');
+                feedContent.classList.add('grid');
+                tabFeed.className = "px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-indigo-600 text-white shadow-lg";
+            } else if (tabName === 'stories') {
+                storiesContent.classList.remove('hidden');
+                storiesContent.classList.add('grid');
+                tabStories.className = "px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-indigo-600 text-white shadow-lg";
+            } else if (tabName === 'banner') {
+                bannerContent.classList.remove('hidden');
+                tabBanner.className = "px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-indigo-600 text-white shadow-lg";
+            }
+        }
+    </script>
+</body>
+</html>

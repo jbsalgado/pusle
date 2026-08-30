@@ -712,6 +712,18 @@ $gruposOrdenados = [
                                 <?php endif; ?>
 
                                 <!-- Perfil -->
+                                <?php if (\app\components\TenantHelper::isAdmin()): ?>
+                                    <!-- Painel SaaS Superadmin -->
+                                    <a href="<?= Url::to(['/admin/financeiro/index']) ?>"
+                                        class="flex items-center px-4 py-2.5 text-sm font-bold text-indigo-600 hover:bg-indigo-50 transition-colors duration-150 border-b border-indigo-100">
+                                        <svg class="w-5 h-5 mr-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                        </svg>
+                                        👑 Painel Gestor SaaS
+                                    </a>
+                                <?php endif; ?>
+
+                                <!-- Meu Perfil -->
                                 <a href="<?= Url::to(['/site/perfil']) ?>"
                                     class="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150">
                                     <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

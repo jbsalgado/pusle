@@ -6,6 +6,7 @@ use Yii;
 use yii\db\ActiveRecord;
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
+use app\models\Usuario;
 use app\modules\vendas\models\Produto;
 
 /**
@@ -13,9 +14,11 @@ use app\modules\vendas\models\Produto;
  * Tabela: prest_marketplace_produto
  *
  * @property string $id
+ * @property string $usuario_id
  * @property string $produto_id
  * @property string $marketplace
  * @property string $marketplace_produto_id
+ * @property string $marketplace_variacao_id
  * @property string $titulo_marketplace
  * @property string $descricao_marketplace
  * @property float $preco_marketplace
@@ -30,6 +33,7 @@ use app\modules\vendas\models\Produto;
  * @property string $data_criacao
  * @property string $data_atualizacao
  *
+ * @property Usuario $usuario
  * @property Produto $produto
  */
 class MarketplaceProduto extends ActiveRecord
@@ -70,10 +74,9 @@ class MarketplaceProduto extends ActiveRecord
     {
         return [
             [['produto_id', 'marketplace', 'marketplace_produto_id'], 'required'],
-            [['produto_id'], 'string'],
+            [['usuario_id', 'produto_id'], 'string'],
             [['marketplace'], 'string', 'max' => 50],
-            [['marketplace_produto_id'], 'string', 'max' => 255],
-            [['titulo_marketplace'], 'string', 'max' => 255],
+            [['marketplace_produto_id', 'marketplace_variacao_id', 'titulo_marketplace'], 'string', 'max' => 255],
             [['descricao_marketplace', 'erro_sync', 'url_marketplace'], 'string'],
             [['preco_marketplace'], 'number', 'min' => 0],
             [['estoque_marketplace'], 'integer', 'min' => 0],
@@ -87,8 +90,8 @@ class MarketplaceProduto extends ActiveRecord
                 self::STATUS_REMOVIDO,
             ]],
             [['status'], 'default', 'value' => self::STATUS_ATIVO],
-            [['ultima_sync'], 'safe'],
-            [['dados_completos'], 'safe'],
+            [['ultima_sync', 'dados_completos'], 'safe'],
+            [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
             [['produto_id'], 'exist', 'skipOnError' => true, 'targetClass' => Produto::class, 'targetAttribute' => ['produto_id' => 'id']],
         ];
     }
@@ -100,26 +103,37 @@ class MarketplaceProduto extends ActiveRecord
     {
         return [
             'id' => 'ID',
-            'produto_id' => 'Produto',
+            'usuario_id' => 'Usuário / Tenant',
+            'produto_id' => 'Produto Interno',
             'marketplace' => 'Marketplace',
             'marketplace_produto_id' => 'ID no Marketplace',
-            'titulo_marketplace' => 'Título',
-            'descricao_marketplace' => 'Descrição',
-            'preco_marketplace' => 'Preço',
-            'estoque_marketplace' => 'Estoque',
-            'sku_marketplace' => 'SKU',
-            'url_marketplace' => 'URL',
-            'categoria_marketplace' => 'Categoria',
+            'marketplace_variacao_id' => 'ID da Variação no Marketplace',
+            'titulo_marketplace' => 'Título do Anúncio',
+            'descricao_marketplace' => 'Descrição no Marketplace',
+            'preco_marketplace' => 'Preço Customizado no Canal (R$)',
+            'estoque_marketplace' => 'Estoque Sincronizado',
+            'sku_marketplace' => 'SKU no Marketplace',
+            'url_marketplace' => 'URL do Anúncio',
+            'categoria_marketplace' => 'Categoria no Marketplace',
             'status' => 'Status',
             'ultima_sync' => 'Última Sincronização',
-            'erro_sync' => 'Erro de Sincronização',
+            'erro_sync' => 'Último Erro',
+            'dados_completos' => 'Dados Completos (JSON)',
             'data_criacao' => 'Data de Criação',
             'data_atualizacao' => 'Data de Atualização',
         ];
     }
 
     /**
-     * Relação com produto
+     * Relação com usuário / tenant
+     */
+    public function getUsuario()
+    {
+        return $this->hasOne(Usuario::class, ['id' => 'usuario_id']);
+    }
+
+    /**
+     * Relação com produto interno do Pulse
      */
     public function getProduto()
     {
@@ -127,18 +141,24 @@ class MarketplaceProduto extends ActiveRecord
     }
 
     /**
-     * Retorna badge HTML do status
-     * @return string
+     * Calcula o preço final de venda para o marketplace considerando o markup configurado
      */
-    public function getStatusBadge()
+    public function getPrecoFinal(): float
     {
-        $badges = [
-            self::STATUS_ATIVO => '<span class="badge badge-success">Ativo</span>',
-            self::STATUS_PAUSADO => '<span class="badge badge-warning">Pausado</span>',
-            self::STATUS_ERRO => '<span class="badge badge-danger">Erro</span>',
-            self::STATUS_REMOVIDO => '<span class="badge badge-secondary">Removido</span>',
-        ];
+        if ($this->preco_marketplace > 0) {
+            return (float) $this->preco_marketplace;
+        }
 
-        return $badges[$this->status] ?? $this->status;
+        $precoBase = $this->produto ? (float)$this->produto->preco_venda : 0.0;
+        
+        $config = MarketplaceConfig::find()
+            ->where(['marketplace' => $this->marketplace, 'usuario_id' => $this->usuario_id, 'ativo' => true])
+            ->one();
+
+        if ($config) {
+            return $config->calcularPrecoComMarkup($precoBase);
+        }
+
+        return $precoBase;
     }
 }

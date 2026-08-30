@@ -395,14 +395,14 @@ class Venda extends ActiveRecord
 
                 // 4. Marca parcelas como pagas e baixa estoque
                 if (!$foiOrcamento) {
-                    // Baixa estoque
+                    // Baixa estoque atômica com validação anti-overselling
                     foreach ($this->itens as $item) {
-                        $produto = $item->produto;
-                        if ($produto) {
-                            $produto->estoque_atual -= $item->quantidade;
-                            if (!$produto->save(false, ['estoque_atual'])) {
-                                throw new \Exception("Erro ao atualizar estoque do produto {$produto->nome}.");
-                            }
+                        if ($item->produto_id) {
+                            \app\modules\vendas\services\EstoqueService::baixarEstoque(
+                                $item->produto_id,
+                                (float)$item->quantidade,
+                                "Venda #{$this->codigo_venda_numerico}"
+                            );
                         }
                     }
 
@@ -421,15 +421,14 @@ class Venda extends ActiveRecord
             elseif ($novoStatus === StatusVenda::CANCELADA) {
                 // 1. Se estava QUITADA, precisa retornar o estoque e estornar financeiro
                 if ($statusAtual === StatusVenda::QUITADA) {
-                    // Retorna estoque
+                    // Retorna estoque de forma atômica
                     foreach ($this->itens as $item) {
-                        $produto = $item->produto;
-                        if ($produto) {
-                            $produto->refresh();
-                            $produto->estoque_atual += $item->quantidade;
-                            if (!$produto->save(false, ['estoque_atual'])) {
-                                throw new \Exception("Erro ao retornar estoque do produto {$produto->nome}.");
-                            }
+                        if ($item->produto_id) {
+                            \app\modules\vendas\services\EstoqueService::adicionarEstoque(
+                                $item->produto_id,
+                                (float)$item->quantidade,
+                                "Cancelamento Venda #{$this->codigo_venda_numerico}"
+                            );
                         }
                     }
 
