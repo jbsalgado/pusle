@@ -19,6 +19,7 @@ class LoginForm extends Model
 {
     public $login; // CPF ou Email
     public $senha;
+    public $loja; // Slug ou ID da loja de onde veio o login
     public $lembrar_me = true;
 
     private $_usuario = false;
@@ -32,9 +33,9 @@ class LoginForm extends Model
             // Login e senha obrigatórios
             [['login', 'senha'], 'required', 'message' => 'Este campo é obrigatório.'],
             
-            // Login
-            [['login'], 'trim'],
-            [['login'], 'string'],
+            // Login e Loja
+            [['login', 'loja'], 'trim'],
+            [['login', 'loja'], 'string'],
             
             // Senha
             [['senha'], 'string'],
@@ -51,8 +52,9 @@ class LoginForm extends Model
     public function attributeLabels()
     {
         return [
-            'login' => 'CPF',
+            'login' => 'CPF ou E-mail',
             'senha' => 'Senha',
+            'loja' => 'Loja',
             'lembrar_me' => 'Lembrar-me',
         ];
     }
@@ -117,6 +119,51 @@ class LoginForm extends Model
             // Valida senha
             if (!$usuario->validatePassword($this->senha)) {
                 $this->addError($attribute, 'CPF/E-mail ou senha incorretos.');
+                return;
+            }
+
+            // Super Administrador (is_admin = true) tem acesso irrestrito global
+            if ($isAdmin) {
+                return;
+            }
+
+            // Se o login foi originado de uma loja específica (?loja=slug-ou-id)
+            if (!empty($this->loja)) {
+                $lojaAlvo = Usuario::find()
+                    ->where(['catalogo_path' => $this->loja, 'eh_dono_loja' => true])
+                    ->one();
+
+                if (!$lojaAlvo) {
+                    $lojaAlvo = Usuario::find()
+                        ->where(['id' => $this->loja, 'eh_dono_loja' => true])
+                        ->one();
+                }
+
+                if ($lojaAlvo) {
+                    $nomeLojaAlvo = $lojaAlvo->nome;
+                    $configLojaAlvo = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $lojaAlvo->id]);
+                    if ($configLojaAlvo && !empty($configLojaAlvo->nome_loja)) {
+                        $nomeLojaAlvo = $configLojaAlvo->nome_loja;
+                    }
+
+                    // Se for Dono de Loja: só pode entrar na SUA PRÓPRIA loja
+                    if ($usuario->eh_dono_loja) {
+                        if ($usuario->id !== $lojaAlvo->id) {
+                            $this->addError($attribute, "Este usuário não pertence à loja selecionada ({$nomeLojaAlvo}). Por favor, acesse o sistema através da página da sua própria loja.");
+                            return;
+                        }
+                    } else {
+                        // Se for Colaborador: deve pertencer à loja alvo
+                        $colab = \app\modules\vendas\models\Colaborador::find()
+                            ->where(['prest_usuario_login_id' => $usuario->id, 'usuario_id' => $lojaAlvo->id, 'ativo' => true])
+                            ->one();
+
+                        if (!$colab) {
+                            $this->addError($attribute, "Este colaborador não possui permissão de acesso à loja selecionada ({$nomeLojaAlvo}).");
+                            return;
+                        }
+                    }
+                }
             }
         }
     }

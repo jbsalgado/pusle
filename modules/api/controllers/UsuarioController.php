@@ -155,11 +155,10 @@ class UsuarioController extends Controller
                 ];
             }
 
-            // Metadados do SaaS: usado pelo lojas.html para card admin e botão cadastro
+            // Metadados do SaaS: apenas para cadastro de nova loja
             $saasInfo = [
                 '_saas' => [
                     'cadastro_url'    => $baseUrl . '/loja-cadastro',
-                    'admin_url'       => $baseUrl . '/auth/login',
                     'nome_plataforma' => Yii::$app->name ?? 'Pulse',
                 ],
             ];

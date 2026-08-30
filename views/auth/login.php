@@ -94,6 +94,8 @@ $this->title = $dadosEmpresa['nome_loja'] ?? 'Login';
             ],
         ]); ?>
 
+        <?= $form->field($model, 'loja')->hiddenInput()->label(false) ?>
+
         <div style="margin-bottom: 20px;">
             <?= $form->field($model, 'login')->textInput([
                 'placeholder' => 'Digite seu CPF ou E-mail',

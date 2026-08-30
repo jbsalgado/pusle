@@ -18,35 +18,44 @@ class AuthController extends Controller
     public function actionLogin()
     {
         $model = new LoginForm();
+        $model->loja = Yii::$app->request->get('loja');
 
         // Carrega dados da empresa (tenta buscar de um usuário padrão ou usa valores padrão)
         $dadosEmpresa = $this->carregarDadosEmpresa();
 
         // Processa o formulário de login se for POST
-        if ($model->load(Yii::$app->request->post()) && $model->login()) {
-            $redirectUrl = Yii::$app->request->get('redirect_url');
+        if ($model->load(Yii::$app->request->post())) {
+            // Garante que o parâmetro loja da URL seja mantido se não veio no POST
+            if (empty($model->loja) && Yii::$app->request->get('loja')) {
+                $model->loja = Yii::$app->request->get('loja');
+            }
 
-            if ($redirectUrl) {
-                // Se houver uma URL de redirecionamento (ex: vindo do PWA),
-                // gera um token JWT e anexa à URL
+            if ($model->login()) {
+                $redirectUrl = Yii::$app->request->get('redirect_url');
+
+                if ($redirectUrl) {
+                    // Se houver uma URL de redirecionamento (ex: vindo do PWA),
+                    // gera um token JWT e anexa à URL
+                    $usuario = Yii::$app->user->identity;
+                    $token = $usuario->generateJwt();
+
+                    // Verifica se a URL já tem parâmetros
+                    $separator = (strpos($redirectUrl, '?') === false) ? '?' : '&';
+                    return $this->redirect($redirectUrl . $separator . 'token=' . $token);
+                }
+
+                // Após login bem-sucedido, verifica o tipo de usuário
                 $usuario = Yii::$app->user->identity;
-                $token = $usuario->generateJwt();
+                $isAdminOrigin = Yii::$app->request->get('admin') == '1';
+                
+                // Se veio do portal admin ou for apenas Gestor do SaaS
+                if ($usuario->is_admin && ($isAdminOrigin || !$usuario->eh_dono_loja)) {
+                    return $this->redirect(['/admin/financeiro/index']);
+                }
 
-                // Verifica se a URL já tem parâmetros
-                $separator = (strpos($redirectUrl, '?') === false) ? '?' : '&';
-                return $this->redirect($redirectUrl . $separator . 'token=' . $token);
+                // Caso contrário (Dono de Loja ou Colaborador), vai para o painel de vendas
+                return $this->redirect(['/vendas/inicio']);
             }
-
-            // Após login bem-sucedido, verifica o tipo de usuário
-            $usuario = Yii::$app->user->identity;
-            
-            // Se for apenas Gestor do SaaS (admin, mas não é dono de loja)
-            if ($usuario->is_admin && !$usuario->eh_dono_loja) {
-                return $this->redirect(['/admin/loja/index']);
-            }
-
-            // Caso contrário (Dono de Loja ou Colaborador), vai para o painel de vendas
-            return $this->redirect(['/vendas/inicio']);
         }
 
         $model->senha = '';
