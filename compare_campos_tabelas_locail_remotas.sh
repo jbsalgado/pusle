@@ -11,7 +11,7 @@ NC='\033[0m' # No Color
 # Configurações do banco LOCAL
 LOCAL_HOST="localhost"
 LOCAL_PORT="5432"
-LOCAL_DB="pulse"
+LOCAL_DB="alex_birds"
 LOCAL_USER="postgres"
 LOCAL_PASS="postgres"
 # Configurações do banco REMOTO (PULSE TOP CONSTRUCOES)
@@ -49,6 +49,7 @@ get_schema() {
         # Limpar linhas vazias e espaços extras
         sed -i '/^$/d' "$OUT_FILE"
         sed -i 's/^ *//;s/ *$//' "$OUT_FILE"
+        LC_ALL=C sort -u -o "$OUT_FILE" "$OUT_FILE"
     else
         echo -e "${RED}Erro ao obter esquema do banco $NAME! Verifique as conexões.${NC}"
         exit 1

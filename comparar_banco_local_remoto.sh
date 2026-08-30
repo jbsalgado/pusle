@@ -65,6 +65,10 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
+# Ordenar com locale C para garantir compatibilidade com comm
+LC_ALL=C sort -u -o "$TEMP_LOCAL" "$TEMP_LOCAL"
+LC_ALL=C sort -u -o "$TEMP_PROD" "$TEMP_PROD"
+
 # Identificar tabelas faltantes
 comm -13 $TEMP_LOCAL $TEMP_PROD > $MISSING_LOCAL
 comm -23 $TEMP_LOCAL $TEMP_PROD > $MISSING_PROD
