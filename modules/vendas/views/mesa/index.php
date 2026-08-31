@@ -847,6 +847,8 @@ $this->params['breadcrumbs'][] = $this->title;
                             </div>
                         <?php endif; ?>
 
+                        <!-- Botões de Ação Dinâmicos -->
+                        <div class="mt-3 pt-2 border-t border-gray-100 flex flex-col gap-2">
                             <div class="grid grid-cols-2 gap-1.5">
                                 <button type="button" onclick="abrirModalQrCodeMesa('<?= $mesa->id ?>', '<?= Html::encode($mesa->numero_mesa) ?>')" class="w-full py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs rounded-xl flex items-center justify-center gap-1 border border-gray-300 transition" title="Exibir e Imprimir QR Code">
                                     <span>📱</span>
