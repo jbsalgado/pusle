@@ -273,7 +273,7 @@ class DisparoMassaService
             $configWp = null;
             if ($item->canal === DisparoMassa::CANAL_STATUS || $item->canal === DisparoMassa::CANAL_WHATSAPP) {
                 $configWp = WhatsappConfig::findByEmpresa($usuarioId);
-                if (!$configWp || empty($configWp->token)) {
+                if (!$configWp || (!$configWp->isMetaOficial() && empty($configWp->token))) {
                     $item->status = DisparoItem::STATUS_ERRO;
                     $item->erro_mensagem = "WhatsApp não configurado ou desconectado para esta loja.";
                     $item->save(false);

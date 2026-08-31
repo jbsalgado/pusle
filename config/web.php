@@ -129,6 +129,11 @@ $config = [
             // Caso contrário, assume que o .htaccess está funcionando e não usa index.php
             'showScriptName' => $showScriptName,
             'rules' => [
+                // Regras para Direct Hub do Cliente & Comanda Digital
+                'GET hub/<token:[\w-]+>' => 'hub/index',
+                'GET m/<slug:[\w-]+>' => 'hub/index',
+                'GET comanda/<comanda:[\w-]+>' => 'hub/index',
+                'hub/<action:[\w-]+>' => 'hub/<action>',
                 // Regras para Encarte Digital Público
                 'GET encarte/pdf/<token:[\w-]+>' => 'vendas/encarte-publico/pdf',
                 'GET encarte/<token:[\w-]+>' => 'vendas/encarte-publico/ver',

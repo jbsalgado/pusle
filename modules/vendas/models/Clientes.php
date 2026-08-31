@@ -263,6 +263,54 @@ class Clientes extends \yii\db\ActiveRecord
     }
 
     /**
+     * Retorna ou gera o magic token único do cliente para o Direct Hub
+     */
+    public function getMagicToken(): string
+    {
+        if (empty($this->magic_token)) {
+            $this->magic_token = md5($this->id . $this->usuario_id . uniqid('', true));
+            $this->save(false, ['magic_token']);
+        }
+        return $this->magic_token;
+    }
+
+    /**
+     * Localiza um cliente pelo Magic Token
+     */
+    public static function findByMagicToken(string $token): ?self
+    {
+        return self::findOne(['magic_token' => $token, 'ativo' => true]);
+    }
+
+    /**
+     * Localiza ou cria rapidamente um cliente apenas com Nome e Telefone (Food Service / Totem / Balcão)
+     */
+    public static function findOrCreateQuick(string $usuarioId, string $nome, string $telefone): self
+    {
+        $cleanPhone = preg_replace('/\D/', '', $telefone);
+        
+        $cliente = self::find()
+            ->where(['usuario_id' => $usuarioId, 'ativo' => true])
+            ->andWhere(['or', ['telefone' => $telefone], ['telefone' => $cleanPhone]])
+            ->one();
+
+        if ($cliente === null) {
+            $cliente = new self();
+            $cliente->usuario_id    = $usuarioId;
+            $cliente->nome_completo = trim($nome) ?: 'Cliente Mesa';
+            $cliente->telefone      = $cleanPhone ?: $telefone;
+            $cliente->ativo         = true;
+            $cliente->magic_token   = md5(uniqid($usuarioId, true) . microtime());
+            $cliente->save(false);
+        } else if (!empty($nome) && ($cliente->nome_completo === 'Cliente Mesa' || empty($cliente->nome_completo))) {
+            $cliente->nome_completo = trim($nome);
+            $cliente->save(false, ['nome_completo']);
+        }
+
+        return $cliente;
+    }
+
+    /**
      * {@inheritdoc}
      * @return \app\modules\vendas\query\PrestClientesQuery the active query used by this AR class.
      */
