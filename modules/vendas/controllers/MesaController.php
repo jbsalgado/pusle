@@ -808,6 +808,9 @@ class MesaController extends Controller
             ];
         }
 
+        $wpConfig = \app\modules\evolution\models\WhatsappConfig::findByEmpresa($tenantId);
+        $wpConectado = ($wpConfig !== null && $wpConfig->status === 'CONNECTED');
+
         return [
             'success' => true,
             'mesa_numero' => $mesa->numero_mesa,
@@ -815,6 +818,8 @@ class MesaController extends Controller
             'valor_total' => (float)$total,
             'valor_total_formatado' => number_format($total, 2, ',', '.'),
             'formas_pagamento' => $formasData,
+            'whatsapp_conectado' => $wpConectado,
+            'whatsapp_status' => $wpConfig ? $wpConfig->status : 'NOT_CONFIGURED',
         ];
     }
 
@@ -913,52 +918,81 @@ class MesaController extends Controller
         $msgComprovante .= "-----------------------------------\n";
         $msgComprovante .= "Obrigado pela preferência e volte sempre! 😊🚀";
 
-        // 4. Salva no Canal Próprio (Direct Hub / Inbox Digital do Cliente)
+        // 4. Salva no Canal Próprio (Direct Hub / Inbox Digital da Mesa)
         $hubPostado = false;
         $enviarHub = (int)($request['enviar_hub'] ?? 1);
         if ($enviarHub == 1) {
-            try {
-                \app\modules\vendas\models\ClienteInbox::postar(
-                    $tenantId,
-                    \app\modules\vendas\models\ClienteInbox::TIPO_CARD,
-                    "🧾 Recibo de Consumo — Mesa {$mesa->numero_mesa}",
-                    $msgComprovante,
-                    $mesa->id
-                );
+            $inbox = new \app\modules\vendas\models\ClienteInbox();
+            $inbox->usuario_id = $tenantId;
+            $inbox->mesa_id = $mesa->id;
+            $inbox->comanda_id = $comanda->id;
+            $inbox->tipo = 'conta';
+            $inbox->titulo = "🧾 Recibo de Fechamento — Mesa {$mesa->numero_mesa}";
+            $inbox->conteudo_texto = $msgComprovante;
+            $inbox->lido = false;
+            $inbox->created_at = date('Y-m-d H:i:s');
+            if ($inbox->save(false)) {
                 $hubPostado = true;
-            } catch (\Exception $e) {
-                Yii::error("Erro ao postar recibo no Direct Hub: " . $e->getMessage(), __METHOD__);
+            } else {
+                Yii::error("Erro ao salvar comprovante no ClienteInbox: " . json_encode($inbox->errors), __METHOD__);
             }
         }
 
         // 5. Envio via WhatsApp (Evolution API) se solicitado
         $wpEnviado = false;
-        if ($enviarWhatsapp == 1 && !empty($whatsapp)) {
-            $numLimpo = preg_replace('/[^0-9]/', '', $whatsapp);
-            if (!empty($numLimpo)) {
-                try {
-                    $evolution = new \app\modules\evolution\services\EvolutionService();
-                    $wpEnviado = $evolution->sendMessage($tenantId, $numLimpo, $msgComprovante);
-                } catch (\Exception $e) {
-                    Yii::error("Erro ao enviar recibo por WhatsApp: " . $e->getMessage(), __METHOD__);
+        $wpMensagemStatus = null;
+        if ($enviarWhatsapp == 1) {
+            if (empty($whatsapp)) {
+                $wpMensagemStatus = "Número de WhatsApp não informado.";
+            } else {
+                $numLimpo = preg_replace('/[^0-9]/', '', $whatsapp);
+                if (strlen($numLimpo) < 10) {
+                    $wpMensagemStatus = "Número de telefone inválido ({$whatsapp}).";
+                } else {
+                    $wpConfig = \app\modules\evolution\models\WhatsappConfig::findByEmpresa($tenantId);
+                    if ($wpConfig === null || $wpConfig->status !== 'CONNECTED') {
+                        $wpMensagemStatus = "WhatsApp da empresa está desconectado. Conecte o aparelho no menu WhatsApp.";
+                    } else {
+                        try {
+                            $evolution = new \app\modules\evolution\services\EvolutionService();
+                            $wpEnviado = $evolution->sendMessage($tenantId, $numLimpo, $msgComprovante);
+                            if ($wpEnviado) {
+                                $wpMensagemStatus = "Enviado com sucesso para {$whatsapp}!";
+                            } else {
+                                $wpMensagemStatus = $evolution->lastError ?: "Falha ao enviar via Evolution API.";
+                            }
+                        } catch (\Throwable $e) {
+                            $wpMensagemStatus = "Erro ao disparar: " . $e->getMessage();
+                            Yii::error("Erro ao enviar recibo por WhatsApp: " . $e->getMessage(), __METHOD__);
+                        }
+                    }
                 }
             }
         }
 
-        $msgFinal = "Mesa {$mesa->numero_mesa} fechada e liberada com sucesso!";
+        $mensagensAviso = [];
+        $mensagensAviso[] = "Mesa {$mesa->numero_mesa} fechada e liberada com sucesso!";
         if ($hubPostado) {
-            $msgFinal .= " 🌐 Notificado no Direct Hub!";
+            $mensagensAviso[] = "🌐 Comprovante publicado no Direct Hub / Chat da Mesa!";
         }
-        if ($wpEnviado) {
-            $msgFinal .= " 📲 Enviado via WhatsApp!";
+        if ($enviarWhatsapp == 1) {
+            if ($wpEnviado) {
+                $mensagensAviso[] = "📲 WhatsApp: {$wpMensagemStatus}";
+            } else {
+                $mensagensAviso[] = "⚠️ WhatsApp: {$wpMensagemStatus}";
+            }
         }
 
+        $msgFinal = implode("\n", $mensagensAviso);
         $slugLoja = $loja ? ($loja->slug ?? $loja->id) : '';
 
         return [
             'success' => true,
             'message' => $msgFinal,
             'recibo_texto' => $msgComprovante,
+            'hub_postado' => $hubPostado,
+            'whatsapp_enviado' => $wpEnviado,
+            'whatsapp_status' => $wpMensagemStatus,
             'hub_url' => "/hub?slug={$slugLoja}&mesa={$mesa->numero_mesa}",
         ];
     }

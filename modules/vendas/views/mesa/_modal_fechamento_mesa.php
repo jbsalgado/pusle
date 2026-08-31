@@ -114,6 +114,7 @@ use yii\helpers\Url;
                                     <span>📲 Disparo via WhatsApp (Evolution API)</span>
                                 </span>
                             </label>
+                            <span id="badgeStatusWpFechamento" class="text-[10px] px-2 py-0.5 rounded-full font-bold"></span>
                         </div>
 
                         <div id="boxInputWhatsapp" class="pl-6">
@@ -167,6 +168,17 @@ async function abrirModalFechamento(mesaId, numeroMesa, clienteNome) {
         document.getElementById('fechamentoTotalConsumo').innerText = 'R$ ' + data.valor_total_formatado;
         document.getElementById('inputNumPessoas').value = 1;
         document.getElementById('containerPagamentos').innerHTML = '';
+
+        const badgeWp = document.getElementById('badgeStatusWpFechamento');
+        if (badgeWp) {
+            if (data.whatsapp_conectado) {
+                badgeWp.className = 'text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200';
+                badgeWp.innerText = '🟢 Conectado';
+            } else {
+                badgeWp.className = 'text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-amber-100 text-amber-800 border border-amber-200';
+                badgeWp.innerText = '⚠️ Desconectado';
+            }
+        }
 
         // Cria a primeira linha de pagamento com o valor total
         adicionarLinhaPagamento(valorTotalMesa);
