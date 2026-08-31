@@ -308,9 +308,9 @@ class CardapioController extends Controller
     }
 
     /**
-     * Ação Pública: Cliente envia mensagem ou solicitação rápida para o Garçom via Direct Hub
+     * Ação Pública: Envia uma mensagem / solicitação direta da mesa para o garçom no Direct Hub
      */
-    public function actionEnviarMensagemMesa()
+    public function actionEnviarMensagemMesa(): array
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
         $request = Yii::$app->request->post() ?: json_decode(Yii::$app->request->getRawBody(), true) ?: [];
@@ -319,8 +319,11 @@ class CardapioController extends Controller
         $mensagem = trim($request['mensagem'] ?? '');
         $clienteNome = trim($request['cliente_nome'] ?? 'Cliente');
 
-        if (empty($mesaId) || empty($mensagem)) {
-            return ['success' => false, 'message' => 'Informe a mensagem a ser enviada.'];
+        // Salva imagem se enviada
+        $midiaUrl = \app\modules\vendas\helpers\ChatMediaHelper::salvarUpload('imagem') ?: ($request['midia_url'] ?? null);
+
+        if (empty($mesaId) || (empty($mensagem) && empty($midiaUrl))) {
+            return ['success' => false, 'message' => 'Informe a mensagem ou anexe uma foto.'];
         }
 
         $mesa = Mesa::findOne($mesaId);
@@ -334,8 +337,8 @@ class CardapioController extends Controller
             null,
             'chat_cliente',
             "💬 Mensagem da Mesa {$mesa->numero_mesa}",
-            $mensagem,
-            null,
+            $mensagem ?: ($midiaUrl ? '📷 [Foto enviada]' : ''),
+            $midiaUrl,
             [
                 'mesa_id' => $mesa->id,
                 'mesa_numero' => $mesa->numero_mesa,
@@ -348,6 +351,7 @@ class CardapioController extends Controller
         return [
             'success' => true,
             'message' => 'Mensagem enviada para o garçom com sucesso!',
+            'midia_url' => $midiaUrl,
             'hora' => date('H:i')
         ];
     }
@@ -382,6 +386,7 @@ class CardapioController extends Controller
                 'remetente' => $isCliente ? 'cliente' : 'garcom',
                 'autor' => $isCliente ? 'Você' : $nomeLoja,
                 'texto' => $m->conteudo_texto,
+                'midia_url' => $m->midia_url,
                 'hora' => date('H:i', strtotime($m->created_at)),
                 'created_at' => Yii::$app->formatter->asRelativeTime($m->created_at),
                 'lido' => $m->lido,

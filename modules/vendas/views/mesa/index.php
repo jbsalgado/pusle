@@ -313,6 +313,7 @@ $this->params['breadcrumbs'][] = $this->title;
                 lista.innerHTML = '';
                 itensFiltrados.forEach(ch => {
                     if (ch.tipo === 'chat_cliente') {
+                        const temMidia = ch.midia_url && ch.midia_url.trim() !== '';
                         lista.innerHTML += `
                             <div class="bg-white border-2 border-indigo-200 hover:border-indigo-400 rounded-2xl p-4 shadow-sm transition-all space-y-3">
                                 <div class="flex items-start justify-between gap-3">
@@ -334,6 +335,13 @@ $this->params['breadcrumbs'][] = $this->title;
                                     </button>
                                 </div>
 
+                                ${temMidia ? `
+                                    <div class="rounded-xl overflow-hidden border border-indigo-100 bg-indigo-50/50 p-1">
+                                        <img src="${ch.midia_url}" onclick="abrirZoomImagemAdmin('${ch.midia_url}')" class="max-w-full max-h-44 rounded-lg object-cover cursor-pointer hover:opacity-90 transition shadow-sm" alt="Foto da Mesa">
+                                        <span class="text-[10px] text-indigo-500 font-bold block mt-1 px-1">🔍 Clique para ampliar</span>
+                                    </div>
+                                ` : ''}
+
                                 <div class="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3 text-xs text-indigo-950 font-medium whitespace-pre-wrap">
                                     "${ch.texto}"
                                 </div>
@@ -346,8 +354,9 @@ $this->params['breadcrumbs'][] = $this->title;
                                     <button type="button" onclick="responderMesa('${ch.mesa_id}', 'Um momento, já estou levando! 😊', '${ch.id}')" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] rounded-lg shadow-sm transition">
                                         ⚡ "Já estou levando!"
                                     </button>
-                                    <button type="button" onclick="abrirPromptResposta('${ch.mesa_id}', '${ch.mesa_numero}', '${ch.id}')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-[11px] rounded-lg shadow-sm transition">
-                                        ✏️ Responder
+                                    <button type="button" onclick="abrirModalRespostaGarcom('${ch.mesa_id}', '${ch.mesa_numero}', '${ch.id}', '${ch.texto ? encodeURIComponent(ch.texto) : ''}', '${ch.midia_url || ''}')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-[11px] rounded-lg shadow-sm transition flex items-center gap-1">
+                                        <span>✏️ Responder</span>
+                                        <span>📷</span>
                                     </button>
                                 </div>
                             </div>
@@ -406,23 +415,26 @@ $this->params['breadcrumbs'][] = $this->title;
                 .catch(e => console.error('Erro ao atender todos os chamados:', e));
             }
 
-            function responderMesa(mesaId, mensagem, chamadoId) {
-                if (!mensagem) return;
+            function responderMesa(mesaId, mensagem, chamadoId, imagemFile = null) {
+                if (!mensagem && !imagemFile) return;
+
+                const formData = new FormData();
+                formData.append('mesa_id', mesaId);
+                if (mensagem) formData.append('mensagem', mensagem);
+                if (chamadoId) formData.append('chamado_id', chamadoId);
+                if (imagemFile) formData.append('imagem', imagemFile);
+
                 fetch('<?= Url::to(['/vendas/mesa/responder-mensagem-mesa']) ?>', {
                     method: 'POST',
                     headers: {
-                        'X-CSRF-Token': csrfToken,
-                        'Content-Type': 'application/json'
+                        'X-CSRF-Token': csrfToken
                     },
-                    body: JSON.stringify({
-                        mesa_id: mesaId,
-                        mensagem: mensagem,
-                        chamado_id: chamadoId
-                    })
+                    body: formData
                 })
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
+                        fecharModalRespostaGarcom();
                         checarChamadosHub();
                     } else {
                         alert(data.message || 'Erro ao enviar resposta.');
@@ -431,21 +443,189 @@ $this->params['breadcrumbs'][] = $this->title;
                 .catch(e => console.error('Erro ao responder mesa:', e));
             }
 
-            function abrirPromptResposta(mesaId, mesaNumero, chamadoId) {
-                const resp = prompt('Digite sua resposta para a Mesa ' + mesaNumero + ':');
-                if (resp && resp.trim()) {
-                    responderMesa(mesaId, resp.trim(), chamadoId);
+            let mesaRespostaAtual = null;
+            let chamadoRespostaAtual = null;
+            let fotoGarcomSelecionada = null;
+
+            function abrirModalRespostaGarcom(mesaId, mesaNumero, chamadoId, textoMsg, midiaUrl) {
+                mesaRespostaAtual = mesaId;
+                chamadoRespostaAtual = chamadoId;
+                fotoGarcomSelecionada = null;
+
+                document.getElementById('lblModalRespMesaNumero').innerText = mesaNumero;
+                document.getElementById('lblModalRespMsgCliente').innerText = decodeURIComponent(textoMsg || '');
+                
+                const boxMidia = document.getElementById('boxModalRespMidiaCliente');
+                const imgMidia = document.getElementById('imgModalRespMidiaCliente');
+                if (midiaUrl && midiaUrl.trim() !== '') {
+                    imgMidia.src = midiaUrl;
+                    boxMidia.classList.remove('hidden');
+                } else {
+                    boxMidia.classList.add('hidden');
+                }
+
+                document.getElementById('txtModalRespTexto').value = '';
+                cancelarFotoGarcom();
+                document.getElementById('modalRespostaGarcom').classList.remove('hidden');
+                document.getElementById('txtModalRespTexto').focus();
+            }
+
+            function fecharModalRespostaGarcom() {
+                document.getElementById('modalRespostaGarcom').classList.add('hidden');
+            }
+
+            function inserirEmojiGarcom(emoji) {
+                const txt = document.getElementById('txtModalRespTexto');
+                if (txt) {
+                    txt.value += emoji;
+                    txt.focus();
                 }
             }
 
+            function selecionarFotoGarcom(input) {
+                if (input.files && input.files[0]) {
+                    const file = input.files[0];
+                    fotoGarcomSelecionada = file;
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        document.getElementById('imgPreviewFotoGarcom').src = e.target.result;
+                        document.getElementById('boxPreviewFotoGarcom').classList.remove('hidden');
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+
+            function cancelarFotoGarcom() {
+                fotoGarcomSelecionada = null;
+                const input = document.getElementById('inputFotoGarcom');
+                if (input) input.value = '';
+                const box = document.getElementById('boxPreviewFotoGarcom');
+                if (box) box.classList.add('hidden');
+            }
+
+            function enviarRespostaGarcomModal() {
+                const msg = document.getElementById('txtModalRespTexto').value.trim();
+                if (!msg && !fotoGarcomSelecionada) {
+                    alert('Digite uma mensagem ou anexe uma foto.');
+                    return;
+                }
+                responderMesa(mesaRespostaAtual, msg, chamadoRespostaAtual, fotoGarcomSelecionada);
+            }
+
+            function abrirZoomImagemAdmin(url) {
+                const modal = document.getElementById('modalZoomImagemAdmin');
+                const img = document.getElementById('imgZoomAdmin');
+                if (modal && img) {
+                    img.src = url;
+                    modal.classList.remove('hidden');
+                }
+            }
+
+            function fecharZoomImagemAdmin() {
+                const modal = document.getElementById('modalZoomImagemAdmin');
+                if (modal) modal.classList.add('hidden');
+            }
+
             window.responderMesa = responderMesa;
-            window.abrirPromptResposta = abrirPromptResposta;
+            window.abrirModalRespostaGarcom = abrirModalRespostaGarcom;
+            window.fecharModalRespostaGarcom = fecharModalRespostaGarcom;
+            window.inserirEmojiGarcom = inserirEmojiGarcom;
+            window.selecionarFotoGarcom = selecionarFotoGarcom;
+            window.cancelarFotoGarcom = cancelarFotoGarcom;
+            window.enviarRespostaGarcomModal = enviarRespostaGarcomModal;
+            window.abrirZoomImagemAdmin = abrirZoomImagemAdmin;
+            window.fecharZoomImagemAdmin = fecharZoomImagemAdmin;
             window.atenderChamado = atenderChamado;
             window.atenderTodosChamados = atenderTodosChamados;
 
             setInterval(checarChamadosHub, 5000);
             checarChamadosHub();
         </script>
+
+        <!-- MODAL DE RESPOSTA RICA DO GARÇOM COM FOTOS E EMOJIS -->
+        <div id="modalRespostaGarcom" class="fixed inset-0 z-50 hidden bg-gray-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">💬</span>
+                        <div>
+                            <h3 class="text-base font-extrabold text-gray-900 m-0">Responder Mesa <span id="lblModalRespMesaNumero">01</span></h3>
+                            <p class="text-xs text-gray-500 m-0">Canal Próprio Direct Hub</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="fecharModalRespostaGarcom()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold p-1">&times;</button>
+                </div>
+
+                <!-- Mensagem Original do Cliente -->
+                <div class="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-3.5 space-y-2">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-indigo-600 block">Mensagem do Cliente:</span>
+                    <div id="boxModalRespMidiaCliente" class="hidden">
+                        <img id="imgModalRespMidiaCliente" src="" class="max-w-full max-h-36 rounded-xl object-cover border border-indigo-200 cursor-pointer shadow-sm" onclick="abrirZoomImagemAdmin(this.src)">
+                    </div>
+                    <p id="lblModalRespMsgCliente" class="text-xs text-indigo-950 font-medium whitespace-pre-wrap m-0"></p>
+                </div>
+
+                <!-- Seletor de Emojis Populares -->
+                <div>
+                    <span class="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1.5">⚡ Inserir Emojis:</span>
+                    <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-base">
+                        <?php
+                        $emojisGarcom = ['👍', '😊', '👋', '⚡', '🍔', '🥤', '🍺', '🧊', '🧂', '💳', '🧾', '⏱️', '🚀', '✅', '🙏', '❤️'];
+                        foreach ($emojisGarcom as $eg):
+                        ?>
+                            <button type="button" onclick="inserirEmojiGarcom('<?= $eg ?>')" class="w-8 h-8 rounded-xl bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition flex-shrink-0 active:scale-90">
+                                <?= $eg ?>
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <!-- Preview de Foto do Garçom -->
+                <div id="boxPreviewFotoGarcom" class="hidden bg-gray-50 border border-indigo-200 rounded-2xl p-2 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <img id="imgPreviewFotoGarcom" src="" class="w-12 h-12 rounded-xl object-cover border border-gray-200">
+                        <div class="min-w-0">
+                            <span class="text-xs font-bold text-gray-900 block truncate">Foto anexada</span>
+                            <span class="text-[10px] text-indigo-600 font-medium">Pronta para enviar</span>
+                        </div>
+                    </div>
+                    <button type="button" onclick="cancelarFotoGarcom()" class="p-1.5 text-rose-500 hover:text-rose-700 font-black text-xs hover:bg-rose-50 rounded-lg transition" title="Remover foto">
+                        ✕
+                    </button>
+                </div>
+
+                <!-- Campo de Resposta -->
+                <div>
+                    <input type="file" id="inputFotoGarcom" accept="image/*" class="hidden" onchange="selecionarFotoGarcom(this)">
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="document.getElementById('inputFotoGarcom').click()" class="p-3 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-base transition active:scale-95 flex-shrink-0" title="Anexar Foto">
+                            📷
+                        </button>
+                        <input type="text" id="txtModalRespTexto" placeholder="Digite sua resposta..." class="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs text-gray-900 placeholder-gray-400">
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                    <button type="button" onclick="fecharModalRespostaGarcom()" class="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-bold transition">
+                        Cancelar
+                    </button>
+                    <button type="button" onclick="enviarRespostaGarcomModal()" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold shadow-md transition flex items-center gap-1.5 active:scale-95">
+                        <span>Enviar Resposta</span>
+                        <span>🚀</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL LIGHTBOX DE ZOOM DE IMAGEM ADMIN -->
+        <div id="modalZoomImagemAdmin" class="fixed inset-0 z-50 hidden bg-gray-950/90 backdrop-blur-md flex items-center justify-center p-4" onclick="fecharZoomImagemAdmin()">
+            <div class="relative max-w-full max-h-full" onclick="event.stopPropagation()">
+                <img id="imgZoomAdmin" src="" class="max-w-full max-h-[85vh] rounded-3xl object-contain shadow-2xl border border-gray-700">
+                <button type="button" onclick="fecharZoomImagemAdmin()" class="absolute top-3 right-3 bg-gray-900/80 text-white p-2 rounded-full hover:bg-gray-800 transition font-black text-sm">
+                    &times;
+                </button>
+            </div>
+        </div>
 
         <!-- Cards de Estatísticas & Indicadores Rápidos -->
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">

@@ -316,19 +316,70 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
         </div>
 
         <!-- Feed de Conversa / Balões de Mensagem -->
-        <div id="containerFeedChat" class="space-y-3 min-h-[220px] max-h-[50vh] overflow-y-auto pr-1">
+        <div id="containerFeedChat" class="space-y-3 min-h-[220px] max-h-[48vh] overflow-y-auto pr-1">
             <div class="text-center py-10 text-slate-500 text-xs">
                 <span class="text-3xl block">💬</span>
                 <p class="mt-1">Inicie uma conversa ou use os atalhos rápidos acima!</p>
             </div>
         </div>
 
-        <!-- Barra Inferior Fixa de Digitação -->
+        <!-- Popover de Emojis -->
+        <div id="popoverEmojisChat" class="hidden bg-slate-900 border border-slate-700 rounded-3xl p-3 shadow-2xl space-y-2 mb-2 transition-all">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-1.5 px-1">
+                <span class="text-[11px] font-black text-slate-400 uppercase tracking-wider">Emojis Rápidos</span>
+                <button type="button" onclick="fecharEmojisChat()" class="text-slate-400 hover:text-white text-xs font-bold p-1">&times;</button>
+            </div>
+            <div class="grid grid-cols-8 gap-1.5 text-lg p-1 max-h-36 overflow-y-auto">
+                <?php
+                $emojisLista = [
+                    '👍', '😊', '👋', '❤️', '🔥', '🚀', '✅', '🙏',
+                    '🍔', '🍕', '🍟', '🌭', '🥪', '🌮', '🍗', '🥩',
+                    '🥗', '🍲', '🍣', '🍦', '🍰', '🍫', '🍿', '🍽️',
+                    '🥤', '🍺', '🍻', '🍷', '🍸', '🍹', '☕', '🧃',
+                    '🧊', '🍋', '🧂', '🧻', '💳', '🧾', '🔔', '⏱️'
+                ];
+                foreach ($emojisLista as $em):
+                ?>
+                    <button type="button" onclick="inserirEmojiChat('<?= $em ?>')" class="w-8 h-8 rounded-xl hover:bg-slate-800 flex items-center justify-center transition active:scale-90">
+                        <?= $em ?>
+                    </button>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
+        <!-- Box de Preview de Imagem Selecionada -->
+        <div id="boxPreviewFotoChat" class="hidden bg-slate-950/90 border border-indigo-500/40 rounded-2xl p-2 flex items-center justify-between gap-3 mb-2 shadow-lg">
+            <div class="flex items-center gap-2 min-w-0">
+                <img id="imgPreviewFotoChat" src="" class="w-12 h-12 rounded-xl object-cover border border-slate-700">
+                <div class="min-w-0">
+                    <span class="text-xs font-bold text-white block truncate">Foto selecionada</span>
+                    <span class="text-[10px] text-indigo-400 font-medium">Pronta para envio</span>
+                </div>
+            </div>
+            <button type="button" onclick="cancelarFotoChat()" class="p-1.5 text-rose-400 hover:text-rose-300 font-black text-xs hover:bg-rose-500/10 rounded-lg transition" title="Remover foto">
+                ✕
+            </button>
+        </div>
+
+        <!-- Barra Inferior Fixa de Digitação & Anexos -->
         <div class="fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 p-3 max-w-xl mx-auto">
-            <form onsubmit="event.preventDefault(); enviarMensagemChat();" class="flex items-center gap-2 m-0">
-                <input type="text" id="inputTextoChat" placeholder="Digite sua mensagem para o garçom..." class="flex-1 px-4 py-3 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs text-white placeholder-slate-500 transition">
+            <!-- Input File Oculto -->
+            <input type="file" id="inputFotoChat" accept="image/*" class="hidden" onchange="selecionarFotoChat(this)">
+
+            <form onsubmit="event.preventDefault(); enviarMensagemChat();" class="flex items-center gap-1.5 m-0">
+                <!-- Botão Emoji -->
+                <button type="button" onclick="toggleEmojisChat()" class="p-2.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 text-base transition active:scale-95 flex-shrink-0" title="Inserir Emoji">
+                    😊
+                </button>
+
+                <!-- Botão Foto / Câmera -->
+                <button type="button" onclick="document.getElementById('inputFotoChat').click()" class="p-2.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 text-base transition active:scale-95 flex-shrink-0" title="Anexar Foto">
+                    📷
+                </button>
+
+                <input type="text" id="inputTextoChat" placeholder="Digite uma mensagem..." class="flex-1 px-3.5 py-2.5 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs text-white placeholder-slate-500 transition">
                 
-                <button type="submit" id="btnEnviarChat" class="px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-1.5 active:scale-95 flex-shrink-0">
+                <button type="submit" id="btnEnviarChat" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-1 active:scale-95 flex-shrink-0">
                     <span>Enviar</span>
                     <span>🚀</span>
                 </button>
@@ -336,6 +387,16 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
         </div>
 
     </main>
+
+    <!-- MODAL LIGHTBOX DE ZOOM DE IMAGEM -->
+    <div id="modalZoomImagemChat" class="fixed inset-0 z-50 hidden bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4" onclick="fecharZoomImagem()">
+        <div class="relative max-w-full max-h-full" onclick="event.stopPropagation()">
+            <img id="imgZoomChat" src="" class="max-w-full max-h-[85vh] rounded-3xl object-contain shadow-2xl border border-slate-700">
+            <button type="button" onclick="fecharZoomImagem()" class="absolute top-3 right-3 bg-slate-900/80 text-white p-2 rounded-full hover:bg-slate-800 transition font-black text-sm">
+                &times;
+            </button>
+        </div>
+    </div>
 
     <!-- ========================================================================= -->
     <!-- BARRA FLUTUANTE DE CARRINHO (BOTTOM BAR) -->
@@ -485,6 +546,63 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
         }
     }
 
+    let fotoSelecionadaChat = null;
+
+    function toggleEmojisChat() {
+        const pop = document.getElementById('popoverEmojisChat');
+        if (pop) pop.classList.toggle('hidden');
+    }
+
+    function fecharEmojisChat() {
+        const pop = document.getElementById('popoverEmojisChat');
+        if (pop) pop.classList.add('hidden');
+    }
+
+    function inserirEmojiChat(emoji) {
+        const input = document.getElementById('inputTextoChat');
+        if (input) {
+            input.value += emoji;
+            input.focus();
+        }
+    }
+
+    function selecionarFotoChat(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            fotoSelecionadaChat = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imgPrev = document.getElementById('imgPreviewFotoChat');
+                if (imgPrev) imgPrev.src = e.target.result;
+                const box = document.getElementById('boxPreviewFotoChat');
+                if (box) box.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function cancelarFotoChat() {
+        fotoSelecionadaChat = null;
+        const input = document.getElementById('inputFotoChat');
+        if (input) input.value = '';
+        const box = document.getElementById('boxPreviewFotoChat');
+        if (box) box.classList.add('hidden');
+    }
+
+    function abrirZoomImagem(url) {
+        const modal = document.getElementById('modalZoomImagemChat');
+        const img = document.getElementById('imgZoomChat');
+        if (modal && img) {
+            img.src = url;
+            modal.classList.remove('hidden');
+        }
+    }
+
+    function fecharZoomImagem() {
+        const modal = document.getElementById('modalZoomImagemChat');
+        if (modal) modal.classList.add('hidden');
+    }
+
     async function carregarMensagensChat() {
         try {
             const resp = await fetch('<?= Url::to(['/vendas/cardapio/mensagens-mesa']) ?>?id=' + mesaId, {
@@ -508,6 +626,8 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
             feed.innerHTML = '';
             data.mensagens.forEach(msg => {
                 const isCli = msg.remetente === 'cliente';
+                const temMidia = msg.midia_url && msg.midia_url.trim() !== '';
+
                 feed.innerHTML += `
                     <div class="flex flex-col ${isCli ? 'items-end' : 'items-start'}">
                         <div class="max-w-[85%] rounded-2xl p-3.5 ${isCli ? 'bg-indigo-600 text-white rounded-br-none shadow-md shadow-indigo-600/20' : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none shadow-sm'}">
@@ -515,7 +635,12 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
                                 <span>${msg.autor}</span>
                                 <span>${msg.hora}</span>
                             </div>
-                            <p class="text-xs leading-relaxed m-0 font-medium whitespace-pre-wrap">${msg.texto}</p>
+                            ${temMidia ? `
+                                <div class="mb-2">
+                                    <img src="${msg.midia_url}" onclick="abrirZoomImagem('${msg.midia_url}')" class="max-w-full max-h-48 rounded-xl object-cover cursor-pointer border border-white/20 hover:opacity-90 shadow transition" alt="Foto">
+                                </div>
+                            ` : ''}
+                            ${msg.texto ? `<p class="text-xs leading-relaxed m-0 font-medium whitespace-pre-wrap">${msg.texto}</p>` : ''}
                         </div>
                     </div>
                 `;
@@ -534,7 +659,8 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
     async function enviarMensagemChat(textoCustom = null) {
         const input = document.getElementById('inputTextoChat');
         const msg = textoCustom || (input ? input.value.trim() : '');
-        if (!msg) return;
+        
+        if (!msg && !fotoSelecionadaChat) return;
 
         const btn = document.getElementById('btnEnviarChat');
         if (btn) btn.disabled = true;
@@ -542,7 +668,8 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
         try {
             const formData = new FormData();
             formData.append('mesa_id', mesaId);
-            formData.append('mensagem', msg);
+            if (msg) formData.append('mensagem', msg);
+            if (fotoSelecionadaChat) formData.append('imagem', fotoSelecionadaChat);
             formData.append('cliente_nome', document.getElementById('txtNomeClienteMesa')?.value || 'Cliente');
 
             const resp = await fetch('<?= Url::to(['/vendas/cardapio/enviar-mensagem-mesa']) ?>', {
@@ -554,6 +681,8 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
             const data = await resp.json();
             if (data.success) {
                 if (!textoCustom && input) input.value = '';
+                cancelarFotoChat();
+                fecharEmojisChat();
                 await carregarMensagensChat();
             } else {
                 alert(data.message || 'Erro ao enviar mensagem.');

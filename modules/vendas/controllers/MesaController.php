@@ -1030,6 +1030,7 @@ class MesaController extends Controller
                 'tipo_icon'   => $tipoIcon,
                 'titulo'      => $ch->titulo,
                 'texto'       => $ch->conteudo_texto,
+                'midia_url'   => $ch->midia_url,
                 'mesa_id'     => $mesa ? $mesa->id : null,
                 'mesa_numero' => $mesa ? $mesa->numero_mesa : 'Balcão',
                 'created_at'  => Yii::$app->formatter->asRelativeTime($ch->created_at),
@@ -1082,8 +1083,11 @@ class MesaController extends Controller
         $mensagem = trim($request['mensagem'] ?? '');
         $chamadoId = $request['chamado_id'] ?? null;
 
-        if (empty($mesaId) || empty($mensagem)) {
-            return ['success' => false, 'message' => 'Informe o ID da mesa e a resposta.'];
+        // Salva imagem se enviada pelo garçom
+        $midiaUrl = \app\modules\vendas\helpers\ChatMediaHelper::salvarUpload('imagem') ?: ($request['midia_url'] ?? null);
+
+        if (empty($mesaId) || (empty($mensagem) && empty($midiaUrl))) {
+            return ['success' => false, 'message' => 'Informe a resposta ou anexe uma foto.'];
         }
 
         $tenantId = Yii::$app->user->identity->getTenantId();
@@ -1098,8 +1102,8 @@ class MesaController extends Controller
             null,
             'chat_garcom',
             "🧑‍🍳 Resposta do Garçom",
-            $mensagem,
-            null,
+            $mensagem ?: ($midiaUrl ? '📷 [Foto enviada pelo Garçom]' : ''),
+            $midiaUrl,
             [
                 'mesa_id' => $mesa->id,
                 'mesa_numero' => $mesa->numero_mesa,
