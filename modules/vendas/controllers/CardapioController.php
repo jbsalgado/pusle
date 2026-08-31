@@ -107,31 +107,42 @@ class CardapioController extends Controller
             $subtotal = (float)$it->quantidade * (float)$it->valor_unitario;
             $totalAcumulado += $subtotal;
             $prod = $it->produto;
-            $fotoObj = $prod ? $prod->fotoPrincipal : null;
-            $fotoUrl = ($fotoObj && method_exists($fotoObj, 'getUrl')) ? $fotoObj->getUrl() : null;
+
+            $fotoObj = $prod ? ($prod->fotoPrincipal ?: ($prod->fotos[0] ?? null)) : null;
+            $fotoUrl = null;
+            if ($fotoObj && !empty($fotoObj->arquivo_path)) {
+                $caminhoLimpo = ltrim($fotoObj->arquivo_path, '/');
+                $fotoUrl = '/' . $caminhoLimpo;
+            } elseif ($fotoObj && method_exists($fotoObj, 'getUrl')) {
+                $fotoUrl = $fotoObj->getUrl();
+            }
+
+            $destino = $it->destino_preparo ?: ($prod ? $prod->getDestinoPreparo() : ComandaItem::DESTINO_COZINHA);
+            $ehBar = ($destino === ComandaItem::DESTINO_BAR || $destino === ComandaItem::DESTINO_COPA);
+
+            $destinoLabel = $ehBar ? '🍹 Bar / Copa' : '🍳 Cozinha';
+            $destinoBadge = $ehBar ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20';
 
             $statusPreparo = $it->status_preparo ?: ComandaItem::STATUS_PENDENTE;
-            $statusLabel = 'Na Cozinha';
-            $statusBadge = 'bg-amber-500/10 text-amber-700 border-amber-200';
-            $statusIcon = '🕒';
 
             if ($statusPreparo === ComandaItem::STATUS_EM_PREPARO) {
-                $statusLabel = 'Em Preparo';
-                $statusBadge = 'bg-blue-500/10 text-blue-700 border-blue-200';
-                $statusIcon = '🔥';
+                $statusLabel = $ehBar ? 'No Bar (Preparando)' : 'Na Cozinha (Em Preparo)';
+                $statusBadge = 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+                $statusIcon = $ehBar ? '🍹' : '🔥';
             } elseif ($statusPreparo === ComandaItem::STATUS_PRONTO) {
-                $statusLabel = 'Pronto p/ Entrega';
-                $statusBadge = 'bg-purple-500/10 text-purple-700 border-purple-200';
+                $statusLabel = $ehBar ? 'Pronto no Bar' : 'Pronto na Cozinha';
+                $statusBadge = 'bg-purple-500/10 text-purple-400 border-purple-500/20';
                 $statusIcon = '🔔';
             } elseif ($statusPreparo === ComandaItem::STATUS_ENTREGUE) {
                 $statusLabel = 'Entregue na Mesa';
-                $statusBadge = 'bg-emerald-500/10 text-emerald-700 border-emerald-200';
+                $statusBadge = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
                 $statusIcon = '✅';
+            } else {
+                // STATUS_PENDENTE
+                $statusLabel = $ehBar ? 'No Bar (Fila)' : 'Na Cozinha (Fila)';
+                $statusBadge = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+                $statusIcon = '🕒';
             }
-
-            $destino = $it->destino_preparo ?: ComandaItem::DESTINO_COZINHA;
-            $destinoLabel = ($destino === ComandaItem::DESTINO_BAR || $destino === ComandaItem::DESTINO_COPA) ? '🍹 Bar / Copa' : '🍳 Cozinha';
-            $destinoBadge = ($destino === ComandaItem::DESTINO_BAR || $destino === ComandaItem::DESTINO_COPA) ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20';
 
             $dadosItens[] = [
                 'id' => $it->id,

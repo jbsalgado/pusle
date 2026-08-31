@@ -232,6 +232,8 @@ class MesaController extends Controller
             return ['success' => false, 'message' => 'Produto não encontrado.'];
         }
 
+        $destino = !empty($request['destino_preparo']) ? $request['destino_preparo'] : $produto->getDestinoPreparo();
+
         // Cria o item da comanda
         $item = new ComandaItem();
         $item->comanda_id = $comanda->id;

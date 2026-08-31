@@ -510,7 +510,7 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
                 </div>
 
                 <button type="button" onclick="enviarPedidoCarrinho()" id="btnEnviarPedidoMesa" class="px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-2xl shadow-xl shadow-emerald-500/25 transition flex items-center gap-2 active:scale-95">
-                    <span>🚀 Enviar para a Cozinha</span>
+                    <span>🚀 Enviar Pedido</span>
                 </button>
             </div>
         </div>
@@ -962,7 +962,7 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
             alert('Erro ao enviar pedido para a mesa.');
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '<span>🚀 Enviar para a Cozinha</span>';
+            btn.innerHTML = '<span>🚀 Enviar Pedido</span>';
         }
     }
 
