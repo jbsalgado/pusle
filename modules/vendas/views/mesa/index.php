@@ -329,16 +329,32 @@ $this->params['breadcrumbs'][] = $this->title;
                 });
             }
 
+            const csrfToken = '<?= Yii::$app->request->csrfToken ?>';
+
             function atenderChamado(id) {
-                fetch('<?= Url::to(['/vendas/mesa/atender-chamado']) ?>?id=' + id, { method: 'POST' })
-                    .then(r => r.json())
-                    .then(() => checarChamadosHub());
+                fetch('<?= Url::to(['/vendas/mesa/atender-chamado']) ?>?id=' + id, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-Token': csrfToken,
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(r => r.json())
+                .then(() => checarChamadosHub())
+                .catch(e => console.error('Erro ao atender chamado:', e));
             }
 
             function atenderTodosChamados() {
-                fetch('<?= Url::to(['/vendas/mesa/atender-todos-chamados']) ?>', { method: 'POST' })
-                    .then(r => r.json())
-                    .then(() => checarChamadosHub());
+                fetch('<?= Url::to(['/vendas/mesa/atender-todos-chamados']) ?>', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-Token': csrfToken,
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(r => r.json())
+                .then(() => checarChamadosHub())
+                .catch(e => console.error('Erro ao atender todos os chamados:', e));
             }
 
             setInterval(checarChamadosHub, 5000);

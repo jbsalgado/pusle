@@ -53,6 +53,14 @@ class MesaController extends Controller
         ];
     }
 
+    public function beforeAction($action)
+    {
+        if (in_array($action->id, ['atender-chamado', 'atender-todos-chamados', 'chamados-pendentes'])) {
+            $this->enableCsrfValidation = false;
+        }
+        return parent::beforeAction($action);
+    }
+
     /**
      * Exibe o Grid Gráfico do Mapa de Mesas & Comandas
      */
@@ -1002,9 +1010,15 @@ class MesaController extends Controller
     /**
      * Marca um chamado de garçom ou conta como atendido/lido
      */
-    public function actionAtenderChamado($id): array
+    public function actionAtenderChamado($id = null): array
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
+        $id = $id ?: Yii::$app->request->get('id') ?: Yii::$app->request->post('id');
+        if (empty($id)) {
+            $raw = json_decode(Yii::$app->request->getRawBody(), true);
+            $id = $raw['id'] ?? null;
+        }
+
         $tenantId = Yii::$app->user->identity->getTenantId();
 
         $chamado = \app\modules\vendas\models\ClienteInbox::findOne(['id' => $id, 'usuario_id' => $tenantId]);
