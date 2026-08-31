@@ -406,6 +406,43 @@ $this->params['breadcrumbs'][] = $this->title;
                 .catch(e => console.error('Erro ao atender todos os chamados:', e));
             }
 
+            function responderMesa(mesaId, mensagem, chamadoId) {
+                if (!mensagem) return;
+                fetch('<?= Url::to(['/vendas/mesa/responder-mensagem-mesa']) ?>', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-Token': csrfToken,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        mesa_id: mesaId,
+                        mensagem: mensagem,
+                        chamado_id: chamadoId
+                    })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        checarChamadosHub();
+                    } else {
+                        alert(data.message || 'Erro ao enviar resposta.');
+                    }
+                })
+                .catch(e => console.error('Erro ao responder mesa:', e));
+            }
+
+            function abrirPromptResposta(mesaId, mesaNumero, chamadoId) {
+                const resp = prompt('Digite sua resposta para a Mesa ' + mesaNumero + ':');
+                if (resp && resp.trim()) {
+                    responderMesa(mesaId, resp.trim(), chamadoId);
+                }
+            }
+
+            window.responderMesa = responderMesa;
+            window.abrirPromptResposta = abrirPromptResposta;
+            window.atenderChamado = atenderChamado;
+            window.atenderTodosChamados = atenderTodosChamados;
+
             setInterval(checarChamadosHub, 5000);
             checarChamadosHub();
         </script>
