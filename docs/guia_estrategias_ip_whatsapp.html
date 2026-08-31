@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guia Arquitetural: Estratégias de Roteamento de IP para Disparos WhatsApp — PULSE-PLUS</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            900: '#14532d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .code-block { background: #0f172a; border: 1px solid #1e293b; }
+        .gradient-border {
+            background: linear-gradient(60deg, #10b981, #3b82f6, #8b5cf6);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen selection:bg-emerald-500 selection:text-white">
+
+    <!-- Header / Hero -->
+    <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center font-black text-slate-950 text-xl shadow-lg shadow-emerald-500/20">
+                    P
+                </div>
+                <div>
+                    <h1 class="text-base font-bold text-white tracking-tight m-0">PULSE-PLUS &bull; WhatsApp Egress Architecture</h1>
+                    <p class="text-xs text-slate-400 m-0 font-mono">VPS EUA &rarr; Disparos Brasil sem Proxies Pagos</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Produção Ativa
+                </span>
+                <button onclick="window.print()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 font-medium transition">
+                    🖨️ Imprimir / PDF
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
+
+        <!-- Contexto e Problema -->
+        <section class="bg-slate-900/80 border border-slate-800 rounded-3xl p-8 relative overflow-hidden shadow-2xl">
+            <div class="absolute -right-16 -top-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <div class="max-w-3xl">
+                <span class="text-xs font-bold uppercase tracking-widest text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-3 py-1 rounded-full">
+                    Visão Geral do Cenário
+                </span>
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-white mt-4 tracking-tight leading-tight">
+                    Como evitar bloqueios por IP com VPS nos EUA disparando para números no Brasil
+                </h2>
+                <p class="text-sm text-slate-300 mt-3 leading-relaxed">
+                    A Meta/WhatsApp analisa o <strong>ASN do IP</strong> e a <strong>geolocalização</strong> das sessões Web (Baileys/Evolution). Quando um número com DDD brasileiro conecta repetidamente a partir de um IP de Datacenter nos Estados Unidos, os algoritmos heurísticos elevam o risco de bloqueio.
+                </p>
+                <p class="text-xs text-slate-400 mt-2">
+                    Abaixo estão os <strong>3 métodos definitivos</strong> para resolver essa limitação sem gastar mensalidades com serviços de proxy residencial.
+                </p>
+            </div>
+
+            <!-- Tabela Comparativa Rápida -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+                <a href="#opcao1" class="p-5 rounded-2xl bg-slate-950/60 border border-purple-500/30 hover:border-purple-500 transition group">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-purple-400 uppercase tracking-wider">Opção 1 &bull; Recomendada</span>
+                        <span class="text-lg">⭐</span>
+                    </div>
+                    <h3 class="text-base font-bold text-white group-hover:text-purple-300 transition">Meta Cloud API (Oficial)</h3>
+                    <p class="text-xs text-slate-400 mt-1">Isenção total de IP do servidor. Conexão oficial direta com a Meta Graph API.</p>
+                </a>
+
+                <a href="#opcao2" class="p-5 rounded-2xl bg-slate-950/60 border border-emerald-500/30 hover:border-emerald-500 transition group">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider">Opção 2 &bull; 100% Grátis</span>
+                        <span class="text-lg">🛡️</span>
+                    </div>
+                    <h3 class="text-base font-bold text-white group-hover:text-emerald-300 transition">Túnel Tailscale Exit Node</h3>
+                    <p class="text-xs text-slate-400 mt-1">Escoa o tráfego da VPS nos EUA através da sua conexão residencial no Brasil via WireGuard.</p>
+                </a>
+
+                <a href="#opcao3" class="p-5 rounded-2xl bg-slate-950/60 border border-blue-500/30 hover:border-blue-500 transition group">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-blue-400 uppercase tracking-wider">Opção 3 &bull; Gateway SP</span>
+                        <span class="text-lg">⚡</span>
+                    </div>
+                    <h3 class="text-base font-bold text-white group-hover:text-blue-300 transition">Micro-VM em São Paulo</h3>
+                    <p class="text-xs text-slate-400 mt-1">Motor Evolution instalado em uma VM Always Free da Oracle Cloud na região de São Paulo.</p>
+                </a>
+            </div>
+        </section>
+
+        <!-- ========================================================================= -->
+        <!-- OPÇÃO 1: META CLOUD API -->
+        <!-- ========================================================================= -->
+        <section id="opcao1" class="space-y-6 pt-6">
+            <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center font-bold text-lg">
+                    1
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-white m-0">Opção 1: API Oficial da Meta (WhatsApp Cloud API)</h2>
+                    <p class="text-xs text-slate-400 m-0">A solução mais estável, corporativa e sem restrições de localização de servidor.</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-6">
+                
+                <!-- Por que funciona -->
+                <div class="p-4 rounded-xl bg-purple-950/20 border border-purple-500/20 text-xs text-purple-200 leading-relaxed">
+                    <strong>💡 Por que o IP não importa aqui?</strong><br>
+                    Na API Oficial da Meta, as mensagens saem dos servidores mundiais do Facebook/Meta diretamente para o celular do cliente. A Meta não analisa o IP do seu servidor PHP nos EUA, porque a autenticação é feita com <em>Token de Sistema Permanente</em> e <em>WABA ID</em> vinculados à sua conta Business Manager.
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider">Passo a Passo de Configuração:</h3>
+
+                    <!-- Passo 1.1 -->
+                    <div class="flex gap-4 items-start">
+                        <span class="w-6 h-6 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+                        <div class="flex-1 space-y-1">
+                            <h4 class="text-sm font-bold text-white">Criar App no Meta for Developers</h4>
+                            <p class="text-xs text-slate-400">Acesse <a href="https://developers.facebook.com" target="_blank" class="text-purple-400 underline font-mono">developers.facebook.com</a> &rarr; <em>Meus Apps</em> &rarr; <em>Criar App</em> &rarr; Tipo: <strong>Empresa (Business)</strong> &rarr; Adicionar o produto <strong>WhatsApp</strong>.</p>
+                        </div>
+                    </div>
+
+                    <!-- Passo 1.2 -->
+                    <div class="flex gap-4 items-start">
+                        <span class="w-6 h-6 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+                        <div class="flex-1 space-y-1">
+                            <h4 class="text-sm font-bold text-white">Copiar as Credenciais do Painel</h4>
+                            <p class="text-xs text-slate-400">Na aba <em>WhatsApp &rarr; Primeiros Passos</em>, copie os seguintes dados:</p>
+                            <ul class="list-disc list-inside text-xs text-slate-300 space-y-1 font-mono mt-1">
+                                <li><strong>Phone Number ID:</strong> Identificador do número de telefone (ex: <code class="text-purple-300">109283746592817</code>)</li>
+                                <li><strong>WABA ID:</strong> WhatsApp Business Account ID (ex: <code class="text-purple-300">104829384918234</code>)</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Passo 1.3 -->
+                    <div class="flex gap-4 items-start">
+                        <span class="w-6 h-6 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
+                        <div class="flex-1 space-y-1">
+                            <h4 class="text-sm font-bold text-white">Gerar Token Permanente de Usuário do Sistema</h4>
+                            <p class="text-xs text-slate-400">Acesse o <em>Meta Business Suite &rarr; Configurações da Empresa &rarr; Usuários do Sistema</em>:</p>
+                            <p class="text-xs text-slate-400">Crie um usuário com função <strong>Administrador</strong> e gere um token com as seguintes permissões:</p>
+                            <div class="flex flex-wrap gap-1.5 mt-1">
+                                <span class="bg-purple-950 text-purple-300 text-[11px] font-mono px-2 py-0.5 rounded border border-purple-800">whatsapp_business_messaging</span>
+                                <span class="bg-purple-950 text-purple-300 text-[11px] font-mono px-2 py-0.5 rounded border border-purple-800">whatsapp_business_management</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Passo 1.4 -->
+                    <div class="flex gap-4 items-start">
+                        <span class="w-6 h-6 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">4</span>
+                        <div class="flex-1 space-y-1">
+                            <h4 class="text-sm font-bold text-white">Salvar no Painel do Pulse</h4>
+                            <p class="text-xs text-slate-400">Acesse o ERP em <code class="text-emerald-400">https://catalogos.oncode.app.br/evolution/config</code>:</p>
+                            <p class="text-xs text-slate-400">Clique na aba <strong>WhatsApp Oficial (Meta Cloud API)</strong>, cole o WABA ID, Phone Number ID, Access Token e clique em <em>Salvar Credenciais da Meta</em>.</p>
+                        </div>
+                    </div>
+
+                    <!-- Passo 1.5 -->
+                    <div class="flex gap-4 items-start">
+                        <span class="w-6 h-6 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">5</span>
+                        <div class="flex-1 space-y-1">
+                            <h4 class="text-sm font-bold text-white">Configurar o Webhook de Retorno na Meta</h4>
+                            <p class="text-xs text-slate-400">No painel do Meta for Developers, configure o Webhook com os dados:</p>
+                            <div class="code-block rounded-xl p-3 text-xs font-mono space-y-1 mt-1 text-slate-300">
+                                <p><span class="text-slate-500">Callback URL:</span> https://catalogos.oncode.app.br/evolution/meta-webhook/index</p>
+                                <p><span class="text-slate-500">Verify Token:</span> pulse_meta_webhook_token_2026</p>
+                                <p><span class="text-slate-500">Campos Assinados:</span> messages, message_template_status_update</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ========================================================================= -->
+        <!-- OPÇÃO 2: TÚNEL TAILSCALE EXIT NODE -->
+        <!-- ========================================================================= -->
+        <section id="opcao2" class="space-y-6 pt-6">
+            <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-bold text-lg">
+                    2
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-white m-0">Opção 2: Túnel Privado Tailscale / WireGuard (100% Gratuito)</h2>
+                    <p class="text-xs text-slate-400 m-0">Roteia a conexão do WhatsApp para sair com o IP residencial legítimo da sua internet no Brasil.</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-6">
+                
+                <div class="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/20 text-xs text-emerald-200 leading-relaxed">
+                    <strong>🛡️ Como Funciona?</strong><br>
+                    O Tailscale cria uma rede mesh P2P segura criptografada (WireGuard). Você define um computador ligado no Brasil (seu PC, notebook ou Raspberry Pi) como <strong>Exit Node</strong>. A VPS nos EUA roteia o tráfego da Evolution através desse nó brasileiro. O WhatsApp enxerga a conexão saindo diretamente da sua operadora (Vivo, Claro, Oi, etc.), com <strong>reputação residencial perfeita</strong>.
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider">Passo a Passo de Instalação:</h3>
+
+                    <!-- Passo 2.1 -->
+                    <div class="flex gap-4 items-start">
+                        <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+                        <div class="flex-1 space-y-1">
+                            <h4 class="text-sm font-bold text-white">Criar Conta Gratuita no Tailscale</h4>
+                            <p class="text-xs text-slate-400">Acesse <a href="https://tailscale.com" target="_blank" class="text-emerald-400 underline font-mono">tailscale.com</a> e crie uma conta gratuita (suporta até 100 dispositivos).</p>
+                        </div>
+                    </div>
+
+                    <!-- Passo 2.2 -->
+                    <div class="flex gap-4 items-start">
+                        <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+                        <div class="flex-1 space-y-1">
+                            <h4 class="text-sm font-bold text-white">Configurar a Máquina no Brasil como Exit Node</h4>
+                            <p class="text-xs text-slate-400">No computador que fica no Brasil (Linux ou Raspberry Pi):</p>
+                            <div class="code-block rounded-xl p-3 text-xs font-mono space-y-1 text-slate-300">
+                                <p class="text-slate-500"># 1. Habilitar encaminhamento de pacotes IP no Linux</p>
+                                <p>echo 'net.ipv4.ip_forward = 1' | sudo tee -a /etc/sysctl.d/99-tailscale.conf</p>
+                                <p>sudo sysctl -p /etc/sysctl.d/99-tailscale.conf</p>
+                                <p class="text-slate-500 mt-2"># 2. Iniciar o Tailscale anunciando como Exit Node</p>
+                                <p>sudo tailscale up --advertise-exit-node</p>
+                            </div>
+                            <p class="text-[11px] text-slate-400"><em>(No Windows/Mac, basta abrir o app Tailscale &rarr; clicar com botão direito &rarr; Marcar "Run as exit node").</em></p>
+                        </div>
+                    </div>
+
+                    <!-- Passo 2.3 -->
+                    <div class="flex gap-4 items-start">
+                        <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
+                        <div class="flex-1 space-y-1">
+                            <h4 class="text-sm font-bold text-white">Aprovar o Exit Node no Painel Web</h4>
+                            <p class="text-xs text-slate-400">Acesse o painel do Tailscale (<code class="text-emerald-400">login.tailscale.com/admin/machines</code>) &rarr; localize a máquina do Brasil &rarr; clique nos 3 pontinhos &rarr; <em>Edit route settings</em> &rarr; Marque <strong>Use as exit node</strong>.</p>
+                        </div>
+                    </div>
+
+                    <!-- Passo 2.4 -->
+                    <div class="flex gap-4 items-start">
+                        <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">4</span>
+                        <div class="flex-1 space-y-1">
+                            <h4 class="text-sm font-bold text-white">Instalar e Conectar na VPS dos EUA</h4>
+                            <p class="text-xs text-slate-400">Acesse o terminal da sua VPS nos EUA (<code class="text-emerald-400">2.25.182.204</code>) e execute:</p>
+                            <div class="code-block rounded-xl p-3 text-xs font-mono space-y-1 text-slate-300">
+                                <p class="text-slate-500"># Instala o Tailscale na VPS</p>
+                                <p>curl -fsSL https://tailscale.com/install.sh | sh</p>
+                                <p class="text-slate-500 mt-2"># Conecta a VPS usando o nó do Brasil como saída</p>
+                                <p>sudo tailscale up --exit-node=&lt;NOME_OU_IP_DA_MAQUINA_BRASIL&gt; --exit-node-allow-lan-access=true</p>
+                                <p class="text-slate-500 mt-2"># Testa se o IP público de saída mudou para o Brasil:</p>
+                                <p class="text-emerald-400">curl ifconfig.me</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ========================================================================= -->
+        <!-- OPÇÃO 3: MICRO-GATEWAY NO BRASIL -->
+        <!-- ========================================================================= -->
+        <section id="opcao3" class="space-y-6 pt-6">
+            <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 flex items-center justify-center font-bold text-lg">
+                    3
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-white m-0">Opção 3: Micro-Gateway Evolution em São Paulo (Oracle Cloud Always Free)</h2>
+                    <p class="text-xs text-slate-400 m-0">Separação de papéis: O ERP continua na VPS dos EUA e apenas o motor Evolution roda no Brasil.</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-6">
+                
+                <div class="p-4 rounded-xl bg-blue-950/20 border border-blue-500/20 text-xs text-blue-200 leading-relaxed">
+                    <strong>⚡ Arquitetura Desacoplada:</strong><br>
+                    A Oracle Cloud disponibiliza até 4 instâncias gratuitas vitalícias na região <strong>Brazil East (São Paulo / Vinhedo)</strong>. Você sobe uma micro-VM gratuita em SP rodando exclusivamente o motor Go do WhatsApp. O ERP Pulse nos EUA apenas faz requisições REST internas para essa VM brasileira.
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider">Passo a Passo de Implantação:</h3>
+
+                    <!-- Passo 3.1 -->
+                    <div class="flex gap-4 items-start">
+                        <span class="w-6 h-6 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+                        <div class="flex-1 space-y-1">
+                            <h4 class="text-sm font-bold text-white">Criar VM Gratuita na Oracle Cloud São Paulo</h4>
+                            <p class="text-xs text-slate-400">Cadastre-se em <a href="https://cloud.oracle.com" target="_blank" class="text-blue-400 underline font-mono">cloud.oracle.com</a> &rarr; Escolha como Home Region: <strong>Brazil East (São Paulo)</strong> &rarr; Crie uma instância <em>Always Free</em> (Ubuntu 22.04 / 24.04).</p>
+                        </div>
+                    </div>
+
+                    <!-- Passo 3.2 -->
+                    <div class="flex gap-4 items-start">
+                        <span class="w-6 h-6 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+                        <div class="flex-1 space-y-1">
+                            <h4 class="text-sm font-bold text-white">Instalar o Motor Evolution Go na VM de SP</h4>
+                            <p class="text-xs text-slate-400">No terminal da VM brasileira, instale o binário Go ou Docker:</p>
+                            <div class="code-block rounded-xl p-3 text-xs font-mono space-y-1 text-slate-300">
+                                <p class="text-slate-500"># Baixa e executa a Evolution API Go</p>
+                                <p>git clone https://github.com/EvolutionAPI/evolution-go.git</p>
+                                <p>cd evolution-go</p>
+                                <p>cp env.example .env</p>
+                                <p class="text-slate-500"># Configure a AUTHENTICATION_API_KEY no .env</p>
+                                <p>docker compose up -d</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Passo 3.3 -->
+                    <div class="flex gap-4 items-start">
+                        <span class="w-6 h-6 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
+                        <div class="flex-1 space-y-1">
+                            <h4 class="text-sm font-bold text-white">Apontar o ERP Pulse para o Gateway Brasileiro</h4>
+                            <p class="text-xs text-slate-400">No arquivo <code class="text-emerald-400">config/params.php</code> do Pulse na VPS dos EUA, altere a URL base da Evolution:</p>
+                            <div class="code-block rounded-xl p-3 text-xs font-mono text-slate-300">
+                                <pre><span class="text-slate-500">'evolution'</span> => [
+    <span class="text-emerald-400">'base_url'</span>       => <span class="text-amber-300">'http://IP_DA_VM_SAO_PAULO:8080'</span>,
+    <span class="text-emerald-400">'global_api_key'</span> => <span class="text-amber-300">'SUA_CHAVE_GLOBAL'</span>,
+],</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Conclusão & Matriz de Decisão -->
+        <section class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+            <h3 class="text-base font-bold text-white mb-3">Matriz de Decisão: Qual Opção Escolher?</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-xs text-left text-slate-300">
+                    <thead class="bg-slate-950 text-slate-400 uppercase font-semibold">
+                        <tr>
+                            <th class="py-3 px-4">Cenário da Loja</th>
+                            <th class="py-3 px-4">Opção Mais Indicada</th>
+                            <th class="py-3 px-4">Tempo de Setup</th>
+                            <th class="py-3 px-4">Custo Mensal</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        <tr>
+                            <td class="py-3 px-4 font-medium text-white">Envios de Cobrança, Pedidos e Alta Escala</td>
+                            <td class="py-3 px-4 text-purple-400 font-bold">Opção 1 (Meta Cloud API)</td>
+                            <td class="py-3 px-4">5 minutos (Já integrado)</td>
+                            <td class="py-3 px-4">Grátis até 1.000 msgs/mês</td>
+                        </tr>
+                        <tr>
+                            <td class="py-3 px-4 font-medium text-white">Disparos Rápidos via QR Code sem Gastar Nada</td>
+                            <td class="py-3 px-4 text-emerald-400 font-bold">Opção 2 (Tailscale Exit Node)</td>
+                            <td class="py-3 px-4">15 minutos</td>
+                            <td class="py-3 px-4">R$ 0,00</td>
+                        </tr>
+                        <tr>
+                            <td class="py-3 px-4 font-medium text-white">Estrutura 24/7 Autônoma sem Computador Ligado em Casa</td>
+                            <td class="py-3 px-4 text-blue-400 font-bold">Opção 3 (Oracle Cloud SP)</td>
+                            <td class="py-3 px-4">30 minutos</td>
+                            <td class="py-3 px-4">R$ 0,00 (Always Free)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="border-t border-slate-800 py-8 text-center text-xs text-slate-500">
+        PULSE-PLUS &bull; Documentação Técnica de Arquitetura de Redes & WhatsApp Egress &bull; Atualizado em 2026
+    </footer>
+
+</body>
+</html>
