@@ -129,6 +129,10 @@ class CardapioController extends Controller
                 $statusIcon = '✅';
             }
 
+            $destino = $it->destino_preparo ?: ComandaItem::DESTINO_COZINHA;
+            $destinoLabel = ($destino === ComandaItem::DESTINO_BAR || $destino === ComandaItem::DESTINO_COPA) ? '🍹 Bar / Copa' : '🍳 Cozinha';
+            $destinoBadge = ($destino === ComandaItem::DESTINO_BAR || $destino === ComandaItem::DESTINO_COPA) ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+
             $dadosItens[] = [
                 'id' => $it->id,
                 'nome' => $prod ? $prod->nome : 'Item da Comanda',
@@ -138,6 +142,9 @@ class CardapioController extends Controller
                 'subtotal' => $subtotal,
                 'subtotal_formatado' => number_format($subtotal, 2, ',', '.'),
                 'observacoes' => $it->observacoes,
+                'destino_preparo' => $destino,
+                'destino_label' => $destinoLabel,
+                'destino_badge' => $destinoBadge,
                 'status_preparo' => $statusPreparo,
                 'status_label' => $statusLabel,
                 'status_badge' => $statusBadge,
@@ -285,7 +292,7 @@ class CardapioController extends Controller
                 $item->quantidade = $qtd > 0 ? $qtd : 1;
                 $item->valor_unitario = (float)$produto->getPrecoFinal() + $valorAdicional;
                 $item->observacoes = $obs;
-                $item->destino_preparo = 'cozinha';
+                $item->destino_preparo = $produto->getDestinoPreparo();
                 $item->status_preparo = ComandaItem::STATUS_PENDENTE;
                 if ($item->save(false)) {
                     $salvos++;

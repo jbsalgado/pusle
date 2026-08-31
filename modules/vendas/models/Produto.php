@@ -351,6 +351,44 @@ class Produto extends ActiveRecord
     }
 
     /**
+     * Determina de forma inteligente se o item é destinado ao Bar/Copa ou à Cozinha
+     * (Exclusivo para contexto de Food Service / Bares e Restaurantes)
+     */
+    public function getDestinoPreparo(): string
+    {
+        // 1. Se a Categoria possui destino fixo definido pelo lojista
+        if ($this->categoria && !empty($this->categoria->destino_padrao)) {
+            return $this->categoria->destino_padrao;
+        }
+
+        // 2. Análise Heurística Automática por Palavras-Chave
+        $texto = mb_strtolower(
+            ($this->categoria ? $this->categoria->nome . ' ' : '') . $this->nome . ' ' . ($this->descricao ?: ''),
+            'UTF-8'
+        );
+
+        $termosBar = [
+            'bebida', 'cerveja', 'skol', 'brahma', 'heineken', 'amstel', 'budweiser', 'corona',
+            'stella', 'itaipava', 'bohemia', 'eisenbahn', 'spaten', 'original', 'refrigerante',
+            'refri', 'coca', 'coca-cola', 'guarana', 'guaraná', 'fanta', 'sprite', 'pepsi',
+            'suco', 'agua', 'água', 'mineral', 'drink', 'vinho', 'whisky', 'whiskey', 'vodka',
+            'gin', 'chopp', 'chope', 'dose', 'caipirinha', 'caipirosca', 'energetico', 'energético',
+            'red bull', 'monster', 'lata', 'latao', 'latão', 'long neck', 'litro', 'coquetel',
+            'rum', 'tequila', 'licor', 'conhaque', 'campari', 'martini', 'soda', 'tonica', 'tônica',
+            'h2o', 'ice', 'smirnoff', 'absolut', 'red label', 'black label', 'chivas', 'jack daniels',
+            'tanqueray', 'beefeater', 'gordon', 'aperol', 'espumante', 'champagne', 'prosecco'
+        ];
+
+        foreach ($termosBar as $termo) {
+            if (str_contains($texto, $termo)) {
+                return ComandaItem::DESTINO_BAR;
+            }
+        }
+
+        return ComandaItem::DESTINO_COZINHA;
+    }
+
+    /**
      * Hook antes de salvar para calcular margem e markup e garantir nome na descrição
      */
     public function beforeSave($insert)

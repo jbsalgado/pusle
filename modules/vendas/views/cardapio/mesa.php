@@ -723,10 +723,15 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
                             ${item.observacoes ? `<p class="text-[11px] text-slate-400 mt-0.5 line-clamp-2 m-0">${item.observacoes}</p>` : ''}
 
                             <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-800/60">
-                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${item.status_badge}">
-                                    <span>${item.status_icon}</span>
-                                    <span>${item.status_label}</span>
-                                </span>
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${item.status_badge}">
+                                        <span>${item.status_icon}</span>
+                                        <span>${item.status_label}</span>
+                                    </span>
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${item.destino_badge}">
+                                        <span>${item.destino_label}</span>
+                                    </span>
+                                </div>
                                 <span class="text-[10px] text-slate-500 font-mono">${item.data_pedido}</span>
                             </div>
                         </div>

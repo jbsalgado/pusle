@@ -136,6 +136,19 @@ class Configuracao extends ActiveRecord
     }
 
     /**
+     * Verifica se a loja atua no segmento gastronômico (Food Service)
+     */
+    public function isFoodService(): bool
+    {
+        if ($this->modulo_food_service === true || $this->segmento === 'food_service') {
+            return true;
+        }
+
+        // Fallback dinâmico: se a loja cadastrou mesas no Food Service
+        return Mesa::find()->where(['usuario_id' => $this->usuario_id])->exists();
+    }
+
+    /**
      * Retorna configuração do usuário logado
      */
     public static function getConfiguracaoAtual()
@@ -151,6 +164,8 @@ class Configuracao extends ActiveRecord
             $config->cor_secundaria = '#10B981';
             $config->catalogo_publico = false;
             $config->aceita_orcamentos = true;
+            $config->segmento = 'geral';
+            $config->modulo_food_service = false;
             $config->save();
         }
 
