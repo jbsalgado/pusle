@@ -80,24 +80,46 @@ use yii\helpers\Url;
                 </div>
             </div>
 
-            <!-- Dados para Comprovante & WhatsApp -->
-            <div class="bg-blue-50 rounded-2xl p-4 border border-blue-100 space-y-3">
-                <h4 class="text-sm font-bold text-blue-900 flex items-center gap-2">
-                    <span>📲</span>
-                    <span>Envio de Comprovante via WhatsApp (Evolution API)</span>
-                </h4>
+            <!-- Canais de Envio do Comprovante (Canal Próprio & WhatsApp) -->
+            <div class="bg-gradient-to-br from-indigo-50/70 via-blue-50/60 to-slate-50 rounded-2xl p-4 border border-blue-200/80 space-y-3.5">
+                <div class="flex items-center justify-between">
+                    <h4 class="text-xs sm:text-sm font-extrabold text-blue-950 flex items-center gap-2 m-0">
+                        <span class="text-base">📬</span>
+                        <span>Envio de Comprovante & Notificação ao Cliente</span>
+                    </h4>
+                    <span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-black rounded-full uppercase">Multicanal</span>
+                </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">WhatsApp do Cliente (DDD + Número)</label>
-                        <input type="text" id="inputWhatsappFechamento" placeholder="(81) 99288-8872" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm font-medium">
+                <div class="space-y-3 pt-1">
+                    <!-- Opção 1: Canal Próprio Direct Hub -->
+                    <div class="bg-white p-3 rounded-xl border border-indigo-100 shadow-sm flex items-start justify-between gap-3">
+                        <div class="flex items-start gap-2.5">
+                            <input type="checkbox" id="checkEnviarHub" checked class="mt-0.5 w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500">
+                            <div>
+                                <label for="checkEnviarHub" class="text-xs font-bold text-gray-900 cursor-pointer flex items-center gap-1.5">
+                                    <span>🌐 Canal Próprio (Direct Hub & Recibo Digital)</span>
+                                    <span class="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[9px] font-extrabold rounded">Sem Custo / Ilimitado</span>
+                                </label>
+                                <p class="text-[11px] text-gray-500 mt-0.5 m-0">Notifica o Inbox do cliente no Direct Hub e disponibiliza o comprovante digital online.</p>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="flex items-center pt-5">
-                        <label class="inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="checkEnviarWhatsapp" checked class="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500">
-                            <span class="ml-2 text-xs font-bold text-gray-800">Enviar Recibo por WhatsApp</span>
-                        </label>
+                    <!-- Opção 2: WhatsApp Evolution API -->
+                    <div class="bg-white p-3 rounded-xl border border-emerald-100 shadow-sm space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="checkEnviarWhatsapp" checked class="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500">
+                                <span class="ml-2 text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                                    <span>📲 Disparo via WhatsApp (Evolution API)</span>
+                                </span>
+                            </label>
+                        </div>
+
+                        <div id="boxInputWhatsapp" class="pl-6">
+                            <label class="block text-[11px] font-semibold text-gray-600 mb-1">WhatsApp do Cliente (DDD + Número):</label>
+                            <input type="text" id="inputWhatsappFechamento" placeholder="(81) 99288-8872" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-medium focus:ring-emerald-500 focus:border-emerald-500 bg-slate-50">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -268,6 +290,7 @@ async function processarFechamentoMesa() {
         formData.append('mesa_id', mesaIdFechamento);
         formData.append('pagamentos', JSON.stringify(pagamentos));
         formData.append('num_pessoas', document.getElementById('inputNumPessoas').value);
+        formData.append('enviar_hub', document.getElementById('checkEnviarHub')?.checked ? 1 : 0);
         formData.append('whatsapp', document.getElementById('inputWhatsappFechamento').value);
         formData.append('enviar_whatsapp', document.getElementById('checkEnviarWhatsapp').checked ? 1 : 0);
 

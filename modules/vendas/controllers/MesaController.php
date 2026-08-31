@@ -911,7 +911,25 @@ class MesaController extends Controller
         $msgComprovante .= "-----------------------------------\n";
         $msgComprovante .= "Obrigado pela preferência e volte sempre! 😊🚀";
 
-        // 4. Envio via WhatsApp (Evolution API) se solicitado
+        // 4. Salva no Canal Próprio (Direct Hub / Inbox Digital do Cliente)
+        $hubPostado = false;
+        $enviarHub = (int)($request['enviar_hub'] ?? 1);
+        if ($enviarHub == 1) {
+            try {
+                \app\modules\vendas\models\ClienteInbox::postar(
+                    $tenantId,
+                    \app\modules\vendas\models\ClienteInbox::TIPO_CARD,
+                    "🧾 Recibo de Consumo — Mesa {$mesa->numero_mesa}",
+                    $msgComprovante,
+                    $mesa->id
+                );
+                $hubPostado = true;
+            } catch (\Exception $e) {
+                Yii::error("Erro ao postar recibo no Direct Hub: " . $e->getMessage(), __METHOD__);
+            }
+        }
+
+        // 5. Envio via WhatsApp (Evolution API) se solicitado
         $wpEnviado = false;
         if ($enviarWhatsapp == 1 && !empty($whatsapp)) {
             $numLimpo = preg_replace('/[^0-9]/', '', $whatsapp);
@@ -926,14 +944,20 @@ class MesaController extends Controller
         }
 
         $msgFinal = "Mesa {$mesa->numero_mesa} fechada e liberada com sucesso!";
-        if ($wpEnviado) {
-            $msgFinal .= " 📲 Comprovante enviado via WhatsApp!";
+        if ($hubPostado) {
+            $msgFinal .= " 🌐 Notificado no Direct Hub!";
         }
+        if ($wpEnviado) {
+            $msgFinal .= " 📲 Enviado via WhatsApp!";
+        }
+
+        $slugLoja = $loja ? ($loja->slug ?? $loja->id) : '';
 
         return [
             'success' => true,
             'message' => $msgFinal,
             'recibo_texto' => $msgComprovante,
+            'hub_url' => "/hub?slug={$slugLoja}&mesa={$mesa->numero_mesa}",
         ];
     }
 
