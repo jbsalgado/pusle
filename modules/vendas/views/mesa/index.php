@@ -847,12 +847,16 @@ $this->params['breadcrumbs'][] = $this->title;
                             </div>
                         <?php endif; ?>
 
-                        <!-- Botões de Ação Dinâmicos -->
-                        <div class="mt-3 pt-2 border-t border-gray-100 flex flex-col gap-2">
-                            <button type="button" onclick="abrirModalQrCodeMesa('<?= $mesa->id ?>', '<?= Html::encode($mesa->numero_mesa) ?>')" class="w-full py-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs rounded-xl flex items-center justify-center gap-1 border border-gray-300 transition">
-                                <span>📱</span>
-                                <span>QR Code da Mesa</span>
-                            </button>
+                            <div class="grid grid-cols-2 gap-1.5">
+                                <button type="button" onclick="abrirModalQrCodeMesa('<?= $mesa->id ?>', '<?= Html::encode($mesa->numero_mesa) ?>')" class="w-full py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs rounded-xl flex items-center justify-center gap-1 border border-gray-300 transition" title="Exibir e Imprimir QR Code">
+                                    <span>📱</span>
+                                    <span>QR Code</span>
+                                </button>
+                                <button type="button" onclick="abrirModalRespostaGarcom('<?= $mesa->id ?>', '<?= Html::encode($mesa->numero_mesa) ?>')" class="w-full py-1.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white font-black text-xs rounded-xl flex items-center justify-center gap-1 border border-indigo-200 transition active:scale-95 shadow-sm" title="Abrir Chat em Tempo Real com a Mesa">
+                                    <span>💬</span>
+                                    <span>Chat Mesa</span>
+                                </button>
+                            </div>
 
                             <?php if ($mesa->status === \app\modules\vendas\models\Mesa::STATUS_LIVRE): ?>
                                 <button type="button" onclick="abrirModalMesa('<?= $mesa->id ?>', '<?= Html::encode($mesa->numero_mesa) ?>')"

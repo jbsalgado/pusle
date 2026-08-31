@@ -19,6 +19,12 @@ use yii\helpers\Url;
             </div>
 
             <div class="flex items-center space-x-2">
+                <!-- Atalho para Chat da Mesa -->
+                <button type="button" onclick="abrirChatDaMesaAtualLancamento()" class="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-xs rounded-xl shadow transition duration-150 flex items-center gap-1" title="Abrir Chat em Tempo Real com a Mesa">
+                    <span>💬</span>
+                    <span>Chat Mesa</span>
+                </button>
+
                 <!-- Botão de Impressão Térmica -->
                 <a id="btnImprimirCupomModal" href="#" target="_blank" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-900 text-white font-bold text-xs rounded-xl shadow transition duration-150 flex items-center gap-1" title="Imprimir Cupom Térmico (80mm / 58mm)">
                     <span>🖨️</span>
@@ -136,9 +142,11 @@ use yii\helpers\Url;
 
 <script>
 let mesaIdAtual = null;
+let numeroMesaAtual = null;
 
 function abrirModalLancamento(mesaId, numeroMesa, clienteNome) {
     mesaIdAtual = mesaId;
+    numeroMesaAtual = numeroMesa;
     document.getElementById('modalLancamentoMesaTitulo').innerText = 'Mesa ' + numeroMesa + ' — Consumo & Pedidos';
     document.getElementById('modalLancamentoClienteSubtitulo').innerText = 'Cliente: ' + (clienteNome || 'Cliente');
     document.getElementById('btnImprimirCupomModal').href = '<?= Url::to(['/vendas/mesa/imprimir-comprovante']) ?>?mesa_id=' + mesaId;
@@ -150,6 +158,15 @@ function abrirModalLancamento(mesaId, numeroMesa, clienteNome) {
     carregarExtratoMesa(mesaId);
 
     document.getElementById('modalLancamentoItem').classList.remove('hidden');
+}
+
+function abrirChatDaMesaAtualLancamento() {
+    if (mesaIdAtual && numeroMesaAtual) {
+        document.getElementById('modalLancamentoItem').classList.add('hidden');
+        if (typeof window.abrirModalRespostaGarcom === 'function') {
+            window.abrirModalRespostaGarcom(mesaIdAtual, numeroMesaAtual);
+        }
+    }
 }
 
 function fecharModalLancamentoItem() {
