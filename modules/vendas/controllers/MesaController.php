@@ -1002,4 +1002,24 @@ class MesaController extends Controller
 
         return ['success' => false, 'message' => 'Chamado não encontrado.'];
     }
+
+    /**
+     * Marca todos os chamados pendentes da loja como atendidos com 1 clique
+     */
+    public function actionAtenderTodosChamados(): array
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $tenantId = Yii::$app->user->identity->getTenantId();
+
+        \app\modules\vendas\models\ClienteInbox::updateAll(
+            ['lido' => true],
+            [
+                'usuario_id' => $tenantId,
+                'lido' => false,
+                'tipo' => [\app\modules\vendas\models\ClienteInbox::TIPO_CHAMADO, \app\modules\vendas\models\ClienteInbox::TIPO_CONTA]
+            ]
+        );
+
+        return ['success' => true];
+    }
 }

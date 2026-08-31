@@ -116,15 +116,28 @@ $this->params['breadcrumbs'][] = $this->title;
 
         <!-- Banner de Chamados em Tempo Real do Direct Hub -->
         <div id="hub-chamados-container" class="hidden">
-            <div class="bg-amber-500 text-white p-4 rounded-2xl shadow-lg border border-amber-600 flex items-center justify-between animate-pulse">
+            <div class="bg-gradient-to-r from-amber-500 to-amber-600 text-white p-4 sm:p-5 rounded-2xl shadow-xl border border-amber-600 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div class="flex items-center gap-3">
-                    <span class="text-2xl">🔔</span>
+                    <span class="text-3xl animate-bounce">🔔</span>
                     <div>
-                        <h3 class="text-sm font-black uppercase tracking-wider m-0" id="hub-chamados-titulo">Chamados de Mesas Pendentes</h3>
-                        <p class="text-xs text-amber-100 m-0" id="hub-chamados-desc">Clientes solicitaram atendimento ou fechamento de conta.</p>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-sm sm:text-base font-black uppercase tracking-wider m-0" id="hub-chamados-titulo">Chamados de Mesas Pendentes</h3>
+                            <span class="px-2 py-0.5 bg-amber-900/60 text-white font-mono text-xs rounded-full font-black" id="hub-chamados-badge-total">0</span>
+                        </div>
+                        <p class="text-xs text-amber-100 mt-0.5 m-0" id="hub-chamados-desc">Clientes chamaram garçom ou pediram a conta. Clique no botão da mesa para dar baixa.</p>
                     </div>
                 </div>
-                <div id="hub-chamados-lista" class="flex flex-wrap gap-2"></div>
+
+                <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-start md:justify-end">
+                    <div id="hub-chamados-lista" class="flex flex-wrap gap-2"></div>
+                    <button type="button" onclick="atenderTodosChamados()" class="px-3.5 py-2 bg-amber-950 hover:bg-black text-amber-200 hover:text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 active:scale-95" title="Marcar todos os chamados como atendidos">
+                        <span>✓</span>
+                        <span>Dispensar Todos</span>
+                    </button>
+                    <button type="button" onclick="document.getElementById('hub-chamados-container').classList.add('hidden')" class="p-2 text-amber-200 hover:text-white text-base font-bold rounded-lg hover:bg-amber-700/50 transition" title="Ocultar painel">
+                        &times;
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -136,13 +149,16 @@ $this->params['breadcrumbs'][] = $this->title;
                     .then(data => {
                         const container = document.getElementById('hub-chamados-container');
                         const lista = document.getElementById('hub-chamados-lista');
+                        const badgeTotal = document.getElementById('hub-chamados-badge-total');
                         if (data.total > 0) {
                             container.classList.remove('hidden');
+                            if (badgeTotal) badgeTotal.innerText = data.total;
                             lista.innerHTML = '';
                             data.chamados.forEach(ch => {
                                 const btn = document.createElement('button');
-                                btn.className = 'px-3 py-1.5 bg-white text-amber-900 font-black text-xs rounded-xl shadow-sm hover:bg-amber-100 transition-colors flex items-center gap-1.5';
-                                btn.innerHTML = `<span>${ch.tipo === 'conta' ? '🧾' : '👋'}</span> Mesa ${ch.mesa || 'Balcão'} (${ch.tipo.toUpperCase()}) &times;`;
+                                btn.className = 'px-3.5 py-2 bg-white text-gray-900 font-extrabold text-xs rounded-xl shadow-md hover:bg-gray-100 hover:text-amber-800 transition-all flex items-center gap-2 active:scale-95 border border-amber-200';
+                                btn.title = 'Clique para marcar como atendido';
+                                btn.innerHTML = `<span class="text-sm">${ch.tipo === 'conta' ? '💳' : '👋'}</span> <span>Mesa ${ch.mesa || 'Balcão'} (${ch.tipo === 'conta' ? 'Pediu Conta' : 'Garçom'})</span> <span class="bg-amber-100 text-amber-900 rounded-full px-1.5 py-0.2 text-[10px] font-black">&times;</span>`;
                                 btn.onclick = () => atenderChamado(ch.id);
                                 lista.appendChild(btn);
                             });
@@ -155,6 +171,12 @@ $this->params['breadcrumbs'][] = $this->title;
 
             function atenderChamado(id) {
                 fetch('<?= Url::to(['/vendas/mesa/atender-chamado']) ?>?id=' + id, { method: 'POST' })
+                    .then(r => r.json())
+                    .then(() => checarChamadosHub());
+            }
+
+            function atenderTodosChamados() {
+                fetch('<?= Url::to(['/vendas/mesa/atender-todos-chamados']) ?>', { method: 'POST' })
                     .then(r => r.json())
                     .then(() => checarChamadosHub());
             }
