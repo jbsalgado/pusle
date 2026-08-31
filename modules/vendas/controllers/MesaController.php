@@ -967,21 +967,35 @@ class MesaController extends Controller
             ->all();
 
         $data = [];
+        $garcomTotal = 0;
+        $contaTotal = 0;
+
         foreach ($chamados as $ch) {
             $mesa = $ch->mesa;
+            if ($ch->tipo === \app\modules\vendas\models\ClienteInbox::TIPO_CONTA) {
+                $contaTotal++;
+            } else {
+                $garcomTotal++;
+            }
+
             $data[] = [
-                'id'         => $ch->id,
-                'tipo'       => $ch->tipo,
-                'titulo'     => $ch->titulo,
-                'texto'      => $ch->conteudo_texto,
-                'mesa'       => $mesa ? $mesa->numero_mesa : null,
-                'created_at' => Yii::$app->formatter->asRelativeTime($ch->created_at),
+                'id'          => $ch->id,
+                'tipo'        => $ch->tipo,
+                'tipo_label'  => ($ch->tipo === \app\modules\vendas\models\ClienteInbox::TIPO_CONTA) ? 'Pediu Conta' : 'Garçom',
+                'titulo'      => $ch->titulo,
+                'texto'       => $ch->conteudo_texto,
+                'mesa_id'     => $mesa ? $mesa->id : null,
+                'mesa_numero' => $mesa ? $mesa->numero_mesa : 'Balcão',
+                'created_at'  => Yii::$app->formatter->asRelativeTime($ch->created_at),
+                'hora'        => date('H:i', strtotime($ch->created_at)),
             ];
         }
 
         return [
-            'total'    => count($data),
-            'chamados' => $data,
+            'total'        => count($data),
+            'garcom_total' => $garcomTotal,
+            'conta_total'  => $contaTotal,
+            'chamados'     => $data,
         ];
     }
 

@@ -114,59 +114,219 @@ $this->params['breadcrumbs'][] = $this->title;
             </div>
         </div>
 
-        <!-- Banner de Chamados em Tempo Real do Direct Hub -->
+        <!-- Banner Compacto de Alerta de Chamados (Suporta 50+ mesas) -->
         <div id="hub-chamados-container" class="hidden">
-            <div class="bg-gradient-to-r from-amber-500 to-amber-600 text-white p-4 sm:p-5 rounded-2xl shadow-xl border border-amber-600 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div class="flex items-center gap-3">
-                    <span class="text-3xl animate-bounce">🔔</span>
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <h3 class="text-sm sm:text-base font-black uppercase tracking-wider m-0" id="hub-chamados-titulo">Chamados de Mesas Pendentes</h3>
-                            <span class="px-2 py-0.5 bg-amber-900/60 text-white font-mono text-xs rounded-full font-black" id="hub-chamados-badge-total">0</span>
+            <div class="bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-white p-3.5 sm:p-4 rounded-2xl shadow-xl border border-amber-600 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="relative flex-shrink-0">
+                        <span class="text-2xl sm:text-3xl animate-bounce block">🔔</span>
+                        <span class="absolute -top-1 -right-1 w-3 h-3 bg-rose-500 rounded-full animate-ping"></span>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h3 class="text-xs sm:text-sm font-black uppercase tracking-wider m-0">Chamados de Mesas</h3>
+                            <span class="px-2 py-0.5 bg-amber-950 text-amber-200 font-mono text-[11px] rounded-full font-black" id="hub-chamados-badge-total">0</span>
                         </div>
-                        <p class="text-xs text-amber-100 mt-0.5 m-0" id="hub-chamados-desc">Clientes chamaram garçom ou pediram a conta. Clique no botão da mesa para dar baixa.</p>
+                        <div class="flex items-center gap-2 mt-0.5 text-xs text-amber-100 flex-wrap">
+                            <span id="hub-resumo-garcom" class="font-bold">0 Garçom</span>
+                            <span>&bull;</span>
+                            <span id="hub-resumo-conta" class="font-bold">0 Contas</span>
+                        </div>
                     </div>
                 </div>
 
-                <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-start md:justify-end">
-                    <div id="hub-chamados-lista" class="flex flex-wrap gap-2"></div>
-                    <button type="button" onclick="atenderTodosChamados()" class="px-3.5 py-2 bg-amber-950 hover:bg-black text-amber-200 hover:text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 active:scale-95" title="Marcar todos os chamados como atendidos">
-                        <span>✓</span>
-                        <span>Dispensar Todos</span>
+                <!-- Ações e Chips das 3 primeiras mesas -->
+                <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
+                    <div id="hub-chamados-chips-recentes" class="flex flex-wrap gap-1.5"></div>
+                    
+                    <button type="button" onclick="abrirDrawerChamados()" class="px-3.5 py-2 bg-white hover:bg-amber-50 text-amber-950 font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 active:scale-95 border border-amber-200" title="Ver lista completa de todas as mesas aguardando">
+                        <span>📋</span>
+                        <span>Fila Completa</span>
+                        <span id="hub-drawer-btn-badge" class="px-1.5 py-0.2 bg-amber-600 text-white rounded-full text-[10px] font-black">0</span>
                     </button>
-                    <button type="button" onclick="document.getElementById('hub-chamados-container').classList.add('hidden')" class="p-2 text-amber-200 hover:text-white text-base font-bold rounded-lg hover:bg-amber-700/50 transition" title="Ocultar painel">
-                        &times;
+
+                    <button type="button" onclick="atenderTodosChamados()" class="px-3 py-2 bg-amber-950 hover:bg-black text-amber-200 hover:text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1 active:scale-95" title="Marcar todos como atendidos">
+                        <span>✓</span>
+                        <span class="hidden md:inline">Limpar</span>
                     </button>
                 </div>
             </div>
         </div>
 
+        <!-- ========================================================================= -->
+        <!-- GAVETA LATERAL DESLIZANTE (DRAWER DE FILA DE ATENDIMENTO DE MESAS) -->
+        <!-- ========================================================================= -->
+        <div id="drawerChamados" class="fixed inset-0 z-50 hidden">
+            <!-- Backdrop escuro -->
+            <div onclick="fecharDrawerChamados()" class="fixed inset-0 bg-gray-950/60 backdrop-blur-sm transition-opacity"></div>
+
+            <div class="fixed inset-y-0 right-0 max-w-full flex pl-10">
+                <div class="w-screen max-w-md bg-white shadow-2xl border-l border-gray-200 flex flex-col">
+                    
+                    <!-- Cabeçalho da Gaveta -->
+                    <div class="p-5 border-b border-gray-200 bg-gradient-to-r from-amber-500 to-orange-500 text-white flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xl">🔔</span>
+                                <h3 class="text-base font-black uppercase tracking-wider m-0">Fila de Atendimento</h3>
+                            </div>
+                            <p class="text-xs text-amber-100 mt-0.5 m-0" id="drawerSubtitulo">0 mesas aguardando atendimento</p>
+                        </div>
+                        <button type="button" onclick="fecharDrawerChamados()" class="p-2 text-white hover:bg-white/20 rounded-xl transition text-xl font-bold leading-none">&times;</button>
+                    </div>
+
+                    <!-- Abas de Filtro na Gaveta -->
+                    <div class="flex border-b border-gray-200 px-4 pt-2 bg-gray-50 gap-2 text-xs font-bold">
+                        <button type="button" onclick="filtrarDrawer('todos')" id="drawerTabTodos" class="py-2 px-3 border-b-2 border-amber-600 text-amber-900 font-extrabold">
+                            Todos (<span id="drawerCountTodos">0</span>)
+                        </button>
+                        <button type="button" onclick="filtrarDrawer('garcom')" id="drawerTabGarcom" class="py-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-gray-900">
+                            👋 Garçom (<span id="drawerCountGarcom">0</span>)
+                        </button>
+                        <button type="button" onclick="filtrarDrawer('conta')" id="drawerTabConta" class="py-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-gray-900">
+                            💳 Conta (<span id="drawerCountConta">0</span>)
+                        </button>
+                    </div>
+
+                    <!-- Lista Completa de Chamados (Scrollável) -->
+                    <div id="drawerListaChamados" class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+                        <div class="text-center py-12 text-gray-400">
+                            <span class="text-4xl">⏳</span>
+                            <p class="text-xs mt-2">Carregando chamados...</p>
+                        </div>
+                    </div>
+
+                    <!-- Rodapé da Gaveta -->
+                    <div class="p-4 border-t border-gray-200 bg-white flex items-center justify-between gap-3">
+                        <button type="button" onclick="checarChamadosHub()" class="p-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition">
+                            <span>🔄</span>
+                            <span>Atualizar</span>
+                        </button>
+
+                        <button type="button" onclick="atenderTodosChamados()" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5">
+                            <span>✓</span>
+                            <span>Atender Todas as Mesas</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <script>
+            let chamadosCache = [];
+            let filtroDrawerAtual = 'todos';
+
             // Polling de Chamados do Direct Hub / Garçom a cada 5 segundos
             function checarChamadosHub() {
                 fetch('<?= Url::to(['/vendas/mesa/chamados-pendentes']) ?>')
                     .then(r => r.json())
                     .then(data => {
+                        chamadosCache = data.chamados || [];
                         const container = document.getElementById('hub-chamados-container');
-                        const lista = document.getElementById('hub-chamados-lista');
+                        const chipsContainer = document.getElementById('hub-chamados-chips-recentes');
                         const badgeTotal = document.getElementById('hub-chamados-badge-total');
+                        const badgeDrawerBtn = document.getElementById('hub-drawer-btn-badge');
+                        const resumoGarcom = document.getElementById('hub-resumo-garcom');
+                        const resumoConta = document.getElementById('hub-resumo-conta');
+
                         if (data.total > 0) {
                             container.classList.remove('hidden');
                             if (badgeTotal) badgeTotal.innerText = data.total;
-                            lista.innerHTML = '';
-                            data.chamados.forEach(ch => {
-                                const btn = document.createElement('button');
-                                btn.className = 'px-3.5 py-2 bg-white text-gray-900 font-extrabold text-xs rounded-xl shadow-md hover:bg-gray-100 hover:text-amber-800 transition-all flex items-center gap-2 active:scale-95 border border-amber-200';
-                                btn.title = 'Clique para marcar como atendido';
-                                btn.innerHTML = `<span class="text-sm">${ch.tipo === 'conta' ? '💳' : '👋'}</span> <span>Mesa ${ch.mesa || 'Balcão'} (${ch.tipo === 'conta' ? 'Pediu Conta' : 'Garçom'})</span> <span class="bg-amber-100 text-amber-900 rounded-full px-1.5 py-0.2 text-[10px] font-black">&times;</span>`;
-                                btn.onclick = () => atenderChamado(ch.id);
-                                lista.appendChild(btn);
-                            });
+                            if (badgeDrawerBtn) badgeDrawerBtn.innerText = data.total;
+                            if (resumoGarcom) resumoGarcom.innerText = `${data.garcom_total || 0} Garçom`;
+                            if (resumoConta) resumoConta.innerText = `${data.conta_total || 0} Conta(s)`;
+
+                            // Renderiza até 3 chips mais recentes no banner
+                            if (chipsContainer) {
+                                chipsContainer.innerHTML = '';
+                                const previewList = chamadosCache.slice(0, 3);
+                                previewList.forEach(ch => {
+                                    const btn = document.createElement('button');
+                                    btn.className = 'px-3 py-1.5 bg-white text-gray-900 font-extrabold text-xs rounded-xl shadow hover:bg-amber-50 hover:text-amber-900 transition-all flex items-center gap-1.5 border border-amber-200 active:scale-95';
+                                    btn.title = 'Clique para dar baixa no chamado';
+                                    btn.innerHTML = `<span>${ch.tipo === 'conta' ? '💳' : '👋'}</span> <span>Mesa ${ch.mesa_numero}</span> <span class="text-gray-400 hover:text-rose-600 font-black">&times;</span>`;
+                                    btn.onclick = () => atenderChamado(ch.id);
+                                    chipsContainer.appendChild(btn);
+                                });
+                            }
+
+                            atualizarConteudoDrawer(data);
                         } else {
                             container.classList.add('hidden');
+                            fecharDrawerChamados();
                         }
                     })
                     .catch(() => {});
+            }
+
+            function abrirDrawerChamados() {
+                document.getElementById('drawerChamados').classList.remove('hidden');
+            }
+
+            function fecharDrawerChamados() {
+                document.getElementById('drawerChamados').classList.add('hidden');
+            }
+
+            function filtrarDrawer(tipo) {
+                filtroDrawerAtual = tipo;
+                document.getElementById('drawerTabTodos').className = tipo === 'todos' ? 'py-2 px-3 border-b-2 border-amber-600 text-amber-900 font-extrabold' : 'py-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-gray-900';
+                document.getElementById('drawerTabGarcom').className = tipo === 'garcom' ? 'py-2 px-3 border-b-2 border-amber-600 text-amber-900 font-extrabold' : 'py-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-gray-900';
+                document.getElementById('drawerTabConta').className = tipo === 'conta' ? 'py-2 px-3 border-b-2 border-amber-600 text-amber-900 font-extrabold' : 'py-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-gray-900';
+                renderizarListaDrawer();
+            }
+
+            function atualizarConteudoDrawer(data) {
+                document.getElementById('drawerSubtitulo').innerText = `${data.total} mesa(s) aguardando atendimento`;
+                document.getElementById('drawerCountTodos').innerText = data.total;
+                document.getElementById('drawerCountGarcom').innerText = data.garcom_total || 0;
+                document.getElementById('drawerCountConta').innerText = data.conta_total || 0;
+                renderizarListaDrawer();
+            }
+
+            function renderizarListaDrawer() {
+                const lista = document.getElementById('drawerListaChamados');
+                let itensFiltrados = chamadosCache;
+                if (filtroDrawerAtual === 'garcom') {
+                    itensFiltrados = chamadosCache.filter(c => c.tipo !== 'conta');
+                } else if (filtroDrawerAtual === 'conta') {
+                    itensFiltrados = chamadosCache.filter(c => c.tipo === 'conta');
+                }
+
+                if (itensFiltrados.length === 0) {
+                    lista.innerHTML = `
+                        <div class="text-center py-12 text-gray-400 bg-white rounded-2xl border border-gray-200 p-6">
+                            <span class="text-4xl">✅</span>
+                            <h4 class="text-sm font-bold text-gray-900 mt-2">Nenhum chamado pendente</h4>
+                            <p class="text-xs text-gray-500 mt-1">Todas as mesas foram atendidas!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                lista.innerHTML = '';
+                itensFiltrados.forEach(ch => {
+                    lista.innerHTML += `
+                        <div class="bg-white border border-gray-200 hover:border-amber-400 rounded-2xl p-4 shadow-sm transition-all flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="w-12 h-12 rounded-2xl ${ch.tipo === 'conta' ? 'bg-rose-50 text-rose-600 border border-rose-200' : 'bg-amber-50 text-amber-600 border border-amber-200'} flex items-center justify-center text-2xl flex-shrink-0 font-black">
+                                    ${ch.tipo === 'conta' ? '💳' : '👋'}
+                                </div>
+                                <div class="min-w-0">
+                                    <h4 class="text-sm font-black text-gray-900 truncate m-0">Mesa ${ch.mesa_numero}</h4>
+                                    <div class="flex items-center gap-2 mt-0.5">
+                                        <span class="text-xs font-bold ${ch.tipo === 'conta' ? 'text-rose-600' : 'text-amber-700'}">${ch.tipo_label}</span>
+                                        <span class="text-[11px] text-gray-400">&bull; ${ch.created_at}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="button" onclick="atenderChamado('${ch.id}')" class="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white font-black text-xs rounded-xl border border-emerald-300 transition-all flex items-center gap-1 flex-shrink-0 active:scale-95 shadow-sm">
+                                <span>✓</span>
+                                <span>Atender</span>
+                            </button>
+                        </div>
+                    `;
+                });
             }
 
             function atenderChamado(id) {
