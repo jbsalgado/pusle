@@ -330,9 +330,14 @@ $this->params['breadcrumbs'][] = $this->title;
                                         </div>
                                     </div>
 
-                                    <button type="button" onclick="atenderChamado('${ch.id}')" class="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-[11px] font-bold rounded-lg transition" title="Marcar como lido">
-                                        ✕ Dispensar
-                                    </button>
+                                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                                        <button type="button" onclick="limparChatMesaAdmin('${ch.mesa_id}', '${ch.mesa_numero}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 text-[11px] font-bold rounded-lg transition" title="Limpar conversa desta mesa">
+                                            🗑️ Limpar
+                                        </button>
+                                        <button type="button" onclick="atenderChamado('${ch.id}')" class="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-[11px] font-bold rounded-lg transition" title="Marcar como lido">
+                                            ✕ Dispensar
+                                        </button>
+                                    </div>
                                 </div>
 
                                 ${temMidia ? `
@@ -443,6 +448,28 @@ $this->params['breadcrumbs'][] = $this->title;
                 .catch(e => console.error('Erro ao responder mesa:', e));
             }
 
+            function limparChatMesaAdmin(mesaId, mesaNumero) {
+                if (!confirm('Deseja realmente limpar todo o histórico de mensagens da Mesa ' + mesaNumero + '?')) return;
+                const formData = new FormData();
+                formData.append('mesa_id', mesaId);
+
+                fetch('<?= Url::to(['/vendas/mesa/limpar-chat-mesa']) ?>', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': csrfToken },
+                    body: formData
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        fecharModalRespostaGarcom();
+                        checarChamadosHub();
+                    } else {
+                        alert(data.message || 'Erro ao limpar chat.');
+                    }
+                })
+                .catch(e => console.error('Erro ao limpar chat da mesa:', e));
+            }
+
             let mesaRespostaAtual = null;
             let chamadoRespostaAtual = null;
             let fotoGarcomSelecionada = null;
@@ -527,6 +554,7 @@ $this->params['breadcrumbs'][] = $this->title;
             }
 
             window.responderMesa = responderMesa;
+            window.limparChatMesaAdmin = limparChatMesaAdmin;
             window.abrirModalRespostaGarcom = abrirModalRespostaGarcom;
             window.fecharModalRespostaGarcom = fecharModalRespostaGarcom;
             window.inserirEmojiGarcom = inserirEmojiGarcom;
@@ -605,14 +633,20 @@ $this->params['breadcrumbs'][] = $this->title;
                     </div>
                 </div>
 
-                <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
-                    <button type="button" onclick="fecharModalRespostaGarcom()" class="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-bold transition">
-                        Cancelar
+                <div class="flex items-center justify-between gap-2 pt-2 border-t border-gray-100">
+                    <button type="button" onclick="limparChatMesaAdmin(mesaRespostaAtual, document.getElementById('lblModalRespMesaNumero').innerText)" class="px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold transition flex items-center gap-1">
+                        <span>🗑️</span>
+                        <span>Limpar Chat</span>
                     </button>
-                    <button type="button" onclick="enviarRespostaGarcomModal()" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold shadow-md transition flex items-center gap-1.5 active:scale-95">
-                        <span>Enviar Resposta</span>
-                        <span>🚀</span>
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="fecharModalRespostaGarcom()" class="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-bold transition">
+                            Cancelar
+                        </button>
+                        <button type="button" onclick="enviarRespostaGarcomModal()" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold shadow-md transition flex items-center gap-1.5 active:scale-95">
+                            <span>Enviar Resposta</span>
+                            <span>🚀</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

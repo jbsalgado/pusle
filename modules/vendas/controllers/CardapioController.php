@@ -400,4 +400,35 @@ class CardapioController extends Controller
             'count' => count($data),
         ];
     }
+
+    /**
+     * Ação Pública: Limpa o histórico de mensagens do chat da mesa
+     */
+    public function actionLimparChatMesa(): array
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $request = Yii::$app->request->post() ?: json_decode(Yii::$app->request->getRawBody(), true) ?: [];
+        $mesaId = $request['mesa_id'] ?? Yii::$app->request->get('mesa_id');
+
+        if (empty($mesaId)) {
+            return ['success' => false, 'message' => 'Mesa não informada.'];
+        }
+
+        $mesa = Mesa::findOne($mesaId);
+        if (!$mesa) {
+            return ['success' => false, 'message' => 'Mesa não encontrada.'];
+        }
+
+        // Remove todas as mensagens do chat daquela mesa
+        ClienteInbox::deleteAll([
+            'mesa_id' => $mesa->id,
+            'usuario_id' => $mesa->usuario_id,
+            'tipo' => ['chat_cliente', 'chat_garcom', 'chamado', 'conta', 'card']
+        ]);
+
+        return [
+            'success' => true,
+            'message' => 'Histórico de conversa limpo com sucesso!'
+        ];
+    }
 }

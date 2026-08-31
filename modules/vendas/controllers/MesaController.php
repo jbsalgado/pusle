@@ -55,7 +55,7 @@ class MesaController extends Controller
 
     public function beforeAction($action)
     {
-        if (in_array($action->id, ['atender-chamado', 'atender-todos-chamados', 'chamados-pendentes', 'responder-mensagem-mesa'])) {
+        if (in_array($action->id, ['atender-chamado', 'atender-todos-chamados', 'chamados-pendentes', 'responder-mensagem-mesa', 'limpar-chat-mesa'])) {
             $this->enableCsrfValidation = false;
         }
         return parent::beforeAction($action);
@@ -1155,5 +1155,32 @@ class MesaController extends Controller
         );
 
         return ['success' => true];
+    }
+
+    /**
+     * Limpa o histórico de mensagens do chat de uma mesa pelo Garçom
+     */
+    public function actionLimparChatMesa(): array
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $request = Yii::$app->request->post() ?: json_decode(Yii::$app->request->getRawBody(), true) ?: [];
+        $mesaId = $request['mesa_id'] ?? Yii::$app->request->get('mesa_id');
+
+        if (empty($mesaId)) {
+            return ['success' => false, 'message' => 'Mesa não informada.'];
+        }
+
+        $tenantId = Yii::$app->user->identity->getTenantId();
+
+        \app\modules\vendas\models\ClienteInbox::deleteAll([
+            'mesa_id' => $mesaId,
+            'usuario_id' => $tenantId,
+            'tipo' => ['chat_cliente', 'chat_garcom', 'chamado', 'conta', 'card']
+        ]);
+
+        return [
+            'success' => true,
+            'message' => 'Histórico do chat da mesa limpo com sucesso!'
+        ];
     }
 }

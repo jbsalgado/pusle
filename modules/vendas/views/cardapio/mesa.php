@@ -296,9 +296,14 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
                     </div>
                 </div>
 
-                <button type="button" onclick="carregarMensagensChat()" class="p-2 text-slate-400 hover:text-white rounded-xl bg-slate-800/50 border border-slate-700 text-xs" title="Atualizar mensagens">
-                    🔄
-                </button>
+                <div class="flex items-center gap-1">
+                    <button type="button" onclick="limparChatMesaAction()" class="p-2 text-slate-400 hover:text-rose-400 rounded-xl bg-slate-800/50 border border-slate-700 text-xs transition" title="Limpar conversa">
+                        🗑️
+                    </button>
+                    <button type="button" onclick="carregarMensagensChat()" class="p-2 text-slate-400 hover:text-white rounded-xl bg-slate-800/50 border border-slate-700 text-xs transition" title="Atualizar mensagens">
+                        🔄
+                    </button>
+                </div>
             </div>
 
             <!-- Chips de Solicitações Rápidas (1 Toque) -->
@@ -706,6 +711,30 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
             alert('Erro de conexão ao enviar mensagem.');
         } finally {
             if (btn) btn.disabled = false;
+        }
+    }
+
+    async function limparChatMesaAction() {
+        if (!confirm('Deseja realmente limpar todas as mensagens deste chat?')) return;
+        try {
+            const formData = new FormData();
+            formData.append('mesa_id', mesaId);
+
+            const resp = await fetch('<?= Url::to(['/vendas/cardapio/limpar-chat-mesa']) ?>', {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: formData
+            });
+
+            const data = await resp.json();
+            if (data.success) {
+                await carregarMensagensChat();
+            } else {
+                alert(data.message || 'Erro ao limpar chat.');
+            }
+        } catch(e) {
+            console.error(e);
+            alert('Erro ao limpar histórico do chat.');
         }
     }
 
