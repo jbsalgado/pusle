@@ -12,7 +12,8 @@ use app\modules\vendas\models\Comanda;
 use app\modules\vendas\models\ComandaItem;
 use app\modules\vendas\models\Produto;
 use app\modules\vendas\models\Categoria;
-use app\modules\vendas\models\Usuario;
+use app\models\Usuario;
+use app\modules\vendas\models\ClienteInbox;
 use app\modules\evolution\services\EvolutionService;
 
 class CardapioController extends Controller
@@ -81,8 +82,17 @@ class CardapioController extends Controller
             return ['success' => false, 'message' => 'Mesa não encontrada.'];
         }
 
-        $mesa->chamada_garcom = true;
-        $mesa->save(false);
+        // Registra o chamado no Direct Hub / Painel em tempo real do restaurante
+        ClienteInbox::postar(
+            $mesa->usuario_id,
+            null,
+            ClienteInbox::TIPO_CHAMADO,
+            "🔔 Chamado de Garçom (Mesa {$mesa->numero_mesa})",
+            "O cliente na Mesa {$mesa->numero_mesa} solicitou atendimento do garçom.",
+            null,
+            ['mesa_id' => $mesa->id, 'status' => 'aguardando'],
+            $mesa->id
+        );
 
         // Notificação de WhatsApp (Opcional)
         try {
@@ -115,6 +125,18 @@ class CardapioController extends Controller
 
         $mesa->status = Mesa::STATUS_AGUARDANDO_CONTA;
         $mesa->save(false);
+
+        // Registra o pedido de conta no Direct Hub / Painel em tempo real do restaurante
+        ClienteInbox::postar(
+            $mesa->usuario_id,
+            null,
+            ClienteInbox::TIPO_CONTA,
+            "🧾 Fechamento de Conta (Mesa {$mesa->numero_mesa})",
+            "O cliente na Mesa {$mesa->numero_mesa} solicitou a conta.",
+            null,
+            ['mesa_id' => $mesa->id, 'status' => 'fechamento_solicitado'],
+            $mesa->id
+        );
 
         return ['success' => true, 'message' => 'Solicitação enviada! O garçom trará a conta em instantes.'];
     }

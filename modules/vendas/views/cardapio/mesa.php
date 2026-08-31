@@ -3,7 +3,7 @@
 use yii\helpers\Html;
 use yii\helpers\Url;
 
-$nomeLoja = $loja ? ($loja->nome ?: 'PULSE Food Service') : 'PULSE Food Service';
+$nomeLoja = $loja ? ($loja->nome_loja ?: ($loja->razao_social ?: ($loja->nome ?: 'PULSE Food Service'))) : 'PULSE Food Service';
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
