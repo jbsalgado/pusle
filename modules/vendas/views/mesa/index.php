@@ -304,7 +304,7 @@ $this->params['breadcrumbs'][] = $this->title;
                         <div class="text-center py-12 text-gray-400 bg-white rounded-2xl border border-gray-200 p-6">
                             <span class="text-4xl">✅</span>
                             <h4 class="text-sm font-bold text-gray-900 mt-2">Nenhum chamado pendente</h4>
-                            <p class="text-xs text-gray-500 mt-1">Todas as mesas foram atendidas!</p>
+                            <p class="text-xs text-gray-500 mt-1">Todas as mesas estão atendidas!</p>
                         </div>
                     `;
                     return;
@@ -312,83 +312,68 @@ $this->params['breadcrumbs'][] = $this->title;
 
                 lista.innerHTML = '';
                 itensFiltrados.forEach(ch => {
-                    if (ch.tipo === 'chat_cliente') {
-                        const temMidia = ch.midia_url && ch.midia_url.trim() !== '';
-                        lista.innerHTML += `
-                            <div class="bg-white border-2 border-indigo-200 hover:border-indigo-400 rounded-2xl p-4 shadow-sm transition-all space-y-3">
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="flex items-center gap-3 min-w-0">
-                                        <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200 flex items-center justify-center text-xl flex-shrink-0 font-black">
-                                            💬
-                                        </div>
-                                        <div class="min-w-0">
-                                            <h4 class="text-sm font-black text-gray-900 truncate m-0">Mesa ${ch.mesa_numero}</h4>
-                                            <div class="flex items-center gap-2 mt-0.5">
-                                                <span class="text-xs font-bold text-indigo-600">Mensagem da Mesa</span>
-                                                <span class="text-[11px] text-gray-400">&bull; ${ch.created_at}</span>
-                                            </div>
-                                        </div>
-                                    </div>
+                    const temMidia = ch.midia_url && ch.midia_url.trim() !== '';
+                    const borderClass = ch.tipo === 'conta' ? 'border-rose-300' : (ch.tipo === 'chamado' ? 'border-amber-300' : 'border-indigo-300');
+                    const badgeBg = ch.tipo === 'conta' ? 'bg-rose-50 text-rose-600 border-rose-200' : (ch.tipo === 'chamado' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-indigo-50 text-indigo-600 border-indigo-200');
 
-                                    <div class="flex items-center gap-1.5 flex-shrink-0">
-                                        <button type="button" onclick="limparChatMesaAdmin('${ch.mesa_id}', '${ch.mesa_numero}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 text-[11px] font-bold rounded-lg transition" title="Limpar conversa desta mesa">
-                                            🗑️ Limpar
-                                        </button>
-                                        <button type="button" onclick="atenderChamado('${ch.id}')" class="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-[11px] font-bold rounded-lg transition" title="Marcar como lido">
-                                            ✕ Dispensar
-                                        </button>
-                                    </div>
-                                </div>
-
-                                ${temMidia ? `
-                                    <div class="rounded-xl overflow-hidden border border-indigo-100 bg-indigo-50/50 p-1">
-                                        <img src="${ch.midia_url}" onclick="abrirZoomImagemAdmin('${ch.midia_url}')" class="max-w-full max-h-44 rounded-lg object-cover cursor-pointer hover:opacity-90 transition shadow-sm" alt="Foto da Mesa">
-                                        <span class="text-[10px] text-indigo-500 font-bold block mt-1 px-1">🔍 Clique para ampliar</span>
-                                    </div>
-                                ` : ''}
-
-                                <div class="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3 text-xs text-indigo-950 font-medium whitespace-pre-wrap">
-                                    "${ch.texto}"
-                                </div>
-
-                                <!-- Respostas Rápidas do Garçom -->
-                                <div class="flex items-center gap-1.5 flex-wrap pt-1">
-                                    <button type="button" onclick="responderMesa('${ch.mesa_id}', 'A caminho com seu pedido! 👍', '${ch.id}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg shadow-sm transition">
-                                        👍 "A caminho!"
-                                    </button>
-                                    <button type="button" onclick="responderMesa('${ch.mesa_id}', 'Um momento, já estou levando! 😊', '${ch.id}')" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] rounded-lg shadow-sm transition">
-                                        ⚡ "Já estou levando!"
-                                    </button>
-                                    <button type="button" onclick="abrirModalRespostaGarcom('${ch.mesa_id}', '${ch.mesa_numero}', '${ch.id}', '${ch.texto ? encodeURIComponent(ch.texto) : ''}', '${ch.midia_url || ''}')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-[11px] rounded-lg shadow-sm transition flex items-center gap-1">
-                                        <span>✏️ Responder</span>
-                                        <span>📷</span>
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                    } else {
-                        lista.innerHTML += `
-                            <div class="bg-white border border-gray-200 hover:border-amber-400 rounded-2xl p-4 shadow-sm transition-all flex items-center justify-between gap-3">
-                                <div class="flex items-center gap-3 min-w-0">
-                                    <div class="w-12 h-12 rounded-2xl ${ch.tipo === 'conta' ? 'bg-rose-50 text-rose-600 border border-rose-200' : 'bg-amber-50 text-amber-600 border border-amber-200'} flex items-center justify-center text-2xl flex-shrink-0 font-black">
-                                        ${ch.tipo === 'conta' ? '💳' : '👋'}
+                    lista.innerHTML += `
+                        <div class="bg-white border-2 ${borderClass} rounded-2xl p-4 shadow-sm hover:shadow-md transition-all space-y-3">
+                            <!-- Cabeçalho do Card da Mesa -->
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex items-center gap-2.5 min-w-0">
+                                    <div class="w-10 h-10 rounded-2xl ${badgeBg} border flex items-center justify-center text-xl flex-shrink-0 font-black">
+                                        ${ch.tipo_icon}
                                     </div>
                                     <div class="min-w-0">
-                                        <h4 class="text-sm font-black text-gray-900 truncate m-0">Mesa ${ch.mesa_numero}</h4>
-                                        <div class="flex items-center gap-2 mt-0.5">
-                                            <span class="text-xs font-bold ${ch.tipo === 'conta' ? 'text-rose-600' : 'text-amber-700'}">${ch.tipo_label}</span>
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            <h4 class="text-sm font-black text-gray-900 truncate m-0">Mesa ${ch.mesa_numero}</h4>
+                                            ${ch.qtd_novas > 1 ? `<span class="px-2 py-0.5 bg-indigo-600 text-white text-[10px] font-black rounded-full shadow-sm animate-pulse">${ch.qtd_novas} novas</span>` : ''}
+                                        </div>
+                                        <div class="flex items-center gap-1.5 mt-0.5">
+                                            <span class="text-xs font-bold ${ch.tipo === 'conta' ? 'text-rose-600' : (ch.tipo === 'chamado' ? 'text-amber-700' : 'text-indigo-600')}">${ch.tipo_label}</span>
                                             <span class="text-[11px] text-gray-400">&bull; ${ch.created_at}</span>
                                         </div>
                                     </div>
                                 </div>
 
-                                <button type="button" onclick="atenderChamado('${ch.id}')" class="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white font-black text-xs rounded-xl border border-emerald-300 transition-all flex items-center gap-1 flex-shrink-0 active:scale-95 shadow-sm">
-                                    <span>✓</span>
-                                    <span>Atender</span>
+                                <div class="flex items-center gap-1 flex-shrink-0">
+                                    <button type="button" onclick="limparChatMesaAdmin('${ch.mesa_id}', '${ch.mesa_numero}')" class="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg text-xs transition" title="Limpar histórico desta mesa">
+                                        🗑️
+                                    </button>
+                                    <button type="button" onclick="atenderMesa('${ch.mesa_id}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg shadow-sm transition active:scale-95 flex items-center gap-1" title="Marcar todas como atendidas">
+                                        <span>✓</span>
+                                        <span>Atender</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Preview da Foto se houver -->
+                            ${temMidia ? `
+                                <div class="rounded-xl overflow-hidden border border-indigo-100 bg-indigo-50/50 p-1">
+                                    <img src="${ch.midia_url}" onclick="abrirZoomImagemAdmin('${ch.midia_url}')" class="max-w-full max-h-36 rounded-lg object-cover cursor-pointer hover:opacity-90 transition shadow-sm" alt="Foto da Mesa">
+                                    <span class="text-[10px] text-indigo-500 font-bold block mt-1 px-1">🔍 Clique para ampliar</span>
+                                </div>
+                            ` : ''}
+
+                            <!-- Preview da Última Mensagem -->
+                            ${ch.texto ? `
+                                <div class="bg-slate-50 border border-gray-100 rounded-xl p-3 text-xs text-gray-800 font-medium whitespace-pre-wrap">
+                                    "${ch.texto}"
+                                </div>
+                            ` : ''}
+
+                            <!-- Botões de Ação e Abertura do Chat -->
+                            <div class="flex items-center gap-1.5 flex-wrap pt-1 border-t border-gray-100">
+                                <button type="button" onclick="abrirModalRespostaGarcom('${ch.mesa_id}', '${ch.mesa_numero}')" class="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 active:scale-95">
+                                    <span>💬 Ver Conversa / Responder</span>
+                                    <span>(${ch.qtd_novas})</span>
+                                </button>
+                                <button type="button" onclick="responderMesa('${ch.mesa_id}', 'A caminho com seu pedido! 👍', null)" class="px-2.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-xl border border-emerald-200 transition active:scale-95">
+                                    👍 A caminho!
                                 </button>
                             </div>
-                        `;
-                    }
+                        </div>
+                    `;
                 });
             }
 
@@ -407,6 +392,23 @@ $this->params['breadcrumbs'][] = $this->title;
                 .catch(e => console.error('Erro ao atender chamado:', e));
             }
 
+            function atenderMesa(mesaId) {
+                if (!mesaId) return;
+                fetch('<?= Url::to(['/vendas/mesa/atender-mesa']) ?>?id=' + mesaId, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-Token': csrfToken,
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(r => r.json())
+                .then(() => {
+                    fecharModalRespostaGarcom();
+                    checarChamadosHub();
+                })
+                .catch(e => console.error('Erro ao atender mesa:', e));
+            }
+
             function atenderTodosChamados() {
                 fetch('<?= Url::to(['/vendas/mesa/atender-todos-chamados']) ?>', {
                     method: 'POST',
@@ -420,7 +422,7 @@ $this->params['breadcrumbs'][] = $this->title;
                 .catch(e => console.error('Erro ao atender todos os chamados:', e));
             }
 
-            function responderMesa(mesaId, mensagem, chamadoId, imagemFile = null) {
+            function responderMesa(mesaId, mensagem, chamadoId = null, imagemFile = null) {
                 if (!mensagem && !imagemFile) return;
 
                 const formData = new FormData();
@@ -439,13 +441,21 @@ $this->params['breadcrumbs'][] = $this->title;
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        fecharModalRespostaGarcom();
+                        const input = document.getElementById('txtModalRespTexto');
+                        if (input) input.value = '';
+                        cancelarFotoGarcom();
+                        carregarHistoricoChatAdmin();
                         checarChamadosHub();
                     } else {
                         alert(data.message || 'Erro ao enviar resposta.');
                     }
                 })
                 .catch(e => console.error('Erro ao responder mesa:', e));
+            }
+
+            function enviarRespostaRapidaGarcom(texto) {
+                if (!mesaRespostaAtual) return;
+                responderMesa(mesaRespostaAtual, texto, null, null);
             }
 
             function limparChatMesaAdmin(mesaId, mesaNumero) {
@@ -471,34 +481,87 @@ $this->params['breadcrumbs'][] = $this->title;
             }
 
             let mesaRespostaAtual = null;
-            let chamadoRespostaAtual = null;
             let fotoGarcomSelecionada = null;
 
-            function abrirModalRespostaGarcom(mesaId, mesaNumero, chamadoId, textoMsg, midiaUrl) {
+            function abrirModalRespostaGarcom(mesaId, mesaNumero) {
                 mesaRespostaAtual = mesaId;
-                chamadoRespostaAtual = chamadoId;
                 fotoGarcomSelecionada = null;
 
-                document.getElementById('lblModalRespMesaNumero').innerText = mesaNumero;
-                document.getElementById('lblModalRespMsgCliente').innerText = decodeURIComponent(textoMsg || '');
-                
-                const boxMidia = document.getElementById('boxModalRespMidiaCliente');
-                const imgMidia = document.getElementById('imgModalRespMidiaCliente');
-                if (midiaUrl && midiaUrl.trim() !== '') {
-                    imgMidia.src = midiaUrl;
-                    boxMidia.classList.remove('hidden');
-                } else {
-                    boxMidia.classList.add('hidden');
-                }
-
+                document.getElementById('lblModalRespMesaNumero').innerText = mesaNumero || '01';
                 document.getElementById('txtModalRespTexto').value = '';
                 cancelarFotoGarcom();
                 document.getElementById('modalRespostaGarcom').classList.remove('hidden');
+
+                carregarHistoricoChatAdmin();
                 document.getElementById('txtModalRespTexto').focus();
             }
 
             function fecharModalRespostaGarcom() {
                 document.getElementById('modalRespostaGarcom').classList.add('hidden');
+                mesaRespostaAtual = null;
+            }
+
+            function carregarHistoricoChatAdmin() {
+                if (!mesaRespostaAtual) return;
+                const thread = document.getElementById('modalRespChatThread');
+                if (!thread) return;
+
+                fetch('<?= Url::to(['/vendas/mesa/mensagens-mesa-admin']) ?>?id=' + mesaRespostaAtual, {
+                    headers: { 'Accept': 'application/json' }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success || !data.mensagens || data.mensagens.length === 0) {
+                        thread.innerHTML = `
+                            <div class="text-center py-8 text-gray-400 text-xs">
+                                <span>💬</span>
+                                <p class="mt-1">Nenhuma mensagem recente nesta mesa.</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    thread.innerHTML = '';
+                    data.mensagens.forEach(m => {
+                        const isGarcom = m.remetente === 'garcom';
+                        const temMidia = m.midia_url && m.midia_url.trim() !== '';
+
+                        thread.innerHTML += `
+                            <div class="flex items-end gap-2 ${isGarcom ? 'justify-end' : 'justify-start'}">
+                                ${!isGarcom ? `
+                                    <div class="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-black flex-shrink-0">
+                                        🧑
+                                    </div>
+                                ` : ''}
+
+                                <div class="max-w-[80%] rounded-2xl px-3.5 py-2.5 shadow-sm text-xs ${isGarcom ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white text-gray-900 border border-gray-200 rounded-bl-none'}">
+                                    <div class="flex items-center justify-between gap-2 mb-1">
+                                        <span class="font-black text-[10px] ${isGarcom ? 'text-indigo-200' : 'text-indigo-600'}">${m.autor}</span>
+                                        <span class="text-[9px] ${isGarcom ? 'text-indigo-200' : 'text-gray-400'} font-mono">${m.hora}</span>
+                                    </div>
+
+                                    ${temMidia ? `
+                                        <div class="mb-1.5 rounded-xl overflow-hidden border ${isGarcom ? 'border-indigo-400/40' : 'border-gray-200'}">
+                                            <img src="${m.midia_url}" onclick="abrirZoomImagemAdmin('${m.midia_url}')" class="max-w-full max-h-36 object-cover cursor-pointer hover:opacity-90 transition rounded-lg" alt="Foto">
+                                        </div>
+                                    ` : ''}
+
+                                    ${m.texto ? `<p class="m-0 whitespace-pre-wrap leading-relaxed">${m.texto}</p>` : ''}
+                                </div>
+
+                                ${isGarcom ? `
+                                    <div class="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-black flex-shrink-0">
+                                        🧑‍🍳
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    });
+
+                    // Scroll automático para a última mensagem
+                    thread.scrollTop = thread.scrollHeight;
+                })
+                .catch(e => console.error('Erro ao carregar chat da mesa:', e));
             }
 
             function inserirEmojiGarcom(emoji) {
@@ -536,7 +599,7 @@ $this->params['breadcrumbs'][] = $this->title;
                     alert('Digite uma mensagem ou anexe uma foto.');
                     return;
                 }
-                responderMesa(mesaRespostaAtual, msg, chamadoRespostaAtual, fotoGarcomSelecionada);
+                responderMesa(mesaRespostaAtual, msg, null, fotoGarcomSelecionada);
             }
 
             function abrirZoomImagemAdmin(url) {
@@ -554,9 +617,12 @@ $this->params['breadcrumbs'][] = $this->title;
             }
 
             window.responderMesa = responderMesa;
+            window.enviarRespostaRapidaGarcom = enviarRespostaRapidaGarcom;
+            window.atenderMesa = atenderMesa;
             window.limparChatMesaAdmin = limparChatMesaAdmin;
             window.abrirModalRespostaGarcom = abrirModalRespostaGarcom;
             window.fecharModalRespostaGarcom = fecharModalRespostaGarcom;
+            window.carregarHistoricoChatAdmin = carregarHistoricoChatAdmin;
             window.inserirEmojiGarcom = inserirEmojiGarcom;
             window.selecionarFotoGarcom = selecionarFotoGarcom;
             window.cancelarFotoGarcom = cancelarFotoGarcom;
@@ -570,33 +636,49 @@ $this->params['breadcrumbs'][] = $this->title;
             checarChamadosHub();
         </script>
 
-        <!-- MODAL DE RESPOSTA RICA DO GARÇOM COM FOTOS E EMOJIS -->
+        <!-- MODAL DE RESPOSTA RICA DO GARÇOM COM THREAD COMPLETA DE MENSAGENS -->
         <div id="modalRespostaGarcom" class="fixed inset-0 z-50 hidden bg-gray-900/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-                <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+            <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[92vh] flex flex-col">
+                <!-- Cabeçalho do Modal -->
+                <div class="flex items-center justify-between border-b border-gray-100 pb-3 flex-shrink-0">
                     <div class="flex items-center gap-2">
                         <span class="text-2xl">💬</span>
                         <div>
-                            <h3 class="text-base font-extrabold text-gray-900 m-0">Responder Mesa <span id="lblModalRespMesaNumero">01</span></h3>
-                            <p class="text-xs text-gray-500 m-0">Canal Próprio Direct Hub</p>
+                            <h3 class="text-base font-extrabold text-gray-900 m-0">Conversa &bull; Mesa <span id="lblModalRespMesaNumero">01</span></h3>
+                            <p class="text-xs text-gray-500 m-0">Direct Hub &bull; Histórico ao Vivo</p>
                         </div>
                     </div>
-                    <button type="button" onclick="fecharModalRespostaGarcom()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold p-1">&times;</button>
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" onclick="carregarHistoricoChatAdmin()" class="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition" title="Atualizar mensagens">
+                            🔄
+                        </button>
+                        <button type="button" onclick="fecharModalRespostaGarcom()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold p-1 leading-none">&times;</button>
+                    </div>
                 </div>
 
-                <!-- Mensagem Original do Cliente -->
-                <div class="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-3.5 space-y-2">
-                    <span class="text-[10px] font-black uppercase tracking-wider text-indigo-600 block">Mensagem do Cliente:</span>
-                    <div id="boxModalRespMidiaCliente" class="hidden">
-                        <img id="imgModalRespMidiaCliente" src="" class="max-w-full max-h-36 rounded-xl object-cover border border-indigo-200 cursor-pointer shadow-sm" onclick="abrirZoomImagemAdmin(this.src)">
+                <!-- Feed de Mensagens (Thread Cronológica) -->
+                <div id="modalRespChatThread" class="flex-1 overflow-y-auto space-y-3 p-3 bg-slate-50 border border-gray-100 rounded-2xl min-h-[180px] max-h-[300px]">
+                    <div class="text-center py-8 text-xs text-gray-400">
+                        Carregando histórico da conversa...
                     </div>
-                    <p id="lblModalRespMsgCliente" class="text-xs text-indigo-950 font-medium whitespace-pre-wrap m-0"></p>
+                </div>
+
+                <!-- Respostas Rápidas do Garçom -->
+                <div class="flex items-center gap-1.5 overflow-x-auto pb-1 flex-shrink-0 text-xs scrollbar-none">
+                    <button type="button" onclick="enviarRespostaRapidaGarcom('A caminho com seu pedido! 👍')" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg border border-emerald-200 transition flex-shrink-0 active:scale-95">
+                        👍 "A caminho!"
+                    </button>
+                    <button type="button" onclick="enviarRespostaRapidaGarcom('Um momento, já estou levando! 😊')" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg border border-indigo-200 transition flex-shrink-0 active:scale-95">
+                        ⚡ "Já estou levando!"
+                    </button>
+                    <button type="button" onclick="enviarRespostaRapidaGarcom('Pedido confirmado com a cozinha! 👨‍🍳')" class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold rounded-lg border border-amber-200 transition flex-shrink-0 active:scale-95">
+                        👨‍🍳 "Com a cozinha!"
+                    </button>
                 </div>
 
                 <!-- Seletor de Emojis Populares -->
-                <div>
-                    <span class="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1.5">⚡ Inserir Emojis:</span>
-                    <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-base">
+                <div class="flex-shrink-0">
+                    <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-base scrollbar-none">
                         <?php
                         $emojisGarcom = ['👍', '😊', '👋', '⚡', '🍔', '🥤', '🍺', '🧊', '🧂', '💳', '🧾', '⏱️', '🚀', '✅', '🙏', '❤️'];
                         foreach ($emojisGarcom as $eg):
@@ -609,7 +691,7 @@ $this->params['breadcrumbs'][] = $this->title;
                 </div>
 
                 <!-- Preview de Foto do Garçom -->
-                <div id="boxPreviewFotoGarcom" class="hidden bg-gray-50 border border-indigo-200 rounded-2xl p-2 flex items-center justify-between gap-3">
+                <div id="boxPreviewFotoGarcom" class="hidden bg-gray-50 border border-indigo-200 rounded-2xl p-2 flex items-center justify-between gap-3 flex-shrink-0">
                     <div class="flex items-center gap-2 min-w-0">
                         <img id="imgPreviewFotoGarcom" src="" class="w-12 h-12 rounded-xl object-cover border border-gray-200">
                         <div class="min-w-0">
@@ -623,28 +705,30 @@ $this->params['breadcrumbs'][] = $this->title;
                 </div>
 
                 <!-- Campo de Resposta -->
-                <div>
+                <div class="flex-shrink-0">
                     <input type="file" id="inputFotoGarcom" accept="image/*" class="hidden" onchange="selecionarFotoGarcom(this)">
                     <div class="flex items-center gap-2">
                         <button type="button" onclick="document.getElementById('inputFotoGarcom').click()" class="p-3 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-base transition active:scale-95 flex-shrink-0" title="Anexar Foto">
                             📷
                         </button>
-                        <input type="text" id="txtModalRespTexto" placeholder="Digite sua resposta..." class="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs text-gray-900 placeholder-gray-400">
+                        <input type="text" id="txtModalRespTexto" placeholder="Digite sua mensagem para a mesa..." class="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs text-gray-900 placeholder-gray-400" onkeydown="if(event.key==='Enter') enviarRespostaGarcomModal()">
+                        <button type="button" onclick="enviarRespostaGarcomModal()" class="px-4 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold shadow-md transition flex items-center gap-1.5 active:scale-95 flex-shrink-0">
+                            <span>Enviar</span>
+                            <span>🚀</span>
+                        </button>
                     </div>
                 </div>
 
-                <div class="flex items-center justify-between gap-2 pt-2 border-t border-gray-100">
+                <!-- Rodapé com Limpar Chat e Concluir Atendimento -->
+                <div class="flex items-center justify-between gap-2 pt-2 border-t border-gray-100 flex-shrink-0">
                     <button type="button" onclick="limparChatMesaAdmin(mesaRespostaAtual, document.getElementById('lblModalRespMesaNumero').innerText)" class="px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold transition flex items-center gap-1">
                         <span>🗑️</span>
-                        <span>Limpar Chat</span>
+                        <span>Limpar Conversa</span>
                     </button>
                     <div class="flex items-center gap-2">
-                        <button type="button" onclick="fecharModalRespostaGarcom()" class="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-bold transition">
-                            Cancelar
-                        </button>
-                        <button type="button" onclick="enviarRespostaGarcomModal()" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold shadow-md transition flex items-center gap-1.5 active:scale-95">
-                            <span>Enviar Resposta</span>
-                            <span>🚀</span>
+                        <button type="button" onclick="atenderMesa(mesaRespostaAtual)" class="px-4 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-300 text-xs font-black transition flex items-center gap-1">
+                            <span>✓</span>
+                            <span>Concluir Atendimento</span>
                         </button>
                     </div>
                 </div>

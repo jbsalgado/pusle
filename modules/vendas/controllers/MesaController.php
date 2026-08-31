@@ -55,7 +55,7 @@ class MesaController extends Controller
 
     public function beforeAction($action)
     {
-        if (in_array($action->id, ['atender-chamado', 'atender-todos-chamados', 'chamados-pendentes', 'responder-mensagem-mesa', 'limpar-chat-mesa'])) {
+        if (in_array($action->id, ['atender-chamado', 'atender-mesa', 'atender-todos-chamados', 'chamados-pendentes', 'responder-mensagem-mesa', 'limpar-chat-mesa', 'mensagens-mesa-admin'])) {
             $this->enableCsrfValidation = false;
         }
         return parent::beforeAction($action);
@@ -985,7 +985,7 @@ class MesaController extends Controller
     }
 
     /**
-     * Endpoint Ajax para polling de chamados de garçom e pedidos de conta em tempo real
+     * Endpoint Ajax para polling de chamados de garçom e pedidos de conta em tempo real (Agrupado por Mesa)
      */
     public function actionChamadosPendentes(): array
     {
@@ -1002,48 +1002,165 @@ class MesaController extends Controller
             ->orderBy(['created_at' => SORT_DESC])
             ->all();
 
-        $data = [];
+        $grupos = [];
         $garcomTotal = 0;
         $contaTotal = 0;
         $chatTotal = 0;
+        $totalMensagens = 0;
 
         foreach ($chamados as $ch) {
-            $mesa = $ch->mesa;
+            $totalMensagens++;
+            $mesaIdKey = $ch->mesa_id ?: ('sem_mesa_' . $ch->id);
+
+            if (!isset($grupos[$mesaIdKey])) {
+                $mesa = $ch->mesa;
+                $grupos[$mesaIdKey] = [
+                    'mesa_id' => $mesa ? $mesa->id : null,
+                    'mesa_numero' => $mesa ? $mesa->numero_mesa : 'Balcão',
+                    'qtd_mensagens' => 0,
+                    'tem_conta' => false,
+                    'tem_chamado' => false,
+                    'tem_chat' => false,
+                    'ultima_mensagem' => $ch->conteudo_texto,
+                    'ultima_midia_url' => $ch->midia_url,
+                    'ultimo_tipo' => $ch->tipo,
+                    'ultimo_chamado_id' => $ch->id,
+                    'ids' => [],
+                    'created_at' => Yii::$app->formatter->asRelativeTime($ch->created_at),
+                    'hora' => date('H:i', strtotime($ch->created_at)),
+                ];
+            }
+
+            $grupos[$mesaIdKey]['qtd_mensagens']++;
+            $grupos[$mesaIdKey]['ids'][] = $ch->id;
+
             if ($ch->tipo === \app\modules\vendas\models\ClienteInbox::TIPO_CONTA) {
+                $grupos[$mesaIdKey]['tem_conta'] = true;
+            } elseif ($ch->tipo === 'chat_cliente') {
+                $grupos[$mesaIdKey]['tem_chat'] = true;
+            } else {
+                $grupos[$mesaIdKey]['tem_chamado'] = true;
+            }
+        }
+
+        $data = [];
+        foreach ($grupos as $g) {
+            if ($g['tem_conta']) {
                 $contaTotal++;
                 $tipoLabel = 'Pediu Conta';
                 $tipoIcon = '💳';
-            } elseif ($ch->tipo === 'chat_cliente') {
-                $chatTotal++;
-                $tipoLabel = 'Mensagem / Pedido';
-                $tipoIcon = '💬';
-            } else {
+                $tipoPrioritario = 'conta';
+            } elseif ($g['tem_chamado']) {
                 $garcomTotal++;
                 $tipoLabel = 'Garçom';
                 $tipoIcon = '👋';
+                $tipoPrioritario = 'chamado';
+            } else {
+                $chatTotal++;
+                $tipoLabel = 'Mensagem no Chat';
+                $tipoIcon = '💬';
+                $tipoPrioritario = 'chat_cliente';
             }
 
             $data[] = [
-                'id'          => $ch->id,
-                'tipo'        => $ch->tipo,
+                'id'          => $g['ultimo_chamado_id'],
+                'mesa_id'     => $g['mesa_id'],
+                'mesa_numero' => $g['mesa_numero'],
+                'tipo'        => $tipoPrioritario,
                 'tipo_label'  => $tipoLabel,
                 'tipo_icon'   => $tipoIcon,
-                'titulo'      => $ch->titulo,
-                'texto'       => $ch->conteudo_texto,
-                'midia_url'   => $ch->midia_url,
-                'mesa_id'     => $mesa ? $mesa->id : null,
-                'mesa_numero' => $mesa ? $mesa->numero_mesa : 'Balcão',
-                'created_at'  => Yii::$app->formatter->asRelativeTime($ch->created_at),
-                'hora'        => date('H:i', strtotime($ch->created_at)),
+                'texto'       => $g['ultima_mensagem'],
+                'midia_url'   => $g['ultima_midia_url'],
+                'qtd_novas'   => $g['qtd_mensagens'],
+                'ids'         => $g['ids'],
+                'created_at'  => $g['created_at'],
+                'hora'        => $g['hora'],
             ];
         }
 
         return [
-            'total'        => count($data),
-            'garcom_total' => $garcomTotal,
-            'conta_total'  => $contaTotal,
-            'chat_total'   => $chatTotal,
-            'chamados'     => $data,
+            'total'           => count($data),
+            'total_mensagens' => $totalMensagens,
+            'garcom_total'    => $garcomTotal,
+            'conta_total'     => $contaTotal,
+            'chat_total'      => $chatTotal,
+            'chamados'        => $data,
+        ];
+    }
+
+    /**
+     * Marca todas as notificações de uma mesa específica como lidas
+     */
+    public function actionAtenderMesa($id = null): array
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $id = $id ?: Yii::$app->request->get('id') ?: Yii::$app->request->post('id');
+        if (empty($id)) {
+            $raw = json_decode(Yii::$app->request->getRawBody(), true);
+            $id = $raw['id'] ?? null;
+        }
+
+        $tenantId = Yii::$app->user->identity->getTenantId();
+
+        \app\modules\vendas\models\ClienteInbox::updateAll(
+            ['lido' => true],
+            [
+                'mesa_id' => $id, 
+                'usuario_id' => $tenantId, 
+                'lido' => false,
+                'tipo' => [
+                    \app\modules\vendas\models\ClienteInbox::TIPO_CHAMADO, 
+                    \app\modules\vendas\models\ClienteInbox::TIPO_CONTA,
+                    'chat_cliente'
+                ]
+            ]
+        );
+
+        return ['success' => true];
+    }
+
+    /**
+     * Retorna todo o histórico de mensagens da mesa para a janela de chat do Garçom
+     */
+    public function actionMensagensMesaAdmin($id): array
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $tenantId = Yii::$app->user->identity->getTenantId();
+        $mesa = Mesa::findOne(['id' => $id, 'usuario_id' => $tenantId]);
+
+        if (!$mesa) {
+            return ['success' => false, 'message' => 'Mesa não encontrada.', 'mensagens' => []];
+        }
+
+        $mensagens = \app\modules\vendas\models\ClienteInbox::find()
+            ->where(['mesa_id' => $mesa->id, 'usuario_id' => $tenantId])
+            ->andWhere(['in', 'tipo', ['chat_cliente', 'chat_garcom', 'chamado', 'conta', 'card']])
+            ->orderBy(['created_at' => SORT_ASC])
+            ->limit(80)
+            ->all();
+
+        $data = [];
+        foreach ($mensagens as $m) {
+            $isCliente = ($m->tipo === 'chat_cliente' || $m->tipo === 'chamado' || $m->tipo === 'conta');
+            $data[] = [
+                'id' => $m->id,
+                'tipo' => $m->tipo,
+                'remetente' => $isCliente ? 'cliente' : 'garcom',
+                'autor' => $isCliente ? ('Mesa ' . $mesa->numero_mesa) : 'Você (Garçom)',
+                'texto' => $m->conteudo_texto,
+                'midia_url' => $m->midia_url,
+                'hora' => date('H:i', strtotime($m->created_at)),
+                'created_at' => Yii::$app->formatter->asRelativeTime($m->created_at),
+                'lido' => $m->lido,
+            ];
+        }
+
+        return [
+            'success' => true,
+            'mesa_numero' => $mesa->numero_mesa,
+            'mesa_id' => $mesa->id,
+            'mensagens' => $data,
+            'count' => count($data),
         ];
     }
 
