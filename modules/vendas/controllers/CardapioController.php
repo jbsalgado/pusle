@@ -60,6 +60,7 @@ class CardapioController extends Controller
             ->all();
 
         $comanda = $mesa->comandaAtiva;
+        $mesaAberta = ($mesa->status === Mesa::STATUS_OCUPADA || $mesa->status === Mesa::STATUS_AGUARDANDO_CONTA) && ($comanda !== null);
 
         return $this->render('mesa', [
             'mesa' => $mesa,
@@ -67,6 +68,7 @@ class CardapioController extends Controller
             'categorias' => $categorias,
             'produtos' => $produtos,
             'comanda' => $comanda,
+            'mesaAberta' => $mesaAberta,
         ]);
     }
 
@@ -193,6 +195,11 @@ class CardapioController extends Controller
             return ['success' => false, 'message' => 'Mesa não encontrada.'];
         }
 
+        $comanda = $mesa->comandaAtiva;
+        if (!$comanda || $mesa->status === Mesa::STATUS_LIVRE) {
+            return ['success' => false, 'message' => 'Esta mesa está fechada no salão. Aponte a câmera para o QR Code no restaurante para iniciar o atendimento.'];
+        }
+
         // Registra o chamado no Direct Hub / Painel em tempo real do restaurante
         ClienteInbox::postar(
             $mesa->usuario_id,
@@ -202,7 +209,8 @@ class CardapioController extends Controller
             "O cliente na Mesa {$mesa->numero_mesa} solicitou atendimento do garçom.",
             null,
             ['mesa_id' => $mesa->id, 'status' => 'aguardando'],
-            $mesa->id
+            $mesa->id,
+            $comanda->id
         );
 
         // Notificação de WhatsApp (Opcional)
@@ -234,6 +242,11 @@ class CardapioController extends Controller
             return ['success' => false, 'message' => 'Mesa não encontrada.'];
         }
 
+        $comanda = $mesa->comandaAtiva;
+        if (!$comanda || $mesa->status === Mesa::STATUS_LIVRE) {
+            return ['success' => false, 'message' => 'Esta mesa está fechada no salão. Aponte a câmera para o QR Code no restaurante para iniciar o atendimento.'];
+        }
+
         if ($mesa->getConsumoTotal() <= 0) {
             return ['success' => false, 'message' => 'A mesa ainda não possui consumo registrado para fechar a conta.'];
         }
@@ -250,7 +263,8 @@ class CardapioController extends Controller
             "O cliente na Mesa {$mesa->numero_mesa} solicitou a conta.",
             null,
             ['mesa_id' => $mesa->id, 'status' => 'fechamento_solicitado'],
-            $mesa->id
+            $mesa->id,
+            $comanda->id
         );
 
         return ['success' => true, 'message' => 'Solicitação enviada! O garçom trará a conta em instantes.'];
@@ -313,7 +327,7 @@ class CardapioController extends Controller
 
         return [
             'success' => true, 
-            'message' => "{$salvos} item(ns) enviado(s) para a cozinha com sucesso!",
+            'message' => "{$salvos} item(ns) enviado(s) com sucesso!",
             'salvos' => $salvos
         ];
     }
@@ -342,7 +356,15 @@ class CardapioController extends Controller
             return ['success' => false, 'message' => 'Mesa não encontrada.'];
         }
 
-        // Posta a mensagem no Direct Hub / Inbox
+        $comanda = $mesa->comandaAtiva;
+        if (!$comanda || $mesa->status === Mesa::STATUS_LIVRE) {
+            return [
+                'success' => false,
+                'message' => 'Esta mesa está fechada no salão. O chat é exclusivo para mesas em atendimento presencial ativo.'
+            ];
+        }
+
+        // Posta a mensagem no Direct Hub / Inbox vinculada à sessão da comanda
         ClienteInbox::postar(
             $mesa->usuario_id,
             null,
@@ -356,7 +378,8 @@ class CardapioController extends Controller
                 'cliente_nome' => $clienteNome,
                 'origem' => 'cliente'
             ],
-            $mesa->id
+            $mesa->id,
+            $comanda->id
         );
 
         return [
@@ -378,9 +401,28 @@ class CardapioController extends Controller
             return ['success' => false, 'message' => 'Mesa não encontrada.', 'mensagens' => []];
         }
 
+        $comanda = $mesa->comandaAtiva;
+        $mesaAberta = ($mesa->status === Mesa::STATUS_OCUPADA || $mesa->status === Mesa::STATUS_AGUARDANDO_CONTA) && ($comanda !== null);
+
+        if (!$mesaAberta) {
+            return [
+                'success' => true,
+                'mesa_numero' => $mesa->numero_mesa,
+                'mesa_aberta' => false,
+                'mensagens' => [],
+                'count' => 0,
+            ];
+        }
+
+        // Sessão ativa: traz mensagens vinculadas a esta comanda ou criadas a partir da abertura desta comanda
         $mensagens = ClienteInbox::find()
             ->where(['mesa_id' => $mesa->id, 'usuario_id' => $mesa->usuario_id])
             ->andWhere(['in', 'tipo', ['chat_cliente', 'chat_garcom', 'chamado', 'conta', 'card']])
+            ->andWhere([
+                'or',
+                ['comanda_id' => $comanda->id],
+                ['and', ['comanda_id' => null], ['>=', 'created_at', $comanda->data_abertura ?: date('Y-m-d 00:00:00')]]
+            ])
             ->orderBy(['created_at' => SORT_ASC])
             ->limit(50)
             ->all();
@@ -407,6 +449,7 @@ class CardapioController extends Controller
         return [
             'success' => true,
             'mesa_numero' => $mesa->numero_mesa,
+            'mesa_aberta' => true,
             'mensagens' => $data,
             'count' => count($data),
         ];

@@ -73,11 +73,22 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
                     <h1 class="text-sm font-extrabold text-white truncate tracking-tight m-0">
                         <?= Html::encode($nomeLoja) ?>
                     </h1>
+<?php
+$mesaAberta = isset($mesaAberta) ? $mesaAberta : (($mesa->status === \app\modules\vendas\models\Mesa::STATUS_OCUPADA || $mesa->status === \app\modules\vendas\models\Mesa::STATUS_AGUARDANDO_CONTA) && ($comanda !== null));
+?>
                     <div class="flex items-center gap-1.5 mt-0.5">
-                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                            Mesa <?= Html::encode($mesa->numero_mesa) ?>
-                        </span>
+                        <?php if ($mesaAberta): ?>
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                Mesa <?= Html::encode($mesa->numero_mesa) ?>
+                            </span>
+                        <?php else: ?>
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                                <span>⚪</span>
+                                Mesa <?= Html::encode($mesa->numero_mesa) ?> (Livre)
+                            </span>
+                        <?php endif; ?>
+
                         <?php if ($mesa->nome_identificador): ?>
                             <span class="text-[11px] text-slate-400 truncate">&bull; <?= Html::encode($mesa->nome_identificador) ?></span>
                         <?php endif; ?>
@@ -280,125 +291,151 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
     <!-- ========================================================================= -->
     <main id="abaChat" class="max-w-xl mx-auto px-4 pt-4 space-y-4 hidden pb-28">
 
-        <!-- Card de Status do Canal Próprio -->
-        <div class="bg-gradient-to-br from-indigo-950/40 via-slate-900/60 to-slate-900/90 border border-indigo-500/20 rounded-3xl p-4 shadow-xl">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-xl">
-                        🧑‍🍳
+        <?php if (!$mesaAberta): ?>
+            <!-- Painel Seguro de Mesa Fechada -->
+            <div class="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-6 text-center space-y-4 shadow-xl">
+                <div class="w-16 h-16 rounded-3xl bg-indigo-500/10 border border-indigo-500/20 text-3xl flex items-center justify-center mx-auto">
+                    🔒
+                </div>
+                <div class="space-y-1.5">
+                    <h3 class="text-base font-black text-white m-0">Mesa Fechada no Salão</h3>
+                    <p class="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed m-0">
+                        O chat, chamados rápidos e pedidos em tempo real ficam disponíveis durante o atendimento presencial ativo.
+                    </p>
+                </div>
+                <div class="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-3.5 max-w-xs mx-auto text-left flex items-start gap-2.5">
+                    <span class="text-lg">💡</span>
+                    <p class="text-[11px] text-slate-300 leading-snug m-0">
+                        Você pode consultar todos os pratos, bebidas e fotos no cardápio! Para abrir a mesa e consumir, solicite a um atendente no restaurante.
+                    </p>
+                </div>
+                <button type="button" onclick="alternarAba('cardapio')" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition">
+                    🍽️ Explorar Cardápio
+                </button>
+            </div>
+        <?php else: ?>
+            <!-- Card de Status do Canal Próprio -->
+            <div class="bg-gradient-to-br from-indigo-950/40 via-slate-900/60 to-slate-900/90 border border-indigo-500/20 rounded-3xl p-4 shadow-xl">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-xl">
+                            🧑‍🍳
+                        </div>
+                        <div>
+                            <h3 class="text-xs sm:text-sm font-black text-white m-0 flex items-center gap-1.5">
+                                <span>Atendimento &bull; Mesa <?= Html::encode($mesa->numero_mesa) ?></span>
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            </h3>
+                            <p class="text-[11px] text-slate-400 m-0">Direct Hub &bull; Equipe Online</p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 class="text-xs sm:text-sm font-black text-white m-0 flex items-center gap-1.5">
-                            <span>Atendimento &bull; Mesa <?= Html::encode($mesa->numero_mesa) ?></span>
-                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        </h3>
-                        <p class="text-[11px] text-slate-400 m-0">Direct Hub &bull; Equipe Online</p>
+
+                    <div class="flex items-center gap-1">
+                        <button type="button" onclick="limparChatMesaAction()" class="p-2 text-slate-400 hover:text-rose-400 rounded-xl bg-slate-800/50 border border-slate-700 text-xs transition" title="Limpar conversa">
+                            🗑️
+                        </button>
+                        <button type="button" onclick="carregarMensagensChat()" class="p-2 text-slate-400 hover:text-white rounded-xl bg-slate-800/50 border border-slate-700 text-xs transition" title="Atualizar mensagens">
+                            🔄
+                        </button>
                     </div>
                 </div>
 
-                <div class="flex items-center gap-1">
-                    <button type="button" onclick="limparChatMesaAction()" class="p-2 text-slate-400 hover:text-rose-400 rounded-xl bg-slate-800/50 border border-slate-700 text-xs transition" title="Limpar conversa">
-                        🗑️
-                    </button>
-                    <button type="button" onclick="carregarMensagensChat()" class="p-2 text-slate-400 hover:text-white rounded-xl bg-slate-800/50 border border-slate-700 text-xs transition" title="Atualizar mensagens">
-                        🔄
-                    </button>
+                <!-- Chips de Solicitações Rápidas (1 Toque) -->
+                <div class="mt-3 pt-3 border-t border-slate-800/80">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">⚡ Pedidos Rápidos (1 Toque):</span>
+                    <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
+                        <button type="button" onclick="enviarSolicitacaoRapida('🧊 Por favor, trazer mais gelo e limão.')" class="px-3 py-1.5 bg-slate-800/90 hover:bg-indigo-600 hover:text-white text-slate-300 font-bold rounded-xl border border-slate-700 flex-shrink-0 transition active:scale-95">
+                            🧊 Gelo e Limão
+                        </button>
+                        <button type="button" onclick="enviarSolicitacaoRapida('🍽️ Por favor, trazer pratos e talheres extras.')" class="px-3 py-1.5 bg-slate-800/90 hover:bg-indigo-600 hover:text-white text-slate-300 font-bold rounded-xl border border-slate-700 flex-shrink-0 transition active:scale-95">
+                            🍽️ Pratos / Talheres
+                        </button>
+                        <button type="button" onclick="enviarSolicitacaoRapida('🧂 Por favor, trazer azeite, sal e molhos.')" class="px-3 py-1.5 bg-slate-800/90 hover:bg-indigo-600 hover:text-white text-slate-300 font-bold rounded-xl border border-slate-700 flex-shrink-0 transition active:scale-95">
+                            🧂 Azeite / Molhos
+                        </button>
+                        <button type="button" onclick="enviarSolicitacaoRapida('🧻 Por favor, trazer mais guardanapos.')" class="px-3 py-1.5 bg-slate-800/90 hover:bg-indigo-600 hover:text-white text-slate-300 font-bold rounded-xl border border-slate-700 flex-shrink-0 transition active:scale-95">
+                            🧻 Guardanapos
+                        </button>
+                        <button type="button" onclick="enviarSolicitacaoRapida('💳 Por favor, trazer a maquininha de cartão na mesa.')" class="px-3 py-1.5 bg-slate-800/90 hover:bg-indigo-600 hover:text-white text-slate-300 font-bold rounded-xl border border-slate-700 flex-shrink-0 transition active:scale-95">
+                            💳 Maquininha
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Chips de Solicitações Rápidas (1 Toque) -->
-            <div class="mt-3 pt-3 border-t border-slate-800/80">
-                <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">⚡ Pedidos Rápidos (1 Toque):</span>
-                <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
-                    <button type="button" onclick="enviarSolicitacaoRapida('🧊 Por favor, trazer mais gelo e limão.')" class="px-3 py-1.5 bg-slate-800/90 hover:bg-indigo-600 hover:text-white text-slate-300 font-bold rounded-xl border border-slate-700 flex-shrink-0 transition active:scale-95">
-                        🧊 Gelo e Limão
-                    </button>
-                    <button type="button" onclick="enviarSolicitacaoRapida('🍽️ Por favor, trazer pratos e talheres extras.')" class="px-3 py-1.5 bg-slate-800/90 hover:bg-indigo-600 hover:text-white text-slate-300 font-bold rounded-xl border border-slate-700 flex-shrink-0 transition active:scale-95">
-                        🍽️ Pratos / Talheres
-                    </button>
-                    <button type="button" onclick="enviarSolicitacaoRapida('🧂 Por favor, trazer azeite, sal e molhos.')" class="px-3 py-1.5 bg-slate-800/90 hover:bg-indigo-600 hover:text-white text-slate-300 font-bold rounded-xl border border-slate-700 flex-shrink-0 transition active:scale-95">
-                        🧂 Azeite / Molhos
-                    </button>
-                    <button type="button" onclick="enviarSolicitacaoRapida('🧻 Por favor, trazer mais guardanapos.')" class="px-3 py-1.5 bg-slate-800/90 hover:bg-indigo-600 hover:text-white text-slate-300 font-bold rounded-xl border border-slate-700 flex-shrink-0 transition active:scale-95">
-                        🧻 Guardanapos
-                    </button>
-                    <button type="button" onclick="enviarSolicitacaoRapida('💳 Por favor, trazer a maquininha de cartão na mesa.')" class="px-3 py-1.5 bg-slate-800/90 hover:bg-indigo-600 hover:text-white text-slate-300 font-bold rounded-xl border border-slate-700 flex-shrink-0 transition active:scale-95">
-                        💳 Maquininha
-                    </button>
+            <!-- Feed de Conversa / Balões de Mensagem -->
+            <div id="containerFeedChat" class="space-y-3 min-h-[220px] max-h-[48vh] overflow-y-auto pr-1">
+                <div class="text-center py-10 text-slate-500 text-xs">
+                    <span class="text-3xl block">💬</span>
+                    <p class="mt-1 font-bold text-slate-400">Inicie uma conversa com a equipe!</p>
                 </div>
             </div>
-        </div>
 
-        <!-- Feed de Conversa / Balões de Mensagem -->
-        <div id="containerFeedChat" class="space-y-3 min-h-[220px] max-h-[48vh] overflow-y-auto pr-1">
-            <div class="text-center py-10 text-slate-500 text-xs">
-                <span class="text-3xl block">💬</span>
-                <p class="mt-1">Inicie uma conversa ou use os atalhos rápidos acima!</p>
-            </div>
-        </div>
-
-        <!-- Popover de Emojis -->
-        <div id="popoverEmojisChat" class="hidden bg-slate-900 border border-slate-700 rounded-3xl p-3 shadow-2xl space-y-2 mb-2 transition-all">
-            <div class="flex items-center justify-between border-b border-slate-800 pb-1.5 px-1">
-                <span class="text-[11px] font-black text-slate-400 uppercase tracking-wider">Emojis Rápidos</span>
-                <button type="button" onclick="fecharEmojisChat()" class="text-slate-400 hover:text-white text-xs font-bold p-1">&times;</button>
-            </div>
-            <div class="grid grid-cols-8 gap-1.5 text-lg p-1 max-h-36 overflow-y-auto">
-                <?php
-                $emojisLista = [
-                    '👍', '😊', '👋', '❤️', '🔥', '🚀', '✅', '🙏',
-                    '🍔', '🍕', '🍟', '🌭', '🥪', '🌮', '🍗', '🥩',
-                    '🥗', '🍲', '🍣', '🍦', '🍰', '🍫', '🍿', '🍽️',
-                    '🥤', '🍺', '🍻', '🍷', '🍸', '🍹', '☕', '🧃',
-                    '🧊', '🍋', '🧂', '🧻', '💳', '🧾', '🔔', '⏱️'
-                ];
-                foreach ($emojisLista as $em):
-                ?>
-                    <button type="button" onclick="inserirEmojiChat('<?= $em ?>')" class="w-8 h-8 rounded-xl hover:bg-slate-800 flex items-center justify-center transition active:scale-90">
-                        <?= $em ?>
-                    </button>
-                <?php endforeach; ?>
-            </div>
-        </div>
-
-        <!-- Box de Preview de Imagem Selecionada -->
-        <div id="boxPreviewFotoChat" class="hidden bg-slate-950/90 border border-indigo-500/40 rounded-2xl p-2 flex items-center justify-between gap-3 mb-2 shadow-lg">
-            <div class="flex items-center gap-2 min-w-0">
-                <img id="imgPreviewFotoChat" src="" class="w-12 h-12 rounded-xl object-cover border border-slate-700">
-                <div class="min-w-0">
-                    <span class="text-xs font-bold text-white block truncate">Foto selecionada</span>
-                    <span class="text-[10px] text-indigo-400 font-medium">Pronta para envio</span>
+            <!-- Popover de Emojis -->
+            <div id="popoverEmojisChat" class="hidden bg-slate-900 border border-slate-700 rounded-3xl p-3 shadow-2xl space-y-2 mb-2 transition-all">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-1.5 px-1">
+                    <span class="text-[11px] font-black text-slate-400 uppercase tracking-wider">Emojis Rápidos</span>
+                    <button type="button" onclick="fecharEmojisChat()" class="text-slate-400 hover:text-white text-xs font-bold p-1">&times;</button>
+                </div>
+                <div class="grid grid-cols-8 gap-1.5 text-lg p-1 max-h-36 overflow-y-auto">
+                    <?php
+                    $emojisLista = [
+                        '👍', '😊', '👋', '❤️', '🔥', '🚀', '✅', '🙏',
+                        '🍔', '🍕', '🍟', '🌭', '🥪', '🌮', '🍗', '🥩',
+                        '🥗', '🍲', '🍣', '🍦', '🍰', '🍫', '🍿', '🍽️',
+                        '🥤', '🍺', '🍻', '🍷', '🍸', '🍹', '☕', '🧃',
+                        '🧊', '🍋', '🧂', '🧻', '💳', '🧾', '🔔', '⏱️'
+                    ];
+                    foreach ($emojisLista as $em):
+                    ?>
+                        <button type="button" onclick="inserirEmojiChat('<?= $em ?>')" class="w-8 h-8 rounded-xl hover:bg-slate-800 flex items-center justify-center transition active:scale-90">
+                            <?= $em ?>
+                        </button>
+                    <?php endforeach; ?>
                 </div>
             </div>
-            <button type="button" onclick="cancelarFotoChat()" class="p-1.5 text-rose-400 hover:text-rose-300 font-black text-xs hover:bg-rose-500/10 rounded-lg transition" title="Remover foto">
-                ✕
-            </button>
-        </div>
 
-        <!-- Barra Inferior Fixa de Digitação & Anexos -->
-        <div class="fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 p-3 max-w-xl mx-auto">
-            <!-- Input File Oculto -->
-            <input type="file" id="inputFotoChat" accept="image/*" class="hidden" onchange="selecionarFotoChat(this)">
-
-            <form onsubmit="event.preventDefault(); enviarMensagemChat();" class="flex items-center gap-1.5 m-0">
-                <!-- Botão Emoji -->
-                <button type="button" onclick="toggleEmojisChat()" class="p-2.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 text-base transition active:scale-95 flex-shrink-0" title="Inserir Emoji">
-                    😊
+            <!-- Box de Preview de Imagem Selecionada -->
+            <div id="boxPreviewFotoChat" class="hidden bg-slate-950/90 border border-indigo-500/40 rounded-2xl p-2 flex items-center justify-between gap-3 mb-2 shadow-lg">
+                <div class="flex items-center gap-2 min-w-0">
+                    <img id="imgPreviewFotoChat" src="" class="w-12 h-12 rounded-xl object-cover border border-slate-700">
+                    <div class="min-w-0">
+                        <span class="text-xs font-bold text-white block truncate">Foto selecionada</span>
+                        <span class="text-[10px] text-indigo-400 font-medium">Pronta para envio</span>
+                    </div>
+                </div>
+                <button type="button" onclick="cancelarFotoChat()" class="p-1.5 text-rose-400 hover:text-rose-300 font-black text-xs hover:bg-rose-500/10 rounded-lg transition" title="Remover foto">
+                    ✕
                 </button>
+            </div>
 
-                <!-- Botão Foto / Câmera -->
-                <button type="button" onclick="document.getElementById('inputFotoChat').click()" class="p-2.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 text-base transition active:scale-95 flex-shrink-0" title="Anexar Foto">
-                    📷
-                </button>
+            <!-- Barra Inferior Fixa de Digitação & Anexos -->
+            <div class="fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 p-3 max-w-xl mx-auto">
+                <!-- Input File Oculto -->
+                <input type="file" id="inputFotoChat" accept="image/*" class="hidden" onchange="selecionarFotoChat(this)">
 
-                <input type="text" id="inputTextoChat" placeholder="Digite uma mensagem..." class="flex-1 px-3.5 py-2.5 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs text-white placeholder-slate-500 transition">
-                
-                <button type="submit" id="btnEnviarChat" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-1 active:scale-95 flex-shrink-0">
-                    <span>Enviar</span>
-                    <span>🚀</span>
-                </button>
-            </form>
-        </div>
+                <form onsubmit="event.preventDefault(); enviarMensagemChat();" class="flex items-center gap-1.5 m-0">
+                    <!-- Botão Emoji -->
+                    <button type="button" onclick="toggleEmojisChat()" class="p-2.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 text-base transition active:scale-95 flex-shrink-0" title="Inserir Emoji">
+                        😊
+                    </button>
+
+                    <!-- Botão Foto / Câmera -->
+                    <button type="button" onclick="document.getElementById('inputFotoChat').click()" class="p-2.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 text-base transition active:scale-95 flex-shrink-0" title="Anexar Foto">
+                        📷
+                    </button>
+
+                    <input type="text" id="inputTextoChat" placeholder="Digite uma mensagem..." class="flex-1 px-3.5 py-2.5 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs text-white placeholder-slate-500 transition">
+                    
+                    <button type="submit" id="btnEnviarChat" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-1 active:scale-95 flex-shrink-0">
+                        <span>Enviar</span>
+                        <span>🚀</span>
+                    </button>
+                </form>
+            </div>
+        <?php endif; ?>
+
+    </main>
 
     </main>
 
