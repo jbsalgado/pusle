@@ -50,12 +50,12 @@ class CardapioController extends Controller
 
         $categorias = Categoria::find()
             ->where(['usuario_id' => $tenantId, 'ativo' => true])
-            ->orderBy(['nome' => SORT_ASC])
+            ->orderBy(['ordem' => SORT_ASC, 'nome' => SORT_ASC])
             ->all();
 
         $produtos = Produto::find()
             ->where(['usuario_id' => $tenantId, 'ativo' => true])
-            ->with(['opcionais'])
+            ->with(['opcionais', 'fotos'])
             ->orderBy(['nome' => SORT_ASC])
             ->all();
 
@@ -68,6 +68,94 @@ class CardapioController extends Controller
             'produtos' => $produtos,
             'comanda' => $comanda,
         ]);
+    }
+
+    /**
+     * Retorna o extrato e status dos itens pedidos pela mesa em tempo real (JSON)
+     */
+    public function actionExtratoMesa($id)
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $mesa = Mesa::findOne($id);
+        if (!$mesa) {
+            return ['success' => false, 'message' => 'Mesa não encontrada.'];
+        }
+
+        $comanda = $mesa->comandaAtiva;
+        if (!$comanda) {
+            return [
+                'success' => true,
+                'status_mesa' => $mesa->status,
+                'comanda_numero' => null,
+                'itens' => [],
+                'total' => 0.00,
+                'total_formatado' => '0,00',
+                'count' => 0,
+            ];
+        }
+
+        $itens = ComandaItem::find()
+            ->where(['comanda_id' => $comanda->id])
+            ->with(['produto'])
+            ->orderBy(['data_pedido' => SORT_DESC, 'id' => SORT_DESC])
+            ->all();
+
+        $dadosItens = [];
+        $totalAcumulado = 0.00;
+
+        foreach ($itens as $it) {
+            $subtotal = (float)$it->quantidade * (float)$it->valor_unitario;
+            $totalAcumulado += $subtotal;
+            $prod = $it->produto;
+            $fotoObj = $prod ? $prod->fotoPrincipal : null;
+            $fotoUrl = ($fotoObj && method_exists($fotoObj, 'getUrl')) ? $fotoObj->getUrl() : null;
+
+            $statusPreparo = $it->status_preparo ?: ComandaItem::STATUS_PENDENTE;
+            $statusLabel = 'Na Cozinha';
+            $statusBadge = 'bg-amber-500/10 text-amber-700 border-amber-200';
+            $statusIcon = '🕒';
+
+            if ($statusPreparo === ComandaItem::STATUS_EM_PREPARO) {
+                $statusLabel = 'Em Preparo';
+                $statusBadge = 'bg-blue-500/10 text-blue-700 border-blue-200';
+                $statusIcon = '🔥';
+            } elseif ($statusPreparo === ComandaItem::STATUS_PRONTO) {
+                $statusLabel = 'Pronto p/ Entrega';
+                $statusBadge = 'bg-purple-500/10 text-purple-700 border-purple-200';
+                $statusIcon = '🔔';
+            } elseif ($statusPreparo === ComandaItem::STATUS_ENTREGUE) {
+                $statusLabel = 'Entregue na Mesa';
+                $statusBadge = 'bg-emerald-500/10 text-emerald-700 border-emerald-200';
+                $statusIcon = '✅';
+            }
+
+            $dadosItens[] = [
+                'id' => $it->id,
+                'nome' => $prod ? $prod->nome : 'Item da Comanda',
+                'foto' => $fotoUrl,
+                'quantidade' => (float)$it->quantidade,
+                'valor_unitario' => (float)$it->valor_unitario,
+                'subtotal' => $subtotal,
+                'subtotal_formatado' => number_format($subtotal, 2, ',', '.'),
+                'observacoes' => $it->observacoes,
+                'status_preparo' => $statusPreparo,
+                'status_label' => $statusLabel,
+                'status_badge' => $statusBadge,
+                'status_icon' => $statusIcon,
+                'data_pedido' => $it->data_pedido ? date('H:i', strtotime($it->data_pedido)) : date('H:i'),
+            ];
+        }
+
+        return [
+            'success' => true,
+            'status_mesa' => $mesa->status,
+            'comanda_numero' => $comanda->numero_comanda,
+            'cliente_nome' => $comanda->cliente_nome,
+            'itens' => $dadosItens,
+            'total' => $totalAcumulado,
+            'total_formatado' => number_format($totalAcumulado, 2, ',', '.'),
+            'count' => count($dadosItens),
+        ];
     }
 
     /**
@@ -129,7 +217,7 @@ class CardapioController extends Controller
         }
 
         if ($mesa->getConsumoTotal() <= 0) {
-            return ['success' => false, 'message' => 'A mesa ainda não possui consumo para fechar a conta.'];
+            return ['success' => false, 'message' => 'A mesa ainda não possui consumo registrado para fechar a conta.'];
         }
 
         $mesa->status = Mesa::STATUS_AGUARDANDO_CONTA;
@@ -170,7 +258,7 @@ class CardapioController extends Controller
             return ['success' => false, 'message' => 'Mesa não encontrada.'];
         }
 
-        $itens = json_decode($itensRaw, true);
+        $itens = is_array($itensRaw) ? $itensRaw : json_decode($itensRaw, true);
         if (empty($itens)) {
             return ['success' => false, 'message' => 'Seu carrinho está vazio!'];
         }
@@ -205,6 +293,10 @@ class CardapioController extends Controller
             }
         }
 
-        return ['success' => true, 'message' => "{$salvos} pedido(s) enviado(s) para a cozinha com sucesso!"];
+        return [
+            'success' => true, 
+            'message' => "{$salvos} item(ns) enviado(s) para a cozinha com sucesso!",
+            'salvos' => $salvos
+        ];
     }
 }
