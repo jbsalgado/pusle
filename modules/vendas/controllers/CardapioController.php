@@ -19,6 +19,7 @@ use app\modules\evolution\services\EvolutionService;
 class CardapioController extends Controller
 {
     public $layout = false; // Layout limpo para dispositivos móveis
+    public $enableCsrfValidation = false; // Endpoint público para clientes de mesas via QR Code
 
     public function behaviors()
     {
@@ -75,7 +76,11 @@ class CardapioController extends Controller
     public function actionChamarGarcom()
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
-        $mesaId = Yii::$app->request->post('mesa_id');
+        $mesaId = Yii::$app->request->post('mesa_id') ?: Yii::$app->request->get('mesa_id');
+        if (empty($mesaId)) {
+            $raw = json_decode(Yii::$app->request->getRawBody(), true);
+            $mesaId = $raw['mesa_id'] ?? null;
+        }
 
         $mesa = Mesa::findOne($mesaId);
         if (!$mesa) {
@@ -97,9 +102,9 @@ class CardapioController extends Controller
         // Notificação de WhatsApp (Opcional)
         try {
             $loja = Usuario::findOne($mesa->usuario_id);
-            if ($loja && !empty($loja->celular)) {
+            if ($loja && !empty($loja->telefone)) {
                 $evolution = new EvolutionService();
-                $evolution->sendMessage($mesa->usuario_id, $loja->celular, "🔔 *ATENÇÃO*: O cliente na *Mesa {$mesa->numero_mesa}* chamou o garçom!");
+                $evolution->sendMessage($mesa->usuario_id, $loja->telefone, "🔔 *ATENÇÃO*: O cliente na *Mesa {$mesa->numero_mesa}* chamou o garçom!");
             }
         } catch (\Exception $e) {}
 
@@ -112,7 +117,11 @@ class CardapioController extends Controller
     public function actionPedirConta()
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
-        $mesaId = Yii::$app->request->post('mesa_id');
+        $mesaId = Yii::$app->request->post('mesa_id') ?: Yii::$app->request->get('mesa_id');
+        if (empty($mesaId)) {
+            $raw = json_decode(Yii::$app->request->getRawBody(), true);
+            $mesaId = $raw['mesa_id'] ?? null;
+        }
 
         $mesa = Mesa::findOne($mesaId);
         if (!$mesa) {
@@ -148,8 +157,11 @@ class CardapioController extends Controller
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
         $request = Yii::$app->request->post();
+        if (empty($request)) {
+            $request = json_decode(Yii::$app->request->getRawBody(), true) ?: [];
+        }
 
-        $mesaId = $request['mesa_id'] ?? null;
+        $mesaId = $request['mesa_id'] ?? Yii::$app->request->get('mesa_id');
         $itensRaw = $request['itens'] ?? '[]';
         $clienteNome = trim($request['cliente_nome'] ?? 'Cliente QR Code');
 

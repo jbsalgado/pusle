@@ -11,6 +11,7 @@ $nomeLoja = ($loja && !empty($loja->nome)) ? $loja->nome : 'PULSE Food Service';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cardápio Digital — Mesa <?= Html::encode($mesa->numero_mesa) ?></title>
+    <?= Html::csrfMetaTags() ?>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; }
@@ -282,18 +283,30 @@ $nomeLoja = ($loja && !empty($loja->nome)) ? $loja->nome : 'PULSE Food Service';
             formData.append('mesa_id', mesaId);
             formData.append('itens', JSON.stringify(carrinho));
 
+            const csrfParam = document.querySelector('meta[name="csrf-param"]')?.content;
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            if (csrfParam && csrfToken) {
+                formData.append(csrfParam, csrfToken);
+            }
+
             const resp = await fetch('<?= Url::to(['/vendas/cardapio/fazer-pedido-mesa']) ?>', {
                 method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
+                },
                 body: formData
             });
 
             const data = await resp.json();
-            alert(data.message);
+            alert(data.message || 'Pedido enviado!');
             if (data.success) {
                 carrinho = [];
                 atualizarBarCarrinho();
             }
         } catch(e) {
+            console.error(e);
             alert('Erro ao enviar pedido para a mesa.');
         } finally {
             btn.disabled = false;
@@ -305,20 +318,58 @@ $nomeLoja = ($loja && !empty($loja->nome)) ? $loja->nome : 'PULSE Food Service';
         try {
             const formData = new FormData();
             formData.append('mesa_id', mesaId);
-            const resp = await fetch('<?= Url::to(['/vendas/cardapio/chamar-garcom']) ?>', { method: 'POST', body: formData });
+
+            const csrfParam = document.querySelector('meta[name="csrf-param"]')?.content;
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            if (csrfParam && csrfToken) {
+                formData.append(csrfParam, csrfToken);
+            }
+
+            const resp = await fetch('<?= Url::to(['/vendas/cardapio/chamar-garcom']) ?>', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
+                },
+                body: formData
+            });
+
             const data = await resp.json();
-            alert(data.message);
-        } catch(e) { alert('Erro ao chamar garçom.'); }
+            alert(data.message || 'Garçom chamado! Atendente a caminho.');
+        } catch(e) {
+            console.error(e);
+            alert('Erro ao chamar garçom.');
+        }
     }
 
     async function pedirContaAction() {
         try {
             const formData = new FormData();
             formData.append('mesa_id', mesaId);
-            const resp = await fetch('<?= Url::to(['/vendas/cardapio/pedir-conta']) ?>', { method: 'POST', body: formData });
+
+            const csrfParam = document.querySelector('meta[name="csrf-param"]')?.content;
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            if (csrfParam && csrfToken) {
+                formData.append(csrfParam, csrfToken);
+            }
+
+            const resp = await fetch('<?= Url::to(['/vendas/cardapio/pedir-conta']) ?>', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
+                },
+                body: formData
+            });
+
             const data = await resp.json();
-            alert(data.message);
-        } catch(e) { alert('Erro ao pedir conta.'); }
+            alert(data.message || 'Conta solicitada!');
+        } catch(e) {
+            console.error(e);
+            alert('Erro ao pedir conta.');
+        }
     }
     </script>
 </body>
