@@ -26,9 +26,17 @@ use yii\db\ActiveRecord;
  * @property int         $limite_diario_mensagens  Limite máximo diário de mensagens por instância
  * @property int         $mensagens_enviadas_hoje  Contador de mensagens enviadas na data atual
  * @property string|null $data_contador_diario     Data de referência do contador diário (Y-m-d)
+ * @property string      $provider                 'evolution' | 'meta_cloud'
+ * @property string|null $meta_waba_id             WhatsApp Business Account ID
+ * @property string|null $meta_phone_number_id     ID do Número de Telefone na Meta
+ * @property string|null $meta_access_token         Token de Acesso de Sistema da Meta
+ * @property string|null $meta_webhook_verify_token Token de Verificação do Webhook Meta
  */
 class WhatsappConfig extends ActiveRecord
 {
+    public const PROVIDER_EVOLUTION  = 'evolution';
+    public const PROVIDER_META_CLOUD = 'meta_cloud';
+
     /**
      * @inheritdoc
      */
@@ -46,6 +54,11 @@ class WhatsappConfig extends ActiveRecord
             [['empresa_id', 'instance_name'], 'required'],
             [['empresa_id'], 'string', 'max' => 36],
             [['instance_name', 'token', 'proxy_host', 'proxy_user', 'proxy_pass'], 'string', 'max' => 255],
+            [['meta_waba_id', 'meta_phone_number_id', 'meta_webhook_verify_token'], 'string', 'max' => 100],
+            [['meta_access_token'], 'string'],
+            [['provider'], 'string', 'max' => 30],
+            [['provider'], 'in', 'range' => [self::PROVIDER_EVOLUTION, self::PROVIDER_META_CLOUD]],
+            [['provider'], 'default', 'value' => self::PROVIDER_EVOLUTION],
             [['status'], 'string', 'max' => 50],
             [['status'], 'in', 'range' => ['CONNECTED', 'DISCONNECTED']],
             [['status'], 'default', 'value' => 'DISCONNECTED'],
@@ -77,25 +90,48 @@ class WhatsappConfig extends ActiveRecord
     public function attributeLabels(): array
     {
         return [
-            'id'                      => 'ID',
-            'empresa_id'              => 'Empresa',
-            'instance_name'           => 'Nome da Instância',
-            'token'                   => 'Token',
-            'status'                  => 'Status',
-            'delay_min'               => 'Delay Mínimo (ms)',
-            'delay_max'               => 'Delay Máximo (ms)',
-            'simular_digitacao'       => 'Simular Digitação',
-            'proxy_host'              => 'Host do Proxy (IP:Porta)',
-            'proxy_user'              => 'Usuário do Proxy',
-            'proxy_pass'              => 'Senha do Proxy',
-            'lote_tamanho'            => 'Tamanho do Lote (mensagens)',
-            'lote_pausa_segundos'     => 'Pausa entre Lotes (segundos)',
-            'limite_diario_mensagens' => 'Limite Diário de Mensagens',
-            'mensagens_enviadas_hoje' => 'Mensagens Enviadas Hoje',
-            'data_contador_diario'    => 'Data do Contador',
-            'created_at'              => 'Criado em',
-            'updated_at'              => 'Atualizado em',
+            'id'                        => 'ID',
+            'empresa_id'                => 'Empresa',
+            'instance_name'             => 'Nome da Instância',
+            'token'                     => 'Token',
+            'provider'                  => 'Provedor de WhatsApp',
+            'meta_waba_id'              => 'WABA ID (Conta WhatsApp)',
+            'meta_phone_number_id'      => 'Phone Number ID',
+            'meta_access_token'         => 'Access Token Permanente',
+            'meta_webhook_verify_token' => 'Verify Token Webhook',
+            'status'                    => 'Status',
+            'delay_min'                 => 'Delay Mínimo (ms)',
+            'delay_max'                 => 'Delay Máximo (ms)',
+            'simular_digitacao'         => 'Simular Digitação',
+            'proxy_host'                => 'Host do Proxy (IP:Porta)',
+            'proxy_user'                => 'Usuário do Proxy',
+            'proxy_pass'                => 'Senha do Proxy',
+            'lote_tamanho'              => 'Tamanho do Lote (mensagens)',
+            'lote_pausa_segundos'       => 'Pausa entre Lotes (segundos)',
+            'limite_diario_mensagens'   => 'Limite Diário de Mensagens',
+            'mensagens_enviadas_hoje'   => 'Mensagens Enviadas Hoje',
+            'data_contador_diario'      => 'Data do Contador',
+            'created_at'                => 'Criado em',
+            'updated_at'                => 'Atualizado em',
         ];
+    }
+
+    /**
+     * Verifica se o tenant está utilizando a API Oficial da Meta
+     */
+    public function isMetaOficial(): bool
+    {
+        return $this->provider === self::PROVIDER_META_CLOUD 
+            && !empty($this->meta_phone_number_id) 
+            && !empty($this->meta_access_token);
+    }
+
+    /**
+     * Verifica se o tenant está utilizando o motor Evolution (não oficial)
+     */
+    public function isEvolution(): bool
+    {
+        return $this->provider === self::PROVIDER_EVOLUTION || empty($this->provider);
     }
 
     /**

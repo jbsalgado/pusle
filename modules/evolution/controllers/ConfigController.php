@@ -48,16 +48,21 @@ class ConfigController extends Controller
         $connected       = false;
         $config          = null;
         $connectedNumber = null;
+        $templates       = [];
 
         try {
             $empresaId = Yii::$app->user->identity ? Yii::$app->user->identity->getTenantId() : null;
             if ($empresaId) {
-                $service         = new EvolutionService();
-                $connected       = $service->checkStatus($empresaId);
-                $config          = WhatsappConfig::findByEmpresa($empresaId);
+                $service   = new EvolutionService();
+                $connected = $service->checkStatus($empresaId);
+                $config    = WhatsappConfig::findByEmpresa($empresaId);
                 if ($connected) {
                     $connectedNumber = $service->getConnectedNumber($empresaId);
                 }
+                $templates = \app\modules\evolution\models\WhatsappTemplate::find()
+                    ->where(['empresa_id' => $empresaId])
+                    ->orderBy(['created_at' => SORT_DESC])
+                    ->all();
             }
         } catch (\Throwable $t) {
             Yii::error("ConfigController::actionIndex — Erro ao verificar status: " . $t->getMessage(), __METHOD__);
@@ -68,7 +73,115 @@ class ConfigController extends Controller
             'config'          => $config,
             'connected'       => $connected,
             'connectedNumber' => $connectedNumber,
+            'templates'       => $templates,
         ]);
+    }
+
+    /**
+     * Salva as configurações da API Oficial da Meta (Cloud API).
+     */
+    public function actionSaveMeta(): Response
+    {
+        $empresaId = Yii::$app->user->identity->getTenantId();
+        $config    = WhatsappConfig::findByEmpresa($empresaId);
+
+        if ($config === null) {
+            $config = new WhatsappConfig();
+            $config->empresa_id = $empresaId;
+            $config->instance_name = 'pulse_empresa_id_' . substr(str_replace('-', '', $empresaId), 0, 12);
+        }
+
+        if (Yii::$app->request->isPost) {
+            $post = Yii::$app->request->post();
+
+            $config->provider                  = $post['provider'] ?? WhatsappConfig::PROVIDER_EVOLUTION;
+            $config->meta_waba_id              = !empty($post['meta_waba_id']) ? trim((string)$post['meta_waba_id']) : null;
+            $config->meta_phone_number_id      = !empty($post['meta_phone_number_id']) ? trim((string)$post['meta_phone_number_id']) : null;
+            $config->meta_access_token         = !empty($post['meta_access_token']) ? trim((string)$post['meta_access_token']) : null;
+            $config->meta_webhook_verify_token = !empty($post['meta_webhook_verify_token']) ? trim((string)$post['meta_webhook_verify_token']) : null;
+
+            if ($config->isMetaOficial()) {
+                $config->status = 'CONNECTED';
+            }
+
+            if ($config->save()) {
+                Yii::$app->session->setFlash('success', 'Configurações da API Oficial da Meta salvas com sucesso.');
+            } else {
+                $errors = implode(', ', $config->getErrorSummary(true));
+                Yii::$app->session->setFlash('error', 'Erro ao salvar credenciais Meta: ' . $errors);
+            }
+        }
+
+        return $this->redirect(['index']);
+    }
+
+    /**
+     * Sincroniza templates aprovados na conta da Meta (WABA).
+     */
+    public function actionSyncTemplates(): Response
+    {
+        $empresaId = Yii::$app->user->identity->getTenantId();
+        $config    = WhatsappConfig::findByEmpresa($empresaId);
+
+        if ($config === null || !$config->isMetaOficial()) {
+            Yii::$app->session->setFlash('error', 'Configure e salve o WABA ID e Token da Meta antes de sincronizar templates.');
+            return $this->redirect(['index']);
+        }
+
+        $metaService = new \app\modules\evolution\services\MetaWhatsAppService();
+        $result = $metaService->syncTemplates($config->meta_waba_id, $config->meta_access_token, $empresaId);
+
+        if ($result['success']) {
+            Yii::$app->session->setFlash('success', $result['message']);
+        } else {
+            Yii::$app->session->setFlash('error', 'Falha ao sincronizar templates com a Meta: ' . $result['message']);
+        }
+
+        return $this->redirect(['index']);
+    }
+
+    /**
+     * Cria e submete um novo template HSM à Meta
+     */
+    public function actionCreateTemplate(): Response
+    {
+        $empresaId = Yii::$app->user->identity->getTenantId();
+        $config    = WhatsappConfig::findByEmpresa($empresaId);
+
+        if ($config === null || !$config->isMetaOficial()) {
+            Yii::$app->session->setFlash('error', 'Configure a API Oficial da Meta antes de criar templates.');
+            return $this->redirect(['index']);
+        }
+
+        if (Yii::$app->request->isPost) {
+            $post = Yii::$app->request->post();
+
+            $template = new \app\modules\evolution\models\WhatsappTemplate();
+            $template->empresa_id   = $empresaId;
+            $template->name         = strtolower(preg_replace('/[^a-z0-9_]/', '_', trim($post['name'] ?? '')));
+            $template->category     = $post['category'] ?? \app\modules\evolution\models\WhatsappTemplate::CATEGORY_UTILITY;
+            $template->language     = $post['language'] ?? 'pt_BR';
+            $template->header_type  = $post['header_type'] ?? 'NONE';
+            $template->header_text  = !empty($post['header_text']) ? trim($post['header_text']) : null;
+            $template->body_text    = trim($post['body_text'] ?? '');
+            $template->footer_text  = !empty($post['footer_text']) ? trim($post['footer_text']) : null;
+
+            if ($template->validate()) {
+                $metaService = new \app\modules\evolution\services\MetaWhatsAppService();
+                $submitted = $metaService->createTemplate($config->meta_waba_id, $config->meta_access_token, $template);
+
+                if ($submitted) {
+                    Yii::$app->session->setFlash('success', "Template '{$template->name}' submetido à Meta com sucesso para análise.");
+                } else {
+                    Yii::$app->session->setFlash('error', 'Erro ao submeter template para a Meta: ' . ($metaService->lastError ?: 'Falha na requisição.'));
+                }
+            } else {
+                $errors = implode(', ', $template->getErrorSummary(true));
+                Yii::$app->session->setFlash('error', 'Erro de validação do template: ' . $errors);
+            }
+        }
+
+        return $this->redirect(['index']);
     }
 
     /**

@@ -358,6 +358,23 @@ class EvolutionService
         $this->lastError = null;
         $config = WhatsappConfig::findByEmpresa($empresaId);
 
+        // Gateway Híbrido: Se a empresa usa API Oficial da Meta
+        if ($config !== null && $config->isMetaOficial()) {
+            $metaService = new MetaWhatsAppService();
+            $sent = $metaService->sendTextMessage(
+                $config->meta_phone_number_id,
+                $config->meta_access_token,
+                $to,
+                $text
+            );
+            if (!$sent) {
+                $this->lastError = $metaService->lastError;
+            } else {
+                $config->incrementarEnvioHoje();
+            }
+            return $sent;
+        }
+
         if ($config === null || empty($config->token)) {
             $this->lastError = "Instância do WhatsApp não configurada ou sem token.";
             Yii::error(
@@ -443,6 +460,13 @@ class EvolutionService
      */
     public function checkStatus(string $empresaId): bool
     {
+        $config = WhatsappConfig::findByEmpresa($empresaId);
+        if ($config !== null && $config->isMetaOficial()) {
+            $config->status = 'CONNECTED';
+            $config->save(false);
+            return true;
+        }
+
         $instanceName = $this->buildInstanceName($empresaId);
 
         try {
@@ -670,6 +694,41 @@ class EvolutionService
         $this->lastError = null;
         $config = WhatsappConfig::findByEmpresa($empresaId);
 
+        // Gateway Híbrido: Meta Cloud API Oficial
+        if ($config !== null && $config->isMetaOficial()) {
+            $metaService = new MetaWhatsAppService();
+            // Salva o documento temporariamente para servir URL pública caso seja base64
+            $docUrl = $base64;
+            if (strpos($base64, 'http://') !== 0 && strpos($base64, 'https://') !== 0) {
+                $clean = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', $base64);
+                $binary = base64_decode($clean);
+                $dir = Yii::getAlias('@app/web/uploads/temp_meta');
+                if (!is_dir($dir)) {
+                    @mkdir($dir, 0775, true);
+                }
+                $tmpName = uniqid('doc_') . '_' . $filename;
+                file_put_contents($dir . '/' . $tmpName, $binary);
+                $baseUrl = Yii::$app->params['domain'] ?? 'https://catalogos.oncode.app.br';
+                $docUrl = rtrim($baseUrl, '/') . '/uploads/temp_meta/' . $tmpName;
+            }
+
+            $sent = $metaService->sendMediaMessage(
+                $config->meta_phone_number_id,
+                $config->meta_access_token,
+                $to,
+                'document',
+                $docUrl,
+                $caption,
+                $filename
+            );
+            if (!$sent) {
+                $this->lastError = $metaService->lastError;
+            } else {
+                $config->incrementarEnvioHoje();
+            }
+            return $sent;
+        }
+
         if ($config === null || empty($config->token)) {
             $this->lastError = "Instância do WhatsApp não configurada ou sem token para empresa {$empresaId}.";
             Yii::error("EvolutionService::sendDocument — {$this->lastError}", __METHOD__);
@@ -745,6 +804,40 @@ class EvolutionService
     {
         $this->lastError = null;
         $config = WhatsappConfig::findByEmpresa($empresaId);
+
+        // Gateway Híbrido: Meta Cloud API Oficial
+        if ($config !== null && $config->isMetaOficial()) {
+            $metaService = new MetaWhatsAppService();
+            $mediaUrl = $mediaData;
+            if (strpos($mediaData, 'http://') !== 0 && strpos($mediaData, 'https://') !== 0) {
+                $clean = preg_replace('/^data:[a-zA-Z0-9\/+-]+;base64,/i', '', $mediaData);
+                $binary = base64_decode($clean);
+                $ext = ($mediaType === 'video') ? 'mp4' : 'jpg';
+                $dir = Yii::getAlias('@app/web/uploads/temp_meta');
+                if (!is_dir($dir)) {
+                    @mkdir($dir, 0775, true);
+                }
+                $tmpName = uniqid('media_') . '.' . $ext;
+                file_put_contents($dir . '/' . $tmpName, $binary);
+                $baseUrl = Yii::$app->params['domain'] ?? 'https://catalogos.oncode.app.br';
+                $mediaUrl = rtrim($baseUrl, '/') . '/uploads/temp_meta/' . $tmpName;
+            }
+
+            $sent = $metaService->sendMediaMessage(
+                $config->meta_phone_number_id,
+                $config->meta_access_token,
+                $to,
+                $mediaType ?: 'image',
+                $mediaUrl,
+                $caption
+            );
+            if (!$sent) {
+                $this->lastError = $metaService->lastError;
+            } else {
+                $config->incrementarEnvioHoje();
+            }
+            return $sent;
+        }
 
         if ($config === null || empty($config->token)) {
             $msg = "Instância do WhatsApp não configurada ou sem token para a loja.";
