@@ -176,14 +176,17 @@ $this->params['breadcrumbs'][] = $this->title;
                     </div>
 
                     <!-- Abas de Filtro na Gaveta -->
-                    <div class="flex border-b border-gray-200 px-4 pt-2 bg-gray-50 gap-2 text-xs font-bold">
-                        <button type="button" onclick="filtrarDrawer('todos')" id="drawerTabTodos" class="py-2 px-3 border-b-2 border-amber-600 text-amber-900 font-extrabold">
+                    <div class="flex border-b border-gray-200 px-3 pt-2 bg-gray-50 gap-1.5 text-xs font-bold overflow-x-auto scrollbar-none">
+                        <button type="button" onclick="filtrarDrawer('todos')" id="drawerTabTodos" class="py-2 px-2.5 border-b-2 border-amber-600 text-amber-900 font-extrabold flex-shrink-0">
                             Todos (<span id="drawerCountTodos">0</span>)
                         </button>
-                        <button type="button" onclick="filtrarDrawer('garcom')" id="drawerTabGarcom" class="py-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-gray-900">
+                        <button type="button" onclick="filtrarDrawer('chat')" id="drawerTabChat" class="py-2 px-2.5 border-b-2 border-transparent text-gray-500 hover:text-gray-900 flex-shrink-0">
+                            💬 Mensagens (<span id="drawerCountChat">0</span>)
+                        </button>
+                        <button type="button" onclick="filtrarDrawer('garcom')" id="drawerTabGarcom" class="py-2 px-2.5 border-b-2 border-transparent text-gray-500 hover:text-gray-900 flex-shrink-0">
                             👋 Garçom (<span id="drawerCountGarcom">0</span>)
                         </button>
-                        <button type="button" onclick="filtrarDrawer('conta')" id="drawerTabConta" class="py-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-gray-900">
+                        <button type="button" onclick="filtrarDrawer('conta')" id="drawerTabConta" class="py-2 px-2.5 border-b-2 border-transparent text-gray-500 hover:text-gray-900 flex-shrink-0">
                             💳 Conta (<span id="drawerCountConta">0</span>)
                         </button>
                     </div>
@@ -233,7 +236,7 @@ $this->params['breadcrumbs'][] = $this->title;
                             container.classList.remove('hidden');
                             if (badgeTotal) badgeTotal.innerText = data.total;
                             if (badgeDrawerBtn) badgeDrawerBtn.innerText = data.total;
-                            if (resumoGarcom) resumoGarcom.innerText = `${data.garcom_total || 0} Garçom`;
+                            if (resumoGarcom) resumoGarcom.innerText = `${data.garcom_total || 0} Garçom &bull; ${data.chat_total || 0} Chat`;
                             if (resumoConta) resumoConta.innerText = `${data.conta_total || 0} Conta(s)`;
 
                             // Renderiza até 3 chips mais recentes no banner
@@ -244,7 +247,7 @@ $this->params['breadcrumbs'][] = $this->title;
                                     const btn = document.createElement('button');
                                     btn.className = 'px-3 py-1.5 bg-white text-gray-900 font-extrabold text-xs rounded-xl shadow hover:bg-amber-50 hover:text-amber-900 transition-all flex items-center gap-1.5 border border-amber-200 active:scale-95';
                                     btn.title = 'Clique para dar baixa no chamado';
-                                    btn.innerHTML = `<span>${ch.tipo === 'conta' ? '💳' : '👋'}</span> <span>Mesa ${ch.mesa_numero}</span> <span class="text-gray-400 hover:text-rose-600 font-black">&times;</span>`;
+                                    btn.innerHTML = `<span>${ch.tipo_icon || (ch.tipo === 'conta' ? '💳' : '👋')}</span> <span>Mesa ${ch.mesa_numero}</span> <span class="text-gray-400 hover:text-rose-600 font-black">&times;</span>`;
                                     btn.onclick = () => atenderChamado(ch.id);
                                     chipsContainer.appendChild(btn);
                                 });
@@ -269,15 +272,17 @@ $this->params['breadcrumbs'][] = $this->title;
 
             function filtrarDrawer(tipo) {
                 filtroDrawerAtual = tipo;
-                document.getElementById('drawerTabTodos').className = tipo === 'todos' ? 'py-2 px-3 border-b-2 border-amber-600 text-amber-900 font-extrabold' : 'py-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-gray-900';
-                document.getElementById('drawerTabGarcom').className = tipo === 'garcom' ? 'py-2 px-3 border-b-2 border-amber-600 text-amber-900 font-extrabold' : 'py-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-gray-900';
-                document.getElementById('drawerTabConta').className = tipo === 'conta' ? 'py-2 px-3 border-b-2 border-amber-600 text-amber-900 font-extrabold' : 'py-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-gray-900';
+                document.getElementById('drawerTabTodos').className = tipo === 'todos' ? 'py-2 px-2.5 border-b-2 border-amber-600 text-amber-900 font-extrabold flex-shrink-0' : 'py-2 px-2.5 border-b-2 border-transparent text-gray-500 hover:text-gray-900 flex-shrink-0';
+                document.getElementById('drawerTabChat').className = tipo === 'chat' ? 'py-2 px-2.5 border-b-2 border-amber-600 text-amber-900 font-extrabold flex-shrink-0' : 'py-2 px-2.5 border-b-2 border-transparent text-gray-500 hover:text-gray-900 flex-shrink-0';
+                document.getElementById('drawerTabGarcom').className = tipo === 'garcom' ? 'py-2 px-2.5 border-b-2 border-amber-600 text-amber-900 font-extrabold flex-shrink-0' : 'py-2 px-2.5 border-b-2 border-transparent text-gray-500 hover:text-gray-900 flex-shrink-0';
+                document.getElementById('drawerTabConta').className = tipo === 'conta' ? 'py-2 px-2.5 border-b-2 border-amber-600 text-amber-900 font-extrabold flex-shrink-0' : 'py-2 px-2.5 border-b-2 border-transparent text-gray-500 hover:text-gray-900 flex-shrink-0';
                 renderizarListaDrawer();
             }
 
             function atualizarConteudoDrawer(data) {
                 document.getElementById('drawerSubtitulo').innerText = `${data.total} mesa(s) aguardando atendimento`;
                 document.getElementById('drawerCountTodos').innerText = data.total;
+                document.getElementById('drawerCountChat').innerText = data.chat_total || 0;
                 document.getElementById('drawerCountGarcom').innerText = data.garcom_total || 0;
                 document.getElementById('drawerCountConta').innerText = data.conta_total || 0;
                 renderizarListaDrawer();
@@ -286,8 +291,10 @@ $this->params['breadcrumbs'][] = $this->title;
             function renderizarListaDrawer() {
                 const lista = document.getElementById('drawerListaChamados');
                 let itensFiltrados = chamadosCache;
-                if (filtroDrawerAtual === 'garcom') {
-                    itensFiltrados = chamadosCache.filter(c => c.tipo !== 'conta');
+                if (filtroDrawerAtual === 'chat') {
+                    itensFiltrados = chamadosCache.filter(c => c.tipo === 'chat_cliente');
+                } else if (filtroDrawerAtual === 'garcom') {
+                    itensFiltrados = chamadosCache.filter(c => c.tipo === 'chamado');
                 } else if (filtroDrawerAtual === 'conta') {
                     itensFiltrados = chamadosCache.filter(c => c.tipo === 'conta');
                 }
@@ -305,27 +312,69 @@ $this->params['breadcrumbs'][] = $this->title;
 
                 lista.innerHTML = '';
                 itensFiltrados.forEach(ch => {
-                    lista.innerHTML += `
-                        <div class="bg-white border border-gray-200 hover:border-amber-400 rounded-2xl p-4 shadow-sm transition-all flex items-center justify-between gap-3">
-                            <div class="flex items-center gap-3 min-w-0">
-                                <div class="w-12 h-12 rounded-2xl ${ch.tipo === 'conta' ? 'bg-rose-50 text-rose-600 border border-rose-200' : 'bg-amber-50 text-amber-600 border border-amber-200'} flex items-center justify-center text-2xl flex-shrink-0 font-black">
-                                    ${ch.tipo === 'conta' ? '💳' : '👋'}
-                                </div>
-                                <div class="min-w-0">
-                                    <h4 class="text-sm font-black text-gray-900 truncate m-0">Mesa ${ch.mesa_numero}</h4>
-                                    <div class="flex items-center gap-2 mt-0.5">
-                                        <span class="text-xs font-bold ${ch.tipo === 'conta' ? 'text-rose-600' : 'text-amber-700'}">${ch.tipo_label}</span>
-                                        <span class="text-[11px] text-gray-400">&bull; ${ch.created_at}</span>
+                    if (ch.tipo === 'chat_cliente') {
+                        lista.innerHTML += `
+                            <div class="bg-white border-2 border-indigo-200 hover:border-indigo-400 rounded-2xl p-4 shadow-sm transition-all space-y-3">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200 flex items-center justify-center text-xl flex-shrink-0 font-black">
+                                            💬
+                                        </div>
+                                        <div class="min-w-0">
+                                            <h4 class="text-sm font-black text-gray-900 truncate m-0">Mesa ${ch.mesa_numero}</h4>
+                                            <div class="flex items-center gap-2 mt-0.5">
+                                                <span class="text-xs font-bold text-indigo-600">Mensagem da Mesa</span>
+                                                <span class="text-[11px] text-gray-400">&bull; ${ch.created_at}</span>
+                                            </div>
+                                        </div>
                                     </div>
+
+                                    <button type="button" onclick="atenderChamado('${ch.id}')" class="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-[11px] font-bold rounded-lg transition" title="Marcar como lido">
+                                        ✕ Dispensar
+                                    </button>
+                                </div>
+
+                                <div class="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3 text-xs text-indigo-950 font-medium whitespace-pre-wrap">
+                                    "${ch.texto}"
+                                </div>
+
+                                <!-- Respostas Rápidas do Garçom -->
+                                <div class="flex items-center gap-1.5 flex-wrap pt-1">
+                                    <button type="button" onclick="responderMesa('${ch.mesa_id}', 'A caminho com seu pedido! 👍', '${ch.id}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg shadow-sm transition">
+                                        👍 "A caminho!"
+                                    </button>
+                                    <button type="button" onclick="responderMesa('${ch.mesa_id}', 'Um momento, já estou levando! 😊', '${ch.id}')" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] rounded-lg shadow-sm transition">
+                                        ⚡ "Já estou levando!"
+                                    </button>
+                                    <button type="button" onclick="abrirPromptResposta('${ch.mesa_id}', '${ch.mesa_numero}', '${ch.id}')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-[11px] rounded-lg shadow-sm transition">
+                                        ✏️ Responder
+                                    </button>
                                 </div>
                             </div>
+                        `;
+                    } else {
+                        lista.innerHTML += `
+                            <div class="bg-white border border-gray-200 hover:border-amber-400 rounded-2xl p-4 shadow-sm transition-all flex items-center justify-between gap-3">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <div class="w-12 h-12 rounded-2xl ${ch.tipo === 'conta' ? 'bg-rose-50 text-rose-600 border border-rose-200' : 'bg-amber-50 text-amber-600 border border-amber-200'} flex items-center justify-center text-2xl flex-shrink-0 font-black">
+                                        ${ch.tipo === 'conta' ? '💳' : '👋'}
+                                    </div>
+                                    <div class="min-w-0">
+                                        <h4 class="text-sm font-black text-gray-900 truncate m-0">Mesa ${ch.mesa_numero}</h4>
+                                        <div class="flex items-center gap-2 mt-0.5">
+                                            <span class="text-xs font-bold ${ch.tipo === 'conta' ? 'text-rose-600' : 'text-amber-700'}">${ch.tipo_label}</span>
+                                            <span class="text-[11px] text-gray-400">&bull; ${ch.created_at}</span>
+                                        </div>
+                                    </div>
+                                </div>
 
-                            <button type="button" onclick="atenderChamado('${ch.id}')" class="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white font-black text-xs rounded-xl border border-emerald-300 transition-all flex items-center gap-1 flex-shrink-0 active:scale-95 shadow-sm">
-                                <span>✓</span>
-                                <span>Atender</span>
-                            </button>
-                        </div>
-                    `;
+                                <button type="button" onclick="atenderChamado('${ch.id}')" class="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white font-black text-xs rounded-xl border border-emerald-300 transition-all flex items-center gap-1 flex-shrink-0 active:scale-95 shadow-sm">
+                                    <span>✓</span>
+                                    <span>Atender</span>
+                                </button>
+                            </div>
+                        `;
+                    }
                 });
             }
 

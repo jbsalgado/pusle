@@ -306,4 +306,93 @@ class CardapioController extends Controller
             'salvos' => $salvos
         ];
     }
+
+    /**
+     * Ação Pública: Cliente envia mensagem ou solicitação rápida para o Garçom via Direct Hub
+     */
+    public function actionEnviarMensagemMesa()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $request = Yii::$app->request->post() ?: json_decode(Yii::$app->request->getRawBody(), true) ?: [];
+
+        $mesaId = $request['mesa_id'] ?? Yii::$app->request->get('mesa_id');
+        $mensagem = trim($request['mensagem'] ?? '');
+        $clienteNome = trim($request['cliente_nome'] ?? 'Cliente');
+
+        if (empty($mesaId) || empty($mensagem)) {
+            return ['success' => false, 'message' => 'Informe a mensagem a ser enviada.'];
+        }
+
+        $mesa = Mesa::findOne($mesaId);
+        if (!$mesa) {
+            return ['success' => false, 'message' => 'Mesa não encontrada.'];
+        }
+
+        // Posta a mensagem no Direct Hub / Inbox
+        ClienteInbox::postar(
+            $mesa->usuario_id,
+            null,
+            'chat_cliente',
+            "💬 Mensagem da Mesa {$mesa->numero_mesa}",
+            $mensagem,
+            null,
+            [
+                'mesa_id' => $mesa->id,
+                'mesa_numero' => $mesa->numero_mesa,
+                'cliente_nome' => $clienteNome,
+                'origem' => 'cliente'
+            ],
+            $mesa->id
+        );
+
+        return [
+            'success' => true,
+            'message' => 'Mensagem enviada para o garçom com sucesso!',
+            'hora' => date('H:i')
+        ];
+    }
+
+    /**
+     * Ação Pública: Retorna histórico de mensagens e respostas entre a Mesa e o Garçom
+     */
+    public function actionMensagensMesa($id)
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $mesa = Mesa::findOne($id);
+        if (!$mesa) {
+            return ['success' => false, 'message' => 'Mesa não encontrada.', 'mensagens' => []];
+        }
+
+        $mensagens = ClienteInbox::find()
+            ->where(['mesa_id' => $mesa->id, 'usuario_id' => $mesa->usuario_id])
+            ->andWhere(['in', 'tipo', ['chat_cliente', 'chat_garcom', 'chamado', 'conta', 'card']])
+            ->orderBy(['created_at' => SORT_ASC])
+            ->limit(50)
+            ->all();
+
+        $loja = Usuario::findOne($mesa->usuario_id);
+        $nomeLoja = ($loja && !empty($loja->nome)) ? $loja->nome : 'Equipe / Garçom';
+
+        $data = [];
+        foreach ($mensagens as $m) {
+            $isCliente = ($m->tipo === 'chat_cliente' || $m->tipo === 'chamado' || $m->tipo === 'conta');
+            $data[] = [
+                'id' => $m->id,
+                'tipo' => $m->tipo,
+                'remetente' => $isCliente ? 'cliente' : 'garcom',
+                'autor' => $isCliente ? 'Você' : $nomeLoja,
+                'texto' => $m->conteudo_texto,
+                'hora' => date('H:i', strtotime($m->created_at)),
+                'created_at' => Yii::$app->formatter->asRelativeTime($m->created_at),
+                'lido' => $m->lido,
+            ];
+        }
+
+        return [
+            'success' => true,
+            'mesa_numero' => $mesa->numero_mesa,
+            'mensagens' => $data,
+            'count' => count($data),
+        ];
+    }
 }

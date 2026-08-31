@@ -99,18 +99,24 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
             </div>
         </div>
 
-        <!-- ABAS DE NAVEGAÇÃO PRINCIPAL (CARDÁPIO vs MEUS PEDIDOS) -->
+        <!-- ABAS DE NAVEGAÇÃO PRINCIPAL (CARDÁPIO vs MEUS PEDIDOS vs CHAT GARÇOM) -->
         <div class="max-w-xl mx-auto px-4 pb-2">
-            <div class="grid grid-cols-2 gap-1.5 p-1 bg-slate-950/80 rounded-2xl border border-slate-800">
-                <button type="button" onclick="alternarAba('cardapio')" id="tabBtnCardapio" class="py-2.5 px-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 tab-active">
+            <div class="grid grid-cols-3 gap-1.5 p-1 bg-slate-950/80 rounded-2xl border border-slate-800">
+                <button type="button" onclick="alternarAba('cardapio')" id="tabBtnCardapio" class="py-2.5 px-2 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 tab-active">
                     <span>🍽️</span>
                     <span>Cardápio</span>
                 </button>
                 
-                <button type="button" onclick="alternarAba('pedidos')" id="tabBtnPedidos" class="py-2.5 px-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 tab-inactive">
+                <button type="button" onclick="alternarAba('pedidos')" id="tabBtnPedidos" class="py-2.5 px-2 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 tab-inactive">
                     <span>📋</span>
-                    <span>Minha Mesa</span>
-                    <span id="badgeContagemExtrato" class="hidden px-1.5 py-0.2 bg-emerald-500 text-slate-950 rounded-full text-[10px] font-black">0</span>
+                    <span>Mesa</span>
+                    <span id="badgeContagemExtrato" class="hidden px-1.5 py-0.2 bg-emerald-500 text-slate-950 rounded-full text-[9px] font-black">0</span>
+                </button>
+
+                <button type="button" onclick="alternarAba('chat')" id="tabBtnChat" class="py-2.5 px-2 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 tab-inactive relative">
+                    <span>💬</span>
+                    <span>Garçom</span>
+                    <span id="badgeNovasMensagensChat" class="hidden w-2 h-2 bg-amber-400 rounded-full animate-ping"></span>
                 </button>
             </div>
         </div>
@@ -139,70 +145,68 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
             <?php endforeach; ?>
         </div>
 
-        <!-- Lista de Produtos -->
-        <div id="listaProdutos" class="space-y-3">
-            <?php if (empty($produtos)): ?>
-                <div class="text-center py-12 bg-slate-900/50 border border-slate-800/80 rounded-3xl p-6">
-                    <span class="text-4xl">🍽️</span>
-                    <h3 class="text-base font-bold text-white mt-2">Cardápio em preparação</h3>
-                    <p class="text-xs text-slate-400 mt-1">Nenhum item disponível no momento.</p>
-                </div>
-            <?php endif; ?>
-
+        <!-- Grid de Produtos -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="gridProdutos">
             <?php foreach ($produtos as $p): ?>
-                <?php 
-                    $catClass = $p->categoria_id ? 'cat-' . $p->categoria_id : 'cat-outras';
-                    $fotoObj = $p->fotoPrincipal;
-                    $fotoUrl = ($fotoObj && method_exists($fotoObj, 'getUrl')) ? $fotoObj->getUrl() : null;
-                    $precoFinal = (float)$p->getPrecoFinal();
-                    $opcionaisList = [];
-                    if (!empty($p->opcionais)) {
-                        foreach ($p->opcionais as $op) {
-                            $opcionaisList[] = [
-                                'id' => $op->id,
-                                'nome' => $op->nome,
-                                'valor_adicional' => (float)$op->valor_adicional,
-                                'valor_formatado' => number_format($op->valor_adicional, 2, ',', '.')
-                            ];
-                        }
-                    }
-                    $jsonProduct = json_encode([
-                        'id' => $p->id,
-                        'nome' => $p->nome,
-                        'descricao' => $p->descricao ?: '',
-                        'foto' => $fotoUrl,
-                        'preco' => $precoFinal,
-                        'preco_formatado' => number_format($precoFinal, 2, ',', '.'),
-                        'opcionais' => $opcionaisList
-                    ]);
+                <?php
+                $fotoUrl = ($p->fotoPrincipal && !empty($p->fotoPrincipal->arquivo)) ? $p->fotoPrincipal->arquivo : null;
+                $precoFmt = number_format($p->getPrecoFinal(), 2, ',', '.');
+                $catClass = $p->categoria_id ? "cat-{$p->categoria_id}" : "";
+                $temOps = count($p->opcionais) > 0;
                 ?>
-                <div class="card-produto <?= $catClass ?> bg-slate-900/80 border border-slate-800/80 hover:border-slate-700/80 rounded-3xl p-3 flex gap-3 transition shadow-sm" data-nome="<?= mb_strtolower(Html::encode($p->nome), 'UTF-8') ?>" data-desc="<?= mb_strtolower(Html::encode($p->descricao ?: ''), 'UTF-8') ?>">
-                    <?php if ($fotoUrl): ?>
-                        <img src="<?= Html::encode($fotoUrl) ?>" class="w-24 h-24 rounded-2xl object-cover flex-shrink-0 bg-slate-950 border border-slate-800" alt="<?= Html::encode($p->nome) ?>" loading="lazy">
-                    <?php else: ?>
-                        <div class="w-24 h-24 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center text-3xl flex-shrink-0 text-slate-600">
-                            🍲
-                        </div>
-                    <?php endif; ?>
+                <div class="card-produto <?= $catClass ?> bg-slate-900/90 border border-slate-800/80 rounded-3xl p-3 flex flex-col justify-between shadow-sm hover:border-slate-700 transition"
+                    data-id="<?= $p->id ?>"
+                    data-nome="<?= strtolower(Html::encode($p->nome)) ?>"
+                    data-desc="<?= strtolower(Html::encode($p->descricao ?: '')) ?>">
                     
-                    <div class="flex-1 flex flex-col justify-between min-w-0">
-                        <div>
-                            <h2 class="text-sm font-extrabold text-white leading-tight truncate m-0"><?= Html::encode($p->nome) ?></h2>
-                            <?php if ($p->descricao): ?>
-                                <p class="text-xs text-slate-400 line-clamp-2 mt-1 leading-relaxed m-0"><?= Html::encode($p->descricao) ?></p>
+                    <div class="flex items-start gap-3">
+                        <!-- Imagem do Produto -->
+                        <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-slate-950 border border-slate-800 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                            <?php if ($fotoUrl): ?>
+                                <img src="<?= Html::encode($fotoUrl) ?>" alt="<?= Html::encode($p->nome) ?>" class="w-full h-full object-cover">
+                            <?php else: ?>
+                                <span class="text-3xl">🍲</span>
                             <?php endif; ?>
                         </div>
 
-                        <div class="flex items-center justify-between mt-3 pt-2 border-t border-slate-800/60">
-                            <div>
-                                <span class="text-xs text-slate-400 font-mono">R$</span>
-                                <span class="text-base font-black text-emerald-400 font-mono"><?= number_format($precoFinal, 2, ',', '.') ?></span>
-                            </div>
-                            <button type="button" onclick='abrirModalItem(<?= htmlspecialchars($jsonProduct, ENT_QUOTES, 'UTF-8') ?>)' class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-md shadow-emerald-600/20 transition active:scale-95 flex items-center gap-1">
-                                <span>+</span>
-                                <span>Pedir</span>
-                            </button>
+                        <!-- Detalhes do Produto -->
+                        <div class="flex-1 min-w-0">
+                            <h3 class="text-xs sm:text-sm font-black text-white truncate m-0"><?= Html::encode($p->nome) ?></h3>
+                            <p class="text-[11px] text-slate-400 mt-1 line-clamp-2 m-0"><?= Html::encode($p->descricao ?: 'Sem descrição informada.') ?></p>
+                            
+                            <?php if ($temOps): ?>
+                                <span class="inline-block text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full mt-1.5">
+                                    + Opções disponíveis
+                                </span>
+                            <?php endif; ?>
                         </div>
+                    </div>
+
+                    <!-- Preço e Botão Adicionar -->
+                    <div class="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-800/60">
+                        <div>
+                            <span class="text-[10px] text-slate-400 block font-semibold">A partir de</span>
+                            <span class="text-sm sm:text-base font-black text-emerald-400 font-mono">R$ <?= $precoFmt ?></span>
+                        </div>
+
+                        <button type="button" onclick="abrirModalItem(<?= Html::encode(json_encode([
+                            'id' => $p->id,
+                            'nome' => $p->nome,
+                            'preco' => (float)$p->getPrecoFinal(),
+                            'preco_formatado' => $precoFmt,
+                            'descricao' => $p->descricao,
+                            'opcionais' => array_map(function($op) {
+                                return [
+                                    'id' => $op->id,
+                                    'nome' => $op->nome,
+                                    'valor_adicional' => (float)$op->valor_adicional,
+                                    'valor_formatado' => number_format($op->valor_adicional, 2, ',', '.')
+                                ];
+                            }, $p->opcionais)
+                        ])) ?>)" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-md transition active:scale-95 flex items-center gap-1">
+                            <span>+</span>
+                            <span>Pedir</span>
+                        </button>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -211,12 +215,12 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
     </main>
 
     <!-- ========================================================================= -->
-    <!-- ABA 2: MEUS PEDIDOS & EXTRATO DA MESA (ACOMPANHAMENTO EM TEMPO REAL) -->
+    <!-- ABA 2: MINHA MESA (EXTRATO & STATUS DOS PEDIDOS EM TEMPO REAL) -->
     <!-- ========================================================================= -->
-    <main id="abaPedidos" class="max-w-xl mx-auto px-4 pt-4 space-y-4 hidden">
-        
-        <!-- Card de Resumo da Mesa -->
-        <div class="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-5 shadow-xl relative overflow-hidden">
+    <main id="abaPedidos" class="max-w-xl mx-auto px-4 pt-4 space-y-4 hidden pb-24">
+
+        <!-- Card Resumo de Consumo -->
+        <div class="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-5 shadow-xl">
             <div class="flex items-center justify-between">
                 <div>
                     <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Consumo da Mesa</span>
@@ -253,12 +257,82 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
             </div>
 
             <div id="containerItensExtrato" class="space-y-2.5">
-                <!-- Itens carregados via AJAX -->
                 <div class="text-center py-10 bg-slate-900/50 border border-slate-800 rounded-3xl p-6">
                     <span class="text-3xl">⏳</span>
                     <p class="text-xs text-slate-400 mt-2">Carregando pedidos da mesa...</p>
                 </div>
             </div>
+        </div>
+
+    </main>
+
+    <!-- ========================================================================= -->
+    <!-- ABA 3: CHAT DIRETO COM O GARÇOM (CANAL PRÓPRIO DIRECT HUB) -->
+    <!-- ========================================================================= -->
+    <main id="abaChat" class="max-w-xl mx-auto px-4 pt-4 space-y-4 hidden pb-28">
+
+        <!-- Card de Status do Canal Próprio -->
+        <div class="bg-gradient-to-br from-indigo-950/40 via-slate-900/60 to-slate-900/90 border border-indigo-500/20 rounded-3xl p-4 shadow-xl">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-xl">
+                        🧑‍🍳
+                    </div>
+                    <div>
+                        <h3 class="text-xs sm:text-sm font-black text-white m-0 flex items-center gap-1.5">
+                            <span>Atendimento &bull; Mesa <?= Html::encode($mesa->numero_mesa) ?></span>
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        </h3>
+                        <p class="text-[11px] text-slate-400 m-0">Direct Hub &bull; Equipe Online</p>
+                    </div>
+                </div>
+
+                <button type="button" onclick="carregarMensagensChat()" class="p-2 text-slate-400 hover:text-white rounded-xl bg-slate-800/50 border border-slate-700 text-xs" title="Atualizar mensagens">
+                    🔄
+                </button>
+            </div>
+
+            <!-- Chips de Solicitações Rápidas (1 Toque) -->
+            <div class="mt-3 pt-3 border-t border-slate-800/80">
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">⚡ Pedidos Rápidos (1 Toque):</span>
+                <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
+                    <button type="button" onclick="enviarSolicitacaoRapida('🧊 Por favor, trazer mais gelo e limão.')" class="px-3 py-1.5 bg-slate-800/90 hover:bg-indigo-600 hover:text-white text-slate-300 font-bold rounded-xl border border-slate-700 flex-shrink-0 transition active:scale-95">
+                        🧊 Gelo e Limão
+                    </button>
+                    <button type="button" onclick="enviarSolicitacaoRapida('🍽️ Por favor, trazer pratos e talheres extras.')" class="px-3 py-1.5 bg-slate-800/90 hover:bg-indigo-600 hover:text-white text-slate-300 font-bold rounded-xl border border-slate-700 flex-shrink-0 transition active:scale-95">
+                        🍽️ Pratos / Talheres
+                    </button>
+                    <button type="button" onclick="enviarSolicitacaoRapida('🧂 Por favor, trazer azeite, sal e molhos.')" class="px-3 py-1.5 bg-slate-800/90 hover:bg-indigo-600 hover:text-white text-slate-300 font-bold rounded-xl border border-slate-700 flex-shrink-0 transition active:scale-95">
+                        🧂 Azeite / Molhos
+                    </button>
+                    <button type="button" onclick="enviarSolicitacaoRapida('🧻 Por favor, trazer mais guardanapos.')" class="px-3 py-1.5 bg-slate-800/90 hover:bg-indigo-600 hover:text-white text-slate-300 font-bold rounded-xl border border-slate-700 flex-shrink-0 transition active:scale-95">
+                        🧻 Guardanapos
+                    </button>
+                    <button type="button" onclick="enviarSolicitacaoRapida('💳 Por favor, trazer a maquininha de cartão na mesa.')" class="px-3 py-1.5 bg-slate-800/90 hover:bg-indigo-600 hover:text-white text-slate-300 font-bold rounded-xl border border-slate-700 flex-shrink-0 transition active:scale-95">
+                        💳 Maquininha
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feed de Conversa / Balões de Mensagem -->
+        <div id="containerFeedChat" class="space-y-3 min-h-[220px] max-h-[50vh] overflow-y-auto pr-1">
+            <div class="text-center py-10 text-slate-500 text-xs">
+                <span class="text-3xl block">💬</span>
+                <p class="mt-1">Inicie uma conversa ou use os atalhos rápidos acima!</p>
+            </div>
+        </div>
+
+        <!-- Barra Inferior Fixa de Digitação -->
+        <div class="fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 p-3 max-w-xl mx-auto">
+            <form onsubmit="event.preventDefault(); enviarMensagemChat();" class="flex items-center gap-2 m-0">
+                <input type="text" id="inputTextoChat" placeholder="Digite sua mensagem para o garçom..." class="flex-1 px-4 py-3 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs text-white placeholder-slate-500 transition">
+                
+                <button type="submit" id="btnEnviarChat" class="px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-1.5 active:scale-95 flex-shrink-0">
+                    <span>Enviar</span>
+                    <span>🚀</span>
+                </button>
+            </form>
         </div>
 
     </main>
@@ -372,27 +446,123 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
     let carrinho = [];
     let pollingExtratoInterval = null;
 
-    // Alternar Abas (Cardápio vs Meus Pedidos)
+    let pollingChatInterval = null;
+
+    // Alternar Abas (Cardápio vs Meus Pedidos vs Chat Garçom)
     function alternarAba(aba) {
         const tabCardapio = document.getElementById('abaCardapio');
         const tabPedidos = document.getElementById('abaPedidos');
+        const tabChat = document.getElementById('abaChat');
         const btnCardapio = document.getElementById('tabBtnCardapio');
         const btnPedidos = document.getElementById('tabBtnPedidos');
+        const btnChat = document.getElementById('tabBtnChat');
+
+        // Reset
+        tabCardapio.classList.add('hidden');
+        tabPedidos.classList.add('hidden');
+        tabChat.classList.add('hidden');
+        btnCardapio.className = 'py-2.5 px-2 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 tab-inactive';
+        btnPedidos.className = 'py-2.5 px-2 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 tab-inactive';
+        btnChat.className = 'py-2.5 px-2 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 tab-inactive relative';
+        clearInterval(pollingExtratoInterval);
+        clearInterval(pollingChatInterval);
 
         if (aba === 'cardapio') {
             tabCardapio.classList.remove('hidden');
-            tabPedidos.classList.add('hidden');
-            btnCardapio.className = 'py-2.5 px-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 tab-active';
-            btnPedidos.className = 'py-2.5 px-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 tab-inactive';
-            clearInterval(pollingExtratoInterval);
-        } else {
-            tabCardapio.classList.add('hidden');
+            btnCardapio.className = 'py-2.5 px-2 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 tab-active';
+        } else if (aba === 'pedidos') {
             tabPedidos.classList.remove('hidden');
-            btnPedidos.className = 'py-2.5 px-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 tab-active';
-            btnCardapio.className = 'py-2.5 px-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 tab-inactive';
+            btnPedidos.className = 'py-2.5 px-2 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 tab-active';
             carregarExtratoMesa();
-            clearInterval(pollingExtratoInterval);
             pollingExtratoInterval = setInterval(carregarExtratoMesa, 6000);
+        } else if (aba === 'chat') {
+            tabChat.classList.remove('hidden');
+            btnChat.className = 'py-2.5 px-2 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 tab-active relative';
+            const badgeNovas = document.getElementById('badgeNovasMensagensChat');
+            if (badgeNovas) badgeNovas.classList.add('hidden');
+            carregarMensagensChat();
+            pollingChatInterval = setInterval(carregarMensagensChat, 4000);
+        }
+    }
+
+    async function carregarMensagensChat() {
+        try {
+            const resp = await fetch('<?= Url::to(['/vendas/cardapio/mensagens-mesa']) ?>?id=' + mesaId, {
+                headers: { 'Accept': 'application/json' }
+            });
+            const data = await resp.json();
+            if (!data.success) return;
+
+            const feed = document.getElementById('containerFeedChat');
+            if (data.mensagens.length === 0) {
+                feed.innerHTML = `
+                    <div class="text-center py-10 text-slate-500 text-xs">
+                        <span class="text-3xl block">💬</span>
+                        <p class="mt-1 font-bold text-slate-400">Nenhuma mensagem no chat ainda.</p>
+                        <p class="text-[11px] text-slate-500">Envie uma mensagem ou use os atalhos rápidos acima!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            feed.innerHTML = '';
+            data.mensagens.forEach(msg => {
+                const isCli = msg.remetente === 'cliente';
+                feed.innerHTML += `
+                    <div class="flex flex-col ${isCli ? 'items-end' : 'items-start'}">
+                        <div class="max-w-[85%] rounded-2xl p-3.5 ${isCli ? 'bg-indigo-600 text-white rounded-br-none shadow-md shadow-indigo-600/20' : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none shadow-sm'}">
+                            <div class="flex items-center justify-between gap-3 text-[10px] ${isCli ? 'text-indigo-200' : 'text-slate-400'} font-bold mb-1">
+                                <span>${msg.autor}</span>
+                                <span>${msg.hora}</span>
+                            </div>
+                            <p class="text-xs leading-relaxed m-0 font-medium whitespace-pre-wrap">${msg.texto}</p>
+                        </div>
+                    </div>
+                `;
+            });
+
+            feed.scrollTop = feed.scrollHeight;
+        } catch(e) {
+            console.error('Erro ao carregar chat:', e);
+        }
+    }
+
+    async function enviarSolicitacaoRapida(texto) {
+        await enviarMensagemChat(texto);
+    }
+
+    async function enviarMensagemChat(textoCustom = null) {
+        const input = document.getElementById('inputTextoChat');
+        const msg = textoCustom || (input ? input.value.trim() : '');
+        if (!msg) return;
+
+        const btn = document.getElementById('btnEnviarChat');
+        if (btn) btn.disabled = true;
+
+        try {
+            const formData = new FormData();
+            formData.append('mesa_id', mesaId);
+            formData.append('mensagem', msg);
+            formData.append('cliente_nome', document.getElementById('txtNomeClienteMesa')?.value || 'Cliente');
+
+            const resp = await fetch('<?= Url::to(['/vendas/cardapio/enviar-mensagem-mesa']) ?>', {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: formData
+            });
+
+            const data = await resp.json();
+            if (data.success) {
+                if (!textoCustom && input) input.value = '';
+                await carregarMensagensChat();
+            } else {
+                alert(data.message || 'Erro ao enviar mensagem.');
+            }
+        } catch(e) {
+            console.error(e);
+            alert('Erro de conexão ao enviar mensagem.');
+        } finally {
+            if (btn) btn.disabled = false;
         }
     }
 

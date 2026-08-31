@@ -55,7 +55,7 @@ class MesaController extends Controller
 
     public function beforeAction($action)
     {
-        if (in_array($action->id, ['atender-chamado', 'atender-todos-chamados', 'chamados-pendentes'])) {
+        if (in_array($action->id, ['atender-chamado', 'atender-todos-chamados', 'chamados-pendentes', 'responder-mensagem-mesa'])) {
             $this->enableCsrfValidation = false;
         }
         return parent::beforeAction($action);
@@ -994,26 +994,40 @@ class MesaController extends Controller
 
         $chamados = \app\modules\vendas\models\ClienteInbox::find()
             ->where(['usuario_id' => $tenantId, 'lido' => false])
-            ->andWhere(['in', 'tipo', [\app\modules\vendas\models\ClienteInbox::TIPO_CHAMADO, \app\modules\vendas\models\ClienteInbox::TIPO_CONTA]])
+            ->andWhere(['in', 'tipo', [
+                \app\modules\vendas\models\ClienteInbox::TIPO_CHAMADO, 
+                \app\modules\vendas\models\ClienteInbox::TIPO_CONTA,
+                'chat_cliente'
+            ]])
             ->orderBy(['created_at' => SORT_DESC])
             ->all();
 
         $data = [];
         $garcomTotal = 0;
         $contaTotal = 0;
+        $chatTotal = 0;
 
         foreach ($chamados as $ch) {
             $mesa = $ch->mesa;
             if ($ch->tipo === \app\modules\vendas\models\ClienteInbox::TIPO_CONTA) {
                 $contaTotal++;
+                $tipoLabel = 'Pediu Conta';
+                $tipoIcon = '💳';
+            } elseif ($ch->tipo === 'chat_cliente') {
+                $chatTotal++;
+                $tipoLabel = 'Mensagem / Pedido';
+                $tipoIcon = '💬';
             } else {
                 $garcomTotal++;
+                $tipoLabel = 'Garçom';
+                $tipoIcon = '👋';
             }
 
             $data[] = [
                 'id'          => $ch->id,
                 'tipo'        => $ch->tipo,
-                'tipo_label'  => ($ch->tipo === \app\modules\vendas\models\ClienteInbox::TIPO_CONTA) ? 'Pediu Conta' : 'Garçom',
+                'tipo_label'  => $tipoLabel,
+                'tipo_icon'   => $tipoIcon,
                 'titulo'      => $ch->titulo,
                 'texto'       => $ch->conteudo_texto,
                 'mesa_id'     => $mesa ? $mesa->id : null,
@@ -1027,6 +1041,7 @@ class MesaController extends Controller
             'total'        => count($data),
             'garcom_total' => $garcomTotal,
             'conta_total'  => $contaTotal,
+            'chat_total'   => $chatTotal,
             'chamados'     => $data,
         ];
     }
@@ -1056,6 +1071,65 @@ class MesaController extends Controller
     }
 
     /**
+     * Garçom responde diretamente a uma mensagem da mesa via Direct Hub
+     */
+    public function actionResponderMensagemMesa(): array
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $request = Yii::$app->request->post() ?: json_decode(Yii::$app->request->getRawBody(), true) ?: [];
+
+        $mesaId = $request['mesa_id'] ?? Yii::$app->request->get('mesa_id');
+        $mensagem = trim($request['mensagem'] ?? '');
+        $chamadoId = $request['chamado_id'] ?? null;
+
+        if (empty($mesaId) || empty($mensagem)) {
+            return ['success' => false, 'message' => 'Informe o ID da mesa e a resposta.'];
+        }
+
+        $tenantId = Yii::$app->user->identity->getTenantId();
+        $mesa = Mesa::findOne(['id' => $mesaId, 'usuario_id' => $tenantId]);
+        if (!$mesa) {
+            return ['success' => false, 'message' => 'Mesa não encontrada.'];
+        }
+
+        // Posta a resposta do garçom para a mesa no Direct Hub
+        \app\modules\vendas\models\ClienteInbox::postar(
+            $tenantId,
+            null,
+            'chat_garcom',
+            "🧑‍🍳 Resposta do Garçom",
+            $mensagem,
+            null,
+            [
+                'mesa_id' => $mesa->id,
+                'mesa_numero' => $mesa->numero_mesa,
+                'origem' => 'garcom'
+            ],
+            $mesa->id
+        );
+
+        // Marca a mensagem do cliente como atendida
+        if ($chamadoId) {
+            $ch = \app\modules\vendas\models\ClienteInbox::findOne(['id' => $chamadoId, 'usuario_id' => $tenantId]);
+            if ($ch) {
+                $ch->lido = true;
+                $ch->save(false, ['lido']);
+            }
+        } else {
+            \app\modules\vendas\models\ClienteInbox::updateAll(
+                ['lido' => true],
+                ['mesa_id' => $mesa->id, 'usuario_id' => $tenantId, 'lido' => false, 'tipo' => ['chat_cliente', 'chamado']]
+            );
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Resposta enviada para a Mesa ' . $mesa->numero_mesa . ' com sucesso!',
+            'hora' => date('H:i')
+        ];
+    }
+
+    /**
      * Marca todos os chamados pendentes da loja como atendidos com 1 clique
      */
     public function actionAtenderTodosChamados(): array
@@ -1068,7 +1142,11 @@ class MesaController extends Controller
             [
                 'usuario_id' => $tenantId,
                 'lido' => false,
-                'tipo' => [\app\modules\vendas\models\ClienteInbox::TIPO_CHAMADO, \app\modules\vendas\models\ClienteInbox::TIPO_CONTA]
+                'tipo' => [
+                    \app\modules\vendas\models\ClienteInbox::TIPO_CHAMADO, 
+                    \app\modules\vendas\models\ClienteInbox::TIPO_CONTA,
+                    'chat_cliente'
+                ]
             ]
         );
 
