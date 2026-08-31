@@ -33,6 +33,7 @@ class DisparoMassa extends ActiveRecord
     const CANAL_STATUS = 'status';
     const CANAL_WHATSAPP = 'whatsapp';
     const CANAL_EMAIL = 'email';
+    const CANAL_HUB = 'hub';
 
     /**
      * {@inheritdoc}

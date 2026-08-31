@@ -218,13 +218,17 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                         </div>
 
                         <!-- Ações -->
-                        <div class="p-4 bg-gray-50 flex gap-2">
+                        <div class="p-3 bg-gray-50 flex flex-wrap gap-1.5 border-t border-gray-100">
+                            <?php $magicUrl = Url::to(['/hub/index', 'token' => $model->getMagicToken()], true); ?>
+                            <button type="button" onclick="navigator.clipboard.writeText('<?= $magicUrl ?>'); alert('Link do Direct Hub copiado: <?= $magicUrl ?>');" class="flex-1 text-center px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded shadow-xs transition duration-200" title="Copiar link exclusivo do cliente">
+                                ⚡ Hub Link
+                            </button>
                             <?= Html::a('Ver', ['view', 'id' => $model->id], 
-                                ['class' => 'flex-1 text-center px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs sm:text-sm font-semibold rounded transition duration-300']) ?>
+                                ['class' => 'px-2.5 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold rounded transition duration-200']) ?>
                             <?= Html::a('Editar', ['update', 'id' => $model->id], 
-                                ['class' => 'flex-1 text-center px-3 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-xs sm:text-sm font-semibold rounded transition duration-300']) ?>
+                                ['class' => 'px-2.5 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-semibold rounded transition duration-200']) ?>
                             <?= Html::a('Excluir', ['delete', 'id' => $model->id], [
-                                'class' => 'flex-1 text-center px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-xs sm:text-sm font-semibold rounded transition duration-300',
+                                'class' => 'px-2.5 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold rounded transition duration-200',
                                 'data' => [
                                     'confirm' => 'Tem certeza que deseja excluir este cliente?',
                                     'method' => 'post',
@@ -304,7 +308,11 @@ $viewMode = Yii::$app->request->get('view', 'cards');
                                         </span>
                                     </td>
                                     <td class="px-3 sm:px-6 py-4 text-right text-sm font-medium">
-                                        <div class="flex justify-end gap-2">
+                                        <div class="flex justify-end items-center gap-2">
+                                            <?php $magicUrl = Url::to(['/hub/index', 'token' => $model->getMagicToken()], true); ?>
+                                            <button type="button" onclick="navigator.clipboard.writeText('<?= $magicUrl ?>'); alert('Link do Direct Hub copiado: <?= $magicUrl ?>');" class="text-xs px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded shadow-2xs transition" title="Copiar link exclusivo do cliente">
+                                                ⚡ Hub Link
+                                            </button>
                                             <?= Html::a('Ver', ['view', 'id' => $model->id], ['class' => 'text-blue-600 hover:text-blue-900']) ?>
                                             <?= Html::a('Editar', ['update', 'id' => $model->id], ['class' => 'text-yellow-600 hover:text-yellow-900']) ?>
                                             <?= Html::a('Excluir', ['delete', 'id' => $model->id], [

@@ -376,6 +376,21 @@ class DisparoMassaService
                             }
                         }
                         break;
+
+                    case DisparoMassa::CANAL_HUB:
+                        $hubMsg = \app\modules\vendas\models\ClienteInbox::postar(
+                            $usuarioId,
+                            $item->cliente_id,
+                            $isVideo ? \app\modules\vendas\models\ClienteInbox::TIPO_VIDEO : \app\modules\vendas\models\ClienteInbox::TIPO_CARD,
+                            $produto ? $produto->nome : 'Oferta Especial',
+                            $textoPersonalizado,
+                            $urlAbsoluta
+                        );
+                        $sucesso = ($hubMsg !== null);
+                        if (!$sucesso) {
+                            $erroMsg = "Falha ao postar no Direct Hub do Cliente.";
+                        }
+                        break;
                 }
             } catch (\Exception $e) {
                 $sucesso = false;

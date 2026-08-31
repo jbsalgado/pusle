@@ -86,6 +86,12 @@ $this->params['breadcrumbs'][] = $this->title;
                     <span>Monitor KDS</span>
                 </a>
 
+                <a href="<?= Url::to(['/vendas/mesa/imprimir-qrcodes']) ?>" target="_blank"
+                    class="inline-flex items-center px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-extrabold rounded-xl shadow-md transition duration-150 text-xs sm:text-sm" title="Imprimir plaquinhas de QR Code para as mesas">
+                    <span class="mr-1.5">📱</span>
+                    <span>QR Codes</span>
+                </a>
+
                 <a href="<?= Url::to(['/vendas/mesa/relatorio']) ?>"
                     class="inline-flex items-center px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-xl shadow-md transition duration-150 text-xs sm:text-sm">
                     <span class="mr-1.5">📊</span>
@@ -107,6 +113,55 @@ $this->params['breadcrumbs'][] = $this->title;
                 </a>
             </div>
         </div>
+
+        <!-- Banner de Chamados em Tempo Real do Direct Hub -->
+        <div id="hub-chamados-container" class="hidden">
+            <div class="bg-amber-500 text-white p-4 rounded-2xl shadow-lg border border-amber-600 flex items-center justify-between animate-pulse">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">🔔</span>
+                    <div>
+                        <h3 class="text-sm font-black uppercase tracking-wider m-0" id="hub-chamados-titulo">Chamados de Mesas Pendentes</h3>
+                        <p class="text-xs text-amber-100 m-0" id="hub-chamados-desc">Clientes solicitaram atendimento ou fechamento de conta.</p>
+                    </div>
+                </div>
+                <div id="hub-chamados-lista" class="flex flex-wrap gap-2"></div>
+            </div>
+        </div>
+
+        <script>
+            // Polling de Chamados do Direct Hub / Garçom a cada 5 segundos
+            function checarChamadosHub() {
+                fetch('<?= Url::to(['/vendas/mesa/chamados-pendentes']) ?>')
+                    .then(r => r.json())
+                    .then(data => {
+                        const container = document.getElementById('hub-chamados-container');
+                        const lista = document.getElementById('hub-chamados-lista');
+                        if (data.total > 0) {
+                            container.classList.remove('hidden');
+                            lista.innerHTML = '';
+                            data.chamados.forEach(ch => {
+                                const btn = document.createElement('button');
+                                btn.className = 'px-3 py-1.5 bg-white text-amber-900 font-black text-xs rounded-xl shadow-sm hover:bg-amber-100 transition-colors flex items-center gap-1.5';
+                                btn.innerHTML = `<span>${ch.tipo === 'conta' ? '🧾' : '👋'}</span> Mesa ${ch.mesa || 'Balcão'} (${ch.tipo.toUpperCase()}) &times;`;
+                                btn.onclick = () => atenderChamado(ch.id);
+                                lista.appendChild(btn);
+                            });
+                        } else {
+                            container.classList.add('hidden');
+                        }
+                    })
+                    .catch(() => {});
+            }
+
+            function atenderChamado(id) {
+                fetch('<?= Url::to(['/vendas/mesa/atender-chamado']) ?>?id=' + id, { method: 'POST' })
+                    .then(r => r.json())
+                    .then(() => checarChamadosHub());
+            }
+
+            setInterval(checarChamadosHub, 5000);
+            checarChamadosHub();
+        </script>
 
         <!-- Cards de Estatísticas & Indicadores Rápidos -->
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">

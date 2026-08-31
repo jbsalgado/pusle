@@ -928,4 +928,78 @@ class MesaController extends Controller
             'recibo_texto' => $msgComprovante,
         ];
     }
+
+    /**
+     * Exibe a página pronta para impressão com os displays / plaquinhas QR Code de todas as mesas
+     */
+    public function actionImprimirQrcodes()
+    {
+        $tenantId = Yii::$app->user->identity->getTenantId();
+        $usuario = Usuario::findOne($tenantId);
+        $mesas = Mesa::find()
+            ->where(['usuario_id' => $tenantId])
+            ->orderBy(['numero_mesa' => SORT_ASC])
+            ->all();
+
+        $slug = $usuario->slug ?? $usuario->id;
+        $baseUrl = Yii::$app->params['domain'] ?? 'https://catalogos.oncode.app.br';
+
+        return $this->renderPartial('imprimir_qrcodes', [
+            'usuario' => $usuario,
+            'mesas'   => $mesas,
+            'baseUrl' => rtrim($baseUrl, '/'),
+            'slug'    => $slug,
+        ]);
+    }
+
+    /**
+     * Endpoint Ajax para polling de chamados de garçom e pedidos de conta em tempo real
+     */
+    public function actionChamadosPendentes(): array
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $tenantId = Yii::$app->user->identity->getTenantId();
+
+        $chamados = \app\modules\vendas\models\ClienteInbox::find()
+            ->where(['usuario_id' => $tenantId, 'lido' => false])
+            ->andWhere(['in', 'tipo', [\app\modules\vendas\models\ClienteInbox::TIPO_CHAMADO, \app\modules\vendas\models\ClienteInbox::TIPO_CONTA]])
+            ->orderBy(['created_at' => SORT_DESC])
+            ->all();
+
+        $data = [];
+        foreach ($chamados as $ch) {
+            $mesa = $ch->mesa;
+            $data[] = [
+                'id'         => $ch->id,
+                'tipo'       => $ch->tipo,
+                'titulo'     => $ch->titulo,
+                'texto'      => $ch->conteudo_texto,
+                'mesa'       => $mesa ? $mesa->numero_mesa : null,
+                'created_at' => Yii::$app->formatter->asRelativeTime($ch->created_at),
+            ];
+        }
+
+        return [
+            'total'    => count($data),
+            'chamados' => $data,
+        ];
+    }
+
+    /**
+     * Marca um chamado de garçom ou conta como atendido/lido
+     */
+    public function actionAtenderChamado($id): array
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $tenantId = Yii::$app->user->identity->getTenantId();
+
+        $chamado = \app\modules\vendas\models\ClienteInbox::findOne(['id' => $id, 'usuario_id' => $tenantId]);
+        if ($chamado) {
+            $chamado->lido = true;
+            $chamado->save(false, ['lido']);
+            return ['success' => true];
+        }
+
+        return ['success' => false, 'message' => 'Chamado não encontrado.'];
+    }
 }
