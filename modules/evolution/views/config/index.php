@@ -34,10 +34,14 @@ $activeTab = $isMeta ? 'meta' : 'evolution';
             <p class="text-gray-500 text-sm m-0">Gerencie a conexão WhatsApp da sua loja via motor QR Code ou API Oficial da Meta.</p>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
             <span class="text-xs font-semibold px-3 py-1.5 rounded-full <?= $isMeta ? 'bg-purple-100 text-purple-800 border border-purple-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200' ?>">
                 <?= $isMeta ? '⭐ Provedor: Meta Cloud API Oficial' : '⚡ Provedor: QR Code (Evolution Go)' ?>
             </span>
+            <a href="<?= Url::to(['/vendas/inicio/index']) ?>" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-xs font-bold shadow-xs transition-colors" title="Voltar para a página inicial de Vendas">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                Voltar para Vendas
+            </a>
         </div>
     </div>
 
