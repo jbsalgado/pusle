@@ -67,7 +67,8 @@ $nomeLoja = $loja ? ($loja->nome_loja ?: ($loja->razao_social ?: ($loja->nome ?:
         <?php foreach ($produtos as $p): ?>
             <?php 
                 $catClass = $p->categoria_id ? 'cat-' . $p->categoria_id : 'cat-outras';
-                $fotoUrl = $p->foto_principal ? $p->foto_principal : 'https://placehold.co/100x100?text=Produto';
+                $fotoObj = $p->fotoPrincipal;
+                $fotoUrl = ($fotoObj && method_exists($fotoObj, 'getUrl')) ? $fotoObj->getUrl() : 'https://placehold.co/100x100?text=Produto';
             ?>
             <div class="card-produto <?= $catClass ?> bg-white rounded-2xl p-3 shadow-sm border border-gray-200/80 flex gap-3">
                 <img src="<?= Html::encode($fotoUrl) ?>" class="w-20 h-20 rounded-xl object-cover flex-shrink-0 bg-gray-100" alt="<?= Html::encode($p->nome) ?>">

@@ -53,7 +53,7 @@ class CardapioController extends Controller
             ->all();
 
         $produtos = Produto::find()
-            ->where(['usuario_id' => $tenantId, 'status' => 'ativo'])
+            ->where(['usuario_id' => $tenantId, 'ativo' => true])
             ->with(['opcionais'])
             ->orderBy(['nome' => SORT_ASC])
             ->all();
