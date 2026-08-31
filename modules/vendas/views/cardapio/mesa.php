@@ -149,7 +149,15 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="gridProdutos">
             <?php foreach ($produtos as $p): ?>
                 <?php
-                $fotoUrl = ($p->fotoPrincipal && !empty($p->fotoPrincipal->arquivo)) ? $p->fotoPrincipal->arquivo : null;
+                $fotoObj = $p->fotoPrincipal ?: ($p->fotos[0] ?? null);
+                $fotoUrl = null;
+                if ($fotoObj && !empty($fotoObj->arquivo_path)) {
+                    $caminhoLimpo = ltrim($fotoObj->arquivo_path, '/');
+                    $fotoUrl = '/' . $caminhoLimpo;
+                } elseif ($fotoObj && method_exists($fotoObj, 'getUrl')) {
+                    $fotoUrl = $fotoObj->getUrl();
+                }
+
                 $precoFmt = number_format($p->getPrecoFinal(), 2, ',', '.');
                 $catClass = $p->categoria_id ? "cat-{$p->categoria_id}" : "";
                 $temOps = count($p->opcionais) > 0;
@@ -163,7 +171,7 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
                         <!-- Imagem do Produto -->
                         <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-slate-950 border border-slate-800 flex-shrink-0 flex items-center justify-center overflow-hidden">
                             <?php if ($fotoUrl): ?>
-                                <img src="<?= Html::encode($fotoUrl) ?>" alt="<?= Html::encode($p->nome) ?>" class="w-full h-full object-cover">
+                                <img src="<?= Html::encode($fotoUrl) ?>" alt="<?= Html::encode($p->nome) ?>" class="w-full h-full object-cover" loading="lazy" onerror="this.onerror=null; this.parentElement.innerHTML='<span class=\'text-3xl\'>🍲</span>';">
                             <?php else: ?>
                                 <span class="text-3xl">🍲</span>
                             <?php endif; ?>
@@ -192,6 +200,7 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
                         <button type="button" onclick="abrirModalItem(<?= Html::encode(json_encode([
                             'id' => $p->id,
                             'nome' => $p->nome,
+                            'foto' => $fotoUrl,
                             'preco' => (float)$p->getPrecoFinal(),
                             'preco_formatado' => $precoFmt,
                             'descricao' => $p->descricao,
@@ -425,9 +434,14 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
         <div class="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             
             <div class="flex items-start justify-between gap-3 border-b border-slate-800 pb-3">
-                <div>
-                    <h3 id="lblModalNomeProduto" class="text-base font-black text-white m-0">Nome do Produto</h3>
-                    <p id="lblModalDescProduto" class="text-xs text-slate-400 mt-1 m-0"></p>
+                <div class="flex items-center gap-3 min-w-0">
+                    <div id="boxModalFotoProduto" class="w-14 h-14 rounded-2xl bg-slate-950 border border-slate-800 flex-shrink-0 flex items-center justify-center overflow-hidden hidden">
+                        <img id="imgModalFotoProduto" src="" class="w-full h-full object-cover">
+                    </div>
+                    <div class="min-w-0">
+                        <h3 id="lblModalNomeProduto" class="text-base font-black text-white m-0 truncate">Nome do Produto</h3>
+                        <p id="lblModalDescProduto" class="text-xs text-slate-400 mt-0.5 m-0 line-clamp-2"></p>
+                    </div>
                 </div>
                 <button type="button" onclick="fecharModalItemMesa()" class="text-slate-400 hover:text-white text-2xl font-bold p-1 leading-none">&times;</button>
             </div>
@@ -733,6 +747,15 @@ $logoLoja = ($loja && !empty($loja->logo_path)) ? $loja->logo_path : null;
         document.getElementById('lblModalDescProduto').innerText = p.descricao || '';
         document.getElementById('txtObsModal').value = '';
         document.getElementById('lblQtdModal').innerText = 1;
+
+        const boxFoto = document.getElementById('boxModalFotoProduto');
+        const imgFoto = document.getElementById('imgModalFotoProduto');
+        if (p.foto && p.foto.trim() !== '') {
+            imgFoto.src = p.foto;
+            boxFoto.classList.remove('hidden');
+        } else {
+            boxFoto.classList.add('hidden');
+        }
 
         const boxOps = document.getElementById('boxOpcionaisModal');
         const listOps = document.getElementById('listOpcionaisModal');
