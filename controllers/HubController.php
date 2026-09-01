@@ -87,6 +87,14 @@ class HubController extends Controller
                 ->where(['usuario_id' => $usuario->id, 'mesa_id' => $mesaModel->id, 'status' => 'aberta'])
                 ->orderBy(['data_abertura' => SORT_DESC])
                 ->one();
+
+            // Se a mesa acabou de ser fechada, resgata a última comanda da mesa para exibir o comprovante
+            if ($comandaModel === null) {
+                $comandaModel = Comanda::find()
+                    ->where(['usuario_id' => $usuario->id, 'mesa_id' => $mesaModel->id])
+                    ->orderBy(['data_abertura' => SORT_DESC])
+                    ->one();
+            }
         }
 
         // 5. Carrega timeline de mensagens, vídeos e ofertas do cliente/loja

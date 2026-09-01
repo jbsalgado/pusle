@@ -28,6 +28,7 @@ class Mesa extends ActiveRecord
     const STATUS_OCUPADA = 'ocupada';
     const STATUS_AGUARDANDO_CONTA = 'aguardando_conta';
     const STATUS_RESERVADA = 'reservada';
+    const STATUS_PAGA = 'paga';
 
     public static function tableName()
     {
@@ -169,6 +170,14 @@ class Mesa extends ActiveRecord
                     'border' => 'border-sky-500',
                     'badge' => 'bg-sky-100 text-sky-800',
                     'icon' => '🔵'
+                ];
+            case self::STATUS_PAGA:
+                return [
+                    'label' => 'Conta Paga',
+                    'bg' => 'bg-indigo-500',
+                    'border' => 'border-indigo-500',
+                    'badge' => 'bg-indigo-100 text-indigo-800',
+                    'icon' => '🔒'
                 ];
             default:
                 return [

@@ -60,7 +60,13 @@ class CardapioController extends Controller
             ->all();
 
         $comanda = $mesa->comandaAtiva;
-        $mesaAberta = ($mesa->status === Mesa::STATUS_OCUPADA || $mesa->status === Mesa::STATUS_AGUARDANDO_CONTA) && ($comanda !== null);
+        if ($comanda === null) {
+            $comanda = Comanda::find()
+                ->where(['mesa_id' => $mesa->id, 'usuario_id' => $tenantId])
+                ->orderBy(['data_abertura' => SORT_DESC])
+                ->one();
+        }
+        $mesaAberta = ($mesa->status === Mesa::STATUS_OCUPADA || $mesa->status === Mesa::STATUS_AGUARDANDO_CONTA || $mesa->status === Mesa::STATUS_PAGA) && ($comanda !== null);
 
         return $this->render('mesa', [
             'mesa' => $mesa,
@@ -402,9 +408,17 @@ class CardapioController extends Controller
         }
 
         $comanda = $mesa->comandaAtiva;
-        $mesaAberta = ($mesa->status === Mesa::STATUS_OCUPADA || $mesa->status === Mesa::STATUS_AGUARDANDO_CONTA) && ($comanda !== null);
+        $mesaAberta = ($mesa->status === Mesa::STATUS_OCUPADA || $mesa->status === Mesa::STATUS_AGUARDANDO_CONTA || $mesa->status === Mesa::STATUS_PAGA);
 
-        if (!$mesaAberta) {
+        if ($comanda === null) {
+            // Fallback: se a mesa foi encerrada, busca a última comanda para resgatar o comprovante e histórico
+            $comanda = Comanda::find()
+                ->where(['mesa_id' => $mesa->id, 'usuario_id' => $mesa->usuario_id])
+                ->orderBy(['data_abertura' => SORT_DESC])
+                ->one();
+        }
+
+        if ($comanda === null) {
             return [
                 'success' => true,
                 'mesa_numero' => $mesa->numero_mesa,

@@ -55,7 +55,7 @@ class MesaController extends Controller
 
     public function beforeAction($action)
     {
-        if (in_array($action->id, ['atender-chamado', 'atender-mesa', 'atender-todos-chamados', 'chamados-pendentes', 'responder-mensagem-mesa', 'limpar-chat-mesa', 'mensagens-mesa-admin'])) {
+        if (in_array($action->id, ['atender-chamado', 'atender-mesa', 'atender-todos-chamados', 'chamados-pendentes', 'responder-mensagem-mesa', 'limpar-chat-mesa', 'mensagens-mesa-admin', 'liberar-mesa-direct'])) {
             $this->enableCsrfValidation = false;
         }
         return parent::beforeAction($action);
@@ -466,6 +466,18 @@ class MesaController extends Controller
                     $item->save(false);
                 }
 
+                // Move mensagens ativas do chat para a nova mesa/comanda destino
+                \app\modules\vendas\models\ClienteInbox::updateAll(
+                    ['mesa_id' => $mesaDestino->id, 'comanda_id' => $comandaDestino->id],
+                    ['comanda_id' => $comandaOrigem->id, 'usuario_id' => $tenantId]
+                );
+
+                // Marca chamados pendentes da mesa de origem como atendidos
+                \app\modules\vendas\models\ClienteInbox::updateAll(
+                    ['lido' => true],
+                    ['mesa_id' => $mesaOrigem->id, 'usuario_id' => $tenantId, 'lido' => false]
+                );
+
                 // Cancela/fecha comanda origem zerada
                 $comandaOrigem->status = Comanda::STATUS_CANCELADA;
                 $comandaOrigem->save(false);
@@ -872,12 +884,17 @@ class MesaController extends Controller
             }
         }
 
-        // 2. Fecha a Comanda e libera a Mesa
+        // 2. Fecha a Comanda e define o status da Mesa
         $comanda->status = Comanda::STATUS_FECHADA;
         $comanda->data_fechamento = date('Y-m-d H:i:s');
         $comanda->save(false);
 
-        $mesa->status = Mesa::STATUS_LIVRE;
+        $desocuparMesa = (int)($request['desocupar_mesa'] ?? 0);
+        if ($desocuparMesa == 1) {
+            $mesa->status = Mesa::STATUS_LIVRE;
+        } else {
+            $mesa->status = Mesa::STATUS_PAGA;
+        }
         $mesa->save(false);
 
         // 3. Formata texto do Comprovante de Consumo
@@ -917,6 +934,12 @@ class MesaController extends Controller
         }
         $msgComprovante .= "-----------------------------------\n";
         $msgComprovante .= "Obrigado pela preferência e volte sempre! 😊🚀";
+
+        // Marca chamados pendentes anteriores dessa mesa como lidos/atendidos ao encerrar
+        \app\modules\vendas\models\ClienteInbox::updateAll(
+            ['lido' => true],
+            ['mesa_id' => $mesa->id, 'usuario_id' => $tenantId, 'lido' => false, 'tipo' => ['chamado', 'chat_cliente']]
+        );
 
         // 4. Salva no Canal Próprio (Direct Hub / Inbox Digital da Mesa)
         $hubPostado = false;
@@ -1168,10 +1191,27 @@ class MesaController extends Controller
             return ['success' => false, 'message' => 'Mesa não encontrada.', 'mensagens' => []];
         }
 
-        $mensagens = \app\modules\vendas\models\ClienteInbox::find()
+        $comanda = $mesa->comandaAtiva;
+        if ($comanda === null) {
+            $comanda = Comanda::find()
+                ->where(['mesa_id' => $mesa->id, 'usuario_id' => $tenantId])
+                ->orderBy(['data_abertura' => SORT_DESC])
+                ->one();
+        }
+
+        $query = \app\modules\vendas\models\ClienteInbox::find()
             ->where(['mesa_id' => $mesa->id, 'usuario_id' => $tenantId])
-            ->andWhere(['in', 'tipo', ['chat_cliente', 'chat_garcom', 'chamado', 'conta', 'card']])
-            ->orderBy(['created_at' => SORT_ASC])
+            ->andWhere(['in', 'tipo', ['chat_cliente', 'chat_garcom', 'chamado', 'conta', 'card']]);
+
+        if ($comanda) {
+            $query->andWhere([
+                'or',
+                ['comanda_id' => $comanda->id],
+                ['and', ['comanda_id' => null], ['>=', 'created_at', $comanda->data_abertura ?: date('Y-m-d 00:00:00')]]
+            ]);
+        }
+
+        $mensagens = $query->orderBy(['created_at' => SORT_ASC])
             ->limit(80)
             ->all();
 
@@ -1335,5 +1375,28 @@ class MesaController extends Controller
             'success' => true,
             'message' => 'Histórico do chat da mesa limpo com sucesso!'
         ];
+    }
+
+    /**
+     * Ação: Liberar / Desocupar Mesa Física (marca status como LIVRE)
+     */
+    public function actionLiberarMesaDirect(): array
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $tenantId = \app\components\TenantHelper::getId();
+        $request = Yii::$app->request->post() ?: json_decode(Yii::$app->request->getRawBody(), true) ?: [];
+        $id = $request['mesa_id'] ?? Yii::$app->request->get('id') ?? Yii::$app->request->post('id');
+
+        $mesa = Mesa::findOne(['id' => $id, 'usuario_id' => $tenantId]);
+        if ($mesa) {
+            $mesa->status = Mesa::STATUS_LIVRE;
+            $mesa->save(false);
+            return [
+                'success' => true,
+                'message' => "Mesa {$mesa->numero_mesa} desocupada e liberada para o próximo cliente!"
+            ];
+        }
+
+        return ['success' => false, 'message' => 'Mesa não encontrada.'];
     }
 }

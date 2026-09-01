@@ -96,8 +96,13 @@ $mesaAberta = isset($mesaAberta) ? $mesaAberta : (($mesa->status === \app\module
                 </div>
             </div>
 
-            <!-- Ações Rápidas Topo: Chamar Garçom e Pedir Conta -->
+            <!-- Ações Rápidas Topo: Chamar Garçom, Pedir Conta e Testar Som -->
             <div class="flex items-center gap-1.5 flex-shrink-0">
+                <button type="button" onclick="testarEAtivarAudio()" id="btnTopSom" class="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-slate-800 text-slate-400 border border-slate-700 text-xs font-bold transition active:scale-95 flex items-center gap-1.5" title="Ativar e Testar Som do Chat">
+                    <span class="text-sm">🔊</span>
+                    <span class="hidden sm:inline">Som</span>
+                </button>
+
                 <button type="button" onclick="chamarGarcomAction()" id="btnTopGarcom" class="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold transition active:scale-95 flex items-center gap-1.5" title="Chamar Garçom">
                     <span class="text-sm">🔔</span>
                     <span class="hidden sm:inline">Garçom</span>
@@ -564,9 +569,124 @@ $mesaAberta = isset($mesaAberta) ? $mesaAberta : (($mesa->status === \app\module
     let pollingExtratoInterval = null;
 
     let pollingChatInterval = null;
+    let abaAtual = 'cardapio';
+
+    // =========================================================================
+    // SINTETIZADOR DE ÁUDIO NATIVO & ENGINE DUAL DE NOTIFICAÇÃO
+    // =========================================================================
+    let audioCtx = null;
+    let audioAtivadoPeloUsuario = false;
+
+    // WAV 880Hz chime base64 data URI fallback (100% autônomo)
+    const base64Chime = "data:audio/wav;base64,UklGRl9vAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUtvAAB4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4";
+
+    async function initAudioContext() {
+        try {
+            if (!audioCtx) {
+                const AudioClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioClass) {
+                    audioCtx = new AudioClass();
+                }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+            }
+            audioAtivadoPeloUsuario = true;
+            atualizarBotaoSomUI(true);
+            return audioCtx;
+        } catch(e) {
+            console.warn('[ChatAudio] initAudioContext erro:', e);
+            return null;
+        }
+    }
+
+    ['click', 'touchstart', 'keydown'].forEach(evt => {
+        document.addEventListener(evt, () => {
+            initAudioContext();
+        }, { once: false });
+    });
+
+    async function testarEAtivarAudio() {
+        await initAudioContext();
+        await tocarAvisoSonoro(true);
+    }
+
+    function atualizarBotaoSomUI(ativo) {
+        const btn = document.getElementById('btnTopSom');
+        if (btn) {
+            if (ativo) {
+                btn.className = 'p-2 sm:px-3 sm:py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold transition active:scale-95 flex items-center gap-1.5';
+                btn.innerHTML = '<span class="text-sm">🔊</span><span class="hidden sm:inline">Som Ativo</span>';
+            } else {
+                btn.className = 'p-2 sm:px-3 sm:py-1.5 rounded-xl bg-slate-800 text-slate-400 border border-slate-700 text-xs font-bold transition active:scale-95 flex items-center gap-1.5';
+                btn.innerHTML = '<span class="text-sm">🔊</span><span class="hidden sm:inline">Som</span>';
+            }
+        }
+    }
+
+    async function tocarAvisoSonoro(isTeste = false) {
+        console.log('[ChatAudio] Tentando reproduzir aviso sonoro... (isTeste: ' + isTeste + ')');
+        let sucesso = false;
+
+        try {
+            const ctx = await initAudioContext();
+            if (ctx) {
+                const now = ctx.currentTime;
+
+                // Oscilador 1 (Tom High 880Hz -> 1320Hz)
+                const osc1 = ctx.createOscillator();
+                const gain1 = ctx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(880, now);
+                osc1.frequency.exponentialRampToValueAtTime(1320, now + 0.15);
+                gain1.gain.setValueAtTime(0.4, now);
+                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+                osc1.connect(gain1);
+                gain1.connect(ctx.destination);
+                osc1.start(now);
+                osc1.stop(now + 0.35);
+
+                // Oscilador 2 (Tom Harmonioso 1046Hz)
+                const osc2 = ctx.createOscillator();
+                const gain2 = ctx.createGain();
+                osc2.type = 'triangle';
+                osc2.frequency.setValueAtTime(1046.50, now + 0.1);
+                gain2.gain.setValueAtTime(0, now);
+                gain2.gain.setValueAtTime(0.3, now + 0.1);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+
+                osc2.connect(gain2);
+                gain2.connect(ctx.destination);
+                osc2.start(now + 0.1);
+                osc2.stop(now + 0.5);
+
+                sucesso = true;
+                console.log('[ChatAudio] Áudio sintetizado via Web Audio API com sucesso!');
+            }
+        } catch(e) {
+            console.warn('[ChatAudio] Web Audio API indisponível, tentando fallback:', e);
+        }
+
+        // Fallback HTML5 Audio Element
+        if (!sucesso) {
+            try {
+                const a = new Audio(base64Chime);
+                a.volume = 0.5;
+                const p = a.play();
+                if (p !== undefined) {
+                    p.then(() => console.log('[ChatAudio] Fallback HTML5 Audio executado com sucesso!'))
+                     .catch(err => console.warn('[ChatAudio] Fallback HTML5 Audio bloqueado pelo navegador:', err));
+                }
+            } catch(e) {
+                console.warn('[ChatAudio] Erro no fallback HTML5 Audio:', e);
+            }
+        }
+    }
 
     // Alternar Abas (Cardápio vs Meus Pedidos vs Chat Garçom)
     function alternarAba(aba) {
+        abaAtual = aba;
         const tabCardapio = document.getElementById('abaCardapio');
         const tabPedidos = document.getElementById('abaPedidos');
         const tabChat = document.getElementById('abaChat');
@@ -582,7 +702,6 @@ $mesaAberta = isset($mesaAberta) ? $mesaAberta : (($mesa->status === \app\module
         btnPedidos.className = 'py-2.5 px-2 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 tab-inactive';
         btnChat.className = 'py-2.5 px-2 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 tab-inactive relative';
         clearInterval(pollingExtratoInterval);
-        clearInterval(pollingChatInterval);
 
         if (aba === 'cardapio') {
             tabCardapio.classList.remove('hidden');
@@ -598,7 +717,6 @@ $mesaAberta = isset($mesaAberta) ? $mesaAberta : (($mesa->status === \app\module
             const badgeNovas = document.getElementById('badgeNovasMensagensChat');
             if (badgeNovas) badgeNovas.classList.add('hidden');
             carregarMensagensChat();
-            pollingChatInterval = setInterval(carregarMensagensChat, 4000);
         }
     }
 
@@ -659,6 +777,9 @@ $mesaAberta = isset($mesaAberta) ? $mesaAberta : (($mesa->status === \app\module
         if (modal) modal.classList.add('hidden');
     }
 
+    let ultimasMensagensIds = new Set();
+    let primeiraCargaChat = true;
+
     async function carregarMensagensChat() {
         try {
             const resp = await fetch('<?= Url::to(['/vendas/cardapio/mensagens-mesa']) ?>?id=' + mesaId, {
@@ -667,7 +788,31 @@ $mesaAberta = isset($mesaAberta) ? $mesaAberta : (($mesa->status === \app\module
             const data = await resp.json();
             if (!data.success) return;
 
+            let temNovaMensagem = false;
+
+            data.mensagens.forEach(msg => {
+                const msgIdStr = String(msg.id);
+                if (!ultimasMensagensIds.has(msgIdStr)) {
+                    ultimasMensagensIds.add(msgIdStr);
+                    if (!primeiraCargaChat) {
+                        temNovaMensagem = true;
+                    }
+                }
+            });
+
+            primeiraCargaChat = false;
+
+            if (temNovaMensagem) {
+                tocarAvisoSonoro();
+                if (abaAtual !== 'chat') {
+                    const badgeNovas = document.getElementById('badgeNovasMensagensChat');
+                    if (badgeNovas) badgeNovas.classList.remove('hidden');
+                }
+            }
+
             const feed = document.getElementById('containerFeedChat');
+            if (!feed) return;
+
             if (data.mensagens.length === 0) {
                 feed.innerHTML = `
                     <div class="text-center py-10 text-slate-500 text-xs">
@@ -680,26 +825,58 @@ $mesaAberta = isset($mesaAberta) ? $mesaAberta : (($mesa->status === \app\module
             }
 
             feed.innerHTML = '';
-            data.mensagens.forEach(msg => {
-                const isCli = msg.remetente === 'cliente';
-                const temMidia = msg.midia_url && msg.midia_url.trim() !== '';
 
+            if (data.mesa_aberta === false) {
                 feed.innerHTML += `
-                    <div class="flex flex-col ${isCli ? 'items-end' : 'items-start'}">
-                        <div class="max-w-[85%] rounded-2xl p-3.5 ${isCli ? 'bg-indigo-600 text-white rounded-br-none shadow-md shadow-indigo-600/20' : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none shadow-sm'}">
-                            <div class="flex items-center justify-between gap-3 text-[10px] ${isCli ? 'text-indigo-200' : 'text-slate-400'} font-bold mb-1">
-                                <span>${msg.autor}</span>
-                                <span>${msg.hora}</span>
-                            </div>
-                            ${temMidia ? `
-                                <div class="mb-2">
-                                    <img src="${msg.midia_url}" onclick="abrirZoomImagem('${msg.midia_url}')" class="max-w-full max-h-48 rounded-xl object-cover cursor-pointer border border-white/20 hover:opacity-90 shadow transition" alt="Foto">
-                                </div>
-                            ` : ''}
-                            ${msg.texto ? `<p class="text-xs leading-relaxed m-0 font-medium whitespace-pre-wrap">${msg.texto}</p>` : ''}
-                        </div>
+                    <div class="bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-2xl p-3 mb-3 text-center text-xs font-bold flex items-center justify-center gap-2">
+                        <span>🔒</span>
+                        <span>Mesa Encerrada & Paga no Caixa</span>
                     </div>
                 `;
+            }
+
+            data.mensagens.forEach(msg => {
+                const isCli = msg.remetente === 'cliente';
+                const isConta = msg.tipo === 'conta';
+                const temMidia = msg.midia_url && msg.midia_url.trim() !== '';
+
+                if (isConta) {
+                    feed.innerHTML += `
+                        <div class="flex flex-col items-center my-2">
+                            <div class="w-full max-w-[95%] bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 border border-emerald-500/40 text-white rounded-2xl p-4 shadow-xl space-y-2.5">
+                                <div class="flex items-center justify-between border-b border-emerald-500/30 pb-2">
+                                    <span class="text-xs font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5 m-0">
+                                        <span>🧾</span> Recibo de Fechamento Digital
+                                    </span>
+                                    <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-[10px] font-bold rounded-full border border-emerald-500/30">${msg.hora}</span>
+                                </div>
+                                <div class="text-xs font-mono bg-slate-950/80 p-3 rounded-xl border border-slate-800/80 text-emerald-100 whitespace-pre-wrap leading-relaxed shadow-inner">
+                                    ${msg.texto}
+                                </div>
+                                <div class="text-[10px] text-center text-emerald-400 font-bold pt-1">
+                                    ✅ Conta Paga & Liberada no Caixa
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    feed.innerHTML += `
+                        <div class="flex flex-col ${isCli ? 'items-end' : 'items-start'} mb-3">
+                            <div class="max-w-[85%] rounded-2xl p-3.5 ${isCli ? 'bg-indigo-600 text-white rounded-br-none shadow-md shadow-indigo-600/20' : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none shadow-sm'}">
+                                <div class="flex items-center justify-between gap-3 text-[10px] ${isCli ? 'text-indigo-200' : 'text-slate-400'} font-bold mb-1">
+                                    <span>${msg.autor}</span>
+                                    <span>${msg.hora}</span>
+                                </div>
+                                ${temMidia ? `
+                                    <div class="mb-2">
+                                        <img src="${msg.midia_url}" onclick="abrirZoomImagem('${msg.midia_url}')" class="max-w-full max-h-48 rounded-xl object-cover cursor-pointer border border-white/20 hover:opacity-90 shadow transition" alt="Foto">
+                                    </div>
+                                ` : ''}
+                                ${msg.texto ? `<p class="text-xs leading-relaxed m-0 font-medium whitespace-pre-wrap">${msg.texto}</p>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
             });
 
             feed.scrollTop = feed.scrollHeight;
@@ -736,6 +913,7 @@ $mesaAberta = isset($mesaAberta) ? $mesaAberta : (($mesa->status === \app\module
 
             const data = await resp.json();
             if (data.success) {
+                tocarAvisoSonoro();
                 if (!textoCustom && input) input.value = '';
                 cancelarFotoChat();
                 fecharEmojisChat();
@@ -1134,9 +1312,11 @@ $mesaAberta = isset($mesaAberta) ? $mesaAberta : (($mesa->status === \app\module
         }
     }
 
-    // Carrega contagem inicial em background
+    // Carrega extrato e chat em segundo plano desde a abertura da página
     document.addEventListener('DOMContentLoaded', () => {
         carregarExtratoMesa();
+        carregarMensagensChat();
+        setInterval(carregarMensagensChat, 4000);
     });
     </script>
 </body>
