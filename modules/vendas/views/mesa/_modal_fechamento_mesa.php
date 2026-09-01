@@ -122,6 +122,16 @@ use yii\helpers\Url;
                             <input type="text" id="inputWhatsappFechamento" placeholder="(81) 99288-8872" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-medium focus:ring-emerald-500 focus:border-emerald-500 bg-slate-50">
                         </div>
                     </div>
+                    <!-- Opção 3: Liberar e Desocupar Mesa -->
+                    <div class="bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="checkDesocuparMesa" class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500">
+                            <span class="ml-2 text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                                <span>🧹 Liberar e desocupar a mesa física imediatamente</span>
+                            </span>
+                        </label>
+                        <span class="text-[10px] text-gray-400 font-medium hidden sm:inline">Desmarcado = Mantém 'Conta Paga' para o cliente no celular</span>
+                    </div>
                 </div>
             </div>
 
@@ -133,9 +143,9 @@ use yii\helpers\Url;
                 Cancelar
             </button>
 
-            <button type="button" onclick="processarFechamentoMesa()" id="btnProcessarFechamento" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-lg hover:shadow-xl transition duration-150 flex items-center gap-2">
-                <span>✅</span>
-                <span>Receber & Liberar Mesa</span>
+            <button type="button" onclick="processarFechamentoMesa()" id="btnProcessarFechamento" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-lg hover:shadow-xl transition duration-150 flex items-center gap-2">
+                <span>💳</span>
+                <span>Processar Pagamento & Fechar Conta</span>
             </button>
         </div>
 
@@ -305,6 +315,7 @@ async function processarFechamentoMesa() {
         formData.append('enviar_hub', document.getElementById('checkEnviarHub')?.checked ? 1 : 0);
         formData.append('whatsapp', document.getElementById('inputWhatsappFechamento').value);
         formData.append('enviar_whatsapp', document.getElementById('checkEnviarWhatsapp').checked ? 1 : 0);
+        formData.append('desocupar_mesa', document.getElementById('checkDesocuparMesa')?.checked ? 1 : 0);
 
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         if (csrfToken) {
@@ -328,7 +339,7 @@ async function processarFechamentoMesa() {
         alert('Erro de conexão ao fechar mesa.');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<span>✅</span><span>Receber & Liberar Mesa</span>';
+        btn.innerHTML = '<span>💳</span><span>Processar Pagamento & Fechar Conta</span>';
     }
 }
 </script>

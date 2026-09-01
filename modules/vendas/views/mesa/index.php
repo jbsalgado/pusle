@@ -218,6 +218,45 @@ $this->params['breadcrumbs'][] = $this->title;
         <script>
             let chamadosCache = [];
             let filtroDrawerAtual = 'todos';
+            let ultimoTotalChamados = 0;
+            let audioCtxAdmin = null;
+
+            function initAudioAdmin() {
+                if (!audioCtxAdmin) {
+                    const AudioClass = window.AudioContext || window.webkitAudioContext;
+                    if (AudioClass) audioCtxAdmin = new AudioClass();
+                }
+                if (audioCtxAdmin && audioCtxAdmin.state === 'suspended') {
+                    audioCtxAdmin.resume();
+                }
+            }
+
+            ['click', 'touchstart', 'keydown'].forEach(evt => {
+                document.addEventListener(evt, initAudioAdmin, { once: true });
+            });
+
+            function tocarAvisoSonoroAdmin() {
+                try {
+                    initAudioAdmin();
+                    if (!audioCtxAdmin) return;
+                    if (audioCtxAdmin.state === 'suspended') audioCtxAdmin.resume();
+
+                    const now = audioCtxAdmin.currentTime;
+                    const osc = audioCtxAdmin.createOscillator();
+                    const gain = audioCtxAdmin.createGain();
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(587.33, now);
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
+                    gain.gain.setValueAtTime(0.4, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+                    osc.connect(gain);
+                    gain.connect(audioCtxAdmin.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } catch(e) {}
+            }
 
             // Polling de Chamados do Direct Hub / Garçom a cada 5 segundos
             function checarChamadosHub() {
@@ -233,6 +272,10 @@ $this->params['breadcrumbs'][] = $this->title;
                         const resumoConta = document.getElementById('hub-resumo-conta');
 
                         if (data.total > 0) {
+                            if (data.total > ultimoTotalChamados) {
+                                tocarAvisoSonoroAdmin();
+                            }
+                            ultimoTotalChamados = data.total;
                             container.classList.remove('hidden');
                             if (badgeTotal) badgeTotal.innerText = data.total;
                             if (badgeDrawerBtn) badgeDrawerBtn.innerText = data.total;
@@ -616,6 +659,29 @@ $this->params['breadcrumbs'][] = $this->title;
                 if (modal) modal.classList.add('hidden');
             }
 
+            function liberarMesaDirectAction(mesaId, mesaNumero) {
+                if (!confirm('Deseja realmente desocupar e liberar a Mesa ' + mesaNumero + ' para o próximo cliente?')) return;
+                const formData = new FormData();
+                formData.append('mesa_id', mesaId);
+                if (csrfToken) formData.append('_csrf', csrfToken);
+
+                fetch('<?= Url::to(['/vendas/mesa/liberar-mesa-direct']) ?>', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message || 'Mesa liberada com sucesso!');
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'Erro ao liberar mesa.');
+                    }
+                })
+                .catch(e => console.error('Erro ao liberar mesa:', e));
+            }
+
+            window.liberarMesaDirectAction = liberarMesaDirectAction;
             window.responderMesa = responderMesa;
             window.enviarRespostaRapidaGarcom = enviarRespostaRapidaGarcom;
             window.atenderMesa = atenderMesa;
@@ -921,6 +987,13 @@ $this->params['breadcrumbs'][] = $this->title;
                                     <span>🔀</span>
                                     <span>Transferir Mesa</span>
                                 </button>
+                            <?php elseif ($mesa->status === \app\modules\vendas\models\Mesa::STATUS_PAGA): ?>
+                                <button type="button" onclick="liberarMesaDirectAction('<?= $mesa->id ?>', '<?= Html::encode($mesa->numero_mesa) ?>')"
+                                    class="w-full py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-xs rounded-xl shadow transition duration-150 flex items-center justify-center gap-1.5 active:scale-95">
+                                    <span>🧹</span>
+                                    <span>Liberar / Desocupar Mesa</span>
+                                </button>
+                                <p class="text-[10px] text-indigo-600 text-center font-bold mt-1 m-0">Conta Paga • Mantida ativa no celular</p>
                             <?php endif; ?>
                         </div>
 

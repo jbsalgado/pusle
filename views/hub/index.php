@@ -160,6 +160,48 @@ $defaultTab = $mesa ? 'comanda' : 'feed';
     <!-- ABA 1: COMANDA & CONTA DA MESA -->
     <section x-show="tab === 'comanda'" class="p-4 space-y-4 flex-1">
         <?php if ($mesa || $comanda): ?>
+            <?php
+            $reciboConta = null;
+            if (!empty($inboxMessages)) {
+                foreach ($inboxMessages as $m) {
+                    if ($m->tipo === 'conta') {
+                        $reciboConta = $m;
+                        break;
+                    }
+                }
+            }
+            $isComandaFechada = ($comanda && $comanda->status === 'fechada');
+            ?>
+
+            <?php if ($isComandaFechada): ?>
+                <!-- Banner de Alerta: Conta Fechada -->
+                <div class="bg-amber-50 rounded-2xl p-4 border border-amber-200 shadow-xs flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-2xl">🔒</span>
+                        <div>
+                            <h4 class="text-xs font-bold text-amber-900 m-0">Conta Encerrada & Paga</h4>
+                            <p class="text-[11px] text-amber-700 m-0 mt-0.5">Esta mesa foi finalizada pelo caixa do estabelecimento.</p>
+                        </div>
+                    </div>
+                    <span class="px-2.5 py-1 bg-amber-600 text-white font-extrabold text-[10px] rounded-full uppercase">Fechada</span>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($reciboConta): ?>
+                <!-- Card de Comprovante / Recibo Digital -->
+                <div class="bg-gradient-to-br from-emerald-950 via-slate-900 to-gray-900 text-white rounded-2xl p-4 sm:p-5 shadow-xl border border-emerald-800/50 space-y-3">
+                    <div class="flex items-center justify-between border-b border-gray-700/80 pb-2.5">
+                        <h3 class="text-xs font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5 m-0">
+                            <span>🧾</span> Recibo de Fechamento Digital
+                        </h3>
+                        <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold rounded-full border border-emerald-500/30">Oficial</span>
+                    </div>
+                    <div class="text-xs font-mono bg-slate-950/80 p-3.5 rounded-xl border border-slate-800 text-emerald-100 whitespace-pre-wrap leading-relaxed shadow-inner overflow-x-auto">
+                        <?= Html::encode($reciboConta->conteudo_texto) ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <!-- Resumo da Conta -->
             <div class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
                 <div class="flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
@@ -178,14 +220,20 @@ $defaultTab = $mesa ? 'comanda' : 'feed';
                 </div>
 
                 <!-- Ações Rápidas da Mesa -->
-                <div class="grid grid-cols-2 gap-2.5 pt-1">
-                    <button type="button" @click="chamarGarcom('Atendimento na Mesa')" class="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 font-bold text-xs hover:bg-amber-100 transition-colors">
-                        <span>👋</span> Chamar Garçom
-                    </button>
-                    <button type="button" @click="pedirConta()" class="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 shadow-sm transition-colors">
-                        <span>💳</span> Pedir Conta / PIX
-                    </button>
-                </div>
+                <?php if (!$isComandaFechada): ?>
+                    <div class="grid grid-cols-2 gap-2.5 pt-1">
+                        <button type="button" @click="chamarGarcom('Atendimento na Mesa')" class="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 font-bold text-xs hover:bg-amber-100 transition-colors">
+                            <span>👋</span> Chamar Garçom
+                        </button>
+                        <button type="button" @click="pedirConta()" class="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 shadow-sm transition-colors">
+                            <span>💳</span> Pedir Conta / PIX
+                        </button>
+                    </div>
+                <?php else: ?>
+                    <p class="text-center text-xs text-gray-500 font-medium py-1 m-0">
+                        Obrigado pela preferência e volte sempre! 😊🚀
+                    </p>
+                <?php endif; ?>
             </div>
 
             <!-- Lista de Itens Pedidos -->
