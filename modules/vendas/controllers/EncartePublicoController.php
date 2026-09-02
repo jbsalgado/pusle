@@ -30,12 +30,34 @@ class EncartePublicoController extends Controller
     public function actionVer($token)
     {
         $encarte = Encarte::find()
-            ->where(['token_publico' => $token, 'status' => 'ativo'])
+            ->where(['token_publico' => $token])
             ->with(['usuario', 'encarteProdutos.produto.fotos', 'encarteProdutos.produto.categoria'])
             ->one();
 
         if (!$encarte) {
-            throw new NotFoundHttpException('O encarte solicitado não foi encontrado ou expirou.');
+            throw new NotFoundHttpException('O encarte solicitado não foi encontrado.');
+        }
+
+        $loja = $encarte->usuario;
+        $lojaConfig = null;
+        if ($loja && $loja->id) {
+            $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $loja->id]);
+        }
+
+        // Se o encarte estiver inativo ou expirado, busca o mais recente e exibe tela de aviso com redirecionamento
+        if ($encarte->status !== 'ativo') {
+            $novoEncarte = Encarte::find()
+                ->where(['usuario_id' => $encarte->usuario_id, 'status' => 'ativo'])
+                ->andWhere(['!=', 'id', $encarte->id])
+                ->orderBy(['created_at' => SORT_DESC])
+                ->one();
+
+            return $this->render('expirado', [
+                'encarteAntigo' => $encarte,
+                'novoEncarte' => $novoEncarte,
+                'loja' => $loja,
+                'lojaConfig' => $lojaConfig,
+            ]);
         }
 
         // Incrementa visualizações
@@ -43,7 +65,8 @@ class EncartePublicoController extends Controller
 
         return $this->render('ver', [
             'encarte' => $encarte,
-            'loja' => $encarte->usuario,
+            'loja' => $loja,
+            'lojaConfig' => $lojaConfig,
             'encarteProdutos' => $encarte->encarteProdutos,
         ]);
     }
@@ -54,7 +77,7 @@ class EncartePublicoController extends Controller
     public function actionPdf($token)
     {
         $encarte = Encarte::find()
-            ->where(['token_publico' => $token, 'status' => 'ativo'])
+            ->where(['token_publico' => $token])
             ->with(['usuario', 'encarteProdutos.produto.fotos', 'encarteProdutos.produto.categoria'])
             ->one();
 
@@ -62,6 +85,132 @@ class EncartePublicoController extends Controller
             throw new NotFoundHttpException('O encarte solicitado não foi encontrado.');
         }
 
+        if ($encarte->status !== 'ativo') {
+            $novoEncarte = Encarte::find()
+                ->where(['usuario_id' => $encarte->usuario_id, 'status' => 'ativo'])
+                ->andWhere(['!=', 'id', $encarte->id])
+                ->orderBy(['created_at' => SORT_DESC])
+                ->one();
+
+            if ($novoEncarte) {
+                return $this->redirect($novoEncarte->getUrlPdf());
+            }
+            throw new NotFoundHttpException('Este encarte foi encerrado e não está mais disponível.');
+        }
+
         return EncartePdfService::gerarPdf($encarte, Pdf::DEST_BROWSER);
     }
+
+    /**
+     * Desabilita CSRF para a ação de envio de pedido público
+     */
+    public function beforeAction($action)
+    {
+        if ($action->id === 'enviar-pedido') {
+            $this->enableCsrfValidation = false;
+        }
+        return parent::beforeAction($action);
+    }
+
+    /**
+     * Registra o pedido enviado pelo Encarte Digital no Canal de Comunicação Interno (ClienteInbox)
+     */
+    public function actionEnviarPedido($token)
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        $encarte = Encarte::find()
+            ->where(['token_publico' => $token])
+            ->with(['usuario'])
+            ->one();
+
+        if (!$encarte) {
+            return ['success' => false, 'message' => 'Encarte não encontrado.'];
+        }
+
+        if ($encarte->status !== 'ativo') {
+            return [
+                'success' => false,
+                'message' => 'Este encarte expirou e não aceita mais novos pedidos para evitar compras fora da promoção.',
+                'expirado' => true,
+            ];
+        }
+
+        $request = Yii::$app->request;
+        $rawBody = $request->getRawBody();
+        $payload = json_decode($rawBody, true) ?: $request->post();
+
+        if (empty($payload['itens'])) {
+            return ['success' => false, 'message' => 'A sacola está vazia.'];
+        }
+
+        $usuarioId = $encarte->usuario_id;
+        $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $usuarioId]);
+        $lojaNome = ($lojaConfig && !empty($lojaConfig->nome_fantasia)) ? $lojaConfig->nome_fantasia : ($encarte->usuario ? ($encarte->usuario->nome_loja ?: $encarte->usuario->nome) : 'Loja');
+        $nomeCliente = trim($payload['nome_cliente'] ?? '');
+        $telefoneCliente = trim($payload['telefone_cliente'] ?? '');
+        $enderecoCliente = trim($payload['endereco_cliente'] ?? '');
+        $itens = $payload['itens'] ?? [];
+        $total = (float) ($payload['total'] ?? 0);
+
+        $identificacao = $nomeCliente ?: ($telefoneCliente ?: 'Cliente');
+        $titulo = "🛒 Pedido Encarte: {$identificacao}" . ($telefoneCliente && $nomeCliente ? " ({$telefoneCliente})" : "");
+
+        $textoLinhas = [];
+        $textoLinhas[] = "📋 **Novo Pedido Recebido via Encarte Digital**";
+        $textoLinhas[] = "📖 **Encarte:** {$encarte->titulo}";
+        if ($nomeCliente) {
+            $textoLinhas[] = "👤 **Cliente:** {$nomeCliente}";
+        }
+        if ($telefoneCliente) {
+            $textoLinhas[] = "📱 **WhatsApp:** {$telefoneCliente}";
+        }
+        if ($enderecoCliente) {
+            $textoLinhas[] = "📍 **Endereço/Obs:** {$enderecoCliente}";
+        }
+        $textoLinhas[] = "\n📦 **Itens do Pedido:**";
+
+        foreach ($itens as $it) {
+            $qtd = (int) ($it['qtd'] ?? 1);
+            $nome = $it['nome'] ?? 'Produto';
+            $preco = (float) ($it['precoVal'] ?? ($it['preco'] ?? 0));
+            $sub = $preco * $qtd;
+            $subFmt = number_format($sub, 2, ',', '.');
+            $textoLinhas[] = "• {$qtd}x {$nome} — R$ {$subFmt}";
+        }
+
+        $totalFmt = number_format($total, 2, ',', '.');
+        $textoLinhas[] = "\n💰 **Total do Pedido:** R$ {$totalFmt}";
+        $textoConteudo = implode("\n", $textoLinhas);
+
+        $clienteObj = null;
+        if (!empty($telefoneCliente)) {
+            $clienteObj = \app\modules\vendas\models\Clientes::findOrCreateQuick($usuarioId, $nomeCliente ?: 'Cliente Encarte', $telefoneCliente);
+        }
+
+        $inbox = \app\modules\vendas\models\ClienteInbox::postar(
+            $usuarioId,
+            $clienteObj ? $clienteObj->id : null,
+            \app\modules\vendas\models\ClienteInbox::TIPO_CARD,
+            $titulo,
+            $textoConteudo,
+            null,
+            [
+                'origem' => 'encarte_digital',
+                'encarte_id' => $encarte->id,
+                'total' => $total,
+                'cliente' => $nomeCliente,
+                'telefone' => $telefoneCliente,
+                'endereco' => $enderecoCliente,
+                'itens_count' => count($itens),
+            ]
+        );
+
+        return [
+            'success' => true,
+            'message' => 'Pedido registrado com sucesso no Canal Interno Pulse!',
+            'inbox_id' => $inbox ? $inbox->id : null,
+        ];
+    }
 }
+

@@ -124,7 +124,7 @@ use yii\helpers\Html;
                     </td>
                     <td style="text-align: center;"><?= Html::encode($item->produto->unidade_medida ?: 'UN') ?></td>
                     <td style="text-align: right;"><?= number_format($item->quantidade, $item->produto->venda_fracionada ? 3 : 0, ',', '.') ?></td>
-                    <td style="text-align: right;">R$ <?= number_format($item->preco_unitario, 2, ',', '.') ?></td>
+                    <td style="text-align: right;">R$ <?= $item->getPrecoUnitarioFormatado() ?></td>
                     <td style="text-align: right; font-weight: bold;">R$ <?= number_format($item->valor_total_item, 2, ',', '.') ?></td>
                 </tr>
             <?php endforeach; ?>

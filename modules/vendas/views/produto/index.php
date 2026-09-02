@@ -22,67 +22,102 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                 <p class="text-sm text-gray-500 mt-1">Gerencie seu catálogo de produtos e estoque</p>
             </div>
             
-            <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                <!-- Filtro Rápido (Toggle) -->
-                <div class="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200 flex items-center gap-3">
-                    <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Filtro Rápido:</span>
-                    <label class="relative inline-flex items-center cursor-pointer group">
-                        <input type="checkbox" id="quick-toggle-ativo" class="sr-only peer" 
-                            <?= (Yii::$app->request->get('ativo', '1') === '1') ? 'checked' : '' ?>
-                            onchange="syncAndSubmit(this.checked)">
-                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        <span class="ml-2 text-sm font-semibold text-gray-700 group-hover:text-blue-600 transition-colors">
-                            Ativos
-                        </span>
-                    </label>
-                </div>
-
-                <div class="flex gap-2">
-                    <button type="button" onclick="abrirModalCadastroRapido()" class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-extrabold rounded-lg shadow-md transition duration-300 gap-2 border border-emerald-400/30 cursor-pointer">
-                        <span class="text-amber-300 text-lg">⚡</span>
-                        <span>Cadastrar Produto Rápido</span>
-                    </button>
-
-                    <a href="<?= Url::to(['/vendas/venda-expressa/index']) ?>" class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-extrabold rounded-lg shadow-md transition duration-300 gap-2 border border-amber-400/30">
-                        <span class="text-amber-200 text-lg">⚡</span>
-                        <span>Venda Expressa</span>
-                    </a>
-
-                    <button type="button" onclick="gerarEncarteSelecionados()" class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white font-bold rounded-lg shadow-md transition duration-300 gap-2">
-                        <svg class="w-5 h-5 text-amber-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-                        📖 Encarte Digital (Flipsnack)
-                    </button>
-
-                    <button type="button" onclick="dispararMassaSelecionados()" class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white font-bold rounded-lg shadow-md transition duration-300 gap-2">
-                        <svg class="w-5 h-5 text-purple-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-                        Disparar Cards em Massa
-                    </button>
-
-                    <?= Html::a(
-                        '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Studio de Vídeos',
-                        ['/vendas/produto-video/studio'],
-                        ['class' => 'inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition duration-300']
-                    ) ?>
-
-                    <?= Html::a(
-                        '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>Categorias',
-                        ['/vendas/categoria/index'],
-                        ['class' => 'inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg shadow-md transition duration-300']
-                    ) ?>
-
-                    <?= Html::a(
-                        '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Novo Produto',
-                        ['create'],
-                        ['class' => 'inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-300']
-                    ) ?>
-
-                    <?= Html::a(
-                        '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>Voltar',
-                        ['/vendas/inicio/index'],
-                        ['class' => 'inline-flex items-center px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-lg shadow-md transition duration-300']
-                    ) ?>
-                </div>
+            <!-- Filtro Rápido (Toggle) -->
+            <div class="bg-white px-4 py-2 rounded-xl shadow-xs border border-gray-200 flex items-center gap-3 self-stretch sm:self-auto justify-between sm:justify-start">
+                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Filtro Rápido:</span>
+                <label class="relative inline-flex items-center cursor-pointer group">
+                    <input type="checkbox" id="quick-toggle-ativo" class="sr-only peer" 
+                        <?= (Yii::$app->request->get('ativo', '1') === '1') ? 'checked' : '' ?>
+                        onchange="syncAndSubmit(this.checked)">
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <span class="ml-2 text-sm font-semibold text-gray-700 group-hover:text-blue-600 transition-colors">
+                        Ativos
+                    </span>
+                </label>
             </div>
+        </div>
+
+        <!-- Barra de Ações e Botões Operacionais (Responsivo) -->
+        <div class="flex flex-wrap items-center gap-2 sm:gap-2.5 mt-4 w-full">
+            <!-- 1. Cadastrar Produto Rápido -->
+            <button type="button" onclick="abrirModalCadastroRapido()" class="inline-flex items-center justify-center px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-emerald-400/30 cursor-pointer whitespace-nowrap">
+                <span class="text-amber-300 text-base">⚡</span>
+                <span>Cadastrar Produto Rápido</span>
+            </button>
+
+            <!-- 2. Venda Expressa -->
+            <a href="<?= Url::to(['/vendas/venda-expressa/index']) ?>" class="inline-flex items-center justify-center px-3.5 py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-amber-400/30 whitespace-nowrap">
+                <span class="text-amber-200 text-base">⚡</span>
+                <span>Venda Expressa</span>
+            </a>
+
+            <!-- 3. Gerar Encarte Digital -->
+            <button type="button" onclick="gerarEncarteSelecionados()" class="inline-flex items-center justify-center px-3.5 py-2.5 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-red-400/30 cursor-pointer whitespace-nowrap">
+                <span class="text-amber-200 text-base">📖</span>
+                <span>Gerar Encarte Digital</span>
+            </button>
+
+            <!-- 4. Gestão de Encartes -->
+            <?= Html::a(
+                '<svg class="w-4 h-4 inline-block text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg><span>Gestão de Encartes</span>',
+                ['/vendas/encarte/index'],
+                ['class' => 'inline-flex items-center justify-center px-3.5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-slate-700 whitespace-nowrap']
+            ) ?>
+
+            <!-- 5. Disparar Cards em Massa -->
+            <button type="button" onclick="dispararMassaSelecionados()" class="inline-flex items-center justify-center px-3.5 py-2.5 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-purple-400/30 cursor-pointer whitespace-nowrap">
+                <svg class="w-4 h-4 text-purple-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                <span>Disparar Cards em Massa</span>
+            </button>
+
+            <!-- 6. Studio de Vídeos -->
+            <?= Html::a(
+                '<svg class="w-4 h-4 inline-block text-indigo-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Studio de Vídeos</span>',
+                ['/vendas/produto-video/studio'],
+                ['class' => 'inline-flex items-center justify-center px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-indigo-400/30 whitespace-nowrap']
+            ) ?>
+
+            <!-- 7. Cadastro Categorias -->
+            <?= Html::a(
+                '<svg class="w-4 h-4 inline-block text-purple-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg><span>Cadastro Categorias</span>',
+                ['/vendas/categoria/index'],
+                ['class' => 'inline-flex items-center justify-center px-3.5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-purple-400/30 whitespace-nowrap']
+            ) ?>
+
+            <!-- 8. Novo Produto -->
+            <?= Html::a(
+                '<svg class="w-4 h-4 inline-block text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg><span>Novo Produto</span>',
+                ['/vendas/produto/create'],
+                ['class' => 'inline-flex items-center justify-center px-3.5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-green-400/30 whitespace-nowrap']
+            ) ?>
+
+            <!-- 9. Canal Próprio (Direct Hub) -->
+            <button type="button" onclick="abrirModalCanalInterno()" class="inline-flex items-center justify-center px-3.5 py-2.5 bg-gradient-to-r from-teal-600 via-emerald-600 to-green-600 hover:from-teal-700 hover:to-green-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-emerald-400/30 cursor-pointer relative group whitespace-nowrap">
+                <span class="text-teal-200 text-base">🌐</span>
+                <span>Canal Próprio (Direct Hub)</span>
+                <?php if (!empty($inboxNaoLidosCount) && $inboxNaoLidosCount > 0): ?>
+                    <span id="badgeInboxNaoLidosHeader" class="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full border border-white shadow-xs animate-pulse">
+                        <?= $inboxNaoLidosCount ?>
+                    </span>
+                <?php else: ?>
+                    <span id="badgeInboxNaoLidosHeader" class="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full border border-white shadow-xs hidden">
+                        0
+                    </span>
+                <?php endif; ?>
+            </button>
+
+            <!-- 10. Buscar Mídias & Popular Web -->
+            <button type="button" onclick="abrirModalEnriquecimentoWeb()" class="inline-flex items-center justify-center px-3.5 py-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-blue-400/30 cursor-pointer whitespace-nowrap">
+                <span class="text-blue-200 text-base">🌐</span>
+                <span>Buscar Mídias & Popular Web</span>
+            </button>
+
+            <!-- 11. Voltar -->
+            <?= Html::a(
+                '<svg class="w-4 h-4 inline-block text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg><span>Voltar</span>',
+                ['/vendas/inicio/index'],
+                ['class' => 'inline-flex items-center justify-center px-3.5 py-2.5 bg-gray-500 hover:bg-gray-600 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-gray-400/30 whitespace-nowrap']
+            ) ?>
         </div>
     </div>
 
@@ -166,7 +201,7 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                                 event.preventDefault();
                                 var form = document.getElementById("filtro-produtos-form");
                                 var qs = new URLSearchParams(new FormData(form)).toString();
-                                var actionUrl = "' . \yii\helpers\Url::to(['imprimir-relatorio']) . '";
+                                var actionUrl = "' . \yii\helpers\Url::to(['/vendas/produto/imprimir-relatorio']) . '";
                                 var separator = actionUrl.indexOf("?") !== -1 ? "&" : "?";
                                 window.open(actionUrl + separator + qs, "_blank");
                             '
@@ -799,15 +834,7 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
 
         if (ids.length === 0) {
             const todosNaPagina = Array.from(document.querySelectorAll('input[name="produto_massa_chk"]')).map(c => c.value);
-            if (todosNaPagina.length === 0) {
-                alert('Nenhum produto encontrado para o encarte.');
-                return;
-            }
-
-            if (confirm('Nenhum produto marcado especificamente. Deseja incluir todos os ' + todosNaPagina.length + ' produtos exibidos nesta página no Encarte Digital?')) {
-                document.querySelectorAll('input[name="produto_massa_chk"]').forEach(c => c.checked = true);
-                abrirModalGerarEncarte(todosNaPagina);
-            }
+            abrirModalGerarEncarte(todosNaPagina);
             return;
         }
 
@@ -818,3 +845,13 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
 <?= $this->render('_modal_disparo_massa') ?>
 <?= $this->render('_modal_gerar_encarte') ?>
 <?= $this->render('_modal_cadastro_rapido', ['lojaId' => Yii::$app->user->id]) ?>
+<?= $this->render('_modal_enriquecimento_web', ['lojaId' => Yii::$app->user->id]) ?>
+<?php
+$slugLoja = ($usuarioLoja && !empty($usuarioLoja->slug)) ? $usuarioLoja->slug : (($usuarioLoja && !empty($usuarioLoja->nome_loja)) ? $usuarioLoja->nome_loja : ($usuarioLoja ? $usuarioLoja->id : 'loja'));
+$hubUrlCompleta = Url::to(['/hub/index', 'slug' => $slugLoja], true);
+?>
+<?= $this->render('_modal_canal_interno', [
+    'usuarioLoja' => $usuarioLoja ?? null,
+    'lojaConfig' => $lojaConfig ?? null,
+    'hubUrlCompleta' => $hubUrlCompleta,
+]) ?>

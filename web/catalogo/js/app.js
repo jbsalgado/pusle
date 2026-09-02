@@ -20,6 +20,7 @@ import {
     diminuirQuantidadeItem,
     calcularTotalCarrinho,
     calcularTotalItens,
+    calcularTotalPecas,
     limparCarrinho,
     atualizarIndicadoresCarrinho,
     atualizarBadgeProduto
@@ -470,8 +471,9 @@ function renderizarCarrinho() {
     
     // Atualizar contador de itens no footer
     const totalItens = calcularTotalItens();
+    const totalPecas = calcularTotalPecas();
     if (totalItensFooter) {
-        totalItensFooter.textContent = totalItens;
+        totalItensFooter.innerHTML = `${totalItens} <span class="text-xs text-gray-500 font-normal">(${totalPecas} un.)</span>`;
     }
 }
 

@@ -315,6 +315,17 @@ export async function gerarComprovanteVenda(carrinho, dadosPedido) {
     
     <div class="separador">--------------------------------</div>
     
+    <div style="font-size: 11px; font-weight: 700; color: #000000; margin-bottom: 5px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+            <span>TOTAL DE ITENS:</span>
+            <span>${carrinho.length}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+            <span>TOTAL DE PEÇAS:</span>
+            <span>${carrinho.reduce((acc, item) => acc + (parseFloat(item.quantidade) || 0), 0)}</span>
+        </div>
+    </div>
+
     <div class="total">
         TOTAL: ${valorFormatado}
     </div>

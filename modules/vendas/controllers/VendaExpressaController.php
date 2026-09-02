@@ -115,6 +115,23 @@ class VendaExpressaController extends Controller
         $formaPagamentoId = $request->post('forma_pagamento_id', null);
         $observacoes = trim($request->post('observacoes', ''));
 
+        // Divisão de pagamento em múltiplos meios (PIX + Dinheiro + Cartão, etc.)
+        $pagamentosMultiplosRaw = $request->post('pagamentos_multiplos', []);
+        $pagamentosMultiplos = [];
+        if (is_array($pagamentosMultiplosRaw)) {
+            foreach ($pagamentosMultiplosRaw as $pgto) {
+                if (!is_array($pgto)) continue;
+                $fid = !empty($pgto['forma_pagamento_id']) ? $pgto['forma_pagamento_id'] : null;
+                $val = isset($pgto['valor']) ? round((float)$pgto['valor'], 2) : 0;
+                if (!$fid || $val <= 0) continue;
+                $pagamentosMultiplos[] = [
+                    'forma_pagamento_id' => $fid,
+                    'valor' => $val,
+                ];
+            }
+        }
+        $usaMultiplos = !empty($pagamentosMultiplos);
+
         // Dados do Cliente (para disparos WhatsApp via Evolution API)
         $clienteNome = trim($request->post('cliente_nome', ''));
         $clienteCpfRaw = trim($request->post('cliente_cpf', ''));
@@ -125,6 +142,11 @@ class VendaExpressaController extends Controller
         $descontoTipo = strtoupper(trim($request->post('desconto_tipo', 'VALOR'))); // VALOR ou PERCENTUAL
         $acrescimoValorInput = (float)str_replace(',', '.', $request->post('acrescimo_valor', 0));
         $acrescimoTipo = strtoupper(trim($request->post('acrescimo_tipo', 'VALOR'))); // VALOR ou PERCENTUAL
+
+        if ($usaMultiplos) {
+            // Na divisão, a forma principal é a primeira da lista
+            $formaPagamentoId = $pagamentosMultiplos[0]['forma_pagamento_id'];
+        }
 
         if (empty($formaPagamentoId)) {
             $fpPadrao = FormaPagamento::find()->where(['ativo' => true])->orderBy(['nome' => SORT_ASC])->one();
@@ -146,17 +168,28 @@ class VendaExpressaController extends Controller
             $cpfClean = preg_replace('/[^0-9]/', '', $clienteCpfRaw);
             $whatsappClean = preg_replace('/[^0-9]/', '', $clienteWhatsappRaw);
 
-            if (!empty($whatsappClean)) {
-                $cliente = Cliente::find()
-                    ->where(['usuario_id' => $lojaId])
-                    ->andWhere(['or', ['telefone' => $whatsappClean], ['like', 'telefone', $whatsappClean]])
-                    ->one();
-            }
+            // Resolve primeiro por CPF (identificador único forte), depois por telefone.
+            $cpfValido = (!empty($cpfClean) && strlen($cpfClean) === 11);
 
-            if (!$cliente && !empty($cpfClean)) {
+            if (!$cliente && $cpfValido) {
                 $cliente = Cliente::find()
                     ->where(['usuario_id' => $lojaId, 'cpf' => $cpfClean])
                     ->one();
+            }
+
+            if (!$cliente && !empty($whatsappClean)) {
+                // Correspondência exata primeiro
+                $cliente = Cliente::find()
+                    ->where(['usuario_id' => $lojaId, 'telefone' => $whatsappClean])
+                    ->one();
+
+                // Fallback para busca parcial
+                if (!$cliente) {
+                    $cliente = Cliente::find()
+                        ->where(['usuario_id' => $lojaId])
+                        ->andWhere(['like', 'telefone', $whatsappClean])
+                        ->one();
+                }
             }
 
             if (!$cliente && (!empty($clienteNome) || !empty($whatsappClean) || !empty($cpfClean))) {
@@ -164,7 +197,7 @@ class VendaExpressaController extends Controller
                 $cliente->usuario_id = $lojaId;
                 $cliente->nome_completo = !empty($clienteNome) ? $clienteNome : 'Cliente ' . ($whatsappClean ?: 'WhatsApp');
                 $cliente->telefone = !empty($whatsappClean) ? $whatsappClean : '00000000000';
-                $cliente->cpf = (!empty($cpfClean) && strlen($cpfClean) === 11) ? $cpfClean : null;
+                $cliente->cpf = $cpfValido ? $cpfClean : null;
                 $cliente->ativo = true;
                 $cliente->senha = '1234';
                 $cliente->endereco_logradouro = 'Não informado';
@@ -174,8 +207,22 @@ class VendaExpressaController extends Controller
                 $cliente->save(false);
             } else if ($cliente) {
                 if (!empty($clienteNome)) $cliente->nome_completo = $clienteNome;
-                if (!empty($cpfClean) && strlen($cpfClean) === 11) $cliente->cpf = $cpfClean;
                 if (!empty($whatsappClean)) $cliente->telefone = $whatsappClean;
+
+                // Só atualiza o CPF se não houver outro cliente da mesma loja com esse CPF
+                // (evita violação da constraint única prest_clientes_unique_loja).
+                if ($cpfValido && $cliente->cpf !== $cpfClean) {
+                    $colisaoCpf = Cliente::find()
+                        ->where(['usuario_id' => $lojaId, 'cpf' => $cpfClean])
+                        ->andWhere(['!=', 'id', $cliente->id])
+                        ->exists();
+
+                    if (!$colisaoCpf) {
+                        $cliente->cpf = $cpfClean;
+                    }
+                    // Se houver colisão, mantém o CPF atual e segue com a venda.
+                }
+
                 $cliente->save(false);
             }
 
@@ -211,27 +258,41 @@ class VendaExpressaController extends Controller
                 throw new \Exception('Nenhum produto válido foi encontrado para o registro da venda.');
             }
 
-            // Cálculo do Desconto Geral
+            // Cálculo do Desconto Geral (arredondado a 2 casas para consistência)
             $valDesconto = 0;
             if ($descontoValorInput > 0) {
                 if ($descontoTipo === 'PERCENTUAL') {
-                    $valDesconto = $subtotalItens * ($descontoValorInput / 100);
+                    $valDesconto = round($subtotalItens * ($descontoValorInput / 100), 2);
                 } else {
-                    $valDesconto = $descontoValorInput;
+                    $valDesconto = round($descontoValorInput, 2);
                 }
             }
 
-            // Cálculo do Acréscimo Geral
+            // Cálculo do Acréscimo Geral (arredondado a 2 casas para consistência)
             $valAcrescimo = 0;
             if ($acrescimoValorInput > 0) {
                 if ($acrescimoTipo === 'PERCENTUAL') {
-                    $valAcrescimo = $subtotalItens * ($acrescimoValorInput / 100);
+                    $valAcrescimo = round($subtotalItens * ($acrescimoValorInput / 100), 2);
                 } else {
-                    $valAcrescimo = $acrescimoValorInput;
+                    $valAcrescimo = round($acrescimoValorInput, 2);
                 }
             }
 
-            $valorTotalFinal = max(0, $subtotalItens - $valDesconto + $valAcrescimo);
+            $valorTotalFinal = round(max(0, $subtotalItens - $valDesconto + $valAcrescimo), 2);
+
+            // Valida a soma de pagamentos múltiplos contra o total calculado
+            if ($usaMultiplos) {
+                $somaPagamentos = 0.0;
+                foreach ($pagamentosMultiplos as $pgto) {
+                    $somaPagamentos += (float)$pgto['valor'];
+                }
+
+                if (abs(round($somaPagamentos, 2) - $valorTotalFinal) > 0.01) {
+                    $msg = 'A soma das formas de pagamento (R$ ' . number_format($somaPagamentos, 2, ',', '.') . ') '
+                         . 'não corresponde ao total da venda (R$ ' . number_format($valorTotalFinal, 2, ',', '.') . ').';
+                    throw new \Exception($msg);
+                }
+            }
 
             // Criar Venda
             $venda = new Venda();
@@ -250,6 +311,14 @@ class VendaExpressaController extends Controller
             if (!empty($observacoes)) $obsCompleta[] = $observacoes;
             if ($valDesconto > 0) $obsCompleta[] = 'Desconto Aplicado: R$ ' . number_format($valDesconto, 2, ',', '.');
             if ($valAcrescimo > 0) $obsCompleta[] = 'Acréscimo Aplicado: R$ ' . number_format($valAcrescimo, 2, ',', '.');
+            if ($usaMultiplos) {
+                $resumoMeios = [];
+                foreach ($pagamentosMultiplos as $pgto) {
+                    $fpPgto = FormaPagamento::findOne($pgto['forma_pagamento_id']);
+                    $resumoMeios[] = ($fpPgto ? $fpPgto->nome : 'Meio') . ' R$ ' . number_format($pgto['valor'], 2, ',', '.');
+                }
+                $obsCompleta[] = 'Pagamentos: ' . implode(' + ', $resumoMeios);
+            }
             $venda->observacoes = implode(' | ', $obsCompleta) ?: 'Venda Expressa (Encarte & Catálogo)';
 
             if (!$venda->save()) {
@@ -313,8 +382,14 @@ class VendaExpressaController extends Controller
                 }
             }
 
-            // Gerar parcela paga para relatório de caixa
-            $venda->gerarParcelas($formaPagamentoId, date('Y-m-d'), 30, true);
+            // Gerar parcela(s) paga(s) para relatório de caixa (uma por meio na divisão)
+            $venda->gerarParcelas(
+                $formaPagamentoId,
+                date('Y-m-d'),
+                30,
+                true,
+                $usaMultiplos ? $pagamentosMultiplos : []
+            );
 
             $transaction->commit();
 
@@ -350,6 +425,7 @@ class VendaExpressaController extends Controller
                 'cliente_telefone' => $cliente ? $cliente->telefone : $clienteWhatsappRaw,
                 'forma_pagamento' => $formaPagamento ? $formaPagamento->nome : 'DINHEIRO',
                 'observacoes' => $venda->observacoes,
+                'pagamentos' => $usaMultiplos ? $pagamentosMultiplos : [],
                 'itens' => $itensResponse,
                 'resumoHoje' => $this->getResumoHoje($lojaId),
             ];

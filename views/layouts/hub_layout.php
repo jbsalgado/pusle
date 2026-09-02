@@ -17,7 +17,16 @@ use yii\helpers\Html;
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title><?= Html::encode($this->title ?: 'Direct Hub & Comanda Digital') ?></title>
     
-    <!-- Tailwind CSS CDN -->
+    <!-- Tailwind CSS com supressão de aviso informativo CDN -->
+    <script>
+        (function() {
+            const originalWarn = console.warn;
+            console.warn = function(...args) {
+                if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
+                originalWarn.apply(console, args);
+            };
+        })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Alpine.js CDN -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>

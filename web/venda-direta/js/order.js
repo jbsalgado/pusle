@@ -5,7 +5,7 @@ import { CONFIG, API_ENDPOINTS, GATEWAY_CONFIG } from './config.js';
 import { fetchWithAuth } from './api.js';
 import { salvarPedidoPendente, getToken } from './storage.js';
 import { validarUUID } from './utils.js';
-import { getAcrescimo } from './cart.js?v=surcharge_fix';
+import { getAcrescimo, getDescontoGlobal } from './cart.js';
 
 /**
  * Valida dados do pedido antes de enviar (VENDA DIRETA - cliente opcional)
@@ -38,21 +38,10 @@ function validarDadosPedido(dadosPedido, carrinho) {
         
         // ✅ VALIDAÇÃO: DINHEIRO e PIX não permitem parcelamento
         // Busca a forma de pagamento para verificar o tipo
-        if (dadosPedido.forma_pagamento_id) {
-            // Tenta buscar a forma de pagamento do array global (se disponível)
-            const formasPagamento = window.formasPagamento || [];
-            const formaSelecionada = formasPagamento.find(f => f.id === dadosPedido.forma_pagamento_id);
-            
-            if (formaSelecionada) {
-                const tipo = formaSelecionada.tipo || '';
-                if (tipo === 'DINHEIRO' || tipo === 'PIX') {
-                    // Força para 1 parcela (à vista) se tentar parcelar
-                    if (numeroParcelas > 1) {
-                        console.warn('[Order] ⚠️ Tentativa de parcelar com', tipo, '- forçando para à vista');
-                        numeroParcelas = 1;
-                        dadosPedido.numero_parcelas = 1;
-                    }
-                }
+        const formaPagamento = dadosPedido.formas_pagamento?.find(f => f.id === dadosPedido.forma_pagamento_id);
+        if (formaPagamento && (formaPagamento.tipo === 'DINHEIRO' || formaPagamento.tipo === 'PIX' || formaPagamento.tipo === 'PIX_ESTATICO')) {
+            if (numeroParcelas > 1) {
+                throw new Error('Forma de pagamento ' + formaPagamento.tipo + ' não permite parcelamento.');
             }
         }
         
@@ -84,8 +73,13 @@ function validarDadosPedido(dadosPedido, carrinho) {
 function prepararObjetoPedido(dadosPedido, carrinho) {
     console.log('[Order] 🔧 Preparando objeto do pedido (Venda Direta)...');
     
-    // Obtém dados do acréscimo do carrinho
+    // Obtém dados do acréscimo e desconto global do carrinho
     const acrescimo = getAcrescimo();
+    const descontoGlobal = getDescontoGlobal();
+    
+    const valDescGlobal = parseFloat(descontoGlobal.valor || dadosPedido.desconto_global_valor || dadosPedido.desconto_valor || 0) || 0;
+    const tipoDescGlobal = (descontoGlobal.tipo || dadosPedido.desconto_global_tipo || dadosPedido.desconto_tipo || 'valor');
+    const obsDescGlobal = (descontoGlobal.observacao || dadosPedido.observacao_desconto_global || dadosPedido.observacao_desconto || null);
     
     const pedido = {
         usuario_id: CONFIG.ID_USUARIO_LOJA,
@@ -110,6 +104,12 @@ function prepararObjetoPedido(dadosPedido, carrinho) {
         acrescimo_valor: parseFloat(acrescimo.valor) || 0,
         acrescimo_tipo: acrescimo.tipo || null,
         observacao_acrescimo: acrescimo.observacao || null,
+        // Adiciona dados do desconto global na venda (independente e cumulativo)
+        desconto_global_valor: valDescGlobal,
+        desconto_global_tipo: tipoDescGlobal,
+        observacao_desconto_global: obsDescGlobal,
+        desconto_valor: valDescGlobal,
+        desconto_tipo: tipoDescGlobal,
         orcamento_id: dadosPedido.orcamento_id || null, // Link para orçamento convertido
         confirmar_imediato: dadosPedido.confirmar_imediato || null,
         pagamentos_multiplos: dadosPedido.pagamentos_multiplos || null

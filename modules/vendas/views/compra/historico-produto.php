@@ -106,7 +106,7 @@ $this->params['breadcrumbs'][] = $this->title;
                                     </div>
                                     <div class="text-right">
                                         <p class="text-2xl font-bold <?= $index === 0 ? 'text-green-600' : 'text-gray-900' ?>">
-                                            R$ <?= number_format($fp['preco_unitario'], 2, ',', '.') ?>
+                                            R$ <?= \app\modules\vendas\models\ItemCompra::formatarPrecoUnitario($fp['preco_unitario']) ?>
                                         </p>
                                         <p class="text-xs text-gray-500">
                                             Quantidade: <?= number_format($fp['quantidade'], 3, ',', '.') ?>
@@ -154,7 +154,7 @@ $this->params['breadcrumbs'][] = $this->title;
                                         <?= number_format($h['quantidade'], 3, ',', '.') ?>
                                     </td>
                                     <td class="px-4 py-3 text-sm text-right font-semibold text-gray-900">
-                                        R$ <?= number_format($h['preco_unitario'], 2, ',', '.') ?>
+                                        R$ <?= \app\modules\vendas\models\ItemCompra::formatarPrecoUnitario($h['preco_unitario']) ?>
                                     </td>
                                     <td class="px-4 py-3 text-sm text-right font-semibold text-gray-900">
                                         R$ <?= number_format($h['valor_total_item'], 2, ',', '.') ?>

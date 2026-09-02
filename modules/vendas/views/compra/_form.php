@@ -439,48 +439,54 @@ use app\modules\vendas\models\ItemCompra;
             }
         }
 
-        // Função para desmascarar (1.234,56789 -> 1234.56789)
+        // Função para desmascarar (1.234,56789 -> 1234.56789 ou 0,04561 -> 0.04561)
         function unmaskCurrency(value) {
             if (!value) return 0;
             if (typeof value === 'number') return value;
-            return parseFloat(value.toString().replace(/\./g, '').replace(',', '.')) || 0;
+            let str = value.toString().trim();
+            if (str.indexOf(',') !== -1) {
+                str = str.replace(/\./g, '').replace(',', '.');
+            }
+            return parseFloat(str) || 0;
         }
 
-        // Formata preço unitário (de 2 até 5 casas decimais)
+        // Formata preço unitário (sempre 5 casas decimais estilo calculadora)
         function formatUnitPrice(value) {
-            if (value === null || value === undefined || value === '') return '';
+            if (value === null || value === undefined || value === '') return '0,00000';
             const num = typeof value === 'number' ? value : unmaskCurrency(value);
-            if (isNaN(num)) return '';
-            
-            const numStr = num.toFixed(5);
-            let decimais = 2;
-            const match = numStr.match(/\.(\d{2})(\d{1,3})/);
-            if (match && parseInt(match[2]) > 0) {
-                decimais = 2 + match[2].replace(/0+$/, '').length;
-            }
+            if (isNaN(num)) return '0,00000';
             
             return new Intl.NumberFormat('pt-BR', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: decimais
+                minimumFractionDigits: 5,
+                maximumFractionDigits: 5
             }).format(num);
         }
 
         function handleUnitPriceInput(event) {
-            let val = event.target.value;
-            val = val.replace(/[^0-9,\.]/g, '');
-            const firstSep = val.search(/[,.]/);
-            if (firstSep !== -1) {
-                val = val.substring(0, firstSep + 1) + val.substring(firstSep + 1).replace(/[,.]/g, '');
+            let input = event.target;
+            let digits = input.value.replace(/\D/g, '');
+            
+            if (digits === '') {
+                input.value = '0,00000';
+            } else {
+                let numberVal = parseInt(digits, 10) / 100000;
+                input.value = new Intl.NumberFormat('pt-BR', {
+                    minimumFractionDigits: 5,
+                    maximumFractionDigits: 5
+                }).format(numberVal);
             }
-            event.target.value = val;
 
-            const itemElement = event.target.closest('.item-compra');
+            atualizarSubtotalDoItem(input);
+        }
+
+        function atualizarSubtotalDoItem(input) {
+            const itemElement = input.closest('.item-compra');
             if (itemElement) {
                 const inputQtd = itemElement.querySelector('.input-quantidade');
                 const subtotalEl = itemElement.querySelector('.item-subtotal');
                 if (inputQtd && subtotalEl) {
                     const quantidade = parseFloat(inputQtd.value) || 0;
-                    const preco = unmaskCurrency(val);
+                    const preco = unmaskCurrency(input.value);
                     const subtotal = Math.round((quantidade * preco) * 100) / 100;
                     subtotalEl.textContent = 'R$ ' + new Intl.NumberFormat('pt-BR', {
                         minimumFractionDigits: 2,
@@ -494,7 +500,12 @@ use app\modules\vendas\models\ItemCompra;
         function handleUnitPriceBlur(event) {
             if (event.target.value) {
                 event.target.value = formatUnitPrice(event.target.value);
+                atualizarSubtotalDoItem(event.target);
             }
+        }
+
+        function handleUnitPriceFocus(event) {
+            event.target.select();
         }
 
         // Aplica máscara de moeda global
@@ -511,6 +522,7 @@ use app\modules\vendas\models\ItemCompra;
         document.querySelectorAll('.input-preco-unitario').forEach(input => {
             input.addEventListener('input', handleUnitPriceInput);
             input.addEventListener('blur', handleUnitPriceBlur);
+            input.addEventListener('focus', handleUnitPriceFocus);
             if (input.value) {
                 input.value = formatUnitPrice(input.value);
             }
@@ -558,7 +570,7 @@ use app\modules\vendas\models\ItemCompra;
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Preço Unit. *</label>
-                        <input type="text" name="ItemCompra[${itemIndex}][preco_unitario]" class="input-preco input-preco-unitario w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required placeholder="0,00" inputmode="decimal">
+                        <input type="text" name="ItemCompra[${itemIndex}][preco_unitario]" class="input-preco input-preco-unitario w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required value="0,00000" placeholder="0,00000" inputmode="numeric">
                     </div>
                 </div>
             </div>
@@ -596,6 +608,7 @@ use app\modules\vendas\models\ItemCompra;
             if (inputPrecoNew) {
                 inputPrecoNew.addEventListener('input', handleUnitPriceInput);
                 inputPrecoNew.addEventListener('blur', handleUnitPriceBlur);
+                inputPrecoNew.addEventListener('focus', handleUnitPriceFocus);
             }
 
             attachItemListeners(newItem);

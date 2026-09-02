@@ -297,7 +297,9 @@ class OrcamentoController extends Controller
 
         $pdf->Ln(2);
         $pdf->SetFont('Courier', 'B', 9);
-        $pdf->Cell(80, 4, mb_convert_encoding('TOTAL DE ITENS: ' . $totalPecas, 'ISO-8859-1', 'UTF-8'), 0, 1, 'L');
+        $totalItens = count($model->itens);
+        $pdf->Cell(80, 4, mb_convert_encoding('TOTAL DE ITENS: ' . $totalItens, 'ISO-8859-1', 'UTF-8'), 0, 1, 'L');
+        $pdf->Cell(80, 4, mb_convert_encoding('TOTAL DE PEÇAS: ' . $totalPecas, 'ISO-8859-1', 'UTF-8'), 0, 1, 'L');
 
         $pdf->Ln(2);
         $pdf->SetFont('Courier', '', 10);
@@ -563,7 +565,10 @@ class OrcamentoController extends Controller
         }
 
         $pdf->SetFont('Arial', 'B', 9);
-        $pdf->Cell($col1, $hTotal, utf8_decode("TOTAL DE PEÇAS/ITENS:"), 0, 0, 'R');
+        $totalItens = count($model->itens);
+        $pdf->Cell($col1, $hTotal, utf8_decode("TOTAL DE ITENS:"), 0, 0, 'R');
+        $pdf->Cell($col2, $hTotal, number_format($totalItens, 0), 0, 1, 'R');
+        $pdf->Cell($col1, $hTotal, utf8_decode("TOTAL DE PEÇAS:"), 0, 0, 'R');
         $pdf->Cell($col2, $hTotal, number_format($totalPecas, 0), 0, 1, 'R');
 
         $pdf->Ln(1);

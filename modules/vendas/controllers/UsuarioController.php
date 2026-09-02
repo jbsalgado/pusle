@@ -163,8 +163,7 @@ class UsuarioController extends Controller
     public function actionCreate()
     {
         $model = new Usuario();
-        // Gera UUID usando função do PostgreSQL
-        $model->id = new Expression('gen_random_uuid()');
+        $model->id = (string) Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
         $model->generateAuthKey();
         // Por padrão, não é dono (será colaborador)
         $model->eh_dono_loja = false;
@@ -178,6 +177,14 @@ class UsuarioController extends Controller
                 $model->setPassword($senha);
             } else {
                 $model->addError('senha', 'A senha é obrigatória para novos usuários.');
+            }
+
+            // Sanitiza CPF e Telefone
+            if (!empty($model->cpf)) {
+                $model->cpf = preg_replace('/[^0-9]/', '', $model->cpf);
+            }
+            if (!empty($model->telefone)) {
+                $model->telefone = preg_replace('/[^0-9]/', '', $model->telefone);
             }
             
             // Gera username se não fornecido
@@ -193,9 +200,37 @@ class UsuarioController extends Controller
                 $model->eh_dono_loja = false;
             }
             
-            if (!$model->hasErrors() && $model->save()) {
-                Yii::$app->session->setFlash('success', 'Usuário criado com sucesso!');
-                return $this->redirect(['view', 'id' => $model->id]);
+            if (!$model->hasErrors()) {
+                $transaction = Yii::$app->db->beginTransaction();
+                try {
+                    if ($model->save()) {
+                        $tenantId = TenantHelper::getId();
+                        if (!empty($tenantId)) {
+                            $colaborador = new Colaborador();
+                            $colaborador->id = (string) Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
+                            $colaborador->usuario_id = $tenantId;
+                            $colaborador->prest_usuario_login_id = $model->id;
+                            $colaborador->nome_completo = $model->nome;
+                            $colaborador->email = $model->email;
+                            $colaborador->telefone = $model->telefone;
+                            $colaborador->cpf = $model->cpf;
+                            $colaborador->ativo = true;
+                            $colaborador->eh_vendedor = true;
+                            $colaborador->eh_cobrador = false;
+                            $colaborador->eh_administrador = false;
+                            $colaborador->save(false);
+                        }
+                        $transaction->commit();
+                        Yii::$app->session->setFlash('success', 'Usuário criado com sucesso!');
+                        return $this->redirect(['view', 'id' => $model->id]);
+                    } else {
+                        $transaction->rollBack();
+                        Yii::$app->session->setFlash('error', 'Erro ao salvar usuário: verifique os campos do formulário.');
+                    }
+                } catch (\Exception $e) {
+                    $transaction->rollBack();
+                    Yii::$app->session->setFlash('error', 'Erro ao salvar usuário: ' . $e->getMessage());
+                }
             }
         }
 

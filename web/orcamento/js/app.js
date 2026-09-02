@@ -3,10 +3,10 @@ import { CONFIG, API_ENDPOINTS, carregarConfigLoja } from './config.js';
 import { 
     getCarrinho, setCarrinho, adicionarAoCarrinho, removerDoCarrinho,
     aumentarQuantidadeItem, diminuirQuantidadeItem, calcularTotalCarrinho,
-    calcularTotalItens, limparCarrinho, atualizarIndicadoresCarrinho,
+    calcularTotalItens, calcularTotalPecas, limparCarrinho, atualizarIndicadoresCarrinho,
     atualizarBadgeProduto, aplicarDescontoItem, getAcrescimo, setAcrescimo,
     getPrecoVigente
-} from './cart.js?v=surcharge_fix';
+} from './cart.js?v=20260902_v2';
 import { carregarCarrinho, limparDadosLocaisPosSinc, carregarFormasPagamentoCache, obterFilaPedidos } from './storage.js';
 import { finalizarPedido } from './order.js';
 import { carregarFormasPagamento } from './payment.js';
@@ -492,7 +492,11 @@ function renderizarCarrinho() {
     // Atualiza Total com acréscimo
     const totalComAcrescimo = calcularTotalCarrinho();
     if (totalElement) totalElement.textContent = formatarMoeda(totalComAcrescimo);
-    if (totalItensFooter) totalItensFooter.textContent = calcularTotalItens();
+    if (totalItensFooter) {
+        const totalItens = calcularTotalItens();
+        const totalPecas = calcularTotalPecas();
+        totalItensFooter.innerHTML = `${totalItens} <span class="text-xs text-gray-500 font-normal">(${totalPecas} un.)</span>`;
+    }
 }
 
 // Funções globais para Acréscimo

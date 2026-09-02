@@ -81,17 +81,55 @@ class ItemCompra extends ActiveRecord
     }
 
     /**
-     * Converte preco_unitario e quantidade do formato BRL para float antes da validação
+     * Converte preco_unitario e quantidade do formato BRL ou XML para float antes da validação
      */
     public function beforeValidate()
     {
         if (is_string($this->preco_unitario) && $this->preco_unitario !== '') {
-            $this->preco_unitario = (float)str_replace(',', '.', str_replace('.', '', $this->preco_unitario));
+            $this->preco_unitario = self::parseDecimal($this->preco_unitario);
         }
         if (is_string($this->quantidade) && $this->quantidade !== '') {
-            $this->quantidade = (float)str_replace(',', '.', str_replace('.', '', $this->quantidade));
+            $this->quantidade = self::parseDecimal($this->quantidade);
         }
         return parent::beforeValidate();
+    }
+
+    /**
+     * Converte strings numéricas (BR ou internacional/XML) para float com segurança
+     * Suporta '1.234,56789', '12,34567', '12.34567' e '0.04561'
+     */
+    public static function parseDecimal($value): float
+    {
+        if (is_numeric($value)) {
+            return (float)$value;
+        }
+        $val = trim((string)$value);
+        if (strpos($val, ',') !== false) {
+            // Formato com vírgula: remove pontos de milhares e troca vírgula por ponto
+            $val = str_replace('.', '', $val);
+            $val = str_replace(',', '.', $val);
+        }
+        return (float)$val;
+    }
+
+    /**
+     * Retorna o preço unitário formatado com 2 a 5 casas decimais (sem zeros inúteis após a 2ª casa)
+     */
+    public function getPrecoUnitarioFormatado(): string
+    {
+        return self::formatarPrecoUnitario($this->preco_unitario);
+    }
+
+    /**
+     * Formata qualquer valor de preço unitário com 5 casas decimais (estilo calculadora)
+     */
+    public static function formatarPrecoUnitario($valor): string
+    {
+        if ($valor === null || $valor === '') {
+            return '0,00000';
+        }
+        $val = is_numeric($valor) ? (float)$valor : self::parseDecimal($valor);
+        return number_format($val, 5, ',', '.');
     }
 
     /**

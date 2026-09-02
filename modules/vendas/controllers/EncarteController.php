@@ -9,6 +9,8 @@ use yii\web\Response;
 use yii\filters\VerbFilter;
 use yii\filters\AccessControl;
 use app\modules\vendas\models\Produto;
+use app\modules\vendas\models\ProdutoFoto;
+use app\modules\vendas\models\Categoria;
 use app\modules\vendas\models\Encarte;
 use app\modules\vendas\models\EncarteProduto;
 use app\modules\vendas\models\Colaborador;
@@ -36,6 +38,7 @@ class EncarteController extends Controller
                     'gerar' => ['POST'],
                     'enviar-whatsapp' => ['POST'],
                     'postar-status-whatsapp' => ['POST'],
+                    'excluir' => ['POST'],
                 ],
             ],
         ];
@@ -55,6 +58,53 @@ class EncarteController extends Controller
     }
 
     /**
+     * Tela Principal de Gestão de Encartes Digitais
+     */
+    public function actionIndex()
+    {
+        $this->layout = '@app/modules/vendas/views/layouts/main-vendas';
+        $lojaId = $this->getLojaId();
+
+        $encartes = Encarte::find()
+            ->where(['usuario_id' => $lojaId])
+            ->orderBy(['created_at' => SORT_DESC])
+            ->with(['encarteProdutos.produto.fotos'])
+            ->all();
+
+        $totalEncartes = count($encartes);
+        $totalAtivos = 0;
+        $totalInativos = 0;
+        $totalVisualizacoes = 0;
+        $totalProdutos = 0;
+
+        foreach ($encartes as $e) {
+            if ($e->status === 'ativo') {
+                $totalAtivos++;
+            } else {
+                $totalInativos++;
+            }
+            $totalVisualizacoes += (int)$e->visualizacoes_count;
+            $totalProdutos += count($e->encarteProdutos);
+        }
+
+        $loja = \app\models\Usuario::findOne($lojaId);
+        $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $lojaId]);
+
+        return $this->render('index', [
+            'encartes' => $encartes,
+            'metricas' => [
+                'total' => $totalEncartes,
+                'ativos' => $totalAtivos,
+                'inativos' => $totalInativos,
+                'visualizacoes' => $totalVisualizacoes,
+                'total_produtos' => $totalProdutos,
+            ],
+            'loja' => $loja,
+            'lojaConfig' => $lojaConfig,
+        ]);
+    }
+
+    /**
      * Ação AJAX para criar/gerar um Encarte Digital a partir dos produtos selecionados.
      */
     public function actionGerar()
@@ -64,29 +114,120 @@ class EncarteController extends Controller
 
         $request = Yii::$app->request;
         $produtosIds = $request->post('produtos_ids', []);
+        $modoSelecao = strtoupper($request->post('modo_selecao', 'MANUAL'));
+        $qtdDesejada = (int)$request->post('qtd_desejada', 0);
+        $categoriaId = $request->post('categoria_id', null);
+        $filtroFoto = strtoupper($request->post('filtro_foto', 'COM_FOTO')); // COM_FOTO, SEM_FOTO, TODOS
+
         $titulo = $request->post('titulo', 'Encarte de Ofertas Imbatíveis');
         $subtitulo = $request->post('subtitulo', 'Ofertas válidas enquanto durarem os estoques');
         $estiloLayout = $request->post('estilo_layout', 'flipsnack_supermarket');
         $corTema = $request->post('cor_tema', 'red_gold');
         $ppp = (int)$request->post('produtos_por_pagina', 6);
+        $inativarAnteriores = filter_var($request->post('inativar_anteriores', true), FILTER_VALIDATE_BOOLEAN);
 
-        if (empty($produtosIds) || !is_array($produtosIds)) {
-            return ['success' => false, 'message' => 'Nenhum produto foi selecionado para o encarte.'];
+        if ($modoSelecao === 'TODOS') {
+            $query = Produto::find()
+                ->where(['usuario_id' => $lojaId, 'ativo' => true]);
+            if (!empty($categoriaId) && $categoriaId !== 'TODAS') {
+                $query->andWhere(['categoria_id' => $categoriaId]);
+            }
+            if ($filtroFoto === 'COM_FOTO') {
+                $query->andWhere(['in', 'id', ProdutoFoto::find()->select('produto_id')->distinct()]);
+            } elseif ($filtroFoto === 'SEM_FOTO') {
+                $query->andWhere(['not in', 'id', ProdutoFoto::find()->select('produto_id')->distinct()]);
+            }
+            $produtos = $query->orderBy(['nome' => SORT_ASC])->all();
+
+        } elseif ($modoSelecao === 'ALEATORIO') {
+            $query = Produto::find()
+                ->where(['usuario_id' => $lojaId, 'ativo' => true]);
+            if (!empty($categoriaId) && $categoriaId !== 'TODAS') {
+                $query->andWhere(['categoria_id' => $categoriaId]);
+            }
+            if ($filtroFoto === 'COM_FOTO') {
+                $query->andWhere(['in', 'id', ProdutoFoto::find()->select('produto_id')->distinct()]);
+            } elseif ($filtroFoto === 'SEM_FOTO') {
+                $query->andWhere(['not in', 'id', ProdutoFoto::find()->select('produto_id')->distinct()]);
+            }
+            $produtos = $query->orderBy(new \yii\db\Expression('RANDOM()'))
+                ->limit($qtdDesejada)
+                ->all();
+
+        } elseif ($modoSelecao === 'MAIS_VENDIDOS') {
+            $query = Produto::find()
+                ->where(['usuario_id' => $lojaId, 'ativo' => true]);
+            if (!empty($categoriaId) && $categoriaId !== 'TODAS') {
+                $query->andWhere(['categoria_id' => $categoriaId]);
+            }
+            if ($filtroFoto === 'COM_FOTO') {
+                $query->andWhere(['in', 'id', ProdutoFoto::find()->select('produto_id')->distinct()]);
+            } elseif ($filtroFoto === 'SEM_FOTO') {
+                $query->andWhere(['not in', 'id', ProdutoFoto::find()->select('produto_id')->distinct()]);
+            }
+            $produtos = $query->orderBy(['qtd_vendida' => SORT_DESC])
+                ->limit($qtdDesejada)
+                ->all();
+
+        } elseif ($modoSelecao === 'CATEGORIA') {
+            $query = Produto::find()
+                ->where(['usuario_id' => $lojaId, 'ativo' => true]);
+            if (!empty($categoriaId) && $categoriaId !== 'TODAS') {
+                $query->andWhere(['categoria_id' => $categoriaId]);
+            }
+            if ($filtroFoto === 'COM_FOTO') {
+                $query->andWhere(['in', 'id', ProdutoFoto::find()->select('produto_id')->distinct()]);
+            } elseif ($filtroFoto === 'SEM_FOTO') {
+                $query->andWhere(['not in', 'id', ProdutoFoto::find()->select('produto_id')->distinct()]);
+            }
+            $query->orderBy(['nome' => SORT_ASC]);
+            if ($qtdDesejada > 0) {
+                $query->limit($qtdDesejada);
+            }
+            $produtos = $query->all();
+
+        } elseif ($modoSelecao === 'QUANTIDADE' && $qtdDesejada > 0) {
+            $query = Produto::find()
+                ->where(['usuario_id' => $lojaId, 'ativo' => true]);
+            if (!empty($categoriaId) && $categoriaId !== 'TODAS') {
+                $query->andWhere(['categoria_id' => $categoriaId]);
+            }
+            if ($filtroFoto === 'COM_FOTO') {
+                $query->andWhere(['in', 'id', ProdutoFoto::find()->select('produto_id')->distinct()]);
+            } elseif ($filtroFoto === 'SEM_FOTO') {
+                $query->andWhere(['not in', 'id', ProdutoFoto::find()->select('produto_id')->distinct()]);
+            }
+            $produtos = $query->orderBy(['nome' => SORT_ASC])
+                ->limit($qtdDesejada)
+                ->all();
+
+        } else {
+            if (empty($produtosIds) || !is_array($produtosIds)) {
+                return ['success' => false, 'message' => 'Nenhum produto foi selecionado para o encarte.'];
+            }
+            $query = Produto::find()
+                ->where(['id' => $produtosIds, 'usuario_id' => $lojaId, 'ativo' => true]);
+            if ($filtroFoto === 'COM_FOTO') {
+                $query->andWhere(['in', 'id', ProdutoFoto::find()->select('produto_id')->distinct()]);
+            } elseif ($filtroFoto === 'SEM_FOTO') {
+                $query->andWhere(['not in', 'id', ProdutoFoto::find()->select('produto_id')->distinct()]);
+            }
+            $produtos = $query->all();
         }
 
-        // Valida se os produtos pertencem à loja
-        $produtos = Produto::find()
-            ->where(['id' => $produtosIds, 'usuario_id' => $lojaId, 'ativo' => true])
-            ->all();
-
         if (empty($produtos)) {
-            return ['success' => false, 'message' => 'Nenhum produto ativo válido encontrado.'];
+            return ['success' => false, 'message' => 'Nenhum produto ativo válido encontrado para o encarte.'];
         }
 
         $transaction = Yii::$app->db->beginTransaction();
         try {
+            if ($inativarAnteriores) {
+                Encarte::updateAll(['status' => 'inativo'], ['usuario_id' => $lojaId, 'status' => 'ativo']);
+            }
+
             $encarte = new Encarte();
             $encarte->usuario_id = $lojaId;
+            $encarte->status = 'ativo';
             $encarte->titulo = $titulo;
             $encarte->subtitulo = $subtitulo;
             $encarte->estilo_layout = $estiloLayout;
@@ -364,4 +505,208 @@ class EncarteController extends Controller
 
         return EncartePdfService::gerarPdf($encarte, Pdf::DEST_BROWSER);
     }
+
+    /**
+     * Retorna a lista de categorias do lojista com a contagem de produtos ativos conforme filtro_foto
+     */
+    public function actionCategoriasComContagem()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $lojaId = $this->getLojaId();
+        $filtroFoto = strtoupper(Yii::$app->request->get('filtro_foto', 'COM_FOTO'));
+
+        $categorias = \app\modules\vendas\models\Categoria::find()
+            ->where(['usuario_id' => $lojaId, 'ativo' => true])
+            ->orderBy(['ordem' => SORT_ASC, 'nome' => SORT_ASC])
+            ->all();
+
+        $dados = [];
+        $totalGeral = 0;
+
+        foreach ($categorias as $cat) {
+            $q = Produto::find()
+                ->where(['usuario_id' => $lojaId, 'categoria_id' => $cat->id, 'ativo' => true]);
+            
+            if ($filtroFoto === 'COM_FOTO') {
+                $q->andWhere(['in', 'id', ProdutoFoto::find()->select('produto_id')->distinct()]);
+            } elseif ($filtroFoto === 'SEM_FOTO') {
+                $q->andWhere(['not in', 'id', ProdutoFoto::find()->select('produto_id')->distinct()]);
+            }
+
+            $count = $q->count();
+            
+            $dados[] = [
+                'id' => (string)$cat->id,
+                'nome' => $cat->nome,
+                'total_produtos' => (int)$count,
+            ];
+            $totalGeral += (int)$count;
+        }
+
+        return [
+            'success' => true,
+            'categorias' => $dados,
+            'total_geral' => $totalGeral,
+            'filtro_foto' => $filtroFoto,
+        ];
+    }
+
+    /**
+     * Retorna lista de produtos de uma categoria para pré-visualização/tags no modal
+     */
+    public function actionProdutosPorCategoria($categoria_id = null, $qtd = 0, $filtro_foto = 'COM_FOTO')
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $lojaId = $this->getLojaId();
+        $filtroFoto = strtoupper(Yii::$app->request->get('filtro_foto', $filtro_foto));
+
+        $query = Produto::find()
+            ->where(['usuario_id' => $lojaId, 'ativo' => true]);
+
+        if (!empty($categoria_id) && $categoria_id !== 'TODAS') {
+            $query->andWhere(['categoria_id' => $categoria_id]);
+        }
+
+        if ($filtroFoto === 'COM_FOTO') {
+            $query->andWhere(['in', 'id', ProdutoFoto::find()->select('produto_id')->distinct()]);
+        } elseif ($filtroFoto === 'SEM_FOTO') {
+            $query->andWhere(['not in', 'id', ProdutoFoto::find()->select('produto_id')->distinct()]);
+        }
+
+        $query->orderBy(['nome' => SORT_ASC]);
+
+        $qtd = (int)$qtd;
+        if ($qtd > 0) {
+            $query->limit($qtd);
+        }
+
+        $produtos = $query->all();
+
+        $itens = [];
+        foreach ($produtos as $p) {
+            $fotoUrl = null;
+            if ($p->fotoPrincipal) {
+                if (method_exists($p->fotoPrincipal, 'getUrlCompleta')) {
+                    $fotoUrl = $p->fotoPrincipal->getUrlCompleta();
+                } elseif (method_exists($p->fotoPrincipal, 'getUrl')) {
+                    $fotoUrl = $p->fotoPrincipal->getUrl();
+                }
+            }
+
+            $itens[] = [
+                'id' => (string)$p->id,
+                'nome' => $p->nome,
+                'preco_venda' => (float)$p->preco_venda_sugerido,
+                'preco_venda_formatado' => number_format((float)($p->preco_promocional ?: $p->preco_venda_sugerido), 2, ',', '.'),
+                'categoria_nome' => $p->categoria ? $p->categoria->nome : '',
+                'foto_url' => $fotoUrl,
+            ];
+        }
+
+        return [
+            'success' => true,
+            'total' => count($itens),
+            'produtos' => $itens,
+        ];
+    }
+
+    /**
+     * Retorna a lista de encartes gerados pela loja para gestão de status
+     */
+    public function actionListar()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $lojaId = $this->getLojaId();
+
+        $encartes = Encarte::find()
+            ->where(['usuario_id' => $lojaId])
+            ->orderBy(['created_at' => SORT_DESC])
+            ->with(['encarteProdutos'])
+            ->all();
+
+        $lista = [];
+        foreach ($encartes as $enc) {
+            $lista[] = [
+                'id' => (string)$enc->id,
+                'titulo' => $enc->titulo,
+                'subtitulo' => $enc->subtitulo,
+                'token' => $enc->token_publico,
+                'status' => $enc->status ?: 'ativo',
+                'visualizacoes' => (int)$enc->visualizacoes_count,
+                'total_produtos' => count($enc->encarteProdutos),
+                'url_publica' => $enc->getUrlPublica(),
+                'url_pdf' => $enc->getUrlPdf(),
+                'data_criacao' => date('d/m/Y H:i', strtotime($enc->created_at)),
+                'tempo_relativo' => Yii::$app->formatter->asRelativeTime($enc->created_at),
+            ];
+        }
+
+        return [
+            'success' => true,
+            'total' => count($lista),
+            'encartes' => $lista,
+        ];
+    }
+
+    /**
+     * Alterna o status do encarte entre ativo e inativo
+     */
+    public function actionAlternarStatus($id)
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $lojaId = $this->getLojaId();
+
+        $encarte = Encarte::findOne(['id' => $id, 'usuario_id' => $lojaId]);
+        if (!$encarte) {
+            return ['success' => false, 'message' => 'Encarte não encontrado.'];
+        }
+
+        $novoStatus = ($encarte->status === 'ativo') ? 'inativo' : 'ativo';
+        $encarte->status = $novoStatus;
+
+        if ($encarte->save(false)) {
+            $msg = ($novoStatus === 'ativo') ? 'Encarte ativado com sucesso!' : 'Encarte inativado com sucesso!';
+            return [
+                'success' => true,
+                'message' => $msg,
+                'novo_status' => $novoStatus,
+            ];
+        }
+
+        return ['success' => false, 'message' => 'Erro ao alterar status do encarte.'];
+    }
+
+    /**
+     * Exclui um encarte e seus itens vinculados
+     */
+    public function actionExcluir($id)
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $lojaId = $this->getLojaId();
+
+        $encarte = Encarte::findOne(['id' => $id, 'usuario_id' => $lojaId]);
+        if (!$encarte) {
+            return ['success' => false, 'message' => 'Encarte não encontrado.'];
+        }
+
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            EncarteProduto::deleteAll(['encarte_id' => $encarte->id]);
+            $encarte->delete();
+            $transaction->commit();
+
+            return [
+                'success' => true,
+                'message' => 'Encarte excluído com sucesso!',
+            ];
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+            Yii::error("EncarteController::actionExcluir erro: " . $e->getMessage(), __METHOD__);
+            return [
+                'success' => false,
+                'message' => 'Erro ao excluir encarte: ' . $e->getMessage(),
+            ];
+        }
+    }
 }
+

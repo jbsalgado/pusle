@@ -35,6 +35,12 @@ use app\modules\vendas\models\FormaPagamento;
  * @property string $data_criacao
  * @property string $data_atualizacao
  * @property string|null $cpf_consumidor CPF do consumidor final (opcional, para NFC-e e relatórios)
+ * @property float $acrescimo_valor
+ * @property string $acrescimo_tipo
+ * @property string $observacao_acrescimo
+ * @property float $desconto_global_valor
+ * @property string $desconto_global_tipo
+ * @property string $observacao_desconto_global
  * 
  * @property Usuario $usuario
  * @property Cliente $cliente
@@ -113,6 +119,10 @@ class Venda extends ActiveRecord
             [['acrescimo_valor'], 'number', 'min' => 0],
             [['acrescimo_tipo', 'observacao_acrescimo'], 'string'],
 
+            // Novos campos de Desconto Global
+            [['desconto_global_valor'], 'number', 'min' => 0],
+            [['desconto_global_tipo', 'observacao_desconto_global'], 'string'],
+
             // CPF do Consumidor Final (opcional)
             [['cpf_consumidor'], 'string', 'max' => 14],
             [['cpf_consumidor'], 'default', 'value' => null],
@@ -141,6 +151,9 @@ class Venda extends ActiveRecord
             'acrescimo_valor' => 'Valor Acréscimo',
             'acrescimo_tipo' => 'Tipo Acréscimo',
             'observacao_acrescimo' => 'Obs. Acréscimo',
+            'desconto_global_valor' => 'Valor Desconto Global',
+            'desconto_global_tipo' => 'Tipo Desconto Global',
+            'observacao_desconto_global' => 'Obs. Desconto Global',
             'cpf_consumidor' => 'CPF do Consumidor',
         ];
     }
@@ -401,7 +414,7 @@ class Venda extends ActiveRecord
                             \app\modules\vendas\services\EstoqueService::baixarEstoque(
                                 $item->produto_id,
                                 (float)$item->quantidade,
-                                "Venda #{$this->codigo_venda_numerico}"
+                                "Venda #{$this->id}"
                             );
                         }
                     }
@@ -427,7 +440,7 @@ class Venda extends ActiveRecord
                             \app\modules\vendas\services\EstoqueService::adicionarEstoque(
                                 $item->produto_id,
                                 (float)$item->quantidade,
-                                "Cancelamento Venda #{$this->codigo_venda_numerico}"
+                                "Cancelamento Venda #{$this->id}"
                             );
                         }
                     }
@@ -528,6 +541,9 @@ class Venda extends ActiveRecord
         $fields['acrescimo_valor'] = 'acrescimo_valor';
         $fields['acrescimo_tipo'] = 'acrescimo_tipo';
         $fields['observacao_acrescimo'] = 'observacao_acrescimo';
+        $fields['desconto_global_valor'] = 'desconto_global_valor';
+        $fields['desconto_global_tipo'] = 'desconto_global_tipo';
+        $fields['observacao_desconto_global'] = 'observacao_desconto_global';
         $fields['cpf_consumidor'] = 'cpf_consumidor';
 
         $fields['itens'] = 'itens';

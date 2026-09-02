@@ -288,10 +288,15 @@ function _gerarHTMLComprovanteContent(dados, dadosEmpresa) {
                     const descontosTotal = dados.itens.reduce((acc, i) => acc + (i.desconto_valor || 0), 0);
                     const acrescimo = dados.acrescimo_valor || 0;
                     
+                    const totalItens = dados.itens.length;
                     const totalPecas = dados.itens.reduce((acc, i) => acc + (parseFloat(i.quantidade) || 0), 0);
                     const totalizerHtml = `
                         <div class="flex justify-between pt-1 border-t border-gray-100 text-[11px] text-gray-500 font-bold">
                             <span>TOTAL DE ITENS:</span>
+                            <span>${totalItens}</span>
+                        </div>
+                        <div class="flex justify-between pt-0.5 text-[11px] text-gray-500 font-bold">
+                            <span>TOTAL DE PEÇAS:</span>
                             <span>${totalPecas}</span>
                         </div>
                     `;
