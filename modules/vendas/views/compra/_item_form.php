@@ -71,10 +71,29 @@
                 ])->label('Qtd.') ?>
             </div>
             <div>
+                <?php
+                $precoVal = '';
+                if (isset($item->preco_unitario) && $item->preco_unitario !== '') {
+                    $numVal = (float)$item->preco_unitario;
+                    // Se for número inteiro ou de 2 casas normais, formata com 2 decimais; se tiver frações menores (ex: XML 0.04561), usa até 5 decimais
+                    $decimais = (round($numVal, 2) == $numVal) ? 2 : 5;
+                    $precoVal = number_format($numVal, $decimais, ',', '.');
+                    // Remove zeros desnecessários no final após a 2a casa decimal (ex: 0,04560 -> 0,0456)
+                    if ($decimais > 2 && strpos($precoVal, ',') !== false) {
+                        $precoVal = rtrim(rtrim($precoVal, '0'), ',');
+                        // Garante pelo menos 2 decimais
+                        $parts = explode(',', $precoVal);
+                        if (strlen($parts[1] ?? '') < 2) {
+                            $precoVal = number_format($numVal, 2, ',', '.');
+                        }
+                    }
+                }
+                ?>
                 <?= $form->field($item, "[$index]preco_unitario", ['enableClientValidation' => false])->textInput([
-                    'class' => 'input-preco currency-input w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                    'value' => $item->preco_unitario ?? '',
-                    'placeholder' => '0,00'
+                    'class' => 'input-preco input-preco-unitario w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                    'value' => $precoVal,
+                    'placeholder' => '0,00',
+                    'inputmode' => 'decimal'
                 ])->label('Preço') ?>
             </div>
         </div>

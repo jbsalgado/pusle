@@ -76,9 +76,22 @@ class ItemCompra extends ActiveRecord
             [['preco_unitario'], 'number', 'min' => 0],
             [['valor_total_item'], 'number', 'min' => 0],
             [['compra_id'], 'exist', 'skipOnError' => true, 'targetClass' => Compra::class, 'targetAttribute' => ['compra_id' => 'id']],
-            [['produto_id'], 'exist', 'skipOnError' => true, 'targetClass' => Produto::class, 'targetAttribute' => ['produto_id' => 'id']],
             [['nome_produto_temp', 'categoria_id', 'codigo_barras', 'marca', 'codigo_referencia_temp', 'preco_venda_sugerido_temp', 'estoque_minimo_temp', 'estoque_maximo_temp', 'ponto_corte_temp', 'venda_fracionada_temp', 'unidade_medida_temp'], 'safe'],
         ];
+    }
+
+    /**
+     * Converte preco_unitario e quantidade do formato BRL para float antes da validação
+     */
+    public function beforeValidate()
+    {
+        if (is_string($this->preco_unitario) && $this->preco_unitario !== '') {
+            $this->preco_unitario = (float)str_replace(',', '.', str_replace('.', '', $this->preco_unitario));
+        }
+        if (is_string($this->quantidade) && $this->quantidade !== '') {
+            $this->quantidade = (float)str_replace(',', '.', str_replace('.', '', $this->quantidade));
+        }
+        return parent::beforeValidate();
     }
 
     /**
@@ -114,11 +127,11 @@ class ItemCompra extends ActiveRecord
     }
 
     /**
-     * Calcula o valor total do item
+     * Calcula o valor total do item (arredondado para 2 casas decimais)
      */
     public function calcularValorTotal()
     {
-        $this->valor_total_item = $this->quantidade * $this->preco_unitario;
+        $this->valor_total_item = round((float)$this->quantidade * (float)$this->preco_unitario, 2);
         return $this->valor_total_item;
     }
 
