@@ -228,10 +228,16 @@ export function aplicarDescontoItem(produtoId, tipo, valor) {
 }
 
 /**
- * Calcula total de itens no carrinho
+ * Calcula total de itens (produtos distintos / linhas) no carrinho
  */
 export function calcularTotalItens() {
-  // ✅ CORREÇÃO: Garantir que é número
+  return carrinho.length;
+}
+
+/**
+ * Calcula total de peças / unidades (volume total somado) no carrinho
+ */
+export function calcularTotalPecas() {
   return carrinho.reduce(
     (acc, item) => acc + (parseFloat(item.quantidade) || 0),
     0

@@ -295,27 +295,42 @@ function _renderHTMLRecibo(venda, empresa) {
             ${(() => {
                 const somaBruta = venda.itens.reduce((acc, i) => acc + (i.quantidade * i.preco), 0);
                 const totalDescontosItems = venda.itens.reduce((acc, i) => acc + (i.desconto_valor || 0), 0);
-                const acrescimo = venda.acrescimo_valor || 0;
+                const subtotalItens = Math.max(0, somaBruta - totalDescontosItems);
+                const descontoGlobal = parseFloat(venda.desconto_global_valor || venda.desconto_valor || 0);
+                const acrescimo = parseFloat(venda.acrescimo_valor || 0);
                 
+                const totalItens = venda.itens.length;
                 const totalPecas = venda.itens.reduce((acc, i) => acc + (parseFloat(i.quantidade) || 0), 0);
                 
                 let html = '<div class="border-t border-gray-300 pt-2 space-y-1 pb-2">';
                 
-                // Sempre mostra subtotal se houver descontos ou acréscimos para clareza
-                if (totalDescontosItems > 0 || acrescimo > 0) {
+                if (totalDescontosItems > 0) {
                     html += `
                         <div class="flex justify-between text-sm text-gray-600">
                             <span>SUBTOTAL BRUTO:</span>
                             <span>R$ ${somaBruta.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
                         </div>
+                        <div class="flex justify-between text-sm text-red-600 font-medium">
+                            <span>DESCONTOS NOS ITENS:</span>
+                            <span>-R$ ${totalDescontosItems.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                        </div>
                     `;
                 }
 
-                if (totalDescontosItems > 0) {
+                if (totalDescontosItems > 0 || descontoGlobal > 0 || acrescimo > 0) {
+                    html += `
+                        <div class="flex justify-between text-sm text-gray-700 font-medium">
+                            <span>SUBTOTAL:</span>
+                            <span>R$ ${subtotalItens.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                        </div>
+                    `;
+                }
+
+                if (descontoGlobal > 0) {
                     html += `
                         <div class="flex justify-between text-sm text-red-600 font-medium">
-                            <span>TOTAL DESCONTOS:</span>
-                            <span>-R$ ${totalDescontosItems.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                            <span>DESCONTO NESSA VENDA:</span>
+                            <span>-R$ ${descontoGlobal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
                         </div>
                     `;
                 }
@@ -332,6 +347,10 @@ function _renderHTMLRecibo(venda, empresa) {
                 html += `
                     <div class="flex justify-between pt-1 border-t border-gray-50 text-[11px] text-gray-500 font-bold">
                         <span>TOTAL DE ITENS:</span>
+                        <span>${totalItens}</span>
+                    </div>
+                    <div class="flex justify-between pt-0.5 text-[11px] text-gray-500 font-bold">
+                        <span>TOTAL DE PEÇAS:</span>
                         <span>${totalPecas}</span>
                     </div>
                 `;

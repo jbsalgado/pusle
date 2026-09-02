@@ -71,10 +71,14 @@
                 ])->label('Qtd.') ?>
             </div>
             <div>
+                <?php
+                $precoVal = (isset($item->preco_unitario) && $item->preco_unitario !== '') ? $item->getPrecoUnitarioFormatado() : '0,00000';
+                ?>
                 <?= $form->field($item, "[$index]preco_unitario", ['enableClientValidation' => false])->textInput([
-                    'class' => 'input-preco currency-input w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                    'value' => $item->preco_unitario ?? '',
-                    'placeholder' => '0,00'
+                    'class' => 'input-preco input-preco-unitario w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                    'value' => $precoVal,
+                    'placeholder' => '0,00000',
+                    'inputmode' => 'numeric'
                 ])->label('Preço') ?>
             </div>
         </div>

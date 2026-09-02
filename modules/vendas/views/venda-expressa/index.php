@@ -191,8 +191,14 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                         </div>
                     </div>
 
-                    <!-- Seleção Rápida de Pagamento (Chips 1-Clique) -->
-                    <div>
+                    <!-- Toggle: Múltiplas Formas de Pagamento -->
+                    <div class="flex items-center justify-between bg-slate-900/60 border border-slate-700 p-3 rounded-2xl">
+                        <label class="text-xs font-bold text-slate-300 cursor-pointer select-none" for="usar-multiplos-pagamentos">💳 Dividir em várias formas de pagamento</label>
+                        <input type="checkbox" id="usar-multiplos-pagamentos" onchange="toggleMultiplosPagamentos()" class="w-5 h-5 accent-amber-400 cursor-pointer">
+                    </div>
+
+                    <!-- Seleção Única de Pagamento (Chips 1-Clique) -->
+                    <div id="container-pagamento-unico">
                         <label class="block text-xs font-bold text-slate-300 uppercase mb-2">Forma de Pagamento</label>
                         <div class="grid grid-cols-2 gap-2">
                             <?php foreach ($formasPagamento as $index => $fp): 
@@ -220,6 +226,34 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                                     </button>
                                 <?php endif; ?>
                             <?php endforeach; ?>
+                        </div>
+                    </div>
+
+                    <!-- Divisão em Múltiplas Formas de Pagamento -->
+                    <div id="container-multiplos-pagamentos" class="hidden space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-bold text-slate-300 uppercase">Meios de Pagamento</label>
+                            <button type="button" onclick="adicionarLinhaPagamentoMultiplo()" class="text-[11px] font-bold text-amber-400 hover:text-amber-300 transition">+ Adicionar forma</button>
+                        </div>
+
+                        <div id="lista-pagamentos-multiplos" class="space-y-2">
+                            <!-- Linhas de pagamento renderizadas dinamicamente -->
+                        </div>
+
+                        <!-- Resumo da divisão -->
+                        <div class="bg-slate-900/70 border border-slate-700 p-3 rounded-2xl space-y-1.5 text-xs">
+                            <div class="flex items-center justify-between text-slate-400">
+                                <span>Total da venda:</span>
+                                <span class="font-bold text-white" id="multiplo-total-venda">R$ 0,00</span>
+                            </div>
+                            <div class="flex items-center justify-between text-slate-400">
+                                <span>Total informado:</span>
+                                <span class="font-bold text-emerald-400" id="multiplo-total-informado">R$ 0,00</span>
+                            </div>
+                            <div class="flex items-center justify-between font-bold">
+                                <span id="label-multiplo-restante" class="text-slate-400">Restante:</span>
+                                <span id="valor-multiplo-restante" class="text-rose-400">R$ 0,00</span>
+                            </div>
                         </div>
                     </div>
 
@@ -609,6 +643,158 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         btn.className = 'btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 bg-amber-400 text-slate-900 border-amber-300 shadow-md';
     }
 
+    // ============================================================
+    // MÚLTIPLAS FORMAS DE PAGAMENTO (PIX + Dinheiro + Cartão, etc.)
+    // ============================================================
+    const formasPagamentoDisponiveis = [
+        <?php foreach ($formasPagamento as $fp): ?>
+        { id: <?= json_encode($fp->id) ?>, nome: <?= json_encode($fp->nome) ?>, tipo: <?= json_encode($fp->tipo) ?> },
+        <?php endforeach; ?>
+    ];
+
+    function toggleMultiplosPagamentos() {
+        const usarMultiplos = document.getElementById('usar-multiplos-pagamentos')?.checked || false;
+        const containerMultiplos = document.getElementById('container-multiplos-pagamentos');
+        const containerUnico = document.getElementById('container-pagamento-unico');
+
+        if (usarMultiplos) {
+            containerUnico?.classList.add('hidden');
+            containerMultiplos?.classList.remove('hidden');
+            const lista = document.getElementById('lista-pagamentos-multiplos');
+            if (lista && lista.children.length === 0) {
+                adicionarLinhaPagamentoMultiplo();
+            }
+        } else {
+            containerUnico?.classList.remove('hidden');
+            containerMultiplos?.classList.add('hidden');
+        }
+        recalcularResumoMultiplo();
+    }
+
+    function getTotalVendaNumerico() {
+        const totalStr = document.getElementById('displayTotalFinal')?.textContent || '0,00';
+        return parseFloat(totalStr.replace(/\./g, '').replace(',', '.')) || 0;
+    }
+
+    function obterTotalInformadoMultiplo() {
+        let total = 0;
+        document.querySelectorAll('#lista-pagamentos-multiplos .input-valor-pagamento').forEach(input => {
+            const v = parseFloat((input.value || '0').replace(/\./g, '').replace(',', '.')) || 0;
+            total += v;
+        });
+        return total;
+    }
+
+    function recalcularResumoMultiplo() {
+        const usarMultiplos = document.getElementById('usar-multiplos-pagamentos')?.checked || false;
+        if (!usarMultiplos) return;
+
+        const totalVenda = getTotalVendaNumerico();
+        const totalInformado = obterTotalInformadoMultiplo();
+        const restante = totalVenda - totalInformado;
+
+        const elTotalVenda = document.getElementById('multiplo-total-venda');
+        const elTotalInformado = document.getElementById('multiplo-total-informado');
+        const elRestanteValor = document.getElementById('valor-multiplo-restante');
+        const elRestanteLabel = document.getElementById('label-multiplo-restante');
+        const btnConfirmar = document.getElementById('btnEfetivarVenda');
+
+        if (elTotalVenda) elTotalVenda.textContent = totalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        if (elTotalInformado) elTotalInformado.textContent = totalInformado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+        if (elRestanteValor) {
+            elRestanteValor.textContent = Math.abs(restante).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            elRestanteValor.classList.remove('text-red-400', 'text-green-400', 'text-yellow-400');
+
+            if (Math.abs(restante) < 0.01) {
+                elRestanteValor.textContent = 'Pago!';
+                elRestanteValor.classList.add('text-green-400');
+                if (elRestanteLabel) elRestanteLabel.textContent = 'Status:';
+                if (btnConfirmar) btnConfirmar.disabled = false;
+            } else if (restante > 0) {
+                elRestanteValor.classList.add('text-red-400');
+                if (elRestanteLabel) elRestanteLabel.textContent = 'Restante:';
+                if (btnConfirmar) btnConfirmar.disabled = true;
+            } else {
+                elRestanteValor.classList.add('text-yellow-400');
+                if (elRestanteLabel) elRestanteLabel.textContent = 'Excedente:';
+                if (btnConfirmar) btnConfirmar.disabled = true;
+            }
+        }
+    }
+
+    function adicionarLinhaPagamentoMultiplo() {
+        const lista = document.getElementById('lista-pagamentos-multiplos');
+        if (!lista) return;
+
+        let optionsHtml = '<option value="">Selecione o pagamento...</option>';
+        formasPagamentoDisponiveis.forEach(fp => {
+            optionsHtml += `<option value="${fp.id}">${fp.nome}</option>`;
+        });
+
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2 bg-slate-900/70 border border-slate-700 p-2 rounded-2xl';
+
+        row.innerHTML = `
+            <select class="select-forma-pagamento flex-1 bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold p-2 rounded-xl focus:outline-none focus:border-amber-400">
+                ${optionsHtml}
+            </select>
+            <input type="text" inputmode="decimal" placeholder="0,00" class="input-valor-pagamento w-28 bg-slate-800 border border-slate-700 text-right text-xs font-bold text-amber-400 p-2 rounded-xl focus:outline-none focus:border-amber-400">
+            <button type="button" class="btn-remover-pagamento text-slate-500 hover:text-red-400 p-1.5 text-base" title="Remover">🗑️</button>
+        `;
+
+        row.querySelector('.select-forma-pagamento').addEventListener('change', recalcularResumoMultiplo);
+        row.querySelector('.input-valor-pagamento').addEventListener('input', function() {
+            aplicarMascaraMoedaInput(this, null);
+            recalcularResumoMultiplo();
+        });
+        row.querySelector('.btn-remover-pagamento').addEventListener('click', function() {
+            row.remove();
+            recalcularResumoMultiplo();
+        });
+
+        lista.appendChild(row);
+        recalcularResumoMultiplo();
+    }
+
+    function coletarPagamentosMultiplos() {
+        const pagamentos = [];
+        let erro = false;
+
+        document.querySelectorAll('#lista-pagamentos-multiplos .select-forma-pagamento').forEach(select => {
+            if (erro) return;
+
+            const row = select.closest('div');
+            const fId = select.value;
+            const inputValor = row ? row.querySelector('.input-valor-pagamento') : null;
+            const val = parseFloat((inputValor?.value || '0').replace(/\./g, '').replace(',', '.')) || 0;
+
+            if (!fId) {
+                alert('Selecione a forma de pagamento para todas as linhas adicionadas.');
+                erro = true;
+                return;
+            }
+            if (val <= 0) {
+                alert('O valor de cada forma de pagamento deve ser maior que zero.');
+                erro = true;
+                return;
+            }
+
+            pagamentos.push({ forma_pagamento_id: fId, valor: val });
+        });
+
+        if (erro) {
+            return null;
+        }
+
+        if (pagamentos.length === 0) {
+            alert('Adicione pelo menos uma forma de pagamento.');
+            return null;
+        }
+
+        return pagamentos;
+    }
+
     function renderizarItensVenda() {
         const container = document.getElementById('listaItensVenda');
         const lista = Object.values(itensVendaMap);
@@ -716,12 +902,32 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         const totalFormatted = totalFinalCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         document.getElementById('displayTotalFinal').textContent = totalFormatted;
         document.getElementById('totalFinalBtn').textContent = totalFormatted;
+
+        recalcularResumoMultiplo();
     }
 
     function iniciarProcessoEfetivacao() {
         const lista = Object.values(itensVendaMap);
         if (lista.length === 0) {
             alert('Adicione pelo menos um produto antes de efetivar a venda.');
+            return;
+        }
+
+        const usarMultiplos = document.getElementById('usar-multiplos-pagamentos')?.checked || false;
+
+        if (usarMultiplos) {
+            // Validação local antes de enviar
+            const pagamentos = coletarPagamentosMultiplos();
+            if (!pagamentos) return;
+
+            const totalVenda = getTotalVendaNumerico();
+            const soma = pagamentos.reduce((acc, p) => acc + p.valor, 0);
+            if (Math.abs(soma - totalVenda) >= 0.01) {
+                alert('A soma das formas de pagamento não bate com o total da venda.');
+                return;
+            }
+
+            efetivarVendaExpressa();
             return;
         }
 
@@ -830,6 +1036,13 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         efetivarVendaExpressa();
     }
 
+    function restaurarBotaoEfetivarVenda() {
+        const totalStr = document.getElementById('displayTotalFinal').textContent || '0,00';
+        const btn = document.getElementById('btnEfetivarVenda');
+        btn.disabled = false;
+        btn.innerHTML = `<span>⚡ Efetivar Venda (R$ <span id="totalFinalBtn">${totalStr}</span>)</span>`;
+    }
+
     function efetivarVendaExpressa() {
         const lista = Object.values(itensVendaMap);
         if (lista.length === 0) {
@@ -851,9 +1064,12 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         const clienteCpfInput = document.getElementById('clienteCpf').value;
         const clienteWhatsappInput = document.getElementById('clienteWhatsapp').value;
 
+        const usarMultiplos = document.getElementById('usar-multiplos-pagamentos')?.checked || false;
+        const pagamentosMultiplosArray = usarMultiplos ? coletarPagamentosMultiplos() : [];
+
         const payload = {
             itens: payloadItens,
-            forma_pagamento_id: formaPagamentoSelecionadaId,
+            forma_pagamento_id: usarMultiplos && pagamentosMultiplosArray.length > 0 ? pagamentosMultiplosArray[0].forma_pagamento_id : formaPagamentoSelecionadaId,
             observacoes: document.getElementById('inputObservacoes').value,
             cliente_nome: clienteNomeInput,
             cliente_cpf: clienteCpfInput,
@@ -862,6 +1078,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             desconto_tipo: document.getElementById('descontoTipo').value,
             acrescimo_valor: document.getElementById('acrescimoGeral').value,
             acrescimo_tipo: document.getElementById('acrescimoTipo').value,
+            pagamentos_multiplos: usarMultiplos ? pagamentosMultiplosArray : [],
             '<?= Yii::$app->request->csrfParam ?>': '<?= Yii::$app->request->csrfToken ?>'
         };
 
@@ -876,8 +1093,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         })
         .then(r => r.json())
         .then(data => {
-            btn.disabled = false;
-            btn.innerHTML = `<span>⚡ Efetivar Venda (R$ <span id="totalFinalBtn">0,00</span>)</span>`;
+            restaurarBotaoEfetivarVenda();
 
             if (data.success) {
                 // Guarda dados da venda para o comprovante
@@ -919,8 +1135,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             }
         })
         .catch(err => {
-            btn.disabled = false;
-            btn.innerHTML = `<span>⚡ Efetivar Venda (R$ <span id="totalFinalBtn">0,00</span>)</span>`;
+            restaurarBotaoEfetivarVenda();
             alert('Erro ao comunicar com o servidor: ' + err.message);
         });
     }
@@ -1017,13 +1232,26 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                     <span>TOTAL LIQUIDO:</span>
                     <span class="text-emerald-700">R$ ${vendaData.valor_total || totalPagoNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
-                <div class="text-[10px] text-slate-500 font-bold pt-0.5">
-                    TOTAL DE ITENS: ${totalPecas}
+                <div class="text-[10px] text-slate-500 font-bold pt-0.5 space-y-0.5">
+                    <div>TOTAL DE ITENS: ${(vendaData.itens || []).length}</div>
+                    <div>TOTAL DE PEÇAS: ${totalPecas}</div>
                 </div>
             </div>
 
             <div class="border-t border-dashed border-slate-300 pt-2 text-[11px] font-mono space-y-1">
-                <p><strong>FORMA DE PAGAMENTO:</strong> ${vendaData.forma_pagamento || 'Dinheiro'}</p>
+                ${(() => {
+                    const meios = Array.isArray(vendaData.pagamentos) ? vendaData.pagamentos : [];
+                    if (meios.length > 1) {
+                        const linhas = meios.map(pg => {
+                            const fp = formasPagamentoDisponiveis.find(f => f.id == pg.forma_pagamento_id);
+                            const nome = fp ? fp.nome : 'Meio';
+                            const val = parseFloat(pg.valor || 0);
+                            return `<div class="flex justify-between items-center"><span>${nome}</span><span class="font-bold">R$ ${val.toFixed(2).replace('.', ',')}</span></div>`;
+                        }).join('');
+                        return `<p><strong>PAGAMENTOS:</strong></p>${linhas}`;
+                    }
+                    return `<p><strong>FORMA DE PAGAMENTO:</strong> ${vendaData.forma_pagamento || 'Dinheiro'}</p>`;
+                })()}
                 <p class="underline font-bold">VALOR PAGO: R$ ${vendaData.valor_total || totalPagoNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </div>
 

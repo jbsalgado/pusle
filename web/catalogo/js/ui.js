@@ -1,6 +1,6 @@
 // ui.js - Funções de gerenciamento da interface
 
-import { getCarrinho, calcularTotalCarrinho, calcularTotalItens } from './cart.js';
+import { getCarrinho, calcularTotalCarrinho, calcularTotalItens, calcularTotalPecas } from './cart.js';
 import { formatarCPF } from './utils.js';
 
 /**
@@ -61,13 +61,16 @@ function renderizarCarrinhoComItens(container, carrinho, btnFinalizar, contador,
     if (btnFinalizar) btnFinalizar.disabled = false;
     
     const totalItens = calcularTotalItens();
+    const totalPecas = calcularTotalPecas();
     if (contador) {
         contador.textContent = totalItens;
         contador.classList.remove('hidden');
     }
     
     const totalItensFooter = document.getElementById('total-itens-footer');
-    if (totalItensFooter) totalItensFooter.textContent = totalItens;
+    if (totalItensFooter) {
+        totalItensFooter.innerHTML = `${totalItens} <span class="text-xs text-gray-500 font-normal">(${totalPecas} un.)</span>`;
+    }
 }
 
 /**

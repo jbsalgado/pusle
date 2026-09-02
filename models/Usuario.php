@@ -86,10 +86,25 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
             [['endereco'], 'string', 'max' => 255],
             [['bairro', 'cidade'], 'string', 'max' => 100],
             [['estado'], 'string', 'max' => 2],
-            [['logo_path'], 'string', 'max' => 500],
             [['cpf'], 'unique'],
             [['id'], 'unique'],
         ];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function beforeValidate()
+    {
+        if ($this->isNewRecord) {
+            if (empty($this->id) || $this->id instanceof \yii\db\Expression) {
+                $this->id = (string) Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
+            }
+            if (empty($this->auth_key)) {
+                $this->generateAuthKey();
+            }
+        }
+        return parent::beforeValidate();
     }
 
     /**
@@ -605,6 +620,33 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
     public function getSisUsuarioModulos()
     {
         return $this->hasMany(UsuarioModulo::class, ['usuario_id' => 'id']);
+    }
+
+    /**
+     * Getter mágico para compatibilidade com $usuario->nome_fantasia
+     */
+    public function getNomeFantasia(): string
+    {
+        if (!empty($this->nome_loja)) {
+            return $this->nome_loja;
+        }
+        $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $this->id]);
+        if ($lojaConfig && !empty($lojaConfig->nome_fantasia)) {
+            return $lojaConfig->nome_fantasia;
+        }
+        return $this->nome ?? 'Loja';
+    }
+
+    /**
+     * Getter mágico para compatibilidade com $usuario->razao_social
+     */
+    public function getRazaoSocial(): string
+    {
+        $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $this->id]);
+        if ($lojaConfig && !empty($lojaConfig->razao_social)) {
+            return $lojaConfig->razao_social;
+        }
+        return $this->nome_loja ?: ($this->nome ?? 'Loja');
     }
 
     /**

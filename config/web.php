@@ -135,6 +135,7 @@ $config = [
                 'GET comanda/<comanda:[\w-]+>' => 'hub/index',
                 'hub/<action:[\w-]+>' => 'hub/<action>',
                 // Regras para Encarte Digital Público
+                'POST encarte/enviar-pedido/<token:[\w-]+>' => 'vendas/encarte-publico/enviar-pedido',
                 'GET encarte/pdf/<token:[\w-]+>' => 'vendas/encarte-publico/pdf',
                 'GET encarte/<token:[\w-]+>' => 'vendas/encarte-publico/ver',
                 // Regras da Integração Meta Social (Instagram / Facebook)

@@ -642,6 +642,81 @@
           <div
             class="border-t bg-gray-50 p-4 sm:p-5 flex-shrink-0 rounded-b-2xl"
           >
+            <!-- Seção de Desconto Global na Venda -->
+            <div class="mb-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+              <div
+                class="flex justify-between items-center cursor-pointer"
+                onclick="toggleDescontoGlobal()"
+              >
+                <span
+                  class="text-sm font-semibold text-emerald-800 flex items-center gap-1"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-4 w-4 text-emerald-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                    />
+                  </svg>
+                  Adicionar Desconto Geral na Venda
+                </span>
+                <svg
+                  id="seta-desconto-global"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4 text-emerald-600 transform transition-transform"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </div>
+              <div id="container-desconto-global" class="hidden space-y-3 mt-2 pt-2 border-t border-emerald-100">
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-xs font-medium text-gray-700">Valor / Taxa</label>
+                    <input
+                      type="text"
+                      id="input-desconto-global-valor"
+                      class="w-full p-2 border border-gray-300 rounded text-sm bg-white"
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-gray-700">Tipo</label>
+                    <select
+                      id="input-desconto-global-tipo"
+                      class="w-full p-2 border border-gray-300 rounded text-sm bg-white"
+                    >
+                      <option value="valor">R$ (Valor Fixo)</option>
+                      <option value="porcentagem">% (Porcentagem)</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-700">Motivo / Observação</label>
+                  <input
+                    type="text"
+                    id="input-desconto-global-obs"
+                    class="w-full p-2 border border-gray-300 rounded text-sm bg-white"
+                    placeholder="Ex: Negociação especial, Cupom, etc."
+                  />
+                </div>
+              </div>
+            </div>
+
             <!-- Seção de Acréscimos -->
             <div class="mb-4 p-3 bg-red-50 rounded-lg border border-red-100">
               <div
@@ -736,6 +811,22 @@
               </div>
             </div>
 
+            <!-- Detalhamento de Totais no Carrinho -->
+            <div class="space-y-1 mb-3 pt-2 border-t border-gray-200 text-sm">
+              <div id="linha-subtotal-carrinho" class="flex justify-between items-center text-gray-600 hidden">
+                <span>Subtotal Itens</span>
+                <span id="valor-subtotal-carrinho" class="font-medium">R$ 0,00</span>
+              </div>
+              <div id="linha-desconto-global-carrinho" class="flex justify-between items-center text-emerald-700 font-semibold hidden">
+                <span>Desconto nessa Venda</span>
+                <span id="valor-desconto-global-carrinho">- R$ 0,00</span>
+              </div>
+              <div id="linha-acrescimo-carrinho" class="flex justify-between items-center text-red-600 font-semibold hidden">
+                <span>Acréscimo / Taxas</span>
+                <span id="valor-acrescimo-carrinho">+ R$ 0,00</span>
+              </div>
+            </div>
+
             <div class="flex justify-between items-center mb-4">
               <div>
                 <p class="text-sm text-gray-600">Valor Total</p>
@@ -798,7 +889,29 @@
               </p>
             </div>
 
+            <!-- ✅ Resumo Financeiro da Venda (Subtotal / Desconto Global / Total) -->
+            <div id="resumo-financeiro-finalizar" class="bg-gray-800 text-white rounded-xl p-4 space-y-2 shadow-lg">
+              <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">💰 Resumo da Venda</h3>
+              <div id="linha-subtotal-finalizar" class="hidden flex justify-between text-sm text-gray-300">
+                <span>Subtotal Itens:</span>
+                <span id="valor-subtotal-finalizar" class="font-medium">R$ 0,00</span>
+              </div>
+              <div id="linha-desconto-finalizar" class="hidden flex justify-between text-sm text-emerald-400 font-semibold">
+                <span>🏷️ Desconto nessa Venda:</span>
+                <span id="valor-desconto-finalizar">- R$ 0,00</span>
+              </div>
+              <div id="linha-acrescimo-finalizar" class="hidden flex justify-between text-sm text-red-400 font-semibold">
+                <span>➕ Acréscimo / Taxas:</span>
+                <span id="valor-acrescimo-finalizar">+ R$ 0,00</span>
+              </div>
+              <div class="flex justify-between items-center border-t border-gray-600 pt-2 mt-1">
+                <span class="text-base font-bold text-white">TOTAL A PAGAR:</span>
+                <span id="valor-total-finalizar" class="text-2xl font-extrabold text-yellow-400">R$ 0,00</span>
+              </div>
+            </div>
+
             <!-- Campo de Cliente (apenas para vendas parceladas) -->
+
             <div id="campo-cliente-parcelado" class="hidden">
               <label
                 for="cliente-cpf-busca"
@@ -1783,7 +1896,7 @@
       </div>
     </div>
 
-    <script type="module" src="js/app.js?v=20260330_v1"></script>
+    <script type="module" src="js/app.js?v=20260902_v6"></script>
     <script src="https://sdk.mercadopago.com/js/v2"></script>
 
     <script>

@@ -419,7 +419,7 @@ use app\modules\vendas\models\ItemCompra;
             });
         }
 
-        // Função de Máscara de Moeda (Right-to-Left)
+        // Função de Máscara de Moeda Global (Frete e Desconto - 2 casas)
         function maskCurrency(event) {
             let value = event.target.value.replace(/\D/g, "");
             if (value === "") {
@@ -427,36 +427,104 @@ use app\modules\vendas\models\ItemCompra;
                 return;
             }
 
-            // Converte para número e divide por 100 para centavos
             let numberValue = parseInt(value) / 100;
 
-            // Formata usando Intl nativo do navegador
             event.target.value = new Intl.NumberFormat('pt-BR', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             }).format(numberValue);
 
-            // Recalcular total se for campo global
             if (event.target.id === 'input-frete' || event.target.id === 'input-desconto') {
                 calcularTotal();
             }
         }
 
-        // Função para desmascarar (1.234,56 -> 1234.56)
+        // Função para desmascarar (1.234,56789 -> 1234.56789 ou 0,04561 -> 0.04561)
         function unmaskCurrency(value) {
             if (!value) return 0;
             if (typeof value === 'number') return value;
-            return parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
+            let str = value.toString().trim();
+            if (str.indexOf(',') !== -1) {
+                str = str.replace(/\./g, '').replace(',', '.');
+            }
+            return parseFloat(str) || 0;
         }
 
-        // Aplica máscara em inputs existentes
+        // Formata preço unitário (sempre 5 casas decimais estilo calculadora)
+        function formatUnitPrice(value) {
+            if (value === null || value === undefined || value === '') return '0,00000';
+            const num = typeof value === 'number' ? value : unmaskCurrency(value);
+            if (isNaN(num)) return '0,00000';
+            
+            return new Intl.NumberFormat('pt-BR', {
+                minimumFractionDigits: 5,
+                maximumFractionDigits: 5
+            }).format(num);
+        }
+
+        function handleUnitPriceInput(event) {
+            let input = event.target;
+            let digits = input.value.replace(/\D/g, '');
+            
+            if (digits === '') {
+                input.value = '0,00000';
+            } else {
+                let numberVal = parseInt(digits, 10) / 100000;
+                input.value = new Intl.NumberFormat('pt-BR', {
+                    minimumFractionDigits: 5,
+                    maximumFractionDigits: 5
+                }).format(numberVal);
+            }
+
+            atualizarSubtotalDoItem(input);
+        }
+
+        function atualizarSubtotalDoItem(input) {
+            const itemElement = input.closest('.item-compra');
+            if (itemElement) {
+                const inputQtd = itemElement.querySelector('.input-quantidade');
+                const subtotalEl = itemElement.querySelector('.item-subtotal');
+                if (inputQtd && subtotalEl) {
+                    const quantidade = parseFloat(inputQtd.value) || 0;
+                    const preco = unmaskCurrency(input.value);
+                    const subtotal = Math.round((quantidade * preco) * 100) / 100;
+                    subtotalEl.textContent = 'R$ ' + new Intl.NumberFormat('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }).format(subtotal);
+                    calcularTotal();
+                }
+            }
+        }
+
+        function handleUnitPriceBlur(event) {
+            if (event.target.value) {
+                event.target.value = formatUnitPrice(event.target.value);
+                atualizarSubtotalDoItem(event.target);
+            }
+        }
+
+        function handleUnitPriceFocus(event) {
+            event.target.select();
+        }
+
+        // Aplica máscara de moeda global
         document.querySelectorAll('.currency-input').forEach(input => {
             input.addEventListener('input', maskCurrency);
-            // Formata valor inicial se existir (e for numérico padrão do BD)
             if (input.value && !input.value.includes(',')) {
                 input.value = new Intl.NumberFormat('pt-BR', {
                     minimumFractionDigits: 2
                 }).format(parseFloat(input.value));
+            }
+        });
+
+        // Aplica listeners nos inputs de preço unitário existentes
+        document.querySelectorAll('.input-preco-unitario').forEach(input => {
+            input.addEventListener('input', handleUnitPriceInput);
+            input.addEventListener('blur', handleUnitPriceBlur);
+            input.addEventListener('focus', handleUnitPriceFocus);
+            if (input.value) {
+                input.value = formatUnitPrice(input.value);
             }
         });
 
@@ -502,7 +570,7 @@ use app\modules\vendas\models\ItemCompra;
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Preço Unit. *</label>
-                        <input type="text" name="ItemCompra[${itemIndex}][preco_unitario]" class="input-preco currency-input w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required placeholder="0,00">
+                        <input type="text" name="ItemCompra[${itemIndex}][preco_unitario]" class="input-preco input-preco-unitario w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required value="0,00000" placeholder="0,00000" inputmode="numeric">
                     </div>
                 </div>
             </div>
@@ -536,8 +604,12 @@ use app\modules\vendas\models\ItemCompra;
 
             // Adiciona listeners
             const newItem = container.lastElementChild;
-            // Apply mask to new input
-            newItem.querySelector('.currency-input').addEventListener('input', maskCurrency);
+            const inputPrecoNew = newItem.querySelector('.input-preco-unitario');
+            if (inputPrecoNew) {
+                inputPrecoNew.addEventListener('input', handleUnitPriceInput);
+                inputPrecoNew.addEventListener('blur', handleUnitPriceBlur);
+                inputPrecoNew.addEventListener('focus', handleUnitPriceFocus);
+            }
 
             attachItemListeners(newItem);
             itemIndex++;
@@ -590,10 +662,11 @@ use app\modules\vendas\models\ItemCompra;
 
             function calcularSubtotal() {
                 const quantidade = parseFloat(inputQuantidade.value) || 0;
-                const preco = unmaskCurrency(inputPreco.value); // Use unmask
-                const subtotal = quantidade * preco;
+                const preco = unmaskCurrency(inputPreco.value);
+                const subtotal = Math.round((quantidade * preco) * 100) / 100;
                 subtotalElement.textContent = 'R$ ' + new Intl.NumberFormat('pt-BR', {
-                    minimumFractionDigits: 2
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
                 }).format(subtotal);
                 calcularTotal();
             }
@@ -647,12 +720,7 @@ use app\modules\vendas\models\ItemCompra;
                             if (inputMarca) inputMarca.value = p.marca || '';
 
                             if (p.preco_custo) {
-                                // Format price for display
-                                const precoFormatted = new Intl.NumberFormat('pt-BR', {
-                                    minimumFractionDigits: 2
-                                }).format(parseFloat(p.preco_custo));
-                                inputPreco.value = precoFormatted;
-                                inputPreco.dispatchEvent(new Event('input')); // Trigger mask
+                                inputPreco.value = formatUnitPrice(parseFloat(p.preco_custo));
                             }
                             resultsContainer.classList.add('hidden');
                             atualizarEstadoCategoria();

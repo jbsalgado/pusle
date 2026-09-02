@@ -159,9 +159,29 @@ let acrescimoAtual = {
   observacao: ''
 };
 
+/**
+ * Converte valor monetário (string ou número) para float.
+ * Distingue automaticamente ponto decimal (EN: "9.00") de ponto de milhar (BR: "1.234,56").
+ *   - Ambos ponto e vírgula: formato BR ("1.234,56") → remove pontos, troca vírgula
+ *   - Só vírgula:             formato BR sem milhar ("9,00") → troca vírgula
+ *   - Só ponto ou nenhum:    formato EN ("9.00" ou "9") → usa como está
+ */
+function parseValorMonetario(valor) {
+  if (valor === null || valor === undefined || valor === '') return 0;
+  const str = String(valor).trim();
+  if (str === '') return 0;
+  if (str.includes('.') && str.includes(',')) {
+    return parseFloat(str.replace(/\./g, '').replace(',', '.')) || 0;
+  }
+  if (str.includes(',')) {
+    return parseFloat(str.replace(',', '.')) || 0;
+  }
+  return parseFloat(str) || 0;
+}
+
 export function setAcrescimo(valor, tipo, observacao) {
   acrescimoAtual = {
-    valor: parseFloat(valor) || 0,
+    valor: parseValorMonetario(valor),
     tipo: tipo || '',
     observacao: observacao || ''
   };
@@ -171,19 +191,45 @@ export function getAcrescimo() {
   return acrescimoAtual;
 }
 
+// Estado local para desconto global na venda (totalmente independente dos descontos por item)
+let descontoGlobalAtual = {
+  valor: 0,
+  tipo: 'valor', // 'valor' (R$) ou 'porcentagem' (%)
+  observacao: ''
+};
+
+export function setDescontoGlobal(valor, tipo, observacao) {
+  descontoGlobalAtual = {
+    valor: parseValorMonetario(valor),
+    tipo: tipo || 'valor',
+    observacao: observacao || ''
+  };
+}
+
+export function getDescontoGlobal() {
+  return descontoGlobalAtual;
+}
+
 /**
- * Calcula total do carrinho
+ * Calcula subtotal bruto dos itens (preço * qtd sem descontos)
  */
-export function calcularTotalCarrinho() {
-  const totalItens = carrinho.reduce((total, item) => {
-    // ✅ CORREÇÃO: Usar preço promocional se disponível (preco_final), senão usar preco_venda_sugerido
+export function calcularSubtotalBruto() {
+  return carrinho.reduce((total, item) => {
     const preco = parseFloat(item.preco_final || item.preco_venda_sugerido || 0);
-    // ✅ CORREÇÃO: Garantir que é número (suporta decimais)
     const qtd = parseFloat(item.quantidade || 0);
+    return total + (preco * qtd);
+  }, 0);
+}
 
-    let subtotal = preco * qtd;
+/**
+ * Calcula soma dos descontos dados diretamente nos itens
+ */
+export function calcularTotalDescontosItens() {
+  return carrinho.reduce((total, item) => {
+    const preco = parseFloat(item.preco_final || item.preco_venda_sugerido || 0);
+    const qtd = parseFloat(item.quantidade || 0);
+    const subtotal = preco * qtd;
 
-    // Aplica desconto se houver
     const descontoValor = parseFloat(item.descontoValor || 0);
     const descontoPercentual = parseFloat(item.descontoPercentual || 0);
 
@@ -193,12 +239,42 @@ export function calcularTotalCarrinho() {
     } else if (descontoPercentual > 0) {
       valorDesconto = subtotal * (descontoPercentual / 100);
     }
-
-    return total + Math.max(0, subtotal - valorDesconto);
+    return total + valorDesconto;
   }, 0);
+}
 
-  // Soma o acréscimo
-  return totalItens + (parseFloat(acrescimoAtual.valor) || 0);
+/**
+ * Calcula subtotal dos itens após descontos individuais
+ */
+export function calcularSubtotalAposDescontoItens() {
+  const bruto = calcularSubtotalBruto();
+  const descItens = calcularTotalDescontosItens();
+  return Math.max(0, bruto - descItens);
+}
+
+/**
+ * Calcula o valor monetário real do Desconto Global aplicado após o subtotal
+ */
+export function calcularValorDescontoGlobal() {
+  const subtotalItens = calcularSubtotalAposDescontoItens();
+  const val = parseFloat(descontoGlobalAtual.valor) || 0;
+  if (val <= 0) return 0;
+
+  if (descontoGlobalAtual.tipo === 'porcentagem' || descontoGlobalAtual.tipo === '%') {
+    return Math.round(subtotalItens * (val / 100) * 100) / 100;
+  }
+  return Math.min(subtotalItens, val);
+}
+
+/**
+ * Calcula total líquido do carrinho
+ */
+export function calcularTotalCarrinho() {
+  const subtotalItens = calcularSubtotalAposDescontoItens();
+  const valorDescontoGlobal = calcularValorDescontoGlobal();
+  const acrescimo = parseFloat(acrescimoAtual.valor) || 0;
+
+  return Math.max(0, subtotalItens - valorDescontoGlobal) + acrescimo;
 }
 
 /**
@@ -228,10 +304,16 @@ export function aplicarDescontoItem(produtoId, tipo, valor) {
 }
 
 /**
- * Calcula total de itens no carrinho
+ * Calcula total de itens (produtos distintos / linhas) no carrinho
  */
 export function calcularTotalItens() {
-  // ✅ CORREÇÃO: Garantir que é número
+  return carrinho.length;
+}
+
+/**
+ * Calcula total de peças / unidades (volume total somado) no carrinho
+ */
+export function calcularTotalPecas() {
   return carrinho.reduce(
     (acc, item) => acc + (parseFloat(item.quantidade) || 0),
     0

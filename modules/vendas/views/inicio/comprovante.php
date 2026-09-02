@@ -151,26 +151,40 @@ $this->registerCss('
                     <?php endforeach;
 
                     $acrescimo = $venda->acrescimo_valor ?? 0;
-                    $totalFinal = $subtotal - $totalDescontos + $acrescimo;
+                    $descontoGlobal = $venda->desconto_global_valor ?? 0;
+                    $subtotalItens = max(0, $subtotal - $totalDescontos);
+                    $totalFinal = max(0, $subtotalItens - $descontoGlobal) + $acrescimo;
                     ?>
                 </div>
             </div>
 
             <!-- Totais e Forma de Pagamento -->
             <div class="space-y-2 mb-6">
-                <!-- Subtotal (só mostra se houver descontos ou acréscimos) -->
-                <?php if ($totalDescontos > 0 || $acrescimo > 0): ?>
+                <!-- Subtotal Bruto e Desconto nos Itens -->
+                <?php if ($totalDescontos > 0): ?>
                     <div class="flex justify-between items-center text-gray-600">
-                        <span>Subtotal:</span>
+                        <span>Subtotal Bruto:</span>
                         <span>R$ <?= number_format($subtotal, 2, ',', '.') ?></span>
+                    </div>
+                    <div class="flex justify-between items-center text-red-600">
+                        <span>Descontos nos Itens:</span>
+                        <span>-R$ <?= number_format($totalDescontos, 2, ',', '.') ?></span>
                     </div>
                 <?php endif; ?>
 
-                <!-- Descontos -->
-                <?php if ($totalDescontos > 0): ?>
-                    <div class="flex justify-between items-center text-red-600">
-                        <span>Descontos:</span>
-                        <span>-R$ <?= number_format($totalDescontos, 2, ',', '.') ?></span>
+                <!-- Subtotal -->
+                <?php if ($totalDescontos > 0 || $descontoGlobal > 0 || $acrescimo > 0): ?>
+                    <div class="flex justify-between items-center text-gray-700 font-medium">
+                        <span>Subtotal:</span>
+                        <span>R$ <?= number_format($subtotalItens, 2, ',', '.') ?></span>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Desconto na Venda -->
+                <?php if ($descontoGlobal > 0): ?>
+                    <div class="flex justify-between items-center text-red-600 font-medium">
+                        <span>Desconto nessa Venda:</span>
+                        <span>-R$ <?= number_format($descontoGlobal, 2, ',', '.') ?></span>
                     </div>
                 <?php endif; ?>
 

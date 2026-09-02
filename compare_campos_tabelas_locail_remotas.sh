@@ -11,7 +11,7 @@ NC='\033[0m' # No Color
 # Configurações do banco LOCAL
 LOCAL_HOST="localhost"
 LOCAL_PORT="5432"
-LOCAL_DB="alex_birds"
+LOCAL_DB="pulse"
 LOCAL_USER="postgres"
 LOCAL_PASS="postgres"
 # Configurações do banco REMOTO (PULSE TOP CONSTRUCOES)

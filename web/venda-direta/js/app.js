@@ -3,15 +3,17 @@ import { fetchWithAuth } from './api.js';
 import { 
     getCarrinho, setCarrinho, adicionarAoCarrinho, removerDoCarrinho,
     aumentarQuantidadeItem, diminuirQuantidadeItem, calcularTotalCarrinho,
-    calcularTotalItens, limparCarrinho, atualizarIndicadoresCarrinho,
+    calcularTotalItens, calcularTotalPecas, limparCarrinho, atualizarIndicadoresCarrinho,
     atualizarBadgeProduto, aplicarDescontoItem, getAcrescimo, setAcrescimo,
+    getDescontoGlobal, setDescontoGlobal, calcularSubtotalBruto, calcularTotalDescontosItens,
+    calcularSubtotalAposDescontoItens, calcularValorDescontoGlobal,
     getPrecoVigente
-} from './cart.js?v=surcharge_fix';
+} from './cart.js';
 import { carregarCarrinho, limparDadosLocaisPosSinc, carregarFormasPagamentoCache } from './storage.js';
 import { finalizarPedido } from './order.js';
 import { carregarFormasPagamento } from './payment.js';
 import { validarCPF, maskCPF, maskPhone, maskCEP, formatarMoeda, formatarQuantidade, formatarCPF, verificarElementosCriticos } from './utils.js';
-import { mostrarModalPixEstatico } from './pix.js'; // Importação do novo módulo
+import { mostrarModalPixEstatico, gerarComprovanteVenda } from './pix.js?v=20260902_v4'; // Importação do módulo de comprovante e pix
 import { verificarAutenticacao, getColaboradorData } from './auth.js'; // Importação do módulo de autenticação
 import { buscarClientePorCpf, cadastrarCliente, getClienteAtual, setClienteAtual } from './customer.js'; // Importação do módulo de cliente
 import { inicializarGerenciamentoMaquinetas } from './devices.js'; // Importação do gerenciamento de maquinetas
@@ -403,6 +405,22 @@ function renderizarCarrinho() {
         </div>`;
     }).join('');
     
+    // Atualiza lógica de desconto global no render
+    const descontoGlobalAtual = getDescontoGlobal();
+    const inputDescValor = document.getElementById('input-desconto-global-valor');
+    const inputDescTipo = document.getElementById('input-desconto-global-tipo');
+    const inputDescObs = document.getElementById('input-desconto-global-obs');
+
+    if (inputDescValor && descontoGlobalAtual.valor > 0) {
+        if (document.activeElement !== inputDescValor) {
+            inputDescValor.value = descontoGlobalAtual.tipo === 'porcentagem'
+                ? descontoGlobalAtual.valor.toString().replace('.', ',')
+                : descontoGlobalAtual.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        }
+    }
+    if (inputDescTipo) inputDescTipo.value = descontoGlobalAtual.tipo || 'valor';
+    if (inputDescObs) inputDescObs.value = descontoGlobalAtual.observacao || '';
+
     // Atualiza lógica de acréscimo no render
     const acrescimoAtual = getAcrescimo();
     const inputValor = document.getElementById('input-acrescimo-valor');
@@ -418,11 +436,155 @@ function renderizarCarrinho() {
     if (inputTipo) inputTipo.value = acrescimoAtual.tipo;
     if (inputObs) inputObs.value = acrescimoAtual.observacao;
 
-    // Atualiza Total com acréscimo
-    const totalComAcrescimo = calcularTotalCarrinho();
-    if (totalElement) totalElement.textContent = formatarMoeda(totalComAcrescimo);
-    if (totalItensFooter) totalItensFooter.textContent = calcularTotalItens();
+    // Atualiza linhas de resumo e Total
+    atualizarLinhasResumoCarrinho();
+
+    if (totalItensFooter) {
+        const totalItens = calcularTotalItens();
+        const totalPecas = calcularTotalPecas();
+        totalItensFooter.innerHTML = `${totalItens} <span class="text-xs text-gray-500 font-normal">(${totalPecas} un.)</span>`;
+    }
 }
+
+/**
+ * Atualiza linhas detalhadas de Subtotal, Desconto Global e Acréscimo no modal do carrinho
+ */
+function atualizarLinhasResumoCarrinho() {
+    const subtotalAposDescontoItens = calcularSubtotalAposDescontoItens();
+    const valorDescGlobal = calcularValorDescontoGlobal();
+    const acrescimo = getAcrescimo();
+    const valAcrescimo = parseFloat(acrescimo.valor) || 0;
+    const totalLiquido = calcularTotalCarrinho();
+
+    const linhaSubtotal = document.getElementById('linha-subtotal-carrinho');
+    const valorSubtotal = document.getElementById('valor-subtotal-carrinho');
+    const linhaDescGlobal = document.getElementById('linha-desconto-global-carrinho');
+    const valorDescGlobalEl = document.getElementById('valor-desconto-global-carrinho');
+    const linhaAcrescimo = document.getElementById('linha-acrescimo-carrinho');
+    const valorAcrescimoEl = document.getElementById('valor-acrescimo-carrinho');
+    const totalElement = document.getElementById('valor-total-carrinho');
+
+    const temAjustes = (valorDescGlobal > 0 || valAcrescimo > 0);
+
+    if (linhaSubtotal && valorSubtotal) {
+        if (temAjustes) {
+            linhaSubtotal.classList.remove('hidden');
+            valorSubtotal.textContent = formatarMoeda(subtotalAposDescontoItens);
+        } else {
+            linhaSubtotal.classList.add('hidden');
+        }
+    }
+
+    if (linhaDescGlobal && valorDescGlobalEl) {
+        if (valorDescGlobal > 0) {
+            linhaDescGlobal.classList.remove('hidden');
+            valorDescGlobalEl.textContent = `- ${formatarMoeda(valorDescGlobal)}`;
+        } else {
+            linhaDescGlobal.classList.add('hidden');
+        }
+    }
+
+    if (linhaAcrescimo && valorAcrescimoEl) {
+        if (valAcrescimo > 0) {
+            linhaAcrescimo.classList.remove('hidden');
+            valorAcrescimoEl.textContent = `+ ${formatarMoeda(valAcrescimo)}`;
+        } else {
+            linhaAcrescimo.classList.add('hidden');
+        }
+    }
+
+    if (totalElement) {
+        totalElement.textContent = formatarMoeda(totalLiquido);
+    }
+}
+
+/**
+ * Atualiza o bloco de resumo financeiro no modal "Finalizar Venda"
+ * Sincroniza subtotal / desconto global / acréscimo / total a pagar
+ * para que o usuário veja o valor correto antes de preencher os pagamentos.
+ */
+function atualizarResumoModalFinalizar() {
+    const subtotalAposDescontoItens = calcularSubtotalAposDescontoItens();
+    const valorDescGlobal = calcularValorDescontoGlobal();
+    const acrescimo = getAcrescimo();
+    const valAcrescimo = parseFloat(acrescimo.valor) || 0;
+    const totalLiquido = calcularTotalCarrinho();
+    const temAjustes = (valorDescGlobal > 0 || valAcrescimo > 0);
+
+    // Subtotal
+    const linhaSubtotalF = document.getElementById('linha-subtotal-finalizar');
+    const valorSubtotalF = document.getElementById('valor-subtotal-finalizar');
+    if (linhaSubtotalF && valorSubtotalF) {
+        if (temAjustes) {
+            linhaSubtotalF.classList.remove('hidden');
+            valorSubtotalF.textContent = formatarMoeda(subtotalAposDescontoItens);
+        } else {
+            linhaSubtotalF.classList.add('hidden');
+        }
+    }
+
+    // Desconto Global
+    const linhaDescontoF = document.getElementById('linha-desconto-finalizar');
+    const valorDescontoF = document.getElementById('valor-desconto-finalizar');
+    if (linhaDescontoF && valorDescontoF) {
+        if (valorDescGlobal > 0) {
+            linhaDescontoF.classList.remove('hidden');
+            valorDescontoF.textContent = `- ${formatarMoeda(valorDescGlobal)}`;
+        } else {
+            linhaDescontoF.classList.add('hidden');
+        }
+    }
+
+    // Acréscimo
+    const linhaAcrescimoF = document.getElementById('linha-acrescimo-finalizar');
+    const valorAcrescimoF = document.getElementById('valor-acrescimo-finalizar');
+    if (linhaAcrescimoF && valorAcrescimoF) {
+        if (valAcrescimo > 0) {
+            linhaAcrescimoF.classList.remove('hidden');
+            valorAcrescimoF.textContent = `+ ${formatarMoeda(valAcrescimo)}`;
+        } else {
+            linhaAcrescimoF.classList.add('hidden');
+        }
+    }
+
+    // Total Final
+    const totalFinalizarEl = document.getElementById('valor-total-finalizar');
+    if (totalFinalizarEl) {
+        totalFinalizarEl.textContent = formatarMoeda(totalLiquido);
+    }
+
+    // Log para debug
+    console.log('[App] 📊 Resumo Finalizar Venda:', {
+        subtotal: subtotalAposDescontoItens,
+        desconto_global: valorDescGlobal,
+        acrescimo: valAcrescimo,
+        total_liquido: totalLiquido
+    });
+}
+
+// Funções globais para Desconto Global
+window.toggleDescontoGlobal = function() {
+    const container = document.getElementById('container-desconto-global');
+    const seta = document.getElementById('seta-desconto-global');
+    if (container) {
+        container.classList.toggle('hidden');
+        if (seta) seta.classList.toggle('rotate-180');
+    }
+};
+
+window.atualizarDescontoGlobalInput = function() {
+    const inputValor = document.getElementById('input-desconto-global-valor');
+    const inputTipo = document.getElementById('input-desconto-global-tipo');
+    const inputObs = document.getElementById('input-desconto-global-obs');
+    
+    if (inputValor) {
+        let valorClean = inputValor.value.replace(/\./g, '').replace(',', '.');
+        const tipo = inputTipo ? inputTipo.value : 'valor';
+        const obs = inputObs ? inputObs.value : '';
+        setDescontoGlobal(valorClean, tipo, obs);
+        atualizarLinhasResumoCarrinho();
+    }
+};
 
 // Funções globais para Acréscimo
 window.toggleAcrescimos = function() {
@@ -445,10 +607,28 @@ window.formatarMoedaInput = function(input) {
     atualizarAcrescimoGlobal();
 };
 
-// Listener para select e obs também atualizarem o estado
+// Listener para inputs de acréscimo e desconto global
+document.addEventListener('input', function(e) {
+    if (e.target.id === 'input-desconto-global-valor') {
+        const inputTipo = document.getElementById('input-desconto-global-tipo');
+        if (inputTipo && inputTipo.value === 'valor') {
+            // Máscara monetária
+            let valor = e.target.value.replace(/\D/g, '');
+            valor = (valor / 100).toFixed(2) + '';
+            valor = valor.replace(".", ",");
+            valor = valor.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
+            e.target.value = valor;
+        }
+        window.atualizarDescontoGlobalInput();
+    }
+});
+
 document.addEventListener('change', function(e) {
     if (e.target.id === 'input-acrescimo-tipo' || e.target.id === 'input-acrescimo-obs') {
         atualizarAcrescimoGlobal();
+    }
+    if (e.target.id === 'input-desconto-global-tipo' || e.target.id === 'input-desconto-global-obs') {
+        window.atualizarDescontoGlobalInput();
     }
 });
 
@@ -460,12 +640,7 @@ function atualizarAcrescimoGlobal() {
     if (inputValor) {
         let valorClean = inputValor.value.replace(/\./g, '').replace(',', '.');
         setAcrescimo(valorClean, inputTipo.value, inputObs.value);
-        
-        // Atualiza apenas o texto do total, sem re-renderizar tudo (para não perder foco)
-        const totalElement = document.getElementById('valor-total-carrinho');
-        if (totalElement) {
-             totalElement.textContent = formatarMoeda(calcularTotalCarrinho());
-        }
+        atualizarLinhasResumoCarrinho();
     }
 }
 
@@ -1654,6 +1829,21 @@ window.abrirModalPedido = async function() {
     popularOpcoesParcelas();
     abrirModal('modal-cliente-pedido');
     
+    // ✅ Sincroniza estado do desconto global a partir do DOM (fonte de verdade)
+    // Necessário porque o estado em memória do cart.js pode não refletir o DOM após re-renders
+    const _syncDgValor = document.getElementById('input-desconto-global-valor')?.value || '0';
+    const _syncDgTipo = document.getElementById('input-desconto-global-tipo')?.value || 'valor';
+    const _syncDgObs = document.getElementById('input-desconto-global-obs')?.value || '';
+    const _syncAcValor = document.getElementById('input-acrescimo-valor')?.value || '0';
+    const _syncAcTipo = document.getElementById('input-acrescimo-tipo')?.value || 'valor';
+    const _syncAcObs = document.getElementById('input-acrescimo-obs')?.value || '';
+    setDescontoGlobal(_syncDgValor, _syncDgTipo, _syncDgObs);
+    setAcrescimo(_syncAcValor, _syncAcTipo, _syncAcObs);
+    
+    // ✅ Atualiza o bloco de resumo financeiro no modal de finalização
+    atualizarResumoModalFinalizar();
+    
+
     // Preencher automaticamente CPF do vendedor se o usuário logado for vendedor
     preencherDadosVendedor();
     // Preencher automaticamente CPF do consumidor com o CPF do colaborador logado foi desativado a pedido do usuário
@@ -1948,6 +2138,15 @@ window.confirmarPedido = async function() {
             return;
         }
         
+        // Lê desconto global e acréscimo diretamente do DOM (fonte de verdade) como camada extra de segurança
+        const _dgInputValor = document.getElementById('input-desconto-global-valor')?.value || '0';
+        const _dgValorClean = parseFloat(_dgInputValor.replace(/\./g, '').replace(',', '.')) || 0;
+        const _dgTipo = document.getElementById('input-desconto-global-tipo')?.value || 'valor';
+        const _dgObs = document.getElementById('input-desconto-global-obs')?.value || null;
+        const _acInputValor = document.getElementById('input-acrescimo-valor')?.value || '0';
+        const _acValorClean = parseFloat(_acInputValor.replace(/\./g, '').replace(',', '.')) || 0;
+        const _acTipo = document.getElementById('input-acrescimo-tipo')?.value || null;
+
         const dadosPedido = {
             cliente_id: clienteId,
             observacoes: document.getElementById('observacoes-pedido').value || null,
@@ -1960,6 +2159,13 @@ window.confirmarPedido = async function() {
             is_venda_direta: true, // Garante que o backend saiba que é venda direta
             confirmar_imediato: usarMultiplos ? true : undefined,
             pagamentos_multiplos: usarMultiplos ? pagamentosMultiplosArray : undefined,
+            // ✅ Desconto Global explícito (fonte: DOM + estado do cart.js)
+            desconto_global_valor: _dgValorClean || (getDescontoGlobal().valor || 0),
+            desconto_global_tipo: _dgTipo || (getDescontoGlobal().tipo || 'valor'),
+            observacao_desconto_global: _dgObs || (getDescontoGlobal().observacao || null),
+            // ✅ Acréscimo explícito
+            acrescimo_valor: _acValorClean || (getAcrescimo().valor || 0),
+            acrescimo_tipo: _acTipo || (getAcrescimo().tipo || null),
             // CPF do consumidor final (opcional) — enviado sem pontuação (só dígitos) para o backend formatar
             cpf_consumidor: (() => {
                 const val = document.getElementById('consumidor_cpf')?.value || '';
@@ -1977,6 +2183,13 @@ window.confirmarPedido = async function() {
             })()
         };
         
+        console.log('[App] 💳 dadosPedido preparado com desconto global:', {
+            desconto_global_valor: dadosPedido.desconto_global_valor,
+            desconto_global_tipo: dadosPedido.desconto_global_tipo,
+            acrescimo_valor: dadosPedido.acrescimo_valor,
+            total_carrinho: calcularTotalCarrinho()
+        });
+
         const carrinho = getCarrinho();
         const resultado = await finalizarPedido(dadosPedido, carrinho);
         
@@ -2669,7 +2882,7 @@ async function verificarComprovantePosReload() {
         await new Promise(resolve => setTimeout(resolve, 500));
         
         // Importa função de comprovante
-        const { gerarComprovanteVenda } = await import('./pix.js');
+        const { gerarComprovanteVenda } = await import('./pix.js?v=20260902_v4');
         
         // Gera e exibe o comprovante
         await gerarComprovanteVenda(dados.carrinho, {
@@ -3244,6 +3457,9 @@ window.obterTotalInformadoMultiplo = function() {
 };
 
 window.recalcularResumoMultiplo = function() {
+    // ✅ Garante que o total exibido reflete o desconto global atual
+    atualizarResumoModalFinalizar();
+    
     const totalVenda = parseFloat(calcularTotalCarrinho() || 0);
     const totalInformado = window.obterTotalInformadoMultiplo();
     const restante = totalVenda - totalInformado;

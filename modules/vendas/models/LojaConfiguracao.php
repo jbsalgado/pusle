@@ -195,6 +195,25 @@ class LojaConfiguracao extends ActiveRecord
     }
 
     /**
+     * Retorna a URL completa da logo
+     */
+    public function getLogoUrl(): ?string
+    {
+        if (!empty($this->logo_path)) {
+            return \yii\helpers\Url::to('@web/' . ltrim($this->logo_path, '/'), true);
+        }
+        return null;
+    }
+
+    /**
+     * Retorna o número de WhatsApp / suporte
+     */
+    public function getWhatsappSuporte(): ?string
+    {
+        return $this->celular ?: $this->telefone;
+    }
+
+    /**
      * Retorna a lista de temas pré-programados com suas respectivas escalas de cores.
      * @return array
      */

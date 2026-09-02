@@ -1,6 +1,6 @@
 {
-  "version": "1.1.2",
-  "updated_at": "2026-03-30T17:59:00-03:00",
+  "version": "1.1.8",
+  "updated_at": "2026-09-02T09:33:00-03:00",
   "force_update": true,
-  "changelog": "Descrição completa dos produtos nos cards."
+  "changelog": "Fix crítico: desconto global R$ 9,00 não convertia mais para R$ 900 devido a parsing duplo da máscara monetária."
 }

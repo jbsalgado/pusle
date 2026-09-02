@@ -704,24 +704,41 @@ class Produto extends ActiveRecord
 
     /**
      * Retorna foto principal do produto
-     * Se não houver foto marcada como principal, retorna a primeira foto
+     * Valida existência física do arquivo e faz fallback para outra foto válida se a principal estiver ausente
      */
     public function getFotoPrincipal()
     {
-        // Primeiro tenta buscar foto marcada como principal
-        $fotoPrincipal = $this->getFotos()
-            ->where(['eh_principal' => true])
-            ->one();
-
-        // Se não encontrou principal, retorna a primeira foto disponível
-        if (!$fotoPrincipal) {
-            $fotoPrincipal = $this->getFotos()
-                ->orderBy(['ordem' => SORT_ASC])
-                ->limit(1)
-                ->one();
+        $fotos = $this->fotos;
+        if (empty($fotos)) {
+            return null;
         }
 
-        return $fotoPrincipal;
+        $fotoPrincipal = null;
+        $primeiraValida = null;
+
+        foreach ($fotos as $f) {
+            $caminhoFisico = Yii::getAlias('@app/web/' . ltrim($f->arquivo_path, '/'));
+            $existeFisicamente = file_exists($caminhoFisico);
+
+            if ($f->eh_principal && $existeFisicamente) {
+                return $f;
+            }
+
+            if ($f->eh_principal && !$fotoPrincipal) {
+                $fotoPrincipal = $f;
+            }
+
+            if ($existeFisicamente && !$primeiraValida) {
+                $primeiraValida = $f;
+            }
+        }
+
+        // Se encontrou uma foto válida fisicamente no servidor, usa ela como principal
+        if ($primeiraValida) {
+            return $primeiraValida;
+        }
+
+        return $fotoPrincipal ?: ($fotos[0] ?? null);
     }
 
     /**

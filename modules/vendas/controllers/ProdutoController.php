@@ -23,7 +23,7 @@ class ProdutoController extends Controller
 {
     public function beforeAction($action)
     {
-        if ($action->id === 'cadastro-rapido') {
+        if (in_array($action->id, ['cadastro-rapido', 'responder-inbox', 'upload-inbox-midia', 'marcar-inbox-lido', 'get-inbox'])) {
             $this->enableCsrfValidation = false;
         }
         return parent::beforeAction($action);
@@ -185,11 +185,249 @@ class ProdutoController extends Controller
             ->orderBy(['nome' => SORT_ASC])
             ->all();
 
+        $usuarioLoja = \app\models\Usuario::findOne($lojaId);
+        $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $lojaId]);
+        $inboxNaoLidosCount = (int)\app\modules\vendas\models\ClienteInbox::find()
+            ->where(['usuario_id' => $lojaId, 'lido' => false])
+            ->count();
+
         return $this->render('index', [
             'dataProvider' => $dataProvider,
             'categorias' => $categorias,
+            'usuarioLoja' => $usuarioLoja,
+            'lojaConfig' => $lojaConfig,
+            'inboxNaoLidosCount' => $inboxNaoLidosCount,
         ]);
     }
+
+    /**
+     * Retorna a lista recente de mensagens e pedidos recebidos no Canal Interno / ClienteInbox
+     */
+    public function actionGetInbox($q = null)
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $lojaId = $this->getLojaId();
+
+        $query = \app\modules\vendas\models\ClienteInbox::find()
+            ->where(['usuario_id' => $lojaId]);
+
+        $q = trim((string)$q);
+        if (!empty($q)) {
+            $query->andWhere([
+                'or',
+                ['ilike', 'titulo', $q],
+                ['ilike', 'conteudo_texto', $q],
+                new \yii\db\Expression("acoes_json::text ILIKE :q", [':q' => "%{$q}%"])
+            ]);
+        }
+
+        $mensagens = $query
+            ->orderBy(['created_at' => SORT_ASC])
+            ->limit(150)
+            ->all();
+
+        $threads = [];
+        $respostasOrfas = [];
+
+        foreach ($mensagens as $msg) {
+            $acoes = is_array($msg->acoes_json) ? $msg->acoes_json : (json_decode($msg->acoes_json, true) ?: []);
+            $respostaAId = $acoes['resposta_a_id'] ?? null;
+            $origem = $acoes['origem'] ?? null;
+
+            $itemFormatado = [
+                'id' => $msg->id,
+                'tipo' => $msg->tipo,
+                'titulo' => $msg->titulo,
+                'conteudo' => $msg->conteudo_texto,
+                'midia_url' => $msg->midia_url,
+                'acoes_json' => $acoes,
+                'lido' => (bool)$msg->lido,
+                'autor' => $acoes['autor'] ?? ($origem === 'cliente' ? ($acoes['remetente'] ?? 'Cliente') : 'Loja'),
+                'data_formatada' => date('d/m/Y H:i', strtotime($msg->created_at)),
+                'tempo_relativo' => Yii::$app->formatter->asRelativeTime($msg->created_at),
+                'created_at_ts' => strtotime($msg->created_at),
+                'respostas' => []
+            ];
+
+            if (!empty($respostaAId)) {
+                if (isset($threads[$respostaAId])) {
+                    $threads[$respostaAId]['respostas'][] = $itemFormatado;
+                } else {
+                    $respostasOrfas[$respostaAId][] = $itemFormatado;
+                }
+            } else {
+                if (isset($respostasOrfas[$msg->id])) {
+                    $itemFormatado['respostas'] = array_merge($itemFormatado['respostas'], $respostasOrfas[$msg->id]);
+                    unset($respostasOrfas[$msg->id]);
+                }
+                $threads[$msg->id] = $itemFormatado;
+            }
+        }
+
+        // Se sobraram respostas órfãs (cujo pai não estava nos 100 itens), busca o pai no banco ou anexa
+        foreach ($respostasOrfas as $parentId => $resps) {
+            $paiMsg = \app\modules\vendas\models\ClienteInbox::findOne(['id' => $parentId, 'usuario_id' => $lojaId]);
+            if ($paiMsg) {
+                $paiAcoes = is_array($paiMsg->acoes_json) ? $paiMsg->acoes_json : (json_decode($paiMsg->acoes_json, true) ?: []);
+                $threads[$paiMsg->id] = [
+                    'id' => $paiMsg->id,
+                    'tipo' => $paiMsg->tipo,
+                    'titulo' => $paiMsg->titulo,
+                    'conteudo' => $paiMsg->conteudo_texto,
+                    'midia_url' => $paiMsg->midia_url,
+                    'acoes_json' => $paiAcoes,
+                    'lido' => (bool)$paiMsg->lido,
+                    'autor' => $paiAcoes['autor'] ?? 'Cliente',
+                    'data_formatada' => date('d/m/Y H:i', strtotime($paiMsg->created_at)),
+                    'tempo_relativo' => Yii::$app->formatter->asRelativeTime($paiMsg->created_at),
+                    'created_at_ts' => strtotime($paiMsg->created_at),
+                    'respostas' => $resps
+                ];
+            } else {
+                foreach ($resps as $r) {
+                    $threads[$r['id']] = $r;
+                }
+            }
+        }
+
+        // Ordena os threads pelos mais recentes no topo (considerando a última interação do thread)
+        $lista = array_values($threads);
+        usort($lista, function($a, $b) {
+            $latestA = $a['created_at_ts'];
+            if (!empty($a['respostas'])) {
+                $endResp = end($a['respostas']);
+                $latestA = max($latestA, $endResp['created_at_ts']);
+            }
+            $latestB = $b['created_at_ts'];
+            if (!empty($b['respostas'])) {
+                $endResp = end($b['respostas']);
+                $latestB = max($latestB, $endResp['created_at_ts']);
+            }
+            return $latestB <=> $latestA;
+        });
+
+        $naoLidos = \app\modules\vendas\models\ClienteInbox::find()
+            ->where(['usuario_id' => $lojaId, 'lido' => false])
+            ->count();
+
+        return [
+            'success' => true,
+            'total_nao_lidos' => (int)$naoLidos,
+            'mensagens' => $lista,
+        ];
+    }
+
+    /**
+     * Responde uma mensagem do cliente diretamente via Direct Hub
+     */
+    public function actionResponderInbox()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $lojaId = $this->getLojaId();
+        
+        $request = Yii::$app->request;
+        $post = json_decode($request->getRawBody(), true) ?: $request->post();
+        
+        $mensagemOrigemId = $post['mensagem_id'] ?? null;
+        $respostaTexto    = trim((string)($post['resposta'] ?? ''));
+        $midiaUrl         = trim((string)($post['midia_url'] ?? ''));
+
+        if (empty($mensagemOrigemId) || (empty($respostaTexto) && empty($midiaUrl))) {
+            return ['success' => false, 'message' => 'Informe a mensagem e o texto ou foto de resposta.'];
+        }
+
+        $msgOrigem = \app\modules\vendas\models\ClienteInbox::findOne(['id' => $mensagemOrigemId, 'usuario_id' => $lojaId]);
+        if (!$msgOrigem) {
+            return ['success' => false, 'message' => 'Mensagem de origem não localizada.'];
+        }
+
+        $usuarioLoja = \app\models\Usuario::findOne($lojaId);
+        $lojaConfig  = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $lojaId]);
+        $nomeLoja    = $lojaConfig ? ($lojaConfig->nome_fantasia ?: $lojaConfig->nome_loja) : ($usuarioLoja->nome ?? 'Atendimento Loja');
+
+        if (empty($respostaTexto) && !empty($midiaUrl)) {
+            $respostaTexto = '📷 Imagem enviada pela loja';
+        }
+
+        $acoesOrigem = is_array($msgOrigem->acoes_json) ? $msgOrigem->acoes_json : (json_decode($msgOrigem->acoes_json, true) ?: []);
+        $rootParentId = !empty($acoesOrigem['resposta_a_id']) ? $acoesOrigem['resposta_a_id'] : $msgOrigem->id;
+
+        $resposta = \app\modules\vendas\models\ClienteInbox::postar(
+            $lojaId,
+            $msgOrigem->cliente_id,
+            \app\modules\vendas\models\ClienteInbox::TIPO_TEXTO,
+            "📢 Resposta Oficial: {$nomeLoja}",
+            $respostaTexto,
+            !empty($midiaUrl) ? $midiaUrl : null,
+            [
+                'origem'        => 'loja',
+                'resposta_a_id' => $rootParentId,
+                'autor'         => $nomeLoja
+            ],
+            $msgOrigem->mesa_id,
+            $msgOrigem->comanda_id
+        );
+
+        // Marca a mensagem original como lida
+        $msgOrigem->lido = true;
+        $msgOrigem->save(false);
+
+        if ($resposta) {
+            return [
+                'success' => true,
+                'message' => 'Resposta enviada com sucesso ao Direct Hub do cliente!',
+                'item'    => [
+                    'id'             => $resposta->id,
+                    'titulo'         => $resposta->titulo,
+                    'conteudo'       => $resposta->conteudo_texto,
+                    'midia_url'      => $resposta->midia_url,
+                    'data_formatada' => date('d/m/Y H:i'),
+                    'tempo_relativo' => 'Agora',
+                ]
+            ];
+        }
+
+        return ['success' => false, 'message' => 'Erro ao salvar resposta no servidor.'];
+    }
+
+    /**
+     * Upload de fotos/anexos na Central de Comunicação da Loja
+     */
+    public function actionUploadInboxMidia()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        $foto = \yii\web\UploadedFile::getInstanceByName('foto');
+        if (!$foto) {
+            return ['success' => false, 'message' => 'Nenhum arquivo enviado.'];
+        }
+
+        $allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+        $ext = strtolower($foto->extension);
+        if (!in_array($ext, $allowed)) {
+            return ['success' => false, 'message' => 'Formato de imagem inválido. Use JPG, PNG ou WebP.'];
+        }
+
+        $uploadDir = Yii::getAlias('@app/web/uploads/chat');
+        if (!is_dir($uploadDir)) {
+            @mkdir($uploadDir, 0777, true);
+        }
+
+        $filename = 'loja_' . date('Ymd_His') . '_' . substr(md5(uniqid(rand(), true)), 0, 8) . '.' . $ext;
+        $destPath = $uploadDir . DIRECTORY_SEPARATOR . $filename;
+
+        if ($foto->saveAs($destPath)) {
+            $url = \yii\helpers\Url::to('@web/uploads/chat/' . $filename, true);
+            return [
+                'success' => true,
+                'url'     => $url,
+                'path'    => '/uploads/chat/' . $filename
+            ];
+        }
+
+        return ['success' => false, 'message' => 'Falha ao salvar a imagem no servidor.'];
+    }
+
 
     public function actionImprimirRelatorio()
     {

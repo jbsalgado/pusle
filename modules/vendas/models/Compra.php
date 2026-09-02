@@ -211,7 +211,7 @@ class Compra extends ActiveRecord
         foreach ($this->itens as $item) {
             $total += $item->valor_total_item;
         }
-        $this->valor_total = $total;
+        $this->valor_total = round($total, 2);
         return $this->valor_total;
     }
 

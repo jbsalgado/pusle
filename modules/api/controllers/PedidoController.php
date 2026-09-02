@@ -192,6 +192,11 @@ class PedidoController extends BaseController
         $acrescimoTipo = isset($data['acrescimo_tipo']) ? $data['acrescimo_tipo'] : null;
         $observacaoAcrescimo = isset($data['observacao_acrescimo']) ? $data['observacao_acrescimo'] : null;
 
+        // NOVOS CAMPOS DE DESCONTO GLOBAL (TOTALMENTE INDEPENDENTE DOS ITENS)
+        $descontoGlobalValor = isset($data['desconto_global_valor']) ? (float)$data['desconto_global_valor'] : (isset($data['desconto_valor']) ? (float)$data['desconto_valor'] : 0.0);
+        $descontoGlobalTipo = $data['desconto_global_tipo'] ?? $data['desconto_tipo'] ?? 'VALOR';
+        $observacaoDescontoGlobal = $data['observacao_desconto_global'] ?? $data['observacao_desconto'] ?? null;
+
         // CPF DO CONSUMIDOR FINAL (opcional)
         // Remove pontuação caso venha formatado do frontend (000.000.000-00 -> 00000000000)
         // Armazenamos formatado (com pontuação) para facilitar leitura
@@ -375,10 +380,23 @@ class PedidoController extends BaseController
                 throw new Exception('Valor total do pedido não pode ser zero.');
             }
 
-            // Soma o acréscimo ao total da venda
-            $valorTotalItens = $valorTotalVenda;
-            $valorTotalVenda += $acrescimoValor;
-            Yii::info("Adicionando acréscimo: R$ {$acrescimoValor}. Novo Total: R$ {$valorTotalVenda}", 'api');
+            // Subtotal dos itens (já deduzidos os descontos individuais por item)
+            $subtotalItensAposDescontoItem = $valorTotalVenda;
+
+            // Calcula Desconto Global (adicional e independente)
+            $valorDescontoGlobalFinal = 0.0;
+            if ($descontoGlobalValor > 0) {
+                $descontoGlobalTipoUpper = strtoupper(trim((string)$descontoGlobalTipo));
+                if ($descontoGlobalTipoUpper === 'PORCENTAGEM' || $descontoGlobalTipoUpper === '%') {
+                    $valorDescontoGlobalFinal = round($subtotalItensAposDescontoItem * ($descontoGlobalValor / 100), 2);
+                } else {
+                    $valorDescontoGlobalFinal = round($descontoGlobalValor, 2);
+                }
+            }
+
+            // Subtrai desconto global e soma acréscimo
+            $valorTotalVenda = max(0, $subtotalItensAposDescontoItem - $valorDescontoGlobalFinal) + $acrescimoValor;
+            Yii::info("Desconto Global Aplicado: R$ {$valorDescontoGlobalFinal}. Acréscimo: R$ {$acrescimoValor}. Novo Total: R$ {$valorTotalVenda}", 'api');
 
             // Valida soma de pagamentos múltiplos contra o total calculado
             if (!empty($pagamentosMultiplos)) {
@@ -390,8 +408,13 @@ class PedidoController extends BaseController
                     $somaPagamentos += (float)$pgto['valor'];
                 }
                 
-                if (round($somaPagamentos, 2) !== round($valorTotalVenda, 2)) {
-                    throw new Exception("A soma das formas de pagamento (R$ " . number_format($somaPagamentos, 2, ',', '.') . ") não corresponde ao total da venda (R$ " . number_format($valorTotalVenda, 2, ',', '.') . ").");
+                if (abs(round($somaPagamentos, 2) - round($valorTotalVenda, 2)) > 0.01) {
+                    $msg = "A soma das formas de pagamento (R$ " . number_format($somaPagamentos, 2, ',', '.') . ") "
+                         . "não corresponde ao total da venda (R$ " . number_format($valorTotalVenda, 2, ',', '.') . "). "
+                         . "Subtotal itens: R$ " . number_format($subtotalItensAposDescontoItem, 2, ',', '.') . " | "
+                         . "Desconto global: R$ " . number_format($valorDescontoGlobalFinal, 2, ',', '.') . " | "
+                         . "Acréscimo: R$ " . number_format($acrescimoValor, 2, ',', '.') . ".";
+                    throw new Exception($msg);
                 }
             }
 
@@ -427,6 +450,11 @@ class PedidoController extends BaseController
             $venda->acrescimo_valor = $acrescimoValor;
             $venda->acrescimo_tipo = $acrescimoTipo;
             $venda->observacao_acrescimo = $observacaoAcrescimo;
+
+            // Salva dados do desconto global
+            $venda->desconto_global_valor = $valorDescontoGlobalFinal;
+            $venda->desconto_global_tipo = $descontoGlobalTipo;
+            $venda->observacao_desconto_global = $observacaoDescontoGlobal;
 
             // Salva CPF do consumidor final (opcional)
             $venda->cpf_consumidor = $cpfConsumidor;

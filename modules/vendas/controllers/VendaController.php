@@ -283,22 +283,33 @@ class VendaController extends Controller
         // --- TOTAIS ---
         if (!$gift) {
             $pdf->SetFont('Courier', '', 10);
-            $diferencaDesconto = max(0, $totalBruto - (float)$model->valor_total + (float)$model->acrescimo_valor);
-            $temDesconto = ($totalDescontos > 0.01 || $diferencaDesconto > 0.01);
-            $valDescontoExibir = max($totalDescontos, $diferencaDesconto);
+            $subtotalItens = max(0, $totalBruto - $totalDescontos);
+            $valDescGlobal = (float)($model->desconto_global_valor ?? 0);
+            $temDescontoItens = ($totalDescontos > 0.01);
+            $temDescontoGlobal = ($valDescGlobal > 0.01);
+            $temAcrescimo = ((float)$model->acrescimo_valor > 0.01);
 
-            if ($temDesconto || (float)$model->acrescimo_valor > 0.01) {
-                $pdf->Cell(40, 5, 'SUBTOTAL BRUTO:', 0, 0, 'L');
-                $pdf->Cell(40, 5, 'R$ ' . number_format($totalBruto, 2, ',', '.'), 0, 1, 'R');
-
-                if ($temDesconto) {
+            if ($temDescontoItens || $temDescontoGlobal || $temAcrescimo) {
+                if ($temDescontoItens) {
+                    $pdf->Cell(40, 5, 'SUBTOTAL BRUTO:', 0, 0, 'L');
+                    $pdf->Cell(40, 5, 'R$ ' . number_format($totalBruto, 2, ',', '.'), 0, 1, 'R');
                     $pdf->SetTextColor(150, 0, 0);
-                    $pdf->Cell(40, 5, 'TOTAL DESCONTOS:', 0, 0, 'L');
-                    $pdf->Cell(40, 5, '- R$ ' . number_format($valDescontoExibir, 2, ',', '.'), 0, 1, 'R');
+                    $pdf->Cell(40, 5, 'DESCONTOS ITENS:', 0, 0, 'L');
+                    $pdf->Cell(40, 5, '- R$ ' . number_format($totalDescontos, 2, ',', '.'), 0, 1, 'R');
                     $pdf->SetTextColor(0, 0, 0);
                 }
 
-                if ((float)$model->acrescimo_valor > 0.01) {
+                $pdf->Cell(40, 5, 'SUBTOTAL:', 0, 0, 'L');
+                $pdf->Cell(40, 5, 'R$ ' . number_format($subtotalItens, 2, ',', '.'), 0, 1, 'R');
+
+                if ($temDescontoGlobal) {
+                    $pdf->SetTextColor(150, 0, 0);
+                    $pdf->Cell(40, 5, 'DESCONTO VENDA:', 0, 0, 'L');
+                    $pdf->Cell(40, 5, '- R$ ' . number_format($valDescGlobal, 2, ',', '.'), 0, 1, 'R');
+                    $pdf->SetTextColor(0, 0, 0);
+                }
+
+                if ($temAcrescimo) {
                     $pdf->SetTextColor(0, 0, 150);
                     $labelAcr = 'ACRESCIMO' . ($model->acrescimo_tipo ? ' (' . $model->acrescimo_tipo . ')' : '');
                     $pdf->Cell(40, 5, mb_convert_encoding($labelAcr, 'ISO-8859-1', 'UTF-8'), 0, 0, 'L');
@@ -315,7 +326,9 @@ class VendaController extends Controller
 
         $pdf->Ln(2);
         $pdf->SetFont('Courier', 'B', 9);
-        $pdf->Cell(80, 4, mb_convert_encoding('TOTAL DE ITENS: ' . $totalPecas, 'ISO-8859-1', 'UTF-8'), 0, 1, 'L');
+        $totalItens = count($model->itens);
+        $pdf->Cell(80, 4, mb_convert_encoding('TOTAL DE ITENS: ' . $totalItens, 'ISO-8859-1', 'UTF-8'), 0, 1, 'L');
+        $pdf->Cell(80, 4, mb_convert_encoding('TOTAL DE PEÇAS: ' . $totalPecas, 'ISO-8859-1', 'UTF-8'), 0, 1, 'L');
 
         if (!$gift) {
             $pdf->Ln(2);
@@ -482,26 +495,40 @@ class VendaController extends Controller
         // Totais
         $pdf->Ln(2);
         $pdf->SetFont('Arial', 'B', 10);
+        $totalItens = count($model->itens);
         $pdf->Cell(155, 6, utf8_decode("TOTAL DE ITENS:"), 0, 0, 'R');
+        $pdf->Cell(35, 6, number_format($totalItens, 0), 0, 1, 'R');
+        $pdf->Cell(155, 6, utf8_decode("TOTAL DE PEÇAS:"), 0, 0, 'R');
         $pdf->Cell(35, 6, number_format($totalPecas, 0), 0, 1, 'R');
 
-        $diferencaDescontoA4 = max(0, $subtotalBruto - (float)$model->valor_total + (float)$model->acrescimo_valor);
-        $temDescontoA4 = ($totalDescontos > 0.01 || $diferencaDescontoA4 > 0.01);
-        $valDescontoA4Exibir = max($totalDescontos, $diferencaDescontoA4);
+        $subtotalItensA4 = max(0, $subtotalBruto - $totalDescontos);
+        $valDescGlobalA4 = (float)($model->desconto_global_valor ?? 0);
+        $temDescontoItensA4 = ($totalDescontos > 0.01);
+        $temDescontoGlobalA4 = ($valDescGlobalA4 > 0.01);
+        $temAcrescimoA4 = ((float)$model->acrescimo_valor > 0.01);
 
-        if ($temDescontoA4 || (float)$model->acrescimo_valor > 0.01) {
+        if ($temDescontoItensA4 || $temDescontoGlobalA4 || $temAcrescimoA4) {
             $pdf->SetFont('Arial', '', 10);
-            $pdf->Cell(155, 6, utf8_decode("SUBTOTAL BRUTO:"), 0, 0, 'R');
-            $pdf->Cell(35, 6, "R$ " . number_format($subtotalBruto, 2, ',', '.'), 0, 1, 'R');
-
-            if ($temDescontoA4) {
+            if ($temDescontoItensA4) {
+                $pdf->Cell(155, 6, utf8_decode("SUBTOTAL BRUTO:"), 0, 0, 'R');
+                $pdf->Cell(35, 6, "R$ " . number_format($subtotalBruto, 2, ',', '.'), 0, 1, 'R');
                 $pdf->SetTextColor(150, 0, 0);
-                $pdf->Cell(155, 6, utf8_decode("(-) TOTAL DESCONTOS:"), 0, 0, 'R');
-                $pdf->Cell(35, 6, "-R$ " . number_format($valDescontoA4Exibir, 2, ',', '.'), 0, 1, 'R');
+                $pdf->Cell(155, 6, utf8_decode("(-) DESCONTOS NOS ITENS:"), 0, 0, 'R');
+                $pdf->Cell(35, 6, "-R$ " . number_format($totalDescontos, 2, ',', '.'), 0, 1, 'R');
                 $pdf->SetTextColor(0, 0, 0);
             }
 
-            if ((float)$model->acrescimo_valor > 0.01) {
+            $pdf->Cell(155, 6, utf8_decode("SUBTOTAL:"), 0, 0, 'R');
+            $pdf->Cell(35, 6, "R$ " . number_format($subtotalItensA4, 2, ',', '.'), 0, 1, 'R');
+
+            if ($temDescontoGlobalA4) {
+                $pdf->SetTextColor(150, 0, 0);
+                $pdf->Cell(155, 6, utf8_decode("(-) DESCONTO NESSA VENDA:"), 0, 0, 'R');
+                $pdf->Cell(35, 6, "-R$ " . number_format($valDescGlobalA4, 2, ',', '.'), 0, 1, 'R');
+                $pdf->SetTextColor(0, 0, 0);
+            }
+
+            if ($temAcrescimoA4) {
                 $pdf->SetTextColor(0, 0, 150);
                 $tipoAcrescimo = $model->acrescimo_tipo ? " ({$model->acrescimo_tipo})" : "";
                 $pdf->Cell(155, 6, utf8_decode("(+) ACRÉSCIMO{$tipoAcrescimo}:"), 0, 0, 'R');
