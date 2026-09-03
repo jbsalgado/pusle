@@ -210,11 +210,17 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
     }
 
     /**
-     * Override __get para garantir conversão ao acessar o atributo
-     * Isso garante que mesmo se afterFind não for chamado, a conversão acontece
+     * Override __get para garantir conversão ao acessar o atributo e compatibilidade com propriedades de loja
      */
     public function __get($name)
     {
+        if ($name === 'nome_loja') {
+            return $this->getNomeLoja();
+        }
+        if ($name === 'slug') {
+            return $this->getSlug();
+        }
+
         $value = parent::__get($name);
 
         // Se for um campo boolean e ainda não foi convertido, converte
@@ -235,6 +241,17 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
         }
 
         return $value;
+    }
+
+    /**
+     * Override __isset para suportar propriedades virtuais
+     */
+    public function __isset($name)
+    {
+        if (in_array($name, ['nome_loja', 'slug', 'nome_fantasia', 'razao_social'])) {
+            return true;
+        }
+        return parent::__isset($name);
     }
 
     /**
@@ -622,17 +639,47 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
         return $this->hasMany(UsuarioModulo::class, ['usuario_id' => 'id']);
     }
 
+
+    /**
+     * Getter mágico para compatibilidade com $usuario->nome_loja
+     */
+    public function getNomeLoja(): string
+    {
+        $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $this->getTenantId()]);
+        if ($lojaConfig && !empty($lojaConfig->nome_fantasia)) {
+            return $lojaConfig->nome_fantasia;
+        }
+        if ($lojaConfig && !empty($lojaConfig->nome_loja)) {
+            return $lojaConfig->nome_loja;
+        }
+        return $this->nome ?? 'Minha Loja';
+    }
+
+    /**
+     * Getter mágico para compatibilidade com $usuario->slug
+     */
+    public function getSlug(): string
+    {
+        if (!empty($this->catalogo_path)) {
+            return $this->catalogo_path;
+        }
+        if (!empty($this->username)) {
+            return $this->username;
+        }
+        return (string)$this->id;
+    }
+
     /**
      * Getter mágico para compatibilidade com $usuario->nome_fantasia
      */
     public function getNomeFantasia(): string
     {
-        if (!empty($this->nome_loja)) {
-            return $this->nome_loja;
-        }
-        $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $this->id]);
+        $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $this->getTenantId()]);
         if ($lojaConfig && !empty($lojaConfig->nome_fantasia)) {
             return $lojaConfig->nome_fantasia;
+        }
+        if ($lojaConfig && !empty($lojaConfig->nome_loja)) {
+            return $lojaConfig->nome_loja;
         }
         return $this->nome ?? 'Loja';
     }
@@ -642,11 +689,11 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
      */
     public function getRazaoSocial(): string
     {
-        $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $this->id]);
+        $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $this->getTenantId()]);
         if ($lojaConfig && !empty($lojaConfig->razao_social)) {
             return $lojaConfig->razao_social;
         }
-        return $this->nome_loja ?: ($this->nome ?? 'Loja');
+        return $this->getNomeLoja();
     }
 
     /**

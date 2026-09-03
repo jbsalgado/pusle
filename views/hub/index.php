@@ -586,27 +586,56 @@ if (typeof document !== 'undefined') {
                         </div>
                     </article>
                 <?php else: ?>
-                    <article class="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-                        <?php if (!empty($msg->midia_url)): ?>
-                            <?php if ($msg->tipo === 'video' || str_ends_with(strtolower($msg->midia_url), '.mp4')): ?>
-                                <video src="<?= Html::encode($msg->midia_url) ?>" controls class="w-full h-48 object-cover bg-black"></video>
-                            <?php else: ?>
-                                <img src="<?= Html::encode($msg->midia_url) ?>" alt="" class="w-full h-48 object-cover cursor-pointer" onclick="window.open(this.src, '_blank')">
-                            <?php endif; ?>
-                        <?php endif; ?>
-
-                        <div class="p-4">
-                            <?php if (!empty($msg->titulo)): ?>
-                                <h3 class="text-sm font-bold text-gray-900 mb-1"><?= Html::encode($msg->titulo) ?></h3>
-                            <?php endif; ?>
-                            <p class="text-xs text-gray-600 m-0 leading-relaxed"><?= nl2br(Html::encode($msg->conteudo_texto)) ?></p>
-                            
-                            <div class="mt-3 flex items-center justify-between text-[10px] text-gray-400 pt-2 border-t border-gray-50">
-                                <span><?= Yii::$app->formatter->asRelativeTime($msg->created_at) ?></span>
-                                <span class="text-emerald-600 font-semibold">&bull; <?= Html::encode($msg->acoes_json['autor'] ?? ('Oficial ' . $nomeLoja)) ?></span>
+                    <?php 
+                    $isRespostaLoja = (isset($msg->acoes_json['origem']) && $msg->acoes_json['origem'] === 'loja');
+                    ?>
+                    <?php if ($isRespostaLoja): ?>
+                        <!-- Balão de Conversa Fluida da Loja -->
+                        <article class="bg-white border border-teal-200/80 rounded-2xl p-3.5 shadow-xs space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[11px] font-bold text-teal-900 flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-teal-500"></span>
+                                    <span><?= Html::encode($msg->acoes_json['autor'] ?? $nomeLoja) ?></span>
+                                </span>
+                                <span class="text-[10px] text-teal-700 font-medium bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded">
+                                    <?= Yii::$app->formatter->asRelativeTime($msg->created_at) ?>
+                                </span>
                             </div>
-                        </div>
-                    </article>
+                            <p class="text-xs text-slate-800 font-medium m-0 leading-relaxed"><?= nl2br(Html::encode($msg->conteudo_texto)) ?></p>
+                            <?php if (!empty($msg->midia_url)): ?>
+                                <div class="mt-2">
+                                    <img src="<?= Html::encode($msg->midia_url) ?>" alt="Foto anexada" class="rounded-xl max-h-48 w-auto object-cover border border-teal-200 shadow-xs cursor-pointer" onclick="window.open(this.src, '_blank')">
+                                </div>
+                            <?php endif; ?>
+                            <div class="mt-2 pt-1 border-t border-teal-100 flex items-center justify-between text-[10px] text-teal-600">
+                                <span>Atendimento</span>
+                                <span class="font-bold">✓ Respondido</span>
+                            </div>
+                        </article>
+                    <?php else: ?>
+                        <!-- Publicações Gerais da Loja -->
+                        <article class="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+                            <?php if (!empty($msg->midia_url)): ?>
+                                <?php if ($msg->tipo === 'video' || str_ends_with(strtolower($msg->midia_url), '.mp4')): ?>
+                                    <video src="<?= Html::encode($msg->midia_url) ?>" controls class="w-full h-48 object-cover bg-black"></video>
+                                <?php else: ?>
+                                    <img src="<?= Html::encode($msg->midia_url) ?>" alt="" class="w-full h-48 object-cover cursor-pointer" onclick="window.open(this.src, '_blank')">
+                                <?php endif; ?>
+                            <?php endif; ?>
+
+                            <div class="p-4">
+                                <?php if (!empty($msg->titulo)): ?>
+                                    <h3 class="text-sm font-bold text-gray-900 mb-1"><?= Html::encode($msg->titulo) ?></h3>
+                                <?php endif; ?>
+                                <p class="text-xs text-gray-600 m-0 leading-relaxed"><?= nl2br(Html::encode($msg->conteudo_texto)) ?></p>
+                                
+                                <div class="mt-3 flex items-center justify-between text-[10px] text-gray-400 pt-2 border-t border-gray-50">
+                                    <span><?= Yii::$app->formatter->asRelativeTime($msg->created_at) ?></span>
+                                    <span class="text-emerald-600 font-semibold">&bull; <?= Html::encode($msg->acoes_json['autor'] ?? $nomeLoja) ?></span>
+                                </div>
+                            </div>
+                        </article>
+                    <?php endif; ?>
                 <?php endif; ?>
             <?php endforeach; ?>
 

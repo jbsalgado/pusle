@@ -9,9 +9,13 @@ use yii\helpers\Url;
  * @var string $hubUrlCompleta
  */
 
-$nomeLoja = $lojaConfig->nome_fantasia ?? ($usuarioLoja->nome_loja ?? 'Minha Loja');
-$slugLoja = $usuarioLoja->slug ?? ($usuarioLoja->nome_loja ?? ($usuarioLoja->id ?? 'loja'));
-$whatsappLoja = $lojaConfig->telefone ?? ($usuarioLoja->telefone ?? '');
+$nomeLoja = !empty($lojaConfig->nome_fantasia) 
+    ? $lojaConfig->nome_fantasia 
+    : (!empty($lojaConfig->nome_loja) 
+        ? $lojaConfig->nome_loja 
+        : ($usuarioLoja ? $usuarioLoja->nome_loja : 'Minha Loja'));
+$slugLoja = $usuarioLoja ? $usuarioLoja->slug : 'loja';
+$whatsappLoja = !empty($lojaConfig->telefone) ? $lojaConfig->telefone : ($usuarioLoja->telefone ?? '');
 ?>
 
 <!-- Modal Central do Canal de Comunicação Interno (Direct Hub & Pulse Inbox) -->
@@ -196,15 +200,88 @@ $whatsappLoja = $lojaConfig->telefone ?? ($usuarioLoja->telefone ?? '');
     window._abaInboxAtiva = 'nao_lidos';
     window._termoBuscaInbox = '';
     window._tipoInboxFiltro = 'todos';
+    window._inboxPollingTimer = null;
+    window._ultimoHashInbox = '';
+
+    window.exibirToastCanalInterno = function(mensagem, tipo = 'sucesso') {
+        let toast = document.getElementById('toastCanalInternoModal');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'toastCanalInternoModal';
+            document.body.appendChild(toast);
+        }
+        const baseClass = 'fixed top-6 right-6 z-[9999] px-4 py-2.5 rounded-xl text-xs font-bold shadow-xl transition-all duration-300 transform pointer-events-none flex items-center gap-2 ';
+        if (tipo === 'sucesso') {
+            toast.className = baseClass + 'bg-emerald-600 text-white';
+        } else if (tipo === 'aviso') {
+            toast.className = baseClass + 'bg-amber-500 text-white';
+        } else {
+            toast.className = baseClass + 'bg-red-600 text-white';
+        }
+        toast.textContent = mensagem;
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(-10px)';
+        }, 3500);
+    };
+
+    function temRespostaEmEdicao() {
+        const container = document.getElementById('listaMensagensCanalInterno');
+        if (!container) return false;
+
+        // 1. Há algum texto digitado em algum campo de resposta?
+        const textareas = container.querySelectorAll('textarea[id^="input-resposta-"]');
+        for (let t of textareas) {
+            if (t.value && t.value.trim().length > 0) return true;
+        }
+
+        // 2. Há alguma foto selecionada em preview?
+        const fotos = container.querySelectorAll('[id^="preview-foto-loja-"]:not(.hidden)');
+        if (fotos.length > 0) return true;
+
+        // 3. O usuário está com foco ativo em algum campo de texto dentro da lista?
+        if (document.activeElement && container.contains(document.activeElement)) {
+            const tag = document.activeElement.tagName.toLowerCase();
+            if (tag === 'textarea' || tag === 'input') return true;
+        }
+
+        return false;
+    }
+
+    function calcularHashMensagens(msgs) {
+        if (!Array.isArray(msgs)) return '';
+        return msgs.map(m => `${m.id}_${m.lido ? 1 : 0}_${(m.respostas || []).length}_${m.created_at_ts || ''}`).join('|');
+    }
 
     window.abrirModalCanalInterno = function() {
         document.getElementById('modalCanalInterno').classList.remove('hidden');
-        carregarMensagensCanalInterno();
+        carregarMensagensCanalInterno(false);
+        iniciarPollingModal();
     };
 
     window.fecharModalCanalInterno = function() {
         document.getElementById('modalCanalInterno').classList.add('hidden');
+        pararPollingModal();
     };
+
+    function iniciarPollingModal() {
+        pararPollingModal();
+        window._inboxPollingTimer = setInterval(() => {
+            const modal = document.getElementById('modalCanalInterno');
+            if (modal && !modal.classList.contains('hidden') && !document.hidden) {
+                carregarMensagensCanalInterno(true);
+            }
+        }, 10000);
+    }
+
+    function pararPollingModal() {
+        if (window._inboxPollingTimer) {
+            clearInterval(window._inboxPollingTimer);
+            window._inboxPollingTimer = null;
+        }
+    }
 
     window.copiarLinkCanalInterno = function(url) {
         if (navigator.clipboard) {
@@ -273,26 +350,54 @@ $whatsappLoja = $lojaConfig->telefone ?? ($usuarioLoja->telefone ?? '');
         }
     }
 
-    window.carregarMensagensCanalInterno = async function() {
+    function atualizarContadoresAbas() {
+        const todas = window._inboxMensagens || [];
+        const countNaoLidas = todas.filter(m => !m.lido).length;
+        const countLidas    = todas.filter(m => m.lido).length;
+        const countTodas    = todas.length;
+
+        const elCountNaoLidas = document.getElementById('tabCountNaoLidas');
+        const elCountLidas    = document.getElementById('tabCountLidas');
+        const elCountTodas    = document.getElementById('tabCountTodas');
+
+        if (elCountNaoLidas) elCountNaoLidas.textContent = countNaoLidas;
+        if (elCountLidas) elCountLidas.textContent = countLidas;
+        if (elCountTodas) elCountTodas.textContent = countTodas;
+    }
+
+    window.carregarMensagensCanalInterno = async function(silencioso = false) {
         const container = document.getElementById('listaMensagensCanalInterno');
         if (!container) return;
 
-        container.innerHTML = `
-            <div class="text-center py-8 text-slate-400 space-y-2">
-                <span class="text-3xl block animate-spin">⏳</span>
-                <p class="text-xs font-bold">Carregando mensagens e pedidos...</p>
-            </div>
-        `;
+        // Se for polling silencioso e o usuário estiver ativamente redigindo uma resposta,
+        // não interrompe o lojista nem recria o DOM
+        if (silencioso && temRespostaEmEdicao()) {
+            return;
+        }
+
+        if (!silencioso) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-slate-400 space-y-2">
+                    <span class="text-3xl block animate-spin">⏳</span>
+                    <p class="text-xs font-bold">Carregando mensagens e pedidos...</p>
+                </div>
+            `;
+        }
 
         try {
             const resp = await fetch('<?= Url::to(['/vendas/produto/get-inbox']) ?>');
             const data = await resp.json();
 
             if (!data.success) {
-                container.innerHTML = `<div class="p-4 text-center text-xs text-red-500 font-bold">Erro ao carregar mensagens.</div>`;
+                if (!silencioso) {
+                    container.innerHTML = `<div class="p-4 text-center text-xs text-red-500 font-bold">Erro ao carregar mensagens.</div>`;
+                }
                 return;
             }
 
+            const novoHash = calcularHashMensagens(data.mensagens || []);
+            const dadosMudaram = (novoHash !== window._ultimoHashInbox);
+            window._ultimoHashInbox = novoHash;
             window._inboxMensagens = data.mensagens || [];
 
             const totalNaoLidos = window._inboxMensagens.filter(m => !m.lido).length;
@@ -312,8 +417,15 @@ $whatsappLoja = $lojaConfig->telefone ?? ($usuarioLoja->telefone ?? '');
                 badgeModal.textContent = totalNaoLidos;
             }
 
-            // Se não houver não lidos, abre na aba 'todas' por conveniência
-            if (totalNaoLidos === 0 && window._abaInboxAtiva === 'nao_lidos') {
+            atualizarContadoresAbas();
+
+            // Se for polling silencioso e nada mudou, não recria os cartões do DOM
+            if (silencioso && !dadosMudaram) {
+                return;
+            }
+
+            // Se não houver não lidos no primeiro carregamento manual, abre na aba 'todas' por conveniência
+            if (!silencioso && totalNaoLidos === 0 && window._abaInboxAtiva === 'nao_lidos') {
                 window._abaInboxAtiva = 'todas';
             }
 
@@ -321,7 +433,9 @@ $whatsappLoja = $lojaConfig->telefone ?? ($usuarioLoja->telefone ?? '');
             filtrarERenderizarInbox();
 
         } catch (err) {
-            container.innerHTML = `<div class="p-4 text-center text-xs text-red-500 font-bold">Falha de conexão com a central de mensagens.</div>`;
+            if (!silencioso) {
+                container.innerHTML = `<div class="p-4 text-center text-xs text-red-500 font-bold">Falha de conexão com a central de mensagens.</div>`;
+            }
         }
     };
 
@@ -329,20 +443,30 @@ $whatsappLoja = $lojaConfig->telefone ?? ($usuarioLoja->telefone ?? '');
         const container = document.getElementById('listaMensagensCanalInterno');
         if (!container) return;
 
+        // Snapshot de segurança: salva rascunhos de texto e foco antes de recriar
+        const rascunhos = {};
+        let idFocado = null;
+        let selStart = 0;
+        let selEnd = 0;
+
+        const textareasExistentes = container.querySelectorAll('textarea[id^="input-resposta-"]');
+        textareasExistentes.forEach(txtEl => {
+            const id = txtEl.id.replace('input-resposta-', '');
+            const textoVal = txtEl.value || '';
+
+            if (textoVal) {
+                rascunhos[id] = textoVal;
+            }
+            if (document.activeElement === txtEl) {
+                idFocado = id;
+                selStart = txtEl.selectionStart;
+                selEnd = txtEl.selectionEnd;
+            }
+        });
+
+        atualizarContadoresAbas();
+
         const todas = window._inboxMensagens || [];
-
-        // Atualiza contadores das abas
-        const countNaoLidas = todas.filter(m => !m.lido).length;
-        const countLidas    = todas.filter(m => m.lido).length;
-        const countTodas    = todas.length;
-
-        const elCountNaoLidas = document.getElementById('tabCountNaoLidas');
-        const elCountLidas    = document.getElementById('tabCountLidas');
-        const elCountTodas    = document.getElementById('tabCountTodas');
-
-        if (elCountNaoLidas) elCountNaoLidas.textContent = countNaoLidas;
-        if (elCountLidas) elCountLidas.textContent = countLidas;
-        if (elCountTodas) elCountTodas.textContent = countTodas;
 
         // 1. Filtro por Aba de Status
         let filtradas = todas.filter(m => {
@@ -355,7 +479,7 @@ $whatsappLoja = $lojaConfig->telefone ?? ($usuarioLoja->telefone ?? '');
         if (window._tipoInboxFiltro && window._tipoInboxFiltro !== 'todos') {
             filtradas = filtradas.filter(m => {
                 if (window._tipoInboxFiltro === 'card') return m.tipo === 'card' || (m.titulo && m.titulo.includes('Pedido'));
-                if (window._tipoInboxFiltro === 'texto') return m.tipo === 'texto' || (m.titulo && m.titulo.includes('Mensagem de'));
+                if (window._tipoInboxFiltro === 'texto') return m.tipo === 'texto' || m.tipo === 'chat_cliente' || m.tipo === 'chat_garcom' || (m.titulo && m.titulo.includes('Mensagem'));
                 if (window._tipoInboxFiltro === 'chamado') return m.tipo === 'chamado';
                 if (window._tipoInboxFiltro === 'conta') return m.tipo === 'conta';
                 return true;
@@ -412,15 +536,18 @@ $whatsappLoja = $lojaConfig->telefone ?? ($usuarioLoja->telefone ?? '');
             const isNaoLido = !msg.lido;
             card.className = `p-4 rounded-2xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${isNaoLido ? 'bg-emerald-50/70 border-emerald-300 shadow-xs' : 'bg-slate-50 border-slate-200'}`;
 
+            const isPedido = (msg.tipo === 'card' || (msg.titulo && msg.titulo.includes('Pedido')));
             let badgeTipo = `<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-slate-200 text-slate-700">Mensagem</span>`;
-            if (msg.tipo === 'card' || (msg.titulo && msg.titulo.includes('Pedido'))) {
-                badgeTipo = `<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-600 text-white">🛒 Pedido Encarte</span>`;
-            } else if (msg.tipo === 'texto' || (msg.titulo && msg.titulo.includes('Mensagem de'))) {
-                badgeTipo = `<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-teal-600 text-white">💬 Chat Direct Hub</span>`;
+            if (isPedido) {
+                badgeTipo = `<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-600 text-white flex items-center gap-1 shadow-2xs">🛒 Pedido Encarte</span>`;
+            } else if (msg.tipo === 'texto' || msg.tipo === 'chat_cliente' || (msg.titulo && msg.titulo.includes('Mensagem de'))) {
+                badgeTipo = `<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-teal-600 text-white flex items-center gap-1 shadow-2xs">💬 Chat Direct Hub</span>`;
+            } else if (msg.tipo === 'chat_garcom') {
+                badgeTipo = `<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-cyan-600 text-white flex items-center gap-1 shadow-2xs">🧑‍🍳 Resposta Garçom</span>`;
             } else if (msg.tipo === 'chamado') {
-                badgeTipo = `<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500 text-white">🔔 Chamado Atendimento</span>`;
+                badgeTipo = `<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500 text-white flex items-center gap-1 shadow-2xs">🔔 Chamado Atendimento</span>`;
             } else if (msg.tipo === 'conta') {
-                badgeTipo = `<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-600 text-white">🧾 Conta / Caixa</span>`;
+                badgeTipo = `<span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-600 text-white flex items-center gap-1 shadow-2xs">🧾 Conta / Caixa</span>`;
             }
 
             let conteudoFormatado = msg.conteudo || '';
@@ -430,7 +557,15 @@ $whatsappLoja = $lojaConfig->telefone ?? ($usuarioLoja->telefone ?? '');
 
             const acoes = (msg.acoes_json && typeof msg.acoes_json === 'object') ? msg.acoes_json : {};
             const zapTel = acoes.telefone ? String(acoes.telefone).replace(/\D/g, '') : '';
-            const isOrigemCliente = (acoes.origem === 'cliente' || msg.tipo === 'chamado' || msg.tipo === 'card' || msg.tipo === 'texto');
+            const isOrigemCliente = (acoes.origem === 'cliente' || acoes.origem === 'encarte_digital' || msg.tipo === 'chamado' || msg.tipo === 'card' || msg.tipo === 'texto' || msg.tipo === 'chat_cliente');
+
+            let zapLink = '';
+            if (zapTel) {
+                const msgZap = isPedido 
+                    ? `Olá ${msg.autor || 'Cliente'}! Recebemos seu pedido pelo Encarte Digital da ${<?= json_encode($nomeLoja) ?>} e já estamos conferindo.`
+                    : `Olá ${msg.autor || 'Cliente'}! Entramos em contato a respeito da sua mensagem no Direct Hub.`;
+                zapLink = `https://wa.me/55${zapTel}?text=${encodeURIComponent(msgZap)}`;
+            }
 
             let midiaHtml = '';
             if (msg.midia_url) {
@@ -442,45 +577,44 @@ $whatsappLoja = $lojaConfig->telefone ?? ($usuarioLoja->telefone ?? '');
             }
 
             let respostasHtml = '';
-            if (msg.respostas && msg.respostas.length > 0) {
-                respostasHtml = `
-                    <div class="mt-3 pt-2.5 border-t border-slate-200 space-y-2">
-                        <div class="flex items-center justify-between">
-                            <span class="text-[10px] font-black uppercase text-teal-800 tracking-wider flex items-center gap-1">
-                                <span>📢</span> Histórico de Respostas da Loja (${msg.respostas.length})
-                            </span>
-                        </div>
-                        <div class="space-y-1.5">
-                            ${msg.respostas.map(resp => {
-                                let respConteudo = resp.conteudo || '';
-                                respConteudo = respConteudo.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-teal-950">$1</strong>');
-                                respConteudo = respConteudo.replace(/\n/g, '<br>');
-                                return `
-                                    <div class="bg-teal-50 border border-teal-200/90 rounded-xl p-2.5 space-y-1">
-                                        <div class="flex items-center justify-between text-[10px]">
-                                            <span class="font-extrabold text-teal-900 flex items-center gap-1">
-                                                <span>✓</span> ${resp.autor || 'Loja'}
-                                            </span>
-                                            <span class="text-teal-700 font-semibold">${resp.tempo_relativo || resp.data_formatada}</span>
+            const totalRespostas = (msg.respostas && msg.respostas.length) ? msg.respostas.length : 0;
+            respostasHtml = `
+                <div class="mt-3 pt-2.5 border-t border-slate-200/80 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-black uppercase text-teal-800 tracking-wider flex items-center gap-1">
+                            <span>💬</span> Conversa com o Cliente ${totalRespostas > 0 ? `(${totalRespostas})` : ''}
+                        </span>
+                    </div>
+                    <div id="thread-respostas-${msg.id}" class="space-y-2">
+                        ${msg.respostas && msg.respostas.length > 0 ? msg.respostas.map(resp => {
+                            let respConteudo = resp.conteudo || '';
+                            respConteudo = respConteudo.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-slate-900">$1</strong>');
+                            respConteudo = respConteudo.replace(/\n/g, '<br>');
+                            return `
+                                <div class="flex items-start gap-2 justify-end">
+                                    <div class="max-w-[85%] bg-teal-50 border border-teal-200/90 rounded-2xl rounded-tr-xs p-3 shadow-2xs space-y-1 text-right">
+                                        <div class="flex items-center justify-end gap-1.5 text-[10px] text-teal-800 font-bold">
+                                            <span>${resp.autor || 'Você'}</span>
+                                            <span class="text-teal-600/80 font-medium">• ${resp.tempo_relativo || resp.data_formatada}</span>
                                         </div>
-                                        <div class="text-[11px] text-teal-950 leading-relaxed font-normal">
+                                        <div class="text-xs text-slate-800 text-left leading-relaxed font-normal">
                                             ${respConteudo}
                                         </div>
                                         ${resp.midia_url ? `
                                             <div class="mt-1.5">
-                                                <img src="${resp.midia_url}" alt="Foto" class="rounded-lg max-h-32 object-cover border border-teal-200 cursor-pointer" onclick="window.open('${resp.midia_url}', '_blank')">
+                                                <img src="${resp.midia_url}" alt="Foto" class="rounded-xl max-h-36 object-cover border border-teal-200 cursor-pointer shadow-2xs" onclick="window.open('${resp.midia_url}', '_blank')">
                                             </div>
                                         ` : ''}
                                     </div>
-                                `;
-                            }).join('')}
-                        </div>
+                                </div>
+                            `;
+                        }).join('') : ''}
                     </div>
-                `;
-            }
+                </div>
+            `;
 
             card.innerHTML = `
-                <div class="flex-1 space-y-1 w-full">
+                <div class="flex-1 space-y-2 w-full">
                     <div class="flex items-center justify-between gap-2 flex-wrap">
                         <div class="flex items-center gap-2 flex-wrap">
                             ${badgeTipo}
@@ -488,13 +622,8 @@ $whatsappLoja = $lojaConfig->telefone ?? ($usuarioLoja->telefone ?? '');
                             <span class="text-[10px] text-slate-400 font-semibold">• ${msg.tempo_relativo || msg.data_formatada}</span>
                         </div>
                         <div class="flex items-center gap-1.5 flex-wrap">
-                            ${isOrigemCliente ? `
-                                <button type="button" onclick="toggleFormResposta('${msg.id}')" class="px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white font-bold text-[10px] rounded-lg transition flex items-center gap-1 shadow-2xs cursor-pointer">
-                                    💬 Responder no Hub
-                                </button>
-                            ` : ''}
-                            ${zapTel ? `
-                                <a href="https://wa.me/55${zapTel}" target="_blank" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg transition flex items-center gap-1 shadow-2xs">
+                            ${zapLink ? `
+                                <a href="${zapLink}" target="_blank" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg transition flex items-center gap-1 shadow-2xs">
                                     📱 WhatsApp
                                 </a>
                             ` : ''}
@@ -508,50 +637,65 @@ $whatsappLoja = $lojaConfig->telefone ?? ($usuarioLoja->telefone ?? '');
                         </div>
                     </div>
 
-                    <div class="text-[11px] text-slate-600 font-normal leading-relaxed mt-1 bg-white/70 p-2.5 rounded-xl border border-slate-200/70">
+                    <div class="text-[11px] text-slate-600 font-normal leading-relaxed mt-1 bg-white/70 p-3 rounded-2xl border border-slate-200/70">
                         ${conteudoFormatado}
                         ${midiaHtml}
                         ${respostasHtml}
                     </div>
 
-                    <!-- Formulário Inline de Resposta via Direct Hub -->
-                    <div id="box-resposta-${msg.id}" class="hidden mt-2 p-3 bg-white rounded-xl border border-teal-200 shadow-sm space-y-2">
-                        <div class="flex items-center justify-between">
-                            <span class="text-[11px] font-extrabold text-teal-800 flex items-center gap-1">
-                                <span>📢</span> Responder para o Direct Hub do Cliente
-                            </span>
-                            <button type="button" onclick="toggleFormResposta('${msg.id}')" class="text-slate-400 hover:text-slate-600 text-xs font-bold">&times; Fechar</button>
-                        </div>
-
-                        <!-- Atalhos de Emojis da Loja -->
-                        <div class="flex items-center gap-1 overflow-x-auto py-1 scrollbar-thin">
-                            ${['👍', '❤️', '😊', '🔥', '👏', '🎉', '📦', '🍽️', '💬', '✅', '🛵', '📍', '⏳', '🙏', '🧾', '💳', '📸', '🤝'].map(em => `
-                                <button type="button" onclick="adicionarEmojiLoja('${msg.id}', '${em}')" class="text-xs p-1 hover:bg-slate-100 rounded transition cursor-pointer flex-shrink-0">${em}</button>
-                            `).join('')}
-                        </div>
-
+                    <!-- Barra de Resposta Rápida Fluida (Sempre Visível) -->
+                    <div id="box-resposta-${msg.id}" class="mt-2.5 p-3 bg-slate-50/90 rounded-2xl border border-slate-200 space-y-2 shadow-2xs">
                         <!-- Preview Foto Loja -->
-                        <div id="preview-foto-loja-${msg.id}" class="hidden relative inline-block border-2 border-teal-500 rounded-lg overflow-hidden">
-                            <img id="img-preview-loja-${msg.id}" src="" class="h-14 w-14 object-cover">
-                            <button type="button" onclick="removerFotoLoja('${msg.id}')" class="absolute top-0.5 right-0.5 bg-black/70 text-white rounded-full p-0.5 text-[9px] leading-none">&times;</button>
+                        <div id="preview-foto-loja-${msg.id}" class="hidden relative inline-block border-2 border-teal-500 rounded-xl overflow-hidden shadow-xs">
+                            <img id="img-preview-loja-${msg.id}" src="" class="h-16 w-16 object-cover">
+                            <button type="button" onclick="removerFotoLoja('${msg.id}')" class="absolute top-1 right-1 bg-black/70 hover:bg-black text-white rounded-full p-1 text-[9px] leading-none transition cursor-pointer">&times;</button>
                         </div>
 
-                        <div class="flex items-start gap-1.5">
+                        <!-- Input de Digitação Fluida -->
+                        <div class="flex items-end gap-2">
                             <input type="file" id="file-foto-loja-${msg.id}" onchange="selecionarFotoLoja('${msg.id}', this)" accept="image/*" class="hidden">
-                            <button type="button" onclick="document.getElementById('file-foto-loja-${msg.id}').click()" class="p-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition" title="Anexar Imagem">
+                            <button type="button" onclick="document.getElementById('file-foto-loja-${msg.id}').click()" class="p-2.5 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 rounded-xl text-sm transition cursor-pointer flex-shrink-0 shadow-2xs" title="Anexar Imagem">
                                 📷
                             </button>
-                            <textarea id="input-resposta-${msg.id}" rows="2" placeholder="Digite sua resposta oficial para o cliente..." class="flex-1 bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-800 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/20"></textarea>
-                            <button type="button" id="btn-env-resp-${msg.id}" onclick="enviarRespostaLoja('${msg.id}')" class="px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-lg transition shadow-xs flex items-center gap-1 cursor-pointer">
+                            <div class="relative flex-1">
+                                <textarea id="input-resposta-${msg.id}" rows="1" placeholder="Digite uma mensagem para o cliente... (Enter envia, Shift+Enter pula linha)" onkeydown="if(event.key === 'Enter' && !event.shiftKey){ event.preventDefault(); enviarRespostaLoja('${msg.id}'); }" class="w-full bg-white border border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 rounded-xl p-2.5 text-xs text-slate-800 outline-none transition resize-none leading-relaxed shadow-xs max-h-32"></textarea>
+                            </div>
+                            <button type="button" id="btn-env-resp-${msg.id}" onclick="enviarRespostaLoja('${msg.id}')" class="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-extrabold text-xs rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer flex-shrink-0">
                                 <span>Enviar</span>
-                                <span>➔</span>
+                                <span class="text-sm">➔</span>
                             </button>
+                        </div>
+
+                        <!-- Barra de Emojis de Resposta Rápida -->
+                        <div class="flex items-center gap-1 overflow-x-auto py-0.5 scrollbar-none opacity-80 hover:opacity-100 transition">
+                            <span class="text-[10px] text-slate-400 font-semibold mr-0.5">Emojis:</span>
+                            ${['👍', '❤️', '😊', '🔥', '👏', '🎉', '📦', '🍽️', '💬', '✅', '🛵', '📍', '⏳', '🙏', '🧾', '💳', '📸', '🤝'].map(em => `
+                                <button type="button" onclick="adicionarEmojiLoja('${msg.id}', '${em}')" class="text-xs p-1 hover:bg-white rounded-md transition cursor-pointer flex-shrink-0">${em}</button>
+                            `).join('')}
                         </div>
                     </div>
                 </div>
             `;
             container.appendChild(card);
         });
+
+        // Restaura rascunhos de texto que estavam sendo digitados
+        Object.keys(rascunhos).forEach(id => {
+            const txtEl = document.getElementById('input-resposta-' + id);
+            if (txtEl && rascunhos[id]) {
+                txtEl.value = rascunhos[id];
+            }
+        });
+
+        if (idFocado) {
+            const focadoEl = document.getElementById('input-resposta-' + idFocado);
+            if (focadoEl) {
+                focadoEl.focus();
+                try {
+                    focadoEl.setSelectionRange(selStart, selEnd);
+                } catch(e) {}
+            }
+        }
     };
 
     window.toggleFormResposta = function(msgId) {
@@ -655,21 +799,59 @@ $whatsappLoja = $lojaConfig->telefone ?? ($usuarioLoja->telefone ?? '');
             const data = await resp.json();
 
             if (data.success) {
-                alert('✅ ' + (data.message || 'Resposta enviada com sucesso ao cliente!'));
-                carregarMensagensCanalInterno();
-            } else {
-                alert('⚠️ ' + (data.message || 'Erro ao enviar resposta.'));
+                if (txtInput) txtInput.value = '';
+                removerFotoLoja(msgId);
+
+                // Insere imediatamente a nova bolha de resposta na conversa
+                const threadEl = document.getElementById('thread-respostas-' + msgId);
+                if (threadEl && data.item) {
+                    let itemTxt = data.item.conteudo || '';
+                    itemTxt = itemTxt.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-slate-900">$1</strong>');
+                    itemTxt = itemTxt.replace(/\n/g, '<br>');
+
+                    const bubble = document.createElement('div');
+                    bubble.className = 'flex items-start gap-2 justify-end animate-fade-in';
+                    bubble.innerHTML = `
+                        <div class="max-w-[85%] bg-teal-50 border border-teal-200/90 rounded-2xl rounded-tr-xs p-3 shadow-2xs space-y-1 text-right">
+                            <div class="flex items-center justify-end gap-1.5 text-[10px] text-teal-800 font-bold">
+                                <span>${data.item.autor || 'Você'}</span>
+                                <span class="text-teal-600/80 font-medium">• Agora</span>
+                            </div>
+                            <div class="text-xs text-slate-800 text-left leading-relaxed font-normal">
+                                ${itemTxt}
+                            </div>
+                            ${data.item.midia_url ? `
+                                <div class="mt-1.5">
+                                    <img src="${data.item.midia_url}" alt="Foto" class="rounded-xl max-h-36 object-cover border border-teal-200 cursor-pointer shadow-2xs" onclick="window.open('${data.item.midia_url}', '_blank')">
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                    threadEl.appendChild(bubble);
+                }
+
+                // Mantém a caixa aberta e focada para a próxima mensagem
                 if (btn) {
                     btn.disabled = false;
-                    btn.innerHTML = '<span>Enviar</span><span>➔</span>';
+                    btn.innerHTML = '<span>Enviar</span><span class="text-sm">➔</span>';
+                }
+                if (txtInput) txtInput.focus();
+
+                exibirToastCanalInterno('✅ Mensagem enviada com sucesso!', 'sucesso');
+                window._ultimoHashInbox = ''; // Permite sincronizar em background
+            } else {
+                exibirToastCanalInterno('⚠️ ' + (data.message || 'Erro ao enviar resposta.'), 'aviso');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>Enviar</span><span class="text-sm">➔</span>';
                 }
             }
         } catch(e) {
             console.error('Erro ao enviar resposta:', e);
-            alert('Não foi possível enviar a resposta: ' + (e.message || 'Erro de comunicação com o servidor.'));
+            exibirToastCanalInterno('Não foi possível enviar a resposta: ' + (e.message || 'Erro de comunicação.'), 'erro');
             if (btn) {
                 btn.disabled = false;
-                btn.innerHTML = '<span>Enviar</span><span>➔</span>';
+                btn.innerHTML = '<span>Enviar</span><span class="text-sm">➔</span>';
             }
         }
     };

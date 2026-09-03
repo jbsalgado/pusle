@@ -2,7 +2,7 @@
 
 return [
     'class' => 'yii\db\Connection',
-    'dsn' => $_ENV['DB_DSN'] ?? getenv('DB_DSN') ?: 'pgsql:host=localhost;port=5432;dbname=pulse',
+    'dsn' => $_ENV['DB_DSN'] ?? getenv('DB_DSN') ?: 'pgsql:host=localhost;port=5432;dbname=alex_birds',
     'username' => $_ENV['DB_USERNAME'] ?? getenv('DB_USERNAME') ?: 'postgres',
     'password' => $_ENV['DB_PASSWORD'] ?? getenv('DB_PASSWORD') ?: 'postgres',
     'charset' => 'utf8',

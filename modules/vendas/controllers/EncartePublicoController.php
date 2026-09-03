@@ -146,7 +146,11 @@ class EncartePublicoController extends Controller
 
         $usuarioId = $encarte->usuario_id;
         $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $usuarioId]);
-        $lojaNome = ($lojaConfig && !empty($lojaConfig->nome_fantasia)) ? $lojaConfig->nome_fantasia : ($encarte->usuario ? ($encarte->usuario->nome_loja ?: $encarte->usuario->nome) : 'Loja');
+        $lojaNome = ($lojaConfig && !empty($lojaConfig->nome_fantasia)) 
+            ? $lojaConfig->nome_fantasia 
+            : (($lojaConfig && !empty($lojaConfig->nome_loja)) 
+                ? $lojaConfig->nome_loja 
+                : ($encarte->usuario ? $encarte->usuario->nome_loja : 'Loja'));
         $nomeCliente = trim($payload['nome_cliente'] ?? '');
         $telefoneCliente = trim($payload['telefone_cliente'] ?? '');
         $enderecoCliente = trim($payload['endereco_cliente'] ?? '');
@@ -183,34 +187,44 @@ class EncartePublicoController extends Controller
         $textoLinhas[] = "\n💰 **Total do Pedido:** R$ {$totalFmt}";
         $textoConteudo = implode("\n", $textoLinhas);
 
-        $clienteObj = null;
-        if (!empty($telefoneCliente)) {
-            $clienteObj = \app\modules\vendas\models\Clientes::findOrCreateQuick($usuarioId, $nomeCliente ?: 'Cliente Encarte', $telefoneCliente);
+        try {
+            $clienteObj = null;
+            if (!empty($telefoneCliente)) {
+                $clienteObj = \app\modules\vendas\models\Clientes::findOrCreateQuick($usuarioId, $nomeCliente ?: 'Cliente Encarte', $telefoneCliente);
+            }
+
+            $inbox = \app\modules\vendas\models\ClienteInbox::postar(
+                $usuarioId,
+                $clienteObj ? $clienteObj->id : null,
+                \app\modules\vendas\models\ClienteInbox::TIPO_CARD,
+                $titulo,
+                $textoConteudo,
+                null,
+                [
+                    'origem'      => 'encarte_digital',
+                    'remetente'   => $identificacao,
+                    'autor'       => $identificacao,
+                    'encarte_id'  => $encarte->id,
+                    'total'       => $total,
+                    'cliente'     => $nomeCliente,
+                    'telefone'    => $telefoneCliente,
+                    'endereco'    => $enderecoCliente,
+                    'itens_count' => count($itens),
+                ]
+            );
+
+            return [
+                'success'  => true,
+                'message'  => 'Pedido registrado com sucesso no Canal Interno Pulse!',
+                'inbox_id' => $inbox ? $inbox->id : null,
+            ];
+        } catch (\Throwable $e) {
+            Yii::error("Erro ao registrar pedido do encarte no Canal Interno: " . $e->getMessage() . "\n" . $e->getTraceAsString(), __METHOD__);
+            return [
+                'success' => false,
+                'message' => 'Erro interno ao processar pedido: ' . $e->getMessage(),
+            ];
         }
-
-        $inbox = \app\modules\vendas\models\ClienteInbox::postar(
-            $usuarioId,
-            $clienteObj ? $clienteObj->id : null,
-            \app\modules\vendas\models\ClienteInbox::TIPO_CARD,
-            $titulo,
-            $textoConteudo,
-            null,
-            [
-                'origem' => 'encarte_digital',
-                'encarte_id' => $encarte->id,
-                'total' => $total,
-                'cliente' => $nomeCliente,
-                'telefone' => $telefoneCliente,
-                'endereco' => $enderecoCliente,
-                'itens_count' => count($itens),
-            ]
-        );
-
-        return [
-            'success' => true,
-            'message' => 'Pedido registrado com sucesso no Canal Interno Pulse!',
-            'inbox_id' => $inbox ? $inbox->id : null,
-        ];
     }
 }
 

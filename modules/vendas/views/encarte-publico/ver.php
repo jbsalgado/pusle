@@ -513,8 +513,7 @@ $canvasHeight3D = 842;
                             $precoFormatado = number_format($precoVal, 2, ',', '.');
                             $partesPreco = explode(',', $precoFormatado);
 
-                            $foto = $produto->fotoPrincipal ?: ($produto->fotos[0] ?? null);
-                            $fotoUrl = $foto ? $foto->getUrl() : null;
+                            $fotoUrl = $encarteProd->getFotoUrl();
                             if (!$fotoUrl && $produto->categoria && $produto->categoria->foto_path) {
                                 $caminhoCatAbs = Yii::getAlias('@app/web/') . ltrim($produto->categoria->foto_path, '/');
                                 if (file_exists($caminhoCatAbs)) {
@@ -522,9 +521,17 @@ $canvasHeight3D = 842;
                                 }
                             }
 
+                            $ehMatriz = $encarteProd->getEhMatriz();
+                            $corMatriz = $encarteProd->cor;
+                            $tamMatriz = $encarteProd->tamanho;
+                            $qtdEstoque = $encarteProd->quantidade !== null ? (float)$encarteProd->quantidade : (float)$produto->estoque_atual;
+                            $gradeTams = $encarteProd->getGradeTamanhos();
+
                             $jsonProdData = Html::encode(json_encode([
                                 'id' => $produto->id,
+                                'encarte_item_id' => (string)$encarteProd->id,
                                 'nome' => $produto->nome,
+                                'nome_completo' => $encarteProd->getNomeExibicao(),
                                 'marca' => $produto->marca ?: '',
                                 'categoria' => $produto->categoria ? $produto->categoria->nome : 'Geral',
                                 'preco' => (float)$precoVal,
@@ -534,6 +541,11 @@ $canvasHeight3D = 842;
                                 'foto' => $fotoUrl ?: '',
                                 'descricao' => $produto->descricao ?: '',
                                 'codigo_barras' => $produto->codigo_barras ?: '',
+                                'eh_matriz' => $ehMatriz,
+                                'cor' => $corMatriz ?: '',
+                                'tamanho' => $tamMatriz ?: '',
+                                'grade_tamanhos' => $gradeTams,
+                                'quantidade' => $qtdEstoque,
                             ]));
 
                         ?>
@@ -550,8 +562,7 @@ $canvasHeight3D = 842;
                                     <?php endif; ?>
                                 </div>
 
-
-                                <!-- Imagem Centralizada com Aspect Ratio Perfeito -->
+                                <!-- Imagem Centralizada com Aspect Ratio Perfeito (Foto da Cor se Matriz) -->
                                 <div class="w-full <?= $imgHeightClass ?> flex items-center justify-center p-1 relative overflow-hidden flex-shrink-0">
                                     <?php if ($fotoUrl): ?>
                                         <img src="<?= $fotoUrl ?>" alt="<?= Html::encode($produto->nome) ?>" loading="lazy" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-200">
@@ -560,7 +571,7 @@ $canvasHeight3D = 842;
                                     <?php endif; ?>
                                 </div>
 
-                                <!-- Nome e Marca -->
+                                <!-- Nome, Marca e Badges/Pills de Matriz (1 Card por Cor) -->
                                 <div class="mb-1 text-center flex-1 min-w-0">
                                     <?php if ($produto->marca): ?>
                                         <div class="text-[7px] sm:text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 leading-none truncate"><?= Html::encode($produto->marca) ?></div>
@@ -568,6 +579,33 @@ $canvasHeight3D = 842;
                                     <div class="<?= $titleFontClass ?> font-extrabold text-slate-900 leading-tight group-hover:text-red-600 transition-colors">
                                         <?= Html::encode($produto->nome) ?>
                                     </div>
+
+                                    <?php if ($ehMatriz): ?>
+                                        <div class="space-y-1 mt-1">
+                                            <?php if ($corMatriz): ?>
+                                                <div class="flex items-center justify-center gap-1">
+                                                    <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-950 font-black text-[7.5px] border border-amber-300 shadow-2xs">
+                                                        🎨 COR: <?= Html::encode($corMatriz) ?>
+                                                    </span>
+                                                    <span class="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-950 font-black text-[7.5px] border border-emerald-300 shadow-2xs">
+                                                        📦 <?= (int)$qtdEstoque ?> un
+                                                    </span>
+                                                </div>
+                                            <?php endif; ?>
+
+                                            <!-- Pills de Tamanhos com seus respectivos Estoques -->
+                                            <?php if (!empty($gradeTams)): ?>
+                                                <div class="flex items-center justify-center gap-1 flex-wrap max-h-12 overflow-hidden py-0.5">
+                                                    <?php foreach ($gradeTams as $gt): ?>
+                                                        <span class="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-slate-100 hover:bg-indigo-50 text-slate-800 rounded-md border border-slate-200 text-[6.5px] sm:text-[7px] font-extrabold">
+                                                            <span><?= Html::encode($gt['tamanho']) ?></span>
+                                                            <span class="text-indigo-600 font-bold">(<?= $gt['qtd'] ?>)</span>
+                                                        </span>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
 
                                 <!-- Preço Destacado e Botão Sacola Rápida -->
@@ -666,6 +704,27 @@ $canvasHeight3D = 842;
                     <span id="modalProdCategoria" class="px-2.5 py-0.5 bg-red-100 text-red-800 font-bold text-[10px] rounded-md uppercase tracking-wider"></span>
                     <h3 id="modalProdNome" class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1 leading-tight"></h3>
                     <p id="modalProdMarca" class="text-xs text-slate-500 font-semibold"></p>
+                    
+                    <!-- Badges e Seletor Interativo de Tamanhos -->
+                    <div id="modalProdMatrizBadges" class="hidden space-y-2.5 mt-2.5 pt-2 border-t border-slate-100">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span id="modalBadgeCor" class="hidden px-2.5 py-1 rounded-lg bg-amber-100 text-amber-950 font-extrabold text-xs border border-amber-300"></span>
+                            <span id="modalBadgeEstoque" class="hidden px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-950 font-extrabold text-xs border border-emerald-300"></span>
+                        </div>
+                        
+                        <div id="wrapperSeletorTamanhoModal" class="space-y-1.5 hidden">
+                            <div class="flex items-center justify-between">
+                                <label class="text-[11px] font-black text-slate-800 uppercase flex items-center gap-1">
+                                    <span>📏</span>
+                                    <span>Escolha o Tamanho: <span class="text-red-500">*</span></span>
+                                </label>
+                                <span id="labelTamanhoSelecionadoModal" class="text-[10.5px] text-indigo-700 font-extrabold bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
+                                    Toque para escolher
+                                </span>
+                            </div>
+                            <div id="containerTamanhosPillsModal" class="flex items-center gap-1.5 flex-wrap p-2 bg-slate-50 rounded-2xl border border-slate-200"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Card de Preço, Quantidade e Subtotal -->
@@ -1276,6 +1335,23 @@ $canvasHeight3D = 842;
         }
 
         let modalProdQtdVal = 1;
+        let tamanhoEscolhidoModal = null;
+
+        window.selecionarTamanhoModal = function(tam, qtd) {
+            tamanhoEscolhidoModal = tam;
+            const lbl = document.getElementById('labelTamanhoSelecionadoModal');
+            if (lbl) {
+                lbl.innerHTML = `Tam: <b>${tam}</b> (${qtd} un em estoque)`;
+            }
+
+            document.querySelectorAll('.btn-tam-modal-pill').forEach(btn => {
+                if (btn.getAttribute('data-tam') === String(tam)) {
+                    btn.className = 'btn-tam-modal-pill px-3 py-1.5 rounded-xl font-black text-xs transition bg-indigo-600 text-white shadow-sm border border-indigo-600 cursor-pointer scale-105';
+                } else {
+                    btn.className = 'btn-tam-modal-pill px-3 py-1.5 rounded-xl font-bold text-xs transition bg-white hover:bg-indigo-50 text-slate-700 border border-slate-300 cursor-pointer';
+                }
+            });
+        };
 
         window.abrirModalDetalheProduto = function(prod) {
             if (typeof prod === 'string') {
@@ -1284,6 +1360,7 @@ $canvasHeight3D = 842;
             if (!prod) return;
             produtoAtualModal = prod;
             modalProdQtdVal = 1;
+            tamanhoEscolhidoModal = null;
 
             const val = extrairPrecoNumerico(prod);
             const precoFormatado = prod.preco_formatado || (typeof val === 'number' ? val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00');
@@ -1296,6 +1373,54 @@ $canvasHeight3D = 842;
             document.getElementById('modalProdQtd').textContent = '1';
             document.getElementById('modalProdSubtotal').textContent = precoFormatado;
             
+            // Badges e Seletor de Tamanhos de Matriz
+            const boxMatriz = document.getElementById('modalProdMatrizBadges');
+            const bCor = document.getElementById('modalBadgeCor');
+            const bEst = document.getElementById('modalBadgeEstoque');
+            const wrapperTam = document.getElementById('wrapperSeletorTamanhoModal');
+            const containerPills = document.getElementById('containerTamanhosPillsModal');
+
+            if (prod.cor || prod.eh_matriz || (prod.grade_tamanhos && prod.grade_tamanhos.length > 0)) {
+                if (boxMatriz) boxMatriz.classList.remove('hidden');
+                if (bCor) {
+                    if (prod.cor) {
+                        bCor.textContent = '🎨 Cor: ' + prod.cor;
+                        bCor.classList.remove('hidden');
+                    } else {
+                        bCor.classList.add('hidden');
+                    }
+                }
+                if (bEst) {
+                    const qtdNum = parseInt(prod.quantidade) || 0;
+                    bEst.textContent = '📦 Estoque Total: ' + qtdNum + ' un';
+                    bEst.classList.remove('hidden');
+                }
+
+                // Renderiza pills clicáveis de tamanho
+                if (prod.grade_tamanhos && Array.isArray(prod.grade_tamanhos) && prod.grade_tamanhos.length > 0) {
+                    if (wrapperTam) wrapperTam.classList.remove('hidden');
+                    if (containerPills) {
+                        containerPills.innerHTML = '';
+                        prod.grade_tamanhos.forEach((gt) => {
+                            const btnPill = document.createElement('button');
+                            btnPill.type = 'button';
+                            btnPill.className = 'btn-tam-modal-pill px-3 py-1.5 rounded-xl font-bold text-xs transition bg-white hover:bg-indigo-50 text-slate-700 border border-slate-300 cursor-pointer flex items-center gap-1.5';
+                            btnPill.setAttribute('data-tam', String(gt.tamanho));
+                            btnPill.innerHTML = `<span>${gt.tamanho}</span><span class="text-[9.5px] opacity-75 font-semibold">(${gt.qtd} un)</span>`;
+                            btnPill.onclick = () => selecionarTamanhoModal(gt.tamanho, gt.qtd);
+                            containerPills.appendChild(btnPill);
+                        });
+                        // Seleciona o primeiro tamanho por padrão
+                        selecionarTamanhoModal(prod.grade_tamanhos[0].tamanho, prod.grade_tamanhos[0].qtd);
+                    }
+                } else {
+                    if (wrapperTam) wrapperTam.classList.add('hidden');
+                    tamanhoEscolhidoModal = prod.tamanho || '';
+                }
+            } else {
+                if (boxMatriz) boxMatriz.classList.add('hidden');
+            }
+
             const img = document.getElementById('modalProdFoto');
             if (prod.foto) {
                 img.src = prod.foto;
@@ -1354,6 +1479,7 @@ $canvasHeight3D = 842;
             const qtd = modalProdQtdVal || 1;
             const val = extrairPrecoNumerico(prod);
             const subtotal = val * qtd;
+            const tamFinal = tamanhoEscolhidoModal || prod.tamanho || '';
 
             const elNome = document.getElementById('inputNomeClienteProd') || document.getElementById('inputNomeCliente');
             const elEnd = document.getElementById('inputEnderecoClienteProd') || document.getElementById('inputEnderecoCliente');
@@ -1371,7 +1497,11 @@ $canvasHeight3D = 842;
             try {
                 const itemData = {
                     id: String(prod.id),
+                    encarte_item_id: prod.encarte_item_id || '',
                     nome: prod.nome || 'Produto',
+                    nome_completo: prod.nome_completo || prod.nome,
+                    cor: prod.cor || '',
+                    tamanho: tamFinal,
                     precoVal: val,
                     qtd: qtd
                 };
@@ -1383,7 +1513,7 @@ $canvasHeight3D = 842;
                     itens: [itemData]
                 };
 
-                await fetch('<?= Url::to(['/vendas/encarte-publico/enviar-pedido', 'token' => $encarte->token_publico]) ?>', {
+                const resp = await fetch('<?= Url::to(['/vendas/encarte-publico/enviar-pedido', 'token' => $encarte->token_publico]) ?>', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1391,6 +1521,15 @@ $canvasHeight3D = 842;
                     },
                     body: JSON.stringify(payloadInterno)
                 });
+                if (!resp.ok) {
+                    const errText = await resp.text();
+                    console.warn('Falha no registro interno do pedido (status ' + resp.status + '):', errText);
+                } else {
+                    const dataResp = await resp.json();
+                    if (!dataResp.success) {
+                        console.warn('Aviso no canal interno:', dataResp.message);
+                    }
+                }
             } catch (err) {
                 console.warn('Registro no canal interno:', err);
             } finally {
@@ -1403,6 +1542,12 @@ $canvasHeight3D = 842;
             // 2. Montagem e Abertura do WhatsApp
             let texto = `🛒 *NOVO PEDIDO DO ENCARTE DIGITAL*\n🏪 *Loja:* ${nomeLojaStr}\n\n`;
             texto += `📌 *Produto:* ${prod.nome}\n`;
+            if (prod.cor) {
+                texto += `🎨 *Cor:* ${prod.cor}\n`;
+            }
+            if (tamFinal) {
+                texto += `📏 *Tamanho:* ${tamFinal}\n`;
+            }
             texto += `🔢 *Quantidade:* ${qtd} ${prod.unidade || 'un'}\n`;
             texto += `💰 *Valor:* R$ ${subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
             texto += `📱 *WhatsApp:* ${zapVal}\n`;
@@ -1449,12 +1594,17 @@ $canvasHeight3D = 842;
             const qtdAdicionar = modalProdQtdVal || 1;
             const val = extrairPrecoNumerico(prod);
             const str = prod.preco_formatado || val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const idKey = String(prod.id);
+            const tamFinal = tamanhoEscolhidoModal || prod.tamanho || '';
+            const idKey = (prod.encarte_item_id ? String(prod.encarte_item_id) : String(prod.id)) + (tamFinal ? '_' + tamFinal : '');
 
             if (!sacolaItens[idKey]) {
                 sacolaItens[idKey] = {
                     id: idKey,
+                    produto_id: String(prod.id),
                     nome: prod.nome || 'Produto',
+                    nome_completo: prod.nome_completo || prod.nome,
+                    cor: prod.cor || '',
+                    tamanho: tamFinal,
                     precoVal: val,
                     precoStr: str,
                     unidade: prod.unidade || 'un',
@@ -1468,7 +1618,7 @@ $canvasHeight3D = 842;
 
             salvarAtualizarSacola();
             fecharModalDetalheProduto();
-            mostrarToastFeedback(`✅ ${qtdAdicionar}x ${prod.nome} adicionado à sacola!`);
+            mostrarToastFeedback(`✅ ${qtdAdicionar}x ${prod.nome}${tamFinal ? ' (Tam: ' + tamFinal + ')' : ''} adicionado à sacola!`);
         }
 
         function adicionarDirectoSacola(prod) {
@@ -1487,12 +1637,16 @@ $canvasHeight3D = 842;
 
             const val = extrairPrecoNumerico(prod);
             const str = prod.preco_formatado || val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const idKey = String(prod.id);
+            const idKey = prod.encarte_item_id ? String(prod.encarte_item_id) : String(prod.id);
 
             if (!sacolaItens[idKey]) {
                 sacolaItens[idKey] = {
                     id: idKey,
+                    produto_id: String(prod.id),
                     nome: prod.nome || 'Produto',
+                    nome_completo: prod.nome_completo || prod.nome,
+                    cor: prod.cor || '',
+                    tamanho: prod.tamanho || '',
                     precoVal: val,
                     precoStr: str,
                     unidade: prod.unidade || 'un',
@@ -1623,11 +1777,19 @@ $canvasHeight3D = 842;
 
             lista.forEach(item => {
                 const subtotal = (item.precoVal || 0) * (item.qtd || 0);
+                let badgeMatriz = '';
+                if (item.cor || item.tamanho) {
+                    let parts = [];
+                    if (item.cor) parts.push(`🎨 ${item.cor}`);
+                    if (item.tamanho) parts.push(`📏 ${item.tamanho}`);
+                    badgeMatriz = `<div class="text-[9.5px] font-bold text-indigo-700 mt-0.5">${parts.join(' • ')}</div>`;
+                }
                 const div = document.createElement('div');
                 div.className = 'flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs shadow-2xs gap-2';
                 div.innerHTML = `
                     <div class="flex-1 pr-2 min-w-0">
                         <div class="font-extrabold text-slate-900 truncate">${item.nome}</div>
+                        ${badgeMatriz}
                         <div class="text-slate-500 font-semibold text-[10px]">R$ ${item.precoStr} / ${item.unidade}</div>
                     </div>
                     <div class="flex items-center gap-2 flex-shrink-0">
@@ -1686,7 +1848,14 @@ $canvasHeight3D = 842;
             lista.forEach(item => {
                 const sub = (item.precoVal || 0) * (item.qtd || 0);
                 totalVal += sub;
-                textoItens += `• *${item.qtd}x* ${item.nome} (R$ ${sub.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})\n`;
+                let detalheMatriz = '';
+                if (item.cor || item.tamanho) {
+                    let parts = [];
+                    if (item.cor) parts.push('Cor: ' + item.cor);
+                    if (item.tamanho) parts.push('Tam: ' + item.tamanho);
+                    detalheMatriz = ` [${parts.join(', ')}]`;
+                }
+                textoItens += `• *${item.qtd}x* ${item.nome}${detalheMatriz} (R$ ${sub.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})\n`;
             });
 
             // 1. Envio Assíncrono para o Canal de Comunicação Interno (Pulse Inbox)
@@ -1704,7 +1873,7 @@ $canvasHeight3D = 842;
                     itens: lista
                 };
 
-                await fetch('<?= Url::to(['/vendas/encarte-publico/enviar-pedido', 'token' => $encarte->token_publico]) ?>', {
+                const resp = await fetch('<?= Url::to(['/vendas/encarte-publico/enviar-pedido', 'token' => $encarte->token_publico]) ?>', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1712,6 +1881,15 @@ $canvasHeight3D = 842;
                     },
                     body: JSON.stringify(payloadInterno)
                 });
+                if (!resp.ok) {
+                    const errText = await resp.text();
+                    console.warn('Falha no registro interno do pedido (status ' + resp.status + '):', errText);
+                } else {
+                    const dataResp = await resp.json();
+                    if (!dataResp.success) {
+                        console.warn('Aviso no canal interno:', dataResp.message);
+                    }
+                }
             } catch (err) {
                 console.warn('Registro no canal interno:', err);
             } finally {

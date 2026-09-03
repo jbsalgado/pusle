@@ -125,6 +125,8 @@ class EncarteController extends Controller
         $corTema = $request->post('cor_tema', 'red_gold');
         $ppp = (int)$request->post('produtos_por_pagina', 6);
         $inativarAnteriores = filter_var($request->post('inativar_anteriores', true), FILTER_VALIDATE_BOOLEAN);
+        $desmembrarMatriz = filter_var($request->post('desmembrar_matriz', true), FILTER_VALIDATE_BOOLEAN);
+        $apenasComEstoque = filter_var($request->post('apenas_com_estoque', true), FILTER_VALIDATE_BOOLEAN);
 
         if ($modoSelecao === 'TODOS') {
             $query = Produto::find()
@@ -202,6 +204,7 @@ class EncarteController extends Controller
                 ->all();
 
         } else {
+            // PRODUTOS, PAGINA, MANUAL
             if (empty($produtosIds) || !is_array($produtosIds)) {
                 return ['success' => false, 'message' => 'Nenhum produto foi selecionado para o encarte.'];
             }
@@ -242,15 +245,90 @@ class EncarteController extends Controller
 
             $ordem = 1;
             foreach ($produtos as $p) {
+                // Verificação Inteligente se o produto possui Matriz (Cor/Tamanho)
+                $temMatriz = ($desmembrarMatriz && (
+                    $p->modo_grade === 'matriz' || 
+                    $p->possuiGrade || 
+                    \app\modules\vendas\models\ProdutoVariante::find()->where(['produto_id' => $p->id, 'ativo' => true])->exists()
+                ));
+
+                if ($temMatriz) {
+                    $queryVar = \app\modules\vendas\models\ProdutoVariante::find()
+                        ->where(['produto_id' => $p->id, 'ativo' => true])
+                        ->orderBy(['cor' => SORT_ASC, 'tamanho' => SORT_ASC]);
+
+                    if ($apenasComEstoque) {
+                        $varsComEstoque = (clone $queryVar)->andWhere(['>', 'estoque_atual', 0])->all();
+                        $variantes = !empty($varsComEstoque) ? $varsComEstoque : $queryVar->all();
+                    } else {
+                        $variantes = $queryVar->all();
+                    }
+
+                    if (!empty($variantes)) {
+                        // Agrupa as variantes por Cor (1 Card por Cor no Encarte)
+                        $variantesPorCor = [];
+                        foreach ($variantes as $var) {
+                            $nomeCor = !empty($var->cor) ? mb_strtoupper(trim($var->cor), 'UTF-8') : 'PADRÃO';
+                            $variantesPorCor[$nomeCor][] = $var;
+                        }
+
+                        foreach ($variantesPorCor as $corNome => $varsDaCor) {
+                            $gradeTamanhos = [];
+                            $totalEstoqueCor = 0.0;
+                            $refVariante = $varsDaCor[0];
+                            $precoOfertaCor = null;
+
+                            foreach ($varsDaCor as $v) {
+                                $qtd = (float)$v->estoque_atual;
+                                $totalEstoqueCor += $qtd;
+                                $gradeTamanhos[] = [
+                                    'variante_id' => (string)$v->id,
+                                    'tamanho' => (string)$v->tamanho,
+                                    'qtd' => (int)$qtd,
+                                    'preco' => ($v->preco_venda_sugerido !== null && (float)$v->preco_venda_sugerido > 0)
+                                        ? (float)$v->preco_venda_sugerido
+                                        : ($p->preco_promocional ? (float)$p->preco_promocional : (float)$p->preco_venda_sugerido)
+                                ];
+                                if ($precoOfertaCor === null && $v->preco_venda_sugerido !== null && (float)$v->preco_venda_sugerido > 0) {
+                                    $precoOfertaCor = (float)$v->preco_venda_sugerido;
+                                }
+                            }
+
+                            if ($precoOfertaCor === null) {
+                                $precoOfertaCor = $p->preco_promocional ? (float)$p->preco_promocional : null;
+                            }
+
+                            $encarteItem = new EncarteProduto();
+                            $encarteItem->encarte_id = $encarte->id;
+                            $encarteItem->produto_id = $p->id;
+                            $encarteItem->variante_id = (string)$refVariante->id;
+                            $encarteItem->cor = ($corNome !== 'PADRÃO') ? $corNome : null;
+                            $encarteItem->tamanho = json_encode($gradeTamanhos, JSON_UNESCAPED_UNICODE);
+                            $encarteItem->quantidade = $totalEstoqueCor;
+                            $encarteItem->preco_oferta = $precoOfertaCor;
+                            $encarteItem->ordem = $ordem++;
+                            if (isset($produtosTags[$p->id])) {
+                                $encarteItem->tag_promocional = $produtosTags[$p->id];
+                            }
+                            if (!$encarteItem->save()) {
+                                throw new \Exception('Erro ao salvar card por cor da matriz no encarte: ' . implode(', ', $encarteItem->getFirstErrors()));
+                            }
+                        }
+                        continue;
+                    }
+                }
+
+                // Produto Padrão (Sem matriz ou com desmembramento desativado)
                 $encarteItem = new EncarteProduto();
                 $encarteItem->encarte_id = $encarte->id;
                 $encarteItem->produto_id = $p->id;
+                $encarteItem->quantidade = (float)$p->estoque_atual;
                 $encarteItem->ordem = $ordem++;
                 if (isset($produtosTags[$p->id])) {
                     $encarteItem->tag_promocional = $produtosTags[$p->id];
                 }
                 if (!$encarteItem->save()) {
-                    throw new \Exception('Erro ao salvar item do encarte.');
+                    throw new \Exception('Erro ao salvar item do encarte: ' . implode(', ', $encarteItem->getFirstErrors()));
                 }
             }
 
@@ -707,6 +785,93 @@ class EncarteController extends Controller
                 'message' => 'Erro ao excluir encarte: ' . $e->getMessage(),
             ];
         }
+    }
+
+    /**
+     * Busca produtos da loja para seleção interativa no modal de encarte
+     */
+    public function actionBuscarProdutos()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $lojaId = $this->getLojaId();
+        $request = Yii::$app->request;
+
+        $q = trim($request->get('q', ''));
+        $categoriaId = $request->get('categoria_id', null);
+        $filtroFoto = strtoupper($request->get('filtro_foto', 'TODOS'));
+        $limite = max(1, min(100, (int)$request->get('limite', 30)));
+
+        $query = Produto::find()
+            ->where(['usuario_id' => $lojaId, 'ativo' => true]);
+
+        if (!empty($categoriaId) && $categoriaId !== 'TODAS') {
+            $query->andWhere(['categoria_id' => $categoriaId]);
+        }
+
+        if ($filtroFoto === 'COM_FOTO') {
+            $query->andWhere(['in', 'id', ProdutoFoto::find()->select('produto_id')->distinct()]);
+        } elseif ($filtroFoto === 'SEM_FOTO') {
+            $query->andWhere(['not in', 'id', ProdutoFoto::find()->select('produto_id')->distinct()]);
+        }
+
+        if (!empty($q)) {
+            $termo = '%' . mb_strtolower($q) . '%';
+            $query->andWhere(['or',
+                ['ilike', 'nome', $termo],
+                ['ilike', 'codigo_referencia', $termo],
+                ['ilike', 'codigo_barras', $termo],
+            ]);
+        }
+
+        $produtos = $query->orderBy(['nome' => SORT_ASC])->limit($limite)->all();
+
+        $itens = [];
+        foreach ($produtos as $p) {
+            $fotoUrl = null;
+            if ($p->fotoPrincipal) {
+                $fotoUrl = method_exists($p->fotoPrincipal, 'getUrlCompleta') ? $p->fotoPrincipal->getUrlCompleta() : $p->fotoPrincipal->getUrl();
+            } elseif (!empty($p->fotos)) {
+                $fotoUrl = method_exists($p->fotos[0], 'getUrlCompleta') ? $p->fotos[0]->getUrlCompleta() : $p->fotos[0]->getUrl();
+            }
+
+            // Verifica se tem matriz
+            $ehMatriz = ($p->modo_grade === 'matriz' || $p->possuiGrade || \app\modules\vendas\models\ProdutoVariante::find()->where(['produto_id' => $p->id, 'ativo' => true])->exists());
+            
+            $totalVariantes = 0;
+            $resumoCores = [];
+            if ($ehMatriz) {
+                $vars = \app\modules\vendas\models\ProdutoVariante::find()
+                    ->where(['produto_id' => $p->id, 'ativo' => true])
+                    ->all();
+                $totalVariantes = count($vars);
+                foreach ($vars as $v) {
+                    if ($v->cor && !in_array($v->cor, $resumoCores)) {
+                        $resumoCores[] = $v->cor;
+                    }
+                }
+            }
+
+            $itens[] = [
+                'id' => (string)$p->id,
+                'nome' => $p->nome,
+                'codigo_referencia' => $p->codigo_referencia ?: '',
+                'codigo_barras' => $p->codigo_barras ?: '',
+                'preco_venda' => (float)$p->preco_venda_sugerido,
+                'preco_formatado' => number_format((float)($p->preco_promocional ?: $p->preco_venda_sugerido), 2, ',', '.'),
+                'estoque_atual' => (float)$p->estoque_atual,
+                'categoria_nome' => $p->categoria ? $p->categoria->nome : 'Sem Categoria',
+                'foto_url' => $fotoUrl,
+                'eh_matriz' => $ehMatriz,
+                'total_variantes' => $totalVariantes,
+                'resumo_cores' => array_slice($resumoCores, 0, 5),
+            ];
+        }
+
+        return [
+            'success' => true,
+            'total' => count($itens),
+            'produtos' => $itens,
+        ];
     }
 }
 

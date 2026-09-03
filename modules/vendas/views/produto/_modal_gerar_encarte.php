@@ -33,52 +33,124 @@ use yii\helpers\Url;
                     <span class="text-[11px] text-slate-500 font-medium">Selecione o critério de inclusão dos produtos</span>
                 </div>
                 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <!-- Opção 1: Selecionados na Página -->
-                    <label onclick="alterarModoOrigemProdutos('PAGINA')" class="cursor-pointer border-2 border-amber-400 bg-amber-50/60 p-3 rounded-xl flex items-start gap-2.5 hover:shadow-md transition item-modo-origem" id="cardModoPagina">
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+                    <!-- Opção 1: Selecionados na Página (Tabela) -->
+                    <label onclick="alterarModoOrigemProdutos('PAGINA')" class="cursor-pointer border-2 border-amber-400 bg-amber-50/60 p-2.5 rounded-xl flex items-start gap-2 hover:shadow-md transition item-modo-origem" id="cardModoPagina">
                         <input type="radio" name="modo_origem_prod" value="PAGINA" checked class="mt-0.5 text-red-600 focus:ring-red-500">
                         <div class="min-w-0 flex-1">
                             <div class="font-extrabold text-xs text-slate-900 truncate">Itens Marcados</div>
-                            <div class="text-[11px] text-slate-600 font-semibold mt-0.5"><span id="badgeQtdEncarte">0</span> produto(s)</div>
+                            <div class="text-[10.5px] text-slate-600 font-semibold mt-0.5"><span id="badgeQtdEncarte">0</span> da página</div>
                         </div>
                     </label>
 
-                    <!-- Opção 2: Por Categoria -->
-                    <label onclick="alterarModoOrigemProdutos('CATEGORIA')" class="cursor-pointer border-2 border-slate-200 bg-white p-3 rounded-xl flex items-start gap-2.5 hover:shadow-md transition item-modo-origem" id="cardModoCategoria">
+                    <!-- Opção 2: Escolher por Produto (Busca & Multi-seleção) -->
+                    <label onclick="alterarModoOrigemProdutos('PRODUTOS')" class="cursor-pointer border-2 border-slate-200 bg-white p-2.5 rounded-xl flex items-start gap-2 hover:shadow-md transition item-modo-origem" id="cardModoProdutos">
+                        <input type="radio" name="modo_origem_prod" value="PRODUTOS" class="mt-0.5 text-red-600 focus:ring-red-500">
+                        <div class="min-w-0 flex-1">
+                            <div class="font-extrabold text-xs text-slate-900 truncate">Escolher Produto</div>
+                            <div class="text-[10.5px] text-red-600 font-semibold mt-0.5"><span id="badgeQtdEscolhidos">0</span> escolhido(s)</div>
+                        </div>
+                    </label>
+
+                    <!-- Opção 3: Por Categoria -->
+                    <label onclick="alterarModoOrigemProdutos('CATEGORIA')" class="cursor-pointer border-2 border-slate-200 bg-white p-2.5 rounded-xl flex items-start gap-2 hover:shadow-md transition item-modo-origem" id="cardModoCategoria">
                         <input type="radio" name="modo_origem_prod" value="CATEGORIA" class="mt-0.5 text-red-600 focus:ring-red-500">
                         <div class="min-w-0 flex-1">
                             <div class="font-extrabold text-xs text-slate-900 truncate">Por Categoria</div>
-                            <div class="text-[11px] text-indigo-600 font-semibold mt-0.5 truncate" id="badgeCatSelecionada">Escolher Categoria</div>
+                            <div class="text-[10.5px] text-indigo-600 font-semibold mt-0.5 truncate" id="badgeCatSelecionada">Escolher Cat.</div>
                         </div>
                     </label>
 
-                    <!-- Opção 3: Quantidade Personalizada -->
-                    <label onclick="alterarModoOrigemProdutos('QUANTIDADE')" class="cursor-pointer border-2 border-slate-200 bg-white p-3 rounded-xl flex items-start gap-2.5 hover:shadow-md transition item-modo-origem" id="cardModoQuantidade">
+                    <!-- Opção 4: Quantidade Personalizada -->
+                    <label onclick="alterarModoOrigemProdutos('QUANTIDADE')" class="cursor-pointer border-2 border-slate-200 bg-white p-2.5 rounded-xl flex items-start gap-2 hover:shadow-md transition item-modo-origem" id="cardModoQuantidade">
                         <input type="radio" name="modo_origem_prod" value="QUANTIDADE" class="mt-0.5 text-red-600 focus:ring-red-500">
                         <div class="min-w-0 flex-1">
-                            <div class="font-extrabold text-xs text-slate-900 truncate">Qtd Personalizada</div>
-                            <div class="text-[11px] text-slate-500 font-medium mt-0.5">Digitar quantos</div>
+                            <div class="font-extrabold text-xs text-slate-900 truncate">Qtd Rápida</div>
+                            <div class="text-[10.5px] text-slate-500 font-medium mt-0.5">Digitar quantos</div>
                         </div>
                     </label>
 
-                    <!-- Opção 4: Todos os Produtos do Catálogo -->
-                    <label onclick="alterarModoOrigemProdutos('TODOS')" class="cursor-pointer border-2 border-slate-200 bg-white p-3 rounded-xl flex items-start gap-2.5 hover:shadow-md transition item-modo-origem" id="cardModoTodos">
+                    <!-- Opção 5: Todos os Produtos do Catálogo -->
+                    <label onclick="alterarModoOrigemProdutos('TODOS')" class="cursor-pointer border-2 border-slate-200 bg-white p-2.5 rounded-xl flex items-start gap-2 hover:shadow-md transition item-modo-origem col-span-2 sm:col-span-1" id="cardModoTodos">
                         <input type="radio" name="modo_origem_prod" value="TODOS" class="mt-0.5 text-red-600 focus:ring-red-500">
                         <div class="min-w-0 flex-1">
-                            <div class="font-extrabold text-xs text-slate-900 truncate">TODOS os Produtos</div>
-                            <div class="text-[11px] text-slate-500 font-medium mt-0.5">Catálogo Completo</div>
+                            <div class="font-extrabold text-xs text-slate-900 truncate">TODOS Produtos</div>
+                            <div class="text-[10.5px] text-slate-500 font-medium mt-0.5">Catálogo Geral</div>
                         </div>
                     </label>
                 </div>
 
-                <!-- Painel Expansível de Filtro por Categoria -->
-                <div id="painelCategoriaEncarte" class="hidden pt-3 border-t border-slate-200 space-y-3 bg-indigo-50/40 p-3.5 rounded-xl border border-indigo-100">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                <!-- Painel Expansível de Escolha por Produto (Busca & Multi-seleção) -->
+                <div id="painelEscolherProdutos" class="hidden pt-3 border-t border-slate-200 space-y-3 bg-red-50/40 p-3.5 rounded-2xl border border-red-100">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div>
-                            <label class="block text-xs font-bold text-indigo-900 uppercase mb-1">📁 Categoria de Produtos:</label>
-                            <select id="selectCategoriaEncarte" onchange="aoMudarCategoriaEncarte()" class="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-sm">
-                                <option value="TODAS">Carregando categorias...</option>
-                            </select>
+                            <label class="block text-xs font-black text-red-950 uppercase flex items-center gap-1.5">
+                                <span>🎯</span>
+                                <span>Escolha por Produto (Multi-seleção):</span>
+                            </label>
+                            <p class="text-[11px] text-red-800 font-medium">Busque e selecione um ou mais produtos específicos para este encarte</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="badgeContadorProdutosEscolhidos" class="px-2.5 py-1 bg-red-600 text-white rounded-full font-extrabold text-[10px] shadow-xs">
+                                0 produto(s) no encarte
+                            </span>
+                            <button type="button" onclick="limparProdutosEscolhidosModal()" class="px-2.5 py-1 bg-white hover:bg-red-100 text-red-700 border border-red-200 font-bold text-xs rounded-xl transition cursor-pointer">
+                                🗑️ Limpar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Campo de Busca em Tempo Real -->
+                    <div class="relative">
+                        <input type="text" id="inputPesquisaProdutoModal" oninput="debounceBuscarProdutosModal(this.value)" placeholder="🔍 Digite nome, código de barras ou referência do produto..." class="w-full pl-9 pr-8 py-2.5 bg-white border border-red-200 rounded-xl text-xs font-semibold text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-red-500 focus:outline-none shadow-sm">
+                        <span class="absolute left-3 top-2.5 text-slate-400 text-xs pointer-events-none">🔎</span>
+                        <button type="button" onclick="limparInputBuscaProdutosModal()" id="btnLimparInputBuscaProd" class="hidden absolute right-2.5 top-2 p-1 text-slate-400 hover:text-slate-600 rounded-lg text-xs">✕</button>
+                    </div>
+
+                    <!-- Lista de Resultados da Busca (Cards Rápidos com + Adicionar) -->
+                    <div id="containerResultadosBuscaProdutos" class="hidden max-h-52 overflow-y-auto space-y-1.5 p-2 bg-white rounded-xl border border-red-200 shadow-inner">
+                        <div class="text-center py-3 text-xs text-slate-400 italic">Digite algo acima para pesquisar produtos...</div>
+                    </div>
+
+                    <!-- Bandeja / Lista dos Produtos Selecionados -->
+                    <div class="pt-2 border-t border-red-100 space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-700 uppercase">📋 Produtos Selecionados para o Encarte:</span>
+                            <span class="text-[10px] text-slate-400 font-medium">Itens marcados serão incluídos no encarte</span>
+                        </div>
+                        <div id="bandejaProdutosEscolhidos" class="max-h-48 overflow-y-auto space-y-1.5 p-2 bg-white rounded-xl border border-slate-200 text-xs">
+                            <div class="text-gray-400 italic text-[11px] text-center py-3">Nenhum produto selecionado ainda. Pesquise e clique em "+ Adicionar" acima.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Painel Expansível de Filtro por Categoria (Com Busca por Iniciais) -->
+                <div id="painelCategoriaEncarte" class="hidden pt-3 border-t border-slate-200 space-y-3 bg-indigo-50/40 p-3.5 rounded-2xl border border-indigo-100">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                        <!-- Dropdown Pesquisável por Iniciais -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-xs font-bold text-indigo-900 uppercase">📁 Categoria de Produtos:</label>
+                                <span class="text-[10px] text-indigo-600 font-semibold">🔍 Filtro por iniciais</span>
+                            </div>
+                            
+                            <div class="relative" id="wrapperComboboxCategoria">
+                                <div class="relative flex items-center">
+                                    <input type="text" id="inputBuscaCategoriaEncarte" oninput="filtrarCategoriasIniciais()" onfocus="abrirDropdownCategorias()" placeholder="Digite as iniciais da categoria (ex: TEN, BEB, CAL)..." class="w-full pl-8 pr-7 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-sm cursor-pointer" autocomplete="off">
+                                    <span class="absolute left-2.5 text-slate-400 text-xs pointer-events-none">📂</span>
+                                    <button type="button" id="btnLimparBuscaCategoria" onclick="limparBuscaCategoria()" class="hidden absolute right-2 p-1 text-slate-400 hover:text-slate-600 rounded-lg text-xs">✕</button>
+                                </div>
+
+                                <!-- Dropdown suspenso com lista de categorias filtradas por iniciais -->
+                                <div id="dropdownListaCategoriasEncarte" class="hidden absolute left-0 right-0 top-full mt-1.5 z-40 bg-white border border-indigo-200 rounded-2xl shadow-xl max-h-56 overflow-y-auto p-1.5 space-y-1">
+                                    <div class="text-center py-2 text-xs text-slate-400 italic">Carregando categorias...</div>
+                                </div>
+
+                                <!-- Select nativo oculto para manter compatibilidade total -->
+                                <select id="selectCategoriaEncarte" onchange="aoMudarCategoriaEncarte()" class="sr-only">
+                                    <option value="TODAS">Todas as Categorias</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div>
@@ -211,6 +283,36 @@ use yii\helpers\Url;
 
                     <div id="containerTagsProdutos" class="max-h-48 overflow-y-auto space-y-1.5 p-2.5 bg-gray-50 rounded-xl border border-gray-200 text-xs">
                         <div class="text-gray-400 italic text-[11px] text-center py-2">Carregando itens...</div>
+                    </div>
+                </div>
+
+                <!-- Configuração Inteligente de Matriz (Cor / Tamanho / Estoque) -->
+                <div class="bg-gradient-to-r from-purple-50 via-indigo-50 to-blue-50 border border-indigo-200/90 p-4 rounded-2xl space-y-2.5 shadow-xs">
+                    <div class="flex items-center justify-between gap-3 flex-wrap">
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-2xl">🧩</span>
+                            <div>
+                                <div class="text-xs font-black text-indigo-950 flex items-center gap-2">
+                                    <span>Agrupamento Inteligente por Cor (1 Card por Cor)</span>
+                                    <span class="px-2 py-0.5 rounded-full bg-indigo-200 text-indigo-900 text-[9px] font-extrabold uppercase">Recomendado</span>
+                                </div>
+                                <div class="text-[11px] text-indigo-800 font-medium mt-0.5">Gera 1 card por cor com foto exclusiva, exibindo tamanhos e estoques em pills informativas no card (sem fotos repetidas)</div>
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="checkDesmembrarMatriz" checked class="sr-only peer">
+                            <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+                    <div class="flex items-center justify-between pt-2 border-t border-indigo-100/90 gap-2 flex-wrap">
+                        <span class="text-[11px] font-bold text-indigo-900 flex items-center gap-1">
+                            <span>📦</span>
+                            <span>Incluir apenas variações com estoque disponível (> 0):</span>
+                        </span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="checkApenasComEstoque" checked class="sr-only peer">
+                            <div class="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                        </label>
                     </div>
                 </div>
 
@@ -368,6 +470,9 @@ Aproveite nossos preços especiais válidos esta semana!</textarea>
         }
     }
 
+    let produtosEscolhidosModal = [];
+    let timerBuscaProdutoModal = null;
+
     function alterarModoOrigemProdutos(modo) {
         modoOrigemProdutosAtual = modo;
         
@@ -375,37 +480,383 @@ Aproveite nossos preços especiais válidos esta semana!</textarea>
         radios.forEach(r => { r.checked = (r.value === modo); });
 
         const cardPag = document.getElementById('cardModoPagina');
+        const cardProd = document.getElementById('cardModoProdutos');
         const cardCat = document.getElementById('cardModoCategoria');
         const cardQtd = document.getElementById('cardModoQuantidade');
         const cardTodos = document.getElementById('cardModoTodos');
 
-        const classesPadrao = 'cursor-pointer border-2 border-slate-200 bg-white p-3 rounded-xl flex items-start gap-2.5 hover:shadow-md transition item-modo-origem';
+        const classesPadrao = 'cursor-pointer border-2 border-slate-200 bg-white p-2.5 rounded-xl flex items-start gap-2 hover:shadow-md transition item-modo-origem';
         if (cardPag) cardPag.className = classesPadrao;
+        if (cardProd) cardProd.className = classesPadrao;
         if (cardCat) cardCat.className = classesPadrao;
         if (cardQtd) cardQtd.className = classesPadrao;
-        if (cardTodos) cardTodos.className = classesPadrao;
+        if (cardTodos) cardTodos.className = classesPadrao + ' col-span-2 sm:col-span-1';
 
+        const painelProd = document.getElementById('painelEscolherProdutos');
         const painelCat = document.getElementById('painelCategoriaEncarte');
         const painelQtd = document.getElementById('painelQtdPersonalizada');
 
+        if (painelProd) painelProd.classList.add('hidden');
         if (painelCat) painelCat.classList.add('hidden');
         if (painelQtd) painelQtd.classList.add('hidden');
 
         if (modo === 'PAGINA') {
-            if (cardPag) cardPag.className = 'cursor-pointer border-2 border-amber-400 bg-amber-50/60 p-3 rounded-xl flex items-start gap-2.5 hover:shadow-md transition item-modo-origem';
+            if (cardPag) cardPag.className = 'cursor-pointer border-2 border-amber-400 bg-amber-50/60 p-2.5 rounded-xl flex items-start gap-2 hover:shadow-md transition item-modo-origem';
+            renderizarTagsProdutosModal();
+        } else if (modo === 'PRODUTOS') {
+            if (cardProd) cardProd.className = 'cursor-pointer border-2 border-red-500 bg-red-50/70 p-2.5 rounded-xl flex items-start gap-2 hover:shadow-md transition item-modo-origem';
+            if (painelProd) painelProd.classList.remove('hidden');
+            sincronizarProdutosEscolhidosComSelecao();
+            renderizarBandejaProdutosEscolhidos();
             renderizarTagsProdutosModal();
         } else if (modo === 'CATEGORIA') {
-            if (cardCat) cardCat.className = 'cursor-pointer border-2 border-indigo-500 bg-indigo-50/70 p-3 rounded-xl flex items-start gap-2.5 hover:shadow-md transition item-modo-origem';
+            if (cardCat) cardCat.className = 'cursor-pointer border-2 border-indigo-500 bg-indigo-50/70 p-2.5 rounded-xl flex items-start gap-2 hover:shadow-md transition item-modo-origem';
             if (painelCat) painelCat.classList.remove('hidden');
             carregarCategoriasModal();
         } else if (modo === 'QUANTIDADE') {
-            if (cardQtd) cardQtd.className = 'cursor-pointer border-2 border-red-500 bg-red-50/60 p-3 rounded-xl flex items-start gap-2.5 hover:shadow-md transition item-modo-origem';
+            if (cardQtd) cardQtd.className = 'cursor-pointer border-2 border-amber-500 bg-amber-50/60 p-2.5 rounded-xl flex items-start gap-2 hover:shadow-md transition item-modo-origem';
             if (painelQtd) painelQtd.classList.remove('hidden');
             renderizarTagsGenericasModal();
         } else if (modo === 'TODOS') {
-            if (cardTodos) cardTodos.className = 'cursor-pointer border-2 border-emerald-500 bg-emerald-50/60 p-3 rounded-xl flex items-start gap-2.5 hover:shadow-md transition item-modo-origem';
+            if (cardTodos) cardTodos.className = 'cursor-pointer border-2 border-emerald-500 bg-emerald-50/60 p-2.5 rounded-xl flex items-start gap-2 hover:shadow-md transition item-modo-origem col-span-2 sm:col-span-1';
             renderizarTagsGenericasModal();
         }
+    }
+
+    // ==========================================
+    // SELETOR DE CATEGORIA COM BUSCA POR INICIAIS
+    // ==========================================
+
+    function abrirDropdownCategorias() {
+        const dd = document.getElementById('dropdownListaCategoriasEncarte');
+        if (dd) {
+            dd.classList.remove('hidden');
+            filtrarCategoriasIniciais();
+        }
+    }
+
+    function fecharDropdownCategorias() {
+        const dd = document.getElementById('dropdownListaCategoriasEncarte');
+        if (dd) dd.classList.add('hidden');
+    }
+
+    function limparBuscaCategoria() {
+        const inp = document.getElementById('inputBuscaCategoriaEncarte');
+        if (inp) inp.value = '';
+        const btnL = document.getElementById('btnLimparBuscaCategoria');
+        if (btnL) btnL.classList.add('hidden');
+        selecionarCategoriaEncarte('TODAS', 'Todas as Categorias');
+        fecharDropdownCategorias();
+    }
+
+    function filtrarCategoriasIniciais() {
+        const inp = document.getElementById('inputBuscaCategoriaEncarte');
+        const dd = document.getElementById('dropdownListaCategoriasEncarte');
+        const btnL = document.getElementById('btnLimparBuscaCategoria');
+        if (!inp || !dd) return;
+
+        const termo = inp.value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if (btnL) {
+            btnL.className = termo.length > 0 ? 'absolute right-2 p-1 text-slate-400 hover:text-slate-600 rounded-lg text-xs cursor-pointer' : 'hidden';
+        }
+
+        const textoFiltro = (filtroFotoEncarteAtual === 'COM_FOTO') ? 'com foto' : ((filtroFotoEncarteAtual === 'SEM_FOTO') ? 'sem foto' : 'total');
+
+        let filtradas = [];
+        if (!termo) {
+            filtradas = listaCategoriasCache;
+        } else {
+            filtradas = listaCategoriasCache.filter(c => {
+                const nomeNorm = (c.nome || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                // Match por iniciais de palavras (ex: "TEN" -> Tênis) ou substring
+                const palavras = nomeNorm.split(/[\s\-_]+/);
+                const bateIniciais = palavras.some(p => p.startsWith(termo));
+                return bateIniciais || nomeNorm.includes(termo);
+            });
+        }
+
+        let html = '';
+        if (termo === '' || 'todas as categorias'.includes(termo)) {
+            html += `
+                <button type="button" onclick="selecionarCategoriaEncarte('TODAS', 'Todas as Categorias')" class="w-full text-left p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-indigo-50 hover:text-indigo-900 transition flex items-center justify-between cursor-pointer">
+                    <span class="flex items-center gap-2">
+                        <span>📂</span>
+                        <span>Todas as Categorias</span>
+                    </span>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">${totalGeralCategoriasCache} ${textoFiltro}</span>
+                </button>
+            `;
+        }
+
+        if (filtradas.length === 0) {
+            html += `<div class="text-center py-3 text-xs text-slate-400 italic">Nenhuma categoria encontrada com "${inp.value}".</div>`;
+        } else {
+            filtradas.forEach(c => {
+                html += `
+                    <button type="button" onclick="selecionarCategoriaEncarte('${c.id}', '${c.nome.replace(/'/g, "\\'")}', ${c.total_produtos})" class="w-full text-left p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-indigo-50 hover:text-indigo-900 transition flex items-center justify-between cursor-pointer">
+                        <span class="flex items-center gap-2 truncate">
+                            <span>📁</span>
+                            <span class="truncate">${c.nome}</span>
+                        </span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 font-extrabold flex-shrink-0">${c.total_produtos} ${textoFiltro}</span>
+                    </button>
+                `;
+            });
+        }
+
+        dd.innerHTML = html;
+        dd.classList.remove('hidden');
+    }
+
+    function selecionarCategoriaEncarte(id, nomeExibicao, totalProdutos = null) {
+        const sel = document.getElementById('selectCategoriaEncarte');
+        const inp = document.getElementById('inputBuscaCategoriaEncarte');
+        const badge = document.getElementById('badgeCatSelecionada');
+
+        if (sel) sel.value = id;
+        if (inp) inp.value = (id === 'TODAS') ? '' : nomeExibicao;
+        if (badge) badge.textContent = (id === 'TODAS') ? 'Todas as Categorias' : nomeExibicao;
+
+        fecharDropdownCategorias();
+        aoMudarCategoriaEncarte();
+    }
+
+    // Fecha dropdown se clicar fora
+    document.addEventListener('click', function(e) {
+        const wrapper = document.getElementById('wrapperComboboxCategoria');
+        if (wrapper && !wrapper.contains(e.target)) {
+            fecharDropdownCategorias();
+        }
+    });
+
+    function popularSelectCategorias(categorias, totalGeral = 0, catParaSelecionar = null) {
+        const sel = document.getElementById('selectCategoriaEncarte');
+        if (!sel) return;
+
+        const catAnterior = catParaSelecionar || sel.value;
+        const textoFiltro = (filtroFotoEncarteAtual === 'COM_FOTO') ? 'com foto' : ((filtroFotoEncarteAtual === 'SEM_FOTO') ? 'sem foto' : 'total');
+
+        let html = `<option value="TODAS">📂 Todas as Categorias (${totalGeral} produtos ${textoFiltro})</option>`;
+        categorias.forEach(c => {
+            html += `<option value="${c.id}">📁 ${c.nome} (${c.total_produtos} ${textoFiltro})</option>`;
+        });
+        sel.innerHTML = html;
+
+        if (catAnterior && Array.from(sel.options).some(o => o.value === catAnterior)) {
+            sel.value = catAnterior;
+            const item = categorias.find(c => String(c.id) === String(catAnterior));
+            if (item) {
+                const inp = document.getElementById('inputBuscaCategoriaEncarte');
+                if (inp) inp.value = item.nome;
+            }
+        }
+
+        aoMudarCategoriaEncarte();
+    }
+
+    // ==========================================
+    // ESCOLHA POR PRODUTO (BUSCA & MULTI-SELEÇÃO)
+    // ==========================================
+
+    function debounceBuscarProdutosModal(val) {
+        if (timerBuscaProdutoModal) clearTimeout(timerBuscaProdutoModal);
+        const btnL = document.getElementById('btnLimparInputBuscaProd');
+        if (btnL) {
+            btnL.className = val.trim().length > 0 ? 'absolute right-2.5 top-2 p-1 text-slate-400 hover:text-slate-600 rounded-lg text-xs cursor-pointer' : 'hidden';
+        }
+
+        timerBuscaProdutoModal = setTimeout(() => {
+            executarBuscaProdutosModal(val);
+        }, 220);
+    }
+
+    function limparInputBuscaProdutosModal() {
+        const inp = document.getElementById('inputPesquisaProdutoModal');
+        if (inp) {
+            inp.value = '';
+            debounceBuscarProdutosModal('');
+        }
+    }
+
+    function executarBuscaProdutosModal(termo) {
+        const container = document.getElementById('containerResultadosBuscaProdutos');
+        if (!container) return;
+
+        if (!termo || termo.trim().length < 1) {
+            container.classList.add('hidden');
+            container.innerHTML = '';
+            return;
+        }
+
+        container.classList.remove('hidden');
+        container.innerHTML = '<div class="text-center py-3 text-xs text-red-600 font-semibold flex items-center justify-center gap-2"><span class="animate-spin inline-block">⌛</span> Buscando produtos...</div>';
+
+        const url = '<?= Url::to(['/vendas/encarte/buscar-produtos']) ?>?q=' + encodeURIComponent(termo) + '&filtro_foto=' + encodeURIComponent(filtroFotoEncarteAtual);
+
+        fetch(url, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success || !data.produtos || data.produtos.length === 0) {
+                container.innerHTML = `<div class="text-center py-3 text-xs text-slate-400 italic">Nenhum produto encontrado para "${termo}".</div>`;
+                return;
+            }
+
+            container.innerHTML = '';
+            data.produtos.forEach(p => {
+                const jaSelecionado = produtosEncarteSelecionados.includes(p.id);
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between gap-3 p-2 bg-slate-50 hover:bg-red-50/60 rounded-xl border border-slate-200 transition text-xs';
+                
+                let htmlMatriz = '';
+                if (p.eh_matriz) {
+                    htmlMatriz = `<span class="px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 font-extrabold text-[9px] border border-purple-200">🧩 Matriz (${p.total_variantes} var)</span>`;
+                }
+
+                div.innerHTML = `
+                    <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                        <div class="w-10 h-10 rounded-lg bg-white border border-slate-200 overflow-hidden flex items-center justify-center flex-shrink-0">
+                            ${p.foto_url ? `<img src="${p.foto_url}" class="w-full h-full object-contain">` : '<span class="text-[9px] text-slate-400 font-bold">FOTO</span>'}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="font-extrabold text-slate-900 truncate" title="${p.nome}">${p.nome}</div>
+                            <div class="text-[10px] text-slate-500 font-medium flex items-center gap-2 flex-wrap">
+                                ${p.codigo_referencia ? `<span>Ref: ${p.codigo_referencia}</span>` : ''}
+                                <span>• ${p.categoria_nome}</span>
+                                ${htmlMatriz}
+                            </div>
+                        </div>
+                        <div class="text-right flex-shrink-0">
+                            <div class="font-black text-emerald-600 text-xs">R$ ${p.preco_formatado}</div>
+                            <div class="text-[9px] text-slate-400">Est: ${(p.estoque_atual || 0)} un</div>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <button type="button" onclick='toggleProdutoEscolhidoModal(${JSON.stringify(p).replace(/'/g, "&#39;")})' id="btnToggleProd_${p.id}" class="px-2.5 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1 cursor-pointer ${jaSelecionado ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white shadow-xs'}">
+                            ${jaSelecionado ? '✓ No Encarte' : '+ Adicionar'}
+                        </button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        })
+        .catch(err => {
+            container.innerHTML = '<div class="text-center py-3 text-xs text-red-500 font-bold">Erro ao buscar produtos.</div>';
+        });
+    }
+
+    function toggleProdutoEscolhidoModal(prod) {
+        const idx = produtosEncarteSelecionados.indexOf(prod.id);
+        if (idx >= 0) {
+            // Remove
+            removerProdutoEscolhido(prod.id);
+        } else {
+            // Adiciona
+            produtosEncarteSelecionados.push(prod.id);
+            if (!produtosEscolhidosModal.some(p => p.id === prod.id)) {
+                produtosEscolhidosModal.push(prod);
+            }
+            atualizarVisualProdutosEscolhidos();
+        }
+
+        // Atualiza botão no resultado de busca
+        const btn = document.getElementById('btnToggleProd_' + prod.id);
+        if (btn) {
+            const jaSel = produtosEncarteSelecionados.includes(prod.id);
+            btn.className = jaSel ? 'px-2.5 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white' : 'px-2.5 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1 cursor-pointer bg-red-600 hover:bg-red-700 text-white shadow-xs';
+            btn.innerHTML = jaSel ? '✓ No Encarte' : '+ Adicionar';
+        }
+    }
+
+    function removerProdutoEscolhido(id) {
+        produtosEncarteSelecionados = produtosEncarteSelecionados.filter(pid => pid !== id);
+        produtosEscolhidosModal = produtosEscolhidosModal.filter(p => p.id !== id);
+        atualizarVisualProdutosEscolhidos();
+
+        // Se o botão estiver visível nos resultados de busca, atualiza
+        const btn = document.getElementById('btnToggleProd_' + id);
+        if (btn) {
+            btn.className = 'px-2.5 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1 cursor-pointer bg-red-600 hover:bg-red-700 text-white shadow-xs';
+            btn.innerHTML = '+ Adicionar';
+        }
+    }
+
+    function limparProdutosEscolhidosModal() {
+        produtosEncarteSelecionados = [];
+        produtosEscolhidosModal = [];
+        atualizarVisualProdutosEscolhidos();
+
+        // Atualiza todos os botões visíveis de busca
+        document.querySelectorAll('[id^="btnToggleProd_"]').forEach(btn => {
+            btn.className = 'px-2.5 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1 cursor-pointer bg-red-600 hover:bg-red-700 text-white shadow-xs';
+            btn.innerHTML = '+ Adicionar';
+        });
+    }
+
+    function sincronizarProdutosEscolhidosComSelecao() {
+        // Se temos IDs marcados na página mas produtosEscolhidosModal vazio, tenta preencher a partir da DOM da tabela
+        if (produtosEncarteSelecionados.length > 0 && produtosEscolhidosModal.length === 0) {
+            produtosEncarteSelecionados.forEach(id => {
+                const chk = document.querySelector(`input[name="produto_massa_chk"][value="${id}"]`);
+                const nomeProd = chk ? (chk.dataset.nome || 'Produto') : 'Produto';
+                produtosEscolhidosModal.push({
+                    id: id,
+                    nome: nomeProd,
+                    preco_formatado: '0,00',
+                    foto_url: null,
+                    eh_matriz: false
+                });
+            });
+        }
+    }
+
+    function atualizarVisualProdutosEscolhidos() {
+        const count = produtosEncarteSelecionados.length;
+        const bModo = document.getElementById('badgeQtdEscolhidos');
+        const bCont = document.getElementById('badgeContadorProdutosEscolhidos');
+        const bPag = document.getElementById('badgeQtdEncarte');
+
+        if (bModo) bModo.textContent = count;
+        if (bCont) bCont.textContent = `${count} produto(s) no encarte`;
+        if (bPag) bPag.textContent = count;
+
+        renderizarBandejaProdutosEscolhidos();
+        renderizarTagsProdutosModal();
+    }
+
+    function renderizarBandejaProdutosEscolhidos() {
+        const container = document.getElementById('bandejaProdutosEscolhidos');
+        if (!container) return;
+
+        if (produtosEscolhidosModal.length === 0) {
+            container.innerHTML = '<div class="text-gray-400 italic text-[11px] text-center py-3">Nenhum produto selecionado ainda. Pesquise e clique em "+ Adicionar" acima.</div>';
+            return;
+        }
+
+        container.innerHTML = '';
+        produtosEscolhidosModal.forEach((p, idx) => {
+            const div = document.createElement('div');
+            div.className = 'flex items-center justify-between gap-2 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 transition text-xs';
+            div.innerHTML = `
+                <div class="flex items-center gap-2 min-w-0 flex-1">
+                    <span class="w-5 h-5 rounded-full bg-red-100 text-red-800 text-[10px] font-black flex items-center justify-center flex-shrink-0">${idx + 1}</span>
+                    <div class="w-8 h-8 rounded-lg bg-white border border-slate-200 overflow-hidden flex items-center justify-center flex-shrink-0">
+                        ${p.foto_url ? `<img src="${p.foto_url}" class="w-full h-full object-contain">` : '<span class="text-[8px] text-slate-400 font-bold">FOTO</span>'}
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="font-extrabold text-slate-900 truncate" title="${p.nome}">${p.nome}</div>
+                        <div class="text-[10px] text-slate-500 font-medium">
+                            R$ ${p.preco_formatado || '0,00'} ${p.eh_matriz ? '• <span class="text-purple-700 font-bold">🧩 Matriz</span>' : ''}
+                        </div>
+                    </div>
+                </div>
+                <button type="button" onclick="removerProdutoEscolhido('${p.id}')" title="Remover este produto" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer flex-shrink-0">
+                    ✕
+                </button>
+            `;
+            container.appendChild(div);
+        });
     }
 
     function alterarEscopoCategoria(escopo) {
@@ -481,26 +932,6 @@ Aproveite nossos preços especiais válidos esta semana!</textarea>
         });
     }
 
-    function popularSelectCategorias(categorias, totalGeral = 0, catParaSelecionar = null) {
-        const sel = document.getElementById('selectCategoriaEncarte');
-        if (!sel) return;
-
-        const catAnterior = catParaSelecionar || sel.value;
-        const textoFiltro = (filtroFotoEncarteAtual === 'COM_FOTO') ? 'com foto' : ((filtroFotoEncarteAtual === 'SEM_FOTO') ? 'sem foto' : 'total');
-
-        let html = `<option value="TODAS">📂 Todas as Categorias (${totalGeral} produtos ${textoFiltro})</option>`;
-        categorias.forEach(c => {
-            html += `<option value="${c.id}">📁 ${c.nome} (${c.total_produtos} ${textoFiltro})</option>`;
-        });
-        sel.innerHTML = html;
-
-        if (catAnterior && Array.from(sel.options).some(o => o.value === catAnterior)) {
-            sel.value = catAnterior;
-        }
-
-        aoMudarCategoriaEncarte();
-    }
-
     function aoMudarCategoriaEncarte() {
         const sel = document.getElementById('selectCategoriaEncarte');
         const badge = document.getElementById('badgeCatSelecionada');
@@ -552,6 +983,7 @@ Aproveite nossos preços especiais válidos esta semana!</textarea>
     function abrirModalGerarEncarte(ids = []) {
         produtosEncarteSelecionados = ids;
         document.getElementById('badgeQtdEncarte').textContent = produtosEncarteSelecionados.length;
+        document.getElementById('badgeQtdEscolhidos').textContent = produtosEncarteSelecionados.length;
         document.getElementById('modalGerarEncarte').classList.remove('hidden');
         document.getElementById('boxResultadoEncarte').classList.add('hidden');
 
@@ -560,10 +992,10 @@ Aproveite nossos preços especiais válidos esta semana!</textarea>
         const catUrl = urlParams.get('categoria_id');
 
         if (ids.length > 0) {
-            alterarModoOrigemProdutos('PAGINA');
+            alterarModoOrigemProdutos('PRODUTOS');
             carregarCategoriasModal(catUrl);
         } else {
-            alterarModoOrigemProdutos('CATEGORIA');
+            alterarModoOrigemProdutos('PRODUTOS');
             carregarCategoriasModal(catUrl);
         }
     }
@@ -585,8 +1017,10 @@ Aproveite nossos preços especiais válidos esta semana!</textarea>
             modo_selecao: modoOrigemProdutosAtual,
             filtro_foto: filtroFotoEncarteAtual,
             categoria_id: catId,
-            produtos_ids: produtosEncarteSelecionados,
+            produtos_ids: (modoOrigemProdutosAtual === 'PRODUTOS' || modoOrigemProdutosAtual === 'PAGINA') ? produtosEncarteSelecionados : [],
             qtd_desejada: qtd,
+            desmembrar_matriz: document.getElementById('checkDesmembrarMatriz')?.checked ? 1 : 0,
+            apenas_com_estoque: document.getElementById('checkApenasComEstoque')?.checked ? 1 : 0,
             produtos_tags: coletarTagsProdutosMap(),
             inativar_anteriores: document.getElementById('checkInativarAnteriores')?.checked ? 1 : 0,
             titulo: document.getElementById('encarte_titulo').value,

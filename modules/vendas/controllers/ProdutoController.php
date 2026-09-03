@@ -7,6 +7,7 @@ use app\modules\vendas\models\Produto;
 use app\modules\vendas\models\Categoria;
 use app\modules\vendas\models\ProdutoFoto;
 use app\modules\vendas\models\ProdutoVideo;
+use app\modules\vendas\models\ProdutoVariante;
 use app\modules\vendas\models\DadosFinanceiros;
 use app\modules\vendas\models\Colaborador;
 use yii\web\Controller;
@@ -46,6 +47,9 @@ class ProdutoController extends Controller
                 'actions' => [
                     'delete' => ['POST'],
                     'delete-foto' => ['POST'],
+                    'upload-foto-cor' => ['POST'],
+                    'vincular-foto-cor' => ['POST'],
+                    'desvincular-foto-cor' => ['POST'],
                     'resolver-item-avulso' => ['POST', 'GET'],
                 ],
             ],
@@ -222,7 +226,7 @@ class ProdutoController extends Controller
         }
 
         $mensagens = $query
-            ->orderBy(['created_at' => SORT_ASC])
+            ->orderBy(['created_at' => SORT_DESC])
             ->limit(150)
             ->all();
 
@@ -242,7 +246,7 @@ class ProdutoController extends Controller
                 'midia_url' => $msg->midia_url,
                 'acoes_json' => $acoes,
                 'lido' => (bool)$msg->lido,
-                'autor' => $acoes['autor'] ?? ($origem === 'cliente' ? ($acoes['remetente'] ?? 'Cliente') : 'Loja'),
+                'autor' => $acoes['autor'] ?? $acoes['remetente'] ?? $acoes['cliente'] ?? ($origem === 'cliente' || $origem === 'encarte_digital' ? 'Cliente' : 'Loja'),
                 'data_formatada' => date('d/m/Y H:i', strtotime($msg->created_at)),
                 'tempo_relativo' => Yii::$app->formatter->asRelativeTime($msg->created_at),
                 'created_at_ts' => strtotime($msg->created_at),
@@ -277,7 +281,7 @@ class ProdutoController extends Controller
                     'midia_url' => $paiMsg->midia_url,
                     'acoes_json' => $paiAcoes,
                     'lido' => (bool)$paiMsg->lido,
-                    'autor' => $paiAcoes['autor'] ?? 'Cliente',
+                    'autor' => $paiAcoes['autor'] ?? $paiAcoes['remetente'] ?? $paiAcoes['cliente'] ?? 'Cliente',
                     'data_formatada' => date('d/m/Y H:i', strtotime($paiMsg->created_at)),
                     'tempo_relativo' => Yii::$app->formatter->asRelativeTime($paiMsg->created_at),
                     'created_at_ts' => strtotime($paiMsg->created_at),
@@ -343,7 +347,11 @@ class ProdutoController extends Controller
 
         $usuarioLoja = \app\models\Usuario::findOne($lojaId);
         $lojaConfig  = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $lojaId]);
-        $nomeLoja    = $lojaConfig ? ($lojaConfig->nome_fantasia ?: $lojaConfig->nome_loja) : ($usuarioLoja->nome ?? 'Atendimento Loja');
+        $nomeLoja    = ($lojaConfig && !empty($lojaConfig->nome_fantasia))
+            ? $lojaConfig->nome_fantasia
+            : (($lojaConfig && !empty($lojaConfig->nome_loja))
+                ? $lojaConfig->nome_loja
+                : ($usuarioLoja ? ($usuarioLoja->nome_loja ?: $usuarioLoja->nome) : 'Atendimento Loja'));
 
         if (empty($respostaTexto) && !empty($midiaUrl)) {
             $respostaTexto = '📷 Imagem enviada pela loja';
@@ -356,7 +364,7 @@ class ProdutoController extends Controller
             $lojaId,
             $msgOrigem->cliente_id,
             \app\modules\vendas\models\ClienteInbox::TIPO_TEXTO,
-            "📢 Resposta Oficial: {$nomeLoja}",
+            $nomeLoja,
             $respostaTexto,
             !empty($midiaUrl) ? $midiaUrl : null,
             [
@@ -375,11 +383,12 @@ class ProdutoController extends Controller
         if ($resposta) {
             return [
                 'success' => true,
-                'message' => 'Resposta enviada com sucesso ao Direct Hub do cliente!',
+                'message' => 'Resposta enviada com sucesso ao cliente!',
                 'item'    => [
                     'id'             => $resposta->id,
                     'titulo'         => $resposta->titulo,
                     'conteudo'       => $resposta->conteudo_texto,
+                    'autor'          => $nomeLoja,
                     'midia_url'      => $resposta->midia_url,
                     'data_formatada' => date('d/m/Y H:i'),
                     'tempo_relativo' => 'Agora',
@@ -426,6 +435,52 @@ class ProdutoController extends Controller
         }
 
         return ['success' => false, 'message' => 'Falha ao salvar a imagem no servidor.'];
+    }
+
+    /**
+     * Marca uma ou todas as mensagens como lidas na Central do Canal Interno
+     * Enforça isolamento estrito de Multi-Tenant através do getLojaId()
+     */
+    public function actionMarcarInboxLido($id = null)
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $lojaId = $this->getLojaId();
+
+        if (empty($lojaId)) {
+            return ['success' => false, 'message' => 'Usuário não autenticado ou tenant não identificado.'];
+        }
+
+        $id = trim((string)($id ?? Yii::$app->request->get('id', '')));
+
+        if (empty($id)) {
+            return ['success' => false, 'message' => 'ID da mensagem não informado.'];
+        }
+
+        try {
+            if ($id === 'todos') {
+                $afetados = \app\modules\vendas\models\ClienteInbox::updateAll(
+                    ['lido' => true],
+                    ['usuario_id' => $lojaId, 'lido' => false]
+                );
+            } else {
+                $afetados = \app\modules\vendas\models\ClienteInbox::updateAll(
+                    ['lido' => true],
+                    ['id' => $id, 'usuario_id' => $lojaId]
+                );
+            }
+
+            return [
+                'success'  => true,
+                'message'  => 'Mensagem(ns) marcada(s) como lida(s) com sucesso.',
+                'afetados' => (int)$afetados,
+            ];
+        } catch (\Throwable $e) {
+            Yii::error("Erro ao marcar inbox como lido: " . $e->getMessage(), __METHOD__);
+            return [
+                'success' => false,
+                'message' => 'Falha ao atualizar status de leitura: ' . $e->getMessage(),
+            ];
+        }
     }
 
 
@@ -807,6 +862,390 @@ class ProdutoController extends Controller
             'resultado' => $resultado,
             'stats' => $resultado['stats']
         ];
+    }
+
+    /**
+     * =========================================================================
+     * NOVO FLUXO: MATRIZ UNIFICADA MOBILE (1 Produto -> N Variantes & Fotos por Cor)
+     * =========================================================================
+     */
+
+    /**
+     * Criação de Produto no Modo Matriz Unificada
+     */
+    public function actionCreateMatriz()
+    {
+        if (!$this->isAdministrador()) {
+            throw new \yii\web\ForbiddenHttpException('Você não tem permissão para criar produtos.');
+        }
+
+        $lojaId = $this->getLojaId();
+        $model = new Produto();
+        $model->usuario_id = $lojaId;
+        $model->modo_grade = 'matriz';
+        $model->ativo = true;
+
+        $categoriaId = Yii::$app->request->get('categoria_id');
+        if ($categoriaId) {
+            $categoria = Categoria::find()
+                ->where(['id' => $categoriaId, 'usuario_id' => $lojaId, 'ativo' => true])
+                ->one();
+            if ($categoria) {
+                $model->categoria_id = $categoriaId;
+            }
+        }
+
+        if (Yii::$app->request->isPost) {
+            $transaction = Yii::$app->db->beginTransaction();
+            try {
+                if ($model->load(Yii::$app->request->post())) {
+                    $model->modo_grade = 'matriz';
+                    $model->usuario_id = $lojaId;
+
+                    if (!$model->save()) {
+                        throw new \Exception('Erro ao salvar produto: ' . json_encode($model->getErrors()));
+                    }
+
+                    // 1. Processa Matriz de Variantes [Cor x Tamanho]
+                    $this->processMatrizVariantes($model);
+
+                    // 2. Upload de Fotos Gerais
+                    $this->processUploadFotos($model);
+
+                    // 3. Upload de Fotos Vinculadas à Cor
+                    $this->processUploadFotosPorCor($model);
+
+                    // 4. Recalcula Estoque Consolidado do Produto Mestre
+                    $model->recalculateStockSum();
+
+                    $transaction->commit();
+                    Yii::$app->session->setFlash('success', 'Produto cadastrado com sucesso com grade unificada!');
+                    return $this->redirect(['view', 'id' => $model->id]);
+                }
+            } catch (\Exception $e) {
+                $transaction->rollBack();
+                Yii::error('Erro ao salvar produto matriz: ' . $e->getMessage(), __METHOD__);
+                Yii::$app->session->setFlash('error', 'Erro ao salvar produto: ' . $e->getMessage());
+            }
+        }
+
+        $categorias = Categoria::find()
+            ->where(['usuario_id' => $lojaId, 'ativo' => true])
+            ->orderBy(['nome' => SORT_ASC])
+            ->all();
+
+        return $this->render('create_matriz', [
+            'model' => $model,
+            'categorias' => $categorias,
+        ]);
+    }
+
+    /**
+     * Edição de Produto no Modo Matriz Unificada
+     */
+    public function actionUpdateMatriz($id)
+    {
+        if (!$this->isAdministrador()) {
+            throw new \yii\web\ForbiddenHttpException('Você não tem permissão para editar produtos.');
+        }
+
+        $model = $this->findModel($id);
+        $lojaId = $this->getLojaId();
+
+        if (Yii::$app->request->isPost) {
+            $transaction = Yii::$app->db->beginTransaction();
+            try {
+                if ($model->load(Yii::$app->request->post())) {
+                    $model->modo_grade = 'matriz';
+
+                    if (!$model->save()) {
+                        throw new \Exception('Erro ao atualizar produto: ' . json_encode($model->getErrors()));
+                    }
+
+                    // 1. Processa Matriz de Variantes [Cor x Tamanho]
+                    $this->processMatrizVariantes($model);
+
+                    // 2. Upload de Fotos Gerais
+                    $this->processUploadFotos($model);
+
+                    // 3. Upload de Fotos Vinculadas à Cor
+                    $this->processUploadFotosPorCor($model);
+
+                    // 4. Recalcula Estoque Consolidado do Produto Mestre
+                    $model->recalculateStockSum();
+
+                    $transaction->commit();
+                    Yii::$app->session->setFlash('success', 'Produto e grade de variações atualizados com sucesso!');
+                    return $this->redirect(['view', 'id' => $model->id]);
+                }
+            } catch (\Exception $e) {
+                $transaction->rollBack();
+                Yii::error('Erro ao atualizar produto matriz: ' . $e->getMessage(), __METHOD__);
+                Yii::$app->session->setFlash('error', 'Erro ao atualizar produto: ' . $e->getMessage());
+            }
+        }
+
+        $categorias = Categoria::find()
+            ->where(['usuario_id' => $lojaId, 'ativo' => true])
+            ->orderBy(['nome' => SORT_ASC])
+            ->all();
+
+        $variantes = $model->variantesNovas;
+        $fotos = $model->fotos;
+
+        return $this->render('update_matriz', [
+            'model' => $model,
+            'categorias' => $categorias,
+            'variantes' => $variantes,
+            'fotos' => $fotos,
+        ]);
+    }
+
+    /**
+     * Processa as variações enviadas pela Matriz Unificada Mobile
+     */
+    protected function processMatrizVariantes($model)
+    {
+        $matrizItems = Yii::$app->request->post('MatrizGrade', []);
+        Yii::info('MatrizGrade POST: ' . json_encode($matrizItems), __METHOD__);
+
+        if (!is_array($matrizItems)) {
+            return;
+        }
+
+        $manterIds = [];
+
+        foreach ($matrizItems as $item) {
+            $cor = !empty($item['cor']) ? mb_strtoupper(trim($item['cor']), 'UTF-8') : null;
+            $tamanho = !empty($item['tamanho']) ? mb_strtoupper(trim($item['tamanho']), 'UTF-8') : null;
+
+            if (!$cor || !$tamanho) {
+                continue;
+            }
+
+            $estoque = (float)($item['estoque'] ?? 0);
+            $preco = null;
+            if (isset($item['preco']) && trim((string)$item['preco']) !== '') {
+                $precoRaw = trim((string)$item['preco']);
+                if (strpos($precoRaw, ',') !== false) {
+                    $precoClean = str_replace('.', '', $precoRaw);
+                    $precoClean = str_replace(',', '.', $precoClean);
+                } else {
+                    $precoClean = $precoRaw;
+                }
+                $precoVal = (float)$precoClean;
+                if ($precoVal > 0) {
+                    $preco = $precoVal;
+                }
+            }
+            $ean = !empty($item['ean']) ? trim($item['ean']) : null;
+            $varId = !empty($item['id']) ? trim($item['id']) : null;
+
+            $variante = null;
+            if ($varId) {
+                $variante = ProdutoVariante::findOne(['id' => $varId, 'produto_id' => $model->id]);
+            }
+            if (!$variante) {
+                $variante = ProdutoVariante::findOne(['produto_id' => $model->id, 'cor' => $cor, 'tamanho' => $tamanho]);
+            }
+            if (!$variante) {
+                $variante = new ProdutoVariante();
+                $variante->produto_id = (string)$model->id;
+                $variante->cor = $cor;
+                $variante->tamanho = $tamanho;
+            }
+
+            $variante->estoque_atual = $estoque;
+            $variante->preco_venda_sugerido = ($preco !== null && $preco > 0) ? $preco : null;
+            $variante->codigo_barras = $ean;
+            $variante->ativo = true;
+            $variante->codigo_referencia = ($model->codigo_referencia ?: 'REF') . '-' . $cor . '-' . $tamanho;
+
+            if (!$variante->save(false)) {
+                throw new \Exception("Erro ao persistir variação {$cor}/{$tamanho}: " . json_encode($variante->getErrors()));
+            }
+
+            $manterIds[] = $variante->id;
+        }
+
+        // Se houver itens na matriz, exclui as variantes que não foram enviadas (removidas da grade pelo lojista)
+        if (!empty($manterIds)) {
+            ProdutoVariante::deleteAll([
+                'and',
+                ['produto_id' => $model->id],
+                ['not in', 'id', $manterIds]
+            ]);
+        }
+    }
+
+    /**
+     * Processa upload de fotos vinculadas a cores específicas
+     */
+    protected function processUploadFotosPorCor($model)
+    {
+        $uploadPath = Yii::getAlias('@webroot/uploads/produtos/' . $model->id);
+        if (!is_dir($uploadPath)) {
+            mkdir($uploadPath, 0777, true);
+        }
+
+        $ordem = ProdutoFoto::find()->where(['produto_id' => $model->id])->count();
+
+        // Procura arquivos enviados em FotosCor
+        if (!empty($_FILES['FotosCor']['name']) && is_array($_FILES['FotosCor']['name'])) {
+            foreach (array_keys($_FILES['FotosCor']['name']) as $corRaw) {
+                $corUpper = mb_strtoupper(trim($corRaw), 'UTF-8');
+                $uploadedFiles = UploadedFile::getInstancesByName("FotosCor[{$corRaw}]");
+
+                foreach ($uploadedFiles as $file) {
+                    if ($file->error !== UPLOAD_ERR_OK) continue;
+
+                    $corClean = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $corUpper)) ?: 'cor';
+                    $filename = uniqid("cor_{$corClean}_") . '.jpg';
+                    $filePath = $uploadPath . '/' . $filename;
+
+                    if ($this->optimizeImage($file->tempName, $filePath)) {
+                        $foto = new ProdutoFoto();
+                        $foto->produto_id = (string)$model->id;
+                        $foto->cor = $corUpper;
+                        $foto->arquivo_nome = $file->name;
+                        $foto->arquivo_path = 'uploads/produtos/' . $model->id . '/' . $filename;
+                        $foto->ordem = $ordem++;
+                        $foto->eh_principal = false;
+                        $foto->save(false);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Upload de foto vinculada a uma cor específica diretamente via AJAX (ex: a partir da view de produto)
+     */
+    public function actionUploadFotoCor($id)
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        try {
+            if (!$this->isAdministrador()) {
+                return ['success' => false, 'message' => 'Sem permissão.'];
+            }
+
+            $model = $this->findModel($id);
+            $cor = Yii::$app->request->post('cor');
+            if (empty($cor)) {
+                return ['success' => false, 'message' => 'A cor deve ser informada.'];
+            }
+            $corUpper = mb_strtoupper(trim($cor), 'UTF-8');
+
+            $file = UploadedFile::getInstanceByName('foto');
+            if (!$file) {
+                return ['success' => false, 'message' => 'Nenhum arquivo enviado.'];
+            }
+
+            $uploadPath = Yii::getAlias('@webroot/uploads/produtos/' . $model->id);
+            if (!is_dir($uploadPath)) {
+                mkdir($uploadPath, 0777, true);
+            }
+
+            $corClean = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $corUpper)) ?: 'cor';
+            $filename = uniqid("cor_{$corClean}_") . '.jpg';
+            $filePath = $uploadPath . '/' . $filename;
+
+            if ($this->optimizeImage($file->tempName, $filePath)) {
+                $ordem = ProdutoFoto::find()->where(['produto_id' => $model->id])->count();
+                $foto = new ProdutoFoto();
+                $foto->produto_id = (string)$model->id;
+                $foto->cor = $corUpper;
+                $foto->arquivo_nome = $file->name;
+                $foto->arquivo_path = 'uploads/produtos/' . $model->id . '/' . $filename;
+                $foto->ordem = $ordem;
+                $foto->eh_principal = false;
+                if ($foto->save(false)) {
+                    return [
+                        'success' => true,
+                        'message' => "Foto da cor {$corUpper} adicionada com sucesso!",
+                        'foto_id' => $foto->id,
+                        'foto_url' => $foto->getUrl(),
+                        'cor' => $corUpper,
+                    ];
+                }
+            }
+
+            return ['success' => false, 'message' => 'Falha ao processar a imagem.'];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Vincula uma foto já existente da galeria do produto a uma cor específica
+     */
+    public function actionVincularFotoCor($id)
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        try {
+            if (!$this->isAdministrador()) {
+                return ['success' => false, 'message' => 'Sem permissão.'];
+            }
+
+            $model = $this->findModel($id);
+            $cor = Yii::$app->request->post('cor');
+            $fotoId = Yii::$app->request->post('foto_id');
+
+            if (empty($cor) || empty($fotoId)) {
+                return ['success' => false, 'message' => 'Cor e Foto devem ser informadas.'];
+            }
+
+            $foto = ProdutoFoto::findOne(['id' => $fotoId, 'produto_id' => $model->id]);
+            if (!$foto) {
+                return ['success' => false, 'message' => 'Foto não encontrada para este produto.'];
+            }
+
+            $corUpper = mb_strtoupper(trim($cor), 'UTF-8');
+            $foto->cor = $corUpper;
+            if ($foto->save(false)) {
+                return [
+                    'success' => true,
+                    'message' => "Foto vinculada à cor {$corUpper} com sucesso!",
+                    'foto_id' => $foto->id,
+                    'foto_url' => $foto->getUrl(),
+                    'cor' => $corUpper,
+                ];
+            }
+
+            return ['success' => false, 'message' => 'Erro ao salvar vínculo.'];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Remove a vinculação de cor de uma foto (mantendo na galeria geral)
+     */
+    public function actionDesvincularFotoCor($id)
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        try {
+            if (!$this->isAdministrador()) {
+                return ['success' => false, 'message' => 'Sem permissão.'];
+            }
+
+            $model = $this->findModel($id);
+            $fotoId = Yii::$app->request->post('foto_id');
+            $foto = ProdutoFoto::findOne(['id' => $fotoId, 'produto_id' => $model->id]);
+            if (!$foto) {
+                return ['success' => false, 'message' => 'Foto não encontrada.'];
+            }
+
+            $foto->cor = null;
+            $foto->save(false);
+
+            return ['success' => true, 'message' => 'Vínculo da cor removido com sucesso.'];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
     }
 
     public function actionCreate()

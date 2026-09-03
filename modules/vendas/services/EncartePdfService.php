@@ -327,17 +327,9 @@ class EncartePdfService
                                         $partesPreco = explode(',', $precoFormatado);
                                         $codigoRef = $produto->codigo_referencia ?: $produto->codigo_barras;
 
-                                        // Foto: busca relação de fotos do produto (fotoPrincipal ou fotos[0]) com fallback para categoria
-                                        $srcFoto = null;
-                                        $foto = $produto->fotoPrincipal ?: ($produto->fotos[0] ?? null);
-                                        if ($foto && $foto->arquivo_path) {
-                                            $caminhoLocal = Yii::getAlias('@app/web/') . ltrim($foto->arquivo_path, '/');
-                                            if (file_exists($caminhoLocal)) {
-                                                $srcFoto = $caminhoLocal;
-                                            } else {
-                                                $srcFoto = Url::to('@web/' . ltrim($foto->arquivo_path, '/'), true);
-                                            }
-                                        } elseif ($produto->categoria && !empty($produto->categoria->foto_path)) {
+                                        // Foto: busca foto específica por cor/variante se houver, ou foto principal
+                                        $srcFoto = $encarteProd->getFotoCaminhoLocal();
+                                        if (!$srcFoto && $produto->categoria && !empty($produto->categoria->foto_path)) {
                                             $caminhoLocalCat = Yii::getAlias('@app/web/') . ltrim($produto->categoria->foto_path, '/');
                                             if (file_exists($caminhoLocalCat)) {
                                                 $srcFoto = $caminhoLocalCat;
@@ -410,6 +402,40 @@ class EncartePdfService
                                                         <div class="product-title-text" style="font-size: <?= $titleFontSize ?>; line-height: 1.15;"><?= Html::encode(mb_strtoupper($produto->nome)) ?></div>
                                                     </td>
                                                 </tr>
+
+                                                <!-- 4.1 Grade / Matriz por Cor (Cor + Pills de Tamanhos e Estoque) -->
+                                                <?php if ($encarteProd->getEhMatriz()): 
+                                                    $gradePdfTams = $encarteProd->getGradeTamanhos();
+                                                ?>
+                                                <tr>
+                                                    <td align="center" style="padding: 1px 2px 2px 2px; font-size: 5.5px; font-weight: bold;">
+                                                        <?php if ($encarteProd->cor): ?>
+                                                            <div style="margin-bottom: 1.5px;">
+                                                                <span style="display: inline-block; background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; padding: 0.5px 3px; border-radius: 2px;">
+                                                                    COR: <?= Html::encode(mb_strtoupper($encarteProd->cor)) ?>
+                                                                </span>
+                                                                <span style="display: inline-block; background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; padding: 0.5px 3px; border-radius: 2px; margin-left: 2px;">
+                                                                    TOTAL: <?= (int)$encarteProd->quantidade ?> UN
+                                                                </span>
+                                                            </div>
+                                                        <?php endif; ?>
+
+                                                        <?php if (!empty($gradePdfTams)): ?>
+                                                            <div style="line-height: 1.2;">
+                                                                <span style="color: #64748b; font-size: 5px; margin-right: 1px;">TAM:</span>
+                                                                <?php foreach (array_slice($gradePdfTams, 0, 8) as $gt): ?>
+                                                                    <span style="display: inline-block; background-color: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; padding: 0.2px 2px; border-radius: 2px; margin: 0.5px;">
+                                                                        <?= Html::encode($gt['tamanho']) ?><span style="color: #4f46e5; font-size: 4.5px;">(<?= $gt['qtd'] ?>)</span>
+                                                                    </span>
+                                                                <?php endforeach; ?>
+                                                                <?php if (count($gradePdfTams) > 8): ?>
+                                                                    <span style="color: #94a3b8; font-size: 4.5px;">+<?= count($gradePdfTams) - 8 ?></span>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                </tr>
+                                                <?php endif; ?>
 
                                                 <!-- 5. Splash de Preco Premium -->
                                                 <tr>

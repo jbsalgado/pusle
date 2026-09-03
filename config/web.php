@@ -20,7 +20,13 @@ $config = [
         '@bower'   => '@vendor/bower-asset',
         '@npm'     => '@vendor/npm-asset',
         '@webroot' => '@app/web',
-        '@web'     => '',
+        '@web'     => (function () {
+            $requestUri = $_SERVER['REQUEST_URI'] ?? '';
+            if (strpos($requestUri, '/pulse/web') !== false) {
+                return '/pulse/web';
+            }
+            return '';
+        })(),
     ],
     'components' => [
         'queue' => [

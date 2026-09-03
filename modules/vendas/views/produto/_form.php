@@ -40,6 +40,22 @@ if ($model->hasErrors()): ?>
 <?php endif; ?>
 
 <div class="produto-form">
+    <!-- Banner de Alternância para o Modo Matriz Unificada Mobile -->
+    <div class="mb-5 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-xs">
+                ⚡
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-gray-900">Novo Modo: Grade de Variações & Fotos por Modelo/Cor</h4>
+                <p class="text-xs text-gray-600">Interface ágil para celular com chips de modelos/cores, presets de tamanhos (12 a 50) e estoque consolidado automático.</p>
+            </div>
+        </div>
+        <a href="<?= Url::to($model->isNewRecord ? ['/vendas/produto/create-matriz'] : ['/vendas/produto/update-matriz', 'id' => $model->id]) ?>" class="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition active:scale-95 shrink-0 whitespace-nowrap">
+            <span>Abrir Grade Mobile</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+        </a>
+    </div>
     <style>
         /* Mobile-first sizing for touch targets */
         .produto-form input,
@@ -78,6 +94,14 @@ if ($model->hasErrors()): ?>
                 padding: 12px 14px;
                 min-height: 48px;
             }
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
     </style>
 
@@ -427,6 +451,9 @@ if ($model->hasErrors()): ?>
                 </div>
                 
                 <div id="preview-container" class="mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"></div>
+            </div><!-- /p-4 sm:p-8 bg-blue-50/30 (fecha div da linha 401) -->
+        </div><!-- /mt-8 pt-8 border-t (fecha div da linha 396) -->
+
         <!-- Vídeos Existentes (se estiver editando) -->
         <?php if (!$model->isNewRecord && $model->videos): ?>
             <div class="mt-8 pt-8 border-t border-gray-100" id="secao-videos-existentes">
@@ -1246,7 +1273,6 @@ if ($model->hasErrors()): ?>
             ])->label(false) ?>
             <p class="mt-1.5 text-xs text-gray-500">Onde o produto está armazenado fisicamente</p>
         </div>
-        </div>
     </div><!-- /content-estoque -->
 
     <!-- ABA GRADE (Variações) -->
@@ -1403,7 +1429,8 @@ if ($model->hasErrors()): ?>
                 </div>
             </div>
         </div>
-    </div>
+    </div><!-- /content-kit -->
+    </div><!-- /tab-content -->
 
         <!-- Modal da Câmera -->
         <div id="camera-modal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-75 flex items-center justify-center p-2 sm:p-4">

@@ -8,6 +8,7 @@ use yii\db\ActiveRecord;
 use app\modules\vendas\models\Venda;
 use yii\behaviors\TimestampBehavior;
 use app\modules\vendas\models\Produto;
+use app\modules\vendas\models\ProdutoVariante;
 
 /**
  * ============================================================================================================
@@ -18,7 +19,8 @@ use app\modules\vendas\models\Produto;
  * @property string $id
  * @property string $venda_id
  * @property string $produto_id
- * @property integer $quantidade
+ * @property string $variante_id
+ * @property float $quantidade
  * @property float $preco_unitario_venda
  * @property float $valor_total_item
  * @property string $nome_item_manual
@@ -26,6 +28,7 @@ use app\modules\vendas\models\Produto;
  * 
  * @property Venda $venda
  * @property Produto $produto
+ * @property ProdutoVariante $variante
  */
 class VendaItem extends ActiveRecord
 {
@@ -45,12 +48,13 @@ class VendaItem extends ActiveRecord
     {
         return [
             [['venda_id', 'produto_id', 'quantidade', 'preco_unitario_venda'], 'required'],
-            [['venda_id', 'produto_id', 'nome_item_manual'], 'string'],
+            [['venda_id', 'produto_id', 'nome_item_manual', 'variante_id'], 'string'],
             [['quantidade'], 'number', 'min' => 0.001],
             [['avulso_resolvido'], 'boolean'],
             [['preco_unitario_venda', 'valor_total_item', 'desconto_percentual', 'desconto_valor'], 'number', 'min' => 0],
             [['venda_id'], 'exist', 'skipOnError' => true, 'targetClass' => Venda::class, 'targetAttribute' => ['venda_id' => 'id']],
             [['produto_id'], 'exist', 'skipOnError' => true, 'targetClass' => Produto::class, 'targetAttribute' => ['produto_id' => 'id']],
+            [['variante_id'], 'exist', 'skipOnError' => true, 'targetClass' => ProdutoVariante::class, 'targetAttribute' => ['variante_id' => 'id']],
         ];
     }
 
@@ -63,6 +67,7 @@ class VendaItem extends ActiveRecord
             'id' => 'ID',
             'venda_id' => 'Venda',
             'produto_id' => 'Produto',
+            'variante_id' => 'Variante / Grade',
             'quantidade' => 'Quantidade',
             'preco_unitario_venda' => 'Preço Unitário',
             'valor_total_item' => 'Valor Total',
@@ -110,11 +115,17 @@ class VendaItem extends ActiveRecord
         return $this->hasOne(Produto::class, ['id' => 'produto_id']);
     }
 
+    public function getVariante()
+    {
+        return $this->hasOne(ProdutoVariante::class, ['id' => 'variante_id']);
+    }
+
     // VendaItem.php - ADICIONADO:
     public function fields()
     {
         $fields = parent::fields();
         $fields['produto'] = 'produto';
+        $fields['variante'] = 'variante';
         $fields['nome_exibicao'] = function () {
             return $this->getNomeExibicao();
         };
@@ -129,6 +140,10 @@ class VendaItem extends ActiveRecord
     {
         if (!empty($this->nome_item_manual)) {
             return $this->nome_item_manual;
+        }
+
+        if ($this->variante) {
+            return $this->variante->getNomeFormatado();
         }
 
         if ($this->produto) {

@@ -11,6 +11,7 @@ $viewMode = Yii::$app->request->get('view', 'cards');
 // ✅ Carrega biblioteca para leitura de código de barras via webcam
 echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>';
 ?>
+<?php $this->registerJsFile('https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js', ['position' => \yii\web\View::POS_HEAD]); ?>
 
 <div class="min-h-screen bg-gray-50 py-6 px-4 sm:px-6 lg:px-8">
 
@@ -84,9 +85,16 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                 ['class' => 'inline-flex items-center justify-center px-3.5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-purple-400/30 whitespace-nowrap']
             ) ?>
 
-            <!-- 8. Novo Produto -->
+            <!-- 8. Novo Produto (Grade Mobile) -->
             <?= Html::a(
-                '<svg class="w-4 h-4 inline-block text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg><span>Novo Produto</span>',
+                '<span class="text-amber-300 text-base">⚡</span><span>Novo Produto (Grade Mobile)</span>',
+                ['/vendas/produto/create-matriz'],
+                ['class' => 'inline-flex items-center justify-center px-3.5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-800 hover:from-indigo-700 hover:to-indigo-900 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-indigo-400/30 whitespace-nowrap']
+            ) ?>
+
+            <!-- 9. Novo Produto Clássico -->
+            <?= Html::a(
+                '<svg class="w-4 h-4 inline-block text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg><span>Novo Produto Clássico</span>',
                 ['/vendas/produto/create'],
                 ['class' => 'inline-flex items-center justify-center px-3.5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-green-400/30 whitespace-nowrap']
             ) ?>
@@ -236,77 +244,8 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
             <!-- Visualização em Cards -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 <?php foreach ($dataProvider->getModels() as $model): ?>
-                    <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="relative bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
 
-                        <!-- Imagem -->
-                        <div class="relative h-48 bg-gray-200">
-                            <!-- Checkbox Seleção em Lote -->
-                            <div class="absolute top-2 left-2 z-10 bg-white/90 backdrop-blur-sm p-1 rounded-lg shadow border border-gray-200">
-                                <input type="checkbox" name="produto_massa_chk" value="<?= $model->id ?>" data-nome="<?= Html::encode($model->nome) ?>" class="w-5 h-5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer block">
-                            </div>
-
-                            <?php
-                            // Carrega foto principal
-                            $fotoPrincipal = $model->fotoPrincipal;
-                            if (!$fotoPrincipal && $model->fotos) {
-                                $fotoPrincipal = $model->fotos[0] ?? null;
-                            }
-                            ?>
-                            <?php if ($fotoPrincipal && !empty($fotoPrincipal->arquivo_path)): ?>
-                                <?php
-                                // Constrói URL da foto de forma robusta (funciona em localhost e VPS)
-                                $caminhoFoto = ltrim($fotoPrincipal->arquivo_path, '/');
-
-                                // Tenta múltiplas formas de construir a URL
-                                $urlFoto = null;
-
-                                // Método 1: Usa Url::to() com schema absoluto
-                                try {
-                                    $urlFoto = Url::to('@web/' . $caminhoFoto, true);
-                                    if (empty($urlFoto) || $urlFoto === '@web/' . $caminhoFoto) {
-                                        $urlFoto = null;
-                                    }
-                                } catch (\Exception $e) {
-                                    $urlFoto = null;
-                                }
-
-                                // Método 2: Se falhou, usa getAlias('@web')
-                                if (empty($urlFoto)) {
-                                    try {
-                                        $webAlias = Yii::getAlias('@web');
-                                        if (!empty($webAlias) && $webAlias !== '@web') {
-                                            $urlFoto = rtrim($webAlias, '/') . '/' . ltrim($caminhoFoto, '/');
-                                        }
-                                    } catch (\Exception $e) {
-                                        $urlFoto = null;
-                                    }
-                                }
-
-                                // Método 3: Fallback usando baseUrl do request
-                                if (empty($urlFoto)) {
-                                    $request = Yii::$app->request;
-                                    $baseUrl = $request->baseUrl;
-                                    if (!empty($baseUrl)) {
-                                        $urlFoto = rtrim($baseUrl, '/') . '/' . ltrim($caminhoFoto, '/');
-                                    } else {
-                                        // Último fallback: caminho relativo
-                                        $urlFoto = '/' . ltrim($caminhoFoto, '/');
-                                    }
-                                }
-                                ?>
-                                <img src="<?= $urlFoto ?>"
-                                    alt="<?= Html::encode($model->nome) ?>"
-                                    class="w-full h-full object-cover"
-                                    onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-full h-full flex items-center justify-center\'><svg class=\'w-16 h-16 text-gray-400\' fill=\'none\' stroke=\'currentColor\' viewBox=\'0 0 24 24\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z\'/></svg></div>';">
-                            <?php else: ?>
-                                <div class="w-full h-full flex items-center justify-center">
-                                    <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                </div>
-                            <?php endif; ?>
-
-                            <!-- Badges -->
                             <?php if (!$model->ativo): ?>
                                 <span class="absolute top-2 left-2 px-2 py-1 bg-gray-600 text-white text-xs font-semibold rounded">
                                     Inativo
@@ -317,7 +256,107 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                                     Sem Estoque
                                 </span>
                             <?php endif; ?>
-                        </div>
+<?php
+    // Monta array de URLs das fotos do produto
+    $gerarUrlFoto = function($arquivoPath) {
+        if (empty($arquivoPath)) {
+            return null;
+        }
+        $caminho = ltrim($arquivoPath, '/');
+        try {
+            $caminhoFisico = Yii::getAlias('@webroot/' . $caminho);
+            if (!is_file($caminhoFisico)) {
+                $caminhoFisicoApp = Yii::getAlias('@app/web/' . $caminho);
+                if (!is_file($caminhoFisicoApp)) {
+                    $directPath = dirname(dirname(dirname(__DIR__))) . '/web/' . $caminho;
+                    if (!is_file($directPath)) {
+                        return null;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        try {
+            $webAlias = Yii::getAlias('@web');
+            if (!empty($webAlias) && $webAlias !== '@web') {
+                return rtrim($webAlias, '/') . '/' . $caminho;
+            }
+        } catch (\Throwable $e) {}
+
+        if (Yii::$app->has('request')) {
+            $base = Yii::$app->request->baseUrl;
+            if (!empty($base)) {
+                return rtrim($base, '/') . '/' . $caminho;
+            }
+        }
+        return '/' . $caminho;
+    };
+    $photos = [];
+    if ($model->fotoPrincipal && !empty($model->fotoPrincipal->arquivo_path)) {
+        $urlFoto = $gerarUrlFoto($model->fotoPrincipal->arquivo_path);
+        if ($urlFoto) {
+            $photos[] = $urlFoto;
+        }
+    }
+    if (!empty($model->fotos)) {
+        foreach ($model->fotos as $f) {
+            if ($f && !empty($f->arquivo_path)) {
+                $url = $gerarUrlFoto($f->arquivo_path);
+                if ($url && !in_array($url, $photos)) {
+                    $photos[] = $url;
+                }
+            }
+        }
+    }
+?>
+<?php
+    $placeholderSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><rect width='48' height='48' fill='%23f3f4f6'/><text x='24' y='28' font-family='sans-serif' font-size='8' fill='%239ca3af' text-anchor='middle'>SEM FOTO</text></svg>";
+    $fotoInicial = !empty($photos) ? $photos[0] : $placeholderSvg;
+    $carouselConfig = [
+        'photos' => !empty($photos) ? array_values($photos) : [$placeholderSvg],
+        'index' => 0,
+    ];
+?>
+<div class="relative h-48 bg-gray-100 overflow-hidden group flex items-center justify-center p-2" x-data="<?= Html::encode(json_encode($carouselConfig)) ?>">
+    <div class="absolute top-2 left-2 z-10 bg-white/90 backdrop-blur-sm p-1 rounded-lg shadow border border-gray-200">
+        <input type="checkbox" name="produto_massa_chk" value="<?= $model->id ?>" data-nome="<?= Html::encode($model->nome) ?>" class="w-5 h-5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer block">
+    </div>
+
+    <?php if (count($photos) > 1): ?>
+        <div class="absolute top-2 right-2 z-10 bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow pointer-events-none">
+            <svg class="w-3 h-3 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            <span x-text="(index + 1) + '/<?= count($photos) ?>'"><?= '1/' . count($photos) ?></span>
+        </div>
+    <?php endif; ?>
+
+    <img :src="photos[index]" 
+         src="<?= Html::encode($fotoInicial) ?>" 
+         alt="<?= Html::encode($model->nome) ?>" 
+         class="w-full h-full object-contain select-none transition-transform duration-300 group-hover:scale-105" 
+         onerror="this.onerror=null; this.src='<?= $placeholderSvg ?>';">
+
+    <?php if (count($photos) > 1): ?>
+        <button type="button" 
+                x-show="photos.length > 1" 
+                @click.stop="index = (index === 0 ? photos.length - 1 : index - 1)" 
+                class="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white/80 hover:bg-white text-gray-800 rounded-full p-1.5 focus:outline-none transition-all duration-200 shadow-md hover:scale-110">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <button type="button" 
+                x-show="photos.length > 1" 
+                @click.stop="index = (index === photos.length - 1 ? 0 : index + 1)" 
+                class="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white/80 hover:bg-white text-gray-800 rounded-full p-1.5 focus:outline-none transition-all duration-200 shadow-md hover:scale-110">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+        </button>
+        <div x-show="photos.length > 1" class="absolute bottom-2 left-1/2 transform -translate-x-1/2 z-10 flex space-x-1.5 bg-black/40 backdrop-blur-xs px-2 py-1 rounded-full">
+            <template x-for="(photo, i) in photos" :key="i">
+                <span @click.stop="index = i" 
+                      :class="{'bg-white w-3.5': i === index, 'bg-white/50 w-1.5': i !== index}" 
+                      class="h-1.5 rounded-full cursor-pointer transition-all duration-300 block"></span>
+            </template>
+        </div>
+    <?php endif; ?>
+</div>
 
                         <!-- Conteúdo -->
                         <div class="p-4">
@@ -446,52 +485,31 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="flex items-center">
                                             <?php
-                                            // Carrega foto principal
+                                            // Carrega foto principal (getFotoPrincipal já valida existência física do arquivo)
                                             $fotoPrincipal = $model->fotoPrincipal;
-                                            if (!$fotoPrincipal && $model->fotos) {
-                                                $fotoPrincipal = $model->fotos[0] ?? null;
-                                            }
                                             ?>
                                             <?php if ($fotoPrincipal && !empty($fotoPrincipal->arquivo_path)): ?>
                                                 <?php
                                                 // Constrói URL da foto de forma robusta (funciona em localhost e VPS)
                                                 $caminhoFoto = ltrim($fotoPrincipal->arquivo_path, '/');
-
-                                                // Tenta múltiplas formas de construir a URL
                                                 $urlFoto = null;
 
-                                                // Método 1: Usa Url::to() com schema absoluto
                                                 try {
-                                                    $urlFoto = Url::to('@web/' . $caminhoFoto, true);
-                                                    if (empty($urlFoto) || $urlFoto === '@web/' . $caminhoFoto) {
-                                                        $urlFoto = null;
+                                                    $webAlias = Yii::getAlias('@web');
+                                                    if (!empty($webAlias) && $webAlias !== '@web') {
+                                                        $urlFoto = rtrim($webAlias, '/') . '/' . $caminhoFoto;
                                                     }
-                                                } catch (\Exception $e) {
-                                                    $urlFoto = null;
-                                                }
+                                                } catch (\Throwable $e) {}
 
-                                                // Método 2: Se falhou, usa getAlias('@web')
-                                                if (empty($urlFoto)) {
-                                                    try {
-                                                        $webAlias = Yii::getAlias('@web');
-                                                        if (!empty($webAlias) && $webAlias !== '@web') {
-                                                            $urlFoto = rtrim($webAlias, '/') . '/' . ltrim($caminhoFoto, '/');
-                                                        }
-                                                    } catch (\Exception $e) {
-                                                        $urlFoto = null;
-                                                    }
-                                                }
-
-                                                // Método 3: Fallback usando baseUrl do request
-                                                if (empty($urlFoto)) {
-                                                    $request = Yii::$app->request;
-                                                    $baseUrl = $request->baseUrl;
+                                                if (empty($urlFoto) && Yii::$app->has('request')) {
+                                                    $baseUrl = Yii::$app->request->baseUrl;
                                                     if (!empty($baseUrl)) {
-                                                        $urlFoto = rtrim($baseUrl, '/') . '/' . ltrim($caminhoFoto, '/');
-                                                    } else {
-                                                        // Último fallback: caminho relativo
-                                                        $urlFoto = '/' . ltrim($caminhoFoto, '/');
+                                                        $urlFoto = rtrim($baseUrl, '/') . '/' . $caminhoFoto;
                                                     }
+                                                }
+
+                                                if (empty($urlFoto)) {
+                                                    $urlFoto = '/' . $caminhoFoto;
                                                 }
                                                 ?>
                                                 <img src="<?= $urlFoto ?>"
@@ -499,14 +517,14 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                                                     alt="<?= Html::encode($model->nome) ?>"
                                                     onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                                 <div class="w-10 h-10 rounded bg-gray-200 mr-3 flex items-center justify-center" style="display: none;">
-                                                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                                                     </svg>
                                                 </div>
                                             <?php else: ?>
                                                 <div class="w-10 h-10 rounded bg-gray-200 mr-3 flex items-center justify-center">
-                                                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                                                     </svg>
                                                 </div>
                                             <?php endif; ?>
@@ -847,7 +865,7 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
 <?= $this->render('_modal_cadastro_rapido', ['lojaId' => Yii::$app->user->id]) ?>
 <?= $this->render('_modal_enriquecimento_web', ['lojaId' => Yii::$app->user->id]) ?>
 <?php
-$slugLoja = ($usuarioLoja && !empty($usuarioLoja->slug)) ? $usuarioLoja->slug : (($usuarioLoja && !empty($usuarioLoja->nome_loja)) ? $usuarioLoja->nome_loja : ($usuarioLoja ? $usuarioLoja->id : 'loja'));
+$slugLoja = $usuarioLoja ? $usuarioLoja->slug : 'loja';
 $hubUrlCompleta = Url::to(['/hub/index', 'slug' => $slugLoja], true);
 ?>
 <?= $this->render('_modal_canal_interno', [
@@ -855,3 +873,32 @@ $hubUrlCompleta = Url::to(['/hub/index', 'slug' => $slugLoja], true);
     'lojaConfig' => $lojaConfig ?? null,
     'hubUrlCompleta' => $hubUrlCompleta,
 ]) ?>
+
+<script>
+    // Polling em segundo plano para o contador de pedidos não lidos no Header da tela de produtos
+    (function() {
+        setInterval(function() {
+            if (document.hidden) return;
+            fetch('<?= Url::to(['/vendas/produto/get-inbox']) ?>')
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.success) {
+                        const total = data.total_nao_lidos || 0;
+                        const badge = document.getElementById('badgeInboxNaoLidosHeader');
+                        if (badge) {
+                            if (total > 0) {
+                                badge.textContent = total;
+                                badge.classList.remove('hidden');
+                                badge.style.display = 'inline-flex';
+                            } else {
+                                badge.classList.add('hidden');
+                                badge.style.display = 'none';
+                            }
+                        }
+                    }
+                })
+                .catch(() => {});
+        }, 30000);
+    })();
+</script>
+

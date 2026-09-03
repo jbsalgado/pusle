@@ -29,9 +29,14 @@ $this->params['breadcrumbs'][] = $this->title;
                     ['class' => 'inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-300']
                 ) ?>
                 <?= Html::a(
-                    '<svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>Editar',
+                    '<svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>Editar Clássico',
                     ['update', 'id' => $model->id],
                     ['class' => 'inline-flex items-center px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-lg transition duration-300']
+                ) ?>
+                <?= Html::a(
+                    '<span class="text-amber-300 text-base mr-1">⚡</span>Grade Matriz',
+                    ['update-matriz', 'id' => $model->id],
+                    ['class' => 'inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-lg transition duration-300 shadow-md']
                 ) ?>
                 <?= Html::beginForm(['delete', 'id' => $model->id], 'post', ['id' => 'delete-form']) ?>
                 <?= Html::button(
@@ -328,6 +333,131 @@ $this->params['breadcrumbs'][] = $this->title;
                         ]) ?>
                     </div>
                 </div>
+
+                <!-- Grade de Variações da Matriz Unificada -->
+                <?php
+                $todasVariantes = $model->variantesNovas;
+                $variantesComEstoque = array_filter($todasVariantes, fn($v) => (float)$v->estoque_atual > 0);
+                $variantesZeradas = array_filter($todasVariantes, fn($v) => (float)$v->estoque_atual <= 0);
+                ?>
+                <?php if (!empty($variantesComEstoque) || !empty($variantesZeradas)): ?>
+                    <div class="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+                        <div class="px-6 py-4 bg-gradient-to-r from-indigo-950 to-indigo-900 text-white flex items-center justify-between flex-wrap gap-2">
+                            <div class="flex items-center gap-2">
+                                <span class="text-amber-300 text-lg">⚡</span>
+                                <h3 class="text-base font-bold">
+                                    Grade de Variações 
+                                    <span class="text-indigo-200 text-sm font-normal">
+                                        (<?= count($variantesComEstoque) ?> <?= count($variantesComEstoque) === 1 ? 'tamanho disponível' : 'tamanhos disponíveis' ?>)
+                                    </span>
+                                </h3>
+                            </div>
+                            <span class="text-xs bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-full font-bold border border-emerald-400/30">
+                                Estoque Total: <?= Yii::$app->formatter->asDecimal($model->estoque_atual, 0) ?> un
+                            </span>
+                        </div>
+                        <div class="p-6 space-y-4">
+                            <?php
+                            $porCor = [];
+                            foreach ($variantesComEstoque as $v) {
+                                $porCor[$v->cor][] = $v;
+                            }
+                            ?>
+                            <?php if (!empty($porCor)): ?>
+                                <?php foreach ($porCor as $nomeCor => $itensCor): ?>
+                                    <?php
+                                    $fotosDestaCor = $model->getFotosPorCor($nomeCor);
+                                    $totalDestaCor = array_sum(array_map(fn($item) => (float)$item->estoque_atual, $itensCor));
+                                    ?>
+                                    <div class="bg-gray-50 rounded-xl p-4 border border-gray-200" id="card-cor-<?= Html::encode(preg_replace('/[^a-zA-Z0-9]/', '', $nomeCor)) ?>">
+                                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 pb-3 border-b border-gray-200">
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <span class="w-3.5 h-3.5 rounded-full bg-indigo-600 inline-block shadow-xs"></span>
+                                                <span class="text-sm font-black text-gray-900 uppercase">Modelo/Cor: <?= Html::encode($nomeCor) ?></span>
+                                                <span class="text-xs bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded-full">
+                                                    <?= $totalDestaCor ?> un disponíveis
+                                                </span>
+                                            </div>
+
+                                            <!-- Área de Fotos e Botão de Escolher Foto da Cor -->
+                                            <div class="flex items-center gap-2">
+                                                <!-- Miniaturas com zoom e botão de desvincular -->
+                                                <div id="container-fotos-cor-<?= Html::encode(preg_replace('/[^a-zA-Z0-9]/', '', $nomeCor)) ?>" class="flex items-center gap-1.5">
+                                                    <?php if (!empty($fotosDestaCor)): ?>
+                                                        <?php foreach ($fotosDestaCor as $fCor): ?>
+                                                            <div class="relative group w-11 h-11 rounded-xl overflow-hidden border border-gray-300 shadow-xs bg-white shrink-0" id="foto-item-<?= $fCor->id ?>">
+                                                                <img src="<?= $fCor->getUrl() ?>" class="w-full h-full object-cover cursor-pointer" onclick="window.open(this.src, '_blank')" title="Ver foto em tamanho real da cor <?= Html::encode($nomeCor) ?>">
+                                                                <button type="button" 
+                                                                        onclick="desvincularFotoCor('<?= $fCor->id ?>', '<?= Html::encode($nomeCor) ?>')" 
+                                                                        class="absolute inset-0 bg-red-600/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-[11px] font-black" title="Remover esta foto da cor <?= Html::encode($nomeCor) ?>">
+                                                                    &times;
+                                                                </button>
+                                                            </div>
+                                                        <?php endforeach; ?>
+                                                    <?php endif; ?>
+                                                </div>
+
+                                                <!-- Botão de Escolher / Adicionar Foto da Cor -->
+                                                <button type="button" 
+                                                        onclick="abrirModalFotoCor('<?= Html::encode($nomeCor) ?>')" 
+                                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 <?= empty($fotosDestaCor) ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs' : 'bg-white border border-gray-300 hover:bg-gray-100 text-gray-700' ?> rounded-xl text-xs font-bold transition active:scale-95 shrink-0">
+                                                    <svg class="w-4 h-4 <?= empty($fotosDestaCor) ? 'text-indigo-200' : 'text-gray-500' ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                                    <span><?= empty($fotosDestaCor) ? 'Escolher Foto da Cor' : '+ Foto' ?></span>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Grid de Tamanhos com Estoque Ativo -->
+                                        <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                                            <?php foreach ($itensCor as $varItem): ?>
+                                                <div class="bg-white rounded-lg p-2.5 border border-emerald-200/80 shadow-2xs flex flex-col justify-between text-center ring-1 ring-emerald-500/10">
+                                                    <div class="text-xs font-bold text-gray-600 uppercase">Tam. <?= Html::encode($varItem->tamanho) ?></div>
+                                                    <div class="text-lg font-black text-emerald-600 my-0.5">
+                                                        <?= (int)$varItem->estoque_atual ?> un
+                                                    </div>
+                                                    <div class="text-xs font-bold text-indigo-700 bg-indigo-50 py-0.5 px-1.5 rounded-md my-1 flex items-center justify-center gap-1">
+                                                        R$ <?= number_format($varItem->getPrecoVendaEfetivo(), 2, ',', '.') ?>
+                                                        <?php if ($varItem->preco_venda_sugerido !== null && (float)$varItem->preco_venda_sugerido > 0): ?>
+                                                            <span class="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1 rounded" title="Preço específico desta variação">Próprio</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    <button type="button" 
+                                                            onclick="imprimirEtiqueta('<?= Html::encode($varItem->getNomeFormatado()) ?>', '<?= Html::encode($varItem->codigo_barras ?: $varItem->codigo_referencia) ?>', '<?= number_format($varItem->getPrecoVendaEfetivo(), 2, ',', '.') ?>')" 
+                                                            class="mt-1 text-[10px] bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 py-1 px-1.5 rounded-md font-semibold transition flex items-center justify-center gap-1" title="Imprimir Etiqueta desta Variação">
+                                                        🏷️ <span>Etiqueta</span>
+                                                    </button>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="p-6 text-center text-sm text-gray-500 bg-amber-50 rounded-xl border border-amber-200">
+                                    ⚠️ Todas as combinações cadastradas para este produto estão temporariamente sem estoque.
+                                </div>
+                            <?php endif; ?>
+
+                            <!-- Painel Retrátil de Combinações Esgotadas / Zeradas -->
+                            <?php if (!empty($variantesZeradas)): ?>
+                                <details class="group pt-2 border-t border-gray-200">
+                                    <summary class="cursor-pointer text-xs font-bold text-gray-500 hover:text-gray-700 flex items-center gap-1.5 select-none py-1">
+                                        <span class="transition group-open:rotate-90 inline-block text-gray-400">▶</span>
+                                        <span>Ver <?= count($variantesZeradas) ?> combinações esgotadas / com estoque zerado</span>
+                                    </summary>
+                                    <div class="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200 text-xs">
+                                        <div class="flex flex-wrap gap-1.5">
+                                            <?php foreach ($variantesZeradas as $vz): ?>
+                                                <span class="px-2 py-1 bg-white rounded border border-gray-200 text-gray-400 font-mono text-[11px]">
+                                                    <?= Html::encode($vz->cor) ?> - Tam. <?= Html::encode($vz->tamanho) ?> (0 un)
+                                                </span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                </details>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
 
                 <!-- Galeria de Fotos -->
                 <?php
@@ -2057,5 +2187,314 @@ Garanta o seu antes que acabe o estoque!</textarea>
             btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Reenviar Apenas Itens com Falha`;
             alert('Erro de comunicação: ' + err.message);
         });
+    }
+</script>
+
+<!-- Modal Escolher Foto da Cor -->
+<div id="modalEscolherFotoCor" class="fixed inset-0 z-50 hidden overflow-y-auto bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all border border-gray-100">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-indigo-900 via-indigo-800 to-purple-900 px-6 py-4 text-white flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <span class="text-xl">📷</span>
+                <div>
+                    <h3 class="text-base font-black">Escolher Foto para Cor</h3>
+                    <p class="text-xs text-indigo-200">Cor selecionada: <strong id="modalFotoCorNome" class="text-white uppercase tracking-wider"></strong></p>
+                </div>
+            </div>
+            <button type="button" onclick="fecharModalFotoCor()" class="text-white/80 hover:text-white text-2xl font-bold p-1 leading-none">&times;</button>
+        </div>
+
+        <div class="p-5 space-y-4">
+            <!-- Abas Rápidas -->
+            <div class="flex border-b border-gray-200">
+                <button type="button" id="tabUploadFotoCor" onclick="alternarTabFotoCor('upload')" class="py-2 px-3 text-xs font-black border-b-2 border-indigo-600 text-indigo-600 transition flex items-center gap-1.5">
+                    <span>📤 Enviar Foto / Câmera</span>
+                </button>
+                <button type="button" id="tabGaleriaFotoCor" onclick="alternarTabFotoCor('galeria')" class="py-2 px-3 text-xs font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition flex items-center gap-1.5">
+                    <span>🖼️ Escolher da Galeria (<?= count($model->fotos) ?>)</span>
+                </button>
+            </div>
+
+            <!-- Conteúdo Aba 1: Upload de Nova Foto -->
+            <div id="conteudoTabUpload" class="space-y-3">
+                <!-- Dropzone com Label Nativa HTML5 -->
+                <div id="areaDropzoneFotoCor">
+                    <label for="inputUploadFotoCor"
+                           class="border-2 border-dashed border-indigo-300 hover:border-indigo-500 bg-indigo-50/50 hover:bg-indigo-100/60 rounded-2xl p-6 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2.5 group">
+                        <div class="w-12 h-12 rounded-full bg-indigo-100 group-hover:bg-indigo-200 flex items-center justify-center text-indigo-600 transition shadow-2xs">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        </div>
+                        <div>
+                            <span class="text-sm font-bold text-gray-900 block">Toque aqui para escolher foto</span>
+                            <span class="text-[11px] text-gray-500 block mt-0.5">Use a câmera do celular ou selecione do computador</span>
+                        </div>
+                        <span class="inline-block px-3 py-1 bg-white border border-gray-200 text-indigo-700 rounded-full text-[10px] font-bold shadow-2xs">
+                            JPG, PNG ou WebP
+                        </span>
+                    </label>
+                    <input type="file" id="inputUploadFotoCor" accept="image/*" class="sr-only" onchange="processarSelecaoFotoCor(this)">
+                </div>
+
+                <!-- Card de Preview e Confirmação Imediata -->
+                <div id="previewNovaFotoCor" class="hidden space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <div class="flex items-center gap-3">
+                        <img id="imgPreviewNovaFoto" src="" class="w-20 h-20 rounded-xl object-cover border border-gray-300 shadow-xs shrink-0 bg-white">
+                        <div class="flex-1 min-w-0">
+                            <span class="text-[10px] uppercase font-bold text-emerald-600 tracking-wider block">Foto Selecionada</span>
+                            <p id="nomeArquivoNovaFoto" class="text-xs font-bold text-gray-900 truncate mt-0.5"></p>
+                            <p id="tamanhoArquivoNovaFoto" class="text-[11px] text-gray-500"></p>
+                            <label for="inputUploadFotoCor" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold underline cursor-pointer mt-1 inline-block">
+                                Escolher outro arquivo
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="button" id="btnConfirmarUploadFotoCor" onclick="enviarUploadFotoCor()" class="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 active:scale-98 text-white text-xs sm:text-sm font-black rounded-xl shadow-md transition flex items-center justify-center gap-2">
+                        <span>🚀 Salvar Foto para Esta Cor</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Conteúdo Aba 2: Fotos Já Existentes na Galeria -->
+            <div id="conteudoTabGaleria" class="hidden space-y-2">
+                <p class="text-[11px] text-gray-600 font-medium">Toque em uma foto existente para vinculá-la a esta cor:</p>
+                <?php if (!empty($model->fotos)): ?>
+                    <div class="grid grid-cols-3 gap-2.5 max-h-64 overflow-y-auto p-1 scrollbar-thin">
+                        <?php foreach ($model->fotos as $fExist): ?>
+                            <div class="group relative aspect-square rounded-xl overflow-hidden border border-gray-200 hover:border-indigo-600 shadow-2xs cursor-pointer transition"
+                                 onclick="vincularFotoExistente('<?= $fExist->id ?>', this)">
+                                <img src="<?= $fExist->getUrl() ?>" class="w-full h-full object-cover">
+                                <?php if (!empty($fExist->cor)): ?>
+                                    <span class="absolute bottom-1 left-1 bg-black/70 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
+                                        <?= Html::encode($fExist->cor) ?>
+                                    </span>
+                                <?php endif; ?>
+                                <div class="absolute inset-0 bg-indigo-600/85 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition p-1 text-center">
+                                    <span class="text-xs font-black">Usar Foto</span>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php else: ?>
+                    <div class="p-6 text-center text-xs text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                        O produto ainda não possui outras fotos na galeria.
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <div class="px-6 py-3 bg-gray-50 border-t border-gray-100 flex justify-end">
+            <button type="button" onclick="fecharModalFotoCor()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs rounded-xl transition">
+                Fechar
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // GESTÃO RÁPIDA DE FOTOS POR COR NA GRADE
+    // ==========================================
+    let corAtivaModalFoto = null;
+
+    function abrirModalFotoCor(cor) {
+        corAtivaModalFoto = cor;
+        document.getElementById('modalFotoCorNome').textContent = cor;
+        const input = document.getElementById('inputUploadFotoCor');
+        if (input) input.value = '';
+        document.getElementById('previewNovaFotoCor').classList.add('hidden');
+        document.getElementById('areaDropzoneFotoCor').classList.remove('hidden');
+        alternarTabFotoCor('upload');
+        document.getElementById('modalEscolherFotoCor').classList.remove('hidden');
+    }
+
+    function fecharModalFotoCor() {
+        document.getElementById('modalEscolherFotoCor').classList.add('hidden');
+        corAtivaModalFoto = null;
+    }
+
+    function alternarTabFotoCor(tab) {
+        const tabUpload = document.getElementById('tabUploadFotoCor');
+        const tabGaleria = document.getElementById('tabGaleriaFotoCor');
+        const conteudoUpload = document.getElementById('conteudoTabUpload');
+        const conteudoGaleria = document.getElementById('conteudoTabGaleria');
+
+        if (tab === 'upload') {
+            tabUpload.className = 'py-2 px-3 text-xs font-black border-b-2 border-indigo-600 text-indigo-600 transition flex items-center gap-1.5';
+            tabGaleria.className = 'py-2 px-3 text-xs font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition flex items-center gap-1.5';
+            conteudoUpload.classList.remove('hidden');
+            conteudoGaleria.classList.add('hidden');
+        } else {
+            tabGaleria.className = 'py-2 px-3 text-xs font-black border-b-2 border-indigo-600 text-indigo-600 transition flex items-center gap-1.5';
+            tabUpload.className = 'py-2 px-3 text-xs font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition flex items-center gap-1.5';
+            conteudoGaleria.classList.remove('hidden');
+            conteudoUpload.classList.add('hidden');
+        }
+    }
+
+    // Processa a seleção do arquivo via onchange inline (100% à prova de falhas)
+    function processarSelecaoFotoCor(input) {
+        if (!input.files || !input.files[0]) return;
+
+        const file = input.files[0];
+        document.getElementById('nomeArquivoNovaFoto').textContent = file.name;
+        const sizeKb = (file.size / 1024).toFixed(0);
+        document.getElementById('tamanhoArquivoNovaFoto').textContent = sizeKb + ' KB';
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('imgPreviewNovaFoto').src = e.target.result;
+            document.getElementById('previewNovaFotoCor').classList.remove('hidden');
+            document.getElementById('areaDropzoneFotoCor').classList.add('hidden');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // Enviar upload via AJAX
+    function enviarUploadFotoCor() {
+        if (!corAtivaModalFoto) return;
+        const fileInput = document.getElementById('inputUploadFotoCor');
+        if (!fileInput.files || !fileInput.files[0]) {
+            alert('Por favor, selecione um arquivo de imagem.');
+            return;
+        }
+
+        const btn = document.getElementById('btnConfirmarUploadFotoCor');
+        btn.disabled = true;
+        btn.innerHTML = '⌛ Enviando foto...';
+
+        const formData = new FormData();
+        formData.append('cor', corAtivaModalFoto);
+        formData.append('foto', fileInput.files[0]);
+        formData.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->csrfToken ?>');
+
+        fetch('<?= Url::to(['upload-foto-cor', 'id' => $model->id]) ?>', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+        })
+        .then(r => r.json())
+        .then(res => {
+            btn.disabled = false;
+            btn.innerHTML = '🚀 Salvar Foto para Esta Cor';
+            if (res.success) {
+                adicionarThumbnailFotoNaTela(corAtivaModalFoto, res.foto_id, res.foto_url);
+                fecharModalFotoCor();
+                exibirToastSucesso(res.message);
+            } else {
+                alert('Erro: ' + (res.message || 'Falha ao enviar imagem.'));
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = '🚀 Salvar Foto para Esta Cor';
+            alert('Erro de conexão: ' + err.message);
+        });
+    }
+
+    // Vincular foto já existente à cor
+    function vincularFotoExistente(fotoId, elementoClicado) {
+        if (!corAtivaModalFoto) return;
+
+        if (elementoClicado) {
+            elementoClicado.style.opacity = '0.5';
+            elementoClicado.style.pointerEvents = 'none';
+        }
+
+        const formData = new FormData();
+        formData.append('cor', corAtivaModalFoto);
+        formData.append('foto_id', fotoId);
+        formData.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->csrfToken ?>');
+
+        fetch('<?= Url::to(['vincular-foto-cor', 'id' => $model->id]) ?>', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (elementoClicado) {
+                elementoClicado.style.opacity = '1';
+                elementoClicado.style.pointerEvents = 'auto';
+            }
+            if (res.success) {
+                adicionarThumbnailFotoNaTela(corAtivaModalFoto, res.foto_id, res.foto_url);
+                fecharModalFotoCor();
+                exibirToastSucesso(res.message);
+            } else {
+                alert('Erro: ' + (res.message || 'Falha ao vincular foto.'));
+            }
+        })
+        .catch(err => {
+            if (elementoClicado) {
+                elementoClicado.style.opacity = '1';
+                elementoClicado.style.pointerEvents = 'auto';
+            }
+            alert('Erro de conexão: ' + err.message);
+        });
+    }
+
+    // Desvincular foto da cor
+    function desvincularFotoCor(fotoId, cor) {
+        if (!confirm(`Deseja desvincular esta foto da cor ${cor}?`)) return;
+
+        const formData = new FormData();
+        formData.append('foto_id', fotoId);
+        formData.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->csrfToken ?>');
+
+        fetch('<?= Url::to(['desvincular-foto-cor', 'id' => $model->id]) ?>', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                const el = document.getElementById('foto-item-' + fotoId);
+                if (el) el.remove();
+                exibirToastSucesso('Foto desvinculada da cor!');
+            } else {
+                alert('Erro: ' + res.message);
+            }
+        })
+        .catch(err => alert('Erro: ' + err.message));
+    }
+
+    // Atualiza visualmente na tela
+    function adicionarThumbnailFotoNaTela(cor, fotoId, fotoUrl) {
+        const corClean = cor.replace(/[^a-zA-Z0-9]/g, '');
+        const container = document.getElementById('container-fotos-cor-' + corClean);
+        if (!container) return;
+
+        const thumb = document.createElement('div');
+        thumb.id = 'foto-item-' + fotoId;
+        thumb.className = 'relative group w-11 h-11 rounded-xl overflow-hidden border-2 border-emerald-500 shadow-md bg-white shrink-0 animate-bounce';
+        thumb.innerHTML = `
+            <img src="${fotoUrl}" class="w-full h-full object-cover cursor-pointer" onclick="window.open(this.src, '_blank')" title="Foto da cor ${cor}">
+            <button type="button" 
+                    onclick="desvincularFotoCor('${fotoId}', '${cor}')" 
+                    class="absolute inset-0 bg-red-600/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-[11px] font-black" title="Remover esta foto">
+                &times;
+            </button>
+        `;
+        container.appendChild(thumb);
+        setTimeout(() => thumb.classList.remove('animate-bounce'), 1200);
+    }
+
+    // Toast de Notificação
+    function exibirToastSucesso(msg) {
+        let toast = document.getElementById('toastFotoSucesso');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'toastFotoSucesso';
+            toast.className = 'fixed bottom-5 right-5 z-50 bg-emerald-600 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold transition-all duration-300 transform translate-y-10 opacity-0';
+            document.body.appendChild(toast);
+        }
+        toast.innerHTML = `<span>✅</span> <span>${msg}</span>`;
+        toast.classList.remove('translate-y-10', 'opacity-0');
+        setTimeout(() => {
+            toast.classList.add('translate-y-10', 'opacity-0');
+        }, 3000);
     }
 </script>

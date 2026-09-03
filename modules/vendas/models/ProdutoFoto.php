@@ -22,8 +22,11 @@ use app\modules\vendas\models\Produto;
  * @property boolean $eh_principal
  * @property integer $ordem
  * @property string $data_upload
+ * @property string|null $cor
+ * @property string|null $variante_id
  * 
  * @property Produto $produto
+ * @property ProdutoVariante|null $variante
  */
 class ProdutoFoto extends ActiveRecord
 {
@@ -42,13 +45,18 @@ class ProdutoFoto extends ActiveRecord
     {
         return [
             [['produto_id', 'arquivo_nome', 'arquivo_path'], 'required'],
-            [['produto_id'], 'string'],
+            [['produto_id', 'variante_id'], 'string'],
+            [['cor'], 'string', 'max' => 50],
             [['eh_principal'], 'boolean'],
             [['ordem'], 'integer'],
             [['ordem'], 'default', 'value' => 0],
             [['arquivo_nome'], 'string', 'max' => 255],
             [['arquivo_path'], 'string', 'max' => 500],
             [['produto_id'], 'exist', 'skipOnError' => true, 'targetClass' => Produto::class, 'targetAttribute' => ['produto_id' => 'id']],
+            [['variante_id'], 'exist', 'skipOnError' => true, 'targetClass' => ProdutoVariante::class, 'targetAttribute' => ['variante_id' => 'id']],
+            [['cor'], 'filter', 'filter' => function ($val) {
+                return $val ? mb_strtoupper(trim($val), 'UTF-8') : null;
+            }],
         ];
     }
 
@@ -65,6 +73,8 @@ class ProdutoFoto extends ActiveRecord
             'eh_principal' => 'Foto Principal',
             'ordem' => 'Ordem',
             'data_upload' => 'Data de Upload',
+            'cor' => 'Modelo / Cor Associado',
+            'variante_id' => 'Variação Específica',
         ];
     }
 
@@ -122,16 +132,22 @@ class ProdutoFoto extends ActiveRecord
     public function getUrl()
     {
         $caminhoFoto = ltrim($this->arquivo_path, '/');
-        if (Yii::$app->has('request') && method_exists(Yii::$app->request, 'getBaseUrl')) {
+        try {
+            $webAlias = \Yii::getAlias('@web');
+            if ($webAlias !== '@web' && $webAlias !== null && $webAlias !== '') {
+                return rtrim($webAlias, '/') . '/' . $caminhoFoto;
+            }
+        } catch (\Throwable $e) {}
+
+        if (\Yii::$app->has('request') && method_exists(\Yii::$app->request, 'getBaseUrl')) {
             try {
-                $baseUrl = Yii::$app->request->getBaseUrl();
-                if ($baseUrl !== null && $baseUrl !== false) {
+                $baseUrl = \Yii::$app->request->getBaseUrl();
+                if ($baseUrl !== null && $baseUrl !== false && $baseUrl !== '') {
                     return rtrim($baseUrl, '/') . '/' . $caminhoFoto;
                 }
-            } catch (\Throwable $e) {
-                // Fallback para caminho relativo
-            }
+            } catch (\Throwable $e) {}
         }
+
         return '/' . $caminhoFoto;
     }
 
@@ -141,16 +157,15 @@ class ProdutoFoto extends ActiveRecord
     public function getUrlCompleta()
     {
         $caminho = ltrim($this->arquivo_path, '/');
-        if (Yii::$app->has('request') && method_exists(Yii::$app->request, 'getHostInfo')) {
+        if (\Yii::$app->has('request') && method_exists(\Yii::$app->request, 'getHostInfo')) {
             try {
-                $host = Yii::$app->request->getHostInfo();
-                $base = Yii::$app->request->getBaseUrl();
+                $host = \Yii::$app->request->getHostInfo();
+                $base = \Yii::$app->request->getBaseUrl();
                 if ($host) {
-                    return rtrim($host, '/') . '/' . ltrim($base, '/') . ($base ? '/' : '') . $caminho;
+                    $basePart = ($base && $base !== '/') ? '/' . trim($base, '/') : '';
+                    return rtrim($host, '/') . $basePart . '/' . $caminho;
                 }
-            } catch (\Throwable $e) {
-                // Fallback
-            }
+            } catch (\Throwable $e) {}
         }
         return 'https://catalogos.oncode.app.br/' . $caminho;
     }
@@ -158,5 +173,10 @@ class ProdutoFoto extends ActiveRecord
     public function getProduto()
     {
         return $this->hasOne(Produto::class, ['id' => 'produto_id']);
+    }
+
+    public function getVariante()
+    {
+        return $this->hasOne(ProdutoVariante::class, ['id' => 'variante_id']);
     }
 }

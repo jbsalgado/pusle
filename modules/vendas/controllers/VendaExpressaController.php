@@ -15,6 +15,7 @@ use app\modules\vendas\models\StatusVenda;
 use app\modules\vendas\models\Colaborador;
 use app\modules\vendas\models\Cliente;
 use app\modules\vendas\models\LojaConfiguracao;
+use app\modules\vendas\models\ProdutoVariante;
 use app\modules\vendas\helpers\FormaPagamentoHelper;
 use app\models\Usuario;
 
@@ -65,6 +66,7 @@ class VendaExpressaController extends Controller
 
         $produtos = Produto::find()
             ->where(['usuario_id' => $lojaId, 'ativo' => true])
+            ->with(['variantesNovas', 'fotos'])
             ->orderBy(['nome' => SORT_ASC])
             ->all();
 
@@ -133,7 +135,8 @@ class VendaExpressaController extends Controller
         $usaMultiplos = !empty($pagamentosMultiplos);
 
         // Dados do Cliente (para disparos WhatsApp via Evolution API)
-        $clienteNome = trim($request->post('cliente_nome', ''));
+        $clienteNomeRaw = trim($request->post('cliente_nome', ''));
+        $clienteNome = $clienteNomeRaw;
         $clienteCpfRaw = trim($request->post('cliente_cpf', ''));
         $clienteWhatsappRaw = trim($request->post('cliente_whatsapp', ''));
 
@@ -231,6 +234,7 @@ class VendaExpressaController extends Controller
 
             foreach ($itensPost as $itemRaw) {
                 $prodId = $itemRaw['produto_id'] ?? null;
+                $varianteId = $itemRaw['variante_id'] ?? ($itemRaw['varianteId'] ?? null);
                 $qtd = max(0.001, (float)($itemRaw['quantidade'] ?? 1));
                 $precoUnit = (float)($itemRaw['preco_unitario'] ?? 0);
 
@@ -238,6 +242,27 @@ class VendaExpressaController extends Controller
 
                 $produto = Produto::findOne(['id' => $prodId, 'usuario_id' => $lojaId]);
                 if (!$produto) continue;
+
+                // Inteligência de Venda Fracionada:
+                // Se foi informada uma quantidade fracionada/decimal e o produto não estiver configurado
+                // como venda fracionada, atualiza automaticamente o cadastro do produto.
+                $isFracionado = abs($qtd - round($qtd)) > 0.0001;
+                if ($isFracionado && empty($produto->venda_fracionada)) {
+                    $produto->venda_fracionada = true;
+                    $produto->save(false, ['venda_fracionada']);
+                }
+
+                $variante = null;
+                $nomeItem = $produto->nome;
+                if (!empty($varianteId)) {
+                    $variante = ProdutoVariante::findOne(['id' => $varianteId, 'produto_id' => $produto->id]);
+                    if ($variante) {
+                        $nomeItem = $variante->getNomeFormatado();
+                        if ($precoUnit <= 0) {
+                            $precoUnit = $variante->getPrecoVendaEfetivo();
+                        }
+                    }
+                }
 
                 if ($precoUnit <= 0) {
                     $precoUnit = (float)$produto->preco_venda_sugerido;
@@ -248,6 +273,9 @@ class VendaExpressaController extends Controller
 
                 $itensValidados[] = [
                     'produto' => $produto,
+                    'variante' => $variante,
+                    'variante_id' => $variante ? $variante->id : null,
+                    'nome_manual' => $variante ? $nomeItem : null,
                     'quantidade' => $qtd,
                     'preco_unitario' => $precoUnit,
                     'subtotal' => $subtotal,
@@ -331,9 +359,15 @@ class VendaExpressaController extends Controller
 
             foreach ($itensValidados as $idx => $itemData) {
                 $p = $itemData['produto'];
+                $variante = $itemData['variante'] ?? null;
+
                 $vendaItem = new VendaItem();
                 $vendaItem->venda_id = $venda->id;
                 $vendaItem->produto_id = $p->id;
+                $vendaItem->variante_id = $itemData['variante_id'] ?? null;
+                if (!empty($itemData['nome_manual'])) {
+                    $vendaItem->nome_item_manual = $itemData['nome_manual'];
+                }
                 $vendaItem->quantidade = $itemData['quantidade'];
                 $vendaItem->preco_unitario_venda = $itemData['preco_unitario'];
 
@@ -355,30 +389,56 @@ class VendaExpressaController extends Controller
                 $vendaItem->valor_total_item = max(0, $itemData['subtotal'] - $vendaItem->desconto_valor);
 
                 if (!$vendaItem->save()) {
-                    throw new \Exception('Erro ao salvar item da venda.');
+                    throw new \Exception('Erro ao salvar item da venda: ' . implode(', ', $vendaItem->getFirstErrors()));
                 }
 
                 // Baixa de estoque real (permite saldo negativo se vendido sem estoque) e log de movimentação
-                $saldoAnterior = (float)($p->estoque_atual ?? 0);
-                $p->baixarEstoque($itemData['quantidade']);
-                $p->refresh();
-                $saldoNovo = (float)($p->estoque_atual ?? 0);
+                if ($variante) {
+                    $saldoAnterior = (float)($variante->estoque_atual ?? 0);
+                    $variante->baixarEstoque($itemData['quantidade']);
+                    $variante->refresh();
+                    $saldoNovo = (float)($variante->estoque_atual ?? 0);
 
-                try {
-                    Yii::$app->db->createCommand()->insert('prest_estoque_movimentacoes', [
-                        'id' => Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar(),
-                        'produto_id' => $p->id,
-                        'usuario_id' => $lojaId,
-                        'tipo_movimentacao' => 'SAIDA',
-                        'quantidade' => $itemData['quantidade'],
-                        'saldo_anterior' => $saldoAnterior,
-                        'saldo_novo' => $saldoNovo,
-                        'venda_id' => $venda->id,
-                        'observacao' => 'Saída por Venda Expressa #' . strtoupper(substr($venda->id, 0, 8)),
-                        'data_movimentacao' => date('Y-m-d H:i:s'),
-                    ])->execute();
-                } catch (\Exception $eMov) {
-                    Yii::warning('Falha ao registrar movimentação de estoque: ' . $eMov->getMessage(), __METHOD__);
+                    try {
+                        Yii::$app->db->createCommand()->insert('prest_estoque_movimentacoes', [
+                            'id' => Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar(),
+                            'produto_id' => $p->id,
+                            'variante_id' => $variante->id,
+                            'usuario_id' => $lojaId,
+                            'tipo_movimentacao' => 'SAIDA',
+                            'quantidade' => $itemData['quantidade'],
+                            'saldo_anterior' => $saldoAnterior,
+                            'saldo_novo' => $saldoNovo,
+                            'venda_id' => $venda->id,
+                            'observacao' => 'Saída por Venda Expressa #' . strtoupper(substr($venda->id, 0, 8)) . ' (' . $variante->cor . ' ' . $variante->tamanho . ')',
+                            'data_movimentacao' => date('Y-m-d H:i:s'),
+                        ])->execute();
+                    } catch (\Exception $eMov) {
+                        Yii::warning('Falha ao registrar movimentação de estoque variante: ' . $eMov->getMessage(), __METHOD__);
+                    }
+                } else {
+                    $saldoAnterior = (float)($p->estoque_atual ?? 0);
+                    $p->baixarEstoque($itemData['quantidade']);
+                    $p->refresh();
+                    $saldoNovo = (float)($p->estoque_atual ?? 0);
+
+                    try {
+                        Yii::$app->db->createCommand()->insert('prest_estoque_movimentacoes', [
+                            'id' => Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar(),
+                            'produto_id' => $p->id,
+                            'variante_id' => null,
+                            'usuario_id' => $lojaId,
+                            'tipo_movimentacao' => 'SAIDA',
+                            'quantidade' => $itemData['quantidade'],
+                            'saldo_anterior' => $saldoAnterior,
+                            'saldo_novo' => $saldoNovo,
+                            'venda_id' => $venda->id,
+                            'observacao' => 'Saída por Venda Expressa #' . strtoupper(substr($venda->id, 0, 8)),
+                            'data_movimentacao' => date('Y-m-d H:i:s'),
+                        ])->execute();
+                    } catch (\Exception $eMov) {
+                        Yii::warning('Falha ao registrar movimentação de estoque: ' . $eMov->getMessage(), __METHOD__);
+                    }
                 }
             }
 

@@ -367,12 +367,96 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
     </div>
 </div>
 
+<!-- Modal Seletor de Matriz / Variações de Produto (Grade de Modelo/Cor x Tamanho) -->
+<div id="modalSeletorMatriz" class="fixed inset-0 z-[150] hidden bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl max-w-lg w-full p-5 space-y-4 text-white relative my-8">
+        
+        <!-- Header do Modal -->
+        <div class="flex items-start justify-between border-b border-slate-800 pb-3 gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+                <img id="matrizModalFoto" src="" alt="Produto" class="w-12 h-12 object-contain rounded-xl bg-white p-1 flex-shrink-0 shadow">
+                <div class="min-w-0">
+                    <span class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">📦 Escolha a Grade / Variação</span>
+                    <h3 id="matrizModalNome" class="font-extrabold text-sm sm:text-base text-white truncate mt-0.5">Produto</h3>
+                    <p id="matrizModalPrecoBase" class="text-xs font-bold text-emerald-400">R$ 0,00</p>
+                </div>
+            </div>
+            <button type="button" onclick="fecharModalSeletorMatriz()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <!-- Seletor de Modelo / Cor -->
+        <div class="space-y-1.5" id="matrizContainerCores">
+            <label class="block text-[11px] font-bold text-amber-400 uppercase tracking-wider">1. Modelo / Cor:</label>
+            <div id="matrizListaCores" class="flex flex-wrap gap-2 max-h-32 overflow-y-auto pr-1">
+                <!-- Renderizado dinamicamente via JS -->
+            </div>
+        </div>
+
+        <!-- Seletor de Tamanho -->
+        <div class="space-y-1.5">
+            <label class="block text-[11px] font-bold text-amber-400 uppercase tracking-wider">2. Tamanho / Opção:</label>
+            <div id="matrizListaTamanhos" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
+                <!-- Renderizado dinamicamente via JS -->
+            </div>
+        </div>
+
+        <!-- Resumo da Seleção Atual & Quantidade -->
+        <div class="bg-slate-950/70 border border-slate-800 rounded-2xl p-3 flex items-center justify-between gap-3">
+            <div class="min-w-0">
+                <div class="text-[10px] text-slate-400 uppercase font-bold">Item Selecionado:</div>
+                <div id="matrizItemSelecionadoNome" class="text-xs font-black text-amber-300 truncate">Selecione modelo e tamanho</div>
+                <div id="matrizItemSelecionadoEstoque" class="text-[10px] text-slate-400 font-semibold">Estoque disponível: -</div>
+            </div>
+
+            <!-- Quantidade a Adicionar -->
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <div class="text-[10px] text-slate-400 uppercase font-bold hidden sm:block">Qtd:</div>
+                <div class="flex items-center bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+                    <button type="button" onclick="alterarQtdModalMatriz(-1)" class="px-2.5 py-1 text-slate-300 hover:bg-slate-700 font-bold text-sm">-</button>
+                    <input type="text" id="matrizQtdInput" value="1" class="w-14 bg-transparent text-center text-xs font-black text-white focus:outline-none">
+                    <button type="button" onclick="alterarQtdModalMatriz(1)" class="px-2.5 py-1 text-slate-300 hover:bg-slate-700 font-bold text-sm">+</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botões de Ação do Modal -->
+        <div class="space-y-2 pt-2 border-t border-slate-800">
+            <button type="button" id="btnConfirmarVarianteMatriz" onclick="confirmarAdicionarVarianteMatriz()" disabled class="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-montserrat font-black text-xs sm:text-sm rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                <span>🛒 Adicionar ao Carrinho</span>
+            </button>
+            <button type="button" onclick="fecharModalSeletorMatriz()" class="w-full py-2 text-xs font-bold text-slate-400 hover:text-white transition">
+                Cancelar
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
     const produtosArray = [
         <?php foreach ($produtos as $p): 
             $foto = $p->fotoPrincipal ?: ($p->fotos[0] ?? null);
             $urlFoto = $foto ? Url::to('@web/' . ltrim($foto->arquivo_path, '/'), true) : '';
             $precoStr = number_format($p->preco_venda_sugerido, 2, ',', '.');
+            $vars = [];
+            if (!empty($p->variantesNovas)) {
+                foreach ($p->variantesNovas as $v) {
+                    if (!$v->ativo) continue;
+                    $vars[] = [
+                        'id' => $v->id,
+                        'produto_id' => $p->id,
+                        'cor' => $v->cor,
+                        'tamanho' => $v->tamanho,
+                        'nome_formatado' => $v->getNomeFormatado(),
+                        'estoque' => (float)$v->estoque_atual,
+                        'preco' => $v->getPrecoVendaEfetivo(),
+                        'preco_str' => number_format($v->getPrecoVendaEfetivo(), 2, ',', '.'),
+                        'codigo_barras' => $v->codigo_barras ?: '',
+                        'sku' => $v->codigo_referencia ?: '',
+                    ];
+                }
+            }
         ?>
         {
             id: <?= json_encode($p->id) ?>,
@@ -382,7 +466,10 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             precoStr: <?= json_encode($precoStr) ?>,
             unidade: <?= json_encode($p->unidade_medida ?: 'UN') ?>,
             estoqueVal: <?= (float)($p->estoque_atual ?? 0) ?>,
-            foto: <?= json_encode($urlFoto) ?>
+            foto: <?= json_encode($urlFoto) ?>,
+            vendaFracionada: <?= json_encode((bool)$p->venda_fracionada) ?>,
+            temMatriz: <?= json_encode(count($vars) > 0) ?>,
+            variantes: <?= json_encode($vars) ?>
         },
         <?php endforeach; ?>
     ];
@@ -466,10 +553,21 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             return;
         }
 
-        const resultados = produtosArray.filter(p => 
-            p.nome.toLowerCase().includes(termoClean) || 
-            (p.marca && p.marca.toLowerCase().includes(termoClean))
-        );
+        const resultados = produtosArray.filter(p => {
+            if (p.nome.toLowerCase().includes(termoClean) || (p.marca && p.marca.toLowerCase().includes(termoClean))) {
+                return true;
+            }
+            if (p.temMatriz && p.variantes && p.variantes.length > 0) {
+                return p.variantes.some(v => 
+                    (v.codigo_barras && v.codigo_barras.toLowerCase() === termoClean) ||
+                    (v.sku && v.sku.toLowerCase() === termoClean) ||
+                    v.cor.toLowerCase().includes(termoClean) ||
+                    v.tamanho.toLowerCase().includes(termoClean) ||
+                    v.nome_formatado.toLowerCase().includes(termoClean)
+                );
+            }
+            return false;
+        });
 
         if (resultados.length === 0) {
             dropdown.innerHTML = `<div class="p-4 text-xs font-bold text-slate-400 text-center">Nenhum produto encontrado com "${termoClean}"</div>`;
@@ -494,14 +592,24 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                 ? `<span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-extrabold px-1.5 py-0.5 rounded">Estoque: ${prod.estoqueVal}</span>`
                 : `<span class="bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[9px] font-extrabold px-1.5 py-0.5 rounded">⚠️ Sem estoque (${prod.estoqueVal})</span>`;
 
+            const matrizBadge = (prod.temMatriz && prod.variantes && prod.variantes.length > 0)
+                ? `<span class="bg-indigo-500/25 text-indigo-300 border border-indigo-500/40 text-[9px] font-extrabold px-2 py-0.5 rounded-full">📦 Grade (${prod.variantes.length})</span>`
+                : '';
+
+            const fracionadoBadge = prod.vendaFracionada
+                ? `<span class="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] font-extrabold px-1.5 py-0.5 rounded">⚡ Fracionado</span>`
+                : '';
+
             item.innerHTML = `
                 <div class="flex items-center gap-3 flex-1 min-w-0">
                     ${prod.foto ? `<img src="${prod.foto}" class="w-9 h-9 object-contain rounded-lg bg-white p-0.5 flex-shrink-0">` : `<div class="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center text-[9px] font-bold text-slate-500 flex-shrink-0">FOTO</div>`}
                     <div class="truncate">
                         <div class="font-extrabold text-xs text-white group-hover:text-amber-300 truncate">${nomeHighlighted}</div>
-                        <div class="flex items-center gap-2 mt-0.5">
+                        <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
                             ${prod.marca ? `<span class="text-[10px] text-slate-400 font-semibold">${prod.marca}</span>` : ''}
                             ${estoqueBadge}
+                            ${matrizBadge}
+                            ${fracionadoBadge}
                         </div>
                     </div>
                 </div>
@@ -559,25 +667,254 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         });
     }
 
-    function selecionarProdutoDireto(prod) {
-        if (!itensVendaMap[prod.id]) {
-            // Quantidade padrão igual a 1
-            itensVendaMap[prod.id] = {
+    // ============================================================
+    // SELETOR DE MATRIZ / VARIAÇÕES (Modelo/Cor x Tamanho)
+    // ============================================================
+    let produtoMatrizAtual = null;
+    let corMatrizSelecionada = null;
+    let varianteMatrizSelecionada = null;
+
+    function abrirModalSeletorMatriz(prod) {
+        produtoMatrizAtual = prod;
+        corMatrizSelecionada = null;
+        varianteMatrizSelecionada = null;
+
+        document.getElementById('matrizModalNome').textContent = prod.nome;
+        document.getElementById('matrizModalPrecoBase').textContent = 'A partir de R$ ' + prod.precoStr + ' /' + prod.unidade;
+        
+        const img = document.getElementById('matrizModalFoto');
+        if (prod.foto) {
+            img.src = prod.foto;
+            img.style.display = 'block';
+        } else {
+            img.style.display = 'none';
+        }
+
+        document.getElementById('matrizQtdInput').value = '1';
+        document.getElementById('btnConfirmarVarianteMatriz').disabled = true;
+
+        // Extrai Cores / Modelos Únicos
+        const cores = [...new Set(prod.variantes.map(v => v.cor))];
+        corMatrizSelecionada = cores[0] || null;
+
+        renderizarCoresMatriz(cores);
+        renderizarTamanhosMatriz();
+        atualizarResumoSelecaoMatriz();
+
+        document.getElementById('modalSeletorMatriz').classList.remove('hidden');
+    }
+
+    function fecharModalSeletorMatriz() {
+        document.getElementById('modalSeletorMatriz').classList.add('hidden');
+        produtoMatrizAtual = null;
+        corMatrizSelecionada = null;
+        varianteMatrizSelecionada = null;
+    }
+
+    function renderizarCoresMatriz(cores) {
+        const container = document.getElementById('matrizListaCores');
+        container.innerHTML = '';
+
+        cores.forEach(cor => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            const isActive = cor === corMatrizSelecionada;
+            btn.className = 'btn-cor-matriz px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 ' + 
+                (isActive 
+                    ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md font-black' 
+                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700');
+            btn.innerHTML = `<span>🎨</span> <span>${cor}</span>`;
+            btn.onclick = function() {
+                selecionarCorMatriz(cor);
+            };
+            container.appendChild(btn);
+        });
+    }
+
+    function selecionarCorMatriz(cor) {
+        corMatrizSelecionada = cor;
+        varianteMatrizSelecionada = null;
+        document.getElementById('btnConfirmarVarianteMatriz').disabled = true;
+
+        // Atualiza botões de cor
+        document.querySelectorAll('.btn-cor-matriz').forEach(btn => {
+            if (btn.innerText.includes(cor)) {
+                btn.className = 'btn-cor-matriz px-3 py-1.5 rounded-xl border text-xs font-black transition flex items-center gap-1.5 bg-amber-400 text-slate-950 border-amber-300 shadow-md';
+            } else {
+                btn.className = 'btn-cor-matriz px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700';
+            }
+        });
+
+        renderizarTamanhosMatriz();
+        atualizarResumoSelecaoMatriz();
+    }
+
+    function renderizarTamanhosMatriz() {
+        const container = document.getElementById('matrizListaTamanhos');
+        container.innerHTML = '';
+
+        if (!produtoMatrizAtual || !corMatrizSelecionada) return;
+
+        const variantesCor = produtoMatrizAtual.variantes.filter(v => v.cor === corMatrizSelecionada);
+
+        variantesCor.forEach(v => {
+            const card = document.createElement('div');
+            const isSelected = varianteMatrizSelecionada && varianteMatrizSelecionada.id === v.id;
+            const temEstoque = v.estoque > 0;
+            
+            card.className = 'card-variante-matriz p-2.5 rounded-2xl border cursor-pointer transition flex flex-col justify-between ' +
+                (isSelected
+                    ? 'bg-amber-400/20 border-amber-400 ring-2 ring-amber-400/50'
+                    : 'bg-slate-800/80 border-slate-700 hover:border-slate-500 hover:bg-slate-800');
+
+            card.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-black text-white">${v.tamanho}</span>
+                    <span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded ${temEstoque ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}">
+                        ${temEstoque ? v.estoque + ' un' : '0 un'}
+                    </span>
+                </div>
+                <div class="mt-2 flex items-center justify-between text-[11px]">
+                    <span class="text-slate-400 font-semibold">R$ ${v.preco_str}</span>
+                    <span class="text-[10px] text-amber-300 font-bold">${isSelected ? '✓ Escolhido' : '+ Selecionar'}</span>
+                </div>
+            `;
+
+            card.onclick = function() {
+                selecionarVarianteMatriz(v);
+            };
+
+            // Duplo clique adiciona imediatamente 1 unidade ao carrinho
+            card.ondblclick = function() {
+                selecionarVarianteMatriz(v);
+                confirmarAdicionarVarianteMatriz();
+            };
+
+            container.appendChild(card);
+        });
+    }
+
+    function selecionarVarianteMatriz(variante) {
+        varianteMatrizSelecionada = variante;
+        document.getElementById('btnConfirmarVarianteMatriz').disabled = false;
+
+        renderizarTamanhosMatriz();
+        atualizarResumoSelecaoMatriz();
+    }
+
+    function atualizarResumoSelecaoMatriz() {
+        const elNome = document.getElementById('matrizItemSelecionadoNome');
+        const elEstoque = document.getElementById('matrizItemSelecionadoEstoque');
+
+        if (varianteMatrizSelecionada) {
+            elNome.textContent = varianteMatrizSelecionada.nome_formatado;
+            const corEstoque = varianteMatrizSelecionada.estoque > 0 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold';
+            elEstoque.innerHTML = `Estoque: <span class="${corEstoque}">${varianteMatrizSelecionada.estoque} un</span> • Preço: <span class="text-amber-300 font-bold">R$ ${varianteMatrizSelecionada.preco_str}</span>`;
+        } else {
+            elNome.textContent = corMatrizSelecionada ? `Modelo ${corMatrizSelecionada} - Escolha o tamanho` : 'Selecione modelo e tamanho';
+            elEstoque.textContent = 'Estoque disponível: -';
+        }
+    }
+
+    function alterarQtdModalMatriz(delta) {
+        const input = document.getElementById('matrizQtdInput');
+        let val = parseFloat(String(input.value).replace(',', '.')) || 1;
+        val = Math.round((val + delta) * 1000) / 1000;
+        if (val < 0.001) val = 0.001;
+        input.value = (val % 1 === 0) ? val : val.toString().replace('.', ',');
+    }
+
+    function confirmarAdicionarVarianteMatriz() {
+        if (!produtoMatrizAtual || !varianteMatrizSelecionada) {
+            alert('Por favor, selecione um tamanho/variação antes de adicionar.');
+            return;
+        }
+
+        const inputQtd = document.getElementById('matrizQtdInput');
+        const qtd = parseFloat(String(inputQtd.value).replace(',', '.')) || 1;
+
+        if (qtd <= 0) {
+            alert('A quantidade deve ser maior que zero.');
+            return;
+        }
+
+        adicionarVarianteAoCarrinho(produtoMatrizAtual, varianteMatrizSelecionada, qtd);
+    }
+
+    function adicionarVarianteAoCarrinho(prod, variante, qtd) {
+        const itemKey = prod.id + '_' + variante.id;
+        if (!itensVendaMap[itemKey]) {
+            itensVendaMap[itemKey] = {
+                itemKey: itemKey,
                 id: prod.id,
+                produto_id: prod.id,
+                variante_id: variante.id,
+                nome: variante.nome_formatado,
+                cor: variante.cor,
+                tamanho: variante.tamanho,
+                precoVal: variante.preco > 0 ? variante.preco : prod.precoVal,
+                unidade: prod.unidade,
+                estoqueVal: variante.estoque,
+                foto: prod.foto,
+                qtd: qtd
+            };
+        } else {
+            itensVendaMap[itemKey].qtd = Math.round((itensVendaMap[itemKey].qtd + qtd) * 1000) / 1000;
+        }
+
+        fecharModalSeletorMatriz();
+        limparBuscaProduto();
+        renderizarItensVenda();
+        document.getElementById('inputBuscaProduto').focus();
+    }
+
+    function adicionarProdutoAoCarrinho(prod, qtd) {
+        const itemKey = prod.id;
+        if (!itensVendaMap[itemKey]) {
+            itensVendaMap[itemKey] = {
+                itemKey: itemKey,
+                id: prod.id,
+                produto_id: prod.id,
+                variante_id: null,
                 nome: prod.nome,
                 precoVal: prod.precoVal,
                 unidade: prod.unidade,
                 estoqueVal: prod.estoqueVal,
                 foto: prod.foto,
-                qtd: 1
+                qtd: qtd
             };
         } else {
-            itensVendaMap[prod.id].qtd += 1;
+            itensVendaMap[itemKey].qtd = Math.round((itensVendaMap[itemKey].qtd + qtd) * 1000) / 1000;
         }
 
         limparBuscaProduto();
         renderizarItensVenda();
         document.getElementById('inputBuscaProduto').focus();
+    }
+
+    function selecionarProdutoDireto(prod) {
+        const inputBusca = document.getElementById('inputBuscaProduto');
+        const termo = (inputBusca?.value || '').trim().toLowerCase();
+
+        // Se o produto possui matriz e variantes cadastradas
+        if (prod.temMatriz && prod.variantes && prod.variantes.length > 0) {
+            // Verifica se o leitor de código de barras ou busca encontrou uma variante específica
+            const matchExato = prod.variantes.find(v => 
+                (v.codigo_barras && v.codigo_barras.toLowerCase() === termo) ||
+                (v.sku && v.sku.toLowerCase() === termo)
+            );
+
+            if (matchExato) {
+                adicionarVarianteAoCarrinho(prod, matchExato, 1);
+                return;
+            }
+
+            // Abre modal interativo de escolha de cor e tamanho
+            abrirModalSeletorMatriz(prod);
+            return;
+        }
+
+        adicionarProdutoAoCarrinho(prod, 1);
     }
 
     function limparBuscaProduto() {
@@ -596,34 +933,37 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         }
     });
 
-    function alterarQtdItem(id, delta) {
-        if (itensVendaMap[id]) {
-            itensVendaMap[id].qtd += delta;
-            if (itensVendaMap[id].qtd <= 0) {
-                delete itensVendaMap[id];
+    function alterarQtdItem(key, delta) {
+        if (itensVendaMap[key]) {
+            let novaQtd = (parseFloat(itensVendaMap[key].qtd) || 0) + delta;
+            novaQtd = Math.round(novaQtd * 1000) / 1000;
+            if (novaQtd <= 0) {
+                delete itensVendaMap[key];
+            } else {
+                itensVendaMap[key].qtd = novaQtd;
             }
             renderizarItensVenda();
         }
     }
 
-    function atualizarQtdDireta(id, valStr) {
-        const val = parseFloat(valStr);
-        if (!isNaN(val) && val > 0 && itensVendaMap[id]) {
-            itensVendaMap[id].qtd = val;
+    function atualizarQtdDireta(key, valStr) {
+        const val = parseFloat(String(valStr).replace(',', '.'));
+        if (!isNaN(val) && val > 0 && itensVendaMap[key]) {
+            itensVendaMap[key].qtd = Math.round(val * 1000) / 1000;
             renderizarItensVenda();
         }
     }
 
-    function atualizarPrecoDireta(id, valStr) {
-        const val = parseFloat(valStr.replace(',', '.'));
-        if (!isNaN(val) && val >= 0 && itensVendaMap[id]) {
-            itensVendaMap[id].precoVal = val;
+    function atualizarPrecoDireta(key, valStr) {
+        const val = parseFloat(String(valStr).replace(',', '.'));
+        if (!isNaN(val) && val >= 0 && itensVendaMap[key]) {
+            itensVendaMap[key].precoVal = val;
             renderizarItensVenda();
         }
     }
 
-    function removerItem(id) {
-        delete itensVendaMap[id];
+    function removerItem(key) {
+        delete itensVendaMap[key];
         renderizarItensVenda();
     }
 
@@ -822,17 +1162,28 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
 
                 const div = document.createElement('div');
                 div.className = 'flex items-center justify-between p-3 bg-slate-900 border border-slate-700 rounded-2xl gap-3';
+                const itemKey = item.itemKey || item.id;
+                const badgeVariante = item.variante_id 
+                    ? `<span class="bg-indigo-500/25 text-indigo-300 border border-indigo-500/40 text-[9px] font-extrabold px-1.5 py-0.5 rounded">${item.cor} • ${item.tamanho}</span>` 
+                    : '';
+                const isFracionado = (Math.abs(item.qtd - Math.round(item.qtd)) > 0.0001);
+                const badgeFracionado = isFracionado 
+                    ? `<span class="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] font-extrabold px-1.5 py-0.5 rounded">⚡ Fracionado</span>` 
+                    : '';
+
                 div.innerHTML = `
                     <div class="flex items-center gap-2.5 flex-1 min-w-0">
                         ${item.foto ? `<img src="${item.foto}" class="w-10 h-10 object-contain rounded-lg bg-white p-0.5 flex-shrink-0">` : `<div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-[9px] font-bold text-slate-500 flex-shrink-0">FOTO</div>`}
                         <div class="truncate">
                             <div class="font-extrabold text-xs text-white truncate flex items-center flex-wrap gap-1">
                                 <span>${item.nome}</span>
+                                ${badgeVariante}
+                                ${badgeFracionado}
                                 ${avisoEstoque}
                             </div>
                             <div class="flex items-center gap-1 mt-0.5 text-[11px] text-slate-400">
                                 <span>R$</span>
-                                <input type="text" value="${item.precoVal.toFixed(2).replace('.', ',')}" oninput="aplicarMascaraMoedaInput(this); atualizarPrecoDireta('${item.id}', this.value)" class="w-20 bg-slate-800 text-amber-400 font-bold px-1 py-0.5 rounded border border-slate-700 text-center">
+                                <input type="text" value="${item.precoVal.toFixed(2).replace('.', ',')}" oninput="aplicarMascaraMoedaInput(this); atualizarPrecoDireta('${itemKey}', this.value)" class="w-20 bg-slate-800 text-amber-400 font-bold px-1 py-0.5 rounded border border-slate-700 text-center">
                                 <span>/${item.unidade}</span>
                             </div>
                         </div>
@@ -841,9 +1192,9 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                     <!-- Controle de Quantidade -->
                     <div class="flex items-center gap-2 flex-shrink-0">
                         <div class="flex items-center bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-                            <button type="button" onclick="alterarQtdItem('${item.id}', -1)" class="px-2.5 py-1 text-slate-300 hover:bg-slate-700 font-bold text-sm">-</button>
-                            <input type="number" step="any" min="0.01" value="${item.qtd}" onchange="atualizarQtdDireta('${item.id}', this.value)" class="w-12 bg-transparent text-center text-xs font-black text-white focus:outline-none">
-                            <button type="button" onclick="alterarQtdItem('${item.id}', 1)" class="px-2.5 py-1 text-slate-300 hover:bg-slate-700 font-bold text-sm">+</button>
+                            <button type="button" onclick="alterarQtdItem('${itemKey}', -1)" class="px-2.5 py-1 text-slate-300 hover:bg-slate-700 font-bold text-sm">-</button>
+                            <input type="text" inputmode="decimal" value="${item.qtd}" onchange="atualizarQtdDireta('${itemKey}', this.value)" class="w-16 bg-transparent text-center text-xs font-black text-white focus:outline-none border-x border-slate-700">
+                            <button type="button" onclick="alterarQtdItem('${itemKey}', 1)" class="px-2.5 py-1 text-slate-300 hover:bg-slate-700 font-bold text-sm">+</button>
                         </div>
 
                         <!-- Subtotal Item -->
@@ -852,7 +1203,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                         </div>
 
                         <!-- Deletar Item -->
-                        <button type="button" onclick="removerItem('${item.id}')" class="text-slate-500 hover:text-red-400 p-1">
+                        <button type="button" onclick="removerItem('${itemKey}')" class="text-slate-500 hover:text-red-400 p-1">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                         </button>
                     </div>
@@ -1055,7 +1406,8 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         btn.innerHTML = '⚡ Registrando Venda Expressa...';
 
         const payloadItens = lista.map(item => ({
-            produto_id: item.id,
+            produto_id: item.produto_id || item.id,
+            variante_id: item.variante_id || null,
             quantidade: item.qtd,
             preco_unitario: item.precoVal
         }));
@@ -1140,6 +1492,14 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         });
     }
 
+    function formatarQtdDisplay(qtd) {
+        const num = parseFloat(qtd) || 0;
+        if (Math.abs(num - Math.round(num)) < 0.0001) {
+            return num.toString();
+        }
+        return num.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 3 });
+    }
+
     function exibirModalComprovanteVenda(vendaData) {
         const container = document.getElementById('comprovanteReciboContainer');
         const modal = document.getElementById('modalComprovanteVenda');
@@ -1174,7 +1534,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                 <div class="py-1.5 border-b border-dashed border-slate-200">
                     <div class="font-bold text-slate-900 text-xs uppercase leading-tight">${i.nome}</div>
                     <div class="flex justify-between items-center text-[11px] text-slate-700 mt-0.5">
-                        <span>${qtd} x R$ ${unit.toFixed(2).replace('.', ',')}</span>
+                        <span>${formatarQtdDisplay(qtd)} ${i.unidade || 'un'} x R$ ${unit.toFixed(2).replace('.', ',')}</span>
                         <span class="font-bold">R$ ${subBrutoItem.toFixed(2).replace('.', ',')}</span>
                     </div>
                     ${descHtml}
@@ -1234,7 +1594,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                 </div>
                 <div class="text-[10px] text-slate-500 font-bold pt-0.5 space-y-0.5">
                     <div>TOTAL DE ITENS: ${(vendaData.itens || []).length}</div>
-                    <div>TOTAL DE PEÇAS: ${totalPecas}</div>
+                    <div>TOTAL DE PEÇAS / FRAÇÕES: ${formatarQtdDisplay(totalPecas)}</div>
                 </div>
             </div>
 

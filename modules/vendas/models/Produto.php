@@ -11,6 +11,7 @@ use app\modules\vendas\models\Categoria;
 use app\modules\vendas\models\VendaItem;
 use app\modules\vendas\models\ProdutoFoto;
 use app\modules\vendas\models\ProdutoVideo;
+use app\modules\vendas\models\ProdutoVariante;
 use app\modules\vendas\models\DadosFinanceiros;
 use app\modules\vendas\helpers\PricingHelper;
 use app\modules\marketplace\components\MarketplaceSyncManager;
@@ -50,6 +51,7 @@ use app\modules\marketplace\components\MarketplaceSyncManager;
  * @property string $cor
  * @property string $tamanho
  * @property boolean $eh_kit
+ * @property string $modo_grade
  *
  * @property Usuario $usuario
  * @property Categoria $categoria
@@ -58,6 +60,7 @@ use app\modules\marketplace\components\MarketplaceSyncManager;
  * @property DadosFinanceiros|null $dadosFinanceiros
  * @property Produto $pai
  * @property Produto[] $variacoes
+ * @property ProdutoVariante[] $variantesNovas
  * @property ProdutoKitItem[] $kitItens
  */
 class Produto extends ActiveRecord
@@ -170,6 +173,8 @@ class Produto extends ActiveRecord
             [['origem_mercadoria'], 'default', 'value' => '0'],
             [['permite_estoque_negativo'], 'boolean'],
             [['permite_estoque_negativo'], 'default', 'value' => false],
+            [['modo_grade'], 'string', 'max' => 20],
+            [['modo_grade'], 'default', 'value' => 'legado'],
         ];
     }
 
@@ -291,6 +296,30 @@ class Produto extends ActiveRecord
     }
 
     /**
+     * Relacionamento com as variantes da nova Matriz Unificada (prest_produto_variantes)
+     * @return \yii\db\ActiveQuery
+     */
+    public function getVariantesNovas()
+    {
+        return $this->hasMany(ProdutoVariante::class, ['produto_id' => 'id'])
+            ->orderBy(['cor' => SORT_ASC, 'tamanho' => SORT_ASC]);
+    }
+
+    /**
+     * Retorna as fotos vinculadas a uma cor específica (ou todas se cor for nula)
+     * @param string|null $cor
+     * @return ProdutoFoto[]
+     */
+    public function getFotosPorCor($cor = null)
+    {
+        $query = $this->hasMany(ProdutoFoto::class, ['produto_id' => 'id'])->orderBy(['ordem' => SORT_ASC]);
+        if ($cor !== null && trim($cor) !== '') {
+            $query->andWhere(['cor' => mb_strtoupper(trim($cor), 'UTF-8')]);
+        }
+        return $query->all();
+    }
+
+    /**
      * @return \yii\db\ActiveQuery
      */
     public function getKitItens()
@@ -299,11 +328,11 @@ class Produto extends ActiveRecord
     }
 
     /**
-     * Verifica se o produto possui variações (é um mestre de grade)
+     * Verifica se o produto possui variações (é um mestre de grade em qualquer modalidade)
      */
     public function getPossuiGrade()
     {
-        return $this->getVariacoes()->exists();
+        return $this->getVariacoes()->exists() || $this->getVariantesNovas()->exists();
     }
 
     /**
@@ -538,23 +567,32 @@ class Produto extends ActiveRecord
 
     /**
      * Recalcula o estoque total do produto mestre baseado na soma de suas variações
+     * Suporta tanto a nova Matriz Unificada (prest_produto_variantes) quanto a grade legada.
      * @return bool Retorna true se atualizou com sucesso
      */
     public function recalculateStockSum()
     {
-        // Força consulta direta ao banco com cast explícito para UUID se necessário
+        // 1. Prioridade: Nova Matriz Unificada (prest_produto_variantes)
+        $existeMatrizNova = ProdutoVariante::find()->where(['produto_id' => $this->id])->exists();
+        if ($existeMatrizNova || $this->modo_grade === 'matriz') {
+            $total = (float) ProdutoVariante::find()
+                ->where(['produto_id' => $this->id, 'ativo' => true])
+                ->sum('estoque_atual');
+            $this->estoque_atual = $total;
+            return $this->save(false, ['estoque_atual', 'data_atualizacao']);
+        }
+
+        // 2. Fallback: Grade Legada (Self-Referential com parent_id)
         $total = self::getDb()->createCommand(
             "SELECT SUM(estoque_atual) FROM prest_produtos WHERE parent_id = :pid::uuid",
             [':pid' => (string)$this->id]
         )->queryScalar();
 
-        // Só atualiza se houver variações (ou se o total for 0)
-        // Se a busca retornar NULL e não houver registros, talvez não deva zerar se for um produto simples
-        $existeGrade = self::find()->where(['parent_id' => $this->id])->exists();
+        $existeGradeLegada = self::find()->where(['parent_id' => $this->id])->exists();
 
-        if ($existeGrade) {
+        if ($existeGradeLegada) {
             $this->estoque_atual = (float)($total ?: 0);
-            return $this->save(false, ['estoque_atual']);
+            return $this->save(false, ['estoque_atual', 'data_atualizacao']);
         }
 
         return false;
@@ -717,8 +755,18 @@ class Produto extends ActiveRecord
         $primeiraValida = null;
 
         foreach ($fotos as $f) {
-            $caminhoFisico = Yii::getAlias('@app/web/' . ltrim($f->arquivo_path, '/'));
-            $existeFisicamente = file_exists($caminhoFisico);
+            $existeFisicamente = false;
+            try {
+                $caminhoFisico = Yii::getAlias('@webroot/' . ltrim($f->arquivo_path, '/'));
+                if (file_exists($caminhoFisico)) {
+                    $existeFisicamente = true;
+                } else {
+                    $caminhoFisicoApp = Yii::getAlias('@app/web/' . ltrim($f->arquivo_path, '/'));
+                    $existeFisicamente = file_exists($caminhoFisicoApp);
+                }
+            } catch (\Throwable $e) {
+                $existeFisicamente = false;
+            }
 
             if ($f->eh_principal && $existeFisicamente) {
                 return $f;
