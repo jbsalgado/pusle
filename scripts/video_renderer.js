@@ -209,7 +209,25 @@ async function main() {
             audioPath = path.resolve(__dirname, '../assets/audio/promo_bg.mp3');
         }
         const hasAudio = fs.existsSync(audioPath);
-        console.log(`[FFmpeg Audio] Using track: ${audioPath} (exists: ${hasAudio})`);
+
+        // Resolução de Locução IA (Text-to-Speech)
+        let locucaoPath = null;
+        if (data.locucaoAudio) {
+            const locReq = data.locucaoAudio;
+            locucaoPath = path.isAbsolute(locReq) 
+                ? locReq 
+                : path.resolve(__dirname, '../web', locReq.replace(/^\//, ''));
+            if (!fs.existsSync(locucaoPath)) {
+                locucaoPath = path.resolve(__dirname, '../web/uploads/audio/tts', path.basename(locReq));
+            }
+            if (!fs.existsSync(locucaoPath)) {
+                locucaoPath = null;
+            }
+        }
+        const hasLocucao = !!locucaoPath;
+        const modoAudio = data.modoAudio || (hasLocucao && hasAudio ? 'mixado_ducking' : (hasLocucao ? 'apenas_locucao' : 'apenas_musica'));
+
+        console.log(`[FFmpeg Audio] Track: ${audioPath} (exists: ${hasAudio}) | Locução: ${locucaoPath} (exists: ${hasLocucao}) | Modo: ${modoAudio}`);
 
         // Iniciar Processo FFmpeg via Spawn com MJPEG ultra-rápido
         const ffmpegArgs = [
@@ -220,13 +238,35 @@ async function main() {
             '-i', '-'
         ];
 
-        if (hasAudio) {
+        if (hasAudio && hasLocucao && modoAudio === 'mixado_ducking') {
+            // MÚSICA DE FUNDO + LOCUÇÃO IA COM AUDIO DUCKING (Música suave a 22%, Locução nítida a 100%)
             const fadeStart = Math.max(0, duracao - 1.5);
             ffmpegArgs.push(
                 '-stream_loop', '-1',
                 '-i', audioPath,
-                '-t', `${duracao}`,
-                '-filter_complex', `[1:a]afade=t=out:st=${fadeStart}:d=1.5[a]`,
+                '-i', locucaoPath,
+                '-filter_complex', `[1:a]volume=0.22,afade=t=out:st=${fadeStart}:d=1.5,atrim=0:${duracao}[bg];[2:a]volume=1.0,atrim=0:${duracao}[voice];[bg][voice]amix=inputs=2:duration=longest:dropout_transition=2[a]`,
+                '-map', '0:v',
+                '-map', '[a]',
+                '-shortest'
+            );
+        } else if (hasLocucao && (modoAudio === 'apenas_locucao' || !hasAudio)) {
+            // APENAS LOCUÇÃO IA
+            const fadeStart = Math.max(0, duracao - 1.5);
+            ffmpegArgs.push(
+                '-i', locucaoPath,
+                '-filter_complex', `[1:a]afade=t=out:st=${fadeStart}:d=1.5,atrim=0:${duracao}[a]`,
+                '-map', '0:v',
+                '-map', '[a]',
+                '-shortest'
+            );
+        } else if (hasAudio) {
+            // APENAS MÚSICA DE FUNDO (Padrão)
+            const fadeStart = Math.max(0, duracao - 1.5);
+            ffmpegArgs.push(
+                '-stream_loop', '-1',
+                '-i', audioPath,
+                '-filter_complex', `[1:a]afade=t=out:st=${fadeStart}:d=1.5,atrim=0:${duracao}[a]`,
                 '-map', '0:v',
                 '-map', '[a]',
                 '-shortest'
@@ -234,6 +274,7 @@ async function main() {
         }
 
         ffmpegArgs.push(
+            '-t', `${duracao}`,
             '-c:v', 'libx264',
             '-pix_fmt', 'yuv420p',
             '-preset', 'fast',

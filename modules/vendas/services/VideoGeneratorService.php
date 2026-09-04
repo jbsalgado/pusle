@@ -12,6 +12,7 @@ use app\modules\vendas\models\ProdutoVideo;
 use app\modules\vendas\models\LojaConfiguracao;
 use app\modules\vendas\models\RegraParcelamento;
 use app\jobs\GenerateProductVideoJob;
+use app\modules\vendas\services\AudioProcessorService;
 
 /**
  * Service para orquestrar a geração automatizada de vídeos promocionais curtos (9:16 vertical).
@@ -73,6 +74,9 @@ class VideoGeneratorService
             'cor' => $corParam,
             'modo_matriz' => $modoMatrizParam,
             'variante_id' => $options['variante_id'] ?? null,
+            'locucao_audio' => $options['locucaoAudio'] ?? ($options['locucao_audio'] ?? null),
+            'locucao_texto' => $options['locucaoTexto'] ?? ($options['locucao_texto'] ?? null),
+            'modo_audio' => $options['modoAudio'] ?? ($options['modo_audio'] ?? 'mixado_ducking'),
         ];
         $metaParams['resumo_recursos'] = ProdutoVideo::gerarResumoRecursosTexto($metaParams);
         $metaParams['solicitado_em'] = date('Y-m-d H:i:s');
@@ -278,19 +282,46 @@ class VideoGeneratorService
             $trilhaKey = $options['trilhaSonora'] ?? ($videoModel->metadata['trilha_sonora'] ?? 'promo_bg.mp3');
             $musicasMap = self::getMusicasDisponiveis();
             $trilhaSonora = null;
+            $trilhaTipo = null;
 
             if (isset($musicasMap[$trilhaKey])) {
                 $trilhaSonora = $musicasMap[$trilhaKey]['arquivo'];
+                $trilhaTipo = $musicasMap[$trilhaKey]['tipo_audio'] ?? null;
             } else if (strpos($trilhaKey, 'custom_') === 0) {
                 $customId = substr($trilhaKey, 7);
                 $trilhaModel = \app\modules\vendas\models\TrilhaSonora::findOne($customId);
                 if ($trilhaModel) {
                     $trilhaSonora = $trilhaModel->arquivo_path;
+                    $trilhaTipo = $trilhaModel->tipo;
                 }
             }
 
             if (!$trilhaSonora) {
                 $trilhaSonora = $trilhaKey;
+            }
+
+            // Se for áudio do YouTube ou uma música longa, extrai um trecho aleatório sincronizado com a duração do vídeo
+            if ($trilhaTipo === \app\modules\vendas\models\TrilhaSonora::TIPO_YOUTUBE 
+                || strpos((string)$trilhaSonora, 'uploads/audio/youtube') !== false 
+                || strpos((string)$trilhaKey, 'yt_') !== false) {
+                $trilhaSonora = AudioProcessorService::extrairTrechoAleatorio($trilhaSonora, (int)$videoModel->duracao);
+            }
+
+            // Processamento de Locução / Voz IA (Text-to-Speech)
+            $locucaoAudio = $options['locucaoAudio'] ?? ($options['locucao_audio'] ?? ($videoModel->metadata['locucao_audio'] ?? null));
+            $locucaoTexto = $options['locucaoTexto'] ?? ($options['locucao_texto'] ?? ($videoModel->metadata['locucao_texto'] ?? null));
+            $modoAudio = $options['modoAudio'] ?? ($options['modo_audio'] ?? ($videoModel->metadata['modo_audio'] ?? 'mixado_ducking'));
+
+            if (empty($locucaoAudio) && !empty($locucaoTexto)) {
+                try {
+                    $voz = $options['locucaoVoz'] ?? 'pt-BR-FranciscaNeural';
+                    $ttsRes = AudioProcessorService::gerarLocucaoTts($locucaoTexto, $voz, '+0%', $videoModel->usuario_id ?? null);
+                    if (!empty($ttsRes['arquivo'])) {
+                        $locucaoAudio = $ttsRes['arquivo'];
+                    }
+                } catch (\Throwable $e) {
+                    Yii::error("Erro ao gerar locução para vídeo {$videoModel->id}: " . $e->getMessage(), __METHOD__);
+                }
             }
 
             // Coletar Vídeos Reais do Produto (Prioriza uploads manuais do lojista)
@@ -352,6 +383,8 @@ class VideoGeneratorService
                 'corTema' => $options['corTema'] ?? ($videoModel->metadata['cor_tema'] ?? 'dark'),
                 'fundoEstilo' => $options['fundoEstilo'] ?? ($videoModel->metadata['fundo_estilo'] ?? 'gradient'),
                 'trilhaSonora' => $trilhaSonora,
+                'locucaoAudio' => $locucaoAudio,
+                'modoAudio' => $modoAudio,
                 'efeitoVisual' => $options['efeitoVisual'] ?? ($options['efeito_visual'] ?? ($videoModel->metadata['efeito_visual'] ?? 'none')),
                 'modoComposicao' => $modoComposicao,
                 'ajusteDuracao' => $options['ajusteDuracao'] ?? ($videoModel->metadata['ajuste_duracao'] ?? 'trim'),
@@ -555,10 +588,21 @@ class VideoGeneratorService
 
                 foreach ($customizadas as $trilha) {
                     $key = 'custom_' . $trilha->id;
-                    $prefixoIcone = ($trilha->tipo === \app\modules\vendas\models\TrilhaSonora::TIPO_EFEITO) ? '🔊 ' : '✨ ';
+                    $prefixoIcone = '✨ ';
+                    $descPadrao = 'Música própria enviada pelo usuário';
+                    if ($trilha->tipo === \app\modules\vendas\models\TrilhaSonora::TIPO_EFEITO) {
+                        $prefixoIcone = '🔊 ';
+                        $descPadrao = 'Efeito especial enviado pelo usuário';
+                    } elseif ($trilha->tipo === \app\modules\vendas\models\TrilhaSonora::TIPO_YOUTUBE) {
+                        $prefixoIcone = '▶️ ';
+                        $descPadrao = 'Áudio importado do YouTube';
+                    } elseif ($trilha->tipo === \app\modules\vendas\models\TrilhaSonora::TIPO_VOZ_IA) {
+                        $prefixoIcone = '🎙️ ';
+                        $descPadrao = 'Locução criada via Inteligência Artificial';
+                    }
                     $item = [
                         'nome' => $prefixoIcone . $trilha->titulo,
-                        'descricao' => $trilha->descricao ?: ($trilha->tipo === \app\modules\vendas\models\TrilhaSonora::TIPO_EFEITO ? 'Efeito especial enviado pelo usuário' : 'Música própria enviada pelo usuário'),
+                        'descricao' => $trilha->descricao ?: $descPadrao,
                         'arquivo' => $trilha->arquivo_path,
                         'tipo' => 'custom',
                         'tipo_audio' => $trilha->tipo ?: \app\modules\vendas\models\TrilhaSonora::TIPO_MUSICA,

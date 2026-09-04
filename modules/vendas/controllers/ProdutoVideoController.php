@@ -388,6 +388,10 @@ class ProdutoVideoController extends Controller
         $ajusteDuracao = $rawBody['ajusteDuracao'] ?? ($rawBody['ajuste_duracao'] ?? ($bodyParams['ajusteDuracao'] ?? ($bodyParams['ajuste_duracao'] ?? $request->post('ajusteDuracao', 'trim'))));
         $ajusteProporcao = $rawBody['ajusteProporcao'] ?? ($rawBody['ajuste_proporcao'] ?? ($bodyParams['ajusteProporcao'] ?? ($bodyParams['ajuste_proporcao'] ?? $request->post('ajusteProporcao', 'smart_blur'))));
 
+        $locucaoAudio = $rawBody['locucaoAudio'] ?? ($rawBody['locucao_audio'] ?? ($bodyParams['locucaoAudio'] ?? ($bodyParams['locucao_audio'] ?? $request->post('locucaoAudio', null))));
+        $locucaoTexto = $rawBody['locucaoTexto'] ?? ($rawBody['locucao_texto'] ?? ($bodyParams['locucaoTexto'] ?? ($bodyParams['locucao_texto'] ?? $request->post('locucaoTexto', null))));
+        $modoAudio = $rawBody['modoAudio'] ?? ($rawBody['modo_audio'] ?? ($bodyParams['modoAudio'] ?? ($bodyParams['modo_audio'] ?? $request->post('modoAudio', 'mixado_ducking'))));
+
         if (is_string($trilhasSonoras)) {
             $trilhasSonoras = array_filter(array_map('trim', explode(',', $trilhasSonoras)));
         }
@@ -460,6 +464,9 @@ class ProdutoVideoController extends Controller
                         'modoComposicao' => $modoComposicao,
                         'ajusteDuracao' => $ajusteDuracao,
                         'ajusteProporcao' => $ajusteProporcao,
+                        'locucaoAudio' => $locucaoAudio,
+                        'locucaoTexto' => $locucaoTexto,
+                        'modoAudio' => $modoAudio,
                     ];
                     $itemIndex++;
                 }
@@ -490,6 +497,9 @@ class ProdutoVideoController extends Controller
                     'modoComposicao' => $modoComposicao,
                     'ajusteDuracao' => $ajusteDuracao,
                     'ajusteProporcao' => $ajusteProporcao,
+                    'locucaoAudio' => $locucaoAudio,
+                    'locucaoTexto' => $locucaoTexto,
+                    'modoAudio' => $modoAudio,
                 ];
                 $itemIndex++;
             }
@@ -536,6 +546,9 @@ class ProdutoVideoController extends Controller
             'modoComposicao' => $itemData['modoComposicao'] ?? ($itemData['modo_composicao'] ?? $request->post('modo_composicao', 'hibrido')),
             'ajusteDuracao' => $itemData['ajusteDuracao'] ?? ($itemData['ajuste_duracao'] ?? $request->post('ajuste_duracao', 'trim')),
             'ajusteProporcao' => $itemData['ajusteProporcao'] ?? ($itemData['ajuste_proporcao'] ?? $request->post('ajuste_proporcao', 'smart_blur')),
+            'locucaoAudio' => $itemData['locucaoAudio'] ?? ($itemData['locucao_audio'] ?? $request->post('locucao_audio', null)),
+            'locucaoTexto' => $itemData['locucaoTexto'] ?? ($itemData['locucao_texto'] ?? $request->post('locucao_texto', null)),
+            'modoAudio' => $itemData['modoAudio'] ?? ($itemData['modo_audio'] ?? $request->post('modo_audio', 'mixado_ducking')),
             'cor' => $cor,
             'modo_matriz' => $modoMatriz,
         ];

@@ -822,9 +822,15 @@ input[type="radio"]:checked + .color-pill-card {
                                     🎯 Apenas a 1ª
                                 </button>
                             </div>
-                            <div style="display: flex; gap: 6px;">
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                <button type="button" onclick="abrirModalStudioYoutube()" class="btn btn-sm btn-outline-danger" style="border-color:#ef4444; color:#f87171; border-radius: 8px; font-weight: 600; font-size: 0.78rem;" title="Importar áudio do YouTube com recortes aleatórios">
+                                    ▶️ YouTube
+                                </button>
+                                <button type="button" onclick="abrirModalStudioLocucao()" class="btn btn-sm btn-outline-warning" style="border-color:#eab308; color:#fde047; border-radius: 8px; font-weight: 600; font-size: 0.78rem;" title="Criar Locução com Voz Neural (Texto para Áudio)">
+                                    🎙️ Locução IA
+                                </button>
                                 <button type="button" onclick="abrirModalStudioUpload()" class="btn btn-sm btn-outline-success" style="border-color:#10b981; color:#34d399; border-radius: 8px; font-weight: 600; font-size: 0.78rem;" title="Fazer Upload Rápido de Áudio">
-                                    ➕ Upload Rápido
+                                    ➕ Upload
                                 </button>
                                 <a href="<?= \yii\helpers\Url::to(['/vendas/trilha-sonora']) ?>" class="btn btn-sm btn-outline-secondary" style="border-color:#475569; color:#c084fc; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 0.78rem;" title="Gerenciar Músicas de Fundo">
                                     🎵 Biblioteca
@@ -832,8 +838,26 @@ input[type="radio"]:checked + .color-pill-card {
                             </div>
                         </div>
 
+                        <!-- Card de Locução IA Ativa (se configurada) -->
+                        <div id="badge-locucao-ativa" style="display: none; font-size: 0.82rem; background: rgba(234, 179, 8, 0.12); border: 1px solid rgba(234, 179, 8, 0.35); border-radius: 10px; padding: 8px 12px; margin-bottom: 10px; color: #fde047;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <div>
+                                    🎙️ <strong>Locução Ativa:</strong> <span id="lbl-locucao-resumo" style="color:#fff; font-weight:600;"></span>
+                                    <span id="lbl-locucao-modo" class="badge" style="background:#eab308; color:#0f172a; margin-left:6px; font-size:10px;">Mixada (Ducking)</span>
+                                </div>
+                                <div style="display: flex; gap: 6px; align-items: center;">
+                                    <button type="button" onclick="tocarPreviaLocucaoAtiva()" class="btn btn-xs btn-outline-warning" style="border-radius: 6px; font-size: 11px; padding: 2px 6px;">
+                                        🔊 Ouvir
+                                    </button>
+                                    <button type="button" onclick="removerLocucaoAtiva()" class="btn btn-xs btn-outline-danger" style="border-radius: 6px; font-size: 11px; padding: 2px 6px;" title="Remover Locução">
+                                        ✕ Remover
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
                         <div style="font-size: 0.8rem; color: #38bdf8; background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.2); border-radius: 8px; padding: 6px 12px; margin-bottom: 10px;">
-                            💡 <strong>Regra de Músicas:</strong> Se selecionar <strong>1 música</strong>, ela será usada em todos os vídeos. Se selecionar <strong>várias</strong>, o sistema distribuirá as faixas ciclicamente (<em>Round-Robin</em>) entre os vídeos do lote!
+                            💡 <strong>Regra de Músicas:</strong> Se selecionar <strong>1 música</strong>, ela será usada em todos os vídeos. Se selecionar <strong>várias</strong>, o sistema distribuirá as faixas ciclicamente (<em>Round-Robin</em>) entre os vídeos do lote! Músicas do YouTube terão trechos aleatórios sorteados automaticamente para cada vídeo!
                         </div>
 
                         <!-- Lista de Trilhas Rolável -->
@@ -1678,6 +1702,9 @@ function iniciarExecucaoLote(prodIds, modoMatriz, trilhasSelecionadas) {
         modoComposicao: modoComposicaoVal,
         ajusteDuracao: ajusteDuracaoVal,
         ajusteProporcao: ajusteProporcaoVal,
+        locucaoAudio: locucaoAtivaGlobal ? locucaoAtivaGlobal.audioPath : null,
+        locucaoTexto: locucaoAtivaGlobal ? locucaoAtivaGlobal.texto : null,
+        modoAudio: locucaoAtivaGlobal ? locucaoAtivaGlobal.modoAudio : 'apenas_musica',
         '<?= Yii::$app->request->csrfParam ?>': '<?= Yii::$app->request->csrfToken ?>'
     };
 
@@ -1959,6 +1986,340 @@ function atualizarBarraCota(stats) {
             btnGerar.style.cursor = 'pointer';
         }
     }
+}
+
+// =========================================================================
+// GESTÃO DE ÁUDIO DO YOUTUBE & LOCUÇÃO IA (TEXT-TO-SPEECH)
+// =========================================================================
+let locucaoAtivaGlobal = null; // { texto, voz, audioUrl, audioPath, modoAudio, duracao }
+let locucaoTempGerada = null;
+
+function abrirModalStudioYoutube() {
+    document.getElementById('modalStudioYoutube').style.display = 'flex';
+    const input = document.getElementById('txt-youtube-url');
+    if (input) setTimeout(() => input.focus(), 150);
+}
+
+function fecharModalStudioYoutube() {
+    document.getElementById('modalStudioYoutube').style.display = 'none';
+    const msg = document.getElementById('youtube-studio-msg');
+    if (msg) msg.style.display = 'none';
+}
+
+function importarYoutubeStudio() {
+    const urlInput = document.getElementById('txt-youtube-url');
+    const url = urlInput ? urlInput.value.trim() : '';
+    const msgDiv = document.getElementById('youtube-studio-msg');
+    const btn = document.getElementById('btn-submit-studio-youtube');
+
+    if (!url) {
+        msgDiv.style.display = 'block';
+        msgDiv.style.color = '#f87171';
+        msgDiv.innerText = 'Por favor, insira o link público do YouTube.';
+        return;
+    }
+
+    btn.disabled = true;
+    msgDiv.style.display = 'block';
+    msgDiv.style.color = '#38bdf8';
+    msgDiv.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Extraindo áudio do YouTube... (aguarde ~3 segundos)';
+
+    const formData = new FormData();
+    formData.append('url', url);
+    formData.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->getCsrfToken() ?>');
+
+    fetch('<?= Url::to(['/vendas/trilha-sonora/importar-youtube']) ?>', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        if (!data.success) {
+            msgDiv.style.color = '#f87171';
+            msgDiv.innerText = '❌ ' + (data.message || 'Erro ao extrair áudio do YouTube.');
+            return;
+        }
+
+        msgDiv.style.color = '#34d399';
+        msgDiv.innerText = '✅ Áudio importado com sucesso! Adicionado ao topo da lista.';
+
+        // Adiciona à lista de trilhas
+        const listaTrilhas = document.getElementById('lista-trilhas-studio');
+        if (listaTrilhas) {
+            const card = document.createElement('div');
+            card.className = 'trilha-card is-checked';
+            card.style.marginBottom = '6px';
+            card.innerHTML = `
+                <label style="display: flex; align-items: center; gap: 10px; margin: 0; cursor: pointer; flex: 1; min-width: 0;">
+                    <input type="checkbox" name="chk_trilha_item" class="chk-trilha-item" value="${data.arquivo}" data-url="${data.url}" data-nome="${data.titulo}" checked style="width: 17px; height: 17px; cursor: pointer; accent-color: #10b981;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 700; font-size: 0.88rem; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ▶️ ${data.titulo}
+                        </div>
+                        <div style="font-size: 0.75rem; color: #38bdf8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            Áudio do YouTube (${Math.round(data.duracao)}s) • Trechos aleatórios ativados
+                        </div>
+                    </div>
+                </label>
+                <button type="button" class="btn btn-xs btn-outline-info btn-preview-track" data-url="${data.url}" style="border-radius: 6px; font-size: 11px; padding: 3px 8px; border-color: #334155; color: #38bdf8; white-space: nowrap;">
+                    🔊 Ouvir
+                </button>
+            `;
+            listaTrilhas.insertBefore(card, listaTrilhas.firstChild);
+            card.querySelector('.chk-trilha-item').addEventListener('change', window.atualizarContagemTrilhas);
+            card.querySelector('.btn-preview-track').addEventListener('click', function() {
+                const audioUrl = this.getAttribute('data-url');
+                const audioPreviewElem = document.getElementById('audio-preview-element');
+                if (!audioUrl || !audioPreviewElem) return;
+                audioPreviewElem.src = audioUrl;
+                audioPreviewElem.play();
+            });
+            window.atualizarContagemTrilhas();
+        }
+
+        setTimeout(() => {
+            fecharModalStudioYoutube();
+            urlInput.value = '';
+        }, 1200);
+    })
+    .catch(err => {
+        btn.disabled = false;
+        msgDiv.style.color = '#f87171';
+        msgDiv.innerText = '❌ Erro de conexão: ' + err.message;
+    });
+}
+
+function abrirModalStudioLocucao() {
+    document.getElementById('modalStudioLocucao').style.display = 'flex';
+    atualizarEstimativaTempoFala();
+    const txtArea = document.getElementById('txt-locucao-texto');
+    if (txtArea && !txtArea.value) {
+        sugerirTextoOfertaStudio();
+    }
+}
+
+function fecharModalStudioLocucao() {
+    document.getElementById('modalStudioLocucao').style.display = 'none';
+    const msg = document.getElementById('locucao-studio-msg');
+    if (msg) msg.style.display = 'none';
+    const player = document.getElementById('audio-locucao-preview-player');
+    if (player) player.pause();
+}
+
+function atualizarEstimativaTempoFala() {
+    const txt = document.getElementById('txt-locucao-texto')?.value || '';
+    const charCount = txt.length;
+    const segsEstimados = Math.max(1, Math.round(charCount / 16));
+    const lbl = document.getElementById('lbl-tempo-fala-estimado');
+    if (lbl) {
+        let dicaTempo = 'Ideal para vídeos de 10s ou 15s';
+        if (segsEstimados > 15) {
+            dicaTempo = '⚠️ Texto longo! Recomendado duração de 30s ou 60s';
+        } else if (segsEstimados <= 6) {
+            dicaTempo = 'Perfeito para vídeos rápidos de 5s ou 10s';
+        }
+        lbl.innerText = `${charCount} caracteres • Tempo estimado de fala: ~${segsEstimados}s (${dicaTempo})`;
+    }
+}
+
+function sugerirTextoOfertaStudio() {
+    const primeiroChk = document.querySelector('.chk-produto-item:checked');
+    let nomeProd = 'este super produto';
+    let precoProd = '';
+    if (primeiroChk) {
+        nomeProd = primeiroChk.getAttribute('data-nome') || nomeProd;
+    }
+    const precos = document.querySelectorAll('.preco-produto-card');
+    if (precos && precos.length > 0) {
+        precoProd = ' por apenas ' + precos[0].innerText.trim();
+    }
+
+    const sugestoes = [
+        `Atenção! Olha só essa super oferta do ${nomeProd}${precoProd}! Qualidade garantida e estoque limitado. Garanta já o seu falando conosco pelo WhatsApp!`,
+        `Imperdível! Chegou novidade: ${nomeProd}${precoProd}! Aproveite as melhores condições e peça agora mesmo pelo direct ou WhatsApp!`,
+        `Você não pode perder! ${nomeProd}${precoProd} com entrega rápida e pagamento facilitado. Clique no link e garanta o seu!`
+    ];
+
+    const sorteada = sugestoes[Math.floor(Math.random() * sugestoes.length)];
+    const txtArea = document.getElementById('txt-locucao-texto');
+    if (txtArea) {
+        txtArea.value = sorteada;
+        atualizarEstimativaTempoFala();
+    }
+}
+
+function gerarPreviaLocucaoStudio() {
+    const txt = document.getElementById('txt-locucao-texto')?.value.trim() || '';
+    const voz = document.getElementById('sel-locucao-voz')?.value || 'pt-BR-FranciscaNeural';
+    const msgDiv = document.getElementById('locucao-studio-msg');
+    const btn = document.getElementById('btn-previa-locucao');
+    const player = document.getElementById('audio-locucao-preview-player');
+
+    if (!txt) {
+        msgDiv.style.display = 'block';
+        msgDiv.style.color = '#f87171';
+        msgDiv.innerText = 'Digite o texto da locução antes de ouvir a prévia.';
+        return;
+    }
+
+    btn.disabled = true;
+    msgDiv.style.display = 'block';
+    msgDiv.style.color = '#38bdf8';
+    msgDiv.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sintetizando voz neural IA... (aguarde ~1 segundo)';
+
+    const formData = new FormData();
+    formData.append('texto', txt);
+    formData.append('voz', voz);
+    formData.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->getCsrfToken() ?>');
+
+    fetch('<?= Url::to(['/vendas/trilha-sonora/gerar-locucao-tts']) ?>', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        if (!data.success) {
+            msgDiv.style.color = '#f87171';
+            msgDiv.innerText = '❌ ' + (data.message || 'Erro ao sintetizar voz.');
+            return;
+        }
+
+        locucaoTempGerada = data;
+        msgDiv.style.color = '#34d399';
+        msgDiv.innerText = `✅ Voz sintetizada com sucesso (${data.duracao.toFixed(1)}s)! Tocando prévia...`;
+
+        if (player) {
+            player.src = data.url;
+            player.style.display = 'block';
+            player.play();
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        msgDiv.style.color = '#f87171';
+        msgDiv.innerText = '❌ Erro: ' + err.message;
+    });
+}
+
+function aplicarLocucaoStudio() {
+    const txt = document.getElementById('txt-locucao-texto')?.value.trim() || '';
+    const voz = document.getElementById('sel-locucao-voz')?.value || 'pt-BR-FranciscaNeural';
+    const duckingChecked = document.getElementById('chk-locucao-ducking')?.checked;
+    const msgDiv = document.getElementById('locucao-studio-msg');
+
+    if (!txt) {
+        msgDiv.style.display = 'block';
+        msgDiv.style.color = '#f87171';
+        msgDiv.innerText = 'Digite o texto da locução para aplicar.';
+        return;
+    }
+
+    const modo = duckingChecked ? 'mixado_ducking' : 'apenas_locucao';
+
+    if (locucaoTempGerada && locucaoTempGerada.texto === txt && locucaoTempGerada.voz === voz) {
+        locucaoAtivaGlobal = {
+            texto: txt,
+            voz: voz,
+            audioUrl: locucaoTempGerada.url,
+            audioPath: locucaoTempGerada.arquivo,
+            duracao: locucaoTempGerada.duracao,
+            modoAudio: modo
+        };
+        atualizarBadgeLocucaoAtiva();
+        fecharModalStudioLocucao();
+        return;
+    }
+
+    const btn = document.getElementById('btn-aplicar-locucao');
+    btn.disabled = true;
+    msgDiv.style.display = 'block';
+    msgDiv.style.color = '#38bdf8';
+    msgDiv.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Gerando áudio da locução...';
+
+    const formData = new FormData();
+    formData.append('texto', txt);
+    formData.append('voz', voz);
+    formData.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->getCsrfToken() ?>');
+
+    fetch('<?= Url::to(['/vendas/trilha-sonora/gerar-locucao-tts']) ?>', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        if (!data.success) {
+            msgDiv.style.color = '#f87171';
+            msgDiv.innerText = '❌ ' + (data.message || 'Erro ao gerar locução.');
+            return;
+        }
+
+        locucaoAtivaGlobal = {
+            texto: txt,
+            voz: voz,
+            audioUrl: data.url,
+            audioPath: data.arquivo,
+            duracao: data.duracao,
+            modoAudio: modo
+        };
+        atualizarBadgeLocucaoAtiva();
+        fecharModalStudioLocucao();
+    })
+    .catch(err => {
+        btn.disabled = false;
+        msgDiv.style.color = '#f87171';
+        msgDiv.innerText = '❌ Erro: ' + err.message;
+    });
+}
+
+function atualizarBadgeLocucaoAtiva() {
+    const badge = document.getElementById('badge-locucao-ativa');
+    const lblResumo = document.getElementById('lbl-locucao-resumo');
+    const lblModo = document.getElementById('lbl-locucao-modo');
+    if (!badge || !lblResumo) return;
+
+    if (!locucaoAtivaGlobal) {
+        badge.style.display = 'none';
+        return;
+    }
+
+    badge.style.display = 'block';
+    const resumo = locucaoAtivaGlobal.texto.length > 50 
+        ? locucaoAtivaGlobal.texto.substring(0, 48) + '...' 
+        : locucaoAtivaGlobal.texto;
+    lblResumo.innerText = `"${resumo}" (${locucaoAtivaGlobal.duracao.toFixed(1)}s)`;
+    if (lblModo) {
+        lblModo.innerText = locucaoAtivaGlobal.modoAudio === 'mixado_ducking' ? 'Mixada (Ducking)' : 'Apenas Voz';
+        lblModo.style.background = locucaoAtivaGlobal.modoAudio === 'mixado_ducking' ? '#eab308' : '#10b981';
+    }
+}
+
+function tocarPreviaLocucaoAtiva() {
+    if (!locucaoAtivaGlobal || !locucaoAtivaGlobal.audioUrl) return;
+    const player = document.getElementById('audio-preview-element');
+    if (player) {
+        player.src = locucaoAtivaGlobal.audioUrl;
+        player.play();
+    }
+}
+
+function removerLocucaoAtiva() {
+    locucaoAtivaGlobal = null;
+    atualizarBadgeLocucaoAtiva();
 }
 
 function abrirModalStudioUpload() {
@@ -2425,3 +2786,103 @@ function monitorarProgressoVideoDisparo(disparoId) {
         </form>
     </div>
 </div>
+
+<!-- Modal Importar YouTube no Studio -->
+<div id="modalStudioYoutube" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,0.8); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:16px;">
+    <div style="background:#1e293b; border:1px solid #334155; color:#fff; border-radius:16px; width:100%; max-width:480px; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,0.5);">
+        <div style="background:linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); padding:16px 20px; display:flex; align-items:center; justify-content:space-between;">
+            <h3 style="margin:0; font-size:1.1rem; font-weight:700; color:#fff; display:flex; align-items:center; gap:8px;">
+                <span>▶️</span> Importar Áudio do YouTube
+            </h3>
+            <button onclick="fecharModalStudioYoutube()" type="button" style="background:none; border:none; color:#fff; font-size:1.3rem; cursor:pointer; padding:0 4px;">
+                ✕
+            </button>
+        </div>
+
+        <div style="padding:20px;">
+            <div style="margin-bottom:14px;">
+                <label class="form-label-custom">Link do Vídeo no YouTube (Normal ou Shorts)</label>
+                <input type="text" id="txt-youtube-url" class="select-custom" placeholder="https://www.youtube.com/watch?v=... ou https://youtu.be/...">
+                <small style="color:#94a3b8; font-size:0.75rem; margin-top:5px; display:block;">
+                    💡 O sistema extrai o áudio original em alta definição e sorteia automaticamente trechos aleatórios no tamanho exato da duração escolhida para o vídeo.
+                </small>
+            </div>
+
+            <div id="youtube-studio-msg" style="display:none; font-weight:600; margin-bottom:12px; font-size:0.85rem;"></div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid #334155; padding-top:14px;">
+                <button type="button" onclick="fecharModalStudioYoutube()" class="btn btn-outline-light btn-sm" style="border-color:#475569; color:#cbd5e1;">
+                    Cancelar
+                </button>
+                <button type="button" id="btn-submit-studio-youtube" onclick="importarYoutubeStudio()" class="btn btn-danger btn-sm" style="background:#ef4444; border:none; font-weight:700;">
+                    <span>⚡ Extrair e Usar no Vídeo</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Locução IA (Texto para Áudio) no Studio -->
+<div id="modalStudioLocucao" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,0.8); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:16px;">
+    <div style="background:#1e293b; border:1px solid #334155; color:#fff; border-radius:16px; width:100%; max-width:540px; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,0.5);">
+        <div style="background:linear-gradient(135deg, #d97706 0%, #b45309 100%); padding:16px 20px; display:flex; align-items:center; justify-content:space-between;">
+            <h3 style="margin:0; font-size:1.1rem; font-weight:700; color:#fff; display:flex; align-items:center; gap:8px;">
+                <span>🎙️</span> Locução Promocional IA (Texto para Voz)
+            </h3>
+            <button onclick="fecharModalStudioLocucao()" type="button" style="background:none; border:none; color:#fff; font-size:1.3rem; cursor:pointer; padding:0 4px;">
+                ✕
+            </button>
+        </div>
+
+        <div style="padding:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <label class="form-label-custom" style="margin-bottom:0;">Texto da Locução Comercial</label>
+                <button type="button" onclick="sugerirTextoOfertaStudio()" class="btn btn-xs btn-outline-warning" style="border-radius:6px; font-size:0.75rem; border-color:#eab308; color:#fde047; padding:2px 8px;">
+                    ✨ Sugerir Texto de Oferta
+                </button>
+            </div>
+
+            <textarea id="txt-locucao-texto" class="select-custom" rows="3" oninput="atualizarEstimativaTempoFala()" placeholder="Digite a mensagem promocional que a voz neural irá narrar..."></textarea>
+            <div id="lbl-tempo-fala-estimado" style="font-size:0.75rem; color:#94a3b8; margin-top:4px; margin-bottom:14px;">
+                0 caracteres • Tempo estimado de fala: ~0s
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:14px;">
+                <div>
+                    <label class="form-label-custom">Voz Neural</label>
+                    <select id="sel-locucao-voz" class="select-custom">
+                        <option value="pt-BR-FranciscaNeural">Francisca (Feminina Suave)</option>
+                        <option value="pt-BR-AntonioNeural">Antonio (Masculino Comercial)</option>
+                        <option value="pt-BR-ThalitaNeural">Thalita (Feminina Jovem/Dinâmica)</option>
+                        <option value="pt-BR-DonatoNeural">Donato (Masculino Firme)</option>
+                    </select>
+                </div>
+                <div style="display:flex; flex-direction:column; justify-content:center;">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:14px; font-size:0.8rem; color:#f1f5f9;">
+                        <input type="checkbox" id="chk-locucao-ducking" checked style="width:16px; height:16px; accent-color:#eab308;">
+                        <span>Audio Ducking (Atenua a música de fundo)</span>
+                    </label>
+                </div>
+            </div>
+
+            <audio id="audio-locucao-preview-player" controls style="width:100%; display:none; margin-bottom:12px; height:36px;"></audio>
+
+            <div id="locucao-studio-msg" style="display:none; font-weight:600; margin-bottom:12px; font-size:0.85rem;"></div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #334155; padding-top:14px;">
+                <button type="button" id="btn-previa-locucao" onclick="gerarPreviaLocucaoStudio()" class="btn btn-outline-info btn-sm" style="border-color:#38bdf8; color:#38bdf8; font-weight:600;">
+                    🔊 Ouvir Prévia
+                </button>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" onclick="fecharModalStudioLocucao()" class="btn btn-outline-light btn-sm" style="border-color:#475569; color:#cbd5e1;">
+                        Cancelar
+                    </button>
+                    <button type="button" id="btn-aplicar-locucao" onclick="aplicarLocucaoStudio()" class="btn btn-warning btn-sm" style="background:#eab308; color:#0f172a; border:none; font-weight:700;">
+                        ✨ Aplicar ao Vídeo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

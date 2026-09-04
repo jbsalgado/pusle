@@ -12,6 +12,7 @@ use yii\helpers\FileHelper;
 use app\components\TenantHelper;
 use app\modules\vendas\models\TrilhaSonora;
 use app\modules\vendas\services\VideoGeneratorService;
+use app\modules\vendas\services\AudioProcessorService;
 
 /**
  * Controller para CRUD e gerenciamento de Trilhas Sonoras (Músicas de Fundo dos Vídeos)
@@ -35,6 +36,8 @@ class TrilhaSonoraController extends Controller
                 'actions' => [
                     'upload' => ['POST'],
                     'delete' => ['POST'],
+                    'importar-youtube' => ['POST'],
+                    'gerar-locucao-tts' => ['POST'],
                 ],
             ],
         ];
@@ -188,5 +191,50 @@ class TrilhaSonoraController extends Controller
         Yii::$app->session->setFlash('success', 'Trilha sonora removida com sucesso!');
 
         return $this->redirect(['index']);
+    }
+
+    /**
+     * Importa áudio de link público do YouTube
+     */
+    public function actionImportarYoutube()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+        $url = Yii::$app->request->post('url');
+        if (empty($url)) {
+            return ['success' => false, 'message' => 'Por favor, informe a URL do YouTube.'];
+        }
+
+        try {
+            $usuarioId = TenantHelper::getId();
+            $res = AudioProcessorService::downloadYoutubeAudio($url, $usuarioId);
+            return $res;
+        } catch (\Throwable $e) {
+            Yii::error("Erro actionImportarYoutube: " . $e->getMessage(), __METHOD__);
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Gera locução neural em áudio a partir de um texto promocional
+     */
+    public function actionGerarLocucaoTts()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+        $texto = Yii::$app->request->post('texto');
+        $voz = Yii::$app->request->post('voz', 'pt-BR-FranciscaNeural');
+        $velocidade = Yii::$app->request->post('velocidade', '+0%');
+
+        if (empty(trim((string)$texto))) {
+            return ['success' => false, 'message' => 'Por favor, informe o texto da locução.'];
+        }
+
+        try {
+            $usuarioId = TenantHelper::getId();
+            $res = AudioProcessorService::gerarLocucaoTts($texto, $voz, $velocidade, $usuarioId);
+            return $res;
+        } catch (\Throwable $e) {
+            Yii::error("Erro actionGerarLocucaoTts: " . $e->getMessage(), __METHOD__);
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
     }
 }

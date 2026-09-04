@@ -28,6 +28,8 @@ class TrilhaSonora extends ActiveRecord
 {
     const TIPO_MUSICA = 'musica';
     const TIPO_EFEITO = 'efeito_especial';
+    const TIPO_YOUTUBE = 'youtube';
+    const TIPO_VOZ_IA = 'voz_ia';
 
     /**
      * @var \yii\web\UploadedFile File upload helper
@@ -111,6 +113,8 @@ class TrilhaSonora extends ActiveRecord
         return [
             self::TIPO_MUSICA => '🎵 Música de Fundo',
             self::TIPO_EFEITO => '🔊 Efeito Especial / Vinheta',
+            self::TIPO_YOUTUBE => '▶️ Áudio do YouTube',
+            self::TIPO_VOZ_IA => '🎙️ Locução IA (Texto)',
         ];
     }
 
