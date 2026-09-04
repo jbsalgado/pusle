@@ -20,35 +20,43 @@ class m260903_200000_enable_fractional_quantities_and_variante_item extends Migr
 
         $this->alterColumn('prest_venda_itens', 'quantidade', 'NUMERIC(12, 3) NOT NULL');
 
-        $this->alterColumn('prest_estoque_movimentacoes', 'quantidade', 'NUMERIC(12, 3) NOT NULL');
-        $this->alterColumn('prest_estoque_movimentacoes', 'saldo_anterior', 'NUMERIC(12, 3) NOT NULL');
-        $this->alterColumn('prest_estoque_movimentacoes', 'saldo_novo', 'NUMERIC(12, 3) NOT NULL');
+        $tableMov = $this->db->schema->getTableSchema('prest_estoque_movimentacoes');
+        if ($tableMov !== null) {
+            $this->alterColumn('prest_estoque_movimentacoes', 'quantidade', 'NUMERIC(12, 3) NOT NULL');
+            $this->alterColumn('prest_estoque_movimentacoes', 'saldo_anterior', 'NUMERIC(12, 3) NOT NULL');
+            $this->alterColumn('prest_estoque_movimentacoes', 'saldo_novo', 'NUMERIC(12, 3) NOT NULL');
+        }
 
         // 2. Adicionar variante_id em prest_venda_itens
-        $this->addColumn('prest_venda_itens', 'variante_id', 'UUID NULL');
-        $this->addForeignKey(
-            'fk_prest_venda_itens_variante',
-            'prest_venda_itens',
-            'variante_id',
-            'prest_produto_variantes',
-            'id',
-            'SET NULL',
-            'CASCADE'
-        );
-        $this->createIndex('idx_prest_venda_itens_variante', 'prest_venda_itens', 'variante_id');
+        $tableVendaItens = $this->db->schema->getTableSchema('prest_venda_itens');
+        if ($tableVendaItens !== null && !isset($tableVendaItens->columns['variante_id'])) {
+            $this->addColumn('prest_venda_itens', 'variante_id', 'UUID NULL');
+            $this->addForeignKey(
+                'fk_prest_venda_itens_variante',
+                'prest_venda_itens',
+                'variante_id',
+                'prest_produto_variantes',
+                'id',
+                'SET NULL',
+                'CASCADE'
+            );
+            $this->createIndex('idx_prest_venda_itens_variante', 'prest_venda_itens', 'variante_id');
+        }
 
         // 3. Adicionar variante_id em prest_estoque_movimentacoes para rastreabilidade de estoque por grade
-        $this->addColumn('prest_estoque_movimentacoes', 'variante_id', 'UUID NULL');
-        $this->addForeignKey(
-            'fk_prest_estoque_mov_variante',
-            'prest_estoque_movimentacoes',
-            'variante_id',
-            'prest_produto_variantes',
-            'id',
-            'SET NULL',
-            'CASCADE'
-        );
-        $this->createIndex('idx_prest_estoque_mov_variante', 'prest_estoque_movimentacoes', 'variante_id');
+        if ($tableMov !== null && !isset($tableMov->columns['variante_id'])) {
+            $this->addColumn('prest_estoque_movimentacoes', 'variante_id', 'UUID NULL');
+            $this->addForeignKey(
+                'fk_prest_estoque_mov_variante',
+                'prest_estoque_movimentacoes',
+                'variante_id',
+                'prest_produto_variantes',
+                'id',
+                'SET NULL',
+                'CASCADE'
+            );
+            $this->createIndex('idx_prest_estoque_mov_variante', 'prest_estoque_movimentacoes', 'variante_id');
+        }
     }
 
     /**
