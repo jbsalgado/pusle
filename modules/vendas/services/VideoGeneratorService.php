@@ -339,7 +339,11 @@ class VideoGeneratorService
                     throw new \InvalidArgumentException("Para utilizar o modo 'Apenas Vídeo Real', o produto precisa ter pelo menos um vídeo gravado ou enviado na Aba Básico.");
                 }
                 $fotosArray = []; // Zera fotos para garantir que nenhuma imagem estática seja incluída no payload
+            } elseif ($modoComposicao === 'fotos_galeria') {
+                $videosArray = []; // Zera vídeos para garantir que nenhuma mídia de vídeo interfira no palco de fotos
             }
+
+            $ajusteProporcaoFinal = $options['ajusteProporcao'] ?? ($options['ajuste_proporcao'] ?? ($videoModel->metadata['ajuste_proporcao'] ?? 'smart_blur'));
 
             $payload = [
                 'duracao' => (int)$videoModel->duracao,
@@ -351,7 +355,7 @@ class VideoGeneratorService
                 'efeitoVisual' => $options['efeitoVisual'] ?? ($options['efeito_visual'] ?? ($videoModel->metadata['efeito_visual'] ?? 'none')),
                 'modoComposicao' => $modoComposicao,
                 'ajusteDuracao' => $options['ajusteDuracao'] ?? ($videoModel->metadata['ajuste_duracao'] ?? 'trim'),
-                'ajusteProporcao' => $options['ajusteProporcao'] ?? ($videoModel->metadata['ajuste_proporcao'] ?? 'smart_blur'),
+                'ajusteProporcao' => $ajusteProporcaoFinal,
                 'outputPath' => $caminhoAbsolutoSaida,
                 'produto' => [
                     'id' => $produto->id,

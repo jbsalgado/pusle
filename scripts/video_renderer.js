@@ -482,9 +482,10 @@ function generateVideoHtmlTemplate(data, duracao) {
 
         /* Stage Photo Area */
         .stage { position: relative; flex: 1; display: flex; align-items: center; justify-content: center; margin: ${isFeed ? '8px 0' : '16px 0'}; }
-        .image-card { position: relative; width: 100%; height: ${isFeed ? '630px' : '880px'}; background: ${palette.cardBg}; backdrop-filter: blur(20px); border: 1px solid ${palette.border}; border-radius: ${isFeed ? '24px' : '36px'}; box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; padding: 10px; overflow: hidden; opacity: 0; transform: scale(0.85); transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+        .image-card { position: relative; width: 100%; height: ${isFeed ? '630px' : '960px'}; background: ${palette.cardBg}; backdrop-filter: blur(20px); border: 1px solid ${palette.border}; border-radius: ${isFeed ? '24px' : '36px'}; box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; padding: ${ajusteProporcao === 'cover' ? '0' : '10px'}; overflow: hidden; opacity: 0; transform: scale(0.85); transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
         .image-card-blur-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(30px) opacity(0.4); transform: scale(1.2); pointer-events: none; }
-        .product-image { position: relative; z-index: 2; width: 98%; height: 98%; max-width: 98%; max-height: 98%; object-fit: contain; filter: drop-shadow(0 20px 35px rgba(0,0,0,0.6)); transition: transform 0.3s ease, opacity 0.3s ease; }
+        .product-image { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: ${ajusteProporcao === 'cover' ? 'cover' : 'contain'}; object-position: center; border-radius: inherit; filter: drop-shadow(0 20px 35px rgba(0,0,0,0.6)); transition: transform 0.3s ease, opacity 0.3s ease; }
+        .product-video { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: ${ajusteProporcao === 'cover' ? 'cover' : 'contain'}; object-position: center; border-radius: inherit; pointer-events: none; transition: opacity 0.3s ease; }
         .brand-tag { position: absolute; top: ${isFeed ? '14px' : '24px'}; left: ${isFeed ? '14px' : '24px'}; z-index: 3; background: rgba(15, 23, 42, 0.85); border: 1px solid ${palette.border}; color: ${palette.accent}; font-size: ${isFeed ? '15px' : '20px'}; font-weight: 800; padding: ${isFeed ? '5px 12px' : '8px 20px'}; border-radius: 12px; text-transform: uppercase; letter-spacing: 1px; }
         .photo-badge { position: absolute; bottom: ${isFeed ? '14px' : '24px'}; right: ${isFeed ? '14px' : '24px'}; z-index: 3; background: rgba(15, 23, 42, 0.85); border: 1px solid ${palette.border}; color: #FFFFFF; font-size: ${isFeed ? '14px' : '18px'}; font-weight: 700; padding: ${isFeed ? '4px 10px' : '6px 16px'}; border-radius: 10px; font-family: 'Outfit', sans-serif; }
 
@@ -519,11 +520,11 @@ function generateVideoHtmlTemplate(data, duracao) {
         </div>
         <div class="stage">
             <div class="image-card" id="elemImgCard">
-                ${fotos[0] && modoComposicao !== 'video_real' ? `<img class="image-card-blur-bg" id="elemBlurBg" src="${fotos[0]}">` : ''}
+                ${fotos[0] && modoComposicao !== 'video_real' && ajusteProporcao !== 'cover' ? `<img class="image-card-blur-bg" id="elemBlurBg" src="${fotos[0]}">` : ''}
                 ${marca ? `<div class="brand-tag">${marca}</div>` : ''}
                 ${fotos.length > 1 && modoComposicao !== 'video_real' ? `<div class="photo-badge" id="elemPhotoBadge">📷 1 / ${fotos.length}</div>` : ''}
                 <img class="product-image" id="elemProductImg" src="${fotos[0]}" style="${modoComposicao === 'video_real' ? 'opacity:0; display:none;' : ''}">
-                ${videosList.length > 0 ? `<video class="product-video" id="elemProductVideo" src="${videosList[0].path ? (videosList[0].path.startsWith('file://') ? videosList[0].path : 'file://' + videosList[0].path) : videosList[0].url}" autoplay muted loop playsinline preload="auto" style="display:block; opacity:${modoComposicao === 'video_real' ? '1' : '0'}; pointer-events:none; position:relative; z-index:2; width:98%; height:98%; max-width:98%; max-height:98%; object-fit:${ajusteProporcao === 'cover' ? 'cover' : 'contain'}; border-radius: 20px; transition: opacity 0.3s ease;"></video>` : ''}
+                ${videosList.length > 0 ? `<video class="product-video" id="elemProductVideo" src="${videosList[0].path ? (videosList[0].path.startsWith('file://') ? videosList[0].path : 'file://' + videosList[0].path) : videosList[0].url}" autoplay muted loop playsinline preload="auto" style="display:block; opacity:${modoComposicao === 'video_real' ? '1' : '0'};"></video>` : ''}
             </div>
         </div>
         <div class="info-card" id="elemInfoCard">
@@ -1467,6 +1468,7 @@ function generateFullBleedVideoHtmlTemplate(data, duracao) {
         }
 
         .full-bg-image {
+            position: absolute; inset: 0;
             width: 100%; height: 100%;
             object-fit: cover; object-position: center;
             transform: scale(1.0);
@@ -1658,4 +1660,13 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
-main();
+if (require.main === module) {
+    main();
+}
+
+module.exports = {
+    main,
+    generateVideoHtmlTemplate,
+    generateFullBleedVideoHtmlTemplate,
+    COLOR_PALETTES
+};

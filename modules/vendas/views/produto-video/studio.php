@@ -937,12 +937,31 @@ input[type="radio"]:checked + .color-pill-card {
                         <?php endif; ?>
                     </div>
 
-                    <!-- 7. Ajuste de Duração e Proporção para Vídeos do Produto -->
+                    <!-- 7. Enquadramento e Proporção das Fotos e Vídeos -->
                     <div class="mb-4" id="box-ajuste-video">
-                        <label class="form-label-custom">7. Ajuste Automático do Vídeo do Produto</label>
-                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <label class="form-label-custom">7. Enquadramento e Proporção das Fotos e Vídeos</label>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
                             <div>
-                                <span style="font-size: 0.78rem; color: #94a3b8; font-weight: 600; display: block; margin-bottom: 4px;">Se o vídeo for maior que a duração selecionada:</span>
+                                <span style="font-size: 0.78rem; color: #94a3b8; font-weight: 600; display: block; margin-bottom: 6px;">Enquadramento da Imagem no Card:</span>
+                                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                    <label class="mb-0">
+                                        <input type="radio" name="video_ajuste_proporcao" value="cover" checked class="d-none">
+                                        <div class="color-pill-card" style="display: flex; align-items: center; gap: 6px;">
+                                            <span>🖼️ Preencher Todo o Espaço (Cover / Zoom Total)</span>
+                                            <span class="badge" style="background: #10b981; color: #fff; font-size: 10px;">Recomendado</span>
+                                        </div>
+                                    </label>
+                                    <label class="mb-0">
+                                        <input type="radio" name="video_ajuste_proporcao" value="smart_blur" class="d-none">
+                                        <div class="color-pill-card">🌌 Fundo Desfocado (Smart Blur / Foto Inteira)</div>
+                                    </label>
+                                </div>
+                                <small style="display: block; margin-top: 5px; font-size: 0.76rem; color: #38bdf8;">
+                                    💡 <strong>Preencher Todo o Espaço</strong> faz a foto ocupar 100% da área útil do card de mídia, eliminando fundos borrados e faixas laterais.
+                                </small>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.78rem; color: #94a3b8; font-weight: 600; display: block; margin-bottom: 6px;">Se o vídeo gravado for maior que a duração selecionada:</span>
                                 <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                                     <label class="mb-0">
                                         <input type="radio" name="video_ajuste_duracao" value="trim" checked class="d-none">
@@ -951,19 +970,6 @@ input[type="radio"]:checked + .color-pill-card {
                                     <label class="mb-0">
                                         <input type="radio" name="video_ajuste_duracao" value="speedup" class="d-none">
                                         <div class="color-pill-card">⚡ Acelerar Vídeo (Speedup)</div>
-                                    </label>
-                                </div>
-                            </div>
-                            <div>
-                                <span style="font-size: 0.78rem; color: #94a3b8; font-weight: 600; display: block; margin-bottom: 4px;">Se o formato do vídeo for diferente (ex: horizontal 16:9 ➔ Stories 9:16):</span>
-                                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                                    <label class="mb-0">
-                                        <input type="radio" name="video_ajuste_proporcao" value="smart_blur" checked class="d-none">
-                                        <div class="color-pill-card">🌌 Fundo Desfocado (Smart Blur)</div>
-                                    </label>
-                                    <label class="mb-0">
-                                        <input type="radio" name="video_ajuste_proporcao" value="cover" class="d-none">
-                                        <div class="color-pill-card">🖼️ Preencher Tela (Cover Crop)</div>
                                     </label>
                                 </div>
                             </div>
