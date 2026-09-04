@@ -20,6 +20,7 @@ use app\models\Usuario;
  * @property string $estilo_layout
  * @property int $produtos_por_pagina
  * @property string $cor_tema
+ * @property string $modo_foto
  * @property string $status
  * @property int $visualizacoes_count
  * @property string $created_at
@@ -56,11 +57,14 @@ class Encarte extends ActiveRecord
             [['titulo', 'subtitulo'], 'string', 'max' => 255],
             [['token_publico'], 'string', 'max' => 64],
             [['estilo_layout', 'cor_tema'], 'string', 'max' => 50],
+            [['modo_foto'], 'string', 'max' => 20],
+            [['modo_foto'], 'in', 'range' => ['contain', 'cover']],
             [['status'], 'string', 'max' => 20],
             [['produtos_por_pagina', 'visualizacoes_count'], 'integer'],
             [['produtos_por_pagina'], 'default', 'value' => 6],
             [['estilo_layout'], 'default', 'value' => 'flipsnack_supermarket'],
             [['cor_tema'], 'default', 'value' => 'red_gold'],
+            [['modo_foto'], 'default', 'value' => 'contain'],
             [['status'], 'default', 'value' => 'ativo'],
             [['token_publico'], 'unique'],
         ];
@@ -77,6 +81,7 @@ class Encarte extends ActiveRecord
             'estilo_layout' => 'Estilo de Layout',
             'produtos_por_pagina' => 'Produtos por Lâmina',
             'cor_tema' => 'Tema Visual',
+            'modo_foto' => 'Exibição das Fotos nos Cards',
             'status' => 'Status',
             'visualizacoes_count' => 'Visualizações',
             'created_at' => 'Data de Criação',
@@ -111,6 +116,11 @@ class Encarte extends ActiveRecord
             return true;
         }
         return false;
+    }
+
+    public function getModoFoto()
+    {
+        return !empty($this->modo_foto) && in_array($this->modo_foto, ['contain', 'cover']) ? $this->modo_foto : 'contain';
     }
 
     public function getUrlPublica()

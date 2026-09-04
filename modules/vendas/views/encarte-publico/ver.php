@@ -45,6 +45,7 @@ $totalLaminas = count($paginas);
 $totalPaginas = $totalLaminas + 1; // 1 Capa + N Lâminas de produtos
 $urlPublica = $encarte->getUrlPublica();
 $urlPdf = $encarte->getUrlPdf();
+$modoFotoPadrao = (isset($encarte->modo_foto) && $encarte->modo_foto === 'cover') ? 'cover' : 'contain';
 
 $fraseCreditoOnlyCode = "UM PRODUTO DESENVOLVIDO PELA ONLY CODE - WHATSAPP 81 9 9288-8872 - JOSE BARBOSA DOS SANTOS, CARUARU/PE";
 
@@ -238,9 +239,51 @@ $canvasHeight3D = 842;
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
+
+        /* Modos de Enquadramento das Fotos nos Cards (Centralizado sem Cortes vs Zoom Total) */
+        .card-img-box {
+            transition: padding 0.3s ease, background-color 0.3s ease;
+        }
+        .card-prod-img {
+            transition: transform 0.3s ease, opacity 0.2s ease;
+        }
+
+        /* 1. Modo Centralizado Sem Cortes (contain) */
+        body.modo-foto-contain .card-img-box {
+            background-color: #f8fafc;
+            padding: 0.35rem;
+            border-radius: 0.75rem;
+        }
+        body.modo-foto-contain .card-prod-img {
+            max-height: 100%;
+            max-width: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            margin: auto;
+        }
+
+        /* 2. Modo Zoom Ocupando Todo o Espaço do Card (cover) */
+        body.modo-foto-cover .card-img-box {
+            background-color: transparent;
+            padding: 0 !important;
+            border-radius: 0.75rem;
+        }
+        body.modo-foto-cover .card-prod-img {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            object-fit: cover !important;
+            object-position: center !important;
+            border-radius: 0.75rem;
+        }
+        body.modo-foto-cover .hotspot-card:hover .card-prod-img {
+            transform: scale(1.08);
+        }
     </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between theme-<?= Html::encode($encarte->cor_tema) ?>">
+<body class="min-h-screen flex flex-col justify-between theme-<?= Html::encode($encarte->cor_tema) ?> modo-foto-<?= $modoFotoPadrao ?>">
 
     <!-- Top Banner Créditos Only Code & Cronômetro Regressivo -->
     <div class="bg-gradient-to-r from-red-700 via-amber-600 to-red-700 text-white text-[10px] sm:text-xs font-bold py-1.5 px-4 text-center tracking-wide uppercase shadow-md flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
@@ -273,6 +316,18 @@ $canvasHeight3D = 842;
                         <button id="btnPrevPage" class="hover:text-amber-400 transition p-1">◀</button>
                         <span id="pageIndicator">Página 1 / <?= $totalPaginas ?></span>
                         <button id="btnNextPage" class="hover:text-amber-400 transition p-1">▶</button>
+                    </div>
+
+                    <!-- Seletor de Enquadramento das Fotos nos Cards (Sem Cortes vs Zoom) -->
+                    <div class="inline-flex items-center bg-slate-800 text-slate-200 p-0.5 rounded-xl border border-slate-700 shadow-inner" title="Formato de exibição das fotos nos cards">
+                        <button type="button" id="btnFotoContain" onclick="setModoFoto('contain')" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-black bg-amber-400 text-slate-900 shadow transition cursor-pointer" title="Foto inteira sem cortes (Centralizada)">
+                            <span>📐</span>
+                            <span class="hidden sm:inline">Sem Cortes</span>
+                        </button>
+                        <button type="button" id="btnFotoCover" onclick="setModoFoto('cover')" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white transition cursor-pointer" title="Zoom ocupando todo o espaço do card">
+                            <span>🖼️</span>
+                            <span class="hidden sm:inline">Zoom Total</span>
+                        </button>
                     </div>
 
                     <!-- Baixar PDF -->
@@ -563,9 +618,9 @@ $canvasHeight3D = 842;
                                 </div>
 
                                 <!-- Imagem Centralizada com Aspect Ratio Perfeito (Foto da Cor se Matriz) -->
-                                <div class="w-full <?= $imgHeightClass ?> flex items-center justify-center p-1 relative overflow-hidden flex-shrink-0">
+                                <div class="card-img-box w-full <?= $imgHeightClass ?> flex items-center justify-center p-1 relative overflow-hidden flex-shrink-0 rounded-lg">
                                     <?php if ($fotoUrl): ?>
-                                        <img src="<?= $fotoUrl ?>" alt="<?= Html::encode($produto->nome) ?>" loading="lazy" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-200">
+                                        <img src="<?= $fotoUrl ?>" alt="<?= Html::encode($produto->nome) ?>" loading="lazy" class="card-prod-img max-h-full max-w-full object-contain group-hover:scale-105 transition-all duration-300">
                                     <?php else: ?>
                                         <div class="w-full h-full bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 text-[8px] font-bold">FOTO</div>
                                     <?php endif; ?>
@@ -949,7 +1004,54 @@ $canvasHeight3D = 842;
             abrirModalSacola();
         }
 
+        // =========================================================
+        // CONTROLE DO ENQUADRAMENTO DAS FOTOS NOS CARDS (CONTAIN / COVER)
+        // =========================================================
+        const modoFotoPadraoBackend = '<?= $modoFotoPadrao ?>';
+
+        function setModoFoto(modo, persistir = true) {
+            const btnContain = document.getElementById('btnFotoContain');
+            const btnCover = document.getElementById('btnFotoCover');
+            const body = document.body;
+
+            if (modo === 'cover') {
+                body.classList.remove('modo-foto-contain');
+                body.classList.add('modo-foto-cover');
+
+                if (btnCover) {
+                    btnCover.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-black bg-amber-400 text-slate-900 shadow transition cursor-pointer';
+                }
+                if (btnContain) {
+                    btnContain.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white transition cursor-pointer';
+                }
+            } else {
+                modo = 'contain';
+                body.classList.remove('modo-foto-cover');
+                body.classList.add('modo-foto-contain');
+
+                if (btnContain) {
+                    btnContain.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-black bg-amber-400 text-slate-900 shadow transition cursor-pointer';
+                }
+                if (btnCover) {
+                    btnCover.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white transition cursor-pointer';
+                }
+            }
+
+            if (persistir) {
+                try {
+                    localStorage.setItem('encarte_modo_foto', modo);
+                } catch(e) {}
+            }
+        }
+
         document.addEventListener("DOMContentLoaded", function() {
+            // Inicializa modo de enquadramento das fotos a partir do localStorage ou backend
+            let modoFotoSalvo = null;
+            try {
+                modoFotoSalvo = localStorage.getItem('encarte_modo_foto');
+            } catch(e) {}
+            setModoFoto(modoFotoSalvo || modoFotoPadraoBackend, false);
+
             const elSacola = document.getElementById('barrasacola');
             if (elSacola) {
                 elSacola.addEventListener('touchstart', function(e) {

@@ -137,6 +137,7 @@ class EncartePdfService
         $totalLaminas = count($paginas);
         $totalProdutos = count($encarte->encarteProdutos);
         $totalFolhasPdf = $totalLaminas + 1; // 1 Capa + N Lâminas
+        $modoFotoPdf = (isset($encarte->modo_foto) && $encarte->modo_foto === 'cover') ? 'cover' : 'contain';
 
         ob_start();
         ?>
@@ -373,9 +374,13 @@ class EncartePdfService
 
                                                 <!-- 2. Box de Imagem -->
                                                 <tr>
-                                                    <td align="center" valign="middle" style="height: <?= $imgBoxHeight ?>px; background-color: #f8fafc; padding: 2px;">
+                                                    <td align="center" valign="middle" style="height: <?= $imgBoxHeight ?>px; background-color: <?= $modoFotoPdf === 'cover' ? '#ffffff' : '#f8fafc' ?>; padding: <?= $modoFotoPdf === 'cover' ? '0px' : '2px' ?>;">
                                                         <?php if ($srcFoto): ?>
-                                                            <img src="<?= $srcFoto ?>" height="<?= $imgMaxHeight ?>" style="height: <?= $imgMaxHeight ?>px; max-width: 90%;" alt="<?= Html::encode($produto->nome) ?>">
+                                                            <?php if ($modoFotoPdf === 'cover'): ?>
+                                                                <img src="<?= $srcFoto ?>" style="height: <?= $imgMaxHeight ?>px; width: 100%; max-height: <?= $imgMaxHeight ?>px;" alt="<?= Html::encode($produto->nome) ?>">
+                                                            <?php else: ?>
+                                                                <img src="<?= $srcFoto ?>" height="<?= $imgMaxHeight ?>" style="height: <?= $imgMaxHeight ?>px; max-width: 90%;" alt="<?= Html::encode($produto->nome) ?>">
+                                                            <?php endif; ?>
                                                         <?php else: ?>
                                                             <div style="height: <?= $imgMaxHeight ?>px; line-height: <?= $imgMaxHeight ?>px; color: #94a3b8; font-size: 7.5px; font-weight: bold; text-align: center;">SEM FOTO</div>
                                                         <?php endif; ?>

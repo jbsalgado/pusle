@@ -10,6 +10,7 @@ use app\modules\vendas\models\ProdutoFoto;
 use app\modules\vendas\models\ProdutoCard;
 use app\modules\vendas\models\LojaConfiguracao;
 use app\modules\vendas\models\RegraParcelamento;
+use app\modules\vendas\models\ProdutoVariante;
 
 /**
  * Service para orquestrar a geração automatizada de cards de produtos para redes sociais (Feed e Stories).
@@ -53,14 +54,46 @@ class CardGeneratorService
         // Valida cota de armazenamento em MB para cards sociais
         MediaStorageService::validarEspacoCards($produto->usuario_id);
 
-        // 1. Carregar Configuração da Loja / Marca d'água
+        // 1. Variante da Matriz ou Grupo de Cor
+        $variante = null;
+        if (isset($options['variante']) && $options['variante'] instanceof ProdutoVariante) {
+            $variante = $options['variante'];
+        } elseif (!empty($options['varianteId'])) {
+            $variante = ProdutoVariante::findOne(['id' => $options['varianteId'], 'produto_id' => $produto->id]);
+        }
+
+        $corMatriz = $options['corMatriz'] ?? ($options['cor'] ?? ($variante ? $variante->cor : null));
+        $gradeTamanhos = $options['gradeTamanhos'] ?? [];
+        $mesmoPreco = isset($options['mesmoPreco']) ? (bool)$options['mesmoPreco'] : true;
+        $precoMin = isset($options['precoMin']) ? (float)$options['precoMin'] : null;
+        $enquadramentoFoto = $options['enquadramentoFoto'] ?? ($options['enquadramento_foto'] ?? 'auto');
+        $rotacaoFoto = $options['rotacaoFoto'] ?? ($options['rotacao_foto'] ?? 'auto');
+        $mensagemCard = trim($options['mensagemCard'] ?? ($options['mensagem_card'] ?? ''));
+
+        // 2. Carregar Configuração da Loja / Marca d'água
         $loja = LojaConfiguracao::findOne(['usuario_id' => $produto->usuario_id]);
         
-        // 2. Foto do Produto
+        // 3. Foto do Produto (prioriza foto da cor da matriz ou da variante se houver)
         $fotoId = $options['fotoId'] ?? null;
         $fotoEscolhida = null;
         if ($fotoId) {
             $fotoEscolhida = ProdutoFoto::findOne(['id' => $fotoId, 'produto_id' => $produto->id]);
+        }
+        if (!$fotoEscolhida && !empty($corMatriz)) {
+            $fotosCor = $produto->getFotosPorCor($corMatriz);
+            if (!empty($fotosCor)) {
+                $fotoEscolhida = $fotosCor[0];
+            }
+        }
+        if (!$fotoEscolhida && $variante) {
+            if (!empty($variante->fotos)) {
+                $fotoEscolhida = $variante->fotos[0];
+            } elseif (!empty($variante->cor)) {
+                $fotosCor = $produto->getFotosPorCor($variante->cor);
+                if (!empty($fotosCor)) {
+                    $fotoEscolhida = $fotosCor[0];
+                }
+            }
         }
         if (!$fotoEscolhida) {
             $fotoEscolhida = $produto->fotoPrincipal;
@@ -74,26 +107,45 @@ class CardGeneratorService
             $imagemBase64 = $this->converterImagemParaBase64($fotoEscolhida->arquivo_path);
         }
 
-        // 3. Logo da Loja
+        // 4. Logo da Loja
         $logoBase64 = null;
         if ($loja && !empty($loja->logo_path)) {
             $logoBase64 = $this->converterImagemParaBase64($loja->logo_path);
         }
 
-        // 4. Preço e Promoção
+        // 5. Preço e Promoção
         $emPromocao = $produto->getEmPromocao();
         $precoOriginal = $produto->preco_venda_sugerido > 0 ? $this->formatarMoeda($produto->preco_venda_sugerido) : null;
-        $precoFinalValor = $produto->getPrecoFinal();
-        $precoPromocionalStr = $this->formatarMoeda($precoFinalValor);
+        
+        $priceLabel = $emPromocao ? 'Por apenas' : 'Preço de venda';
+        if (!empty($gradeTamanhos) && !$mesmoPreco && $precoMin !== null && $precoMin > 0) {
+            $precoFinalValor = $precoMin;
+            $precoPromocionalStr = $this->formatarMoeda($precoMin);
+            $priceLabel = 'A partir de';
+        } else {
+            $precoFinalValor = $variante ? $variante->getPrecoVendaEfetivo() : ($precoMin !== null ? $precoMin : $produto->getPrecoFinal());
+            $precoPromocionalStr = $this->formatarMoeda($precoFinalValor);
+        }
 
         $descontoPercentual = 0;
         $badgeTexto = null;
+        $corRedundante = !empty($corMatriz) && (stripos($produto->nome, $corMatriz) !== false || stripos($corMatriz, $produto->nome) !== false);
+
         if ($emPromocao) {
             $descontoPercentual = round($produto->getDescontoPromocional());
             $badgeTexto = $descontoPercentual > 0 ? "-{$descontoPercentual}% OFF" : "OFERTA";
+        } elseif (!empty($corMatriz) && !$corRedundante) {
+            $badgeTexto = "COR: {$corMatriz}";
+        } elseif (!empty($gradeTamanhos)) {
+            $badgeTexto = "GRADE COMPLETA";
+        } elseif ($variante) {
+            $partesVar = array_filter([$variante->cor, $variante->tamanho]);
+            if (!empty($partesVar)) {
+                $badgeTexto = implode(' • ', $partesVar);
+            }
         }
 
-        // 5. Parcelamento
+        // 6. Parcelamento
         $parcelamentoText = '';
         if ($produto->permite_parcelamento && $precoFinalValor > 0) {
             $regra = RegraParcelamento::find()
@@ -109,8 +161,11 @@ class CardGeneratorService
             }
         }
 
-        // 6. Definir caminhos de saída
-        $uniqueId = sprintf('%s_%s_%s_%s', $produto->id, $formato, $template, time());
+        // 7. Definir caminhos de saída
+        $sufixoId = !empty($corMatriz) 
+            ? ('cor_' . preg_replace('/[^a-z0-9]/', '', strtolower($corMatriz))) 
+            : ($variante ? ('var_' . substr($variante->id, 0, 8)) : 'base');
+        $uniqueId = sprintf('%s_%s_%s_%s_%s', $produto->id, $sufixoId, $formato, $template, time());
         $nomeArquivo = "card_{$uniqueId}.webp";
         $diretorioUpload = Yii::getAlias('@app/web/uploads/cards');
         if (!is_dir($diretorioUpload)) {
@@ -120,27 +175,44 @@ class CardGeneratorService
         $caminhoAbsolutoSaida = $diretorioUpload . DIRECTORY_SEPARATOR . $nomeArquivo;
         $caminhoRelativo = "uploads/cards/" . $nomeArquivo;
 
-        // 7. Montar Payload para o script Node.js
+        // Nome do Produto adaptado para Matriz
+        $nomeProduto = $produto->nome;
+        if (!empty($corMatriz) && !$corRedundante) {
+            $nomeProduto = "{$produto->nome} ({$corMatriz})";
+        } elseif ($variante) {
+            $nomeProduto = $variante->getNomeFormatado();
+        }
+
+        // 8. Montar Payload para o script Node.js com otimização máxima de tamanho
         $payload = [
             'formato' => $formato,
             'template' => $template,
             'corTema' => $corTema,
             'fundoEstilo' => $fundoEstilo,
+            'enquadramentoFoto' => $enquadramentoFoto,
+            'rotacaoFoto' => $rotacaoFoto,
+            'mensagemCard' => $mensagemCard,
             'imagemFundoBase64' => $imagemFundoBase64,
             'outputPath' => $caminhoAbsolutoSaida,
+            'scaleFactor' => 1.0,
+            'quality' => 80,
             'produto' => [
                 'id' => $produto->id,
-                'nome' => $produto->nome,
+                'nome' => $nomeProduto,
                 'marca' => $produto->marca ?: ($produto->categoria ? $produto->categoria->nome : ''),
                 'precoOriginal' => $precoOriginal,
                 'precoPromocional' => $precoPromocionalStr,
                 'precoVenda' => $precoPromocionalStr,
+                'priceLabel' => $priceLabel,
                 'emPromocao' => $emPromocao,
                 'descontoPercentual' => $descontoPercentual > 0 ? "{$descontoPercentual}%" : '',
                 'badgeTexto' => $badgeTexto,
+                'mensagemCard' => $mensagemCard,
                 'parcelamento' => $parcelamentoText,
                 'imagemBase64' => $imagemBase64,
-                'unidade' => $produto->unidade_medida
+                'unidade' => $produto->unidade_medida,
+                'gradeTamanhos' => $gradeTamanhos,
+                'mesmoPreco' => $mesmoPreco,
             ],
             'loja' => [
                 'nome' => $loja ? ($loja->nome_fantasia ?: $loja->nome_loja) : 'PULSE',
@@ -202,6 +274,15 @@ class CardGeneratorService
             'preco_promocional' => $precoPromocionalStr,
             'em_promocao' => $emPromocao,
             'parcelamento' => $parcelamentoText,
+            'variante_id' => $variante ? $variante->id : null,
+            'cor' => $corMatriz ?: ($variante ? $variante->cor : null),
+            'tamanho' => $variante ? $variante->tamanho : null,
+            'grade_tamanhos' => $gradeTamanhos,
+            'mesmo_preco' => $mesmoPreco,
+            'variante_nome' => !empty($corMatriz) ? "{$produto->nome} ({$corMatriz})" : ($variante ? $variante->getNomeFormatado() : null),
+            'enquadramento_foto' => $enquadramentoFoto,
+            'rotacao_foto' => $rotacaoFoto,
+            'mensagem_card' => $mensagemCard,
             'gerado_em' => date('Y-m-d H:i:s')
         ];
 

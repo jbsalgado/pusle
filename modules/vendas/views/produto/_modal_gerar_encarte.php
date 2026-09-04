@@ -269,6 +269,41 @@ use yii\helpers\Url;
                     </div>
                 </div>
 
+                <!-- Configuração de Enquadramento das Fotos nos Cards -->
+                <div class="bg-gradient-to-r from-amber-50/70 via-orange-50/70 to-red-50/70 border border-amber-200/90 p-4 rounded-2xl space-y-2.5 shadow-2xs">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                        <label class="block text-xs font-black text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                            <span>📸</span>
+                            <span>Enquadramento Padrão das Fotos nos Cards:</span>
+                        </label>
+                        <span class="text-[10.5px] text-amber-900 font-medium">Define como a foto aparecerá no Flipbook e no PDF</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0.5">
+                        <label onclick="selecionarModoFotoModal('contain')" class="cursor-pointer border-2 border-amber-500 bg-amber-50/50 p-3 rounded-xl flex items-start gap-2.5 hover:shadow-md transition item-modo-foto" id="cardModoFotoContain">
+                            <input type="radio" name="encarte_modo_foto" value="contain" checked class="mt-0.5 text-amber-600 focus:ring-amber-500">
+                            <div>
+                                <div class="font-extrabold text-xs text-slate-900 flex items-center gap-1.5">
+                                    <span>📐 Centralizado Sem Cortes</span>
+                                    <span class="px-1.5 py-0.2 bg-amber-200 text-amber-900 text-[8.5px] font-black rounded uppercase">Padrão</span>
+                                </div>
+                                <p class="text-[10.5px] text-slate-600 font-medium mt-0.5 leading-snug">Mantém a foto 100% visível na proporção original, sem cortar bordas ou detalhes do produto.</p>
+                            </div>
+                        </label>
+
+                        <label onclick="selecionarModoFotoModal('cover')" class="cursor-pointer border-2 border-slate-200 bg-white p-3 rounded-xl flex items-start gap-2.5 hover:shadow-md transition item-modo-foto" id="cardModoFotoCover">
+                            <input type="radio" name="encarte_modo_foto" value="cover" class="mt-0.5 text-red-600 focus:ring-red-500">
+                            <div>
+                                <div class="font-extrabold text-xs text-slate-900 flex items-center gap-1.5">
+                                    <span>🖼️ Zoom (Ocupar Todo o Espaço)</span>
+                                    <span class="px-1.5 py-0.2 bg-red-100 text-red-800 text-[8.5px] font-black rounded uppercase">Catálogo Cheio</span>
+                                </div>
+                                <p class="text-[10.5px] text-slate-600 font-medium mt-0.5 leading-snug">Foto preenche 100% da área do card com zoom centralizado, sem faixas brancas nas laterais.</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
                 <!-- 3. Personalização Opcional de Tags por Produto -->
                 <div class="border-t border-gray-100 pt-3 space-y-2">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
@@ -1000,6 +1035,31 @@ Aproveite nossos preços especiais válidos esta semana!</textarea>
         }
     }
 
+    function selecionarModoFotoModal(modo) {
+        const inputContain = document.querySelector('input[name="encarte_modo_foto"][value="contain"]');
+        const inputCover = document.querySelector('input[name="encarte_modo_foto"][value="cover"]');
+        const cardContain = document.getElementById('cardModoFotoContain');
+        const cardCover = document.getElementById('cardModoFotoCover');
+
+        if (modo === 'cover') {
+            if (inputCover) inputCover.checked = true;
+            if (cardCover) {
+                cardCover.className = 'cursor-pointer border-2 border-red-500 bg-red-50/50 p-3 rounded-xl flex items-start gap-2.5 shadow-sm transition item-modo-foto';
+            }
+            if (cardContain) {
+                cardContain.className = 'cursor-pointer border-2 border-slate-200 bg-white p-3 rounded-xl flex items-start gap-2.5 hover:shadow-md transition item-modo-foto';
+            }
+        } else {
+            if (inputContain) inputContain.checked = true;
+            if (cardContain) {
+                cardContain.className = 'cursor-pointer border-2 border-amber-500 bg-amber-50/50 p-3 rounded-xl flex items-start gap-2.5 shadow-sm transition item-modo-foto';
+            }
+            if (cardCover) {
+                cardCover.className = 'cursor-pointer border-2 border-slate-200 bg-white p-3 rounded-xl flex items-start gap-2.5 hover:shadow-md transition item-modo-foto';
+            }
+        }
+    }
+
     function obterPayloadGerarEncarte() {
         let catId = null;
         let qtd = 0;
@@ -1012,6 +1072,9 @@ Aproveite nossos preços especiais válidos esta semana!</textarea>
         } else if (modoOrigemProdutosAtual === 'QUANTIDADE') {
             qtd = parseInt(document.getElementById('inputQtdDesejadaProd')?.value || '12', 10);
         }
+
+        const modoFotoRadio = document.querySelector('input[name="encarte_modo_foto"]:checked');
+        const modoFotoVal = modoFotoRadio ? modoFotoRadio.value : 'contain';
 
         return {
             modo_selecao: modoOrigemProdutosAtual,
@@ -1027,6 +1090,7 @@ Aproveite nossos preços especiais válidos esta semana!</textarea>
             subtitulo: document.getElementById('encarte_subtitulo').value,
             cor_tema: document.getElementById('encarte_cor_tema').value,
             produtos_por_pagina: document.getElementById('encarte_ppp').value,
+            modo_foto: modoFotoVal,
             '<?= Yii::$app->request->csrfParam ?>': '<?= Yii::$app->request->csrfToken ?>'
         };
     }

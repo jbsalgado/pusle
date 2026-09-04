@@ -7,6 +7,7 @@ use app\components\TenantHelper;
 use app\modules\vendas\models\ProdutoVideo;
 use app\modules\vendas\models\ProdutoCard;
 use app\modules\vendas\models\LojaConfiguracao;
+use yii\db\Expression;
 
 /**
  * Service para cálculo e validação de cota multi-tenant de armazenamento em disco (Vídeos e Cards)
@@ -214,13 +215,16 @@ class MediaStorageService
      */
     public static function validarEspacoCards($usuarioId = null)
     {
-        // Tenta purgar possíveis arquivos órfãos não vinculados para manter a integridade
+        // 1. Limpa automaticamente cards expirados há mais de 24 horas para liberar espaço
+        self::limparCardsExpirados(24);
+
+        // 2. Tenta purgar possíveis arquivos órfãos não vinculados para manter a integridade
         self::limparArquivosOrfaosCards();
 
         $stats = self::getEstatisticasCards($usuarioId);
         if ($stats['excedido']) {
             throw new \Exception(sprintf(
-                "Limite de armazenamento de cards excedido! Você já utilizou %.2f MB dos %d MB disponíveis para sua loja. Apague cards antigos para liberar espaço antes de gerar novos cards.",
+                "Limite de 50 MB de armazenamento de cards da loja atingido! Você já utilizou %.2f MB dos %d MB disponíveis. Exclua cards antigos ou baixe os gerados para liberar espaço.",
                 $stats['usado_mb'],
                 $stats['limite_mb']
             ));
@@ -326,4 +330,61 @@ class MediaStorageService
             'stats' => self::getEstatisticasCards($usuarioId)
         ];
     }
+
+    /**
+     * Remove cards e arquivos ZIP compactados com mais de 24 horas (ou período configurado).
+     *
+     * @param int $horas Limite de horas para expiração (padrão 24h)
+     * @return array Resumo de itens removidos e espaço liberado
+     */
+    public static function limparCardsExpirados($horas = 24)
+    {
+        $horas = max(1, (int)$horas);
+        $cardsExpirados = ProdutoCard::find()
+            ->where(['<', 'data_criacao', new Expression("NOW() - INTERVAL '{$horas} HOURS'")])
+            ->all();
+
+        $cardsRemovidos = 0;
+        $bytesLiberados = 0;
+
+        foreach ($cardsExpirados as $card) {
+            if (!empty($card->card_path)) {
+                $caminhoAbsoluto = Yii::getAlias('@app/web/') . ltrim($card->card_path, '/');
+                if (file_exists($caminhoAbsoluto)) {
+                    $bytesLiberados += filesize($caminhoAbsoluto);
+                    @unlink($caminhoAbsoluto);
+                }
+            }
+            if ($card->delete()) {
+                $cardsRemovidos++;
+            }
+        }
+
+        // Limpar também arquivos ZIP antigos no diretório de cards
+        $diretorioZip = Yii::getAlias('@app/web/uploads/cards/zip');
+        $zipsRemovidos = 0;
+        if (is_dir($diretorioZip)) {
+            $arquivosZip = glob($diretorioZip . '/*.zip');
+            $tempoLimite = time() - ($horas * 3600);
+            foreach ($arquivosZip as $zipFile) {
+                if (is_file($zipFile) && filemtime($zipFile) < $tempoLimite) {
+                    $bytesLiberados += filesize($zipFile);
+                    if (@unlink($zipFile)) {
+                        $zipsRemovidos++;
+                    }
+                }
+            }
+        }
+
+        // Purgar órfãos soltos
+        $orfaosRemovidos = self::limparArquivosOrfaosCards();
+
+        return [
+            'cards_removidos' => $cardsRemovidos,
+            'zips_removidos' => $zipsRemovidos,
+            'orfaos_removidos' => $orfaosRemovidos,
+            'espaco_liberado_mb' => round($bytesLiberados / (1024 * 1024), 2)
+        ];
+    }
 }
+

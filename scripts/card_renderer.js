@@ -35,6 +35,10 @@ async function main() {
                 '--disable-dev-shm-usage',
                 '--disable-crash-reporter',
                 '--disable-gpu',
+                '--disable-background-networking',
+                '--disable-default-apps',
+                '--disable-sync',
+                '--disable-extensions',
                 '--user-data-dir=/tmp/puppeteer_user_data',
                 '--font-render-hinting=medium'
             ],
@@ -107,8 +111,9 @@ async function main() {
 
         browser = await puppeteer.launch(launchOptions);
         const page = await browser.newPage();
+        page.setDefaultTimeout(15000);
 
-        const scaleFactor = 1.25;
+        const scaleFactor = data.scaleFactor !== undefined ? parseFloat(data.scaleFactor) : 1.0;
 
         await page.setViewport({
             width: width,
@@ -116,23 +121,29 @@ async function main() {
             deviceScaleFactor: scaleFactor
         });
 
-        await page.setContent(htmlContent, { waitUntil: ['domcontentloaded', 'networkidle0'] });
+        await page.setContent(htmlContent, { waitUntil: 'domcontentloaded', timeout: 10000 });
 
-        await page.evaluate(async () => {
-            if (document.fonts) {
-                await document.fonts.ready;
-            }
-        });
+        // Aguarda fontes com timeout máximo de 2 segundos para nunca travar
+        await Promise.race([
+            page.evaluate(async () => {
+                if (document.fonts) {
+                    await document.fonts.ready;
+                }
+            }),
+            new Promise(resolve => setTimeout(resolve, 2000))
+        ]);
 
         const outputDir = path.dirname(outputPath);
         if (!fs.existsSync(outputDir)) {
             fs.mkdirSync(outputDir, { recursive: true });
         }
 
+        const webpQuality = data.quality !== undefined ? parseInt(data.quality, 10) : 80;
+
         await page.screenshot({
             path: outputPath,
             type: 'webp',
-            quality: 85,
+            quality: webpQuality,
             fullPage: false,
             omitBackground: false
         });
@@ -299,6 +310,173 @@ function resolveBackgroundCss(fundoEstilo, palette, imagemFundoBase64) {
     }
 }
 
+function detectImageDimensions(imgDataOrPath) {
+    if (!imgDataOrPath || typeof imgDataOrPath !== 'string') return null;
+    let buffer = null;
+    try {
+        if (imgDataOrPath.startsWith('data:image/')) {
+            const base64Index = imgDataOrPath.indexOf(';base64,');
+            if (base64Index !== -1) {
+                buffer = Buffer.from(imgDataOrPath.substring(base64Index + 8), 'base64');
+            }
+        } else if (fs.existsSync(imgDataOrPath)) {
+            buffer = fs.readFileSync(imgDataOrPath);
+        }
+    } catch (e) {
+        return null;
+    }
+    if (!buffer || buffer.length < 24) return null;
+
+    // JPEG detection
+    if (buffer[0] === 0xFF && buffer[1] === 0xD8) {
+        let i = 2;
+        while (i < buffer.length - 8) {
+            if (buffer[i] === 0xFF) {
+                const marker = buffer[i + 1];
+                if ((marker >= 0xC0 && marker <= 0xC3) || (marker >= 0xC9 && marker <= 0xCB)) {
+                    const height = buffer.readUInt16BE(i + 5);
+                    const width = buffer.readUInt16BE(i + 7);
+                    return { width, height, aspectRatio: width / height };
+                }
+                const length = buffer.readUInt16BE(i + 2);
+                i += 2 + length;
+            } else {
+                i++;
+            }
+        }
+    }
+
+    // PNG detection
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+        const width = buffer.readUInt32BE(16);
+        const height = buffer.readUInt32BE(20);
+        return { width, height, aspectRatio: width / height };
+    }
+
+    // WebP detection
+    if (buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') {
+        if (buffer.toString('ascii', 12, 16) === 'VP8 ') {
+            const width = buffer.readUInt16LE(26) & 0x3fff;
+            const height = buffer.readUInt16LE(28) & 0x3fff;
+            return { width, height, aspectRatio: width / height };
+        } else if (buffer.toString('ascii', 12, 16) === 'VP8L') {
+            const b1 = buffer[21];
+            const b2 = buffer[22];
+            const b3 = buffer[23];
+            const b4 = buffer[24];
+            const width = 1 + (((b2 & 0x3f) << 8) | b1);
+            const height = 1 + (((b4 & 0xf) << 10) | (b3 << 2) | ((b2 & 0xc0) >> 6));
+            return { width, height, aspectRatio: width / height };
+        }
+    }
+
+    return null;
+}
+
+function resolveProductImageStyles(opts) {
+    const { enquadramentoFoto = 'auto', rotacaoFoto = 'auto', isStories, hasGrade, hasPromoCallout, imgDimensions } = opts;
+
+    const stageWidth = 980;
+    const stageHeight = isStories 
+        ? (hasGrade ? (hasPromoCallout ? 820 : 850) : (hasPromoCallout ? 910 : 950)) 
+        : (hasGrade ? (hasPromoCallout ? 430 : 460) : (hasPromoCallout ? 500 : 530));
+
+    let rotation = 0;
+    if (rotacaoFoto && rotacaoFoto !== 'auto') {
+        const parsed = parseInt(rotacaoFoto, 10);
+        rotation = parsed === 270 ? -90 : (isNaN(parsed) ? 0 : parsed);
+    } else {
+        // Auto / Inteligente:
+        // Se o palco for horizontal (Feed: !isStories) e a foto for vertical (aspect ratio < 0.85)
+        if (!isStories && imgDimensions && imgDimensions.aspectRatio < 0.85) {
+            rotation = -90; // Deita calçados e produtos verticais
+        }
+    }
+
+    let imgStyle = '';
+    const isRotated = (rotation === 90 || rotation === -90 || rotation === 270);
+
+    if (isRotated) {
+        const fit = (enquadramentoFoto === 'cover') ? 'cover' : 'contain';
+        imgStyle = `width:${stageHeight}px; height:${stageWidth}px; object-fit:${fit}; transform:rotate(${rotation}deg); transform-origin:center center; flex-shrink:0;`;
+    } else if (rotation === 180) {
+        const fit = (enquadramentoFoto === 'cover') ? 'cover' : 'contain';
+        const w = (enquadramentoFoto === 'cover') ? '100%' : '90%';
+        const h = (enquadramentoFoto === 'cover') ? '100%' : '90%';
+        imgStyle = `width:${w}; height:${h}; object-fit:${fit}; transform:rotate(180deg); transform-origin:center center;`;
+    } else {
+        // rotation === 0
+        if (enquadramentoFoto === 'cover') {
+            imgStyle = `width:100%; height:100%; object-fit:cover;`;
+        } else {
+            // contain
+            imgStyle = `max-width:90%; max-height:90%; object-fit:contain;`;
+        }
+    }
+
+    return {
+        rotation,
+        isRotated,
+        imgStyle,
+        stageHeight
+    };
+}
+
+/**
+ * Renderiza a pílula / faixa da mensagem promocional customizada
+ */
+function renderPromoCallout(mensagemCard, templateName, palette, isStories) {
+    if (!mensagemCard) return '';
+
+    const fontSize = isStories ? '22px' : '16px';
+    const padding = isStories ? '8px 22px' : '5px 16px';
+    const iconSize = isStories ? '20px' : '15px';
+
+    const hasLeadingEmoji = /^\p{Extended_Pictographic}/u.test(mensagemCard);
+    const iconPrefix = hasLeadingEmoji ? '' : `<span style="font-size:${iconSize}; line-height:1;">⚡</span>`;
+
+    switch (templateName) {
+        case 'modern_dark':
+            return `
+            <div style="display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg, rgba(245,158,11,0.25) 0%, rgba(239,68,68,0.2) 100%); border:1.5px solid rgba(245,158,11,0.55); border-radius:50px; padding:${padding}; font-family:'Outfit',sans-serif; font-size:${fontSize}; font-weight:900; color:#FDE68A; text-transform:uppercase; letter-spacing:0.8px; box-shadow:0 4px 15px rgba(245,158,11,0.2); width:fit-content; margin-bottom:6px;">
+                ${iconPrefix}<span>${mensagemCard}</span>
+            </div>`;
+
+        case 'vibrant_gradient':
+            return `
+            <div style="display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border:1.5px solid #F59E0B; border-radius:50px; padding:${padding}; font-family:'Outfit',sans-serif; font-size:${fontSize}; font-weight:900; color:#92400E; text-transform:uppercase; letter-spacing:0.5px; box-shadow:0 4px 12px rgba(245,158,11,0.25); width:fit-content; margin-bottom:6px;">
+                ${iconPrefix}<span>${mensagemCard}</span>
+            </div>`;
+
+        case 'minimalist_light':
+            return `
+            <div style="display:inline-flex; align-items:center; gap:8px; background:#0F172A; border:1px solid #1E293B; border-radius:8px; padding:${padding}; font-family:'Outfit',sans-serif; font-size:${fontSize}; font-weight:800; color:#FFFFFF; text-transform:uppercase; letter-spacing:1px; box-shadow:0 4px 10px rgba(15,23,42,0.15); width:fit-content; margin-bottom:6px;">
+                ${iconPrefix}<span>${mensagemCard}</span>
+            </div>`;
+
+        case 'neon_promo':
+            const neonColor = palette.accent || '#00FF66';
+            return `
+            <div style="display:inline-flex; align-items:center; gap:8px; background:rgba(0,0,0,0.75); border:1.5px solid ${neonColor}; border-radius:50px; padding:${padding}; font-family:'Outfit',sans-serif; font-size:${fontSize}; font-weight:900; color:#FFFFFF; text-transform:uppercase; letter-spacing:1px; text-shadow:0 0 8px ${neonColor}; box-shadow:0 0 15px ${neonColor}55; width:fit-content; margin-bottom:6px;">
+                ${iconPrefix}<span>${mensagemCard}</span>
+            </div>`;
+
+        case 'bold_banner':
+            return `
+            <div style="display:inline-flex; align-items:center; gap:8px; background:${palette.secondary || '#EF4444'}; border-radius:8px; padding:${padding}; font-family:'Outfit',sans-serif; font-size:${fontSize}; font-weight:900; color:#FFFFFF; text-transform:uppercase; letter-spacing:0.8px; width:fit-content; margin-bottom:6px;">
+                ${iconPrefix}<span>${mensagemCard}</span>
+            </div>`;
+
+        case 'full_bleed_banner':
+        case 'full_bleed':
+        default:
+            return `
+            <div style="display:inline-flex; align-items:center; gap:8px; background:rgba(0,0,0,0.65); border:1.5px solid rgba(255,255,255,0.4); border-radius:50px; padding:${padding}; font-family:'Outfit',sans-serif; font-size:${fontSize}; font-weight:900; color:#FFFFFF; text-transform:uppercase; letter-spacing:0.8px; width:fit-content; margin-bottom:6px;">
+                ${iconPrefix}<span>${mensagemCard}</span>
+            </div>`;
+    }
+}
+
 function generateHtmlTemplate(data, isStories) {
     const templateName = (data.template || 'modern_dark').toLowerCase();
     const corTema = (data.corTema || 'dark').toLowerCase();
@@ -325,30 +503,130 @@ function generateHtmlTemplate(data, isStories) {
     const telefone = escapeHtml(l.telefone || '');
     const site = escapeHtml(l.site || '');
 
+    const gradeTamanhos = p.gradeTamanhos || [];
+    const mesmoPreco = p.mesmoPreco !== undefined ? !!p.mesmoPreco : true;
+    const hasGrade = Array.isArray(gradeTamanhos) && gradeTamanhos.length > 0;
+    const priceLabel = p.priceLabel || (hasGrade && !mesmoPreco ? 'A partir de' : (emPromocao ? 'Por apenas' : 'Preço de venda'));
+
+    const enquadramentoFoto = p.enquadramentoFoto || p.enquadramento_foto || data.enquadramentoFoto || data.enquadramento_foto || 'auto';
+    const rotacaoFoto = p.rotacaoFoto || p.rotacao_foto || data.rotacaoFoto || data.rotacao_foto || 'auto';
+    const mensagemCard = escapeHtml(String(p.mensagemCard || p.mensagem_card || data.mensagemCard || data.mensagem_card || '').trim());
+    const hasPromoCallout = !!mensagemCard;
+    const promoCalloutHtml = renderPromoCallout(mensagemCard, templateName, palette, isStories);
+
+    const imgDimensions = detectImageDimensions(imagemProduto);
+    const imgStyles = resolveProductImageStyles({
+        enquadramentoFoto,
+        rotacaoFoto,
+        isStories,
+        hasGrade,
+        hasPromoCallout,
+        imgDimensions
+    });
+
+    const ctx = {
+        isStories,
+        palette,
+        bgCss,
+        nomeProduto,
+        marca,
+        precoOriginal,
+        precoPromocional,
+        emPromocao,
+        badgeTexto,
+        parcelamento,
+        imagemProduto,
+        nomeLoja,
+        logoLoja,
+        telefone,
+        site,
+        gradeTamanhos,
+        mesmoPreco,
+        hasGrade,
+        priceLabel,
+        imgStyles,
+        mensagemCard,
+        hasPromoCallout,
+        promoCalloutHtml
+    };
+
     // Renders specific template style
     switch (templateName) {
         case 'full_bleed_banner':
         case 'full_bleed':
-            return renderFullBleedBannerTemplate({ isStories, palette, bgCss, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site });
+            return renderFullBleedBannerTemplate(ctx);
         case 'vibrant_gradient':
-            return renderVibrantGradientTemplate({ isStories, palette, bgCss, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site });
+            return renderVibrantGradientTemplate(ctx);
         case 'minimalist_light':
-            return renderMinimalistLightTemplate({ isStories, palette, bgCss, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site });
+            return renderMinimalistLightTemplate(ctx);
         case 'neon_promo':
-            return renderNeonPromoTemplate({ isStories, palette, bgCss, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site });
+            return renderNeonPromoTemplate(ctx);
         case 'bold_banner':
-            return renderBoldBannerTemplate({ isStories, palette, bgCss, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site });
+            return renderBoldBannerTemplate(ctx);
         case 'modern_dark':
         default:
-            return renderModernDarkTemplate({ isStories, palette, bgCss, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site });
+            return renderModernDarkTemplate(ctx);
     }
+}
+
+/**
+ * Renderiza bloco visual de Grade de Tamanhos e Preços da Matriz
+ */
+function renderTamanhosGradeSection(gradeTamanhos, mesmoPreco, palette, isStories, isLight = false) {
+    if (!gradeTamanhos || !Array.isArray(gradeTamanhos) || gradeTamanhos.length === 0) {
+        return '';
+    }
+
+    const maxExibir = isStories ? 20 : 14;
+    const itensExibidos = gradeTamanhos.slice(0, maxExibir);
+    const restantes = gradeTamanhos.length - maxExibir;
+
+    const label = mesmoPreco 
+        ? (itensExibidos.length === 1 ? 'Tamanho Disponível' : 'Tamanhos Disponíveis') 
+        : (itensExibidos.length === 1 ? 'Opção & Preço' : 'Opções & Preços');
+
+    // Para cartões claros (isLight = true), usamos fundo escuro (#0F172A) de altíssimo contraste com texto branco
+    // Para cartões escuros (isLight = false), usamos glassmorphism translúcido suave com texto branco
+    const pillBg = isLight ? '#0F172A' : 'rgba(255, 255, 255, 0.14)';
+    const pillBorder = isLight ? '#1E293B' : 'rgba(255, 255, 255, 0.25)';
+    const pillColor = '#FFFFFF';
+    const accentColor = palette.accent || palette.primary || '#38BDF8';
+    const labelColor = isLight ? '#475569' : accentColor;
+
+    const pillsHtml = itensExibidos.map(item => {
+        const tam = escapeHtml(String(item.tamanho || ''));
+        if (mesmoPreco) {
+            return `<span style="background:${pillBg}; border:1px solid ${pillBorder}; color:${pillColor}; font-weight:800; font-size:${isStories ? '20px' : '16px'}; padding:4px 12px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.15);">${tam}</span>`;
+        } else {
+            const preco = escapeHtml(String(item.preco_formatado || (`R$ ${parseFloat(item.preco || 0).toFixed(2).replace('.', ',')}`)));
+            if (isLight) {
+                const varColor = palette.secondary || palette.primary || '#0F172A';
+                return `<span style="display:inline-flex; align-items:center; gap:6px; background:#F8FAFC; border:1.5px solid #CBD5E1; color:#0F172A; font-size:${isStories ? '18px' : '15px'}; padding:4px 10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.08);"><b style="color:${varColor}; font-weight:900;">${tam}:</b> <span style="font-weight:800; color:#0F172A;">${preco}</span></span>`;
+            } else {
+                return `<span style="display:inline-flex; align-items:center; gap:6px; background:${pillBg}; border:1px solid ${accentColor}; color:${pillColor}; font-size:${isStories ? '18px' : '15px'}; padding:4px 10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.15);"><b style="color:${accentColor}; font-weight:900;">${tam}:</b> <span style="font-weight:700;">${preco}</span></span>`;
+            }
+        }
+    }).join('');
+
+    const maisHtml = restantes > 0 ? `<span style="color:${isLight ? '#64748B' : (palette.mutedText || '#94A3B8')}; font-weight:800; font-size:14px; padding:4px 6px;">+${restantes}</span>` : '';
+
+    return `
+    <div style="margin: ${isStories ? '10px 0' : '5px 0'}; display: flex; flex-direction: column; gap: 5px;">
+        <div style="font-size: ${isStories ? '16px' : '13px'}; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: ${labelColor};">📏 ${label}</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; max-height: ${isStories ? '130px' : '75px'}; overflow: hidden;">
+            ${pillsHtml}
+            ${maisHtml}
+        </div>
+    </div>`;
 }
 
 /* =========================================================================================================
  * TEMPLATE 1: MODERN DARK (Glassmorphism Padrão)
  * ========================================================================================================= */
 function renderModernDarkTemplate(ctx) {
-    const { isStories, palette, bgCss, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site } = ctx;
+    const { isStories, palette, bgCss, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site, gradeTamanhos, mesmoPreco, hasGrade, priceLabel, imgStyles, promoCalloutHtml } = ctx;
+    const tamanhosGradeHtml = renderTamanhosGradeSection(gradeTamanhos, mesmoPreco, palette, isStories, false);
+
     return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -369,20 +647,20 @@ function renderModernDarkTemplate(ctx) {
         .store-logo { max-height: ${isStories ? '75px' : '65px'}; max-width: 220px; object-fit: contain; }
         .store-name { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '34px' : '30px'}; font-weight: 800; text-transform: uppercase; color: #FFFFFF; }
         .promo-badge { background: ${palette.badgeBg}; color: #FFFFFF; font-family: 'Outfit', sans-serif; font-weight: 900; font-size: ${isStories ? '28px' : '24px'}; padding: 10px 24px; border-radius: 50px; box-shadow: 0 8px 20px rgba(0,0,0,0.4); text-transform: uppercase; }
-        .product-stage { position: relative; flex: 1; display: flex; align-items: center; justify-content: center; margin: ${isStories ? '40px 0' : '30px 0'}; }
-        .image-card { position: relative; width: 100%; height: ${isStories ? '920px' : '520px'}; background: ${palette.cardBg}; backdrop-filter: blur(20px); border: 1px solid ${palette.border}; border-radius: 36px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; padding: 12px; overflow: hidden; }
+        .product-stage { position: relative; flex: 1; display: flex; align-items: center; justify-content: center; margin: ${isStories ? '40px 0' : (hasGrade ? '20px 0' : '30px 0')}; }
+        .image-card { position: relative; width: 100%; height: ${imgStyles ? imgStyles.stageHeight : (isStories ? 920 : (hasGrade ? 460 : 520))}px; background: ${palette.cardBg}; backdrop-filter: blur(20px); border: 1px solid ${palette.border}; border-radius: 36px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; padding: 0; overflow: hidden; }
         .image-card-blur-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(30px) opacity(0.4); transform: scale(1.2); pointer-events: none; }
-        .product-image { position: relative; z-index: 2; width: 98%; height: 98%; max-width: 98%; max-height: 98%; object-fit: contain; filter: drop-shadow(0 15px 25px rgba(0,0,0,0.5)); }
+        .product-image { position: relative; z-index: 2; ${imgStyles ? imgStyles.imgStyle : 'width: 98%; height: 98%; object-fit: contain;'} filter: drop-shadow(0 15px 25px rgba(0,0,0,0.5)); }
         .brand-tag { position: absolute; top: 24px; left: 24px; z-index: 3; background: rgba(15, 23, 42, 0.85); border: 1px solid ${palette.border}; color: ${palette.mutedText}; font-size: 20px; font-weight: 700; padding: 8px 20px; border-radius: 12px; text-transform: uppercase; }
-        .info-card { background: ${palette.infoBg}; backdrop-filter: blur(25px); border: 1px solid ${palette.border}; border-radius: 32px; padding: ${isStories ? '36px 40px' : '30px 40px'}; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); display: flex; flex-direction: column; gap: 16px; }
-        .product-title { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '42px' : '36px'}; font-weight: 800; line-height: 1.25; color: #FFFFFF; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .price-section { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 6px; }
-        .original-price { font-size: ${isStories ? '26px' : '24px'}; color: ${palette.mutedText}; text-decoration: line-through; font-weight: 600; }
-        .current-price-label { font-size: 18px; font-weight: 700; color: ${palette.accent}; text-transform: uppercase; letter-spacing: 1px; }
-        .current-price { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '64px' : '54px'}; font-weight: 900; color: ${palette.accent}; line-height: 1; letter-spacing: -1px; }
-        .installment-badge { background: rgba(255,255,255,0.08); border: 1px solid ${palette.border}; color: ${palette.accent}; font-size: ${isStories ? '22px' : '20px'}; font-weight: 700; padding: 12px 24px; border-radius: 16px; align-self: flex-end; }
-        .footer { display: flex; align-items: center; justify-content: space-between; margin-top: ${isStories ? '25px' : '15px'}; padding-top: 15px; border-top: 1px solid ${palette.border}; font-size: ${isStories ? '22px' : '20px'}; color: ${palette.mutedText}; font-weight: 600; }
-        .cta-pill { background: ${palette.primary}; color: #FFFFFF; font-family: 'Outfit', sans-serif; font-size: ${isStories ? '22px' : '19px'}; font-weight: 800; padding: 10px 22px; border-radius: 12px; text-transform: uppercase; }
+        .info-card { background: ${palette.infoBg}; backdrop-filter: blur(25px); border: 1px solid ${palette.border}; border-radius: 32px; padding: ${isStories ? '36px 40px' : '26px 40px'}; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); display: flex; flex-direction: column; gap: 10px; }
+        .product-title { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '42px' : '34px'}; font-weight: 800; line-height: 1.25; color: #FFFFFF; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .price-section { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 4px; }
+        .original-price { font-size: ${isStories ? '26px' : '22px'}; color: ${palette.mutedText}; text-decoration: line-through; font-weight: 600; }
+        .current-price-label { font-size: 16px; font-weight: 700; color: ${palette.accent}; text-transform: uppercase; letter-spacing: 1px; }
+        .current-price { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '64px' : '52px'}; font-weight: 900; color: ${palette.accent}; line-height: 1; letter-spacing: -1px; }
+        .installment-badge { background: rgba(255,255,255,0.08); border: 1px solid ${palette.border}; color: ${palette.accent}; font-size: ${isStories ? '22px' : '18px'}; font-weight: 700; padding: 10px 20px; border-radius: 16px; align-self: flex-end; }
+        .footer { display: flex; align-items: center; justify-content: space-between; margin-top: ${isStories ? '25px' : '12px'}; padding-top: 12px; border-top: 1px solid ${palette.border}; font-size: ${isStories ? '22px' : '18px'}; color: ${palette.mutedText}; font-weight: 600; }
+        .cta-pill { background: ${palette.primary}; color: #FFFFFF; font-family: 'Outfit', sans-serif; font-size: ${isStories ? '22px' : '18px'}; font-weight: 800; padding: 8px 20px; border-radius: 12px; text-transform: uppercase; }
     </style>
 </head>
 <body>
@@ -404,11 +682,13 @@ function renderModernDarkTemplate(ctx) {
             </div>
         </div>
         <div class="info-card">
+            ${promoCalloutHtml ? `<div>${promoCalloutHtml}</div>` : ''}
             <div class="product-title">${nomeProduto}</div>
+            ${tamanhosGradeHtml}
             <div class="price-section">
                 <div>
                     ${emPromocao && precoOriginal ? `<div class="original-price">De: ${precoOriginal}</div>` : ''}
-                    <div class="current-price-label">${emPromocao ? 'Por apenas' : 'Preço de venda'}</div>
+                    <div class="current-price-label">${priceLabel}</div>
                     <div class="current-price">${precoPromocional}</div>
                 </div>
                 ${parcelamento ? `<div class="installment-badge">${parcelamento}</div>` : ''}
@@ -427,7 +707,9 @@ function renderModernDarkTemplate(ctx) {
  * TEMPLATE 2: VIBRANT GRADIENT
  * ========================================================================================================= */
 function renderVibrantGradientTemplate(ctx) {
-    const { isStories, palette, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site } = ctx;
+    const { isStories, palette, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site, gradeTamanhos, mesmoPreco, hasGrade, priceLabel, imgStyles, promoCalloutHtml } = ctx;
+    const tamanhosGradeHtml = renderTamanhosGradeSection(gradeTamanhos, mesmoPreco, palette, isStories, true);
+
     return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -445,17 +727,18 @@ function renderVibrantGradientTemplate(ctx) {
         .store-logo { max-height: 60px; }
         .store-name { font-family: 'Outfit', sans-serif; font-size: 28px; font-weight: 800; text-transform: uppercase; }
         .badge { background: #FFD700; color: #000; font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 24px; padding: 8px 22px; border-radius: 40px; text-transform: uppercase; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        .stage { flex: 1; display: flex; align-items: center; justify-content: center; margin: 25px 0; }
-        .img-box { width: 100%; height: ${isStories ? '950px' : '530px'}; background: #FFFFFF; border-radius: 36px; display: flex; align-items: center; justify-content: center; padding: 40px; box-shadow: 0 30px 60px rgba(0,0,0,0.4); position: relative; }
-        .img-box img { max-width: 90%; max-height: 90%; object-fit: contain; }
-        .brand-badge { position: absolute; top: 20px; left: 20px; background: ${palette.primary}; color: #FFF; font-weight: 800; padding: 6px 16px; border-radius: 10px; font-size: 18px; text-transform: uppercase; }
-        .footer-card { background: #FFFFFF; color: #0F172A; border-radius: 32px; padding: 35px 40px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); display: flex; flex-direction: column; gap: 15px; }
-        .title { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '40px' : '34px'}; font-weight: 900; line-height: 1.2; text-transform: uppercase; color: #0F172A; }
+        .stage { flex: 1; display: flex; align-items: center; justify-content: center; margin: ${isStories ? '25px 0' : (hasGrade ? '15px 0' : '25px 0')}; }
+        .img-box { width: 100%; height: ${imgStyles ? imgStyles.stageHeight : (isStories ? 950 : (hasGrade ? 460 : 530))}px; background: #FFFFFF; border-radius: 36px; display: flex; align-items: center; justify-content: center; padding: 0; box-shadow: 0 30px 60px rgba(0,0,0,0.4); position: relative; overflow: hidden; }
+        .img-box img { ${imgStyles ? imgStyles.imgStyle : 'max-width: 90%; max-height: 90%; object-fit: contain;'} }
+        .brand-badge { position: absolute; top: 20px; left: 20px; z-index: 10; background: ${palette.primary}; color: #FFF; font-weight: 800; padding: 6px 16px; border-radius: 10px; font-size: 18px; text-transform: uppercase; }
+        .footer-card { background: #FFFFFF; color: #0F172A; border-radius: 32px; padding: ${isStories ? '35px 40px' : '25px 40px'}; box-shadow: 0 20px 50px rgba(0,0,0,0.3); display: flex; flex-direction: column; gap: 8px; }
+        .title { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '40px' : '32px'}; font-weight: 900; line-height: 1.2; text-transform: uppercase; color: #0F172A; }
         .price-row { display: flex; align-items: flex-end; justify-content: space-between; }
-        .price { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '60px' : '52px'}; font-weight: 900; color: ${palette.secondary}; line-height: 1; }
-        .orig-price { font-size: 22px; color: #64748B; text-decoration: line-through; font-weight: 600; }
-        .installment { background: #F1F5F9; color: #334155; font-size: 18px; font-weight: 700; padding: 10px 20px; border-radius: 14px; }
-        .contacts { display: flex; justify-content: space-between; font-size: 20px; font-weight: 700; color: rgba(255,255,255,0.9); padding-top: 15px; }
+        .price-label { font-size: 15px; font-weight: 800; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; }
+        .price { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '60px' : '50px'}; font-weight: 900; color: ${palette.secondary}; line-height: 1; }
+        .orig-price { font-size: 20px; color: #64748B; text-decoration: line-through; font-weight: 600; }
+        .installment { background: #F1F5F9; color: #334155; font-size: 18px; font-weight: 700; padding: 8px 18px; border-radius: 14px; }
+        .contacts { display: flex; justify-content: space-between; font-size: 20px; font-weight: 700; color: rgba(255,255,255,0.9); padding-top: 12px; }
     </style>
 </head>
 <body>
@@ -473,10 +756,13 @@ function renderVibrantGradientTemplate(ctx) {
         </div>
     </div>
     <div class="footer-card">
+        ${promoCalloutHtml ? `<div>${promoCalloutHtml}</div>` : ''}
         <div class="title">${nomeProduto}</div>
+        ${tamanhosGradeHtml}
         <div class="price-row">
             <div>
                 ${emPromocao && precoOriginal ? `<div class="orig-price">De: ${precoOriginal}</div>` : ''}
+                <div class="price-label">${priceLabel}</div>
                 <div class="price">${precoPromocional}</div>
             </div>
             ${parcelamento ? `<div class="installment">${parcelamento}</div>` : ''}
@@ -494,7 +780,9 @@ function renderVibrantGradientTemplate(ctx) {
  * TEMPLATE 3: MINIMALIST LIGHT
  * ========================================================================================================= */
 function renderMinimalistLightTemplate(ctx) {
-    const { isStories, palette, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site } = ctx;
+    const { isStories, palette, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site, gradeTamanhos, mesmoPreco, hasGrade, priceLabel, imgStyles, promoCalloutHtml } = ctx;
+    const tamanhosGradeHtml = renderTamanhosGradeSection(gradeTamanhos, mesmoPreco, palette, isStories, true);
+
     return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -510,18 +798,19 @@ function renderMinimalistLightTemplate(ctx) {
         .header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 25px; border-bottom: 2px solid #E2E8F0; }
         .store-name { font-family: 'Outfit', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -0.5px; color: #0F172A; text-transform: uppercase; }
         .badge { background: #0F172A; color: #FFFFFF; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 22px; padding: 8px 20px; border-radius: 8px; text-transform: uppercase; }
-        .stage { flex: 1; display: flex; align-items: center; justify-content: center; margin: 30px 0; }
-        .img-card { position: relative; width: 100%; height: ${isStories ? '940px' : '540px'}; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 24px; display: flex; align-items: center; justify-content: center; padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); overflow: hidden; }
+        .stage { flex: 1; display: flex; align-items: center; justify-content: center; margin: ${isStories ? '30px 0' : (hasGrade ? '15px 0' : '30px 0')}; }
+        .img-card { position: relative; width: 100%; height: ${imgStyles ? imgStyles.stageHeight : (isStories ? 940 : (hasGrade ? 460 : 540))}px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 24px; display: flex; align-items: center; justify-content: center; padding: 0; box-shadow: 0 10px 30px rgba(0,0,0,0.05); overflow: hidden; }
         .img-card-blur-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(30px) opacity(0.35); transform: scale(1.2); pointer-events: none; }
-        .img-card img.product-img-main { position: relative; z-index: 2; width: 98%; height: 98%; max-width: 98%; max-height: 98%; object-fit: contain; filter: drop-shadow(0 15px 25px rgba(0,0,0,0.15)); }
-        .brand { position: absolute; top: 20px; left: 20px; z-index: 3; color: #64748B; font-weight: 700; font-size: 18px; text-transform: uppercase; letter-spacing: 1px; background: rgba(255,255,255,0.85); padding: 4px 12px; border-radius: 8px; }
-        .details { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 24px; padding: 35px 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 15px; }
-        .title { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '42px' : '36px'}; font-weight: 800; color: #0F172A; line-height: 1.25; }
+        .img-card img.product-img-main { position: relative; z-index: 2; ${imgStyles ? imgStyles.imgStyle : 'width: 98%; height: 98%; object-fit: contain;'} filter: drop-shadow(0 15px 25px rgba(0,0,0,0.15)); }
+        .brand { position: absolute; top: 20px; left: 20px; z-index: 10; color: #64748B; font-weight: 700; font-size: 18px; text-transform: uppercase; letter-spacing: 1px; background: rgba(255,255,255,0.85); padding: 4px 12px; border-radius: 8px; }
+        .details { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 24px; padding: ${isStories ? '35px 40px' : '25px 40px'}; box-shadow: 0 10px 30px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 8px; }
+        .title { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '42px' : '34px'}; font-weight: 800; color: #0F172A; line-height: 1.25; }
         .price-section { display: flex; align-items: flex-end; justify-content: space-between; }
-        .price { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '64px' : '54px'}; font-weight: 800; color: ${palette.primary}; line-height: 1; }
-        .orig-price { font-size: 24px; color: #94A3B8; text-decoration: line-through; }
-        .installment { font-size: 20px; font-weight: 600; color: #475569; background: #F1F5F9; padding: 10px 20px; border-radius: 12px; }
-        .footer { display: flex; justify-content: space-between; font-size: 20px; color: #64748B; font-weight: 600; border-top: 1px solid #E2E8F0; pt: 15px; }
+        .price-label { font-size: 15px; font-weight: 800; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; }
+        .price { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '64px' : '52px'}; font-weight: 800; color: ${palette.primary}; line-height: 1; }
+        .orig-price { font-size: 20px; color: #94A3B8; text-decoration: line-through; }
+        .installment { font-size: 18px; font-weight: 600; color: #475569; background: #F1F5F9; padding: 8px 18px; border-radius: 12px; }
+        .footer { display: flex; justify-content: space-between; font-size: 20px; color: #64748B; font-weight: 600; border-top: 1px solid #E2E8F0; padding-top: 12px; }
     </style>
 </head>
 <body>
@@ -540,10 +829,13 @@ function renderMinimalistLightTemplate(ctx) {
         </div>
     </div>
     <div class="details">
+        ${promoCalloutHtml ? `<div>${promoCalloutHtml}</div>` : ''}
         <div class="title">${nomeProduto}</div>
+        ${tamanhosGradeHtml}
         <div class="price-section">
             <div>
                 ${emPromocao && precoOriginal ? `<div class="orig-price">De: ${precoOriginal}</div>` : ''}
+                <div class="price-label">${priceLabel}</div>
                 <div class="price">${precoPromocional}</div>
             </div>
             ${parcelamento ? `<div class="installment">${parcelamento}</div>` : ''}
@@ -561,8 +853,10 @@ function renderMinimalistLightTemplate(ctx) {
  * TEMPLATE 4: NEON PROMO
  * ========================================================================================================= */
 function renderNeonPromoTemplate(ctx) {
-    const { isStories, palette, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site } = ctx;
+    const { isStories, palette, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site, gradeTamanhos, mesmoPreco, hasGrade, priceLabel, imgStyles, promoCalloutHtml } = ctx;
     const neonColor = palette.accent || '#00FF66';
+    const tamanhosGradeHtml = renderTamanhosGradeSection(gradeTamanhos, mesmoPreco, palette, isStories, false);
+
     return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -579,15 +873,16 @@ function renderNeonPromoTemplate(ctx) {
         .header { display: flex; justify-content: space-between; align-items: center; z-index: 2; padding: 20px 30px; }
         .store-name { font-family: 'Outfit', sans-serif; font-size: 32px; font-weight: 900; text-transform: uppercase; color: #FFF; text-shadow: 0 0 10px ${neonColor}; }
         .badge { background: ${neonColor}; color: #000; font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 26px; padding: 10px 26px; border-radius: 50px; box-shadow: 0 0 20px ${neonColor}; text-transform: uppercase; }
-        .stage { flex: 1; display: flex; align-items: center; justify-content: center; margin: 20px 0; z-index: 2; }
-        .img-box { width: 100%; height: ${isStories ? '920px' : '520px'}; background: rgba(15, 23, 42, 0.9); border: 2px solid ${neonColor}88; border-radius: 32px; display: flex; align-items: center; justify-content: center; padding: 40px; box-shadow: 0 0 40px ${neonColor}33; position: relative; }
-        .img-box img { max-width: 90%; max-height: 90%; object-fit: contain; filter: drop-shadow(0 0 20px rgba(255,255,255,0.2)); }
-        .info-card { background: rgba(10, 15, 30, 0.95); border: 2px solid ${neonColor}; border-radius: 28px; padding: 30px 40px; z-index: 2; box-shadow: 0 0 30px ${neonColor}44; display: flex; flex-direction: column; gap: 15px; }
-        .title { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '42px' : '36px'}; font-weight: 900; text-transform: uppercase; line-height: 1.2; color: #FFF; }
+        .stage { flex: 1; display: flex; align-items: center; justify-content: center; margin: ${isStories ? '20px 0' : (hasGrade ? '10px 0' : '20px 0')}; z-index: 2; }
+        .img-box { width: 100%; height: ${imgStyles ? imgStyles.stageHeight : (isStories ? 920 : (hasGrade ? 460 : 520))}px; background: rgba(15, 23, 42, 0.9); border: 2px solid ${neonColor}88; border-radius: 32px; display: flex; align-items: center; justify-content: center; padding: 0; box-shadow: 0 0 40px ${neonColor}33; position: relative; overflow: hidden; }
+        .img-box img { ${imgStyles ? imgStyles.imgStyle : 'max-width: 90%; max-height: 90%; object-fit: contain;'} filter: drop-shadow(0 0 20px rgba(255,255,255,0.2)); }
+        .info-card { background: rgba(10, 15, 30, 0.95); border: 2px solid ${neonColor}; border-radius: 28px; padding: ${isStories ? '30px 40px' : '22px 40px'}; z-index: 2; box-shadow: 0 0 30px ${neonColor}44; display: flex; flex-direction: column; gap: 8px; }
+        .title { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '42px' : '34px'}; font-weight: 900; text-transform: uppercase; line-height: 1.2; color: #FFF; }
         .price-row { display: flex; justify-content: space-between; align-items: flex-end; }
-        .price { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '66px' : '56px'}; font-weight: 900; color: ${neonColor}; text-shadow: 0 0 20px ${neonColor}AA; line-height: 1; }
-        .orig-price { font-size: 24px; color: #94A3B8; text-decoration: line-through; }
-        .installment { color: #FFF; font-size: 20px; font-weight: 700; border: 1px solid ${neonColor}; padding: 10px 20px; border-radius: 12px; background: ${neonColor}22; }
+        .price-label { font-size: 15px; font-weight: 800; color: ${neonColor}; text-transform: uppercase; letter-spacing: 0.5px; }
+        .price { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '66px' : '52px'}; font-weight: 900; color: ${neonColor}; text-shadow: 0 0 20px ${neonColor}AA; line-height: 1; }
+        .orig-price { font-size: 20px; color: #94A3B8; text-decoration: line-through; }
+        .installment { color: #FFF; font-size: 18px; font-weight: 700; border: 1px solid ${neonColor}; padding: 8px 18px; border-radius: 12px; background: ${neonColor}22; }
         .footer { display: flex; justify-content: space-between; z-index: 2; font-size: 20px; font-weight: 700; color: #94A3B8; padding: 0 20px; }
     </style>
 </head>
@@ -606,10 +901,13 @@ function renderNeonPromoTemplate(ctx) {
         </div>
     </div>
     <div class="info-card">
+        ${promoCalloutHtml ? `<div>${promoCalloutHtml}</div>` : ''}
         <div class="title">${nomeProduto}</div>
+        ${tamanhosGradeHtml}
         <div class="price-row">
             <div>
                 ${emPromocao && precoOriginal ? `<div class="orig-price">De: ${precoOriginal}</div>` : ''}
+                <div class="price-label">${priceLabel}</div>
                 <div class="price">${precoPromocional}</div>
             </div>
             ${parcelamento ? `<div class="installment">${parcelamento}</div>` : ''}
@@ -627,7 +925,9 @@ function renderNeonPromoTemplate(ctx) {
  * TEMPLATE 5: BOLD BANNER
  * ========================================================================================================= */
 function renderBoldBannerTemplate(ctx) {
-    const { isStories, palette, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site } = ctx;
+    const { isStories, palette, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site, gradeTamanhos, mesmoPreco, hasGrade, priceLabel, imgStyles, promoCalloutHtml } = ctx;
+    const tamanhosGradeHtml = renderTamanhosGradeSection(gradeTamanhos, mesmoPreco, palette, isStories, true);
+
     return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -640,19 +940,20 @@ function renderBoldBannerTemplate(ctx) {
             font-family: 'Inter', sans-serif; background: #0F172A; color: #FFFFFF;
             display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;
         }
-        .top-banner { background: ${palette.primary}; padding: ${isStories ? '60px 50px 30px' : '35px 50px'}; display: flex; justify-content: space-between; align-items: center; }
+        .top-banner { background: ${palette.primary}; padding: ${isStories ? '60px 50px 30px' : '30px 50px'}; display: flex; justify-content: space-between; align-items: center; }
         .store-title { font-family: 'Outfit', sans-serif; font-size: 34px; font-weight: 900; text-transform: uppercase; color: #FFF; }
         .badge { background: #FFF; color: ${palette.primary}; font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 26px; padding: 8px 24px; border-radius: 40px; text-transform: uppercase; }
-        .stage { flex: 1; padding: 40px 60px; display: flex; items-center; justify-content: center; }
-        .img-box { width: 100%; height: 100%; background: #FFF; border-radius: 32px; display: flex; align-items: center; justify-content: center; padding: 40px; position: relative; }
-        .img-box img { max-width: 90%; max-height: 90%; object-fit: contain; }
-        .bottom-banner { background: #FFFFFF; color: #0F172A; padding: ${isStories ? '50px 60px 70px' : '40px 60px'}; display: flex; flex-direction: column; gap: 15px; }
-        .title { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '44px' : '36px'}; font-weight: 900; text-transform: uppercase; line-height: 1.2; }
-        .price-bar { display: flex; justify-content: space-between; align-items: center; background: #F1F5F9; padding: 20px 30px; border-radius: 20px; margin-top: 10px; }
-        .price { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '62px' : '52px'}; font-weight: 900; color: ${palette.secondary}; }
-        .orig-price { font-size: 22px; color: #64748B; text-decoration: line-through; }
-        .installment { font-size: 20px; font-weight: 700; color: #334155; }
-        .contact-bar { background: #0F172A; color: #FFF; padding: 20px 60px; display: flex; justify-content: space-between; font-size: 20px; font-weight: 700; }
+        .stage { flex: 1; padding: ${isStories ? '40px 60px' : (hasGrade ? '20px 60px' : '40px 60px')}; display: flex; align-items: center; justify-content: center; }
+        .img-box { width: 100%; height: 100%; background: #FFF; border-radius: 32px; display: flex; align-items: center; justify-content: center; padding: 0; position: relative; overflow: hidden; }
+        .img-box img { ${imgStyles ? imgStyles.imgStyle : 'max-width: 90%; max-height: 90%; object-fit: contain;'} }
+        .bottom-banner { background: #FFFFFF; color: #0F172A; padding: ${isStories ? '45px 60px 55px' : '25px 60px 30px'}; display: flex; flex-direction: column; gap: 8px; }
+        .title { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '44px' : '34px'}; font-weight: 900; text-transform: uppercase; line-height: 1.2; }
+        .price-bar { display: flex; justify-content: space-between; align-items: center; background: #F1F5F9; padding: 15px 30px; border-radius: 20px; margin-top: 5px; }
+        .price-label { font-size: 15px; font-weight: 800; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; }
+        .price { font-family: 'Outfit', sans-serif; font-size: ${isStories ? '62px' : '50px'}; font-weight: 900; color: ${palette.secondary}; }
+        .orig-price { font-size: 20px; color: #64748B; text-decoration: line-through; }
+        .installment { font-size: 18px; font-weight: 700; color: #334155; }
+        .contact-bar { background: #0F172A; color: #FFF; padding: 15px 60px; display: flex; justify-content: space-between; font-size: 20px; font-weight: 700; }
     </style>
 </head>
 <body>
@@ -669,10 +970,13 @@ function renderBoldBannerTemplate(ctx) {
         </div>
     </div>
     <div class="bottom-banner">
+        ${promoCalloutHtml ? `<div>${promoCalloutHtml}</div>` : ''}
         <div class="title">${nomeProduto}</div>
+        ${tamanhosGradeHtml}
         <div class="price-bar">
             <div>
                 ${emPromocao && precoOriginal ? `<div class="orig-price">De: ${precoOriginal}</div>` : ''}
+                <div class="price-label">${priceLabel}</div>
                 <div class="price">${precoPromocional}</div>
             </div>
             ${parcelamento ? `<div class="installment">${parcelamento}</div>` : ''}
@@ -690,7 +994,8 @@ function renderBoldBannerTemplate(ctx) {
  * TEMPLATE 6: FULL BLEED BANNER (Foto em Tela Cheia com Banners Topo e Rodapé)
  * ========================================================================================================= */
 function renderFullBleedBannerTemplate(ctx) {
-    const { isStories, palette, bgCss, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site } = ctx;
+    const { isStories, palette, bgCss, nomeProduto, marca, precoOriginal, precoPromocional, emPromocao, badgeTexto, parcelamento, imagemProduto, nomeLoja, logoLoja, telefone, site, gradeTamanhos, mesmoPreco, hasGrade, priceLabel, promoCalloutHtml } = ctx;
+    const tamanhosGradeHtml = renderTamanhosGradeSection(gradeTamanhos, mesmoPreco, palette, isStories, false);
 
     const topBgColor = palette.primary || '#6b8e23';
     const bottomBgColor = palette.badgeBg ? palette.badgeBg : '#ff5722';
@@ -699,7 +1004,7 @@ function renderFullBleedBannerTemplate(ctx) {
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -759,7 +1064,7 @@ function renderFullBleedBannerTemplate(ctx) {
             bottom: 0; left: 0; right: 0;
             z-index: 10;
             background: ${bottomBgColor};
-            padding: ${isStories ? '40px 50px 45px' : '25px 40px'};
+            padding: ${isStories ? '35px 50px 40px' : '20px 40px'};
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -770,10 +1075,11 @@ function renderFullBleedBannerTemplate(ctx) {
             display: flex;
             flex-direction: column;
             gap: 4px;
+            max-width: 65%;
         }
 
         .store-brand-name {
-            font-size: ${isStories ? '40px' : '30px'};
+            font-size: ${isStories ? '36px' : '26px'};
             font-weight: 900;
             color: #000000;
             text-transform: uppercase;
@@ -782,12 +1088,11 @@ function renderFullBleedBannerTemplate(ctx) {
         }
 
         .main-headline {
-            font-size: ${isStories ? '48px' : '36px'};
+            font-size: ${isStories ? '42px' : '30px'};
             font-weight: 900;
             color: #ffffff;
             text-transform: uppercase;
             line-height: 1.1;
-            max-width: 650px;
         }
 
         .price-badge-text {
@@ -824,14 +1129,16 @@ function renderFullBleedBannerTemplate(ctx) {
     <img class="full-bg-image" src="${imagemProduto}" alt="Background">
 
     <div class="top-banner">
-        <div class="top-subtitle">${marca ? marca : 'TUDO SOBRE'}</div>
+        ${promoCalloutHtml ? `<div style="margin-bottom:8px; display:flex; justify-content:center;">${promoCalloutHtml}</div>` : ''}
+        <div class="top-subtitle">${nomeLoja}</div>
         <div class="top-title">${nomeProduto}</div>
     </div>
 
     <div class="bottom-banner">
         <div class="bottom-info">
             <div class="store-brand-name">${nomeLoja}</div>
-            <div class="main-headline">${emPromocao ? 'POR APENAS' : 'OFERTA ESPECIAL'}</div>
+            ${tamanhosGradeHtml}
+            <div class="main-headline">${priceLabel}</div>
             <div class="price-badge-text">${precoPromocional}</div>
         </div>
 

@@ -124,6 +124,7 @@ class EncarteController extends Controller
         $estiloLayout = $request->post('estilo_layout', 'flipsnack_supermarket');
         $corTema = $request->post('cor_tema', 'red_gold');
         $ppp = (int)$request->post('produtos_por_pagina', 6);
+        $modoFoto = $request->post('modo_foto', 'contain');
         $inativarAnteriores = filter_var($request->post('inativar_anteriores', true), FILTER_VALIDATE_BOOLEAN);
         $desmembrarMatriz = filter_var($request->post('desmembrar_matriz', true), FILTER_VALIDATE_BOOLEAN);
         $apenasComEstoque = filter_var($request->post('apenas_com_estoque', true), FILTER_VALIDATE_BOOLEAN);
@@ -235,6 +236,7 @@ class EncarteController extends Controller
             $encarte->subtitulo = $subtitulo;
             $encarte->estilo_layout = $estiloLayout;
             $encarte->cor_tema = $corTema;
+            $encarte->modo_foto = in_array($modoFoto, ['cover', 'contain']) ? $modoFoto : 'contain';
             $encarte->produtos_por_pagina = $ppp > 0 ? $ppp : 6;
 
             if (!$encarte->save()) {
