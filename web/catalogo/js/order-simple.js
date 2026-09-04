@@ -47,9 +47,10 @@ function prepararObjetoPedido(dadosPedido, carrinho) {
         numero_parcelas: parseInt(dadosPedido.numero_parcelas, 10) || 1,
         forma_pagamento_id: dadosPedido.forma_pagamento_id,
         itens: carrinho.map(item => ({
-            produto_id: item.produto_id,
+            produto_id: item.produto_id || item.id,
+            variante_id: item.variante_id || null,
             quantidade: item.quantidade,
-            preco_unitario: item.preco_unitario
+            preco_unitario: item.preco_venda_sugerido || item.preco_unitario
         }))
     };
 

@@ -137,6 +137,63 @@ class ProdutoVariante extends ActiveRecord
     }
 
     /**
+     * Retorna as fotos correspondentes à variante (por variante_id, por cor ou fallback do produto mestre)
+     * @return ProdutoFoto[]
+     */
+    public function getFotosEfetivas()
+    {
+        $fotos = $this->fotos;
+        if (!empty($fotos)) {
+            return $fotos;
+        }
+
+        if ($this->produto && !empty($this->cor)) {
+            $fotosCor = $this->produto->getFotosPorCor($this->cor);
+            if (!empty($fotosCor)) {
+                return $fotosCor;
+            }
+        }
+
+        return $this->produto ? $this->produto->fotos : [];
+    }
+
+    /**
+     * Campos expostos na serialização da API
+     */
+    public function fields()
+    {
+        return [
+            'id',
+            'produto_id',
+            'nome' => function () {
+                return $this->getNomeFormatado();
+            },
+            'cor',
+            'tamanho',
+            'estoque_atual' => function () {
+                return (float)$this->estoque_atual;
+            },
+            'preco_venda_sugerido' => function () {
+                return (string)number_format($this->getPrecoVendaEfetivo(), 2, '.', '');
+            },
+            'preco_promocional' => function () {
+                if ($this->produto && $this->produto->emPromocao && (float)$this->produto->preco_promocional > 0) {
+                    return (string)number_format((float)$this->produto->preco_promocional, 2, '.', '');
+                }
+                return null;
+            },
+            'codigo_referencia',
+            'codigo_barras',
+            'ativo',
+            'fotos' => function () {
+                return $this->getFotosEfetivas();
+            },
+            'data_criacao',
+            'data_atualizacao',
+        ];
+    }
+
+    /**
      * Baixa de estoque da variante com sincronização atômica do produto pai
      * @param float $quantidade Quantidade a baixar
      * @return bool Sucesso na operação

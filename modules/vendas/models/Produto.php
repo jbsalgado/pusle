@@ -296,6 +296,21 @@ class Produto extends ActiveRecord
     }
 
     /**
+     * Retorna as variações consolidadas do produto (Matriz ou Legado).
+     * Se for Matriz (ou possuir variantes na tabela prest_produto_variantes), retorna as ProdutoVariante ativas.
+     * Caso contrário, retorna as variações legadas (Produto com parent_id).
+     * 
+     * @return ProdutoVariante[]|Produto[]
+     */
+    public function getVariacoesConsolidadas()
+    {
+        if ($this->modo_grade === 'matriz' || $this->getVariantesNovas()->exists()) {
+            return $this->getVariantesNovas()->andWhere(['ativo' => true])->all();
+        }
+        return $this->variacoes;
+    }
+
+    /**
      * Relacionamento com as variantes da nova Matriz Unificada (prest_produto_variantes)
      * @return \yii\db\ActiveQuery
      */
@@ -657,7 +672,10 @@ class Produto extends ActiveRecord
     public function extraFields()
     {
         return [
-            'variacoes',
+            'variacoes' => function ($model) {
+                return $model->getVariacoesConsolidadas();
+            },
+            'variantesNovas',
             'pai',
             'kitItens',
             'fotos',

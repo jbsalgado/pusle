@@ -132,6 +132,15 @@ class ProdutoController extends BaseController
             ->one();
 
         if ($model === null) {
+            // Suporte para resolução direta de variante da Matriz
+            $variante = \app\modules\vendas\models\ProdutoVariante::find()
+                ->where(['id' => $id, 'ativo' => true])
+                ->one();
+
+            if ($variante !== null) {
+                return $this->success($variante);
+            }
+
             throw new \yii\web\NotFoundHttpException("Produto não encontrado.");
         }
 

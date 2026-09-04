@@ -410,7 +410,9 @@ class Venda extends ActiveRecord
                 if (!$foiOrcamento) {
                     // Baixa estoque atômica com validação anti-overselling
                     foreach ($this->itens as $item) {
-                        if ($item->produto_id) {
+                        if ($item->variante_id && $item->variante) {
+                            $item->variante->baixarEstoque((float)$item->quantidade);
+                        } elseif ($item->produto_id) {
                             \app\modules\vendas\services\EstoqueService::baixarEstoque(
                                 $item->produto_id,
                                 (float)$item->quantidade,
@@ -436,7 +438,14 @@ class Venda extends ActiveRecord
                 if ($statusAtual === StatusVenda::QUITADA) {
                     // Retorna estoque de forma atômica
                     foreach ($this->itens as $item) {
-                        if ($item->produto_id) {
+                        if ($item->variante_id && $item->variante) {
+                            $item->variante->refresh();
+                            $item->variante->estoque_atual += (float)$item->quantidade;
+                            $item->variante->save(false, ['estoque_atual', 'data_atualizacao']);
+                            if ($item->variante->produto) {
+                                $item->variante->produto->recalculateStockSum();
+                            }
+                        } elseif ($item->produto_id) {
                             \app\modules\vendas\services\EstoqueService::adicionarEstoque(
                                 $item->produto_id,
                                 (float)$item->quantidade,

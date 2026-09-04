@@ -43,12 +43,11 @@ export function adicionarAoCarrinho(produto, quantidade) {
         return false;
     }
     
-    // ✅ CORREÇÃO: Adicionar 'produto_id' manualmente para o backend
-    // O backend espera 'produto_id', mas o objeto produto tem 'id'.
-    // Vamos adicionar os dois para compatibilidade.
+    // ✅ CORREÇÃO: Preservar produto_id (mestre) e variante_id
     const itemParaAdicionar = {
         ...produto,
-        produto_id: produto.id, // Garante que o backend receba o que espera
+        produto_id: produto.produto_id || produto.id, // ID do mestre para o backend
+        variante_id: produto.variante_id || (produto.produto_id && produto.id !== produto.produto_id ? produto.id : null),
         quantidade: quantidade
     };
     
@@ -158,8 +157,8 @@ export function atualizarIndicadoresCarrinho() {
 
     // Mostra apenas para itens que estão no carrinho
     carrinho.forEach(item => {
-        // ✅ CORREÇÃO: Buscar por 'id'
-        const card = document.querySelector(`[data-produto-card="${item.id}"]`);
+        // ✅ CORREÇÃO: Buscar por 'id' ou 'produto_id' (mestre)
+        const card = document.querySelector(`[data-produto-card="${item.produto_id || item.id}"]`);
         if (card) {
             const badge = card.querySelector('.badge-no-carrinho');
             if (badge) {

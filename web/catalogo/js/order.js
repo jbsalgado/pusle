@@ -89,6 +89,7 @@ function prepararObjetoPedido(dadosPedido, carrinho) {
         forma_pagamento_id: dadosPedido.forma_pagamento_id,
         itens: carrinho.map(item => ({
             produto_id: item.produto_id || item.id,
+            variante_id: item.variante_id || null,
             quantidade: item.quantidade,
             preco_unitario: item.preco_venda_sugerido
         }))

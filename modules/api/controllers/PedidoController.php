@@ -7,6 +7,7 @@ use yii\rest\Controller;
 use app\modules\vendas\models\Venda;
 use app\modules\vendas\models\VendaItem;
 use app\modules\vendas\models\Produto;
+use app\modules\vendas\models\ProdutoVariante;
 use app\modules\vendas\models\Orcamento;
 use yii\data\ActiveDataProvider;
 use yii\web\Response;
@@ -300,6 +301,26 @@ class PedidoController extends BaseController
                 }
 
                 $produto = Produto::findOne($produtoId);
+                $variante = null;
+                $varianteId = $itemData['variante_id'] ?? ($itemData['varianteId'] ?? null);
+
+                // Se variante_id foi informada explicitamente
+                if (!empty($varianteId)) {
+                    $variante = ProdutoVariante::findOne($varianteId);
+                    if ($variante && (!$produto || $produto->id !== $variante->produto_id)) {
+                        $produto = $variante->produto;
+                        $produtoId = $produto ? $produto->id : $produtoId;
+                    }
+                } elseif (!$produto && $produtoId !== '00000000-0000-0000-0000-000000000000') {
+                    // Resiliência: se produto_id for o UUID de uma ProdutoVariante
+                    $varianteDetectada = ProdutoVariante::findOne($produtoId);
+                    if ($varianteDetectada) {
+                        $variante = $varianteDetectada;
+                        $varianteId = $varianteDetectada->id;
+                        $produto = $varianteDetectada->produto;
+                        $produtoId = $produto ? $produto->id : $produtoId;
+                    }
+                }
 
                 // ✅ TRATAMENTO PARA ITEM AVULSO: Criar o produto genérico se ele não existir
                 if (!$produto && $produtoId === '00000000-0000-0000-0000-000000000000') {
@@ -323,16 +344,24 @@ class PedidoController extends BaseController
                     throw new Exception("Item #{$index}: produto inválido ou não pertence à loja.");
                 }
 
+                $nomeExibicao = $produto->nome;
+                if ($variante) {
+                    $nomeExibicao = $variante->getNomeFormatado();
+                    if ($precoUnitario <= 0) {
+                        $precoUnitario = $variante->getPrecoVendaEfetivo();
+                    }
+                }
+
                 // Regra de Estoque Inteligente:
                 // Pula validação se for orçamento ou se for o produto genérico/avulso
                 $isOrcamento = isset($data['is_orcamento']) && $data['is_orcamento'] === true;
                 if (!$isOrcamento && $produtoId !== '00000000-0000-0000-0000-000000000000') {
-                    $estoqueAtual = (float)($produto->estoque_atual ?: 0);
+                    $estoqueAtual = $variante ? (float)($variante->estoque_atual ?: 0) : (float)($produto->estoque_atual ?: 0);
                     if ($estoqueAtual <= 0) {
-                        $ocorrenciasEstoque[] = "Item '{$produto->nome}' não incluído por estar sem estoque.";
+                        $ocorrenciasEstoque[] = "Item '{$nomeExibicao}' não incluído por estar sem estoque.";
                         continue; // Ignora e pula este item
                     } elseif ($quantidadePedida > $estoqueAtual) {
-                        $ocorrenciasEstoque[] = "Item '{$produto->nome}' reduzido de {$quantidadePedida} para {$estoqueAtual} por falta de estoque.";
+                        $ocorrenciasEstoque[] = "Item '{$nomeExibicao}' reduzido de {$quantidadePedida} para {$estoqueAtual} por falta de estoque.";
                         $quantidadePedida = $estoqueAtual;
                     }
                 }
@@ -347,7 +376,7 @@ class PedidoController extends BaseController
 
                 // Valida se desconto não ultrapassa o valor
                 if ($descontoValor > $subtotalItem) {
-                    throw new Exception("Item #{$index} ({$produto->nome}): Desconto (R$ {$descontoValor}) excede o valor do item (R$ {$subtotalItem}).");
+                    throw new Exception("Item #{$index} ({$nomeExibicao}): Desconto (R$ {$descontoValor}) excede o valor do item (R$ {$subtotalItem}).");
                 }
 
                 // Soma ao total da venda (subtraindo desconto)
@@ -355,15 +384,17 @@ class PedidoController extends BaseController
 
                 $itensFiltrados[] = [
                     'produto' => $produto,
+                    'variante' => $variante,
+                    'variante_id' => $variante ? $variante->id : null,
                     'quantidade' => $quantidadePedida,
                     'preco_unitario' => $precoUnitario,
                     'desconto_percentual' => $descontoPercentual,
                     'desconto_valor' => $descontoValor,
-                    'nome_item_manual' => $itemData['nome_item_manual'] ?? null,
+                    'nome_item_manual' => $itemData['nome_item_manual'] ?? ($variante ? $nomeExibicao : null),
                     'unidade_medida' => $itemData['unidade_medida'] ?? ($produto->unidade_medida ?? 'un')
                 ];
 
-                Yii::error("Item #{$index} ({$produto->nome}): Qtd={$quantidadePedida}, Preço={$precoUnitario}, Desc={$descontoValor}. Total parcial={$valorTotalVenda}", 'api');
+                Yii::error("Item #{$index} ({$nomeExibicao}): Qtd={$quantidadePedida}, Preço={$precoUnitario}, Desc={$descontoValor}. Total parcial={$valorTotalVenda}", 'api');
             }
 
             // Valida se sobrou algum item na venda
@@ -518,6 +549,7 @@ class PedidoController extends BaseController
                 $item = new VendaItem();
                 $item->venda_id = $venda->id;
                 $item->produto_id = $produto->id;
+                $item->variante_id = $itemPrep['variante_id'] ?? null;
                 $item->quantidade = $itemPrep['quantidade'];
                 $item->preco_unitario_venda = $itemPrep['preco_unitario'];
                 $item->desconto_percentual = $itemPrep['desconto_percentual'];
