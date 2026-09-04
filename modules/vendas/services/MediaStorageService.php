@@ -160,6 +160,58 @@ class MediaStorageService
     }
 
     /**
+     * Exclui todos os vídeos única e exclusivamente da loja/tenant autenticado.
+     * Remove os arquivos físicos .mp4 em disco e os registros no banco de dados.
+     *
+     * @param string|null $usuarioId
+     * @return array
+     */
+    public static function limparTodosVideos($usuarioId = null)
+    {
+        $usuarioId = self::resolveUsuarioId($usuarioId);
+        if (!$usuarioId) {
+            return [
+                'success' => false,
+                'message' => 'Nenhum usuário/loja identificado para exclusão.',
+                'total_excluidos' => 0,
+                'mb_liberados' => 0
+            ];
+        }
+
+        // Busca estritamente os vídeos do usuário/loja autenticada
+        $videos = ProdutoVideo::find()
+            ->where(['usuario_id' => $usuarioId])
+            ->all();
+
+        $totalExcluidos = 0;
+        $bytesLiberados = 0;
+
+        foreach ($videos as $v) {
+            if (!empty($v->video_path)) {
+                $path = Yii::getAlias('@app/web/') . ltrim($v->video_path, '/');
+                if (file_exists($path)) {
+                    $bytesLiberados += filesize($path);
+                    @unlink($path);
+                }
+            }
+            if ($v->delete()) {
+                $totalExcluidos++;
+            }
+        }
+
+        $mbLiberados = round($bytesLiberados / (1024 * 1024), 2);
+
+        return [
+            'success' => true,
+            'message' => "{$totalExcluidos} vídeos da loja foram excluídos com sucesso. {$mbLiberados} MB liberados.",
+            'total_excluidos' => $totalExcluidos,
+            'bytes_liberados' => $bytesLiberados,
+            'mb_liberados' => $mbLiberados,
+            'stats' => self::getEstatisticasVideos($usuarioId)
+        ];
+    }
+
+    /**
      * Retorna estatísticas estruturadas do armazenamento de cards do tenant
      *
      * @param string|null $usuarioId

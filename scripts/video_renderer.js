@@ -539,9 +539,15 @@ function generateVideoHtmlTemplate(data, duracao) {
         .current-price { font-family: 'Outfit', sans-serif; font-size: ${isFeed ? '40px' : '56px'}; font-weight: 900; color: ${palette.accent}; line-height: 1; letter-spacing: -1px; text-shadow: 0 0 25px ${palette.accent}66; }
         .installment-badge { background: rgba(255,255,255,0.08); border: 1px solid ${palette.border}; color: ${palette.accent}; font-size: ${isFeed ? '14px' : '19px'}; font-weight: 700; padding: ${isFeed ? '5px 12px' : '8px 18px'}; border-radius: 12px; align-self: flex-end; }
 
-        /* Footer CTA */
-        .footer { display: flex; align-items: center; justify-content: space-between; margin-top: ${isFeed ? '6px' : '12px'}; padding-top: ${isFeed ? '6px' : '10px'}; border-top: 1px solid ${palette.border}; font-size: ${isFeed ? '15px' : '19px'}; color: ${palette.mutedText}; font-weight: 600; opacity: 0; transform: translateY(20px); transition: all 0.5s ease; }
-        .cta-pill { background: ${palette.primary}; color: #FFFFFF; font-family: 'Outfit', sans-serif; font-size: ${isFeed ? '15px' : '21px'}; font-weight: 900; padding: ${isFeed ? '6px 14px' : '9px 22px'}; border-radius: 12px; text-transform: uppercase; box-shadow: 0 8px 25px ${palette.primary}88; animation: pulseCta 1.5s infinite; }
+        /* Footer CTA - WhatsApp 4x Maior em Destaque */
+        .footer { display: flex; align-items: center; justify-content: space-between; margin-top: ${isFeed ? '8px' : '16px'}; padding-top: ${isFeed ? '8px' : '14px'}; border-top: 1px solid ${palette.border}; opacity: 0; transform: translateY(20px); transition: all 0.5s ease; gap: 14px; }
+        .whatsapp-destaque-box { display: flex; align-items: center; gap: ${isFeed ? '10px' : '18px'}; flex: 1; min-width: 0; }
+        .whatsapp-icon-circle { width: ${isFeed ? '52px' : '76px'}; height: ${isFeed ? '52px' : '76px'}; flex-shrink: 0; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 4px 18px rgba(37, 211, 102, 0.6)); }
+        .whatsapp-svg { width: 100%; height: 100%; }
+        .whatsapp-textos { display: flex; flex-direction: column; min-width: 0; }
+        .whatsapp-label-top { font-family: 'Outfit', sans-serif; font-size: ${isFeed ? '12px' : '17px'}; font-weight: 800; color: #25D366; letter-spacing: 1.5px; text-transform: uppercase; }
+        .whatsapp-number-giant { font-family: 'Outfit', 'Inter', sans-serif; font-size: ${isFeed ? '48px' : '72px'}; font-weight: 900; color: #FFFFFF; line-height: 1.05; letter-spacing: -1px; text-shadow: 0 4px 20px rgba(0, 0, 0, 0.8), 0 0 30px rgba(37, 211, 102, 0.35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cta-pill { background: ${palette.primary}; color: #FFFFFF; font-family: 'Outfit', sans-serif; font-size: ${isFeed ? '16px' : '23px'}; font-weight: 900; padding: ${isFeed ? '8px 16px' : '12px 24px'}; border-radius: 14px; text-transform: uppercase; box-shadow: 0 8px 25px ${palette.primary}88; animation: pulseCta 1.5s infinite; white-space: nowrap; flex-shrink: 0; }
 
         .visible { opacity: 1 !important; transform: none !important; }
         .pulse-scale { transform: scale(1.05) !important; }
@@ -580,8 +586,19 @@ function generateVideoHtmlTemplate(data, duracao) {
             </div>
         </div>
         <div class="footer" id="elemFooter">
-            <div>📞 ${telefone || 'Consulte no WhatsApp'}</div>
-            <div class="cta-pill">PEÇA JÁ NO WHATSAPP</div>
+            <div class="whatsapp-destaque-box">
+                <div class="whatsapp-icon-circle">
+                    <svg viewBox="0 0 24 24" fill="none" class="whatsapp-svg" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.982-1.385A9.956 9.956 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill="#25D366"/>
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414-.074-.124-.272-.198-.57-.346z" fill="#FFFFFF"/>
+                    </svg>
+                </div>
+                <div class="whatsapp-textos">
+                    <span class="whatsapp-label-top">PEDIDOS NO WHATSAPP</span>
+                    <span class="whatsapp-number-giant">${telefone || 'Consulte no WhatsApp'}</span>
+                </div>
+            </div>
+            <div class="cta-pill">PEÇA JÁ</div>
         </div>
     </div>
 
@@ -1558,10 +1575,12 @@ function generateFullBleedVideoHtmlTemplate(data, duracao) {
 
         .whatsapp-contact-box {
             display: flex; align-items: center; gap: ${isFeed ? '10px' : '16px'};
-            background: rgba(0, 0, 0, 0.15); padding: ${isFeed ? '8px 16px' : '12px 24px'}; border-radius: 60px;
+            background: #ffffff; padding: ${isFeed ? '10px 18px' : '14px 28px'}; border-radius: 60px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.35); border: 3px solid #25D366;
+            flex-shrink: 0; white-space: nowrap;
         }
-        .whatsapp-icon { width: ${isFeed ? '44px' : '64px'}; height: ${isFeed ? '44px' : '64px'}; }
-        .phone-number { font-size: ${isFeed ? '32px' : '46px'}; font-weight: 900; color: #000000; font-family: 'Inter', sans-serif; letter-spacing: -1px; }
+        .whatsapp-icon { width: ${isFeed ? '48px' : '70px'}; height: ${isFeed ? '48px' : '70px'}; flex-shrink: 0; filter: drop-shadow(0 2px 8px rgba(37,211,102,0.5)); }
+        .phone-number { font-size: ${isFeed ? '42px' : '62px'}; font-weight: 900; color: #000000; font-family: 'Outfit', 'Inter', sans-serif; letter-spacing: -1px; line-height: 1; white-space: nowrap; }
 
         .visible { transform: translateY(0) !important; }
     </style>

@@ -312,15 +312,33 @@ class VideoGeneratorService
             $locucaoTexto = $options['locucaoTexto'] ?? ($options['locucao_texto'] ?? ($videoModel->metadata['locucao_texto'] ?? null));
             $modoAudio = $options['modoAudio'] ?? ($options['modo_audio'] ?? ($videoModel->metadata['modo_audio'] ?? 'mixado_ducking'));
 
-            if (empty($locucaoAudio) && !empty($locucaoTexto)) {
-                try {
-                    $voz = $options['locucaoVoz'] ?? 'pt-BR-FranciscaNeural';
-                    $ttsRes = AudioProcessorService::gerarLocucaoTts($locucaoTexto, $voz, '+0%', $videoModel->usuario_id ?? null);
-                    if (!empty($ttsRes['arquivo'])) {
-                        $locucaoAudio = $ttsRes['arquivo'];
+            if (!empty($locucaoTexto)) {
+                $corTexto = !empty($corEscolhida) ? $corEscolhida : '';
+                $precoFormatado = 'R$ ' . number_format($precoFinalValor, 2, ',', '.');
+                
+                // Substituição inteligente de tags
+                $textoProcessado = str_ireplace(
+                    ['{produto}', '{cor}', '{modelo}', '{preco}'],
+                    [$produto->nome, $corTexto, $corTexto, $precoFormatado],
+                    $locucaoTexto
+                );
+                // Limpeza de pontuações redundantes caso cor estivesse vazia
+                $textoProcessado = str_ireplace([' na cor !', ' na cor .', ' no modelo !', ' no modelo .'], ['!', '.', '!', '.'], $textoProcessado);
+                $textoProcessado = preg_replace('/\s+/', ' ', trim($textoProcessado));
+
+                // Se o texto resolvido difere do template base ou se o áudio não existia, gera síntese personalizada
+                $deveSintetizarIndividual = ($textoProcessado !== $locucaoTexto) || empty($locucaoAudio);
+
+                if ($deveSintetizarIndividual) {
+                    try {
+                        $voz = $options['locucaoVoz'] ?? 'pt-BR-FranciscaNeural';
+                        $ttsRes = AudioProcessorService::gerarLocucaoTts($textoProcessado, $voz, '+0%', $videoModel->usuario_id ?? null);
+                        if (!empty($ttsRes['arquivo'])) {
+                            $locucaoAudio = $ttsRes['arquivo'];
+                        }
+                    } catch (\Throwable $e) {
+                        Yii::error("Erro ao sintetizar locução individualizada para vídeo {$videoModel->id}: " . $e->getMessage(), __METHOD__);
                     }
-                } catch (\Throwable $e) {
-                    Yii::error("Erro ao gerar locução para vídeo {$videoModel->id}: " . $e->getMessage(), __METHOD__);
                 }
             }
 

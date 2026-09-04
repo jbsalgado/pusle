@@ -53,6 +53,8 @@ class ProdutoVideoController extends Controller
                     'verificar-matriz' => ['POST'],
                     'preparar-lote'    => ['POST'],
                     'gerar-item-lote'  => ['POST'],
+                    'limpar-todos'     => ['POST'],
+                    'delete'           => ['POST'],
                 ],
             ],
         ];
@@ -391,6 +393,8 @@ class ProdutoVideoController extends Controller
         $locucaoAudio = $rawBody['locucaoAudio'] ?? ($rawBody['locucao_audio'] ?? ($bodyParams['locucaoAudio'] ?? ($bodyParams['locucao_audio'] ?? $request->post('locucaoAudio', null))));
         $locucaoTexto = $rawBody['locucaoTexto'] ?? ($rawBody['locucao_texto'] ?? ($bodyParams['locucaoTexto'] ?? ($bodyParams['locucao_texto'] ?? $request->post('locucaoTexto', null))));
         $modoAudio = $rawBody['modoAudio'] ?? ($rawBody['modo_audio'] ?? ($bodyParams['modoAudio'] ?? ($bodyParams['modo_audio'] ?? $request->post('modoAudio', 'mixado_ducking'))));
+        $distribuicaoLocucao = $rawBody['distribuicaoLocucao'] ?? ($rawBody['distribuicao_locucao'] ?? ($bodyParams['distribuicaoLocucao'] ?? ($bodyParams['distribuicao_locucao'] ?? $request->post('distribuicaoLocucao', 'aleatorio'))));
+        $hasLocucaoConfigurada = (!empty($locucaoAudio) || !empty($locucaoTexto)) && ($distribuicaoLocucao !== 'nenhum');
 
         if (is_string($trilhasSonoras)) {
             $trilhasSonoras = array_filter(array_map('trim', explode(',', $trilhasSonoras)));
@@ -445,6 +449,12 @@ class ProdutoVideoController extends Controller
 
                     $nomeItem = (stripos($prod->nome, $corNome) !== false) ? $prod->nome : "{$prod->nome} ({$corNome})";
 
+                    // Sorteio de locução para este item
+                    $usarLocucao = false;
+                    if ($hasLocucaoConfigurada) {
+                        $usarLocucao = ($distribuicaoLocucao === 'todos') ? true : (mt_rand(0, 1) === 1);
+                    }
+
                     $itens[] = [
                         'item_id' => $itemIndex + 1,
                         'produto_id' => $prod->id,
@@ -464,9 +474,10 @@ class ProdutoVideoController extends Controller
                         'modoComposicao' => $modoComposicao,
                         'ajusteDuracao' => $ajusteDuracao,
                         'ajusteProporcao' => $ajusteProporcao,
-                        'locucaoAudio' => $locucaoAudio,
-                        'locucaoTexto' => $locucaoTexto,
-                        'modoAudio' => $modoAudio,
+                        'temLocucao' => $usarLocucao,
+                        'locucaoAudio' => $usarLocucao ? $locucaoAudio : null,
+                        'locucaoTexto' => $usarLocucao ? $locucaoTexto : null,
+                        'modoAudio' => $usarLocucao ? $modoAudio : 'apenas_musica',
                     ];
                     $itemIndex++;
                 }
@@ -477,6 +488,12 @@ class ProdutoVideoController extends Controller
                     : $trilhasSonoras[$itemIndex % count($trilhasSonoras)];
 
                 $desc = !empty($gruposCores) ? 'Vídeo carrossel compilando todas as cores da coleção' : 'Vídeo padrão do produto';
+
+                // Sorteio de locução para este item
+                $usarLocucao = false;
+                if ($hasLocucaoConfigurada) {
+                    $usarLocucao = ($distribuicaoLocucao === 'todos') ? true : (mt_rand(0, 1) === 1);
+                }
 
                 $itens[] = [
                     'item_id' => $itemIndex + 1,
@@ -497,18 +514,47 @@ class ProdutoVideoController extends Controller
                     'modoComposicao' => $modoComposicao,
                     'ajusteDuracao' => $ajusteDuracao,
                     'ajusteProporcao' => $ajusteProporcao,
-                    'locucaoAudio' => $locucaoAudio,
-                    'locucaoTexto' => $locucaoTexto,
-                    'modoAudio' => $modoAudio,
+                    'temLocucao' => $usarLocucao,
+                    'locucaoAudio' => $usarLocucao ? $locucaoAudio : null,
+                    'locucaoTexto' => $usarLocucao ? $locucaoTexto : null,
+                    'modoAudio' => $usarLocucao ? $modoAudio : 'apenas_musica',
                 ];
                 $itemIndex++;
             }
+        }
+
+        // Se for modo aleatório com múltiplos vídeos, garante equilíbrio e variedade
+        if ($hasLocucaoConfigurada && $distribuicaoLocucao === 'aleatorio' && count($itens) >= 2) {
+            $comLocucao = 0;
+            foreach ($itens as $it) {
+                if (!empty($it['temLocucao'])) $comLocucao++;
+            }
+            if ($comLocucao === 0) {
+                // Se nenhum foi sorteado, ativa no primeiro
+                $itens[0]['temLocucao'] = true;
+                $itens[0]['locucaoAudio'] = $locucaoAudio;
+                $itens[0]['locucaoTexto'] = $locucaoTexto;
+                $itens[0]['modoAudio'] = $modoAudio;
+            } else if ($comLocucao === count($itens)) {
+                // Se todos foram sorteados, desativa no último para garantir variedade
+                $ultimoIdx = count($itens) - 1;
+                $itens[$ultimoIdx]['temLocucao'] = false;
+                $itens[$ultimoIdx]['locucaoAudio'] = null;
+                $itens[$ultimoIdx]['locucaoTexto'] = null;
+                $itens[$ultimoIdx]['modoAudio'] = 'apenas_musica';
+            }
+        } else if ($hasLocucaoConfigurada && count($itens) === 1 && $distribuicaoLocucao !== 'nenhum') {
+            $itens[0]['temLocucao'] = true;
+            $itens[0]['locucaoAudio'] = $locucaoAudio;
+            $itens[0]['locucaoTexto'] = $locucaoTexto;
+            $itens[0]['modoAudio'] = $modoAudio;
         }
 
         return [
             'success' => true,
             'total_itens' => count($itens),
             'modo_matriz' => $modoMatriz,
+            'distribuicao_locucao' => $distribuicaoLocucao,
             'total_trilhas_selecionadas' => count($trilhasSonoras),
             'fila' => $itens,
             'itens' => $itens,
@@ -724,6 +770,27 @@ class ProdutoVideoController extends Controller
 
         Yii::$app->response->statusCode = 500;
         return ['success' => false, 'message' => 'Erro ao excluir o registro do vídeo.'];
+    }
+
+    /**
+     * Exclui todos os vídeos única e exclusivamente da loja/tenant autenticado para liberar espaço.
+     * POST /vendas/produto-video/limpar-todos
+     */
+    public function actionLimparTodos()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $lojaId = $this->getLojaId() ?: \app\components\TenantHelper::getId();
+
+        if (empty($lojaId)) {
+            Yii::$app->response->statusCode = 401;
+            return [
+                'success' => false,
+                'message' => 'Sessão expirada ou loja não autenticada.'
+            ];
+        }
+
+        $res = \app\modules\vendas\services\MediaStorageService::limparTodosVideos($lojaId);
+        return $res;
     }
 
     /**

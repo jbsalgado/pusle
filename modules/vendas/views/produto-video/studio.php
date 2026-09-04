@@ -437,9 +437,14 @@ input[type="radio"]:checked + .color-pill-card {
                 <span>📹 Armazenamento de Vídeos da Loja:</span>
                 <span id="lbl-uso-mb" style="color: #38bdf8;"><?= $storageStats['usado_mb'] ?> MB</span> / <span id="lbl-limite-mb" style="color: #94a3b8;"><?= $storageStats['limite_mb'] ?> MB</span>
             </span>
-            <span id="lbl-percentual" style="font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 12px; background: <?= $storageStats['excedido'] ? '#ef4444' : ($storageStats['percentual'] > 80 ? '#f59e0b' : '#10b981') ?>; color: white;">
-                <?= $storageStats['percentual'] ?>% utilizado
-            </span>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <button type="button" id="btn-limpar-todos-videos" onclick="confirmarExclusaoTodosVideos()" class="btn btn-sm btn-outline-danger" style="border-color:#ef4444; color:#f87171; border-radius:10px; font-weight:700; font-size:12px; display:inline-flex; align-items:center; gap:6px; padding:3px 10px; transition:all 0.2s;" title="Excluir todos os vídeos da loja logada e zerar armazenamento">
+                    <span>🗑️ Excluir Vídeos da Loja</span>
+                </button>
+                <span id="lbl-percentual" style="font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 12px; background: <?= $storageStats['excedido'] ? '#ef4444' : ($storageStats['percentual'] > 80 ? '#f59e0b' : '#10b981') ?>; color: white;">
+                    <?= $storageStats['percentual'] ?>% utilizado
+                </span>
+            </div>
         </div>
         <div style="height: 10px; background-color: rgba(255, 255, 255, 0.1); border-radius: 6px; overflow: hidden; margin-bottom: 6px;">
             <div id="bar-cota-progresso" 
@@ -1705,6 +1710,7 @@ function iniciarExecucaoLote(prodIds, modoMatriz, trilhasSelecionadas) {
         locucaoAudio: locucaoAtivaGlobal ? locucaoAtivaGlobal.audioPath : null,
         locucaoTexto: locucaoAtivaGlobal ? locucaoAtivaGlobal.texto : null,
         modoAudio: locucaoAtivaGlobal ? locucaoAtivaGlobal.modoAudio : 'apenas_musica',
+        distribuicaoLocucao: locucaoAtivaGlobal ? (locucaoAtivaGlobal.distribuicao || 'aleatorio') : 'aleatorio',
         '<?= Yii::$app->request->csrfParam ?>': '<?= Yii::$app->request->csrfToken ?>'
     };
 
@@ -2127,22 +2133,27 @@ function atualizarEstimativaTempoFala() {
     }
 }
 
+function inserirTagLocucao(tag) {
+    const txtArea = document.getElementById('txt-locucao-texto');
+    if (!txtArea) return;
+    const start = txtArea.selectionStart || 0;
+    const end = txtArea.selectionEnd || 0;
+    const val = txtArea.value;
+    txtArea.value = val.substring(0, start) + ' ' + tag + ' ' + val.substring(end);
+    txtArea.focus();
+    txtArea.selectionStart = txtArea.selectionEnd = start + tag.length + 2;
+    atualizarEstimativaTempoFala();
+}
+
 function sugerirTextoOfertaStudio() {
     const primeiroChk = document.querySelector('.chk-produto-item:checked');
-    let nomeProd = 'este super produto';
-    let precoProd = '';
-    if (primeiroChk) {
-        nomeProd = primeiroChk.getAttribute('data-nome') || nomeProd;
-    }
-    const precos = document.querySelectorAll('.preco-produto-card');
-    if (precos && precos.length > 0) {
-        precoProd = ' por apenas ' + precos[0].innerText.trim();
-    }
+    let nomeProd = primeiroChk ? (primeiroChk.getAttribute('data-nome') || '{produto}') : '{produto}';
+    let precoProd = ' por apenas {preco}';
 
     const sugestoes = [
-        `Atenção! Olha só essa super oferta do ${nomeProd}${precoProd}! Qualidade garantida e estoque limitado. Garanta já o seu falando conosco pelo WhatsApp!`,
-        `Imperdível! Chegou novidade: ${nomeProd}${precoProd}! Aproveite as melhores condições e peça agora mesmo pelo direct ou WhatsApp!`,
-        `Você não pode perder! ${nomeProd}${precoProd} com entrega rápida e pagamento facilitado. Clique no link e garanta o seu!`
+        `Atenção! Olha só essa super oferta do {produto} na cor {cor}${precoProd}! Qualidade garantida e estoque limitado. Garanta já o seu no WhatsApp!`,
+        `Imperdível! Chegou novidade: {produto} na cor {cor}${precoProd}! Aproveite as melhores condições e peça agora mesmo pelo WhatsApp!`,
+        `Você não pode perder! {produto} na cor {cor} com entrega rápida e pagamento facilitado. Peça já pelo WhatsApp!`
     ];
 
     const sorteada = sugestoes[Math.floor(Math.random() * sugestoes.length)];
@@ -2172,8 +2183,16 @@ function gerarPreviaLocucaoStudio() {
     msgDiv.style.color = '#38bdf8';
     msgDiv.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sintetizando voz neural IA... (aguarde ~1 segundo)';
 
+    // Substitui tags na prévia para que o lojista escute uma demonstração natural
+    const primeiroChk = document.querySelector('.chk-produto-item:checked');
+    const nomeExemplo = primeiroChk ? (primeiroChk.getAttribute('data-nome') || 'este lindo modelo') : 'este lindo modelo';
+    let textoPrevia = txt.replace(/{produto}/gi, nomeExemplo)
+                         .replace(/{cor}|{modelo}/gi, 'Azul')
+                         .replace(/{preco}/gi, 'cento e quarenta e nove reais');
+    textoPrevia = textoPrevia.replace(/\s+/g, ' ').trim();
+
     const formData = new FormData();
-    formData.append('texto', txt);
+    formData.append('texto', textoPrevia);
     formData.append('voz', voz);
     formData.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->getCsrfToken() ?>');
 
@@ -2195,6 +2214,7 @@ function gerarPreviaLocucaoStudio() {
         }
 
         locucaoTempGerada = data;
+        locucaoTempGerada.textoOriginalComTags = txt;
         msgDiv.style.color = '#34d399';
         msgDiv.innerText = `✅ Voz sintetizada com sucesso (${data.duracao.toFixed(1)}s)! Tocando prévia...`;
 
@@ -2215,6 +2235,8 @@ function aplicarLocucaoStudio() {
     const txt = document.getElementById('txt-locucao-texto')?.value.trim() || '';
     const voz = document.getElementById('sel-locucao-voz')?.value || 'pt-BR-FranciscaNeural';
     const duckingChecked = document.getElementById('chk-locucao-ducking')?.checked;
+    const distRadio = document.querySelector('input[name="rad_distribuicao_locucao"]:checked');
+    const distribuicao = distRadio ? distRadio.value : 'aleatorio';
     const msgDiv = document.getElementById('locucao-studio-msg');
 
     if (!txt) {
@@ -2226,14 +2248,15 @@ function aplicarLocucaoStudio() {
 
     const modo = duckingChecked ? 'mixado_ducking' : 'apenas_locucao';
 
-    if (locucaoTempGerada && locucaoTempGerada.texto === txt && locucaoTempGerada.voz === voz) {
+    if (locucaoTempGerada && (locucaoTempGerada.textoOriginalComTags === txt || locucaoTempGerada.texto === txt) && locucaoTempGerada.voz === voz) {
         locucaoAtivaGlobal = {
             texto: txt,
             voz: voz,
             audioUrl: locucaoTempGerada.url,
             audioPath: locucaoTempGerada.arquivo,
             duracao: locucaoTempGerada.duracao,
-            modoAudio: modo
+            modoAudio: modo,
+            distribuicao: distribuicao
         };
         atualizarBadgeLocucaoAtiva();
         fecharModalStudioLocucao();
@@ -2246,8 +2269,16 @@ function aplicarLocucaoStudio() {
     msgDiv.style.color = '#38bdf8';
     msgDiv.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Gerando áudio da locução...';
 
+    // Se tiver tags como {cor} ou {produto}, gera uma versão base para prévia imediata
+    const primeiroChk = document.querySelector('.chk-produto-item:checked');
+    const nomeExemplo = primeiroChk ? (primeiroChk.getAttribute('data-nome') || 'este lindo modelo') : 'este lindo modelo';
+    let textoBase = txt.replace(/{produto}/gi, nomeExemplo)
+                       .replace(/{cor}|{modelo}/gi, 'Exclusivo')
+                       .replace(/{preco}/gi, 'oferta especial');
+    textoBase = textoBase.replace(/\s+/g, ' ').trim();
+
     const formData = new FormData();
-    formData.append('texto', txt);
+    formData.append('texto', textoBase);
     formData.append('voz', voz);
     formData.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->getCsrfToken() ?>');
 
@@ -2274,7 +2305,8 @@ function aplicarLocucaoStudio() {
             audioUrl: data.url,
             audioPath: data.arquivo,
             duracao: data.duracao,
-            modoAudio: modo
+            modoAudio: modo,
+            distribuicao: distribuicao
         };
         atualizarBadgeLocucaoAtiva();
         fecharModalStudioLocucao();
@@ -2303,8 +2335,11 @@ function atualizarBadgeLocucaoAtiva() {
         : locucaoAtivaGlobal.texto;
     lblResumo.innerText = `"${resumo}" (${locucaoAtivaGlobal.duracao.toFixed(1)}s)`;
     if (lblModo) {
-        lblModo.innerText = locucaoAtivaGlobal.modoAudio === 'mixado_ducking' ? 'Mixada (Ducking)' : 'Apenas Voz';
-        lblModo.style.background = locucaoAtivaGlobal.modoAudio === 'mixado_ducking' ? '#eab308' : '#10b981';
+        const distNome = locucaoAtivaGlobal.distribuicao === 'todos' 
+            ? 'Em Todos' 
+            : (locucaoAtivaGlobal.distribuicao === 'nenhum' ? 'Desativada' : '🎲 Aleatório');
+        lblModo.innerText = (locucaoAtivaGlobal.modoAudio === 'mixado_ducking' ? 'Mixada' : 'Apenas Voz') + ' • ' + distNome;
+        lblModo.style.background = locucaoAtivaGlobal.distribuicao === 'nenhum' ? '#64748b' : (locucaoAtivaGlobal.modoAudio === 'mixado_ducking' ? '#eab308' : '#10b981');
     }
 }
 
@@ -2320,6 +2355,81 @@ function tocarPreviaLocucaoAtiva() {
 function removerLocucaoAtiva() {
     locucaoAtivaGlobal = null;
     atualizarBadgeLocucaoAtiva();
+}
+
+function confirmarExclusaoTodosVideos() {
+    if (!confirm("⚠️ ATENÇÃO: Tem certeza que deseja excluir TODOS os vídeos salvos da sua loja?\n\nEssa ação apagará os arquivos de vídeo permanentemente e liberará 100% do seu espaço de armazenamento em disco.")) {
+        return;
+    }
+
+    const btn = document.getElementById('btn-limpar-todos-videos');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Excluindo...';
+    }
+
+    fetch('<?= Url::to(['/vendas/produto-video/limpar-todos']) ?>', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        },
+        body: new FormData()
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span>🗑️ Excluir Vídeos da Loja</span>';
+        }
+
+        if (!data.success) {
+            alert('Erro: ' + (data.message || 'Falha ao excluir os vídeos da loja.'));
+            return;
+        }
+
+        alert('✅ ' + (data.message || 'Vídeos da loja excluídos com sucesso!'));
+
+        // Atualiza a barra de cota e estatísticas na tela
+        if (data.stats) {
+            atualizarBarraArmazenamentoStudio(data.stats);
+        }
+
+        // Limpa a listagem visual do histórico
+        const gridVideos = document.getElementById('grid-historico-videos');
+        if (gridVideos) {
+            gridVideos.innerHTML = '<div class="col-12 text-center text-muted py-4">Nenhum vídeo salvo no momento.</div>';
+        }
+    })
+    .catch(err => {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span>🗑️ Excluir Vídeos da Loja</span>';
+        }
+        alert('Erro ao conectar com o servidor: ' + err.message);
+    });
+}
+
+function atualizarBarraArmazenamentoStudio(stats) {
+    const lblUso = document.getElementById('lbl-uso-mb');
+    const lblLimite = document.getElementById('lbl-limite-mb');
+    const lblPerc = document.getElementById('lbl-percentual');
+    const bar = document.getElementById('bar-cota-progresso');
+    const alerta = document.getElementById('alerta-cota-excedida');
+
+    if (lblUso) lblUso.innerText = stats.usado_mb + ' MB';
+    if (lblLimite) lblLimite.innerText = stats.limite_mb + ' MB';
+    if (lblPerc) {
+        lblPerc.innerText = stats.percentual + '% utilizado';
+        lblPerc.style.background = stats.excedido ? '#ef4444' : (stats.percentual > 80 ? '#f59e0b' : '#10b981');
+    }
+    if (bar) {
+        bar.style.width = stats.percentual + '%';
+        bar.style.backgroundColor = stats.excedido ? '#ef4444' : (stats.percentual > 80 ? '#f59e0b' : '#3b82f6');
+    }
+    if (alerta) {
+        alerta.style.display = stats.excedido ? 'block' : 'none';
+    }
 }
 
 function abrirModalStudioUpload() {
@@ -2835,16 +2945,28 @@ function monitorarProgressoVideoDisparo(disparoId) {
         </div>
 
         <div style="padding:20px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
                 <label class="form-label-custom" style="margin-bottom:0;">Texto da Locução Comercial</label>
-                <button type="button" onclick="sugerirTextoOfertaStudio()" class="btn btn-xs btn-outline-warning" style="border-radius:6px; font-size:0.75rem; border-color:#eab308; color:#fde047; padding:2px 8px;">
-                    ✨ Sugerir Texto de Oferta
-                </button>
+                <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                    <button type="button" onclick="inserirTagLocucao('{produto}')" class="btn btn-xs btn-outline-info" style="border-radius:6px; font-size:0.75rem; border-color:#38bdf8; color:#38bdf8; padding:2px 7px;" title="Insere o nome do produto dinamicamente">
+                        🏷️ {produto}
+                    </button>
+                    <button type="button" onclick="inserirTagLocucao('{cor}')" class="btn btn-xs btn-outline-info" style="border-radius:6px; font-size:0.75rem; border-color:#38bdf8; color:#38bdf8; padding:2px 7px;" title="Insere a cor ou modelo dinamicamente para cada vídeo gerado">
+                        🎨 {cor / modelo}
+                    </button>
+                    <button type="button" onclick="inserirTagLocucao('{preco}')" class="btn btn-xs btn-outline-info" style="border-radius:6px; font-size:0.75rem; border-color:#38bdf8; color:#38bdf8; padding:2px 7px;" title="Insere o preço formatado">
+                        💰 {preco}
+                    </button>
+                    <button type="button" onclick="sugerirTextoOfertaStudio()" class="btn btn-xs btn-outline-warning" style="border-radius:6px; font-size:0.75rem; border-color:#eab308; color:#fde047; padding:2px 8px;">
+                        ✨ Sugerir Texto
+                    </button>
+                </div>
             </div>
 
-            <textarea id="txt-locucao-texto" class="select-custom" rows="3" oninput="atualizarEstimativaTempoFala()" placeholder="Digite a mensagem promocional que a voz neural irá narrar..."></textarea>
-            <div id="lbl-tempo-fala-estimado" style="font-size:0.75rem; color:#94a3b8; margin-top:4px; margin-bottom:14px;">
-                0 caracteres • Tempo estimado de fala: ~0s
+            <textarea id="txt-locucao-texto" class="select-custom" rows="3" oninput="atualizarEstimativaTempoFala()" placeholder="Digite a mensagem promocional ou use {produto} e {cor} para narrar cada variante..."></textarea>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:#94a3b8; margin-top:4px; margin-bottom:12px;">
+                <span id="lbl-tempo-fala-estimado">0 caracteres • Tempo estimado de fala: ~0s</span>
+                <span style="color:#38bdf8;">💡 Dica: {cor} fala o modelo/cor exato de cada vídeo do lote!</span>
             </div>
 
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:14px;">
@@ -2860,7 +2982,28 @@ function monitorarProgressoVideoDisparo(disparoId) {
                 <div style="display:flex; flex-direction:column; justify-content:center;">
                     <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:14px; font-size:0.8rem; color:#f1f5f9;">
                         <input type="checkbox" id="chk-locucao-ducking" checked style="width:16px; height:16px; accent-color:#eab308;">
-                        <span>Audio Ducking (Atenua a música de fundo)</span>
+                        <span>Audio Ducking (Atenua música de fundo)</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Opção de Distribuição de Locução no Lote (Aleatório como Padrão) -->
+            <div style="margin-bottom:14px; background:rgba(255,255,255,0.03); padding:10px 14px; border-radius:10px; border:1px solid #334155;">
+                <label class="form-label-custom" style="font-size:0.82rem; margin-bottom:6px;">
+                    🎯 Distribuição da Locução no Lote de Vídeos
+                </label>
+                <div style="display:flex; gap:16px; flex-wrap:wrap;">
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.82rem; color:#f1f5f9; margin:0;">
+                        <input type="radio" name="rad_distribuicao_locucao" value="aleatorio" checked style="accent-color:#eab308;">
+                        <span>🎲 <strong>Aleatório (Padrão)</strong> - Alterna vídeos c/ voz e música</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.82rem; color:#f1f5f9; margin:0;">
+                        <input type="radio" name="rad_distribuicao_locucao" value="todos" style="accent-color:#eab308;">
+                        <span>🌟 Em Todos os Vídeos</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.82rem; color:#f1f5f9; margin:0;">
+                        <input type="radio" name="rad_distribuicao_locucao" value="nenhum" style="accent-color:#eab308;">
+                        <span>🔇 Em Nenhum (Apenas Música)</span>
                     </label>
                 </div>
             </div>
