@@ -30,4 +30,5 @@ config/certificados/*.key
 config/certificados/*.crt
 
 acesso-dados-vps-top-contrucao.env
+acessos-vps-only-code.env
 
