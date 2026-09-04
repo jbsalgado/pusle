@@ -1032,13 +1032,18 @@ function renderizarEspacoFoto(produto) {
 
 /**
  * Renderiza uma tabela compacta com a prévia da grade (variações) do produto
+ * Exibe apenas variações com estoque disponível (> 0)
  */
 function renderizarPreviaGrade(produto) {
     if (!produto.variacoes || produto.variacoes.length === 0) return '';
 
-    // Limita a 5 variações para não quebrar o layout
-    const variacoesExibir = produto.variacoes.slice(0, 5);
-    const temMais = produto.variacoes.length > 5;
+    // Filtra apenas variações com estoque positivo disponível
+    const variacoesDisponiveis = produto.variacoes.filter(v => parseFloat(v.estoque_atual || 0) > 0);
+    if (variacoesDisponiveis.length === 0) return '';
+
+    // Limita a 5 variações com estoque para não quebrar o layout
+    const variacoesExibir = variacoesDisponiveis.slice(0, 5);
+    const temMais = variacoesDisponiveis.length > 5;
 
     let html = `
     <div class="mt-3 mb-4 border-t border-gray-100 pt-2">
@@ -1060,7 +1065,7 @@ function renderizarPreviaGrade(produto) {
             <tr class="border-b border-gray-50 last:border-0">
                 <td class="py-1 truncate max-w-[60px]" title="${v.cor || '-'}">${v.cor || '-'}</td>
                 <td class="py-1 text-center font-bold">${v.tamanho || '-'}</td>
-                <td class="py-1 text-center ${v.estoque_atual > 0 ? 'text-green-600' : 'text-red-500'}">${v.estoque_atual || 0}</td>
+                <td class="py-1 text-center text-green-600 font-bold">${v.estoque_atual || 0}</td>
                 <td class="py-1 text-right font-bold text-brand-600">${formatarMoeda(preco)}</td>
             </tr>
         `;
@@ -1071,7 +1076,7 @@ function renderizarPreviaGrade(produto) {
         </table>
         ${temMais ? `
             <div class="text-[9px] text-center text-orange-500 font-bold mt-1 uppercase italic">
-                + ${produto.variacoes.length - 5} variações disponíveis
+                + ${variacoesDisponiveis.length - 5} variações disponíveis
             </div>
         ` : ''}
     </div>
@@ -1112,6 +1117,9 @@ function renderizarProdutos(listaProdutos) {
     }
     
     container.innerHTML = listaProdutos.map(produto => {
+        const variacoesComEstoque = (produto.variacoes || []).filter(v => parseFloat(v.estoque_atual || 0) > 0);
+        const temEstoqueVariacoes = produto.variacoes ? (variacoesComEstoque.length > 0) : (parseFloat(produto.estoque_atual || 0) > 0);
+
         return `
         <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 relative"
              data-produto-card="${produto.id}">
@@ -1135,14 +1143,15 @@ function renderizarProdutos(listaProdutos) {
                         ${formatarMoeda(produto.preco_venda_sugerido)}
                     </span>
                     
-                    <span class="text-xs ${produto.estoque_atual > 0 || !!produto.possui_grade ? 'text-green-600' : 'text-red-600'} font-semibold">
-                        ${!!produto.possui_grade ? 'Várias opções' : (produto.estoque_atual > 0 ? `${formatarQuantidade(produto.estoque_atual, produto.venda_fracionada)} em estoque` : 'Sem estoque')}
+                    <span class="text-xs ${produto.possui_grade ? (temEstoqueVariacoes ? 'text-green-600' : 'text-red-600') : (produto.estoque_atual > 0 ? 'text-green-600' : 'text-red-600')} font-semibold">
+                        ${!!produto.possui_grade ? (temEstoqueVariacoes ? 'Várias opções' : 'Sem opções em estoque') : (produto.estoque_atual > 0 ? `${formatarQuantidade(produto.estoque_atual, produto.venda_fracionada)} em estoque` : 'Sem estoque')}
                     </span>
                 </div>
                 
                 ${!!produto.possui_grade ? `
                     <button onclick="abrirModalVariacoes('${produto.id}')"
-                            class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition duration-200">
+                            class="w-full ${temEstoqueVariacoes ? 'bg-orange-500 hover:bg-orange-600 cursor-pointer' : 'bg-gray-400 opacity-60 cursor-not-allowed'} text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition duration-200"
+                            ${!temEstoqueVariacoes ? 'disabled' : ''}>
                         🏷️ Escolher Opções
                     </button>
                 ` : `
@@ -2486,8 +2495,11 @@ window.abrirModalVariacoes = async function(produtoId) {
             }
         }
 
-        if (variacoes.length === 0) {
-            container.innerHTML = `<div class="p-6 text-center text-gray-500">Nenhuma variação disponível no momento.</div>`;
+        // Filtra apenas variações que possuem estoque disponível (> 0)
+        const variacoesComEstoque = variacoes.filter(v => parseFloat(v.estoque_atual || 0) > 0);
+
+        if (variacoesComEstoque.length === 0) {
+            container.innerHTML = `<div class="p-6 text-center text-gray-500 font-medium">Nenhuma opção com estoque disponível no momento.</div>`;
             return;
         }
 
@@ -2495,7 +2507,7 @@ window.abrirModalVariacoes = async function(produtoId) {
         window._variacoesMap = window._variacoesMap || {};
         const baseUrl = (CONFIG.URL_BASE_WEB || '').replace(/\/$/, '');
 
-        variacoes.forEach(v => {
+        variacoesComEstoque.forEach(v => {
             const fotoObj = v.fotos && v.fotos.length > 0 ? v.fotos[0] : null;
             const imgPath = fotoObj && fotoObj.arquivo_path ? fotoObj.arquivo_path.replace(/^\//, '') : null;
             v.imagem = imgPath 
@@ -2505,29 +2517,27 @@ window.abrirModalVariacoes = async function(produtoId) {
             window._variacoesMap[v.id] = v;
         });
 
-        container.innerHTML = variacoes.map(v => {
-            const temEstoque = parseFloat(v.estoque_atual || 0) > 0;
+        container.innerHTML = variacoesComEstoque.map(v => {
             return `
             <div 
-                ${temEstoque ? `onclick="adicionarVariacaoDireto('${v.id}', '${produtoId}')"` : ''} 
-                class="flex justify-between items-center p-3 sm:p-4 border rounded-xl transition-all shadow-sm bg-white
-                       ${temEstoque ? 'border-gray-100 hover:border-brand-300 hover:bg-brand-50 cursor-pointer active:scale-[0.98]' : 'border-gray-200 opacity-60 cursor-not-allowed'}"
-                title="${temEstoque ? 'Adicionar esta opção' : 'Opção sem estoque disponível'}"
+                onclick="adicionarVariacaoDireto('${v.id}', '${produtoId}')" 
+                class="flex justify-between items-center p-3 sm:p-4 border border-gray-100 hover:border-brand-300 hover:bg-brand-50 cursor-pointer active:scale-[0.98] rounded-xl transition-all shadow-sm bg-white"
+                title="Adicionar esta opção"
             >
                 <div class="flex items-center gap-3">
                     ${v.imagem ? `<img src="${v.imagem}" class="w-12 h-12 object-cover rounded-lg border border-gray-100 shrink-0" alt="${v.cor || ''}">` : ''}
                     <div class="flex flex-col">
                         <div class="flex items-center gap-2">
                             <span class="px-2 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-bold rounded uppercase">${v.tamanho || 'U'}</span>
-                            <span class="font-bold ${temEstoque ? 'text-gray-800' : 'text-gray-400 line-through'}">${v.cor || 'Única'}</span>
+                            <span class="font-bold text-gray-800">${v.cor || 'Única'}</span>
                         </div>
                         <span class="text-[10px] text-gray-400 mt-1">Ref: ${v.codigo_referencia || 'N/A'}</span>
                     </div>
                 </div>
                 <div class="flex flex-col items-end shrink-0">
-                    <span class="text-base sm:text-lg font-bold ${temEstoque ? 'text-brand-600' : 'text-gray-400'}">${formatarMoeda(v.preco_venda_sugerido)}</span>
-                    <span class="text-[10px] ${temEstoque ? 'text-green-500 font-semibold' : 'text-red-500 font-bold'}">
-                        ${temEstoque ? `Estoque: ${formatarQuantidade(v.estoque_atual, false)}` : 'Sem estoque'}
+                    <span class="text-base sm:text-lg font-bold text-brand-600">${formatarMoeda(v.preco_venda_sugerido)}</span>
+                    <span class="text-[10px] text-green-600 font-semibold">
+                        Estoque: ${formatarQuantidade(v.estoque_atual, false)}
                     </span>
                 </div>
             </div>`;

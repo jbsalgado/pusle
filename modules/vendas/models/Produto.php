@@ -300,14 +300,31 @@ class Produto extends ActiveRecord
      * Se for Matriz (ou possuir variantes na tabela prest_produto_variantes), retorna as ProdutoVariante ativas.
      * Caso contrário, retorna as variações legadas (Produto com parent_id).
      * 
+     * @param bool|null $somenteComEstoque Se true, filtra apenas variações com estoque_atual > 0
      * @return ProdutoVariante[]|Produto[]
      */
-    public function getVariacoesConsolidadas()
+    public function getVariacoesConsolidadas($somenteComEstoque = null)
     {
-        if ($this->modo_grade === 'matriz' || $this->getVariantesNovas()->exists()) {
-            return $this->getVariantesNovas()->andWhere(['ativo' => true])->all();
+        if ($somenteComEstoque === null && Yii::$app->has('request') && Yii::$app->request instanceof \yii\web\Request) {
+            $reqVal = Yii::$app->request->get('somente_com_estoque', null);
+            if ($reqVal !== null) {
+                $somenteComEstoque = filter_var($reqVal, FILTER_VALIDATE_BOOLEAN);
+            }
         }
-        return $this->variacoes;
+
+        if ($this->modo_grade === 'matriz' || $this->getVariantesNovas()->exists()) {
+            $query = $this->getVariantesNovas()->andWhere(['ativo' => true]);
+            if ($somenteComEstoque) {
+                $query->andWhere(['>', 'estoque_atual', 0]);
+            }
+            return $query->all();
+        }
+
+        $query = $this->getVariacoes();
+        if ($somenteComEstoque) {
+            $query->andWhere(['>', 'estoque_atual', 0]);
+        }
+        return $query->all();
     }
 
     /**
@@ -674,6 +691,9 @@ class Produto extends ActiveRecord
         return [
             'variacoes' => function ($model) {
                 return $model->getVariacoesConsolidadas();
+            },
+            'variacoes_disponiveis' => function ($model) {
+                return $model->getVariacoesConsolidadas(true);
             },
             'variantesNovas',
             'pai',
