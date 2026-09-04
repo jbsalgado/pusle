@@ -300,28 +300,40 @@ class Produto extends ActiveRecord
      * Se for Matriz (ou possuir variantes na tabela prest_produto_variantes), retorna as ProdutoVariante ativas.
      * Caso contrário, retorna as variações legadas (Produto com parent_id).
      * 
-     * @param bool|null $somenteComEstoque Se true, filtra apenas variações com estoque_atual > 0
+     * Por padrão (catálogo e APIs públicas), filtra apenas variações com estoque positivo (> 0).
+     * Para retornar todas inclusive com estoque zerado, passe $somenteComEstoque = false ou query param incluir_sem_estoque=1.
+     * 
+     * @param bool|null $somenteComEstoque Se true (ou null por padrão), filtra apenas variações com estoque_atual > 0.
      * @return ProdutoVariante[]|Produto[]
      */
     public function getVariacoesConsolidadas($somenteComEstoque = null)
     {
-        if ($somenteComEstoque === null && Yii::$app->has('request') && Yii::$app->request instanceof \yii\web\Request) {
-            $reqVal = Yii::$app->request->get('somente_com_estoque', null);
-            if ($reqVal !== null) {
-                $somenteComEstoque = filter_var($reqVal, FILTER_VALIDATE_BOOLEAN);
+        if (Yii::$app->has('request') && Yii::$app->request instanceof \yii\web\Request) {
+            $incluirSemEstoque = Yii::$app->request->get('incluir_sem_estoque', null);
+            if ($incluirSemEstoque !== null && filter_var($incluirSemEstoque, FILTER_VALIDATE_BOOLEAN)) {
+                $somenteComEstoque = false;
+            } else {
+                $reqVal = Yii::$app->request->get('somente_com_estoque', null);
+                if ($reqVal !== null) {
+                    $somenteComEstoque = filter_var($reqVal, FILTER_VALIDATE_BOOLEAN);
+                }
             }
         }
 
+        // Por padrão, filtra apenas variações com estoque positivo (> 0)
+        // a menos que explicitamente solicitado $somenteComEstoque === false
+        $filtrarEstoque = ($somenteComEstoque !== false);
+
         if ($this->modo_grade === 'matriz' || $this->getVariantesNovas()->exists()) {
             $query = $this->getVariantesNovas()->andWhere(['ativo' => true]);
-            if ($somenteComEstoque) {
+            if ($filtrarEstoque) {
                 $query->andWhere(['>', 'estoque_atual', 0]);
             }
             return $query->all();
         }
 
         $query = $this->getVariacoes();
-        if ($somenteComEstoque) {
+        if ($filtrarEstoque) {
             $query->andWhere(['>', 'estoque_atual', 0]);
         }
         return $query->all();

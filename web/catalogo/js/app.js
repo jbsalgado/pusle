@@ -546,7 +546,7 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false) {
         mostrarCarregando();
         
         // Usa per-page padrão de 100 (configurado no backend) e expande variações (e suas fotos), fotos do pai e categoria
-        let url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}&page=${pagina}&per-page=100&expand=variacoes.fotos,fotos,categoria`;
+        let url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}&page=${pagina}&per-page=100&somente_com_estoque=1&expand=variacoes.fotos,fotos,categoria`;
 
         if (termoBusca) {
             url += `&q=${encodeURIComponent(termoBusca)}`;
@@ -2483,8 +2483,8 @@ window.abrirModalVariacoes = async function(produtoId) {
             : null;
 
         if (!variacoes) {
-            // Busca variações da API com expand=variacoes
-            const response = await fetch(`${API_ENDPOINTS.PRODUTO}/${produtoId}?expand=variacoes`);
+            // Busca variações da API com expand=variacoes filtrando estoque disponível
+            const response = await fetch(`${API_ENDPOINTS.PRODUTO}/${produtoId}?somente_com_estoque=1&expand=variacoes`);
             if (!response.ok) throw new Error('Erro ao buscar variações');
             
             const data = await response.json();
