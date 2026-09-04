@@ -325,6 +325,98 @@ input[type="radio"]:checked + .color-pill-card {
     background: rgba(56, 189, 248, 0.18) !important;
     color: #ffffff;
 }
+
+.product-select-list {
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid #334155;
+    border-radius: 12px;
+    max-height: 250px;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.product-select-list::-webkit-scrollbar {
+    width: 6px;
+}
+.product-select-list::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 3px;
+}
+
+.product-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s ease;
+}
+
+.product-item-row:hover {
+    background: rgba(30, 41, 59, 0.8);
+    border-color: rgba(56, 189, 248, 0.3);
+}
+
+.product-item-row.is-previewing {
+    border-left: 3px solid #38bdf8;
+    background: rgba(56, 189, 248, 0.08);
+}
+
+.product-item-row.disabled-item {
+    opacity: 0.55;
+    background: rgba(15, 23, 42, 0.4);
+}
+
+.trilha-card {
+    background: rgba(30, 41, 59, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    transition: all 0.2s ease;
+}
+
+.trilha-card:hover {
+    border-color: rgba(56, 189, 248, 0.4);
+    background: rgba(30, 41, 59, 0.8);
+}
+
+.trilha-card.is-checked {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
+}
+
+.decision-card-option {
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    background: rgba(30, 41, 59, 0.7);
+    border-radius: 14px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    height: 100%;
+}
+
+.decision-card-option:hover {
+    border-color: rgba(56, 189, 248, 0.6);
+    background: rgba(30, 41, 59, 0.95);
+    transform: translateY(-2px);
+}
+
+.decision-card-option.active {
+    border-color: #38bdf8 !important;
+    background: rgba(56, 189, 248, 0.15) !important;
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.25);
+}
 </style>
 
 <div class="video-studio-container">
@@ -364,19 +456,93 @@ input[type="radio"]:checked + .color-pill-card {
         <div class="col-lg-6 mb-4">
             <div class="glass-card">
                 <form id="form-gerar-video" onsubmit="return false;">
+                    <!-- 1. Seleção Inteligente de Produtos (Múltiplos com Filtro de Fotos) -->
                     <div class="mb-4">
-                        <label class="form-label-custom">1. Selecione o Produto</label>
-                        <select id="select-produto" class="select-custom">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                            <label class="form-label-custom" style="margin-bottom: 0;">1. Selecione o(s) Produto(s) para o Lote</label>
+                            <span id="lbl-contagem-produtos" class="badge" style="background: #38bdf8; color: #0f172a; font-weight: 800; font-size: 11px; border-radius: 12px; padding: 4px 10px;">
+                                0 selecionados
+                            </span>
+                        </div>
+
+                        <!-- Barra de Pesquisa e Ações Rápidas -->
+                        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                            <input type="text" id="filtro-produtos-studio" class="select-custom" placeholder="🔍 Buscar por nome..." style="padding: 8px 12px; font-size: 0.88rem; flex: 1;">
+                            <button type="button" id="btn-marcar-todos-fotos" class="btn btn-sm btn-outline-info" style="border-color:#38bdf8; color:#38bdf8; border-radius: 8px; font-weight: 600; white-space: nowrap; font-size: 0.8rem;" title="Marcar todos os produtos com fotos cadastradas">
+                                ✅ Marcar c/ Fotos
+                            </button>
+                            <button type="button" id="btn-desmarcar-todos-produtos" class="btn btn-sm btn-outline-secondary" style="border-color:#475569; color:#94a3b8; border-radius: 8px; font-weight: 600; white-space: nowrap; font-size: 0.8rem;">
+                                ✖ Limpar
+                            </button>
+                        </div>
+
+                        <!-- Lista de Produtos Rolável -->
+                        <div id="lista-produtos-studio" class="product-select-list">
                             <?php if (empty($produtos)): ?>
-                                <option value="">Nenhum produto cadastrado</option>
+                                <div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.88rem;">
+                                    Nenhum produto cadastrado na loja.
+                                </div>
                             <?php else: ?>
-                                <?php foreach ($produtos as $prod): ?>
-                                    <option value="<?= Html::encode($prod->id) ?>" <?= ($produtoSelecionado && $produtoSelecionado->id === $prod->id) ? 'selected' : '' ?>>
-                                        <?= Html::encode($prod->nome) ?> — R$ <?= number_format((float)$prod->getPrecoFinal(), 2, ',', '.') ?>
-                                    </option>
+                                <?php foreach ($produtos as $prod): 
+                                    $qtdFotos = $fotosCountMap[$prod->id] ?? 0;
+                                    $infoMatriz = $matrizCountMap[$prod->id] ?? null;
+                                    $qtdCores = $infoMatriz ? (int)$infoMatriz['total_cores'] : 0;
+                                    $semFotos = ($qtdFotos === 0);
+                                    $estaInicialmenteMarcado = in_array($prod->id, $produtosIdsIniciais) && !$semFotos;
+                                    $ehProdutoPreview = ($produtoSelecionado && $produtoSelecionado->id === $prod->id);
+                                ?>
+                                    <div class="product-item-row <?= $semFotos ? 'disabled-item' : '' ?> <?= $ehProdutoPreview ? 'is-previewing' : '' ?>" id="prod-row-<?= $prod->id ?>" data-id="<?= $prod->id ?>" data-nome="<?= Html::encode(mb_strtolower($prod->nome)) ?>">
+                                        <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
+                                            <input type="checkbox" 
+                                                   name="chk_produto_item" 
+                                                   class="chk-produto-item" 
+                                                   value="<?= Html::encode($prod->id) ?>" 
+                                                   data-nome="<?= Html::encode($prod->nome) ?>"
+                                                   data-fotos="<?= $qtdFotos ?>"
+                                                   data-cores="<?= $qtdCores ?>"
+                                                   <?= $estaInicialmenteMarcado ? 'checked' : '' ?>
+                                                   <?= $semFotos ? 'disabled' : '' ?>
+                                                   style="width: 18px; height: 18px; cursor: <?= $semFotos ? 'not-allowed' : 'pointer' ?>; accent-color: #38bdf8;">
+                                            
+                                            <div style="flex: 1; min-width: 0;">
+                                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                                    <span style="font-weight: 700; font-size: 0.88rem; color: <?= $semFotos ? '#94a3b8' : '#f8fafc' ?>; word-break: break-word;">
+                                                        <?= Html::encode($prod->nome) ?>
+                                                    </span>
+                                                    <span style="font-weight: 700; color: #10b981; font-size: 0.82rem;">
+                                                        R$ <?= number_format((float)$prod->getPrecoFinal(), 2, ',', '.') ?>
+                                                    </span>
+                                                </div>
+                                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 3px;">
+                                                    <?php if ($semFotos): ?>
+                                                        <span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); font-size: 10px;">
+                                                            ⚠️ 0 fotos (Bloqueado)
+                                                        </span>
+                                                    <?php else: ?>
+                                                        <span class="badge" style="background: rgba(2, 132, 199, 0.25); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 10px;">
+                                                            📸 <?= $qtdFotos ?> <?= $qtdFotos == 1 ? 'foto' : 'fotos' ?>
+                                                        </span>
+                                                    <?php endif; ?>
+
+                                                    <?php if ($qtdCores > 1): ?>
+                                                        <span class="badge" style="background: rgba(139, 92, 246, 0.25); color: #c084fc; border: 1px solid rgba(192, 132, 252, 0.4); font-size: 10px;">
+                                                            🎨 Matriz: <?= $qtdCores ?> cores
+                                                        </span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <?php if (!$semFotos): ?>
+                                            <button type="button" class="btn btn-sm btn-outline-info btn-set-preview-prod" data-id="<?= $prod->id ?>" style="border-radius: 6px; font-size: 11px; padding: 3px 8px; border-color: #334155; color: #38bdf8;" title="Ver detalhes/vídeos deste produto no Studio">
+                                                👁️ Prévia
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
                                 <?php endforeach; ?>
                             <?php endif; ?>
-                        </select>
+                        </div>
+                        <input type="hidden" id="produto_preview_ativo_id" value="<?= $produtoSelecionado ? $produtoSelecionado->id : '' ?>">
                     </div>
 
                     <div class="mb-4">
@@ -402,6 +568,7 @@ input[type="radio"]:checked + .color-pill-card {
                                 <span class="time-val">60s</span>
                                 <span class="time-label">Vídeo Completo</span>
                             </div>
+                        </div>
                         <div id="lbl-ritmo-fotos" style="margin-top: 10px; font-size: 0.8rem; color: #38bdf8; font-weight: 600; display: flex; align-items: center; gap: 6px; background: rgba(56,189,248,0.08); padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(56,189,248,0.2);">
                             ⏱️ <span id="lbl-ritmo-texto">Ritmo Confortável: ~3.75s por foto (Máx: 4 fotos para 15s)</span>
                         </div>
@@ -637,36 +804,97 @@ input[type="radio"]:checked + .color-pill-card {
                         return ($item['tipo_audio'] ?? 'musica') === \app\modules\vendas\models\TrilhaSonora::TIPO_EFEITO;
                     });
                     ?>
+                    <!-- 4. Escolha da(s) Trilha(s) Sonora(s) ou Efeitos Especiais -->
                     <div class="mb-4">
-                        <label class="form-label-custom">4. Escolha a Trilha Sonora ou Efeito Especial</label>
-                        <div class="input-group" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <select id="select-trilha" class="select-custom" style="flex: 1; min-width: 220px;">
-                                <optgroup label="🎵 Músicas de Fundo">
-                                    <?php foreach ($faixasMusica as $m): ?>
-                                        <option value="<?= Html::encode($m['arquivo']) ?>" data-url="<?= Html::encode($m['url']) ?>">
-                                            <?= Html::encode($m['nome']) ?> — <?= Html::encode($m['descricao']) ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </optgroup>
-                                <?php if (!empty($faixasEfeito)): ?>
-                                    <optgroup label="🔊 Efeitos Especiais & Vinhetas">
-                                        <?php foreach ($faixasEfeito as $m): ?>
-                                            <option value="<?= Html::encode($m['arquivo']) ?>" data-url="<?= Html::encode($m['url']) ?>">
-                                                <?= Html::encode($m['nome']) ?> — <?= Html::encode($m['descricao']) ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </optgroup>
-                                <?php endif; ?>
-                            </select>
-                            <button type="button" id="btn-preview-audio" class="btn btn-outline-info" style="border-color:#334155; color:#38bdf8; border-radius: 10px; padding: 0 14px; font-weight: 600;" title="Ouvir Prévia do Áudio">
-                                🔊 Ouvir
-                            </button>
-                            <button type="button" onclick="abrirModalStudioUpload()" class="btn btn-outline-success" style="border-color:#10b981; color:#34d399; border-radius: 10px; padding: 0 14px; font-weight: 600;" title="Fazer Upload Rápido de Áudio">
-                                ➕ Upload Rápido
-                            </button>
-                            <a href="<?= \yii\helpers\Url::to(['/vendas/trilha-sonora']) ?>" class="btn btn-outline-secondary" style="border-color:#334155; color:#a855f7; border-radius: 10px; padding: 0 14px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center;" title="Gerenciar Músicas de Fundo">
-                                🎵 Biblioteca
-                            </a>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                            <label class="form-label-custom" style="margin-bottom: 0;">4. Escolha a(s) Trilha(s) Sonora(s) ou Efeitos</label>
+                            <span id="lbl-contagem-trilhas" class="badge" style="background: #10b981; color: #fff; font-weight: 800; font-size: 11px; border-radius: 12px; padding: 4px 10px;">
+                                1 selecionada
+                            </span>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
+                            <div style="display: flex; gap: 6px;">
+                                <button type="button" id="btn-marcar-todas-musicas" class="btn btn-sm btn-outline-info" style="border-color:#38bdf8; color:#38bdf8; border-radius: 8px; font-weight: 600; font-size: 0.78rem;">
+                                    🎵 Marcar Músicas
+                                </button>
+                                <button type="button" id="btn-selecionar-uma-musica" class="btn btn-sm btn-outline-secondary" style="border-color:#475569; color:#94a3b8; border-radius: 8px; font-weight: 600; font-size: 0.78rem;">
+                                    🎯 Apenas a 1ª
+                                </button>
+                            </div>
+                            <div style="display: flex; gap: 6px;">
+                                <button type="button" onclick="abrirModalStudioUpload()" class="btn btn-sm btn-outline-success" style="border-color:#10b981; color:#34d399; border-radius: 8px; font-weight: 600; font-size: 0.78rem;" title="Fazer Upload Rápido de Áudio">
+                                    ➕ Upload Rápido
+                                </button>
+                                <a href="<?= \yii\helpers\Url::to(['/vendas/trilha-sonora']) ?>" class="btn btn-sm btn-outline-secondary" style="border-color:#475569; color:#c084fc; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 0.78rem;" title="Gerenciar Músicas de Fundo">
+                                    🎵 Biblioteca
+                                </a>
+                            </div>
+                        </div>
+
+                        <div style="font-size: 0.8rem; color: #38bdf8; background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.2); border-radius: 8px; padding: 6px 12px; margin-bottom: 10px;">
+                            💡 <strong>Regra de Músicas:</strong> Se selecionar <strong>1 música</strong>, ela será usada em todos os vídeos. Se selecionar <strong>várias</strong>, o sistema distribuirá as faixas ciclicamente (<em>Round-Robin</em>) entre os vídeos do lote!
+                        </div>
+
+                        <!-- Lista de Trilhas Rolável -->
+                        <div id="lista-trilhas-studio" class="product-select-list" style="max-height: 220px;">
+                            <?php $isFirst = true; ?>
+                            <?php foreach ($faixasMusica as $m): ?>
+                                <div class="trilha-card <?= $isFirst ? 'is-checked' : '' ?>" style="margin-bottom: 6px;">
+                                    <label style="display: flex; align-items: center; gap: 10px; margin: 0; cursor: pointer; flex: 1; min-width: 0;">
+                                        <input type="checkbox" 
+                                               name="chk_trilha_item" 
+                                               class="chk-trilha-item" 
+                                               value="<?= Html::encode($m['arquivo']) ?>" 
+                                               data-url="<?= Html::encode($m['url']) ?>" 
+                                               data-nome="<?= Html::encode($m['nome']) ?>" 
+                                               <?= $isFirst ? 'checked' : '' ?> 
+                                               style="width: 17px; height: 17px; cursor: pointer; accent-color: #10b981;">
+                                        <div style="flex: 1; min-width: 0;">
+                                            <div style="font-weight: 700; font-size: 0.88rem; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                                🎵 <?= Html::encode($m['nome']) ?>
+                                            </div>
+                                            <div style="font-size: 0.75rem; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                                <?= Html::encode($m['descricao']) ?>
+                                            </div>
+                                        </div>
+                                    </label>
+                                    <button type="button" class="btn btn-xs btn-outline-info btn-preview-track" data-url="<?= Html::encode($m['url']) ?>" style="border-radius: 6px; font-size: 11px; padding: 3px 8px; border-color: #334155; color: #38bdf8; white-space: nowrap;">
+                                        🔊 Ouvir
+                                    </button>
+                                </div>
+                                <?php $isFirst = false; ?>
+                            <?php endforeach; ?>
+
+                            <?php if (!empty($faixasEfeito)): ?>
+                                <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin: 10px 0 6px 4px;">
+                                    🔊 Efeitos Especiais & Vinhetas
+                                </div>
+                                <?php foreach ($faixasEfeito as $m): ?>
+                                    <div class="trilha-card" style="margin-bottom: 6px;">
+                                        <label style="display: flex; align-items: center; gap: 10px; margin: 0; cursor: pointer; flex: 1; min-width: 0;">
+                                            <input type="checkbox" 
+                                                   name="chk_trilha_item" 
+                                                   class="chk-trilha-item" 
+                                                   value="<?= Html::encode($m['arquivo']) ?>" 
+                                                   data-url="<?= Html::encode($m['url']) ?>" 
+                                                   data-nome="<?= Html::encode($m['nome']) ?>" 
+                                                   style="width: 17px; height: 17px; cursor: pointer; accent-color: #10b981;">
+                                            <div style="flex: 1; min-width: 0;">
+                                                <div style="font-weight: 700; font-size: 0.88rem; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                                    🔊 <?= Html::encode($m['nome']) ?>
+                                                </div>
+                                                <div style="font-size: 0.75rem; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                                    <?= Html::encode($m['descricao']) ?>
+                                                </div>
+                                            </div>
+                                        </label>
+                                        <button type="button" class="btn btn-xs btn-outline-info btn-preview-track" data-url="<?= Html::encode($m['url']) ?>" style="border-radius: 6px; font-size: 11px; padding: 3px 8px; border-color: #334155; color: #38bdf8; white-space: nowrap;">
+                                            🔊 Ouvir
+                                        </button>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </div>
                         <audio id="audio-preview-element" style="display:none;"></audio>
                     </div>
@@ -791,15 +1019,21 @@ input[type="radio"]:checked + .color-pill-card {
     </div>
 
     <!-- Histórico de Vídeos Gerados -->
-    <?php if (!empty($videosRecentes)): ?>
-        <div class="mt-4 pt-3 border-top border-secondary" style="border-color: rgba(255,255,255,0.08) !important;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
-                <h3 style="font-size: 1.1rem; font-weight: 700; color: #cbd5e1; margin: 0;">📹 Vídeos Recentes Deste Produto</h3>
-                <button type="button" onclick="abrirDisparoVideosSelecionados()" class="btn btn-sm" style="border-radius: 10px; font-weight: 700; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; border: none; padding: 6px 14px;">
-                    📱 Disparar Vídeos Selecionados
-                </button>
-            </div>
-            <div class="row">
+    <div class="mt-4 pt-3 border-top border-secondary" id="container-historico-videos" style="border-color: rgba(255,255,255,0.08) !important;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+            <h3 style="font-size: 1.1rem; font-weight: 700; color: #cbd5e1; margin: 0;">📹 Vídeos Recentes Gerados</h3>
+            <button type="button" onclick="abrirDisparoVideosSelecionados()" class="btn btn-sm" style="border-radius: 10px; font-weight: 700; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; border: none; padding: 6px 14px;">
+                📱 Disparar Vídeos Selecionados
+            </button>
+        </div>
+        
+        <div id="empty-history-msg" style="<?= empty($videosRecentes) ? 'display:block;' : 'display:none;' ?> padding: 24px; text-align: center; color: #64748b; font-size: 0.9rem; background: rgba(30, 41, 59, 0.3); border-radius: 12px; border: 1px dashed #334155; margin-bottom: 15px;">
+            <i class="glyphicon glyphicon-film" style="font-size: 1.8rem; display: block; margin-bottom: 8px; color: #475569;"></i>
+            Nenhum vídeo gerado ainda para este produto. Selecione as opções acima e clique em <strong>Gerar Vídeos Promocionais</strong>!
+        </div>
+
+        <div class="row" id="grid-historico-videos">
+            <?php if (!empty($videosRecentes)): ?>
                 <?php foreach ($videosRecentes as $vid): ?>
                     <div class="col-md-6 col-lg-4" id="history-col-<?= $vid->id ?>">
                         <div class="history-card" id="history-card-<?= $vid->id ?>">
@@ -839,26 +1073,128 @@ input[type="radio"]:checked + .color-pill-card {
                         </div>
                     </div>
                 <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Decisão de Matriz para Geração de Vídeos (Unico Carrossel vs Vídeo por Cor) -->
+<div id="modalDecisaoMatrizVideo" style="display:none; position:fixed; inset:0; z-index:9998; background:rgba(15,23,42,0.85); backdrop-filter:blur(8px); align-items:center; justify-content:center; padding:16px;">
+    <div style="background:#1e293b; border:1px solid #334155; color:#fff; border-radius:18px; width:100%; max-width:650px; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 25px 50px rgba(0,0,0,0.6);">
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg, #0284c7 0%, #6366f1 100%); padding:18px 24px; display:flex; align-items:center; justify-content:space-between;">
+            <div>
+                <h3 style="margin:0; font-size:1.2rem; font-weight:800; color:#fff; display:flex; align-items:center; gap:8px;">
+                    <span>🎨 Produtos com Matriz Detectados!</span>
+                </h3>
+                <p style="margin:4px 0 0 0; font-size:0.85rem; color:#e0e7ff;">
+                    Um ou mais produtos selecionados possuem variações de cores/modelos. Como deseja gerar?
+                </p>
+            </div>
+            <button onclick="fecharModalDecisaoMatriz()" type="button" style="background:none; border:none; color:#fff; font-size:1.4rem; cursor:pointer; padding:0 6px;">
+                ✕
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div style="padding:20px 24px; overflow-y:auto; flex:1;">
+            <!-- Opções de Escolha -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:20px;">
+                <!-- Opção 1: Vídeo por Cor (Recomendado) -->
+                <div class="decision-card-option active" id="card-modo-por-cor" onclick="selecionarModoMatrizModal('por_cor')">
+                    <input type="radio" name="modo_matriz_modal" value="por_cor" checked style="margin-top:4px; accent-color:#38bdf8; width:18px; height:18px;">
+                    <div>
+                        <div style="font-weight:800; font-size:0.95rem; color:#fff; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                            <span>🎨 Vídeo por Cor</span>
+                            <span class="badge" style="background:#10b981; color:#fff; font-size:10px;">Recomendado</span>
+                        </div>
+                        <p style="font-size:0.78rem; color:#94a3b8; margin:4px 0 8px 0; line-height:1.35;">
+                            Gera um vídeo individual para cada cor cadastrada do produto (ex: Azul, Branco, Preto).
+                        </p>
+                        <span id="badge-modal-previsao-cores" class="badge" style="background:#0284c7; color:#fff; font-weight:700; font-size:11px;">
+                            Calculando...
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Opção 2: Vídeo Único Carrossel -->
+                <div class="decision-card-option" id="card-modo-unico" onclick="selecionarModoMatrizModal('unico')">
+                    <input type="radio" name="modo_matriz_modal" value="unico" style="margin-top:4px; accent-color:#38bdf8; width:18px; height:18px;">
+                    <div>
+                        <div style="font-weight:800; font-size:0.95rem; color:#fff;">
+                            <span>🎴 Vídeo Único Carrossel</span>
+                        </div>
+                        <p style="font-size:0.78rem; color:#94a3b8; margin:4px 0 8px 0; line-height:1.35;">
+                            Compila as fotos de todas as cores da coleção em 1 único vídeo por produto.
+                        </p>
+                        <span id="badge-modal-previsao-unico" class="badge" style="background:#334155; color:#38bdf8; border:1px solid #475569; font-weight:700; font-size:11px;">
+                            Calculando...
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabela de Prévia dos Vídeos e Músicas -->
+            <div style="margin-top:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span style="font-size:0.82rem; font-weight:700; text-transform:uppercase; color:#94a3b8; letter-spacing:0.05em;">
+                        📋 Prévia do Lote a Ser Gerado (<span id="lbl-total-previa-itens">0</span> vídeos)
+                    </span>
+                    <span id="lbl-info-musicas-distribuicao" style="font-size:0.75rem; color:#38bdf8; font-weight:600;">
+                        🎵 1 música atribuída
+                    </span>
+                </div>
+                <div style="background:rgba(15,23,42,0.8); border:1px solid #334155; border-radius:10px; max-height:190px; overflow-y:auto;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.8rem; color:#cbd5e1;">
+                        <thead>
+                            <tr style="border-bottom:1px solid #334155; background:rgba(30,41,59,0.8); color:#94a3b8; font-size:0.75rem;">
+                                <th style="padding:8px 10px; text-align:left;">#</th>
+                                <th style="padding:8px 10px; text-align:left;">Produto</th>
+                                <th style="padding:8px 10px; text-align:left;">Cor / Modo</th>
+                                <th style="padding:8px 10px; text-align:center;">Fotos</th>
+                                <th style="padding:8px 10px; text-align:left;">Trilha Sonora</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-previa-lote-matriz">
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
-    <?php endif; ?>
+
+        <!-- Footer -->
+        <div style="background:rgba(15,23,42,0.9); border-top:1px solid #334155; padding:16px 24px; display:flex; justify-content:flex-end; gap:12px; align-items:center;">
+            <button type="button" onclick="fecharModalDecisaoMatriz()" class="btn btn-outline-light btn-sm" style="border-color:#475569; color:#cbd5e1; border-radius:8px;">
+                Cancelar
+            </button>
+            <button type="button" id="btn-confirmar-lote-matriz" class="btn btn-success btn-sm" style="background:linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%); border:none; font-weight:700; padding:8px 18px; border-radius:8px; display:flex; align-items:center; gap:8px;">
+                <span>🚀 Confirmar e Iniciar Lote (<span id="lbl-btn-qtd-confirmar">0</span> Vídeos)</span>
+            </button>
+        </div>
+    </div>
 </div>
 
 <?= $this->render('_modal_disparo_video') ?>
 
 <script>
+// =========================================================================
+// VARIÁVEIS GLOBAIS DE ESTADO DO STUDIO DE VÍDEOS
+// =========================================================================
+let duracaoSelecionada = 5;
+let videoRecemGeradoId = null;
+let videoRecemGeradoUrl = null;
+let currentPreviewAudioBtn = null;
+
+// Estado para Lote & Decisão de Matriz
+let dadosVerificacaoMatrizGlobal = null;
+let loteProdIdsGlobal = [];
+let loteTrilhasGlobal = [];
+let modoMatrizEscolhido = 'por_cor';
+
 document.addEventListener('DOMContentLoaded', function() {
-    let duracaoSelecionada = 5;
-    let currentVideoId = null;
-    let pollingInterval = null;
-
-    const selectProduto = document.getElementById('select-produto');
-    const selectTemplate = document.getElementById('select-template');
     const btnGerar = document.getElementById('btn-gerar-video');
-    const selectTrilha = document.getElementById('select-trilha');
-    const btnPreviewAudio = document.getElementById('btn-preview-audio');
     const audioPreviewElem = document.getElementById('audio-preview-element');
-
     const progressBox = document.getElementById('progress-box');
     const progressBarInner = document.getElementById('progress-bar-inner');
     const progressStatusText = document.getElementById('progress-status-text');
@@ -867,57 +1203,200 @@ document.addEventListener('DOMContentLoaded', function() {
     const videoPlayer = document.getElementById('video-preview-player');
     const actionButtonsBox = document.getElementById('action-buttons-box');
     const btnDownload = document.getElementById('btn-download-video');
-    const btnWhatsapp = document.getElementById('btn-share-whatsapp');
 
-    // Prévia de Áudio da Trilha Sonora ou Efeito Especial
-    if (btnPreviewAudio && selectTrilha && audioPreviewElem) {
-        btnPreviewAudio.addEventListener('click', function() {
-            const selectedOption = selectTrilha.options[selectTrilha.selectedIndex];
-            if (!selectedOption) return;
+    // -------------------------------------------------------------
+    // 1. GESTÃO DO SELETOR DE PRODUTOS
+    // -------------------------------------------------------------
+    const filtroProdutos = document.getElementById('filtro-produtos-studio');
+    const btnMarcarFotos = document.getElementById('btn-marcar-todos-fotos');
+    const btnDesmarcarProdutos = document.getElementById('btn-desmarcar-todos-produtos');
+    const lblContagemProdutos = document.getElementById('lbl-contagem-produtos');
 
-            const audioUrl = selectedOption.getAttribute('data-url');
-            if (!audioUrl) {
-                alert('URL de prévia do áudio não encontrada.');
-                return;
+    window.atualizarContagemProdutos = function() {
+        const marcados = document.querySelectorAll('.chk-produto-item:checked');
+        const qtd = marcados.length;
+        if (lblContagemProdutos) {
+            lblContagemProdutos.innerText = qtd === 1 ? '1 selecionado' : qtd + ' selecionados';
+        }
+        if (btnGerar) {
+            const spanTxt = btnGerar.querySelector('span');
+            if (spanTxt) {
+                spanTxt.innerText = qtd > 1 ? `🎬 Gerar Vídeos Promocionais (${qtd} Produtos)` : '🎬 Gerar Vídeo Promocional 9:16';
+            }
+        }
+    };
+
+    if (filtroProdutos) {
+        filtroProdutos.addEventListener('input', function() {
+            const termo = this.value.toLowerCase().trim();
+            document.querySelectorAll('.product-item-row').forEach(row => {
+                const nome = row.getAttribute('data-nome') || '';
+                if (!termo || nome.includes(termo)) {
+                    row.style.display = 'flex';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
+
+    if (btnMarcarFotos) {
+        btnMarcarFotos.addEventListener('click', function() {
+            document.querySelectorAll('.chk-produto-item').forEach(chk => {
+                const fotos = parseInt(chk.getAttribute('data-fotos') || '0');
+                if (fotos > 0 && !chk.disabled) {
+                    chk.checked = true;
+                }
+            });
+            window.atualizarContagemProdutos();
+        });
+    }
+
+    if (btnDesmarcarProdutos) {
+        btnDesmarcarProdutos.addEventListener('click', function() {
+            document.querySelectorAll('.chk-produto-item').forEach(chk => chk.checked = false);
+            window.atualizarContagemProdutos();
+        });
+    }
+
+    document.querySelectorAll('.chk-produto-item').forEach(chk => {
+        chk.addEventListener('change', window.atualizarContagemProdutos);
+    });
+    document.querySelectorAll('.product-item-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-set-preview-prod') || e.target.type === 'checkbox') return;
+            const chk = this.querySelector('.chk-produto-item');
+            if (chk && !chk.disabled) {
+                chk.checked = !chk.checked;
+                window.atualizarContagemProdutos();
+            }
+        });
+    });
+    window.atualizarContagemProdutos();
+
+    // Botão de prévia rápida do produto (recarrega studio focando no produto selecionado)
+    document.querySelectorAll('.btn-set-preview-prod').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const prodId = this.getAttribute('data-id');
+            if (!prodId) return;
+
+            // Mantém os produtos selecionados atuais na URL
+            const marcados = Array.from(document.querySelectorAll('.chk-produto-item:checked')).map(c => c.value);
+            if (!marcados.includes(prodId)) {
+                marcados.unshift(prodId);
             }
 
-            if (audioPreviewElem.src !== audioUrl) {
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('produto_id', prodId);
+            if (marcados.length > 0) {
+                currentUrl.searchParams.set('produto_ids', marcados.join(','));
+            }
+            window.location.href = currentUrl.toString();
+        });
+    });
+
+    // -------------------------------------------------------------
+    // 2. GESTÃO DAS TRILHAS SONORAS
+    // -------------------------------------------------------------
+    const btnMarcarMusicas = document.getElementById('btn-marcar-todas-musicas');
+    const btnApenasUmaMusica = document.getElementById('btn-selecionar-uma-musica');
+    const lblContagemTrilhas = document.getElementById('lbl-contagem-trilhas');
+
+    window.atualizarContagemTrilhas = function() {
+        const marcadas = document.querySelectorAll('.chk-trilha-item:checked');
+        const qtd = marcadas.length;
+        if (lblContagemTrilhas) {
+            lblContagemTrilhas.innerText = qtd === 1 ? '1 selecionada' : qtd + ' selecionadas';
+        }
+        document.querySelectorAll('.chk-trilha-item').forEach(chk => {
+            const card = chk.closest('.trilha-card');
+            if (card) {
+                if (chk.checked) card.classList.add('is-checked');
+                else card.classList.remove('is-checked');
+            }
+        });
+    };
+
+    if (btnMarcarMusicas) {
+        btnMarcarMusicas.addEventListener('click', function() {
+            document.querySelectorAll('.chk-trilha-item').forEach(chk => chk.checked = true);
+            window.atualizarContagemTrilhas();
+        });
+    }
+
+    if (btnApenasUmaMusica) {
+        btnApenasUmaMusica.addEventListener('click', function() {
+            let primeiraMarcada = false;
+            document.querySelectorAll('.chk-trilha-item').forEach(chk => {
+                if (!primeiraMarcada) {
+                    chk.checked = true;
+                    primeiraMarcada = true;
+                } else {
+                    chk.checked = false;
+                }
+            });
+            window.atualizarContagemTrilhas();
+        });
+    }
+
+    document.querySelectorAll('.chk-trilha-item').forEach(chk => {
+        chk.addEventListener('change', window.atualizarContagemTrilhas);
+    });
+    document.querySelectorAll('.trilha-card').forEach(card => {
+        card.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-preview-track') || e.target.type === 'checkbox') return;
+            const chk = this.querySelector('.chk-trilha-item');
+            if (chk) {
+                chk.checked = !chk.checked;
+                window.atualizarContagemTrilhas();
+            }
+        });
+    });
+    window.atualizarContagemTrilhas();
+
+    // Botões de prévia de áudio
+    function conectarBotoesAudioPreview() {
+        document.querySelectorAll('.btn-preview-track').forEach(btn => {
+            btn.onclick = function() {
+                const audioUrl = this.getAttribute('data-url');
+                if (!audioUrl || !audioPreviewElem) return;
+
+                if (currentPreviewAudioBtn === this && !audioPreviewElem.paused) {
+                    audioPreviewElem.pause();
+                    this.innerHTML = '🔊 Ouvir';
+                    currentPreviewAudioBtn = null;
+                    return;
+                }
+
+                if (currentPreviewAudioBtn && currentPreviewAudioBtn !== this) {
+                    currentPreviewAudioBtn.innerHTML = '🔊 Ouvir';
+                }
+
                 audioPreviewElem.src = audioUrl;
-            }
-
-            if (audioPreviewElem.paused) {
                 audioPreviewElem.play().then(() => {
-                    btnPreviewAudio.innerHTML = '⏸️ Pausar';
+                    this.innerHTML = '⏸️ Pausar';
+                    currentPreviewAudioBtn = this;
                 }).catch(e => {
                     alert('Não foi possível reproduzir a prévia: ' + e.message);
                 });
-            } else {
-                audioPreviewElem.pause();
-                btnPreviewAudio.innerHTML = '🔊 Ouvir';
-            }
+            };
         });
+    }
+    conectarBotoesAudioPreview();
 
+    if (audioPreviewElem) {
         audioPreviewElem.addEventListener('ended', function() {
-            btnPreviewAudio.innerHTML = '🔊 Ouvir';
-        });
-
-        selectTrilha.addEventListener('change', function() {
-            if (!audioPreviewElem.paused) {
-                audioPreviewElem.pause();
-                btnPreviewAudio.innerHTML = '🔊 Ouvir';
+            if (currentPreviewAudioBtn) {
+                currentPreviewAudioBtn.innerHTML = '🔊 Ouvir';
+                currentPreviewAudioBtn = null;
             }
         });
     }
 
-    // Troca de produto no dropdown
-    selectProduto.addEventListener('change', function() {
-        const prodId = this.value;
-        if (prodId) {
-            window.location.href = '<?= Url::to(['/vendas/produto-video/studio']) ?>?produto_id=' + prodId;
-        }
-    });
-
-    // Seleção das Pills de Duração
+    // -------------------------------------------------------------
+    // 3. SELEÇÃO DE DURAÇÃO & FORMATO
+    // -------------------------------------------------------------
     document.querySelectorAll('.duration-pill').forEach(pill => {
         pill.addEventListener('click', function() {
             document.querySelectorAll('.duration-pill').forEach(p => p.classList.remove('active'));
@@ -938,259 +1417,543 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Troca de formato (1080x1080 vs 1080x1920) na interface do Studio
     document.querySelectorAll('input[name="video_formato"]').forEach(radio => {
         radio.addEventListener('change', function() {
-            const val = this.value;
-            const titleElem = document.getElementById('lbl-preview-title');
-            const aspectBox = document.querySelector('.preview-aspect-ratio');
-            if (val === 'feed' || val === '1:1') {
-                if (titleElem) titleElem.innerText = 'Prévia do Vídeo Promocional (1080x1080)';
-                if (aspectBox) aspectBox.classList.add('is-feed');
-            } else {
-                if (titleElem) titleElem.innerText = 'Prévia do Vídeo Promocional (1080x1920)';
-                if (aspectBox) aspectBox.classList.remove('is-feed');
-            }
+            ajustarTelaPreview(this.value);
         });
     });
 
-    // Botões de reproduzir histórico
-    document.querySelectorAll('.btn-play-history').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const url = this.getAttribute('data-url');
-            const formato = this.getAttribute('data-formato') || 'stories';
-            if (url) {
-                mostrarVideoConcluido(url, formato);
-            }
-        });
-    });
+    // -------------------------------------------------------------
+    // 4. HISTÓRICO: PLAY & EXCLUIR
+    // -------------------------------------------------------------
+    conectarEventosCardsHistorico();
 
-    // Botões de Excluir Histórico (Remoção física no servidor)
-    document.querySelectorAll('.btn-delete-history').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const videoId = this.getAttribute('data-id');
-            if (!confirm('Deseja realmente excluir este vídeo? O arquivo MP4 será removido permanentemente do servidor para liberar espaço em disco.')) {
+    // -------------------------------------------------------------
+    // 5. CLIQUE NO BOTÃO GERAR VÍDEOS (FLUXO DO LOTE & MATRIZ)
+    // -------------------------------------------------------------
+    if (btnGerar) {
+        btnGerar.addEventListener('click', function() {
+            const marcados = Array.from(document.querySelectorAll('.chk-produto-item:checked'))
+                .filter(chk => parseInt(chk.getAttribute('data-fotos') || '0') > 0);
+
+            if (marcados.length === 0) {
+                alert('Por favor, selecione ao menos um produto com fotos cadastradas para gerar os vídeos.');
                 return;
             }
 
-            fetch('<?= Url::to(['/vendas/produto-video/delete']) ?>', {
+            const prodIds = marcados.map(c => c.value);
+
+            // Coleta as trilhas sonoras selecionadas
+            let trilhasSelecionadas = Array.from(document.querySelectorAll('.chk-trilha-item:checked'))
+                .map(c => c.value);
+
+            if (trilhasSelecionadas.length === 0) {
+                const primeira = document.querySelector('.chk-trilha-item');
+                if (primeira) {
+                    primeira.checked = true;
+                    trilhasSelecionadas = [primeira.value];
+                    window.atualizarContagemTrilhas();
+                }
+            }
+
+            btnGerar.disabled = true;
+            const originalText = btnGerar.innerHTML;
+            btnGerar.innerHTML = '<span>🔍 Analisando variações de matriz...</span>';
+
+            // Chamada de verificação de matriz no backend
+            fetch('<?= Url::to(['/vendas/produto-video/verificar-matriz']) ?>', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Type': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
                 },
-                body: 'id=' + encodeURIComponent(videoId)
+                body: JSON.stringify({
+                    produto_ids: prodIds,
+                    '<?= Yii::$app->request->csrfParam ?>': '<?= Yii::$app->request->csrfToken ?>'
+                })
             })
             .then(res => res.json())
             .then(data => {
-                if (data.success) {
-                    const col = document.getElementById('history-col-' + videoId);
-                    if (col) {
-                        col.style.transition = 'all 0.3s ease';
-                        col.style.opacity = '0';
-                        col.style.transform = 'scale(0.8)';
-                        setTimeout(() => col.remove(), 300);
-                    }
-                    if (data.stats) {
-                        atualizarBarraCota(data.stats);
-                    }
+                btnGerar.disabled = false;
+                btnGerar.innerHTML = originalText;
+
+                if (!data.success) {
+                    alert('Erro: ' + (data.message || 'Falha ao verificar matriz dos produtos.'));
+                    return;
+                }
+
+                if (data.tem_matriz) {
+                    // Abre o modal interativo de decisão
+                    abrirModalDecisaoMatriz(data, prodIds, trilhasSelecionadas);
                 } else {
-                    alert('Erro ao excluir vídeo: ' + (data.message || 'Erro desconhecido.'));
+                    // Nenhum produto possui matriz de variação: gera direto em modo 'unico'
+                    iniciarExecucaoLote(prodIds, 'unico', trilhasSelecionadas);
                 }
             })
-            .catch(err => alert('Erro de conexão ao excluir vídeo: ' + err.message));
+            .catch(err => {
+                btnGerar.disabled = false;
+                btnGerar.innerHTML = originalText;
+                alert('Erro de comunicação com o servidor: ' + err.message);
+            });
         });
+    }
+
+    // Botão de confirmação dentro do modal de decisão da matriz
+    const btnConfirmarMatriz = document.getElementById('btn-confirmar-lote-matriz');
+    if (btnConfirmarMatriz) {
+        btnConfirmarMatriz.addEventListener('click', function() {
+            fecharModalDecisaoMatriz();
+            iniciarExecucaoLote(loteProdIdsGlobal, modoMatrizEscolhido, loteTrilhasGlobal);
+        });
+    }
+});
+
+// =========================================================================
+// FUNÇÕES DO MODAL DE DECISÃO DA MATRIZ (CARROSSEL ÚNICO VS VÍDEOS POR COR)
+// =========================================================================
+function selecionarModoMatrizModal(modo) {
+    modoMatrizEscolhido = modo;
+    const cardPorCor = document.getElementById('card-modo-por-cor');
+    const cardUnico = document.getElementById('card-modo-unico');
+
+    if (modo === 'por_cor') {
+        if (cardPorCor) cardPorCor.classList.add('active');
+        if (cardUnico) cardUnico.classList.remove('active');
+        const r1 = document.querySelector('input[name="modo_matriz_modal"][value="por_cor"]');
+        if (r1) r1.checked = true;
+    } else {
+        if (cardPorCor) cardPorCor.classList.remove('active');
+        if (cardUnico) cardUnico.classList.add('active');
+        const r2 = document.querySelector('input[name="modo_matriz_modal"][value="unico"]');
+        if (r2) r2.checked = true;
+    }
+
+    renderizarTabelaPreviaMatriz();
+}
+
+function abrirModalDecisaoMatriz(dados, prodIds, trilhas) {
+    dadosVerificacaoMatrizGlobal = dados;
+    loteProdIdsGlobal = prodIds;
+    loteTrilhasGlobal = trilhas && trilhas.length > 0 ? trilhas : ['promo_bg.mp3'];
+
+    const modal = document.getElementById('modalDecisaoMatrizVideo');
+    if (!modal) return;
+
+    // Atualiza badges com números reais previstos
+    const bCores = document.getElementById('badge-modal-previsao-cores');
+    if (bCores) bCores.innerText = `${dados.previsao_modo_cores} vídeos previstos`;
+
+    const bUnico = document.getElementById('badge-modal-previsao-unico');
+    if (bUnico) bUnico.innerText = `${dados.previsao_modo_unico} vídeos previstos`;
+
+    selecionarModoMatrizModal('por_cor');
+    modal.style.display = 'flex';
+}
+
+function fecharModalDecisaoMatriz() {
+    const modal = document.getElementById('modalDecisaoMatrizVideo');
+    if (modal) modal.style.display = 'none';
+}
+
+function renderizarTabelaPreviaMatriz() {
+    const tbody = document.getElementById('tbody-previa-lote-matriz');
+    if (!tbody || !dadosVerificacaoMatrizGlobal) return;
+
+    const itensPrevia = [];
+    const prods = dadosVerificacaoMatrizGlobal.detalhes_produtos || [];
+
+    prods.forEach(p => {
+        if (modoMatrizEscolhido === 'por_cor' && p.cores && p.cores.length > 0) {
+            p.cores.forEach(c => {
+                itensPrevia.push({
+                    produto_nome: p.nome,
+                    modo_label: `Cor: ${c.cor}`,
+                    fotos_qtd: c.fotos_count,
+                    badge_cor: '#8b5cf6'
+                });
+            });
+        } else {
+            itensPrevia.push({
+                produto_nome: p.nome,
+                modo_label: p.tem_matriz ? 'Carrossel (Todas as Cores)' : 'Vídeo Único',
+                fotos_qtd: p.total_fotos,
+                badge_cor: '#0284c7'
+            });
+        }
     });
 
-    function atualizarBarraCota(stats) {
-        if (!stats) return;
-        const usoElem = document.getElementById('lbl-uso-mb');
-        const limiteElem = document.getElementById('lbl-limite-mb');
-        const percElem = document.getElementById('lbl-percentual');
-        const progressBar = document.getElementById('bar-cota-progresso');
-        const alertaElem = document.getElementById('alerta-cota-excedida');
+    const totalItens = itensPrevia.length;
+    const totalTrilhas = loteTrilhasGlobal.length;
 
-        if (usoElem) usoElem.innerText = stats.usado_mb + ' MB';
-        if (limiteElem) limiteElem.innerText = stats.limite_mb + ' MB';
-        if (percElem) {
-            percElem.innerText = stats.percentual + '% utilizado';
-            percElem.style.background = stats.excedido ? '#ef4444' : (stats.percentual > 80 ? '#f59e0b' : '#10b981');
-        }
-        if (progressBar) {
-            progressBar.style.width = stats.percentual + '%';
-            progressBar.style.backgroundColor = stats.excedido ? '#ef4444' : (stats.percentual > 80 ? '#f59e0b' : '#3b82f6');
-        }
-        if (alertaElem) {
-            alertaElem.style.display = stats.excedido ? 'block' : 'none';
-        }
+    // Atualiza contadores
+    const lblTotal = document.getElementById('lbl-total-previa-itens');
+    if (lblTotal) lblTotal.innerText = totalItens;
 
-        if (btnGerar) {
-            if (stats.excedido) {
-                btnGerar.disabled = true;
-                btnGerar.style.opacity = '0.5';
-                btnGerar.style.cursor = 'not-allowed';
-            } else {
-                btnGerar.disabled = false;
-                btnGerar.style.opacity = '1';
-                btnGerar.style.cursor = 'pointer';
-            }
+    const lblBtnQtd = document.getElementById('lbl-btn-qtd-confirmar');
+    if (lblBtnQtd) lblBtnQtd.innerText = totalItens;
+
+    const lblInfoMusica = document.getElementById('lbl-info-musicas-distribuicao');
+    if (lblInfoMusica) {
+        if (totalTrilhas <= 1) {
+            lblInfoMusica.innerHTML = `🎵 <strong>1 música</strong> para todos os ${totalItens} vídeos`;
+        } else {
+            lblInfoMusica.innerHTML = `🔄 <strong>${totalTrilhas} músicas</strong> em rotação (Round-Robin)`;
         }
     }
 
-    // Clique no botão Gerar Vídeo
-    btnGerar.addEventListener('click', function() {
-        const produtoId = selectProduto.value;
-        if (!produtoId) {
-            alert('Por favor, selecione um produto.');
+    // Renderiza linhas da tabela
+    tbody.innerHTML = itensPrevia.map((item, idx) => {
+        // Regra Round-Robin de músicas
+        const trilhaArquivo = totalTrilhas > 0 ? loteTrilhasGlobal[idx % totalTrilhas] : 'Padrão';
+        // Tenta achar nome amigável
+        const chk = document.querySelector(`.chk-trilha-item[value="${trilhaArquivo}"]`);
+        const trilhaNome = chk ? chk.getAttribute('data-nome') : trilhaArquivo;
+
+        return `
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.05); transition: background 0.15s;" onmouseover="this.style.background='rgba(30,41,59,0.5)'" onmouseout="this.style.background='transparent'">
+                <td style="padding:7px 10px; color:#94a3b8; font-weight:700;">#${idx + 1}</td>
+                <td style="padding:7px 10px; font-weight:600; color:#f8fafc; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    ${item.produto_nome}
+                </td>
+                <td style="padding:7px 10px;">
+                    <span class="badge" style="background:${item.badge_cor}; color:#fff; font-size:10px; font-weight:700;">
+                        ${item.modo_label}
+                    </span>
+                </td>
+                <td style="padding:7px 10px; text-align:center; color:#38bdf8; font-weight:700;">
+                    📸 ${item.fotos_qtd}
+                </td>
+                <td style="padding:7px 10px; color:#34d399; font-weight:600; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    🎵 ${trilhaNome}
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// =========================================================================
+// EXECUÇÃO SEQUENCIAL EM LOTE (BATCH RENDERER)
+// =========================================================================
+function iniciarExecucaoLote(prodIds, modoMatriz, trilhasSelecionadas) {
+    const btnGerar = document.getElementById('btn-gerar-video');
+    const progressBox = document.getElementById('progress-box');
+    const progressBarInner = document.getElementById('progress-bar-inner');
+    const progressStatusText = document.getElementById('progress-status-text');
+    const progressDetailText = document.getElementById('progress-detail-text');
+    const actionButtonsBox = document.getElementById('action-buttons-box');
+
+    btnGerar.disabled = true;
+    progressBox.style.display = 'block';
+    if (actionButtonsBox) actionButtonsBox.style.display = 'none';
+
+    progressBarInner.style.width = '5%';
+    progressStatusText.innerText = 'Preparando lote de renderização no servidor...';
+    progressDetailText.innerText = 'Calculando ordem de distribuição e faixas de áudio...';
+
+    const formatoVal = document.querySelector('input[name="video_formato"]:checked')?.value || 'stories';
+    const templateVal = document.querySelector('input[name="video_template"]:checked')?.value || 'modern_dark';
+    const corVal = document.querySelector('input[name="video_cor"]:checked')?.value || 'dark';
+    const fundoVal = document.querySelector('input[name="video_fundo"]:checked')?.value || 'gradient';
+    const efeitoVal = document.querySelector('input[name="video_efeito_visual"]:checked')?.value || 'none';
+    const modoComposicaoVal = document.querySelector('input[name="video_modo_composicao"]:checked')?.value || 'hibrido';
+    const ajusteDuracaoVal = document.querySelector('input[name="video_ajuste_duracao"]:checked')?.value || 'trim';
+    const ajusteProporcaoVal = document.querySelector('input[name="video_ajuste_proporcao"]:checked')?.value || 'smart_blur';
+
+    const payload = {
+        produto_ids: prodIds,
+        modo_matriz: modoMatriz,
+        trilhas: trilhasSelecionadas,
+        duracao: duracaoSelecionada,
+        formato: formatoVal,
+        template: templateVal,
+        corTema: corVal,
+        fundoEstilo: fundoVal,
+        efeitoVisual: efeitoVal,
+        modoComposicao: modoComposicaoVal,
+        ajusteDuracao: ajusteDuracaoVal,
+        ajusteProporcao: ajusteProporcaoVal,
+        '<?= Yii::$app->request->csrfParam ?>': '<?= Yii::$app->request->csrfToken ?>'
+    };
+
+    fetch('<?= Url::to(['/vendas/produto-video/preparar-lote']) ?>', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success || !data.fila || data.fila.length === 0) {
+            btnGerar.disabled = false;
+            progressBox.style.display = 'none';
+            alert('Erro: ' + (data.message || 'Nenhum item válido para renderizar.'));
             return;
         }
 
-        btnGerar.disabled = true;
-        progressBox.style.display = 'block';
-        actionButtonsBox.style.display = 'none';
-        progressBarInner.style.width = '15%';
-        progressStatusText.innerText = 'Solicitando geração de vídeo...';
-        progressDetailText.innerText = 'Enviando parâmetros para o renderizador local...';
-
-        const formatoVal = document.querySelector('input[name="video_formato"]:checked')?.value || 'stories';
-        const templateVal = document.querySelector('input[name="video_template"]:checked')?.value || 'modern_dark';
-        const corVal = document.querySelector('input[name="video_cor"]:checked')?.value || 'dark';
-        const fundoVal = document.querySelector('input[name="video_fundo"]:checked')?.value || 'gradient';
-        const efeitoVal = document.querySelector('input[name="video_efeito_visual"]:checked')?.value || 'none';
-        const modoComposicaoVal = document.querySelector('input[name="video_modo_composicao"]:checked')?.value || 'hibrido';
-        const ajusteDuracaoVal = document.querySelector('input[name="video_ajuste_duracao"]:checked')?.value || 'trim';
-        const ajusteProporcaoVal = document.querySelector('input[name="video_ajuste_proporcao"]:checked')?.value || 'smart_blur';
-
-        fetch('<?= Url::to(['/vendas/produto-video/generate']) ?>', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-                produto_id: produtoId,
-                duracao: duracaoSelecionada,
-                formato: formatoVal,
-                template: templateVal,
-                corTema: corVal,
-                fundoEstilo: fundoVal,
-                trilhaSonora: selectTrilha ? selectTrilha.value : 'promo_bg.mp3',
-                efeitoVisual: efeitoVal,
-                modoComposicao: modoComposicaoVal,
-                ajusteDuracao: ajusteDuracaoVal,
-                ajusteProporcao: ajusteProporcaoVal
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.video_id) {
-                currentVideoId = data.video_id;
-                progressBarInner.style.width = '35%';
-                progressStatusText.innerText = 'Vídeo enfileirado! Renderizando frames...';
-                progressDetailText.innerText = 'Processando em segundo plano (Puppeteer + FFmpeg)...';
-
-                iniciarPollingStatus(currentVideoId);
-            } else {
-                tratarErroGeracao(data.message || 'Falha ao enfileirar solicitação.');
-            }
-        })
-        .catch(err => {
-            tratarErroGeracao('Erro de comunicação com o servidor: ' + err.message);
-        });
+        executarFilaLoteSequencial(data.fila);
+    })
+    .catch(err => {
+        btnGerar.disabled = false;
+        progressBox.style.display = 'none';
+        alert('Erro ao preparar lote: ' + err.message);
     });
+}
 
-    function iniciarPollingStatus(videoId) {
-        if (pollingInterval) clearInterval(pollingInterval);
+async function executarFilaLoteSequencial(fila) {
+    const btnGerar = document.getElementById('btn-gerar-video');
+    const progressBox = document.getElementById('progress-box');
+    const progressBarInner = document.getElementById('progress-bar-inner');
+    const progressStatusText = document.getElementById('progress-status-text');
+    const progressDetailText = document.getElementById('progress-detail-text');
 
-        let tentativas = 0;
-        pollingInterval = setInterval(function() {
-            tentativas++;
+    const total = fila.length;
+    let concluidos = 0;
+    let erros = 0;
 
-            // Simula progresso visual da barra
-            const pctActual = Math.min(35 + (tentativas * 5), 92);
-            progressBarInner.style.width = pctActual + '%';
+    for (let i = 0; i < total; i++) {
+        const item = fila[i];
+        const numItem = i + 1;
+        const perc = Math.round((i / total) * 100);
 
-            fetch('<?= Url::to(['/vendas/produto-video/status']) ?>?id=' + videoId)
-            .then(res => res.json())
-            .then(resData => {
-                if (!resData.success) return;
+        progressBarInner.style.width = Math.max(perc, 10) + '%';
+        progressStatusText.innerText = `🎬 Renderizando Vídeo ${numItem} de ${total}: ${item.titulo_preview} ${item.cor ? '(' + item.cor + ')' : ''}`;
+        progressDetailText.innerText = `🎵 Trilha: ${item.trilha_sonora} | ⏱️ Renderizando frames via Puppeteer + FFmpeg...`;
 
-                if (resData.status === 'concluido' && resData.video_url) {
-                    clearInterval(pollingInterval);
-                    progressBarInner.style.width = '100%';
-                    progressStatusText.innerText = '✅ Renderização Concluída!';
-                    progressDetailText.innerText = 'Seu vídeo foi gerado com sucesso!';
+        try {
+            const res = await fetch('<?= Url::to(['/vendas/produto-video/gerar-item-lote']) ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    item: item,
+                    '<?= Yii::$app->request->csrfParam ?>': '<?= Yii::$app->request->csrfToken ?>'
+                })
+            });
 
-                    setTimeout(function() {
-                        progressBox.style.display = 'none';
-                        btnGerar.disabled = false;
-                        mostrarVideoConcluido(resData.video_url);
-                        setTimeout(function() {
-                            location.reload();
-                        }, 1200);
-                    }, 800);
+            const data = await res.json();
 
-                } else if (resData.status === 'erro') {
-                    clearInterval(pollingInterval);
-                    tratarErroGeracao(resData.erro_mensagem || 'Erro desconhecido durante a renderização.');
+            if (data.success && data.video) {
+                concluidos++;
+                // Mostra no player de prévia
+                mostrarVideoConcluido(data.video.url, data.video.formato);
+
+                // Adiciona dinamicamente ao grid de histórico
+                adicionarVideoAoHistoricoGrid(data.video);
+
+                // Atualiza cota de armazenamento
+                if (data.stats) {
+                    atualizarBarraCota(data.stats);
                 }
-            })
-            .catch(e => console.error('Erro polling status:', e));
-        }, 2000);
+            } else {
+                erros++;
+                console.error(`Erro ao gerar item ${numItem}:`, data.message);
+            }
+        } catch (e) {
+            erros++;
+            console.error(`Falha de conexão no item ${numItem}:`, e);
+        }
     }
 
-    function mostrarVideoConcluido(url, formato) {
-        if (!formato) {
-            formato = document.querySelector('input[name="video_formato"]:checked')?.value || 'stories';
-        }
-        ajustarTelaPreview(formato);
+    progressBarInner.style.width = '100%';
+    if (erros === 0) {
+        progressStatusText.innerText = `🎉 Lote de ${concluidos} vídeo(s) concluído com sucesso!`;
+        progressDetailText.innerText = 'Todos os vídeos foram gerados e adicionados ao histórico abaixo.';
+    } else {
+        progressStatusText.innerText = `⚠️ Lote finalizado: ${concluidos} gerados, ${erros} falhas.`;
+        progressDetailText.innerText = 'Verifique os vídeos concluídos no histórico abaixo.';
+    }
 
-        placeholderPreview.style.display = 'none';
+    btnGerar.disabled = false;
+    window.atualizarContagemProdutos();
+
+    setTimeout(() => {
+        progressBox.style.display = 'none';
+    }, 4500);
+}
+
+// =========================================================================
+// FUNÇÕES AUXILIARES DE HISTÓRICO, PLAYER E COTA
+// =========================================================================
+function adicionarVideoAoHistoricoGrid(video) {
+    const grid = document.getElementById('grid-historico-videos');
+    const msgEmpty = document.getElementById('empty-history-msg');
+    if (msgEmpty) msgEmpty.style.display = 'none';
+    if (!grid) return;
+
+    // Cria elemento da coluna
+    const col = document.createElement('div');
+    col.className = 'col-md-6 col-lg-4';
+    col.id = 'history-col-' + video.id;
+    col.style.animation = 'fadeInUp 0.5s ease';
+
+    col.innerHTML = `
+        <div class="history-card" id="history-card-${video.id}">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" class="chk-video-item" value="${video.id}" data-url="${video.url}" style="width: 18px; height: 18px; cursor: pointer; accent-color: #38bdf8;">
+                <div>
+                    <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-bottom: 2px;">
+                        <span class="badge" style="background: #0284c7; color: #fff; font-weight: 700;">${video.duracao}s</span>
+                        <span class="badge" style="background: #334155; color: #38bdf8; border: 1px solid #475569;">💾 ${video.tamanho_formatado}</span>
+                        <small style="color: #34d399; font-weight: 700;">Recém-gerado</small>
+                    </div>
+                    <div style="font-size: 0.78rem; color: #38bdf8; font-weight: 600; margin-top: 3px; line-height: 1.35; word-break: break-word;">
+                        ${video.resumo}
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+                <button type="button" class="btn btn-sm btn-outline-info btn-play-history" data-url="${video.url}" data-formato="${video.formato || 'stories'}" style="border-radius: 8px;" title="Assistir Prévia">
+                    ▶
+                </button>
+                <button type="button" class="btn btn-sm btn-success" onclick="abrirDisparoVideoUnico('${video.id}', '${video.url}')" style="border-radius: 8px; background: #25d366; border: none; font-weight: 700; color: #fff;" title="Disparar no WhatsApp / Status">
+                    📱 Enviar
+                </button>
+                <a href="${video.download_url}" class="btn btn-sm btn-outline-success" style="border-radius: 8px;" title="Baixar Vídeo MP4">
+                    ⬇️ Baixar
+                </a>
+                <button type="button" class="btn btn-sm btn-outline-danger btn-delete-history" data-id="${video.id}" style="border-radius: 8px;" title="Excluir Vídeo e Liberar Disco">
+                    🗑️
+                </button>
+            </div>
+        </div>
+    `;
+
+    grid.insertBefore(col, grid.firstChild);
+
+    // Conectar eventos do card recém-adicionado
+    col.querySelector('.btn-play-history')?.addEventListener('click', function() {
+        mostrarVideoConcluido(this.getAttribute('data-url'), this.getAttribute('data-formato') || 'stories');
+    });
+    col.querySelector('.btn-delete-history')?.addEventListener('click', function() {
+        excluirVideoHistorico(this.getAttribute('data-id'));
+    });
+}
+
+function conectarEventosCardsHistorico() {
+    document.querySelectorAll('.btn-play-history').forEach(btn => {
+        btn.onclick = function() {
+            const url = this.getAttribute('data-url');
+            const formato = this.getAttribute('data-formato') || 'stories';
+            if (url) mostrarVideoConcluido(url, formato);
+        };
+    });
+
+    document.querySelectorAll('.btn-delete-history').forEach(btn => {
+        btn.onclick = function() {
+            excluirVideoHistorico(this.getAttribute('data-id'));
+        };
+    });
+}
+
+function excluirVideoHistorico(videoId) {
+    if (!videoId) return;
+    if (!confirm('Deseja realmente excluir este vídeo? O arquivo MP4 será removido permanentemente do servidor para liberar espaço em disco.')) {
+        return;
+    }
+
+    fetch('<?= Url::to(['/vendas/produto-video/delete']) ?>', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: 'id=' + encodeURIComponent(videoId)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            const col = document.getElementById('history-col-' + videoId);
+            if (col) {
+                col.style.transition = 'all 0.3s ease';
+                col.style.opacity = '0';
+                col.style.transform = 'scale(0.8)';
+                setTimeout(() => col.remove(), 300);
+            }
+            if (data.stats) {
+                atualizarBarraCota(data.stats);
+            }
+        } else {
+            alert('Erro ao excluir vídeo: ' + (data.message || 'Erro desconhecido.'));
+        }
+    })
+    .catch(err => alert('Erro de conexão ao excluir vídeo: ' + err.message));
+}
+
+function mostrarVideoConcluido(url, formato) {
+    const videoPlayer = document.getElementById('video-preview-player');
+    const placeholderPreview = document.getElementById('placeholder-preview');
+    const actionButtonsBox = document.getElementById('action-buttons-box');
+    const btnDownload = document.getElementById('btn-download-video');
+
+    if (!formato) {
+        formato = document.querySelector('input[name="video_formato"]:checked')?.value || 'stories';
+    }
+    ajustarTelaPreview(formato);
+
+    if (placeholderPreview) placeholderPreview.style.display = 'none';
+    if (videoPlayer) {
         videoPlayer.style.display = 'block';
         videoPlayer.src = url;
         videoPlayer.load();
-        videoPlayer.play().catch(e => console.log('Autoplay not allowed:', e));
-
-        btnDownload.href = url;
-        videoRecemGeradoId = currentVideoId;
-        videoRecemGeradoUrl = url;
-
-        actionButtonsBox.style.display = 'flex';
+        videoPlayer.play().catch(e => console.log('Autoplay não permitido:', e));
     }
 
-    function ajustarTelaPreview(formato) {
-        const titleElem = document.getElementById('lbl-preview-title');
-        const aspectBox = document.querySelector('.preview-aspect-ratio');
-        if (formato === 'feed' || formato === '1:1') {
-            if (titleElem) titleElem.innerText = 'Prévia do Vídeo Promocional (1080x1080)';
-            if (aspectBox) aspectBox.classList.add('is-feed');
+    if (btnDownload) btnDownload.href = url;
+    videoRecemGeradoUrl = url;
+    if (actionButtonsBox) actionButtonsBox.style.display = 'flex';
+}
+
+function ajustarTelaPreview(formato) {
+    const titleElem = document.getElementById('lbl-preview-title');
+    const aspectBox = document.querySelector('.preview-aspect-ratio');
+    if (formato === 'feed' || formato === '1:1') {
+        if (titleElem) titleElem.innerText = 'Prévia do Vídeo Promocional (1080x1080)';
+        if (aspectBox) aspectBox.classList.add('is-feed');
+    } else {
+        if (titleElem) titleElem.innerText = 'Prévia do Vídeo Promocional (1080x1920)';
+        if (aspectBox) aspectBox.classList.remove('is-feed');
+    }
+}
+
+function atualizarBarraCota(stats) {
+    if (!stats) return;
+    const usoElem = document.getElementById('lbl-uso-mb');
+    const limiteElem = document.getElementById('lbl-limite-mb');
+    const percElem = document.getElementById('lbl-percentual');
+    const progressBar = document.getElementById('bar-cota-progresso');
+    const alertaElem = document.getElementById('alerta-cota-excedida');
+    const btnGerar = document.getElementById('btn-gerar-video');
+
+    if (usoElem) usoElem.innerText = stats.usado_mb + ' MB';
+    if (limiteElem) limiteElem.innerText = stats.limite_mb + ' MB';
+    if (percElem) {
+        percElem.innerText = stats.percentual + '% utilizado';
+        percElem.style.background = stats.excedido ? '#ef4444' : (stats.percentual > 80 ? '#f59e0b' : '#10b981');
+    }
+    if (progressBar) {
+        progressBar.style.width = stats.percentual + '%';
+        progressBar.style.backgroundColor = stats.excedido ? '#ef4444' : (stats.percentual > 80 ? '#f59e0b' : '#3b82f6');
+    }
+    if (alertaElem) {
+        alertaElem.style.display = stats.excedido ? 'block' : 'none';
+    }
+
+    if (btnGerar) {
+        if (stats.excedido) {
+            btnGerar.disabled = true;
+            btnGerar.style.opacity = '0.5';
+            btnGerar.style.cursor = 'not-allowed';
         } else {
-            if (titleElem) titleElem.innerText = 'Prévia do Vídeo Promocional (1080x1920)';
-            if (aspectBox) aspectBox.classList.remove('is-feed');
+            btnGerar.disabled = false;
+            btnGerar.style.opacity = '1';
+            btnGerar.style.cursor = 'pointer';
         }
     }
-
-    if (videoPlayer) {
-        videoPlayer.addEventListener('loadedmetadata', function() {
-            const w = this.videoWidth;
-            const h = this.videoHeight;
-            if (w > 0 && h > 0) {
-                if (Math.abs(w - h) < 20) {
-                    ajustarTelaPreview('feed');
-                } else if (h > w) {
-                    ajustarTelaPreview('stories');
-                }
-            }
-        });
-    }
-
-    function tratarErroGeracao(mensagem) {
-        if (pollingInterval) clearInterval(pollingInterval);
-        btnGerar.disabled = false;
-        progressBox.style.display = 'none';
-        alert('❌ Erro na Geração do Vídeo:\n' + mensagem);
-    }
-});
+}
 
 function abrirModalStudioUpload() {
     document.getElementById('modalStudioUploadAudio').style.display = 'flex';
@@ -1204,7 +1967,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const formUpload = document.getElementById('formStudioUploadAudio');
     const msgDiv = document.getElementById('upload-studio-msg');
     const btnSubmit = document.getElementById('btn-submit-studio-upload');
-    const selectTrilha = document.getElementById('select-trilha');
 
     if (formUpload) {
         formUpload.addEventListener('submit', function(e) {
@@ -1239,17 +2001,39 @@ document.addEventListener('DOMContentLoaded', function() {
                     msgDiv.style.color = '#34d399';
                     msgDiv.innerText = '✅ ' + data.message;
 
-                    // Adiciona a nova opção ao select de trilhas e seleciona
-                    const opt = document.createElement('option');
-                    opt.value = data.trilha.arquivo;
-                    opt.setAttribute('data-url', data.trilha.url);
-                    const icone = data.trilha.tipo === 'efeito_especial' ? '🔊 ' : '✨ ';
-                    opt.innerText = icone + data.trilha.titulo + ' — ' + data.trilha.tipo_label;
-                    opt.selected = true;
-
-                    if (selectTrilha) {
-                        selectTrilha.appendChild(opt);
-                        selectTrilha.value = data.trilha.arquivo;
+                    // Adiciona também o novo card à lista de trilhas do Studio
+                    const listaTrilhas = document.getElementById('lista-trilhas-studio');
+                    if (listaTrilhas) {
+                        const card = document.createElement('div');
+                        card.className = 'trilha-card is-checked';
+                        card.style.marginBottom = '6px';
+                        const icone = data.trilha.tipo === 'efeito_especial' ? '🔊 ' : '🎵 ';
+                        card.innerHTML = `
+                            <label style="display: flex; align-items: center; gap: 10px; margin: 0; cursor: pointer; flex: 1; min-width: 0;">
+                                <input type="checkbox" name="chk_trilha_item" class="chk-trilha-item" value="${data.trilha.arquivo}" data-url="${data.trilha.url}" data-nome="${data.trilha.titulo}" checked style="width: 17px; height: 17px; cursor: pointer; accent-color: #10b981;">
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-weight: 700; font-size: 0.88rem; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                        ${icone} ${data.trilha.titulo}
+                                    </div>
+                                    <div style="font-size: 0.75rem; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                        ${data.trilha.descricao || 'Áudio enviado recentemente'}
+                                    </div>
+                                </div>
+                            </label>
+                            <button type="button" class="btn btn-xs btn-outline-info btn-preview-track" data-url="${data.trilha.url}" style="border-radius: 6px; font-size: 11px; padding: 3px 8px; border-color: #334155; color: #38bdf8; white-space: nowrap;">
+                                🔊 Ouvir
+                            </button>
+                        `;
+                        listaTrilhas.insertBefore(card, listaTrilhas.firstChild);
+                        card.querySelector('.chk-trilha-item').addEventListener('change', window.atualizarContagemTrilhas);
+                        card.querySelector('.btn-preview-track').addEventListener('click', function() {
+                            const audioUrl = this.getAttribute('data-url');
+                            const audioPreviewElem = document.getElementById('audio-preview-element');
+                            if (!audioUrl || !audioPreviewElem) return;
+                            audioPreviewElem.src = audioUrl;
+                            audioPreviewElem.play();
+                        });
+                        window.atualizarContagemTrilhas();
                     }
 
                     setTimeout(() => {
@@ -1274,8 +2058,6 @@ document.addEventListener('DOMContentLoaded', function() {
 // LÓGICA DE DISPARO DE VÍDEOS VIA WHATSAPP (EVOLUTION API + ANTI-BAN)
 // =========================================================================
 let videosSelecionadosParaDisparo = [];
-let videoRecemGeradoId = null;
-let videoRecemGeradoUrl = null;
 let listaClientesVideoCache = [];
 let whatsappVideoConectadoCache = false;
 let intervalMonitoramentoVideo = null;

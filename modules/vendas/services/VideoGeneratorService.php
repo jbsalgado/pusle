@@ -57,16 +57,22 @@ class VideoGeneratorService
         $videoModel->duracao = $duracao;
         $videoModel->formato = $formatoVal;
         $videoModel->status = ProdutoVideo::STATUS_PENDENTE;
+        $corParam = $options['cor'] ?? ($options['cor_matriz'] ?? null);
+        $modoMatrizParam = $options['modo_matriz'] ?? ($options['modoMatriz'] ?? null);
+
         $metaParams = [
             'formato' => $formatoVal,
             'template' => $options['template'] ?? 'modern_dark',
-            'cor_tema' => $options['corTema'] ?? 'dark',
-            'fundo_estilo' => $options['fundoEstilo'] ?? 'gradient',
-            'trilha_sonora' => $options['trilhaSonora'] ?? 'promo_bg.mp3',
-            'efeito_visual' => $options['efeitoVisual'] ?? $options['efeito_visual'] ?? 'none',
-            'modo_composicao' => $options['modoComposicao'] ?? 'hibrido',
-            'ajuste_duracao' => $options['ajusteDuracao'] ?? 'trim',
-            'ajuste_proporcao' => $options['ajusteProporcao'] ?? 'smart_blur',
+            'cor_tema' => $options['corTema'] ?? ($options['cor_tema'] ?? 'dark'),
+            'fundo_estilo' => $options['fundoEstilo'] ?? ($options['fundo_estilo'] ?? 'gradient'),
+            'trilha_sonora' => $options['trilhaSonora'] ?? ($options['trilha_sonora'] ?? 'promo_bg.mp3'),
+            'efeito_visual' => $options['efeitoVisual'] ?? ($options['efeito_visual'] ?? 'none'),
+            'modo_composicao' => $options['modoComposicao'] ?? ($options['modo_composicao'] ?? 'hibrido'),
+            'ajuste_duracao' => $options['ajusteDuracao'] ?? ($options['ajuste_duracao'] ?? 'trim'),
+            'ajuste_proporcao' => $options['ajusteProporcao'] ?? ($options['ajuste_proporcao'] ?? 'smart_blur'),
+            'cor' => $corParam,
+            'modo_matriz' => $modoMatrizParam,
+            'variante_id' => $options['variante_id'] ?? null,
         ];
         $metaParams['resumo_recursos'] = ProdutoVideo::gerarResumoRecursosTexto($metaParams);
         $metaParams['solicitado_em'] = date('Y-m-d H:i:s');
@@ -130,7 +136,7 @@ class VideoGeneratorService
             // 1. Carregar Configurações da Loja
             $loja = LojaConfiguracao::findOne(['usuario_id' => $produto->usuario_id]);
 
-            // 2. Coletar Fotos do Produto (Principal + Galeria) respeitando o ritmo visual por duração
+            // 2. Coletar Fotos do Produto (Principal + Galeria ou Específica da Matriz)
             $duracaoSec = (int)($videoModel->duracao ?: 15);
             $limiteFotos = match ($duracaoSec) {
                 5 => 2,
@@ -141,20 +147,80 @@ class VideoGeneratorService
                 default => 4
             };
 
+            $corEscolhida = $options['cor'] ?? ($videoModel->metadata['cor'] ?? null);
+            $modoMatriz = $options['modo_matriz'] ?? ($options['modoMatriz'] ?? ($videoModel->metadata['modo_matriz'] ?? null));
+
+            $nomeProdutoExibicao = $produto->nome;
+            $precoFinalValor = $produto->getPrecoFinal();
+
             $fotosArray = [];
-            $fotoPrincipal = $produto->fotoPrincipal;
-            if ($fotoPrincipal && !empty($fotoPrincipal->arquivo_path)) {
-                $b64 = $this->converterImagemParaBase64($fotoPrincipal->arquivo_path);
-                if ($b64) $fotosArray[] = $b64;
+
+            // A) Caso seja modo por cor específica da matriz
+            if (!empty($corEscolhida)) {
+                $corLimpa = mb_strtoupper(trim($corEscolhida), 'UTF-8');
+                $corRedundante = (stripos($produto->nome, $corLimpa) !== false);
+                if (!$corRedundante) {
+                    $nomeProdutoExibicao = "{$produto->nome} ({$corLimpa})";
+                }
+
+                // Busca fotos da cor
+                $fotosDaCor = $produto->getFotosPorCor($corLimpa);
+                if (!empty($fotosDaCor)) {
+                    foreach ($fotosDaCor as $foto) {
+                        if (!empty($foto->arquivo_path)) {
+                            $b64 = $this->converterImagemParaBase64($foto->arquivo_path);
+                            if ($b64 && count($fotosArray) < $limiteFotos) {
+                                $fotosArray[] = $b64;
+                            }
+                        }
+                    }
+                }
+
+                // Preço específico da variante da cor se houver
+                $varianteCor = \app\modules\vendas\models\ProdutoVariante::find()
+                    ->where(['produto_id' => $produto->id, 'ativo' => true])
+                    ->andWhere(['UPPER(cor)' => $corLimpa])
+                    ->andWhere(['>', 'preco_venda_sugerido', 0])
+                    ->one();
+                if ($varianteCor && (float)$varianteCor->preco_venda_sugerido > 0) {
+                    $precoFinalValor = (float)$varianteCor->preco_venda_sugerido;
+                }
+            } elseif ($modoMatriz === 'unico') {
+                // B) Modo Matriz Único: carrossel com fotos de todas as cores da matriz
+                $todasFotos = $produto->getFotos()->all();
+                $fotosPorCorMap = [];
+                foreach ($todasFotos as $f) {
+                    $c = !empty($f->cor) ? mb_strtoupper(trim($f->cor), 'UTF-8') : 'GERAL';
+                    $fotosPorCorMap[$c][] = $f;
+                }
+
+                // Intercala 1 foto de cada cor
+                foreach ($fotosPorCorMap as $cKey => $fotosCor) {
+                    if (!empty($fotosCor[0]->arquivo_path)) {
+                        $b64 = $this->converterImagemParaBase64($fotosCor[0]->arquivo_path);
+                        if ($b64 && count($fotosArray) < 12) {
+                            $fotosArray[] = $b64;
+                        }
+                    }
+                }
             }
 
-            $outrasFotos = $produto->getFotos()->all();
-            foreach ($outrasFotos as $foto) {
-                if ($fotoPrincipal && $foto->id === $fotoPrincipal->id) continue;
-                if (!empty($foto->arquivo_path)) {
-                    $b64 = $this->converterImagemParaBase64($foto->arquivo_path);
-                    if ($b64 && count($fotosArray) < $limiteFotos) {
-                        $fotosArray[] = $b64;
+            // Fallback: se ainda estiver vazio, usa a foto principal e fotos padrão
+            if (empty($fotosArray)) {
+                $fotoPrincipal = $produto->fotoPrincipal;
+                if ($fotoPrincipal && !empty($fotoPrincipal->arquivo_path)) {
+                    $b64 = $this->converterImagemParaBase64($fotoPrincipal->arquivo_path);
+                    if ($b64) $fotosArray[] = $b64;
+                }
+
+                $outrasFotos = $produto->getFotos()->all();
+                foreach ($outrasFotos as $foto) {
+                    if ($fotoPrincipal && $foto->id === $fotoPrincipal->id) continue;
+                    if (!empty($foto->arquivo_path)) {
+                        $b64 = $this->converterImagemParaBase64($foto->arquivo_path);
+                        if ($b64 && count($fotosArray) < $limiteFotos) {
+                            $fotosArray[] = $b64;
+                        }
                     }
                 }
             }
@@ -173,7 +239,6 @@ class VideoGeneratorService
             // 4. Preço e Promoção
             $emPromocao = $produto->getEmPromocao();
             $precoOriginal = $produto->preco_venda_sugerido > 0 ? $this->formatarMoeda($produto->preco_venda_sugerido) : null;
-            $precoFinalValor = $produto->getPrecoFinal();
             $precoPromocionalStr = $this->formatarMoeda($precoFinalValor);
 
             $descontoPercentual = 0;
@@ -290,7 +355,7 @@ class VideoGeneratorService
                 'outputPath' => $caminhoAbsolutoSaida,
                 'produto' => [
                     'id' => $produto->id,
-                    'nome' => $produto->nome,
+                    'nome' => $nomeProdutoExibicao,
                     'descricao' => $produto->descricao,
                     'marca' => $produto->marca ?: ($produto->categoria ? $produto->categoria->nome : ''),
                     'precoOriginal' => $precoOriginal,

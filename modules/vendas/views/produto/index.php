@@ -72,11 +72,10 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
             </button>
 
             <!-- 6. Studio de Vídeos -->
-            <?= Html::a(
-                '<svg class="w-4 h-4 inline-block text-indigo-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Studio de Vídeos</span>',
-                ['/vendas/produto-video/studio'],
-                ['class' => 'inline-flex items-center justify-center px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-indigo-400/30 whitespace-nowrap']
-            ) ?>
+            <button type="button" onclick="gerarVideosStudioSelecionados()" class="inline-flex items-center justify-center px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-indigo-400/30 whitespace-nowrap cursor-pointer">
+                <svg class="w-4 h-4 inline-block text-indigo-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                <span>Studio de Vídeos</span>
+            </button>
 
             <!-- 7. Cadastro Categorias -->
             <?= Html::a(
@@ -857,6 +856,17 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
         }
 
         abrirModalGerarEncarte(ids);
+    };
+
+    window.gerarVideosStudioSelecionados = function() {
+        const checkboxes = document.querySelectorAll('input[name="produto_massa_chk"]:checked');
+        const ids = Array.from(checkboxes).map(c => c.value);
+
+        if (ids.length > 0) {
+            window.location.href = '<?= Url::to(['/vendas/produto-video/studio']) ?>?produto_ids=' + encodeURIComponent(ids.join(','));
+        } else {
+            window.location.href = '<?= Url::to(['/vendas/produto-video/studio']) ?>';
+        }
     };
 </script>
 
