@@ -2004,6 +2004,36 @@ function abrirModalStudioYoutube() {
     document.getElementById('modalStudioYoutube').style.display = 'flex';
     const input = document.getElementById('txt-youtube-url');
     if (input) setTimeout(() => input.focus(), 150);
+
+    // Consulta status da Bridge Go residencial
+    const dot = document.getElementById('bridge-status-dot');
+    const txt = document.getElementById('bridge-status-text');
+    if (dot && txt) {
+        dot.style.background = '#94a3b8';
+        dot.style.boxShadow = 'none';
+        txt.style.color = '#cbd5e1';
+        txt.innerText = 'Verificando motor...';
+
+        fetch('<?= Url::to(['/api/bridge/status']) ?>')
+            .then(r => r.json())
+            .then(data => {
+                if (data.online) {
+                    dot.style.background = '#10b981';
+                    dot.style.boxShadow = '0 0 8px #10b981';
+                    txt.style.color = '#34d399';
+                    txt.innerText = '🟢 Motor Residencial Ativo (Pulse Bridge Go)';
+                } else {
+                    dot.style.background = '#f59e0b';
+                    dot.style.boxShadow = 'none';
+                    txt.style.color = '#fbbf24';
+                    txt.innerText = '☁️ Motor Nuvem VPS (Bridge offline)';
+                }
+            })
+            .catch(() => {
+                dot.style.background = '#f59e0b';
+                txt.innerText = '☁️ Motor Nuvem VPS';
+            });
+    }
 }
 
 function fecharModalStudioYoutube() {
@@ -2910,6 +2940,22 @@ function monitorarProgressoVideoDisparo(disparoId) {
         </div>
 
         <div style="padding:20px;">
+            <!-- Badge de Status do Motor de Download (Bridge vs VPS) -->
+            <div id="bridge-status-container" style="margin-bottom:14px; padding:10px 14px; border-radius:10px; background:#0f172a; border:1px solid #334155; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span id="bridge-status-dot" style="width:9px; height:9px; border-radius:50%; background:#94a3b8; display:inline-block;"></span>
+                    <span id="bridge-status-text" style="font-size:0.82rem; font-weight:600; color:#cbd5e1;">Verificando motor...</span>
+                </div>
+                <div style="display:flex; gap:6px;">
+                    <a href="/downloads/bridge/pulse-bridge-windows.exe" download class="btn btn-xs btn-outline-secondary" style="font-size:0.72rem; padding:2px 8px; border-radius:6px; color:#94a3b8; border-color:#475569;" title="Baixar executável do Pulse Bridge para Windows">
+                        🪟 Windows (.exe)
+                    </a>
+                    <a href="/downloads/bridge/pulse-bridge-linux" download class="btn btn-xs btn-outline-secondary" style="font-size:0.72rem; padding:2px 8px; border-radius:6px; color:#94a3b8; border-color:#475569;" title="Baixar binário do Pulse Bridge para Linux">
+                        🐧 Linux
+                    </a>
+                </div>
+            </div>
+
             <div style="margin-bottom:14px;">
                 <label class="form-label-custom">Link do Vídeo no YouTube (Normal ou Shorts)</label>
                 <input type="text" id="txt-youtube-url" class="select-custom" placeholder="https://www.youtube.com/watch?v=... ou https://youtu.be/...">

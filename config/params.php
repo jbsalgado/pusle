@@ -108,5 +108,10 @@ return [
     'meta_app_secret' => $_ENV['META_APP_SECRET'] ?? getenv('META_APP_SECRET') ?: '',
     'meta_api_version' => 'v19.0',
     'meta_token_encryption_key' => $_ENV['META_TOKEN_ENCRYPTION_KEY'] ?? getenv('META_TOKEN_ENCRYPTION_KEY') ?: 'pulse-meta-social-token-secret-key-2026',
+
+    // -------------------------------------------------------------------------
+    // Pulse Audio Bridge (Go Worker para download de áudios do YouTube)
+    // -------------------------------------------------------------------------
+    'pulse_bridge_secret' => $_ENV['PULSE_BRIDGE_SECRET'] ?? getenv('PULSE_BRIDGE_SECRET') ?: 'pulse_bridge_sec_7a8f9c2d1e0b5',
 ];
 

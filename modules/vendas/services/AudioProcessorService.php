@@ -94,7 +94,46 @@ class AudioProcessorService
             ];
         }
 
-        // 2. Verifica se há arquivo de cookies configurado (para contornar bloqueio de bot de data center na VPS)
+        // 2. PRIORIDADE 1: Verifica se a Bridge Go residencial está online
+        if (\app\modules\api\controllers\BridgeController::isBridgeOnline()) {
+            Yii::info("Pulse Bridge Go residencial ativa! Despachando download para o worker...", __METHOD__);
+            $bridgeResult = \app\modules\api\controllers\BridgeController::dispatchJob($youtubeId, $url, 28);
+            if ($bridgeResult && !empty($bridgeResult['arquivo_path']) && file_exists($caminhoArquivoAbsoluto) && filesize($caminhoArquivoAbsoluto) > 1024) {
+                $titulo = $bridgeResult['titulo'] ?? ('YouTube: ' . $youtubeId);
+                $duracaoTotal = (float)($bridgeResult['duracao'] ?? 0);
+                if ($duracaoTotal <= 0) {
+                    $duracaoTotal = self::obterDuracaoAudio($caminhoArquivoAbsoluto);
+                }
+
+                // Registra na tabela prest_trilhas_sonoras
+                $trilha = new TrilhaSonora();
+                $trilha->usuario_id = $usuarioId;
+                $trilha->titulo = mb_substr($titulo, 0, 250);
+                $trilha->descricao = 'Áudio extraído via Pulse Bridge Residencial (' . $url . ')';
+                $trilha->arquivo_nome = $nomeArquivo;
+                $trilha->arquivo_path = $caminhoArquivoRelativo;
+                $trilha->formato = 'mp3';
+                $trilha->tipo = 'youtube';
+                $trilha->tamanho_bytes = filesize($caminhoArquivoAbsoluto);
+                $trilha->save(false);
+
+                return [
+                    'success' => true,
+                    'cached' => false,
+                    'via_bridge' => true,
+                    'id' => $trilha->id,
+                    'titulo' => $trilha->titulo,
+                    'arquivo' => $trilha->arquivo_path,
+                    'duracao' => $duracaoTotal,
+                    'url' => $trilha->getUrl(),
+                    'youtube_id' => $youtubeId
+                ];
+            } else {
+                Yii::warning("Pulse Bridge Go não retornou a tempo para [{$url}]. Recorrendo ao fallback local da VPS...", __METHOD__);
+            }
+        }
+
+        // 3. PRIORIDADE 2: Fallback local na VPS (usando cookies se configurado)
         $cookiesPath = getenv('YOUTUBE_COOKIES_PATH') ?: Yii::getAlias('@app/config/youtube_cookies.txt');
         $cookiesArg = (file_exists($cookiesPath) && filesize($cookiesPath) > 50) 
             ? ' --cookies ' . escapeshellarg($cookiesPath) 
