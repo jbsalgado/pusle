@@ -71,7 +71,20 @@ class UsuarioController extends Controller
             // Tenta por UUID direto
             if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $slug)) {
                 $usuario = Yii::$app->db->createCommand(
-                    'SELECT id, nome, email, catalogo_path FROM prest_usuarios WHERE id = :id::uuid AND eh_dono_loja = true LIMIT 1',
+                    'SELECT 
+                        u.id, 
+                        u.nome, 
+                        u.email, 
+                        u.catalogo_path,
+                        COALESCE(lc.catalogo_ativo, pc.catalogo_publico, true) AS catalogo_ativo,
+                        lc.mensagem_manutencao,
+                        COALESCE(lc.nome_loja, pc.nome_loja, u.nome) AS nome_loja,
+                        COALESCE(lc.logo_path, pc.logo_path) AS logo_path,
+                        COALESCE(lc.celular, lc.telefone, pc.whatsapp) AS telefone
+                    FROM prest_usuarios u
+                    LEFT JOIN loja_configuracao lc ON lc.usuario_id = u.id
+                    LEFT JOIN prest_configuracoes pc ON pc.usuario_id = u.id
+                    WHERE u.id = :id::uuid AND u.eh_dono_loja = true LIMIT 1',
                     [':id' => $slug]
                 )->queryOne();
             }
@@ -79,7 +92,20 @@ class UsuarioController extends Controller
             // Tenta por catalogo_path
             if (!$usuario) {
                 $usuario = Yii::$app->db->createCommand(
-                    'SELECT id, nome, email, catalogo_path FROM prest_usuarios WHERE catalogo_path = :slug AND eh_dono_loja = true LIMIT 1',
+                    'SELECT 
+                        u.id, 
+                        u.nome, 
+                        u.email, 
+                        u.catalogo_path,
+                        COALESCE(lc.catalogo_ativo, pc.catalogo_publico, true) AS catalogo_ativo,
+                        lc.mensagem_manutencao,
+                        COALESCE(lc.nome_loja, pc.nome_loja, u.nome) AS nome_loja,
+                        COALESCE(lc.logo_path, pc.logo_path) AS logo_path,
+                        COALESCE(lc.celular, lc.telefone, pc.whatsapp) AS telefone
+                    FROM prest_usuarios u
+                    LEFT JOIN loja_configuracao lc ON lc.usuario_id = u.id
+                    LEFT JOIN prest_configuracoes pc ON pc.usuario_id = u.id
+                    WHERE u.catalogo_path = :slug AND u.eh_dono_loja = true LIMIT 1',
                     [':slug' => $slug]
                 )->queryOne();
             }
@@ -93,10 +119,22 @@ class UsuarioController extends Controller
                 ];
             }
 
+            $catalogoAtivo = $usuario['catalogo_ativo'];
+            if ($catalogoAtivo === 'f' || $catalogoAtivo === '0' || $catalogoAtivo === 0 || $catalogoAtivo === false) {
+                $catalogoAtivo = false;
+            } else {
+                $catalogoAtivo = true;
+            }
+
             return [
-                'id'            => $usuario['id'],
-                'nome'          => $usuario['nome'],
-                'catalogo_path' => $usuario['catalogo_path'],
+                'id'                  => $usuario['id'],
+                'nome'                => $usuario['nome_loja'] ?: $usuario['nome'],
+                'catalogo_path'       => $usuario['catalogo_path'],
+                'catalogo_ativo'      => $catalogoAtivo,
+                'mensagem_manutencao' => $usuario['mensagem_manutencao'] ?? null,
+                'logo_path'           => $usuario['logo_path'] ?? null,
+                'telefone'            => $usuario['telefone'] ?? null,
+                'email'               => $usuario['email'] ?? null,
             ];
 
         } catch (\Exception $e) {
@@ -126,8 +164,10 @@ class UsuarioController extends Controller
                     lc.razao_social
                 FROM prest_usuarios u
                 LEFT JOIN loja_configuracao lc ON lc.usuario_id = u.id
+                LEFT JOIN prest_configuracoes pc ON pc.usuario_id = u.id
                 WHERE u.eh_dono_loja = true
                   AND (u.status_loja = 'ativa' OR u.status_loja IS NULL)
+                  AND COALESCE(lc.catalogo_ativo, pc.catalogo_publico, true) = true
                 ORDER BY u.data_criacao ASC
             ";
 
@@ -201,9 +241,12 @@ class UsuarioController extends Controller
                     u.mercadopago_sandbox,
                     u.asaas_sandbox,
                     u.catalogo_path,
-                    c.imprimir_automatico
+                    c.imprimir_automatico,
+                    COALESCE(lc.catalogo_ativo, c.catalogo_publico, true) AS catalogo_ativo,
+                    lc.mensagem_manutencao
                 FROM prest_usuarios u
                 LEFT JOIN prest_configuracoes c ON c.usuario_id = u.id
+                LEFT JOIN loja_configuracao lc ON lc.usuario_id = u.id
                 WHERE u.id = :id::uuid
                 LIMIT 1
             ";
@@ -216,6 +259,13 @@ class UsuarioController extends Controller
                 return ['erro' => 'Usuário não encontrado'];
             }
 
+            $catalogoAtivo = $usuario['catalogo_ativo'];
+            if ($catalogoAtivo === 'f' || $catalogoAtivo === '0' || $catalogoAtivo === 0 || $catalogoAtivo === false) {
+                $catalogoAtivo = false;
+            } else {
+                $catalogoAtivo = true;
+            }
+
             return [
                 'api_de_pagamento' => $usuario['api_de_pagamento'] ?? false,
                 'gateway_pagamento' => $usuario['gateway_pagamento'] ?? 'nenhum',
@@ -223,7 +273,9 @@ class UsuarioController extends Controller
                 'mercadopago_sandbox' => $usuario['mercadopago_sandbox'] ?? true,
                 'asaas_sandbox' => $usuario['asaas_sandbox'] ?? true,
                 'catalogo_path' => $usuario['catalogo_path'] ?? 'catalogo',
-                'imprimir_automatico' => (bool)($usuario['imprimir_automatico'] ?? false)
+                'imprimir_automatico' => (bool)($usuario['imprimir_automatico'] ?? false),
+                'catalogo_ativo' => $catalogoAtivo,
+                'mensagem_manutencao' => $usuario['mensagem_manutencao'] ?? null,
             ];
         } catch (\Exception $e) {
             Yii::$app->response->statusCode = 500;

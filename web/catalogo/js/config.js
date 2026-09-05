@@ -104,7 +104,7 @@ console.log('[Config] 🔍 Detecção automática de URLs:', {
 export const CONFIG = {
     URL_API: detectedApiUrl || fallbackApiUrl,
     URL_BASE_WEB: detectedWebUrl || fallbackWebUrl,
-    CACHE_NAME: 'catalogo-cache-v19',
+    CACHE_NAME: 'catalogo-cache-v20',
     SYNC_TAG: 'sync-novo-pedido',
     ID_USUARIO_LOJA: null, // Será preenchido dinamicamente em carregarConfigLoja()
     _slugDetectado: getLojaSlugOrId()
@@ -198,7 +198,8 @@ export async function carregarConfigLoja() {
             if (slugResp.ok) {
                 const lojaInfo = await slugResp.json();
                 CONFIG.ID_USUARIO_LOJA = lojaInfo.id;
-                console.log('[Config] ✅ ID da loja resolvido:', CONFIG.ID_USUARIO_LOJA, '| Loja:', lojaInfo.nome);
+                CONFIG.LOJA_INFO = lojaInfo;
+                console.log('[Config] ✅ ID da loja resolvido:', CONFIG.ID_USUARIO_LOJA, '| Loja:', lojaInfo.nome, '| Catálogo Ativo:', lojaInfo.catalogo_ativo);
             } else {
                 console.error('[Config] ❌ Falha ao resolver slug:', slugResp.status);
                 return { lojaIdentificada: false };
@@ -233,8 +234,15 @@ export async function carregarConfigLoja() {
                     GATEWAY_CONFIG.habilitado ? '✅ HABILITADO' : '❌ DESABILITADO');
         console.log('[Config] ✅ Loja ativa: ID=', CONFIG.ID_USUARIO_LOJA);
 
-        // Sinaliza loja identificada com sucesso
-        return { ...GATEWAY_CONFIG, lojaIdentificada: true };
+        const catalogoAtivo = (CONFIG.LOJA_INFO?.catalogo_ativo !== false) && (config.catalogo_ativo !== false);
+
+        // Sinaliza loja identificada com sucesso e status do catálogo
+        return { 
+            ...GATEWAY_CONFIG, 
+            lojaIdentificada: true, 
+            catalogoAtivo: catalogoAtivo,
+            lojaInfo: { ...(CONFIG.LOJA_INFO || {}), ...config }
+        };
 
     } catch (error) {
         console.error('[Config] Erro ao carregar:', error);

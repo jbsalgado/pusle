@@ -49,6 +49,60 @@ $this->params['breadcrumbs'][] = $this->title;
             ],
         ]); ?>
 
+        <!-- Card: Visibilidade e Status do Catálogo (Modo Implantação) -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-amber-500 to-orange-600 px-4 sm:px-6 py-4 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-white flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    Status do Catálogo Online (Modo Implantação)
+                </h2>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $model->catalogo_ativo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' ?>">
+                    <?= $model->catalogo_ativo ? '● Online (Público)' : '○ Pausado (Em Implantação)' ?>
+                </span>
+            </div>
+            <div class="p-4 sm:p-6 space-y-4">
+                <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-amber-800">
+                                <strong>Dica de Implantação:</strong> Desative a exibição do catálogo enquanto cadastra seus produtos, ajusta preços ou organiza estoque. 
+                                Quando desativado, o público externo verá uma página amigável de <em>"Em Implantação / Em Breve"</em> e os produtos não serão exibidos nem acessíveis via API pública.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 pt-2">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <?= Html::activeCheckbox($model, 'catalogo_ativo', [
+                            'class' => 'sr-only peer',
+                            'label' => false,
+                            'id' => 'switch-catalogo-ativo'
+                        ]) ?>
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                        <span class="ml-3 text-sm font-bold text-gray-900">
+                            Catálogo Online Habilitado para Clientes
+                        </span>
+                    </label>
+                </div>
+
+                <div>
+                    <?= $form->field($model, 'mensagem_manutencao')->textInput([
+                        'maxlength' => true,
+                        'placeholder' => 'Ex: Estamos preparando novidades e cadastrando novos itens. Em breve nossa loja estará disponível!',
+                        'class' => 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors'
+                    ])->hint('Mensagem customizada exibida aos visitantes quando o catálogo estiver desativado (opcional).', ['class' => 'text-xs text-gray-500 mt-1']) ?>
+                </div>
+            </div>
+        </div>
+
         <!-- Card: Dados Básicos -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-4 sm:px-6 py-4">

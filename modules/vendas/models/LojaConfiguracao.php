@@ -34,6 +34,8 @@ use yii\db\Expression;
  * @property string $pix_chave
  * @property string $pix_nome
  * @property string $pix_cidade
+ * @property bool $catalogo_ativo
+ * @property string $mensagem_manutencao
  * @property string $created_at
  * @property string $updated_at
  */
@@ -94,6 +96,9 @@ class LojaConfiguracao extends ActiveRecord
             ['email', 'email'],
 
             [['limite_armazenamento_videos_mb', 'limite_armazenamento_cards_mb'], 'integer', 'min' => 5, 'max' => 5000],
+            [['catalogo_ativo'], 'boolean'],
+            [['catalogo_ativo'], 'default', 'value' => true],
+            [['mensagem_manutencao'], 'string', 'max' => 500],
             // Validação de URL
             ['site', 'url'],
         ];
@@ -132,6 +137,8 @@ class LojaConfiguracao extends ActiveRecord
             'aparencia_tema' => 'Tema do Sistema',
             'aparencia_cor_primaria' => 'Cor Primária Customizada',
             'aparencia_cor_secundaria' => 'Cor Secundária Customizada',
+            'catalogo_ativo' => 'Catálogo Online Habilitado',
+            'mensagem_manutencao' => 'Mensagem de Manutenção / Implantação',
             'created_at' => 'Criado em',
             'updated_at' => 'Atualizado em',
         ];
@@ -349,5 +356,28 @@ class LojaConfiguracao extends ActiveRecord
             '900' => '#0c3f6e',
             '950' => '#082849',
         ];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function afterSave($insert, $changedAttributes)
+    {
+        parent::afterSave($insert, $changedAttributes);
+
+        // Sincroniza catalogo_publico na tabela legada prest_configuracoes caso exista
+        if ($this->usuario_id && isset($this->catalogo_ativo)) {
+            try {
+                \Yii::$app->db->createCommand(
+                    "UPDATE prest_configuracoes SET catalogo_publico = :cat WHERE usuario_id = :uid",
+                    [
+                        ':cat' => (bool)$this->catalogo_ativo,
+                        ':uid' => (string)$this->usuario_id
+                    ]
+                )->execute();
+            } catch (\Throwable $e) {
+                // Tabela pode não ter o registro ainda, ignora silenciosamente
+            }
+        }
     }
 }

@@ -57,6 +57,23 @@ class ProdutoController extends BaseController
 
         \Yii::info("Filtrando produtos por usuario_id: {$usuarioId}", 'api');
 
+        // Verifica se o catálogo da loja está ativo para o público externo
+        $catalogoAtivo = (new \yii\db\Query())
+            ->select(['COALESCE(lc.catalogo_ativo, pc.catalogo_publico, true)'])
+            ->from('prest_usuarios u')
+            ->leftJoin('loja_configuracao lc', 'lc.usuario_id = u.id')
+            ->leftJoin('prest_configuracoes pc', 'pc.usuario_id = u.id')
+            ->where(['u.id' => $usuarioId])
+            ->scalar();
+
+        if ($catalogoAtivo === 'f' || $catalogoAtivo === '0' || $catalogoAtivo === 0 || $catalogoAtivo === false) {
+            \Yii::info("Catálogo desativado (em implantação) para usuario_id: {$usuarioId}", 'api');
+            return $this->success(new ActiveDataProvider([
+                'query' => Produto::find()->where('1=0'),
+                'pagination' => false,
+            ]));
+        }
+
         $query = Produto::find()
             ->where(['ativo' => true, 'usuario_id' => $usuarioId])
             ->andWhere(['parent_id' => null]) // ✅ Shopee Style: Apenas Mestres na Vitrine

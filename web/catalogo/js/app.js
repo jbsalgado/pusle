@@ -84,6 +84,13 @@ async function init() {
             return;
         }
 
+        // ✅ MODO IMPLANTAÇÃO: Se o catálogo estiver desativado pelo lojista
+        if (gatewayConfig?.catalogoAtivo === false) {
+            console.warn('[App] 🚧 Catálogo desativado pelo lojista (Modo Implantação).');
+            renderizarTelaManutencao(gatewayConfig.lojaInfo || {});
+            return;
+        }
+
         // Disponibilizar GATEWAY_CONFIG no window para uso em outras funções
         window.GATEWAY_CONFIG = gatewayConfig;
 
@@ -1025,6 +1032,118 @@ function renderizarEspacoFoto(produto) {
             <!-- Indicadores (Dots) -->
             <div class="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
                 ${dotsHtml}
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Renderiza a tela amigável e moderna de Modo Implantação / Manutenção
+ * quando o catálogo estiver desativado pelo lojista.
+ */
+function renderizarTelaManutencao(lojaInfo) {
+    // 1. Esconde botões operacionais e busca do catálogo
+    const idsParaEsconder = [
+        'btn-abrir-carrinho',
+        'btn-modo-divulgacao',
+        'btn-meus-pedidos',
+        'controles-paginacao',
+        'controles-paginacao-rodape',
+        'carregando-produtos'
+    ];
+    idsParaEsconder.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+
+    const campoBusca = document.getElementById('busca-produto');
+    if (campoBusca) {
+        const wrapBusca = campoBusca.closest('.relative');
+        if (wrapBusca) wrapBusca.style.display = 'none';
+    }
+
+    const main = document.querySelector('main.container');
+    if (!main) return;
+
+    const nomeLoja = lojaInfo.nome || lojaInfo.nome_loja || 'Nossa Loja';
+    const msg = lojaInfo.mensagem_manutencao && lojaInfo.mensagem_manutencao.trim() !== ''
+        ? lojaInfo.mensagem_manutencao.trim()
+        : 'Estamos organizando nosso estoque, ajustando os detalhes e preparando produtos incríveis para você. Nosso catálogo online estará liberado para compras muito em breve!';
+
+    const baseUrl = (CONFIG.URL_BASE_WEB || '').replace(/\/$/, '');
+    const logoSrc = lojaInfo.logo_path 
+        ? (lojaInfo.logo_path.startsWith('http') ? lojaInfo.logo_path : `${baseUrl}/${lojaInfo.logo_path.replace(/^\//, '')}`) 
+        : null;
+
+    const telefoneLimpo = (lojaInfo.telefone || '').replace(/\D/g, '');
+    const whatsappUrl = telefoneLimpo 
+        ? `https://wa.me/55${telefoneLimpo}?text=${encodeURIComponent(`Olá! Gostaria de mais informações sobre a loja ${nomeLoja}.`)}` 
+        : null;
+
+    const loginUrl = CONFIG.URL_API.replace('/index.php', '') + '/index.php/auth/login?loja=' + encodeURIComponent(CONFIG._slugDetectado || '');
+
+    main.innerHTML = `
+        <div class="max-w-2xl mx-auto my-6 sm:my-14 px-4">
+            <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 sm:p-12 text-center relative overflow-hidden">
+                <!-- Barra de destaque com gradiente no topo -->
+                <div class="absolute top-0 left-0 right-0 h-2.5 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500"></div>
+
+                <!-- Logo ou Ícone da Loja -->
+                <div class="mb-6 flex justify-center">
+                    ${logoSrc ? `
+                        <div class="p-3 bg-gray-50 border border-gray-100 rounded-2xl shadow-sm inline-block">
+                            <img src="${logoSrc}" alt="${nomeLoja}" class="h-20 sm:h-24 w-auto object-contain max-w-[220px]" />
+                        </div>
+                    ` : `
+                        <div class="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-amber-100 to-orange-100 text-amber-600 rounded-3xl flex items-center justify-center text-4xl sm:text-5xl shadow-inner border border-amber-200">
+                            🚧
+                        </div>
+                    `}
+                </div>
+
+                <!-- Badge de Status -->
+                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs sm:text-sm font-bold uppercase tracking-wider mb-4 animate-pulse">
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                    Catálogo em Implantação
+                </div>
+
+                <!-- Título e Nome da Loja -->
+                <h1 class="text-2xl sm:text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">
+                    ${nomeLoja}
+                </h1>
+                <p class="text-base sm:text-lg font-semibold text-amber-600 mb-6">
+                    Acesso Externo Temporariamente Restrito
+                </p>
+
+                <!-- Mensagem Informativa -->
+                <div class="bg-amber-50/40 rounded-2xl p-5 sm:p-6 text-gray-700 text-sm sm:text-base leading-relaxed mb-8 border border-amber-100">
+                    <p class="italic">"${msg}"</p>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+                    ${whatsappUrl ? `
+                        <a href="${whatsappUrl}" target="_blank" rel="noopener noreferrer"
+                           class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 active:scale-95">
+                            <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.968.54 1.77.828 2.788.828 3.18 0 5.767-2.587 5.768-5.766.001-3.181-2.585-5.766-5.766-5.766zm9.969 5.828c0 5.518-4.482 10-10 10-1.748 0-3.385-.45-4.819-1.238l-4.181 1.094 1.115-4.08c-.896-1.503-1.415-3.255-1.415-5.126 0-5.518 4.482-10 10-10s10 4.482 10 10z"/>
+                            </svg>
+                            Falar no WhatsApp
+                        </a>
+                    ` : ''}
+
+                    <a href="${loginUrl}"
+                       class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl border border-gray-200 transition-all duration-200 active:scale-95">
+                        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                        </svg>
+                        Área do Lojista (Entrar)
+                    </a>
+                </div>
+
+                <p class="text-xs text-gray-400 mt-8">
+                    &copy; ${new Date().getFullYear()} ${nomeLoja} &bull; Desenvolvido com Pulse
+                </p>
             </div>
         </div>
     `;
