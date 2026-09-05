@@ -97,7 +97,7 @@ class AudioProcessorService
         // 2. PRIORIDADE 1: Verifica se a Bridge Go residencial está online
         if (\app\modules\api\controllers\BridgeController::isBridgeOnline()) {
             Yii::info("Pulse Bridge Go residencial ativa! Despachando download para o worker...", __METHOD__);
-            $bridgeResult = \app\modules\api\controllers\BridgeController::dispatchJob($youtubeId, $url, 75);
+            $bridgeResult = \app\modules\api\controllers\BridgeController::dispatchJob($youtubeId, $url, 90);
             
             if ($bridgeResult) {
                 if (($bridgeResult['status'] ?? '') === 'error') {
@@ -138,8 +138,8 @@ class AudioProcessorService
                 }
             }
 
-            // Se a Bridge estava online mas não concluiu em 75s
-            throw new \RuntimeException("⚠️ O download pelo Motor Residencial excedeu o tempo limite de 75 segundos. Tente novamente ou utilize outro link do YouTube.");
+            // Se a Bridge estava online mas não concluiu em 90s
+            throw new \RuntimeException("⚠️ O download pelo Motor Residencial excedeu o tempo limite de 90 segundos. Tente novamente ou utilize outro link do YouTube.");
         }
 
         // 3. PRIORIDADE 2: Fallback local na VPS (usando cookies se configurado)

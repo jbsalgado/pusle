@@ -296,6 +296,14 @@ func uploadAudio(client *http.Client, serverURL, secret, jobID, youtubeID, titul
 		return fmt.Errorf("erro na resposta do servidor (HTTP %d): %s", resp.StatusCode, string(respBody))
 	}
 
+	var submitResp struct {
+		Success bool   `json:"success"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(respBody, &submitResp); err == nil && !submitResp.Success {
+		return fmt.Errorf("VPS rejeitou upload: %s", submitResp.Message)
+	}
+
 	return nil
 }
 

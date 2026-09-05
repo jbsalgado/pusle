@@ -192,7 +192,9 @@ class BridgeController extends Controller
         }
 
         if (empty($_FILES['audio']) || $_FILES['audio']['error'] !== UPLOAD_ERR_OK) {
-            return ['success' => false, 'message' => 'Arquivo de áudio não recebido ou corrompido.'];
+            $errCode = $_FILES['audio']['error'] ?? 'MISSING';
+            Yii::error("Bridge actionSubmit: erro de upload código $errCode", __METHOD__);
+            return ['success' => false, 'message' => "Arquivo de áudio não recebido ou corrompido (código de erro: $errCode)."];
         }
 
         $diretorioRelativo = 'uploads/audio/youtube';
@@ -279,7 +281,7 @@ class BridgeController extends Controller
      * @param int $timeoutSeconds Tempo máximo de espera pelo worker
      * @return array|null Dados do áudio processado ou null em caso de timeout/falha
      */
-    public static function dispatchJob($youtubeId, $url, $timeoutSeconds = 75)
+    public static function dispatchJob($youtubeId, $url, $timeoutSeconds = 90)
     {
         $dir = self::getJobsDir();
         $jobId = 'job_' . preg_replace('/[^a-zA-Z0-9_-]/', '', $youtubeId) . '_' . time();
