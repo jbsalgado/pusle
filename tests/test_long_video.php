@@ -22,8 +22,8 @@ if (!$isOnline) {
     exit(1);
 }
 
-$url = 'https://www.youtube.com/watch?v=G6gRMc6v0mI';
-echo "Solicitando vídeo de 12 horas: $url\n";
+$url = $argv[1] ?? 'https://www.youtube.com/watch?v=78QAexgLtcw';
+echo "Solicitando vídeo: $url\n";
 $inicio = microtime(true);
 
 try {
