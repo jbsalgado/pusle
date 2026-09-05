@@ -1,10 +1,14 @@
 <?php
 
 require __DIR__ . '/../vendor/autoload.php';
+
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+$dotenv->safeLoad();
+
 require __DIR__ . '/../vendor/yiisoft/yii2/Yii.php';
 
-$config = require __DIR__ . '/../config/console.php';
-new yii\console\Application($config);
+$config = require __DIR__ . '/../config/web.php';
+new yii\web\Application($config);
 
 use app\models\Usuario;
 use app\modules\vendas\models\BridgeWhatsappLoja;
