@@ -10,7 +10,7 @@
 // - DINHEIRO sempre removido
 // - PIX_ESTATICO e PAGAR_AO_ENTREGADOR sempre disponíveis
 
-import { CONFIG, API_ENDPOINTS, carregarConfigLoja } from './config.js';
+import { CONFIG, API_ENDPOINTS, carregarConfigLoja } from './config.js?v=20260904_v5';
 import { 
     getCarrinho, 
     setCarrinho, 
@@ -41,7 +41,7 @@ import {
     formatarQuantidade,
     verificarElementosCriticos
 } from './utils.js';
-import { ELEMENTOS_CRITICOS } from './config.js';
+import { ELEMENTOS_CRITICOS } from './config.js?v=20260904_v5';
 import { inicializarMonitoramentoRede } from './network.js';
 import { cadastrarCliente } from './customer.js';
 
@@ -85,9 +85,15 @@ async function init() {
         }
 
         // ✅ MODO IMPLANTAÇÃO: Se o catálogo estiver desativado pelo lojista
-        if (gatewayConfig?.catalogoAtivo === false) {
+        const isCatalogoInativo = gatewayConfig?.catalogoAtivo === false
+            || CONFIG?.LOJA_INFO?.catalogo_ativo === false
+            || window.CONFIG?.LOJA_INFO?.catalogo_ativo === false
+            || (gatewayConfig?.lojaInfo && gatewayConfig.lojaInfo.catalogo_ativo === false);
+
+        if (isCatalogoInativo) {
             console.warn('[App] 🚧 Catálogo desativado pelo lojista (Modo Implantação).');
-            renderizarTelaManutencao(gatewayConfig.lojaInfo || {});
+            const info = gatewayConfig?.lojaInfo || CONFIG?.LOJA_INFO || window.CONFIG?.LOJA_INFO || {};
+            renderizarTelaManutencao(info);
             return;
         }
 
