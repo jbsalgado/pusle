@@ -296,6 +296,60 @@ func enviarQrCodeVPS(b64 string) {
 	}
 }
 
+func resolverJidCanonico(ctx context.Context, numeroRaw string) (*types.JID, error) {
+	// Remove caracteres não numéricos
+	var digits []rune
+	for _, r := range numeroRaw {
+		if r >= '0' && r <= '9' {
+			digits = append(digits, r)
+		}
+	}
+	cleanNum := string(digits)
+	if len(cleanNum) == 0 {
+		return nil, fmt.Errorf("número vazio ou inválido")
+	}
+
+	// Se for número brasileiro de 10 ou 11 dígitos sem DDI, adiciona 55
+	if len(cleanNum) == 10 || len(cleanNum) == 11 {
+		cleanNum = "55" + cleanNum
+	}
+
+	// Gera variantes para o Brasil (DDI 55)
+	// Trata a regra do 9º dígito (contas antigas registradas na Meta com 8 dígitos vs contas com 9 dígitos)
+	var phonesToCheck []string
+	phonesToCheck = append(phonesToCheck, "+"+cleanNum)
+
+	if strings.HasPrefix(cleanNum, "55") {
+		// 55 + DDD (2 digitos) + 9 + 8 digitos = 13 digitos
+		if len(cleanNum) == 13 && cleanNum[4] == '9' {
+			// Variante sem o 9º dígito: 55 + DDD + 8 dígitos
+			semNove := cleanNum[:4] + cleanNum[5:]
+			phonesToCheck = append(phonesToCheck, "+"+semNove)
+		} else if len(cleanNum) == 12 {
+			// Variante com o 9º dígito: 55 + DDD + 9 + 8 dígitos
+			comNove := cleanNum[:4] + "9" + cleanNum[4:]
+			phonesToCheck = append(phonesToCheck, "+"+comNove)
+		}
+	}
+
+	fmt.Printf("🔍 Consultando registro e JID canônico na Meta para: %v...\n", phonesToCheck)
+	respList, err := client.IsOnWhatsApp(ctx, phonesToCheck)
+	if err != nil {
+		fmt.Printf("⚠️ Erro ao consultar IsOnWhatsApp: %v. Tentando JID direto...\n", err)
+		jid := types.NewJID(cleanNum, types.DefaultUserServer)
+		return &jid, nil
+	}
+
+	for _, r := range respList {
+		if r.IsIn {
+			fmt.Printf("✅ JID Canônico encontrado com sucesso: %s (Consulta: %s)\n", r.JID.String(), r.Query)
+			return &r.JID, nil
+		}
+	}
+
+	return nil, fmt.Errorf("o número %s não está cadastrado no WhatsApp", cleanNum)
+}
+
 func processarEnvio(data json.RawMessage) {
 	var msg struct {
 		ID            string `json:"id"`
@@ -308,34 +362,41 @@ func processarEnvio(data json.RawMessage) {
 		return
 	}
 
-	fmt.Printf("🚀 Enviando mensagem para %s...\n", msg.NumeroDestino)
+	fmt.Printf("🚀 Processando envio para %s...\n", msg.NumeroDestino)
 
 	if client == nil || !client.IsConnected() {
 		ackEnvio(msg.ID, "failed", "", "WhatsApp não está conectado no agente local")
 		return
 	}
 
-	// Pausa antiban humanizada
-	time.Sleep(2 * time.Second)
-
-	jid := types.NewJID(msg.NumeroDestino, types.DefaultUserServer)
-
-	// Simula presença (Digitando...)
-	_ = client.SendChatPresence(context.Background(), jid, types.ChatPresenceComposing, types.ChatPresenceMediaText)
-	time.Sleep(1 * time.Second)
-
-	waMsg := &waE2E.Message{
-		Conversation: proto.String(msg.Texto),
-	}
-
-	resp, err := client.SendMessage(context.Background(), jid, waMsg)
+	// 1. Resolve JID Canônico com suporte a LID e 9º dígito
+	jid, err := resolverJidCanonico(context.Background(), msg.NumeroDestino)
 	if err != nil {
-		fmt.Printf("❌ Erro ao enviar para %s: %v\n", msg.NumeroDestino, err)
+		fmt.Printf("❌ Falha de validação para %s: %v\n", msg.NumeroDestino, err)
 		ackEnvio(msg.ID, "failed", "", err.Error())
 		return
 	}
 
-	fmt.Printf("✅ Mensagem enviada com sucesso! ID WA: %s\n", resp.ID)
+	// Pausa antiban humanizada
+	time.Sleep(2 * time.Second)
+
+	// 2. Simula presença (Digitando...)
+	_ = client.SendChatPresence(context.Background(), *jid, types.ChatPresenceComposing, types.ChatPresenceMediaText)
+	time.Sleep(1 * time.Second)
+
+	// 3. Envia mensagem para o JID canônico
+	waMsg := &waE2E.Message{
+		Conversation: proto.String(msg.Texto),
+	}
+
+	resp, err := client.SendMessage(context.Background(), *jid, waMsg)
+	if err != nil {
+		fmt.Printf("❌ Erro ao enviar para %s: %v\n", jid.String(), err)
+		ackEnvio(msg.ID, "failed", "", err.Error())
+		return
+	}
+
+	fmt.Printf("✅ Mensagem entregue com sucesso para %s! ID WA: %s\n", jid.String(), resp.ID)
 	ackEnvio(msg.ID, "delivered", resp.ID, "")
 }
 

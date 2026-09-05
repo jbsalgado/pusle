@@ -265,6 +265,11 @@ $token = $loja->token_agente;
                                         <span class="inline-block px-2.5 py-0.5 text-[10px] font-black uppercase rounded-full tracking-wider <?= $badgeClasses ?>">
                                             <?= Html::encode(strtoupper($m->status)) ?>
                                         </span>
+                                        <?php if ($m->status === 'failed' && !empty($m->erro_motivo)): ?>
+                                            <span class="block mt-1 text-[10px] text-rose-400 font-normal italic max-w-xs" title="<?= Html::encode($m->erro_motivo) ?>">
+                                                <?= Html::encode($m->erro_motivo) ?>
+                                            </span>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
