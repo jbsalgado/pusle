@@ -97,40 +97,49 @@ class AudioProcessorService
         // 2. PRIORIDADE 1: Verifica se a Bridge Go residencial está online
         if (\app\modules\api\controllers\BridgeController::isBridgeOnline()) {
             Yii::info("Pulse Bridge Go residencial ativa! Despachando download para o worker...", __METHOD__);
-            $bridgeResult = \app\modules\api\controllers\BridgeController::dispatchJob($youtubeId, $url, 28);
-            if ($bridgeResult && !empty($bridgeResult['arquivo_path']) && file_exists($caminhoArquivoAbsoluto) && filesize($caminhoArquivoAbsoluto) > 1024) {
-                $titulo = $bridgeResult['titulo'] ?? ('YouTube: ' . $youtubeId);
-                $duracaoTotal = (float)($bridgeResult['duracao'] ?? 0);
-                if ($duracaoTotal <= 0) {
-                    $duracaoTotal = self::obterDuracaoAudio($caminhoArquivoAbsoluto);
+            $bridgeResult = \app\modules\api\controllers\BridgeController::dispatchJob($youtubeId, $url, 75);
+            
+            if ($bridgeResult) {
+                if (($bridgeResult['status'] ?? '') === 'error') {
+                    $errorMsg = $bridgeResult['error'] ?? 'Falha desconhecida no worker residencial.';
+                    throw new \RuntimeException("❌ Erro ao baixar pelo Motor Residencial: " . $errorMsg);
                 }
 
-                // Registra na tabela prest_trilhas_sonoras
-                $trilha = new TrilhaSonora();
-                $trilha->usuario_id = $usuarioId;
-                $trilha->titulo = mb_substr($titulo, 0, 250);
-                $trilha->descricao = 'Áudio extraído via Pulse Bridge Residencial (' . $url . ')';
-                $trilha->arquivo_nome = $nomeArquivo;
-                $trilha->arquivo_path = $caminhoArquivoRelativo;
-                $trilha->formato = 'mp3';
-                $trilha->tipo = 'youtube';
-                $trilha->tamanho_bytes = filesize($caminhoArquivoAbsoluto);
-                $trilha->save(false);
+                if (!empty($bridgeResult['arquivo_path']) && file_exists($caminhoArquivoAbsoluto) && filesize($caminhoArquivoAbsoluto) > 1024) {
+                    $titulo = $bridgeResult['titulo'] ?? ('YouTube: ' . $youtubeId);
+                    $duracaoTotal = (float)($bridgeResult['duracao'] ?? 0);
+                    if ($duracaoTotal <= 0) {
+                        $duracaoTotal = self::obterDuracaoAudio($caminhoArquivoAbsoluto);
+                    }
 
-                return [
-                    'success' => true,
-                    'cached' => false,
-                    'via_bridge' => true,
-                    'id' => $trilha->id,
-                    'titulo' => $trilha->titulo,
-                    'arquivo' => $trilha->arquivo_path,
-                    'duracao' => $duracaoTotal,
-                    'url' => $trilha->getUrl(),
-                    'youtube_id' => $youtubeId
-                ];
-            } else {
-                Yii::warning("Pulse Bridge Go não retornou a tempo para [{$url}]. Recorrendo ao fallback local da VPS...", __METHOD__);
+                    // Registra na tabela prest_trilhas_sonoras
+                    $trilha = new TrilhaSonora();
+                    $trilha->usuario_id = $usuarioId;
+                    $trilha->titulo = mb_substr($titulo, 0, 250);
+                    $trilha->descricao = 'Áudio extraído via Pulse Bridge Residencial (' . $url . ')';
+                    $trilha->arquivo_nome = $nomeArquivo;
+                    $trilha->arquivo_path = $caminhoArquivoRelativo;
+                    $trilha->formato = 'mp3';
+                    $trilha->tipo = 'youtube';
+                    $trilha->tamanho_bytes = filesize($caminhoArquivoAbsoluto);
+                    $trilha->save(false);
+
+                    return [
+                        'success' => true,
+                        'cached' => false,
+                        'via_bridge' => true,
+                        'id' => $trilha->id,
+                        'titulo' => $trilha->titulo,
+                        'arquivo' => $trilha->arquivo_path,
+                        'duracao' => $duracaoTotal,
+                        'url' => $trilha->getUrl(),
+                        'youtube_id' => $youtubeId
+                    ];
+                }
             }
+
+            // Se a Bridge estava online mas não concluiu em 75s
+            throw new \RuntimeException("⚠️ O download pelo Motor Residencial excedeu o tempo limite de 75 segundos. Tente novamente ou utilize outro link do YouTube.");
         }
 
         // 3. PRIORIDADE 2: Fallback local na VPS (usando cookies se configurado)

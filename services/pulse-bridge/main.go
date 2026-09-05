@@ -197,15 +197,39 @@ func processarJob(client *http.Client, serverURL, secret, ytdlpPath, tempDir str
 
 	fmt.Printf("[Bridge] 🎵 Título: %s (Duração: %.1fs)\n", titulo, duracao)
 
-	// 2. Faz o download do áudio usando yt-dlp local
+	// 2. Prepara argumentos de download do áudio usando yt-dlp local
 	outputTemplate := filepath.Join(tempDir, fmt.Sprintf("%s.%%(ext)s", job.ID))
 	finalMp3 := filepath.Join(tempDir, fmt.Sprintf("%s.mp3", job.ID))
 
 	// Remove eventual arquivo antigo
 	os.Remove(finalMp3)
 
-	fmt.Println("[Bridge] ⬇️ Baixando áudio e convertendo para MP3...")
-	cmdDl := exec.Command(ytdlpPath, "-x", "--audio-format", "mp3", "-o", outputTemplate, "--no-playlist", job.URL)
+	var dlArgs []string
+	if duracao > 1800 {
+		fmt.Printf("[Bridge] ⏱️ Vídeo longo detectado (%.0fs / %.1fh). Recortando automaticamente os primeiros 30 minutos com velocidade máxima (ratebypass)...\n", duracao, duracao/3600.0)
+		dlArgs = []string{
+			"--extractor-args", "youtube:player_client=android",
+			"-f", "18/ba[ext=m4a]/ba/b",
+			"--download-sections", "*00:00:00-00:30:00",
+			"-x", "--audio-format", "mp3",
+			"-o", outputTemplate,
+			"--no-playlist",
+			job.URL,
+		}
+		duracao = 1800.0
+	} else {
+		fmt.Println("[Bridge] ⬇️ Baixando áudio completo e convertendo para MP3...")
+		dlArgs = []string{
+			"--extractor-args", "youtube:player_client=android,web",
+			"-f", "ba/b[ext=mp4]/18",
+			"-x", "--audio-format", "mp3",
+			"-o", outputTemplate,
+			"--no-playlist",
+			job.URL,
+		}
+	}
+
+	cmdDl := exec.Command(ytdlpPath, dlArgs...)
 	dlOutput, err := cmdDl.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("falha no yt-dlp: %v | Saída: %s", err, string(dlOutput))

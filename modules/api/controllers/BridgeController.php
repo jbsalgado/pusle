@@ -279,7 +279,7 @@ class BridgeController extends Controller
      * @param int $timeoutSeconds Tempo máximo de espera pelo worker
      * @return array|null Dados do áudio processado ou null em caso de timeout/falha
      */
-    public static function dispatchJob($youtubeId, $url, $timeoutSeconds = 25)
+    public static function dispatchJob($youtubeId, $url, $timeoutSeconds = 75)
     {
         $dir = self::getJobsDir();
         $jobId = 'job_' . preg_replace('/[^a-zA-Z0-9_-]/', '', $youtubeId) . '_' . time();
@@ -308,7 +308,7 @@ class BridgeController extends Controller
                 $doneData = json_decode($doneContent, true);
                 @unlink($doneFile);
                 @unlink($jobFile);
-                if ($doneData && ($doneData['status'] ?? '') === 'done') {
+                if ($doneData && in_array($doneData['status'] ?? '', ['done', 'error'], true)) {
                     return $doneData;
                 }
             }
