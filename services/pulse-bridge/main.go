@@ -199,30 +199,32 @@ func processarJob(client *http.Client, serverURL, secret, ytdlpPath, tempDir str
 
 	// 2. Prepara argumentos de download do áudio usando yt-dlp local
 	outputTemplate := filepath.Join(tempDir, fmt.Sprintf("%s.%%(ext)s", job.ID))
+	finalM4a := filepath.Join(tempDir, fmt.Sprintf("%s.m4a", job.ID))
 	finalMp3 := filepath.Join(tempDir, fmt.Sprintf("%s.mp3", job.ID))
 
-	// Remove eventual arquivo antigo
+	// Remove eventuais arquivos antigos
+	os.Remove(finalM4a)
 	os.Remove(finalMp3)
 
 	var dlArgs []string
 	if duracao > 1800 {
-		fmt.Printf("[Bridge] ⏱️ Vídeo longo detectado (%.0fs / %.1fh). Recortando automaticamente os primeiros 30 minutos com velocidade máxima (ratebypass)...\n", duracao, duracao/3600.0)
+		fmt.Printf("[Bridge] ⏱️ Vídeo longo detectado (%.0fs / %.1fh). Recortando automaticamente os primeiros 30 minutos em alta velocidade...\n", duracao, duracao/3600.0)
 		dlArgs = []string{
 			"--extractor-args", "youtube:player_client=android",
 			"-f", "18/ba[ext=m4a]/ba/b",
 			"--download-sections", "*00:00:00-00:30:00",
-			"-x", "--audio-format", "mp3",
+			"-x", "--audio-format", "m4a",
 			"-o", outputTemplate,
 			"--no-playlist",
 			job.URL,
 		}
 		duracao = 1800.0
 	} else {
-		fmt.Println("[Bridge] ⬇️ Baixando áudio completo e convertendo para MP3...")
+		fmt.Println("[Bridge] ⬇️ Baixando áudio em formato nativo AAC/M4A...")
 		dlArgs = []string{
 			"--extractor-args", "youtube:player_client=android,web",
-			"-f", "ba/b[ext=mp4]/18",
-			"-x", "--audio-format", "mp3",
+			"-f", "18/ba[ext=m4a]/ba/b",
+			"-x", "--audio-format", "m4a",
 			"-o", outputTemplate,
 			"--no-playlist",
 			job.URL,
@@ -235,21 +237,26 @@ func processarJob(client *http.Client, serverURL, secret, ytdlpPath, tempDir str
 		return fmt.Errorf("falha no yt-dlp: %v | Saída: %s", err, string(dlOutput))
 	}
 
-	if _, err := os.Stat(finalMp3); os.IsNotExist(err) {
-		return fmt.Errorf("arquivo MP3 não gerado em %s", finalMp3)
+	finalAudio := finalM4a
+	if _, err := os.Stat(finalM4a); os.IsNotExist(err) {
+		if _, err := os.Stat(finalMp3); err == nil {
+			finalAudio = finalMp3
+		} else {
+			return fmt.Errorf("arquivo de áudio não gerado em %s", finalM4a)
+		}
 	}
 
-	defer os.Remove(finalMp3)
+	defer os.Remove(finalAudio)
 
-	// 3. Envia o arquivo MP3 e metadados para a VPS via POST Multipart
-	fmt.Println("[Bridge] ⬆️ Enviando MP3 finalizado para a VPS...")
-	return uploadAudio(client, serverURL, secret, job.ID, job.YoutubeID, titulo, duracao, finalMp3)
+	// 3. Envia o arquivo de áudio e metadados para a VPS via POST Multipart
+	fmt.Printf("[Bridge] ⬆️ Enviando áudio finalizado (%s) para a VPS...\n", filepath.Base(finalAudio))
+	return uploadAudio(client, serverURL, secret, job.ID, job.YoutubeID, titulo, duracao, finalAudio)
 }
 
-func uploadAudio(client *http.Client, serverURL, secret, jobID, youtubeID, titulo string, duracao float64, mp3Path string) error {
-	file, err := os.Open(mp3Path)
+func uploadAudio(client *http.Client, serverURL, secret, jobID, youtubeID, titulo string, duracao float64, audioPath string) error {
+	file, err := os.Open(audioPath)
 	if err != nil {
-		return fmt.Errorf("erro ao abrir MP3: %v", err)
+		return fmt.Errorf("erro ao abrir arquivo de áudio: %v", err)
 	}
 	defer file.Close()
 
@@ -260,8 +267,9 @@ func uploadAudio(client *http.Client, serverURL, secret, jobID, youtubeID, titul
 	_ = writer.WriteField("youtube_id", youtubeID)
 	_ = writer.WriteField("titulo", titulo)
 	_ = writer.WriteField("duracao", fmt.Sprintf("%.2f", duracao))
+	_ = writer.WriteField("formato", strings.TrimPrefix(filepath.Ext(audioPath), "."))
 
-	part, err := writer.CreateFormFile("audio", filepath.Base(mp3Path))
+	part, err := writer.CreateFormFile("audio", filepath.Base(audioPath))
 	if err != nil {
 		return fmt.Errorf("erro ao criar campo de upload: %v", err)
 	}

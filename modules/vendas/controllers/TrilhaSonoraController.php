@@ -198,6 +198,7 @@ class TrilhaSonoraController extends Controller
      */
     public function actionImportarYoutube()
     {
+        @set_time_limit(180);
         Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
         $url = Yii::$app->request->post('url');
         if (empty($url)) {

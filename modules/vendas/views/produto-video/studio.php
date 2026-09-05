@@ -2072,7 +2072,17 @@ function importarYoutubeStudio() {
         },
         body: formData
     })
-    .then(r => r.json())
+    .then(async r => {
+        const text = await r.text();
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            if (r.status === 504 || r.status === 408) {
+                return { success: false, message: 'O servidor demorou para processar o download (Timeout). Tente novamente.' };
+            }
+            return { success: false, message: `Erro no servidor (HTTP ${r.status}).` };
+        }
+    })
     .then(data => {
         btn.disabled = false;
         if (!data.success) {

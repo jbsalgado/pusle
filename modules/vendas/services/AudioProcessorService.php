@@ -60,11 +60,25 @@ class AudioProcessorService
         $caminhoArquivoAbsoluto = $diretorioAbsoluto . DIRECTORY_SEPARATOR . $nomeArquivo;
         $caminhoArquivoRelativo = $diretorioRelativo . '/' . $nomeArquivo;
 
-        // 1. Verifica se já existe em cache local no disco
-        if (file_exists($caminhoArquivoAbsoluto) && filesize($caminhoArquivoAbsoluto) > 1024) {
-            $duracao = self::obterDuracaoAudio($caminhoArquivoAbsoluto);
+        // 1. Verifica se já existe em cache local no disco (mp3 ou m4a)
+        $arquivoCache = null;
+        foreach (['m4a', 'mp3'] as $f) {
+            $testAbs = $diretorioAbsoluto . DIRECTORY_SEPARATOR . 'yt_' . $youtubeId . '.' . $f;
+            if (file_exists($testAbs) && filesize($testAbs) > 1024) {
+                $arquivoCache = [
+                    'absoluto' => $testAbs,
+                    'relativo' => $diretorioRelativo . '/yt_' . $youtubeId . '.' . $f,
+                    'nome' => 'yt_' . $youtubeId . '.' . $f,
+                    'formato' => $f,
+                ];
+                break;
+            }
+        }
+
+        if ($arquivoCache) {
+            $duracao = self::obterDuracaoAudio($arquivoCache['absoluto']);
             $trilhaExistente = TrilhaSonora::find()
-                ->where(['arquivo_path' => $caminhoArquivoRelativo])
+                ->where(['arquivo_path' => $arquivoCache['relativo']])
                 ->andFilterWhere(['usuario_id' => $usuarioId])
                 ->one();
 
@@ -74,11 +88,11 @@ class AudioProcessorService
                 $trilhaExistente->usuario_id = $usuarioId;
                 $trilhaExistente->titulo = 'YouTube: ' . $youtubeId;
                 $trilhaExistente->descricao = 'Áudio extraído do YouTube (' . $url . ')';
-                $trilhaExistente->arquivo_nome = $nomeArquivo;
-                $trilhaExistente->arquivo_path = $caminhoArquivoRelativo;
-                $trilhaExistente->formato = 'mp3';
+                $trilhaExistente->arquivo_nome = $arquivoCache['nome'];
+                $trilhaExistente->arquivo_path = $arquivoCache['relativo'];
+                $trilhaExistente->formato = $arquivoCache['formato'];
                 $trilhaExistente->tipo = 'youtube';
-                $trilhaExistente->tamanho_bytes = filesize($caminhoArquivoAbsoluto);
+                $trilhaExistente->tamanho_bytes = filesize($arquivoCache['absoluto']);
                 $trilhaExistente->save(false);
             }
 
@@ -105,23 +119,25 @@ class AudioProcessorService
                     throw new \RuntimeException("❌ Erro ao baixar pelo Motor Residencial: " . $errorMsg);
                 }
 
-                if (!empty($bridgeResult['arquivo_path']) && file_exists($caminhoArquivoAbsoluto) && filesize($caminhoArquivoAbsoluto) > 1024) {
+                $caminhoBridgeAbsoluto = $bridgeResult['caminho_absoluto'] ?? $caminhoArquivoAbsoluto;
+                if (!empty($bridgeResult['arquivo_path']) && file_exists($caminhoBridgeAbsoluto) && filesize($caminhoBridgeAbsoluto) > 1024) {
                     $titulo = $bridgeResult['titulo'] ?? ('YouTube: ' . $youtubeId);
                     $duracaoTotal = (float)($bridgeResult['duracao'] ?? 0);
                     if ($duracaoTotal <= 0) {
-                        $duracaoTotal = self::obterDuracaoAudio($caminhoArquivoAbsoluto);
+                        $duracaoTotal = self::obterDuracaoAudio($caminhoBridgeAbsoluto);
                     }
+                    $formatoAudio = $bridgeResult['formato'] ?? pathinfo($caminhoBridgeAbsoluto, PATHINFO_EXTENSION) ?: 'm4a';
 
                     // Registra na tabela prest_trilhas_sonoras
                     $trilha = new TrilhaSonora();
                     $trilha->usuario_id = $usuarioId;
                     $trilha->titulo = mb_substr($titulo, 0, 250);
                     $trilha->descricao = 'Áudio extraído via Pulse Bridge Residencial (' . $url . ')';
-                    $trilha->arquivo_nome = $nomeArquivo;
-                    $trilha->arquivo_path = $caminhoArquivoRelativo;
-                    $trilha->formato = 'mp3';
+                    $trilha->arquivo_nome = $bridgeResult['arquivo_nome'] ?? basename($caminhoBridgeAbsoluto);
+                    $trilha->arquivo_path = $bridgeResult['arquivo_path'] ?? ($diretorioRelativo . '/' . basename($caminhoBridgeAbsoluto));
+                    $trilha->formato = $formatoAudio;
                     $trilha->tipo = 'youtube';
-                    $trilha->tamanho_bytes = filesize($caminhoArquivoAbsoluto);
+                    $trilha->tamanho_bytes = filesize($caminhoBridgeAbsoluto);
                     $trilha->save(false);
 
                     return [

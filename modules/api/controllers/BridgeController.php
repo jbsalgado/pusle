@@ -203,7 +203,14 @@ class BridgeController extends Controller
             FileHelper::createDirectory($diretorioAbsoluto, 0777, true);
         }
 
-        $nomeArquivo = 'yt_' . $youtubeId . '.mp3';
+        $formato = Yii::$app->request->post('formato');
+        if (empty($formato) && !empty($_FILES['audio']['name'])) {
+            $ext = pathinfo($_FILES['audio']['name'], PATHINFO_EXTENSION);
+            $formato = $ext ? strtolower($ext) : 'mp3';
+        }
+        $formato = in_array(strtolower((string)$formato), ['m4a', 'aac', 'mp3', 'ogg', 'wav'], true) ? strtolower($formato) : 'mp3';
+
+        $nomeArquivo = 'yt_' . $youtubeId . '.' . $formato;
         $caminhoArquivoAbsoluto = $diretorioAbsoluto . DIRECTORY_SEPARATOR . $nomeArquivo;
         $caminhoArquivoRelativo = $diretorioRelativo . '/' . $nomeArquivo;
 
@@ -222,6 +229,7 @@ class BridgeController extends Controller
             'youtube_id' => $youtubeId,
             'titulo' => $titulo,
             'duracao' => $duracao,
+            'formato' => $formato,
             'arquivo_nome' => $nomeArquivo,
             'arquivo_path' => $caminhoArquivoRelativo,
             'caminho_absoluto' => $caminhoArquivoAbsoluto,
