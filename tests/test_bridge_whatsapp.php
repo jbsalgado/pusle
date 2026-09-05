@@ -36,7 +36,8 @@ echo "Token do Agente : {$loja->token_agente}\n";
 echo "Status Atual    : {$loja->status_conexao}\n\n";
 
 // 3. Testa Handshake via API
-$baseUrl = 'https://catalogos.oncode.app.br';
+$baseUrl = !empty($argv[1]) ? rtrim($argv[1], '/') : 'https://catalogos.oncode.app.br';
+echo "Usando Servidor: {$baseUrl}\n";
 echo "📡 1. Testando POST /api/bridge-whatsapp/handshake...\n";
 
 $ch = curl_init("{$baseUrl}/api/bridge-whatsapp/handshake");
