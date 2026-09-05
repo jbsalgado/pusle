@@ -94,9 +94,15 @@ class AudioProcessorService
             ];
         }
 
-        // 2. Extrai metadados (Título e Duração) usando yt-dlp
+        // 2. Verifica se há arquivo de cookies configurado (para contornar bloqueio de bot de data center na VPS)
+        $cookiesPath = getenv('YOUTUBE_COOKIES_PATH') ?: Yii::getAlias('@app/config/youtube_cookies.txt');
+        $cookiesArg = (file_exists($cookiesPath) && filesize($cookiesPath) > 50) 
+            ? ' --cookies ' . escapeshellarg($cookiesPath) 
+            : '';
+
+        // Extrai metadados (Título e Duração) usando yt-dlp
         $escapedUrl = escapeshellarg($url);
-        $cmdInfo = "yt-dlp --print \"%(id)s||%(title)s||%(duration)s\" --no-playlist --extractor-args \"youtube:player_client=android,web\" {$escapedUrl} 2>&1";
+        $cmdInfo = "yt-dlp --print \"%(id)s||%(title)s||%(duration)s\" --no-playlist --extractor-args \"youtube:player_client=android,web\"{$cookiesArg} {$escapedUrl} 2>&1";
         $infoOutput = shell_exec($cmdInfo);
         
         $titulo = 'YouTube: ' . $youtubeId;
@@ -119,12 +125,17 @@ class AudioProcessorService
 
         // 3. Executa o download de áudio via yt-dlp
         $templateSaida = escapeshellarg($diretorioAbsoluto . '/yt_%(id)s.%(ext)s');
-        $cmdDownload = "yt-dlp -x --audio-format mp3 -o {$templateSaida} --no-playlist --extractor-args \"youtube:player_client=android,web\" {$escapedUrl} 2>&1";
+        $cmdDownload = "yt-dlp -x --audio-format mp3 -o {$templateSaida} --no-playlist --extractor-args \"youtube:player_client=android,web\"{$cookiesArg} {$escapedUrl} 2>&1";
         $downloadOutput = shell_exec($cmdDownload);
 
         if (!file_exists($caminhoArquivoAbsoluto) || filesize($caminhoArquivoAbsoluto) < 1024) {
             Yii::error("Falha ao baixar áudio do YouTube [{$url}]: " . $downloadOutput, __METHOD__);
-            throw new \RuntimeException("Não foi possível extrair o áudio do link fornecido. O YouTube pode ter restrito o acesso temporariamente. Mensagem: " . substr(strip_tags($downloadOutput), 0, 200));
+            
+            if (stripos($downloadOutput, 'Sign in to confirm') !== false || stripos($downloadOutput, 'bot') !== false) {
+                throw new \RuntimeException("O YouTube bloqueou o download a partir deste servidor (IP de Data Center detectado como bot). Para contornar, faça o upload direto do arquivo MP3 no Studio ou adicione o arquivo youtube_cookies.txt no servidor.");
+            }
+            
+            throw new \RuntimeException("Não foi possível extrair o áudio do link fornecido. O YouTube pode ter restrito o acesso. Mensagem: " . substr(strip_tags($downloadOutput), 0, 300));
         }
 
         if ($duracaoTotal <= 0) {
