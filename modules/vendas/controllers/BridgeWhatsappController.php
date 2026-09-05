@@ -106,4 +106,70 @@ class BridgeWhatsappController extends Controller
 
         return BridgeWhatsappService::enfileirarMensagem($usuarioId, $numero, $texto);
     }
+
+    /**
+     * Gera e faz download do inicializador 1-clique para Windows (.bat)
+     */
+    public function actionBaixarBat()
+    {
+        $usuarioId = Yii::$app->user->id;
+        $loja = BridgeWhatsappService::getConfigLoja($usuarioId);
+        $serverUrl = Yii::$app->request->hostInfo;
+        $token = $loja->token_agente;
+
+        $content = "@echo off\r\n";
+        $content .= "title Pulse Agent WhatsApp - Conexao Local da Loja\r\n";
+        $content .= "cls\r\n";
+        $content .= "echo =======================================================\r\n";
+        $content .= "echo   PULSE AGENT WHATSAPP - CONEXAO LOCAL DA LOJA\r\n";
+        $content .= "echo   Zero Custo Meta API - IP Residencial Antiban\r\n";
+        $content .= "echo =======================================================\r\n";
+        $content .= "echo.\r\n";
+        $content .= "if not exist \"pulse-agent.exe\" (\r\n";
+        $content .= "    echo [1/2] Baixando executavel do agente pulse-agent.exe...\r\n";
+        $content .= "    curl -fsSL \"{$serverUrl}/downloads/bridge/pulse-agent.exe\" -o pulse-agent.exe\r\n";
+        $content .= ")\r\n";
+        $content .= "echo [2/2] Iniciando Pulse Agent no seu computador...\r\n";
+        $content .= "echo Conectando a VPS: {$serverUrl}\r\n";
+        $content .= "echo.\r\n";
+        $content .= "pulse-agent.exe --token=\"{$token}\" --server=\"{$serverUrl}\"\r\n";
+        $content .= "pause\r\n";
+
+        return Yii::$app->response->sendContentAsFile($content, 'iniciar_whatsapp.bat', [
+            'mimeType' => 'application/x-bat',
+            'inline' => false
+        ]);
+    }
+
+    /**
+     * Gera e faz download do inicializador 1-clique para Linux (.sh)
+     */
+    public function actionBaixarSh()
+    {
+        $usuarioId = Yii::$app->user->id;
+        $loja = BridgeWhatsappService::getConfigLoja($usuarioId);
+        $serverUrl = Yii::$app->request->hostInfo;
+        $token = $loja->token_agente;
+
+        $content = "#!/bin/bash\n";
+        $content .= "echo '======================================================='\n";
+        $content .= "echo '  PULSE AGENT WHATSAPP - CONEXAO LOCAL DA LOJA'\n";
+        $content .= "echo '  Zero Custo Meta API - IP Residencial Antiban'\n";
+        $content .= "echo '======================================================='\n";
+        $content .= "echo ''\n";
+        $content .= "if [ ! -f \"pulse-agent-linux\" ]; then\n";
+        $content .= "    echo '[1/2] Baixando executavel do agente pulse-agent-linux...'\n";
+        $content .= "    curl -fsSL \"{$serverUrl}/downloads/bridge/pulse-agent-linux\" -o pulse-agent-linux\n";
+        $content .= "    chmod +x pulse-agent-linux\n";
+        $content .= "fi\n";
+        $content .= "echo '[2/2] Iniciando Pulse Agent no seu computador...'\n";
+        $content .= "echo 'Conectando a VPS: {$serverUrl}'\n";
+        $content .= "echo ''\n";
+        $content .= "./pulse-agent-linux --token=\"{$token}\" --server=\"{$serverUrl}\"\n";
+
+        return Yii::$app->response->sendContentAsFile($content, 'iniciar_whatsapp.sh', [
+            'mimeType' => 'application/x-sh',
+            'inline' => false
+        ]);
+    }
 }

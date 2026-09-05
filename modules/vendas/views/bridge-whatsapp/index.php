@@ -291,6 +291,12 @@ $token = $loja->token_agente;
             <h3 class="text-lg font-bold text-white">Escaneie o QR Code</h3>
         </div>
 
+        <!-- Banner Dinâmico de Alerta do Agente -->
+        <div id="qr-agent-banner" class="mb-4 p-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 bg-rose-500/10 text-rose-400 border border-rose-500/30">
+            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <span id="qr-agent-banner-text">Iniciando conexão...</span>
+        </div>
+
         <p class="text-xs text-slate-400 mb-4">
             Abra o WhatsApp no celular &rarr; <b>Aparelhos Conectados</b> &rarr; <b>Conectar um aparelho</b>
         </p>
@@ -335,20 +341,41 @@ $token = $loja->token_agente;
         </div>
 
         <div class="space-y-6 text-xs">
-            <!-- Passo 1: Download -->
+            <!-- Passo Recomendado: 1 Clique -->
+            <div class="p-4 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/30 rounded-2xl">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center font-black text-[10px]">★</span>
+                    <h4 class="text-sm font-black text-emerald-400">Opção Mais Fácil: Inicializador de 1 Clique</h4>
+                </div>
+                <p class="text-slate-300 text-xs mb-3">
+                    Baixe o arquivo abaixo para a pasta da sua preferência e dê <b>dois cliques</b> para iniciar. Ele baixa o agente e conecta automaticamente com seu token!
+                </p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <a href="<?= Url::to(['/vendas/bridge-whatsapp/baixar-bat']) ?>" class="flex items-center justify-center gap-2 p-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl transition shadow-lg shadow-emerald-950/40">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.949-1.801"/></svg>
+                        <span>Baixar iniciar_whatsapp.bat (Windows)</span>
+                    </a>
+                    <a href="<?= Url::to(['/vendas/bridge-whatsapp/baixar-sh']) ?>" class="flex items-center justify-center gap-2 p-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold rounded-2xl transition shadow">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.003 0C5.373 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+                        <span>Baixar iniciar_whatsapp.sh (Linux)</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Passo 1: Download Manual -->
             <div>
                 <div class="flex items-center gap-2 mb-3">
                     <span class="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-[10px]">1</span>
-                    <h4 class="text-sm font-bold text-slate-200">Baixe o Executável para o seu Sistema:</h4>
+                    <h4 class="text-sm font-bold text-slate-200">Ou Baixe Apenas o Executável Diretamente:</h4>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <a href="/downloads/bridge/pulse-agent.exe" download class="flex items-center justify-center gap-2 p-3 bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 hover:border-cyan-500 rounded-2xl font-bold transition shadow">
                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.949-1.801"/></svg>
-                        <span>Baixar para Windows (.exe)</span>
+                        <span>Executável pulse-agent.exe</span>
                     </a>
                     <a href="/downloads/bridge/pulse-agent-linux" download class="flex items-center justify-center gap-2 p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 rounded-2xl font-bold transition shadow">
                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.003 0C5.373 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
-                        <span>Baixar para Linux</span>
+                        <span>Executável pulse-agent-linux</span>
                     </a>
                 </div>
             </div>
@@ -368,11 +395,11 @@ $token = $loja->token_agente;
                 </div>
             </div>
 
-            <!-- Passo 3: Execução -->
+            <!-- Passo 3: Execução Manual -->
             <div>
                 <div class="flex items-center gap-2 mb-2">
                     <span class="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-[10px]">3</span>
-                    <h4 class="text-sm font-bold text-slate-200">Comando para Iniciar no Prompt / Terminal:</h4>
+                    <h4 class="text-sm font-bold text-slate-200">Ou execute manualmente pelo Prompt / Terminal:</h4>
                 </div>
                 <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 font-mono text-emerald-400 space-y-2 overflow-x-auto text-[11px]">
                     <div class="text-slate-500"># No Windows (Prompt de Comando ou PowerShell):</div>
@@ -394,6 +421,7 @@ $token = $loja->token_agente;
 
 <script>
 let pollTimer = null;
+let ultimoAgenteOnline = false;
 
 document.addEventListener('DOMContentLoaded', () => {
     iniciarPolling();
@@ -401,7 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function iniciarPolling() {
     if (pollTimer) clearInterval(pollTimer);
-    pollTimer = setInterval(atualizarStatus, 3000);
+    pollTimer = setInterval(atualizarStatus, 2500);
 }
 
 function abrirModalQr() {
@@ -434,6 +462,8 @@ function atualizarStatus() {
         .then(data => {
             if (!data.success) return;
 
+            ultimoAgenteOnline = !!data.agente_online;
+
             // Agente status badge
             const badgeContainer = document.getElementById('badge-agente-container');
             const badgePing = document.getElementById('badge-agente-ping');
@@ -461,6 +491,17 @@ function atualizarStatus() {
 
             if (data.ip_agente) infoAgenteIp.innerText = data.ip_agente;
             if (data.ultimo_heartbeat) infoAgenteHeartbeat.innerText = data.ultimo_heartbeat;
+
+            // Atualiza Banner dentro do Modal de QR Code
+            const qrAgentBanner = document.getElementById('qr-agent-banner');
+            const qrAgentBannerText = document.getElementById('qr-agent-banner-text');
+            if (data.agente_online) {
+                qrAgentBanner.className = 'mb-4 p-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30';
+                qrAgentBannerText.innerText = '🟢 Agente Local Conectado à VPS. Gerando QR Code...';
+            } else {
+                qrAgentBanner.className = 'mb-4 p-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 bg-rose-500/10 text-rose-400 border border-rose-500/30';
+                qrAgentBannerText.innerText = '⚠️ Pulse Agent Desconectado no PC. Abra o arquivo iniciar_whatsapp no computador da loja.';
+            }
 
             // WhatsApp status
             const infoWaStatus = document.getElementById('info-wa-status');
@@ -492,6 +533,13 @@ function atualizarStatus() {
 }
 
 function conectarWhatsapp() {
+    // Se o agente estiver offline, avisa e abre o modal com o download de 1 clique
+    if (!ultimoAgenteOnline) {
+        alert('⚠️ O Pulse Agent está desligado no computador da sua loja!\n\nPara conectar o WhatsApp, você precisa abrir o aplicativo no seu PC primeiro.\n\nBaixe o arquivo de 1 clique e dê dois cliques nele para iniciar.');
+        abrirModalInstalacao();
+        return;
+    }
+
     abrirModalQr();
     document.getElementById('qr-spinner').classList.remove('hidden');
     document.getElementById('qr-image').classList.add('hidden');
