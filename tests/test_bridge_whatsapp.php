@@ -35,12 +35,14 @@ $loja = BridgeWhatsappService::getConfigLoja($usuario->id);
 echo "Token do Agente : {$loja->token_agente}\n";
 echo "Status Atual    : {$loja->status_conexao}\n\n";
 
-// 3. Testa Handshake via API local
-$baseUrl = 'http://127.0.0.1'; // ou URL local do Yii
+// 3. Testa Handshake via API
+$baseUrl = 'https://catalogos.oncode.app.br';
 echo "📡 1. Testando POST /api/bridge-whatsapp/handshake...\n";
 
 $ch = curl_init("{$baseUrl}/api/bridge-whatsapp/handshake");
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
     'token' => $loja->token_agente,
@@ -88,6 +90,8 @@ $loja->save(false);
 echo "🔄 4. Testando GET /api/bridge-whatsapp/poll...\n";
 $ch = curl_init("{$baseUrl}/api/bridge-whatsapp/poll?token=" . urlencode($loja->token_agente));
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 $response = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
@@ -106,6 +110,8 @@ echo "✅ Poll retornou a mensagem perfeitamente para envio!\n\n";
 echo "📨 5. Testando POST /api/bridge-whatsapp/ack...\n";
 $ch = curl_init("{$baseUrl}/api/bridge-whatsapp/ack");
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
     'token' => $loja->token_agente,
