@@ -1,6 +1,7 @@
 # 📘 Especificação Técnica e Guia de Integração: Hub de Marketplaces (Pulse ERP)
 
-Este documento descreve a análise completa do projeto **Pulse ERP** e detalha todos os requisitos técnicos, arquiteturais, fiscais e operacionais necessários para a integração com **Mercado Livre / Mercado Pago**, **Shopee**, **Magazine Luiza (Magalu)**, **Temu** e outros marketplaces.
+> 📌 **DOCUMENTO CONSOLIDADO DISPONÍVEL**: Para o guia completo passo a passo de todas as **7 integrações** (Mercado Pago Prioritário, Mercado Livre, Shopee, Magalu, Temu, Facebook e Instagram), consulte:  
+> 🔗 [GUIA_DEFINITIVO_INTEGRACOES_PULSE.md](file:///srv/http/pulse/GUIA_DEFINITIVO_INTEGRACOES_PULSE.md)
 
 ---
 
