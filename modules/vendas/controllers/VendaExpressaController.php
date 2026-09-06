@@ -87,6 +87,22 @@ class VendaExpressaController extends Controller
                 ->all();
         }
 
+        // Ordenação lógica para PDV: 1. Dinheiro (Padrão), 2. PIX, 3. Cartão Débito, 4. Cartão Crédito, 5. Boleto / Fiado
+        usort($formasPagamento, function ($a, $b) {
+            $prioridade = function ($item) {
+                $nome = mb_strtolower($item->nome);
+                $tipo = strtoupper((string)$item->tipo);
+                if (strpos($nome, 'dinheiro') !== false || $tipo === 'DINHEIRO') return 1;
+                if (strpos($nome, 'pix') !== false || strpos($tipo, 'PIX') !== false) return 2;
+                if (strpos($nome, 'débito') !== false || strpos($nome, 'debito') !== false || $tipo === 'CARTAO_DEBITO') return 3;
+                if (strpos($nome, 'crédito') !== false || strpos($nome, 'credito') !== false || $tipo === 'CARTAO_CREDITO') return 4;
+                if (strpos($tipo, 'CARTAO') !== false) return 5;
+                if (strpos($nome, 'boleto') !== false || strpos($nome, 'fiado') !== false || $tipo === 'BOLETO') return 6;
+                return 10;
+            };
+            return $prioridade($a) <=> $prioridade($b);
+        });
+
         // Carrega Dados da Loja para QR Code PIX e Mercado Pago
         $lojaConfig = LojaConfiguracao::findOne(['usuario_id' => $lojaId]);
 

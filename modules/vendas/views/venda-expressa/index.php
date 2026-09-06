@@ -205,6 +205,27 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                     <!-- Seleção Única de Pagamento (Chips 1-Clique) -->
                     <div id="container-pagamento-unico" class="space-y-3">
                         <label class="block text-xs font-bold text-slate-300 uppercase mb-2">Forma de Pagamento</label>
+                        <?php
+                            // Identifica a forma padrão prioritária (Dinheiro)
+                            $fpPadrao = null;
+                            foreach ($formasPagamento as $fItem) {
+                                if ($fItem->tipo === \app\modules\vendas\models\FormaPagamento::TIPO_DINHEIRO || mb_stripos($fItem->nome, 'dinheiro') !== false) {
+                                    $fpPadrao = $fItem;
+                                    break;
+                                }
+                            }
+                            if (!$fpPadrao && !empty($formasPagamento)) {
+                                foreach ($formasPagamento as $fItem) {
+                                    if ($fItem->tipo !== \app\modules\vendas\models\FormaPagamento::TIPO_BOLETO && mb_stripos($fItem->nome, 'boleto') === false && mb_stripos($fItem->nome, 'fiado') === false) {
+                                        $fpPadrao = $fItem;
+                                        break;
+                                    }
+                                }
+                                if (!$fpPadrao) {
+                                    $fpPadrao = $formasPagamento[0];
+                                }
+                            }
+                        ?>
                         <div class="grid grid-cols-2 gap-2">
                             <?php foreach ($formasPagamento as $index => $fp): 
                                 $nomeExibicao = $fp->nome;
@@ -212,7 +233,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                                 if ($isBoleto) {
                                     $nomeExibicao = '📄 Boleto / Fiado';
                                 }
-                                $isPix = (mb_stripos($nomeExibicao, 'pix') !== false || ($index === 0 && !$isBoleto));
+                                $isAtivoInicial = ($fpPadrao && $fp->id === $fpPadrao->id);
                                 $isMercadoPago = (mb_stripos($fp->nome, 'mercado') !== false || $fp->tipo === 'MERCADOPAGO');
                                 $mpDesativado = ($isMercadoPago && !$temMercadoPago);
                             ?>
@@ -224,7 +245,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                                     </button>
                                 <?php else: ?>
                                     <button type="button" onclick="selecionarFormaPagamento('<?= $fp->id ?>', this)" 
-                                             class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 <?= $isPix ? 'bg-amber-400 text-slate-900 border-amber-300 shadow-md' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700' ?>" 
+                                             class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 <?= $isAtivoInicial ? 'bg-amber-400 text-slate-900 border-amber-300 shadow-md' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700' ?>" 
                                              data-id="<?= $fp->id ?>"
                                              data-tipo="<?= $fp->tipo ?>"
                                              data-nome="<?= Html::encode($nomeExibicao) ?>">
@@ -512,8 +533,8 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
     };
 
     let itensVendaMap = {};
-    let formaPagamentoSelecionadaId = '<?= count($formasPagamento) > 0 ? $formasPagamento[0]->id : "" ?>';
-    let formaPagamentoSelecionadaNome = '<?= count($formasPagamento) > 0 ? Html::encode($formasPagamento[0]->nome) : "" ?>';
+    let formaPagamentoSelecionadaId = '<?= $fpPadrao ? $fpPadrao->id : (count($formasPagamento) > 0 ? $formasPagamento[0]->id : "") ?>';
+    let formaPagamentoSelecionadaNome = '<?= $fpPadrao ? Html::encode($fpPadrao->nome) : (count($formasPagamento) > 0 ? Html::encode($formasPagamento[0]->nome) : "") ?>';
     let indexItemFocado = -1;
     let dadosUltimaVendaFinalizada = null;
 
