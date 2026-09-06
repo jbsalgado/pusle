@@ -147,6 +147,40 @@ $canvasHeight3D = 842;
             transform: translateZ(0);
         }
 
+        /* Responsividade Mobile - Modo Tabloide Vertical Fluido (Cima / Baixo) */
+        @media (max-width: 767px) {
+            .flipbook-stage {
+                display: block !important;
+                min-height: auto !important;
+                padding: 12px 10px 140px 10px !important;
+                perspective: none !important;
+                scroll-snap-type: y proximity;
+            }
+
+            .flipbook-container {
+                box-shadow: none !important;
+                background-color: transparent !important;
+                border-radius: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            .page-sheet {
+                height: auto !important;
+                min-height: auto !important;
+                overflow: visible !important;
+                margin-bottom: 2.25rem !important;
+                border-radius: 18px !important;
+                box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.6), 0 0 15px rgba(0, 0, 0, 0.3) !important;
+                scroll-margin-top: 110px;
+                scroll-snap-align: start;
+            }
+
+            .hotspot-card {
+                touch-action: pan-y manipulation;
+            }
+        }
+
         /* Transição 3D Realista de Papel (Estilo Flipsnack) */
         .stpageflip--page, .stpageflip--page-back {
             background-color: #ffffff !important;
@@ -376,7 +410,7 @@ $canvasHeight3D = 842;
             <!-- ========================================== -->
             <!-- PÁGINA 1: CAPA INSTITUCIONAL PREMIUM       -->
             <!-- ========================================== -->
-            <div id="lamina-1" class="page-sheet w-full h-full overflow-hidden flex flex-col justify-between p-3.5 sm:p-6 mb-6 sm:mb-0 shadow-2xl border-l-[6px] border-r-[6px] border-red-600 border-t border-b border-slate-200 relative bg-white select-none">
+            <div id="lamina-1" class="page-sheet w-full h-auto sm:h-full overflow-visible sm:overflow-hidden flex flex-col justify-between p-3.5 sm:p-6 mb-6 sm:mb-0 shadow-2xl border-l-[6px] border-r-[6px] border-red-600 border-t border-b border-slate-200 relative bg-white select-none">
                 
                 <!-- 1. Topo: Badge Super Oficial -->
                 <div class="flex justify-center mb-1.5 flex-shrink-0">
@@ -532,16 +566,16 @@ $canvasHeight3D = 842;
                     $headerPaddingClass = 'p-2 sm:p-2.5';
                 } else {
                     $gridColsRows = 'grid-cols-2 sm:grid-cols-3';
-                    $imgHeightClass = 'h-20 sm:h-24';
-                    $cardPaddingClass = 'p-1 sm:p-1.5';
-                    $titleFontClass = 'text-[8px] sm:text-[9px] line-clamp-1';
-                    $priceFontClass = 'text-xs sm:text-sm';
-                    $priceDecFontClass = 'text-[7px] sm:text-[8px]';
-                    $gapClass = 'gap-1 sm:gap-1.5';
+                    $imgHeightClass = 'h-24 sm:h-24';
+                    $cardPaddingClass = 'p-1.5 sm:p-2';
+                    $titleFontClass = 'text-[9.5px] sm:text-[10px] line-clamp-2';
+                    $priceFontClass = 'text-sm sm:text-base';
+                    $priceDecFontClass = 'text-[8px] sm:text-[9px]';
+                    $gapClass = 'gap-1.5 sm:gap-2';
                     $headerPaddingClass = 'p-1.5 sm:p-2';
                 }
             ?>
-                <div id="lamina-<?= ($indexPagina + 2) ?>" class="page-sheet w-full h-full overflow-hidden flex flex-col justify-between p-2 sm:p-3 mb-6 sm:mb-0 shadow-lg border border-slate-100">
+                <div id="lamina-<?= ($indexPagina + 2) ?>" class="page-sheet w-full h-auto sm:h-full overflow-visible sm:overflow-hidden flex flex-col justify-between p-2 sm:p-3 mb-6 sm:mb-0 shadow-lg border border-slate-100">
                     
                     <!-- Topo Lâmina -->
                     <div class="header-tabloide <?= $headerPaddingClass ?> rounded-xl shadow-sm mb-1 flex items-center justify-between flex-shrink-0">
@@ -569,7 +603,7 @@ $canvasHeight3D = 842;
                             $partesPreco = explode(',', $precoFormatado);
 
                             $fotoUrl = $encarteProd->getFotoUrl();
-                            if (!$fotoUrl && $produto->categoria && $produto->categoria->foto_path) {
+                            if (!$fotoUrl && $produto->categoria && $produto->categoria->hasAttribute('foto_path') && !empty($produto->categoria->foto_path)) {
                                 $caminhoCatAbs = Yii::getAlias('@app/web/') . ltrim($produto->categoria->foto_path, '/');
                                 if (file_exists($caminhoCatAbs)) {
                                     $fotoUrl = Url::to('@web/' . ltrim($produto->categoria->foto_path, '/'), true);
@@ -694,16 +728,15 @@ $canvasHeight3D = 842;
     </main>
 
     <!-- Botões Flutuantes de Navegação de Lâminas / Páginas -->
-
-    <div class="fixed bottom-24 right-4 z-40 flex flex-col items-center gap-1.5 bg-slate-900/90 p-2 rounded-2xl shadow-2xl border-2 border-white/20 backdrop-blur-md">
-        <button id="btnFloatPrevPage" onclick="paginaAnterior()" title="Lâmina Anterior" class="w-10 h-10 bg-slate-800 hover:bg-slate-700 active:scale-95 text-white rounded-xl flex items-center justify-center transition cursor-pointer">
-            <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 15l7-7 7 7"/></svg>
+    <div class="fixed bottom-24 right-2 sm:right-4 z-40 flex flex-col items-center gap-1 bg-slate-900/90 p-1.5 sm:p-2 rounded-2xl shadow-2xl border-2 border-white/20 backdrop-blur-md select-none">
+        <button id="btnFloatPrevPage" onclick="paginaAnterior()" title="Lâmina Anterior" class="w-8 h-8 sm:w-10 sm:h-10 bg-slate-800 hover:bg-slate-700 active:scale-95 text-white rounded-xl flex items-center justify-center transition cursor-pointer">
+            <svg class="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 15l7-7 7 7"/></svg>
         </button>
-        <div id="floatingPageBadge" class="text-[10px] font-black text-amber-300 font-montserrat px-1 text-center py-0.5">
+        <div id="floatingPageBadge" class="text-[9px] sm:text-[10px] font-black text-amber-300 font-montserrat px-1 text-center py-0.5 whitespace-nowrap">
             1/<?= $totalPaginas ?>
         </div>
-        <button id="btnFloatNextPage" onclick="proximaPagina()" title="Próxima Lâmina" class="w-10 h-10 bg-slate-800 hover:bg-slate-700 active:scale-95 text-white rounded-xl flex items-center justify-center transition cursor-pointer">
-            <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"/></svg>
+        <button id="btnFloatNextPage" onclick="proximaPagina()" title="Próxima Lâmina" class="w-8 h-8 sm:w-10 sm:h-10 bg-slate-800 hover:bg-slate-700 active:scale-95 text-white rounded-xl flex items-center justify-center transition cursor-pointer">
+            <svg class="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"/></svg>
         </button>
     </div>
 
@@ -1044,6 +1077,114 @@ $canvasHeight3D = 842;
             }
         }
 
+        function isMobileViewport() {
+            return window.innerWidth < 768;
+        }
+
+        function inicializarFlipbookDesktop() {
+            if (isMobileViewport()) return;
+            const container = document.getElementById('flipbookContainer');
+            if (container && typeof St !== 'undefined' && St.PageFlip) {
+                try {
+                    pageFlipInstance = new St.PageFlip(container, {
+                        width: 595,
+                        height: 842,
+                        size: "stretch",
+                        minWidth: 320,
+                        maxWidth: 1400,
+                        minHeight: 452,
+                        maxHeight: 1980,
+                        drawShadow: true,
+                        maxShadowOpacity: 0.85,
+                        showCover: true,
+                        mobileScrollSupport: false,
+                        useMouseEvents: true,
+                        flippingTime: 700
+                    });
+
+                    pageFlipInstance.loadFromHTML(document.querySelectorAll('.page-sheet'));
+
+                    pageFlipInstance.on('flip', () => {
+                        atualizarIndicadoresEBotoes();
+                    });
+
+                    pageFlipInstance.on('changeOrientation', () => {
+                        atualizarIndicadoresEBotoes();
+                    });
+
+                    if (paginaAtualNum > 1) {
+                        try {
+                            pageFlipInstance.flip(paginaAtualNum - 1);
+                        } catch(e) {}
+                    }
+                } catch(e) {
+                    console.warn("StPageFlip init warning, fallback to scroll layout:", e);
+                    pageFlipInstance = null;
+                }
+            }
+        }
+
+        // Suporte a gesto de swipe rápido vertical para passar lâminas no smartphone
+        let touchStartY = 0;
+        let touchStartX = 0;
+        let touchStartTime = 0;
+
+        function configurarGestosSwipeMobile() {
+            const container = document.getElementById('flipbookContainer') || document.body;
+            if (!container) return;
+
+            container.addEventListener('touchstart', function(e) {
+                if (pageFlipInstance || e.touches.length !== 1) return;
+                const touch = e.touches[0];
+                touchStartY = touch.clientY;
+                touchStartX = touch.clientX;
+                touchStartTime = Date.now();
+            }, { passive: true });
+
+            container.addEventListener('touchend', function(e) {
+                if (pageFlipInstance || !e.changedTouches.length) return;
+                const touch = e.changedTouches[0];
+                const deltaY = touch.clientY - touchStartY;
+                const deltaX = touch.clientX - touchStartX;
+                const deltaTime = Date.now() - touchStartTime;
+
+                // Gesto rápido (flick) de transição vertical
+                if (deltaTime < 350 && Math.abs(deltaY) > 85 && Math.abs(deltaY) > Math.abs(deltaX) * 1.8) {
+                    const elLaminaAtual = document.getElementById('lamina-' + paginaAtualNum);
+                    if (elLaminaAtual) {
+                        const rect = elLaminaAtual.getBoundingClientRect();
+                        // Se for arrasto para cima e já está perto do final da lâmina -> avança
+                        if (deltaY < 0 && rect.bottom <= window.innerHeight + 160) {
+                            proximaPagina();
+                        } 
+                        // Se for arrasto para baixo e está no topo da lâmina -> volta
+                        else if (deltaY > 0 && rect.top >= -120) {
+                            paginaAnterior();
+                        }
+                    }
+                }
+            }, { passive: true });
+        }
+
+        let resizeDebounceTimer = null;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeDebounceTimer);
+            resizeDebounceTimer = setTimeout(function() {
+                const mobileAgora = isMobileViewport();
+                if (mobileAgora && pageFlipInstance) {
+                    try {
+                        pageFlipInstance.destroy();
+                    } catch(e) {}
+                    pageFlipInstance = null;
+                    observarLaminasScroll();
+                    atualizarIndicadoresEBotoes();
+                } else if (!mobileAgora && !pageFlipInstance) {
+                    inicializarFlipbookDesktop();
+                    atualizarIndicadoresEBotoes();
+                }
+            }, 300);
+        });
+
         document.addEventListener("DOMContentLoaded", function() {
             // Inicializa modo de enquadramento das fotos a partir do localStorage ou backend
             let modoFotoSalvo = null;
@@ -1070,46 +1211,17 @@ $canvasHeight3D = 842;
             carregarSacolaLocalStorage();
             iniciarCronometroRegressivo();
 
-            const container = document.getElementById('flipbookContainer');
-
-            if (container && typeof St !== 'undefined' && St.PageFlip) {
-                try {
-                    pageFlipInstance = new St.PageFlip(container, {
-                        width: 595,
-                        height: 842,
-                        size: "stretch",
-                        minWidth: 320,
-                        maxWidth: 1400,
-                        minHeight: 452,
-                        maxHeight: 1980,
-                        drawShadow: true,
-                        maxShadowOpacity: 0.85,
-                        showCover: true,
-                        mobileScrollSupport: true,
-                        useMouseEvents: true,
-                        flippingTime: 700
-                    });
-
-                    pageFlipInstance.loadFromHTML(document.querySelectorAll('.page-sheet'));
-
-                    pageFlipInstance.on('flip', () => {
-                        atualizarIndicadoresEBotoes();
-                    });
-
-                    pageFlipInstance.on('changeOrientation', () => {
-                        atualizarIndicadoresEBotoes();
-                    });
-
-                } catch(e) {
-                    console.warn("StPageFlip init warning, fallback to scroll layout:", e);
-                    pageFlipInstance = null;
-                }
+            // Inicializa o modo apropriado: Flipbook no desktop ou Tabloide Vertical no mobile
+            if (!isMobileViewport()) {
+                inicializarFlipbookDesktop();
             }
+
+            observarLaminasScroll();
+            configurarGestosSwipeMobile();
 
             document.getElementById('btnPrevPage').addEventListener('click', paginaAnterior);
             document.getElementById('btnNextPage').addEventListener('click', proximaPagina);
 
-            observarLaminasScroll();
             atualizarIndicadoresEBotoes();
         });
 
@@ -1225,30 +1337,74 @@ $canvasHeight3D = 842;
         function observarLaminasScroll() {
             if (pageFlipInstance) return;
             const laminas = document.querySelectorAll('.page-sheet');
-            if (!laminas.length || typeof IntersectionObserver === 'undefined') return;
+            if (!laminas.length) return;
 
-            const observerOptions = {
-                root: null,
-                rootMargin: '-30% 0px -40% 0px',
-                threshold: [0.1, 0.4]
-            };
+            if (typeof IntersectionObserver !== 'undefined') {
+                const observerOptions = {
+                    root: null,
+                    rootMargin: '-15% 0px -40% 0px',
+                    threshold: [0, 0.05, 0.1]
+                };
 
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const id = entry.target.id;
-                        if (id && id.startsWith('lamina-')) {
-                            const num = parseInt(id.replace('lamina-', ''), 10);
-                            if (num) {
-                                paginaAtualNum = num;
-                                atualizarIndicadoresEBotoes();
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting && !pageFlipInstance) {
+                            const id = entry.target.id;
+                            if (id && id.startsWith('lamina-')) {
+                                const num = parseInt(id.replace('lamina-', ''), 10);
+                                if (num && paginaAtualNum !== num) {
+                                    paginaAtualNum = num;
+                                    atualizarIndicadoresEBotoes();
+                                }
                             }
                         }
-                    }
-                });
-            }, observerOptions);
+                    });
+                }, observerOptions);
 
-            laminas.forEach(lam => observer.observe(lam));
+                laminas.forEach(lam => observer.observe(lam));
+            }
+
+            // Scroll listener complementar com throttle para páginas densas com 15+ cards
+            let scrollTicking = false;
+            window.addEventListener('scroll', function() {
+                if (pageFlipInstance || scrollTicking) return;
+                scrollTicking = true;
+                requestAnimationFrame(() => {
+                    detectarLaminaAtivaPorPosicao();
+                    scrollTicking = false;
+                });
+            }, { passive: true });
+        }
+
+        function detectarLaminaAtivaPorPosicao() {
+            if (pageFlipInstance) return;
+            const laminas = document.querySelectorAll('.page-sheet');
+            if (!laminas.length) return;
+
+            const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+            const headerEl = document.querySelector('header');
+            const headerOffset = headerEl ? headerEl.offsetHeight + 40 : 110;
+            const triggerPoint = scrollY + headerOffset;
+
+            let laminaIdentificada = 1;
+            laminas.forEach(lam => {
+                const rect = lam.getBoundingClientRect();
+                const topAbs = rect.top + scrollY;
+                const bottomAbs = topAbs + lam.offsetHeight;
+
+                if (triggerPoint >= topAbs && triggerPoint < bottomAbs) {
+                    const id = lam.id;
+                    if (id && id.startsWith('lamina-')) {
+                        const num = parseInt(id.replace('lamina-', ''), 10);
+                        if (num) laminaIdentificada = num;
+                    }
+                }
+            });
+
+            if (paginaAtualNum !== laminaIdentificada) {
+                paginaAtualNum = laminaIdentificada;
+                atualizarIndicadoresEBotoes();
+            }
         }
 
         function irParaLamina(num) {
@@ -1266,7 +1422,8 @@ $canvasHeight3D = 842;
 
                 const el = document.getElementById('lamina-' + num);
                 if (el) {
-                    const headerOffset = 110;
+                    const headerEl = document.querySelector('header');
+                    const headerOffset = (headerEl ? headerEl.offsetHeight : 60) + 16;
                     const elementPosition = el.getBoundingClientRect().top;
                     const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
 
