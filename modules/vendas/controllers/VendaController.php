@@ -335,12 +335,40 @@ class VendaController extends Controller
             $pdf->SetFont('Courier', '', 10);
             $pdf->Cell(80, 2, '------------------------------------------', 0, 1, 'C');
 
+            // Verifica se a venda é a prazo ou possui parcelas pendentes
+            $parcelasPendentes = \app\modules\vendas\models\Parcela::find()
+                ->where(['venda_id' => $model->id, 'status_parcela_codigo' => \app\modules\vendas\models\StatusParcela::PENDENTE])
+                ->orderBy(['data_vencimento' => SORT_ASC])
+                ->all();
+
+            $nomeFp = $model->formaPagamento ? $model->formaPagamento->nome : 'DINHEIRO';
+            $ehPrazo = (!empty($parcelasPendentes) || $model->status_venda_codigo === \app\modules\vendas\models\StatusVenda::EM_ABERTO || mb_stripos($nomeFp, 'boleto') !== false || mb_stripos($nomeFp, 'fiado') !== false);
+
             // --- PAGAMENTO ---
             $pdf->Ln(2);
             $pdf->SetFont('Courier', 'B', 10);
-            $pdf->Cell(80, 5, mb_convert_encoding('FORMA DE PAGAMENTO: ' . ($model->formaPagamento ? $model->formaPagamento->nome : 'DINHEIRO'), 'ISO-8859-1', 'UTF-8'), 0, 1, 'L');
-            $pdf->SetFont('Courier', 'U', 10);
-            $pdf->Cell(80, 5, mb_convert_encoding('VALOR PAGO: R$ ' . number_format($model->valor_total, 2, ',', '.'), 'ISO-8859-1', 'UTF-8'), 0, 1, 'L');
+            $pdf->Cell(80, 5, mb_convert_encoding('FORMA DE PAGAMENTO: ' . $nomeFp, 'ISO-8859-1', 'UTF-8'), 0, 1, 'L');
+
+            if ($ehPrazo) {
+                $vencTexto = $model->data_primeiro_vencimento ? date('d/m/Y', strtotime($model->data_primeiro_vencimento)) : (!empty($parcelasPendentes) ? date('d/m/Y', strtotime($parcelasPendentes[0]->data_vencimento)) : date('d/m/Y', strtotime('+30 days')));
+                $pdf->SetFont('Courier', 'B', 10);
+                $pdf->Cell(80, 5, mb_convert_encoding('CONDICAO: A PRAZO (BOLETO / FIADO)', 'ISO-8859-1', 'UTF-8'), 0, 1, 'L');
+                $pdf->Cell(80, 5, mb_convert_encoding('VENCIMENTO: ' . $vencTexto, 'ISO-8859-1', 'UTF-8'), 0, 1, 'L');
+                $pdf->SetFont('Courier', 'U', 10);
+                $pdf->Cell(80, 5, mb_convert_encoding('VALOR A PAGAR: R$ ' . number_format($model->valor_total, 2, ',', '.'), 'ISO-8859-1', 'UTF-8'), 0, 1, 'L');
+
+                $pdf->Ln(3);
+                $pdf->SetFont('Courier', '', 8);
+                $pdf->MultiCell(80, 3, mb_convert_encoding("Reconheco a divida e prometo pagar na data aprazada.", 'ISO-8859-1', 'UTF-8'), 0, 'C');
+                $pdf->Ln(7);
+                $pdf->Cell(80, 2, '__________________________________________', 0, 1, 'C');
+                $nomeClienteCupom = ($model->cliente && $model->cliente->nome_completo) ? $model->cliente->nome_completo : 'ASSINATURA DO CLIENTE';
+                $pdf->SetFont('Courier', 'B', 8);
+                $pdf->Cell(80, 4, mb_convert_encoding(substr($nomeClienteCupom, 0, 35), 'ISO-8859-1', 'UTF-8'), 0, 1, 'C');
+            } else {
+                $pdf->SetFont('Courier', 'U', 10);
+                $pdf->Cell(80, 5, mb_convert_encoding('VALOR PAGO: R$ ' . number_format($model->valor_total, 2, ',', '.'), 'ISO-8859-1', 'UTF-8'), 0, 1, 'L');
+            }
         } else {
             $pdf->Ln(4);
             $pdf->SetFont('Courier', 'I', 8);

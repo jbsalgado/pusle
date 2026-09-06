@@ -265,6 +265,38 @@ class FormaPagamentoHelper
     }
 
     /**
+     * Garante que a loja possui a forma de pagamento 'Boleto / Fiado' cadastrada e ativa.
+     * @param string $usuarioId
+     * @return FormaPagamento
+     */
+    public static function ensureBoletoFiado($usuarioId)
+    {
+        $fp = FormaPagamento::find()
+            ->where(['usuario_id' => $usuarioId])
+            ->andWhere(['or',
+                ['tipo' => FormaPagamento::TIPO_BOLETO],
+                ['ilike', 'nome', 'Boleto'],
+                ['ilike', 'nome', 'Fiado'],
+            ])
+            ->one();
+
+        if (!$fp) {
+            $fp = new FormaPagamento();
+            $fp->usuario_id = $usuarioId;
+            $fp->nome = 'Boleto / Fiado';
+            $fp->tipo = FormaPagamento::TIPO_BOLETO;
+            $fp->ativo = true;
+            $fp->aceita_parcelamento = true;
+            $fp->save(false);
+        } else if (!$fp->ativo) {
+            $fp->ativo = true;
+            $fp->save(false, ['ativo']);
+        }
+
+        return $fp;
+    }
+
+    /**
      * Cria uma forma de pagamento padrão para um usuário
      * @param string $usuarioId
      * @return bool
@@ -276,6 +308,7 @@ class FormaPagamentoHelper
             ['nome' => 'PIX', 'tipo' => FormaPagamento::TIPO_PIX, 'aceita_parcelamento' => false],
             ['nome' => 'Cartão de Crédito', 'tipo' => FormaPagamento::TIPO_CARTAO, 'aceita_parcelamento' => true],
             ['nome' => 'Cartão de Débito', 'tipo' => FormaPagamento::TIPO_CARTAO, 'aceita_parcelamento' => false],
+            ['nome' => 'Boleto / Fiado', 'tipo' => FormaPagamento::TIPO_BOLETO, 'aceita_parcelamento' => true],
         ];
 
         foreach ($defaults as $data) {

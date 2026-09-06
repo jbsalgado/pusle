@@ -70,6 +70,9 @@ class VendaExpressaController extends Controller
             ->orderBy(['nome' => SORT_ASC])
             ->all();
 
+        // Garante que a loja possua a forma de pagamento 'Boleto / Fiado'
+        FormaPagamentoHelper::ensureBoletoFiado($lojaId);
+
         // Formas de pagamento estritamente da loja logada (elimina duplicidades)
         $formasPagamento = FormaPagamento::find()
             ->where(['usuario_id' => $lojaId, 'ativo' => true])
@@ -98,6 +101,49 @@ class VendaExpressaController extends Controller
             'temMercadoPago' => $temMercadoPago,
             'lojaId' => $lojaId,
         ]);
+    }
+
+    /**
+     * Busca rápida de clientes para autocompletar na Venda Expressa
+     */
+    public function actionBuscarClientes($q = '')
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $lojaId = $this->getLojaId();
+        $q = trim((string)$q);
+
+        if (!$lojaId || mb_strlen($q) < 2) {
+            return ['results' => []];
+        }
+
+        $clean = preg_replace('/[^0-9]/', '', $q);
+        $conditions = ['or',
+            ['ilike', 'nome_completo', $q],
+            ['like', 'telefone', $q],
+        ];
+        if (!empty($clean)) {
+            $conditions[] = ['like', 'cpf', $clean];
+            $conditions[] = ['like', 'telefone', $clean];
+        }
+
+        $clientes = Cliente::find()
+            ->where(['usuario_id' => $lojaId, 'ativo' => true])
+            ->andWhere($conditions)
+            ->orderBy(['nome_completo' => SORT_ASC])
+            ->limit(10)
+            ->all();
+
+        $results = [];
+        foreach ($clientes as $c) {
+            $results[] = [
+                'id' => $c->id,
+                'nome' => $c->nome_completo,
+                'telefone' => $c->telefone,
+                'cpf' => $c->cpf,
+            ];
+        }
+
+        return ['results' => $results];
     }
 
     /**
@@ -159,6 +205,47 @@ class VendaExpressaController extends Controller
         }
 
         $formaPagamento = !empty($formaPagamentoId) ? FormaPagamento::findOne($formaPagamentoId) : null;
+
+        // Identifica se a venda é a prazo (Boleto / Fiado)
+        $nomeFpLower = $formaPagamento ? mb_strtolower($formaPagamento->nome) : '';
+        $isBoletoFiado = ($formaPagamento && ($formaPagamento->tipo === FormaPagamento::TIPO_BOLETO || strpos($nomeFpLower, 'boleto') !== false || strpos($nomeFpLower, 'fiado') !== false));
+
+        // Também verifica se algum dos pagamentos múltiplos é Boleto/Fiado
+        $temMultiploFiado = false;
+        if ($usaMultiplos) {
+            foreach ($pagamentosMultiplos as $pm) {
+                $fpSub = FormaPagamento::findOne($pm['forma_pagamento_id']);
+                if ($fpSub && ($fpSub->tipo === FormaPagamento::TIPO_BOLETO || mb_stripos($fpSub->nome, 'boleto') !== false || mb_stripos($fpSub->nome, 'fiado') !== false)) {
+                    $temMultiploFiado = true;
+                    break;
+                }
+            }
+        }
+
+        $isAPrazo = $isBoletoFiado || $temMultiploFiado || !empty($request->post('a_prazo'));
+        $dataVencimentoRaw = trim((string)$request->post('data_vencimento', ''));
+
+        // Validação obrigatória de cliente para Boleto / Fiado
+        if ($isAPrazo) {
+            if (empty($clienteNomeRaw) && empty($clienteWhatsappRaw) && empty($clienteCpfRaw)) {
+                return [
+                    'success' => false,
+                    'message' => 'Para vendas no Boleto / Fiado, é obrigatório informar os dados do Cliente (Nome ou WhatsApp) para controle no Contas a Receber.'
+                ];
+            }
+        }
+
+        // Tratamento da Data de Vencimento
+        $dataVencimentoFormatada = date('Y-m-d', strtotime('+30 days'));
+        if (!empty($dataVencimentoRaw)) {
+            $dtParsed = \DateTime::createFromFormat('Y-m-d', $dataVencimentoRaw);
+            if (!$dtParsed) {
+                $dtParsed = \DateTime::createFromFormat('d/m/Y', $dataVencimentoRaw);
+            }
+            if ($dtParsed) {
+                $dataVencimentoFormatada = $dtParsed->format('Y-m-d');
+            }
+        }
 
         if (empty($itensPost) || !is_array($itensPost)) {
             return ['success' => false, 'message' => 'Nenhum produto foi adicionado à venda.'];
@@ -332,13 +419,15 @@ class VendaExpressaController extends Controller
             $venda->acrescimo_valor = $valAcrescimo;
             $venda->acrescimo_tipo = $valAcrescimo > 0 ? $acrescimoTipo : null;
             $venda->numero_parcelas = 1;
-            $venda->status_venda_codigo = StatusVenda::QUITADA;
+            $venda->status_venda_codigo = $isAPrazo ? StatusVenda::EM_ABERTO : StatusVenda::QUITADA;
+            $venda->data_primeiro_vencimento = $isAPrazo ? $dataVencimentoFormatada : null;
             $venda->forma_pagamento_id = !empty($formaPagamentoId) ? $formaPagamentoId : null;
 
             $obsCompleta = [];
             if (!empty($observacoes)) $obsCompleta[] = $observacoes;
             if ($valDesconto > 0) $obsCompleta[] = 'Desconto Aplicado: R$ ' . number_format($valDesconto, 2, ',', '.');
             if ($valAcrescimo > 0) $obsCompleta[] = 'Acréscimo Aplicado: R$ ' . number_format($valAcrescimo, 2, ',', '.');
+            if ($isAPrazo) $obsCompleta[] = 'A Prazo (Boleto / Fiado) - Vencimento: ' . date('d/m/Y', strtotime($dataVencimentoFormatada));
             if ($usaMultiplos) {
                 $resumoMeios = [];
                 foreach ($pagamentosMultiplos as $pgto) {
@@ -347,7 +436,7 @@ class VendaExpressaController extends Controller
                 }
                 $obsCompleta[] = 'Pagamentos: ' . implode(' + ', $resumoMeios);
             }
-            $venda->observacoes = implode(' | ', $obsCompleta) ?: 'Venda Expressa (Encarte & Catálogo)';
+            $venda->observacoes = implode(' | ', $obsCompleta) ?: ($isAPrazo ? 'Venda a Prazo (Boleto / Fiado)' : 'Venda Expressa (Encarte & Catálogo)');
 
             if (!$venda->save()) {
                 throw new \Exception('Erro ao salvar venda: ' . implode(', ', $venda->getFirstErrors()));
@@ -442,12 +531,12 @@ class VendaExpressaController extends Controller
                 }
             }
 
-            // Gerar parcela(s) paga(s) para relatório de caixa (uma por meio na divisão)
+            // Gerar parcela(s) - Paga para venda direta / Pendente para venda a prazo (Boleto/Fiado)
             $venda->gerarParcelas(
                 $formaPagamentoId,
-                date('Y-m-d'),
+                $dataVencimentoFormatada,
                 30,
-                true,
+                !$isAPrazo,
                 $usaMultiplos ? $pagamentosMultiplos : []
             );
 
@@ -484,6 +573,9 @@ class VendaExpressaController extends Controller
                 'cliente_nome' => $cliente ? $cliente->nome_completo : ($clienteNomeRaw ?: 'Cliente Balcão'),
                 'cliente_telefone' => $cliente ? $cliente->telefone : $clienteWhatsappRaw,
                 'forma_pagamento' => $formaPagamento ? $formaPagamento->nome : 'DINHEIRO',
+                'a_prazo' => $isAPrazo,
+                'data_vencimento' => date('d/m/Y', strtotime($dataVencimentoFormatada)),
+                'status_venda' => $venda->status_venda_codigo,
                 'observacoes' => $venda->observacoes,
                 'pagamentos' => $usaMultiplos ? $pagamentosMultiplos : [],
                 'itens' => $itensResponse,
@@ -507,13 +599,13 @@ class VendaExpressaController extends Controller
         $totalHoje = (float)Venda::find()
             ->where(['>=', 'data_venda', $todayStart])
             ->andWhere(['usuario_id' => $lojaId])
-            ->andWhere(['status_venda_codigo' => StatusVenda::QUITADA])
+            ->andWhere(['not in', 'status_venda_codigo', [StatusVenda::CANCELADA, StatusVenda::ORCAMENTO]])
             ->sum('valor_total');
 
         $qtdHoje = (int)Venda::find()
             ->where(['>=', 'data_venda', $todayStart])
             ->andWhere(['usuario_id' => $lojaId])
-            ->andWhere(['status_venda_codigo' => StatusVenda::QUITADA])
+            ->andWhere(['not in', 'status_venda_codigo', [StatusVenda::CANCELADA, StatusVenda::ORCAMENTO]])
             ->count();
 
         // Produto mais vendido hoje
@@ -524,7 +616,7 @@ class VendaExpressaController extends Controller
             ->innerJoin('prest_produtos p', 'p.id = vi.produto_id')
             ->where(['>=', 'v.data_venda', $todayStart])
             ->andWhere(['v.usuario_id' => $lojaId])
-            ->andWhere(['v.status_venda_codigo' => StatusVenda::QUITADA])
+            ->andWhere(['not in', 'v.status_venda_codigo', [StatusVenda::CANCELADA, StatusVenda::ORCAMENTO]])
             ->groupBy(['p.nome'])
             ->orderBy(['total_qtd' => SORT_DESC])
             ->limit(1)

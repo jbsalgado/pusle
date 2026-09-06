@@ -198,15 +198,30 @@ class Venda extends ActiveRecord
                 $parcela->numero_parcela = $i;
                 $parcela->valor_parcela = (float)$pgto['valor'];
                 
-                // Pagamentos múltiplos no checkout vencem no dia da venda
-                $parcela->data_vencimento = date('Y-m-d');
+                $fpItem = !empty($pgto['forma_pagamento_id']) ? FormaPagamento::findOne($pgto['forma_pagamento_id']) : null;
+                $ehPrazoItem = false;
+                if ($fpItem) {
+                    $ehPrazoItem = ($fpItem->tipo === FormaPagamento::TIPO_BOLETO || mb_stripos($fpItem->nome, 'boleto') !== false || mb_stripos($fpItem->nome, 'fiado') !== false);
+                }
                 
-                if ($isVendaDireta) {
+                // Se tiver data de vencimento específica informada no item ou for a prazo
+                if (!empty($pgto['data_vencimento'])) {
+                    $parcela->data_vencimento = $pgto['data_vencimento'];
+                } elseif ($ehPrazoItem && $dataPrimeiroPagamento) {
+                    $parcela->data_vencimento = $dataPrimeiroPagamento;
+                } else {
+                    $parcela->data_vencimento = date('Y-m-d');
+                }
+                
+                // Se o meio for Boleto/Fiado, ele fica PENDENTE (a prazo) mesmo se a venda for direta para os demais
+                if ($ehPrazoItem || (!$isVendaDireta && empty($pgto['pago_agora']))) {
+                    $parcela->status_parcela_codigo = StatusParcela::PENDENTE;
+                    $parcela->data_pagamento = null;
+                    $parcela->valor_pago = null;
+                } else {
                     $parcela->status_parcela_codigo = StatusParcela::PAGA;
                     $parcela->data_pagamento = date('Y-m-d');
                     $parcela->valor_pago = (float)$pgto['valor'];
-                } else {
-                    $parcela->status_parcela_codigo = StatusParcela::PENDENTE;
                 }
                 
                 $parcela->forma_pagamento_id = !empty($pgto['forma_pagamento_id']) ? $pgto['forma_pagamento_id'] : null;

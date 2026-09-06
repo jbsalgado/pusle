@@ -110,27 +110,32 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                     <div class="flex items-center justify-between border-b border-slate-700 pb-2">
                         <h3 class="font-extrabold text-xs text-amber-400 uppercase tracking-wider flex items-center gap-2">
                             <span>👤 Cliente (Disparos WhatsApp / Evolution API)</span>
+                            <span id="badgeClienteObrigatorioFiado" class="hidden text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 uppercase tracking-normal animate-pulse">Obrigatório no Boleto/Fiado</span>
                         </h3>
-                        <span class="text-[10px] text-slate-400 font-medium">Cadastra e salva na base automaticamente</span>
+                        <span class="text-[10px] text-slate-400 font-medium">Cadastra e busca automaticamente</span>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 relative" id="containerInputsCliente">
                         <!-- WhatsApp -->
-                        <div>
+                        <div class="relative">
                             <label class="block text-[11px] font-bold text-slate-300 uppercase mb-1">📱 WhatsApp / Fone</label>
-                            <input type="text" id="clienteWhatsapp" placeholder="(81) 99999-9999" oninput="aplicarMascaraTelefone(this)" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-amber-400">
+                            <input type="text" id="clienteWhatsapp" placeholder="(81) 99999-9999" oninput="aplicarMascaraTelefone(this); buscarClientesAutocomplete(this.value)" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-amber-400">
                         </div>
 
                         <!-- Nome Completo -->
-                        <div>
+                        <div class="relative">
                             <label class="block text-[11px] font-bold text-slate-300 uppercase mb-1">👤 Nome Completo</label>
-                            <input type="text" id="clienteNome" placeholder="Ex: Maria Silva" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-amber-400">
+                            <input type="text" id="clienteNome" placeholder="Ex: Maria Silva" oninput="buscarClientesAutocomplete(this.value)" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-amber-400">
                         </div>
 
                         <!-- CPF -->
                         <div>
                             <label class="block text-[11px] font-bold text-slate-300 uppercase mb-1">📄 CPF (Opcional)</label>
                             <input type="text" id="clienteCpf" placeholder="000.000.000-00" oninput="aplicarMascaraCpf(this)" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-amber-400">
+                        </div>
+
+                        <!-- Dropdown de Sugestões de Clientes Cadastrados -->
+                        <div id="dropdownClientesSugestoes" class="hidden absolute top-full left-0 right-0 z-50 mt-1 bg-slate-900 border border-amber-400/60 rounded-2xl shadow-2xl overflow-hidden max-h-56 overflow-y-auto">
                         </div>
                     </div>
                 </div>
@@ -198,34 +203,60 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                     </div>
 
                     <!-- Seleção Única de Pagamento (Chips 1-Clique) -->
-                    <div id="container-pagamento-unico">
+                    <div id="container-pagamento-unico" class="space-y-3">
                         <label class="block text-xs font-bold text-slate-300 uppercase mb-2">Forma de Pagamento</label>
                         <div class="grid grid-cols-2 gap-2">
                             <?php foreach ($formasPagamento as $index => $fp): 
                                 $nomeExibicao = $fp->nome;
-                                if (mb_stripos($nomeExibicao, 'boleto') !== false && mb_stripos($nomeExibicao, 'fiado') === false) {
-                                    $nomeExibicao = 'Boleto / Carnê / Fiado';
+                                $isBoleto = (mb_stripos($nomeExibicao, 'boleto') !== false || mb_stripos($nomeExibicao, 'fiado') !== false || $fp->tipo === 'BOLETO');
+                                if ($isBoleto) {
+                                    $nomeExibicao = '📄 Boleto / Fiado';
                                 }
-                                $isPix = (mb_stripos($nomeExibicao, 'pix') !== false || $index === 0);
+                                $isPix = (mb_stripos($nomeExibicao, 'pix') !== false || ($index === 0 && !$isBoleto));
                                 $isMercadoPago = (mb_stripos($fp->nome, 'mercado') !== false || $fp->tipo === 'MERCADOPAGO');
                                 $mpDesativado = ($isMercadoPago && !$temMercadoPago);
                             ?>
                                 <?php if ($mpDesativado): ?>
                                     <button type="button" onclick="alert('O Mercado Pago não está conectado nas configurações da sua loja. Conecte sua conta do Mercado Pago para ativar este canal de pagamento.')" 
-                                            class="p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1 bg-slate-900/40 text-slate-500 border-slate-800 opacity-60 cursor-not-allowed" 
-                                            title="Requer Integração Mercado Pago">
+                                             class="p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1 bg-slate-900/40 text-slate-500 border-slate-800 opacity-60 cursor-not-allowed" 
+                                             title="Requer Integração Mercado Pago">
                                         <span><?= Html::encode($nomeExibicao) ?> <span class="text-[9px] text-rose-400 font-extrabold">(Requer MP)</span></span>
                                     </button>
                                 <?php else: ?>
                                     <button type="button" onclick="selecionarFormaPagamento('<?= $fp->id ?>', this)" 
-                                            class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 <?= $isPix ? 'bg-amber-400 text-slate-900 border-amber-300 shadow-md' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700' ?>" 
-                                            data-id="<?= $fp->id ?>"
-                                            data-tipo="<?= $fp->tipo ?>"
-                                            data-nome="<?= Html::encode($nomeExibicao) ?>">
+                                             class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 <?= $isPix ? 'bg-amber-400 text-slate-900 border-amber-300 shadow-md' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700' ?>" 
+                                             data-id="<?= $fp->id ?>"
+                                             data-tipo="<?= $fp->tipo ?>"
+                                             data-nome="<?= Html::encode($nomeExibicao) ?>">
                                         <span><?= Html::encode($nomeExibicao) ?></span>
                                     </button>
                                 <?php endif; ?>
                             <?php endforeach; ?>
+                        </div>
+
+                        <!-- Seletor de Vencimento para Boleto / Fiado (Venda a Prazo) -->
+                        <div id="container-vencimento-fiado" class="hidden bg-amber-500/10 border border-amber-500/30 p-3 rounded-2xl space-y-2 transition-all">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-xs font-black text-amber-400 uppercase tracking-wide flex items-center gap-1.5">
+                                    <span>📅 Vencimento / Promessa de Pagamento</span>
+                                </label>
+                                <span class="text-[10px] text-amber-300/80 font-bold bg-amber-500/20 px-2 py-0.5 rounded-full">Contas a Receber</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="date" id="dataVencimentoFiado" min="<?= date('Y-m-d') ?>" value="<?= date('Y-m-d', strtotime('+30 days')) ?>" onchange="checarExibicaoVencimentoFiado()" class="w-full px-3 py-2 bg-slate-900 border border-amber-500/50 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-amber-400">
+                            </div>
+                            <!-- Chips de Vencimento Rápido -->
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="text-[10px] text-slate-400 font-semibold">Atalhos:</span>
+                                <button type="button" onclick="definirVencimentoDias(7)" id="chip-venc-7" class="chip-vencimento px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 border border-slate-700 text-[10px] font-bold transition">+7 dias</button>
+                                <button type="button" onclick="definirVencimentoDias(15)" id="chip-venc-15" class="chip-vencimento px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 border border-slate-700 text-[10px] font-bold transition">+15 dias</button>
+                                <button type="button" onclick="definirVencimentoDias(30)" id="chip-venc-30" class="chip-vencimento px-2 py-0.5 rounded-lg bg-amber-400 text-slate-950 border border-amber-300 text-[10px] font-black transition">+30 dias</button>
+                                <button type="button" onclick="definirVencimentoDias(45)" id="chip-venc-45" class="chip-vencimento px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 border border-slate-700 text-[10px] font-bold transition">+45 dias</button>
+                                <button type="button" onclick="definirVencimentoDias(60)" id="chip-venc-60" class="chip-vencimento px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 border border-slate-700 text-[10px] font-bold transition">+60 dias</button>
+                            </div>
+                            <p class="text-[10px] text-slate-400 leading-tight">
+                                ℹ️ Esta venda entrará como pendente em <strong>Contas a Receber</strong> e poderá ser baixada quando o cliente quitar o débito.
+                            </p>
                         </div>
                     </div>
 
@@ -974,6 +1005,11 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         renderizarItensVenda();
     }
 
+    function isFormaBoletoFiado(nomeOuTipo) {
+        const s = (nomeOuTipo || '').toLowerCase();
+        return s.includes('boleto') || s.includes('fiado') || s.includes('carne') || s.includes('carnê');
+    }
+
     function selecionarFormaPagamento(id, btn) {
         formaPagamentoSelecionadaId = id;
         formaPagamentoSelecionadaNome = btn.getAttribute('data-nome') || btn.innerText;
@@ -981,7 +1017,116 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             b.className = 'btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700';
         });
         btn.className = 'btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 bg-amber-400 text-slate-900 border-amber-300 shadow-md';
+
+        checarExibicaoVencimentoFiado();
     }
+
+    function checarExibicaoVencimentoFiado() {
+        const ehFiado = isFormaBoletoFiado(formaPagamentoSelecionadaNome);
+        const containerVenc = document.getElementById('container-vencimento-fiado');
+        const badgeCliente = document.getElementById('badgeClienteObrigatorioFiado');
+        const btnEfetivar = document.getElementById('btnEfetivarVenda');
+        const totalStr = document.getElementById('displayTotalFinal')?.textContent || '0,00';
+
+        if (ehFiado) {
+            containerVenc?.classList.remove('hidden');
+            badgeCliente?.classList.remove('hidden');
+            if (btnEfetivar && !btnEfetivar.disabled) {
+                const vencVal = document.getElementById('dataVencimentoFiado')?.value;
+                let vencFormatado = '';
+                if (vencVal) {
+                    const partes = vencVal.split('-');
+                    if (partes.length === 3) vencFormatado = ` (Venc: ${partes[2]}/${partes[1]})`;
+                }
+                btnEfetivar.innerHTML = `<span>⚡ Efetivar Venda a Prazo (R$ <span id="totalFinalBtn">${totalStr}</span>)${vencFormatado}</span>`;
+            }
+        } else {
+            containerVenc?.classList.add('hidden');
+            badgeCliente?.classList.add('hidden');
+            if (btnEfetivar && !btnEfetivar.disabled) {
+                btnEfetivar.innerHTML = `<span>⚡ Efetivar Venda (R$ <span id="totalFinalBtn">${totalStr}</span>)</span>`;
+            }
+        }
+    }
+
+    function definirVencimentoDias(dias) {
+        const d = new Date();
+        d.setDate(d.getDate() + parseInt(dias));
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const dataStr = `${yyyy}-${mm}-${dd}`;
+        
+        const inputVenc = document.getElementById('dataVencimentoFiado');
+        if (inputVenc) {
+            inputVenc.value = dataStr;
+        }
+
+        document.querySelectorAll('.chip-vencimento').forEach(btn => {
+            btn.className = 'chip-vencimento px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 border border-slate-700 text-[10px] font-bold transition';
+        });
+        const btnAtivo = document.getElementById(`chip-venc-${dias}`);
+        if (btnAtivo) {
+            btnAtivo.className = 'chip-vencimento px-2 py-0.5 rounded-lg bg-amber-400 text-slate-950 border border-amber-300 text-[10px] font-black transition';
+        }
+
+        checarExibicaoVencimentoFiado();
+    }
+
+    // Autocomplete inteligente de clientes
+    let timerBuscaCliente = null;
+    function buscarClientesAutocomplete(termo) {
+        clearTimeout(timerBuscaCliente);
+        const dropdown = document.getElementById('dropdownClientesSugestoes');
+        if (!termo || termo.trim().length < 2) {
+            if (dropdown) dropdown.classList.add('hidden');
+            return;
+        }
+
+        timerBuscaCliente = setTimeout(() => {
+            fetch(`<?= Url::to(['/vendas/venda-expressa/buscar-clientes']) ?>?q=${encodeURIComponent(termo)}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (!dropdown) return;
+                    const results = data.results || [];
+                    if (results.length === 0) {
+                        dropdown.classList.add('hidden');
+                        return;
+                    }
+
+                    dropdown.innerHTML = results.map(c => `
+                        <div onclick='selecionarClienteSugerido(${JSON.stringify(c).replace(/'/g, "&apos;")})' class="p-2.5 hover:bg-slate-800 cursor-pointer border-b border-slate-800 last:border-0 flex items-center justify-between transition">
+                            <div>
+                                <span class="text-xs font-bold text-white block">${c.nome}</span>
+                                <span class="text-[11px] text-slate-400 font-mono">${c.telefone || 'Sem telefone'} ${c.cpf ? '• CPF: ' + c.cpf : ''}</span>
+                            </div>
+                            <span class="text-[10px] bg-amber-400/20 text-amber-300 font-bold px-2 py-0.5 rounded">Selecionar</span>
+                        </div>
+                    `).join('');
+                    dropdown.classList.remove('hidden');
+                })
+                .catch(() => {
+                    if (dropdown) dropdown.classList.add('hidden');
+                });
+        }, 250);
+    }
+
+    function selecionarClienteSugerido(cliente) {
+        if (!cliente) return;
+        if (cliente.nome) document.getElementById('clienteNome').value = cliente.nome;
+        if (cliente.telefone) document.getElementById('clienteWhatsapp').value = cliente.telefone;
+        if (cliente.cpf) document.getElementById('clienteCpf').value = cliente.cpf;
+        const dropdown = document.getElementById('dropdownClientesSugestoes');
+        if (dropdown) dropdown.classList.add('hidden');
+    }
+
+    document.addEventListener('click', function(e) {
+        const dropdown = document.getElementById('dropdownClientesSugestoes');
+        const container = document.getElementById('containerInputsCliente');
+        if (dropdown && container && !container.contains(e.target)) {
+            dropdown.classList.add('hidden');
+        }
+    });
 
     // ============================================================
     // MÚLTIPLAS FORMAS DE PAGAMENTO (PIX + Dinheiro + Cartão, etc.)
@@ -1282,6 +1427,27 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             return;
         }
 
+        const ehFiado = isFormaBoletoFiado(formaPagamentoSelecionadaNome);
+        if (ehFiado) {
+            const clienteNomeVal = document.getElementById('clienteNome')?.value.trim() || '';
+            const clienteWhatsappVal = document.getElementById('clienteWhatsapp')?.value.trim() || '';
+            const clienteCpfVal = document.getElementById('clienteCpf')?.value.trim() || '';
+
+            if (!clienteNomeVal && !clienteWhatsappVal && !clienteCpfVal) {
+                alert('⚠️ Para vendas no Boleto / Fiado, é obrigatório informar os dados do Cliente (Nome ou WhatsApp) para registro no Contas a Receber.');
+                document.getElementById('clienteNome')?.focus();
+                document.getElementById('containerInputsCliente')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+
+            const dataVencVal = document.getElementById('dataVencimentoFiado')?.value;
+            if (!dataVencVal) {
+                alert('⚠️ Por favor, informe a Data de Vencimento da venda no Boleto / Fiado.');
+                document.getElementById('dataVencimentoFiado')?.focus();
+                return;
+            }
+        }
+
         const ehPix = (formaPagamentoSelecionadaNome || '').toLowerCase().includes('pix');
 
         if (ehPix) {
@@ -1419,9 +1585,14 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         const usarMultiplos = document.getElementById('usar-multiplos-pagamentos')?.checked || false;
         const pagamentosMultiplosArray = usarMultiplos ? coletarPagamentosMultiplos() : [];
 
+        const ehFiado = isFormaBoletoFiado(formaPagamentoSelecionadaNome);
+        const dataVencInput = document.getElementById('dataVencimentoFiado')?.value || '';
+
         const payload = {
             itens: payloadItens,
             forma_pagamento_id: usarMultiplos && pagamentosMultiplosArray.length > 0 ? pagamentosMultiplosArray[0].forma_pagamento_id : formaPagamentoSelecionadaId,
+            a_prazo: ehFiado,
+            data_vencimento: dataVencInput,
             observacoes: document.getElementById('inputObservacoes').value,
             cliente_nome: clienteNomeInput,
             cliente_cpf: clienteCpfInput,
@@ -1461,6 +1632,9 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                     cliente_telefone: data.cliente_telefone || clienteWhatsappInput || '',
                     data_hora: new Date().toLocaleString('pt-BR'),
                     forma_pagamento: data.forma_pagamento || formaPagamentoSelecionadaNome,
+                    a_prazo: data.a_prazo || ehFiado,
+                    data_vencimento: data.data_vencimento || dataVencInput,
+                    status_venda: data.status_venda || (ehFiado ? 'EM_ABERTO' : 'QUITADA'),
                     observacoes: data.observacoes || document.getElementById('inputObservacoes').value,
                     itens: (data.itens && data.itens.length > 0) ? data.itens : [...lista]
                 };
@@ -1612,8 +1786,25 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                     }
                     return `<p><strong>FORMA DE PAGAMENTO:</strong> ${vendaData.forma_pagamento || 'Dinheiro'}</p>`;
                 })()}
+                ${vendaData.a_prazo || vendaData.status_venda === 'EM_ABERTO' ? `
+                <div class="bg-amber-50 p-2.5 rounded border border-amber-300 text-amber-950 font-mono text-[11px] space-y-1 my-1">
+                    <p class="text-rose-700 font-black uppercase">⚠️ CONDIÇÃO: A PRAZO (BOLETO / FIADO)</p>
+                    <p>VENCIMENTO: <strong>${vendaData.data_vencimento || 'A definir'}</strong></p>
+                    <p>VALOR A PAGAR: <strong>R$ ${vendaData.valor_total || totalPagoNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></p>
+                </div>
+                ` : `
                 <p class="underline font-bold">VALOR PAGO: R$ ${vendaData.valor_total || totalPagoNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                `}
             </div>
+
+            ${vendaData.a_prazo || vendaData.status_venda === 'EM_ABERTO' ? `
+            <div class="border-t border-dashed border-slate-300 pt-3 text-[10px] font-mono text-center space-y-1 text-slate-700">
+                <p class="text-[9px] uppercase text-slate-500 font-semibold">Reconheço a dívida acima e declaro que pagarei na data aprazada:</p>
+                <div class="pt-7 border-b border-slate-500 w-4/5 mx-auto"></div>
+                <p class="font-bold text-[10px] text-slate-900 uppercase pt-1">${vendaData.cliente_nome || 'Assinatura do Cliente'}</p>
+                <p class="text-[8px] text-slate-400 uppercase">Confissão de Dívida</p>
+            </div>
+            ` : ''}
 
             ${vendaData.observacoes ? `
             <div class="border-t border-dashed border-slate-300 pt-2 text-[10px] font-mono text-slate-600">
@@ -1686,6 +1877,10 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             const base64data = canvas.toDataURL("image/jpeg", 0.9);
             const baseUrl = window.location.origin;
 
+            const msgPadrao = dadosUltimaVendaFinalizada.a_prazo
+                ? `Olá ${dadosUltimaVendaFinalizada.cliente_nome}! Segue o comprovante da sua compra no valor de R$ ${dadosUltimaVendaFinalizada.valor_total} (Boleto/Fiado com vencimento para ${dadosUltimaVendaFinalizada.data_vencimento}). Obrigado pela preferência!`
+                : "Olá! Segue o comprovante da sua compra. Obrigado pela preferência!";
+
             const response = await fetch(`${baseUrl}/api/whatsapp/send`, {
                 method: "POST",
                 headers: {
@@ -1694,7 +1889,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                 },
                 body: JSON.stringify({
                     numero: numFinal,
-                    mensagem: "Olá! Segue o comprovante da sua compra. Obrigado pela preferência!",
+                    mensagem: msgPadrao,
                     base64: base64data
                 })
             });
@@ -1715,4 +1910,8 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             alert('❌ Erro de comunicação ao gerar o comprovante: ' + err.message);
         }
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        checarExibicaoVencimentoFiado();
+    });
 </script>

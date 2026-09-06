@@ -13,6 +13,7 @@ use app\modules\vendas\models\Cliente;
 use app\models\Usuario;
 use app\modules\vendas\models\Colaborador;
 use app\modules\vendas\models\StatusParcela;
+use app\modules\vendas\models\StatusVenda;
 use app\modules\vendas\models\FormaPagamento;
 use app\modules\vendas\models\CarteiraCobranca;
 
@@ -179,6 +180,25 @@ class Parcela extends ActiveRecord
             } catch (\Exception $e) {
                 // Não falha o pagamento se houver erro no caixa, apenas registra no log
                 Yii::error("Erro ao registrar entrada no caixa (não crítico): " . $e->getMessage(), 'Parcela');
+            }
+
+            // ===== ATUALIZAÇÃO DO STATUS DA VENDA PAI =====
+            try {
+                if ($this->venda) {
+                    $parcelasNaoPagas = Parcela::find()
+                        ->where(['venda_id' => $this->venda_id])
+                        ->andWhere(['not in', 'status_parcela_codigo', [StatusParcela::PAGA, StatusParcela::CANCELADA]])
+                        ->count();
+
+                    if ($parcelasNaoPagas == 0) {
+                        $this->venda->status_venda_codigo = StatusVenda::QUITADA;
+                    } else {
+                        $this->venda->status_venda_codigo = StatusVenda::PARCIALMENTE_PAGA;
+                    }
+                    $this->venda->save(false, ['status_venda_codigo']);
+                }
+            } catch (\Exception $eVenda) {
+                Yii::error("Erro ao atualizar status da venda após pagamento da parcela: " . $eVenda->getMessage(), 'Parcela');
             }
         }
 
