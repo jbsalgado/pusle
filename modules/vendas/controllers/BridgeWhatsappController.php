@@ -108,6 +108,55 @@ class BridgeWhatsappController extends Controller
     }
 
     /**
+     * Exclui uma mensagem específica do histórico
+     */
+    public function actionExcluirMensagem($id = null)
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $usuarioId = Yii::$app->user->id;
+        if (!$id) {
+            $id = Yii::$app->request->post('id');
+        }
+
+        $msg = BridgeWhatsappMensagem::findOne(['id' => $id, 'usuario_id' => $usuarioId]);
+        if (!$msg) {
+            return [
+                'success' => false,
+                'message' => 'Mensagem não encontrada ou não pertence à sua loja.'
+            ];
+        }
+
+        if ($msg->delete()) {
+            return [
+                'success' => true,
+                'message' => 'Mensagem removida do histórico com sucesso.'
+            ];
+        }
+
+        return [
+            'success' => false,
+            'message' => 'Falha ao excluir mensagem.'
+        ];
+    }
+
+    /**
+     * Limpa todo o histórico de mensagens da loja
+     */
+    public function actionLimparHistorico()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $usuarioId = Yii::$app->user->id;
+
+        $totalExcluidas = BridgeWhatsappMensagem::deleteAll(['usuario_id' => $usuarioId]);
+
+        return [
+            'success' => true,
+            'total' => $totalExcluidas,
+            'message' => 'Todo o histórico de mensagens foi limpo com sucesso.'
+        ];
+    }
+
+    /**
      * Gera e faz download do inicializador 1-clique para Windows (.bat)
      */
     public function actionBaixarBat()

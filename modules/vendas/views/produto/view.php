@@ -1879,8 +1879,8 @@ Garanta o seu antes que acabe o estoque!</textarea>
         const btnConectar = document.getElementById('btnConectarWhatsappCard');
 
         dot.className = 'w-3.5 h-3.5 rounded-full bg-gray-400 animate-pulse inline-block';
-        texto.textContent = 'Verificando Evolution API...';
-        subtexto.textContent = 'Consultando status da instância da loja.';
+        texto.textContent = 'Verificando conexão do WhatsApp...';
+        subtexto.textContent = 'Consultando status do Pulse Agent Local e Evolution API.';
         btnConectar.classList.add('hidden');
 
         fetch('<?= Url::to(['/vendas/disparo/status-whatsapp']) ?>')
@@ -1888,21 +1888,29 @@ Garanta o seu antes que acabe o estoque!</textarea>
         .then(data => {
             if (data.success && data.connected) {
                 whatsappCardConectadoCache = true;
-                dot.className = 'w-3.5 h-3.5 rounded-full bg-green-500 inline-block shadow';
-                texto.textContent = '🟢 WhatsApp Conectado via Evolution API';
-                subtexto.textContent = 'Instância: ' + (data.instance_name || 'Ativa') + ' (Pronto para disparos no Status e Mensagens)';
+                if (data.provider === 'pulse_agent') {
+                    dot.className = 'w-3.5 h-3.5 rounded-full bg-emerald-500 inline-block shadow ring-2 ring-emerald-300';
+                    texto.textContent = '🟢 WhatsApp Conectado via WhatsApp Local (Pulse Agent)';
+                    subtexto.textContent = 'Chip Conectado: ' + (data.telefone ? '+' + data.telefone : 'Ativo') + ' • Pronto para envio de Cards e Status';
+                } else {
+                    dot.className = 'w-3.5 h-3.5 rounded-full bg-green-500 inline-block shadow';
+                    texto.textContent = '🟢 WhatsApp Conectado via Evolution API';
+                    subtexto.textContent = 'Instância: ' + (data.instance_name || 'Ativa') + ' • Pronto para disparos no Status e Mensagens';
+                }
             } else {
                 whatsappCardConectadoCache = false;
                 dot.className = 'w-3.5 h-3.5 rounded-full bg-red-500 inline-block shadow';
                 texto.textContent = '🔴 WhatsApp Desconectado';
-                subtexto.textContent = 'Conecte sua instância da Evolution API antes de disparar via WhatsApp.';
+                subtexto.textContent = 'Conecte seu WhatsApp via Pulse Agent Local ou Evolution API antes de disparar.';
+                btnConectar.href = '<?= Url::to(['/vendas/bridge-whatsapp/index']) ?>';
+                btnConectar.textContent = 'Conectar WhatsApp Local';
                 btnConectar.classList.remove('hidden');
             }
         })
         .catch(err => {
             whatsappCardConectadoCache = false;
             dot.className = 'w-3.5 h-3.5 rounded-full bg-yellow-500 inline-block';
-            texto.textContent = '⚠️ Falha ao verificar Evolution API';
+            texto.textContent = '⚠️ Falha ao verificar WhatsApp';
             subtexto.textContent = 'Não foi possível consultar o status da conexão.';
         });
     }
@@ -1985,7 +1993,7 @@ Garanta o seu antes que acabe o estoque!</textarea>
         }
 
         if (!whatsappCardConectadoCache) {
-            if (!confirm('⚠️ Atenção: A instância do WhatsApp da sua loja na Evolution API parece estar DESCONECTADA. Deseja tentar o envio mesmo assim?')) {
+            if (!confirm('⚠️ Atenção: O WhatsApp da sua loja parece estar DESCONECTADO (nem Pulse Agent nem Evolution API ativos). Deseja tentar o envio mesmo assim?')) {
                 return;
             }
         }
@@ -2090,7 +2098,7 @@ Garanta o seu antes que acabe o estoque!</textarea>
             const badgeClass = isOk ? 'bg-emerald-800 text-emerald-100' : 'bg-red-800 text-red-100';
             const icon = isOk ? '🟢' : '🔴';
             const statusTxt = isOk 
-                ? 'Enviado com sucesso via Evolution API' + (e.enviado_em ? ' (' + e.enviado_em.substring(11, 16) + 'h)' : '') 
+                ? 'Enviado com sucesso via WhatsApp' + (e.enviado_em ? ' (' + e.enviado_em.substring(11, 16) + 'h)' : '') 
                 : (e.erro_mensagem || 'Falha ao enviar mensagem de mídia.');
 
             return `
@@ -2154,7 +2162,7 @@ Garanta o seu antes que acabe o estoque!</textarea>
                         }
                         document.getElementById('iconeStatusDisparoCard').textContent = (data.itens_erro === 0) ? '🎉' : '⚠️';
                         document.getElementById('tituloStatusDisparoCard').textContent = (data.itens_erro === 0) ? 'Disparo de Cards Concluído!' : 'Disparo Finalizado com Avisos';
-                        document.getElementById('subtituloStatusDisparoCard').textContent = 'Todos os cards foram processados pela Evolution API.';
+                        document.getElementById('subtituloStatusDisparoCard').textContent = 'Todos os cards foram processados com sucesso pelo WhatsApp.';
                         document.getElementById('btnFecharDisparoCardConcluido').classList.remove('hidden');
                     }
                 }

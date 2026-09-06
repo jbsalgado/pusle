@@ -38,13 +38,20 @@ class BridgeWhatsappService
      */
     public static function enfileirarMensagem($usuarioId, $numeroDestino, $texto, $midiaUrl = null, $tipo = BridgeWhatsappMensagem::TIPO_TEXT)
     {
-        // Limpa formatação do número
-        $numeroLimpo = preg_replace('/[^0-9]/', '', (string)$numeroDestino);
-        if (strlen($numeroLimpo) < 10) {
-            return [
-                'success' => false,
-                'message' => 'Número de telefone inválido.'
-            ];
+        $destinoRaw = trim((string)$numeroDestino);
+        $isStatus = ($destinoRaw === 'status' || $destinoRaw === 'status@broadcast');
+
+        if ($isStatus) {
+            $numeroLimpo = 'status@broadcast';
+        } else {
+            // Limpa formatação do número
+            $numeroLimpo = preg_replace('/[^0-9]/', '', $destinoRaw);
+            if (strlen($numeroLimpo) < 10) {
+                return [
+                    'success' => false,
+                    'message' => 'Número de telefone inválido.'
+                ];
+            }
         }
 
         $model = new BridgeWhatsappMensagem();

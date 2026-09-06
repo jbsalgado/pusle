@@ -270,25 +270,28 @@ class DisparoMassaService
             }
 
             // 3. Checagem de Configuração e Limite Diário
+            $usaPulseAgent = \app\modules\vendas\models\BridgeWhatsappLoja::isLojaConectada($usuarioId);
             $configWp = null;
             if ($item->canal === DisparoMassa::CANAL_STATUS || $item->canal === DisparoMassa::CANAL_WHATSAPP) {
-                $configWp = WhatsappConfig::findByEmpresa($usuarioId);
-                if (!$configWp || (!$configWp->isMetaOficial() && empty($configWp->token))) {
-                    $item->status = DisparoItem::STATUS_ERRO;
-                    $item->erro_mensagem = "WhatsApp não configurado ou desconectado para esta loja.";
-                    $item->save(false);
-                    $tenantConsecutiveErrors[$usuarioId]++;
-                    continue;
-                }
-
-                // Teto diário de segurança
-                if (!$configWp->podeEnviarHoje()) {
-                    if ($campanha && $campanha->status !== DisparoMassa::STATUS_PAUSADO) {
-                        $campanha->status = DisparoMassa::STATUS_PAUSADO;
-                        $campanha->save(false);
+                if (!$usaPulseAgent) {
+                    $configWp = WhatsappConfig::findByEmpresa($usuarioId);
+                    if (!$configWp || (!$configWp->isMetaOficial() && empty($configWp->token))) {
+                        $item->status = DisparoItem::STATUS_ERRO;
+                        $item->erro_mensagem = "WhatsApp não configurado ou desconectado para esta loja.";
+                        $item->save(false);
+                        $tenantConsecutiveErrors[$usuarioId]++;
+                        continue;
                     }
-                    Yii::warning("DisparoMassa: Limite diário atingido para tenant {$usuarioId} ({$configWp->mensagens_enviadas_hoje}/{$configWp->limite_diario_mensagens}). Campanha pausada.", __METHOD__);
-                    continue;
+
+                    // Teto diário de segurança
+                    if (!$configWp->podeEnviarHoje()) {
+                        if ($campanha && $campanha->status !== DisparoMassa::STATUS_PAUSADO) {
+                            $campanha->status = DisparoMassa::STATUS_PAUSADO;
+                            $campanha->save(false);
+                        }
+                        Yii::warning("DisparoMassa: Limite diário atingido para tenant {$usuarioId} ({$configWp->mensagens_enviadas_hoje}/{$configWp->limite_diario_mensagens}). Campanha pausada.", __METHOD__);
+                        continue;
+                    }
                 }
             }
 
@@ -331,9 +334,40 @@ class DisparoMassaService
                 switch ($item->canal) {
                     case DisparoMassa::CANAL_STATUS:
                         if ($mediaParam) {
-                            $sucesso = $this->evolutionService->sendWhatsAppStatus($usuarioId, $mediaParam, $textoPersonalizado, $mediaType);
-                            if (!$sucesso) {
-                                $erroMsg = $this->evolutionService->lastError ?: "Falha ao postar no Status do WhatsApp.";
+                            if ($usaPulseAgent) {
+                                $midiaEnvio = !empty($urlAbsoluta) ? $urlAbsoluta : $mediaParam;
+                                $res = BridgeWhatsappService::enfileirarMensagem($usuarioId, 'status@broadcast', $textoPersonalizado, $midiaEnvio, $mediaType);
+                                if (!$res['success']) {
+                                    $sucesso = false;
+                                    $erroMsg = $res['message'];
+                                } else {
+                                    $msgId = $res['mensagem_id'];
+                                    $sucesso = false;
+                                    $erroMsg = null;
+                                    $limiteSegundos = 15;
+                                    $inicio = time();
+                                    while ((time() - $inicio) <= $limiteSegundos) {
+                                        $msgDb = \app\modules\vendas\models\BridgeWhatsappMensagem::findOne($msgId);
+                                        if ($msgDb && $msgDb->status === \app\modules\vendas\models\BridgeWhatsappMensagem::STATUS_DELIVERED) {
+                                            $sucesso = true;
+                                            break;
+                                        }
+                                        if ($msgDb && $msgDb->status === \app\modules\vendas\models\BridgeWhatsappMensagem::STATUS_FAILED) {
+                                            $sucesso = false;
+                                            $erroMsg = $msgDb->erro_motivo ?: 'Falha ao postar no Status via WhatsApp Local (Pulse Agent).';
+                                            break;
+                                        }
+                                        usleep(400000); // 400ms
+                                    }
+                                    if (!$sucesso && empty($erroMsg)) {
+                                        $erroMsg = "Tempo limite excedido aguardando confirmação do WhatsApp Local (Pulse Agent).";
+                                    }
+                                }
+                            } else {
+                                $sucesso = $this->evolutionService->sendWhatsAppStatus($usuarioId, $mediaParam, $textoPersonalizado, $mediaType);
+                                if (!$sucesso) {
+                                    $erroMsg = $this->evolutionService->lastError ?: "Falha ao postar no Status do WhatsApp.";
+                                }
                             }
                         } else {
                             $erroMsg = "Arquivo de mídia não encontrado.";
@@ -342,15 +376,46 @@ class DisparoMassaService
 
                     case DisparoMassa::CANAL_WHATSAPP:
                         if ($mediaParam && !empty($item->destino)) {
-                            // Pré-validação do número no WhatsApp
-                            $validJid = $this->evolutionService->validateWhatsappNumber($usuarioId, $item->destino);
-                            if (!$validJid) {
-                                $sucesso = false;
-                                $erroMsg = "O número {$item->destino} não está registrado ou ativo no WhatsApp.";
+                            if ($usaPulseAgent) {
+                                $midiaEnvio = !empty($urlAbsoluta) ? $urlAbsoluta : $mediaParam;
+                                $res = BridgeWhatsappService::enfileirarMensagem($usuarioId, $item->destino, $textoPersonalizado, $midiaEnvio, $mediaType);
+                                if (!$res['success']) {
+                                    $sucesso = false;
+                                    $erroMsg = $res['message'];
+                                } else {
+                                    $msgId = $res['mensagem_id'];
+                                    $sucesso = false;
+                                    $erroMsg = null;
+                                    $limiteSegundos = 15;
+                                    $inicio = time();
+                                    while ((time() - $inicio) <= $limiteSegundos) {
+                                        $msgDb = \app\modules\vendas\models\BridgeWhatsappMensagem::findOne($msgId);
+                                        if ($msgDb && $msgDb->status === \app\modules\vendas\models\BridgeWhatsappMensagem::STATUS_DELIVERED) {
+                                            $sucesso = true;
+                                            break;
+                                        }
+                                        if ($msgDb && $msgDb->status === \app\modules\vendas\models\BridgeWhatsappMensagem::STATUS_FAILED) {
+                                            $sucesso = false;
+                                            $erroMsg = $msgDb->erro_motivo ?: "Falha ao enviar para {$item->destino} via WhatsApp Local (Pulse Agent).";
+                                            break;
+                                        }
+                                        usleep(400000); // 400ms
+                                    }
+                                    if (!$sucesso && empty($erroMsg)) {
+                                        $erroMsg = "Tempo limite excedido aguardando confirmação de envio para {$item->destino}.";
+                                    }
+                                }
                             } else {
-                                $sucesso = $this->evolutionService->sendMedia($usuarioId, $validJid, $mediaParam, $textoPersonalizado, $mediaType);
-                                if (!$sucesso) {
-                                    $erroMsg = $this->evolutionService->lastError ?: "Falha ao enviar mensagem de mídia para {$item->destino}.";
+                                // Pré-validação do número no WhatsApp
+                                $validJid = $this->evolutionService->validateWhatsappNumber($usuarioId, $item->destino);
+                                if (!$validJid) {
+                                    $sucesso = false;
+                                    $erroMsg = "O número {$item->destino} não está registrado ou ativo no WhatsApp.";
+                                } else {
+                                    $sucesso = $this->evolutionService->sendMedia($usuarioId, $validJid, $mediaParam, $textoPersonalizado, $mediaType);
+                                    if (!$sucesso) {
+                                        $erroMsg = $this->evolutionService->lastError ?: "Falha ao enviar mensagem de mídia para {$item->destino}.";
+                                    }
                                 }
                             }
                         } else {

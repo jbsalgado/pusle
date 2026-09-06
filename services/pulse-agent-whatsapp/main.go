@@ -1,11 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"image"
+	"image/jpeg"
+	_ "image/png"
 	"io"
 	"net/http"
 	"net/url"
@@ -16,6 +20,8 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/image/draw"
+	_ "golang.org/x/image/webp"
 	_ "modernc.org/sqlite"
 
 	"github.com/skip2/go-qrcode"
@@ -350,6 +356,114 @@ func resolverJidCanonico(ctx context.Context, numeroRaw string) (*types.JID, err
 	return nil, fmt.Errorf("o número %s não está cadastrado no WhatsApp", cleanNum)
 }
 
+func carregarBytesMidia(midiaUrl string) ([]byte, string, error) {
+	midiaUrl = strings.TrimSpace(midiaUrl)
+	if strings.HasPrefix(midiaUrl, "data:") {
+		parts := strings.SplitN(midiaUrl, ",", 2)
+		if len(parts) != 2 {
+			return nil, "", fmt.Errorf("data URI inválida")
+		}
+		mime := "image/png"
+		header := parts[0]
+		if strings.HasPrefix(header, "data:") && strings.Contains(header, ";") {
+			mime = strings.TrimPrefix(strings.Split(header, ";")[0], "data:")
+		}
+		bytes, err := base64.StdEncoding.DecodeString(parts[1])
+		if err != nil {
+			return nil, "", fmt.Errorf("falha ao decodificar base64 da mídia: %w", err)
+		}
+		return bytes, mime, nil
+	}
+
+	urlCompleta := midiaUrl
+	if !strings.HasPrefix(midiaUrl, "http://") && !strings.HasPrefix(midiaUrl, "https://") {
+		urlCompleta = fmt.Sprintf("%s/%s", strings.TrimRight(*flagServer, "/"), strings.TrimLeft(midiaUrl, "/"))
+	}
+
+	fmt.Printf("📥 Baixando mídia de: %s...\n", urlCompleta)
+	req, err := http.NewRequest("GET", urlCompleta, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("erro ao baixar mídia: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", fmt.Errorf("servidor retornou HTTP %d ao baixar mídia", resp.StatusCode)
+	}
+
+	bytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", fmt.Errorf("falha ao ler bytes da mídia: %w", err)
+	}
+
+	mime := resp.Header.Get("Content-Type")
+	lower := strings.ToLower(urlCompleta)
+	if mime == "" || strings.Contains(mime, "text/plain") || strings.Contains(mime, "octet-stream") {
+		if strings.HasSuffix(lower, ".png") {
+			mime = "image/png"
+		} else if strings.HasSuffix(lower, ".jpg") || strings.HasSuffix(lower, ".jpeg") {
+			mime = "image/jpeg"
+		} else if strings.HasSuffix(lower, ".webp") {
+			mime = "image/webp"
+		} else if strings.HasSuffix(lower, ".mp4") {
+			mime = "video/mp4"
+		} else {
+			mime = http.DetectContentType(bytes)
+		}
+	}
+
+	return bytes, mime, nil
+}
+
+func processarImagemParaWhatsApp(rawBytes []byte) ([]byte, []byte, uint32, uint32, error) {
+	img, format, err := image.Decode(bytes.NewReader(rawBytes))
+	if err != nil {
+		return nil, nil, 0, 0, fmt.Errorf("falha ao decodificar imagem (formato detectado: %s): %w", format, err)
+	}
+
+	bounds := img.Bounds()
+	width := uint32(bounds.Dx())
+	height := uint32(bounds.Dy())
+
+	// 1. Converte imagem principal para JPEG de alta qualidade
+	var jpegBuf bytes.Buffer
+	err = jpeg.Encode(&jpegBuf, img, &jpeg.Options{Quality: 90})
+	if err != nil {
+		return nil, nil, 0, 0, fmt.Errorf("falha ao codificar JPEG: %w", err)
+	}
+	jpegBytes := jpegBuf.Bytes()
+
+	// 2. Gera Thumbnail JPEG proporcional (max 120px)
+	thumbW := 120
+	thumbH := 120
+	if width > height && width > 0 {
+		thumbH = int(float64(height) * (120.0 / float64(width)))
+	} else if height > 0 {
+		thumbW = int(float64(width) * (120.0 / float64(height)))
+	}
+	if thumbW < 1 {
+		thumbW = 1
+	}
+	if thumbH < 1 {
+		thumbH = 1
+	}
+
+	thumbImg := image.NewRGBA(image.Rect(0, 0, thumbW, thumbH))
+	draw.ApproxBiLinear.Scale(thumbImg, thumbImg.Bounds(), img, bounds, draw.Over, nil)
+
+	var thumbBuf bytes.Buffer
+	err = jpeg.Encode(&thumbBuf, thumbImg, &jpeg.Options{Quality: 65})
+	if err != nil {
+		return nil, nil, 0, 0, fmt.Errorf("falha ao codificar thumbnail JPEG: %w", err)
+	}
+
+	return jpegBytes, thumbBuf.Bytes(), width, height, nil
+}
+
 func processarEnvio(data json.RawMessage) {
 	var msg struct {
 		ID            string `json:"id"`
@@ -362,14 +476,106 @@ func processarEnvio(data json.RawMessage) {
 		return
 	}
 
-	fmt.Printf("🚀 Processando envio para %s...\n", msg.NumeroDestino)
+	isStatus := (msg.NumeroDestino == "status" || msg.NumeroDestino == "status@broadcast")
+	if isStatus {
+		fmt.Printf("🚀 Processando postagem no STATUS / STORIES do WhatsApp...\n")
+	} else {
+		fmt.Printf("🚀 Processando envio para %s...\n", msg.NumeroDestino)
+	}
 
 	if client == nil || !client.IsConnected() {
 		ackEnvio(msg.ID, "failed", "", "WhatsApp não está conectado no agente local")
 		return
 	}
 
-	// 1. Resolve JID Canônico com suporte a LID e 9º dígito
+	// Prepara a mensagem (Texto, Imagem ou Vídeo)
+	hasMedia := len(strings.TrimSpace(msg.MidiaUrl)) > 0 || msg.Tipo == "image" || msg.Tipo == "video"
+	var waMsg *waE2E.Message
+
+	if hasMedia {
+		mediaBytes, mime, err := carregarBytesMidia(msg.MidiaUrl)
+		if err != nil {
+			fmt.Printf("❌ Erro ao carregar mídia: %v\n", err)
+			ackEnvio(msg.ID, "failed", "", fmt.Sprintf("Erro ao carregar mídia: %v", err))
+			return
+		}
+
+		isVideo := (msg.Tipo == "video" || strings.HasPrefix(mime, "video/") || strings.HasSuffix(strings.ToLower(msg.MidiaUrl), ".mp4"))
+
+		if isVideo {
+			fmt.Printf("📤 Fazendo upload de vídeo (%d bytes, %s) para os servidores do WhatsApp...\n", len(mediaBytes), mime)
+			upResp, err := client.Upload(context.Background(), mediaBytes, whatsmeow.MediaVideo)
+			if err != nil {
+				fmt.Printf("❌ Falha no upload de vídeo: %v\n", err)
+				ackEnvio(msg.ID, "failed", "", fmt.Sprintf("Falha no upload de vídeo: %v", err))
+				return
+			}
+			vidMsg := &waE2E.VideoMessage{
+				Caption:       proto.String(msg.Texto),
+				Mimetype:      proto.String(mime),
+				URL:           &upResp.URL,
+				DirectPath:    &upResp.DirectPath,
+				MediaKey:      upResp.MediaKey,
+				FileEncSHA256: upResp.FileEncSHA256,
+				FileSHA256:    upResp.FileSHA256,
+				FileLength:    &upResp.FileLength,
+			}
+			waMsg = &waE2E.Message{VideoMessage: vidMsg}
+		} else {
+			// Converte qualquer formato (WebP, PNG) para JPEG padrão do WhatsApp + gera JPEGThumbnail
+			jpegBytes, thumbBytes, width, height, convErr := processarImagemParaWhatsApp(mediaBytes)
+			if convErr != nil {
+				fmt.Printf("⚠️ Aviso na conversão JPEG: %v. Usando bytes originais...\n", convErr)
+				jpegBytes = mediaBytes
+			} else {
+				fmt.Printf("🖼️ Imagem normalizada para JPEG (%d bytes, %dx%d) com Thumbnail (%d bytes)\n", len(jpegBytes), width, height, len(thumbBytes))
+			}
+
+			fmt.Printf("📤 Fazendo upload de imagem JPEG (%d bytes) para os servidores do WhatsApp...\n", len(jpegBytes))
+			upResp, err := client.Upload(context.Background(), jpegBytes, whatsmeow.MediaImage)
+			if err != nil {
+				fmt.Printf("❌ Falha no upload de imagem: %v\n", err)
+				ackEnvio(msg.ID, "failed", "", fmt.Sprintf("Falha no upload de imagem: %v", err))
+				return
+			}
+			imgMsg := &waE2E.ImageMessage{
+				Caption:       proto.String(msg.Texto),
+				Mimetype:      proto.String("image/jpeg"),
+				URL:           &upResp.URL,
+				DirectPath:    &upResp.DirectPath,
+				MediaKey:      upResp.MediaKey,
+				FileEncSHA256: upResp.FileEncSHA256,
+				FileSHA256:    upResp.FileSHA256,
+				FileLength:    &upResp.FileLength,
+				JPEGThumbnail: thumbBytes,
+			}
+			if width > 0 && height > 0 {
+				imgMsg.Width = proto.Uint32(width)
+				imgMsg.Height = proto.Uint32(height)
+			}
+			waMsg = &waE2E.Message{ImageMessage: imgMsg}
+		}
+	} else {
+		waMsg = &waE2E.Message{
+			Conversation: proto.String(msg.Texto),
+		}
+	}
+
+	// 1. Se for postagem em Status / Stories
+	if isStatus {
+		time.Sleep(1 * time.Second)
+		resp, err := client.SendMessage(context.Background(), types.StatusBroadcastJID, waMsg)
+		if err != nil {
+			fmt.Printf("❌ Erro ao postar no Status do WhatsApp: %v\n", err)
+			ackEnvio(msg.ID, "failed", "", fmt.Sprintf("Falha ao postar no Status: %v", err))
+			return
+		}
+		fmt.Printf("🎉 Postado com sucesso no Status do WhatsApp! WA ID: %s\n", resp.ID)
+		ackEnvio(msg.ID, "delivered", resp.ID, "")
+		return
+	}
+
+	// 2. Envio direto para Contato
 	jid, err := resolverJidCanonico(context.Background(), msg.NumeroDestino)
 	if err != nil {
 		fmt.Printf("❌ Falha de validação para %s: %v\n", msg.NumeroDestino, err)
@@ -380,14 +586,9 @@ func processarEnvio(data json.RawMessage) {
 	// Pausa antiban humanizada
 	time.Sleep(2 * time.Second)
 
-	// 2. Simula presença (Digitando...)
+	// Simula presença (Digitando...)
 	_ = client.SendChatPresence(context.Background(), *jid, types.ChatPresenceComposing, types.ChatPresenceMediaText)
 	time.Sleep(1 * time.Second)
-
-	// 3. Envia mensagem para o JID canônico
-	waMsg := &waE2E.Message{
-		Conversation: proto.String(msg.Texto),
-	}
 
 	resp, err := client.SendMessage(context.Background(), *jid, waMsg)
 	if err != nil {

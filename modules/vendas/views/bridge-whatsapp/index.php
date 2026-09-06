@@ -206,9 +206,17 @@ $token = $loja->token_agente;
                         <p class="text-xs text-slate-400">Últimos disparos e mensagens recebidas via agente local</p>
                     </div>
                 </div>
-                <span class="text-xs font-bold px-3 py-1 bg-slate-800 text-slate-300 rounded-full border border-slate-700">
-                    <?= count($mensagens) ?> mensagens
-                </span>
+                <div class="flex items-center gap-2">
+                    <span id="badgeTotalMensagens" class="text-xs font-bold px-3 py-1 bg-slate-800 text-slate-300 rounded-full border border-slate-700">
+                        <?= count($mensagens) ?> mensagens
+                    </span>
+                    <?php if (!empty($mensagens)): ?>
+                        <button type="button" id="btnLimparHistorico" onclick="limparHistoricoMensagens()" class="flex items-center gap-1.5 px-3 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-full text-xs font-bold transition shadow-sm" title="Excluir todas as mensagens do histórico">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            <span>Limpar Histórico</span>
+                        </button>
+                    <?php endif; ?>
+                </div>
             </div>
 
             <div class="overflow-x-auto">
@@ -219,19 +227,20 @@ $token = $loja->token_agente;
                             <th class="p-4">Direção</th>
                             <th class="p-4">Número</th>
                             <th class="p-4">Conteúdo</th>
-                            <th class="p-4 pr-6">Status</th>
+                            <th class="p-4">Status</th>
+                            <th class="p-4 pr-6 text-center">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="lista-mensagens" class="divide-y divide-slate-800/60">
                         <?php if (empty($mensagens)): ?>
                             <tr>
-                                <td colspan="5" class="text-center py-8 text-slate-500 italic">
+                                <td colspan="6" class="text-center py-8 text-slate-500 italic">
                                     Nenhuma mensagem registrada ainda. Faça um teste de envio acima!
                                 </td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($mensagens as $m): ?>
-                                <tr class="hover:bg-slate-800/40 transition">
+                                <tr id="msg-row-<?= $m->id ?>" class="hover:bg-slate-800/40 transition">
                                     <td class="p-4 pl-6 text-slate-400 font-mono">
                                         <?= date('d/m/Y H:i:s', strtotime($m->created_at)) ?>
                                     </td>
@@ -254,7 +263,7 @@ $token = $loja->token_agente;
                                     <td class="p-4 text-slate-300 max-w-xs sm:max-w-md truncate" title="<?= Html::encode($m->conteudo_texto) ?>">
                                         <?= Html::encode($m->conteudo_texto) ?>
                                     </td>
-                                    <td class="p-4 pr-6">
+                                    <td class="p-4">
                                         <?php
                                             $badgeClasses = 'bg-slate-800 text-slate-400 border border-slate-700';
                                             if ($m->status === 'delivered') $badgeClasses = 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30';
@@ -270,6 +279,11 @@ $token = $loja->token_agente;
                                                 <?= Html::encode($m->erro_motivo) ?>
                                             </span>
                                         <?php endif; ?>
+                                    </td>
+                                    <td class="p-4 pr-6 text-center">
+                                        <button type="button" onclick="excluirMensagem('<?= $m->id ?>')" class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition" title="Excluir mensagem do histórico">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        </button>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -598,6 +612,79 @@ function enviarTeste(e) {
         btn.disabled = false;
         btn.innerHTML = '<span>Enviar Mensagem de Teste</span>';
         alert('Falha na comunicação com o servidor.');
+    });
+}
+
+function excluirMensagem(id) {
+    if (!confirm('Deseja realmente remover esta mensagem do histórico?')) return;
+
+    const row = document.getElementById('msg-row-' + id);
+    if (row) {
+        row.style.opacity = '0.3';
+        row.style.pointerEvents = 'none';
+    }
+
+    fetch('<?= Url::to(['/vendas/bridge-whatsapp/excluir-mensagem']) ?>?id=' + encodeURIComponent(id), {
+        method: 'POST'
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) {
+            if (row) {
+                row.remove();
+            }
+            const tbody = document.querySelector('table tbody');
+            if (tbody && tbody.querySelectorAll('tr').length === 0) {
+                location.reload();
+            }
+        } else {
+            if (row) {
+                row.style.opacity = '1';
+                row.style.pointerEvents = 'auto';
+            }
+            alert('Erro ao excluir mensagem: ' + (d.message || 'Falha desconhecida.'));
+        }
+    })
+    .catch(err => {
+        if (row) {
+            row.style.opacity = '1';
+            row.style.pointerEvents = 'auto';
+        }
+        alert('Falha de comunicação ao tentar excluir a mensagem.');
+    });
+}
+
+function limparHistoricoMensagens() {
+    if (!confirm('ATENÇÃO: Deseja realmente excluir TODO o histórico de mensagens desta loja?\nEsta ação é irreversível.')) return;
+
+    const btn = document.getElementById('btnLimparHistorico');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-3.5 w-3.5 text-rose-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg><span>Limpando...</span>';
+    }
+
+    fetch('<?= Url::to(['/vendas/bridge-whatsapp/limpar-historico']) ?>', {
+        method: 'POST'
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) {
+            alert('Histórico de mensagens limpo com sucesso!');
+            location.reload();
+        } else {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg><span>Limpar Histórico</span>';
+            }
+            alert('Erro ao limpar histórico: ' + (d.message || 'Falha desconhecida.'));
+        }
+    })
+    .catch(err => {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg><span>Limpar Histórico</span>';
+        }
+        alert('Falha de comunicação ao tentar limpar o histórico.');
     });
 }
 </script>

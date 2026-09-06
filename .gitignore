@@ -32,3 +32,17 @@ config/certificados/*.crt
 acesso-dados-vps-top-contrucao.env
 acessos-vps-only-code.env
 
+*.cookies.txt
+*cookies.txt
+*.cookies
+
+# Android & Gradle Build Artifacts / Caches
+.gradle/
+build/
+**/build/
+**/.gradle/
+*.iml
+.cxx/
+local.properties
+captures/
+.externalNativeBuild/

@@ -66,12 +66,32 @@ class DisparoController extends Controller
             return [
                 'success' => true,
                 'connected' => false,
+                'provider' => 'none',
                 'instance_name' => null,
                 'status' => 'DISCONNECTED',
                 'message' => 'Instância não configurada.'
             ];
         }
 
+        // 1. Prioridade: Verifica se a loja está conectada via Pulse Agent (WhatsApp Local)
+        try {
+            $lojaBridge = \app\modules\vendas\models\BridgeWhatsappLoja::findOne(['usuario_id' => $lojaId]);
+            if ($lojaBridge && $lojaBridge->isWhatsappConectado()) {
+                return [
+                    'success' => true,
+                    'connected' => true,
+                    'provider' => 'pulse_agent',
+                    'provider_name' => 'WhatsApp Local (Pulse Agent)',
+                    'instance_name' => 'Pulse Agent (' . ($lojaBridge->telefone_conectado ?: 'Conectado') . ')',
+                    'telefone' => $lojaBridge->telefone_conectado,
+                    'status' => 'CONNECTED',
+                ];
+            }
+        } catch (\Throwable $t) {
+            Yii::warning("DisparoController::actionStatusWhatsapp — erro ao checar Pulse Agent: " . $t->getMessage(), __METHOD__);
+        }
+
+        // 2. Fallback: Verifica se está conectada via Evolution API
         try {
             $service = new EvolutionService();
             $connected = $service->checkStatus($lojaId);
@@ -80,6 +100,8 @@ class DisparoController extends Controller
             return [
                 'success' => true,
                 'connected' => $connected,
+                'provider' => 'evolution',
+                'provider_name' => 'Evolution API',
                 'instance_name' => $config ? $config->instance_name : null,
                 'status' => $config ? $config->status : 'DISCONNECTED',
             ];
@@ -87,6 +109,7 @@ class DisparoController extends Controller
             return [
                 'success' => false,
                 'connected' => false,
+                'provider' => 'none',
                 'message' => $e->getMessage()
             ];
         }

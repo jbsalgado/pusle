@@ -86,4 +86,13 @@ class BridgeWhatsappLoja extends ActiveRecord
     {
         return $this->isAgenteOnline() && $this->status_conexao === self::STATUS_CONNECTED;
     }
+
+    /**
+     * Helper estático para verificar se uma loja específica está conectada via Pulse Agent
+     */
+    public static function isLojaConectada($usuarioId)
+    {
+        $loja = self::findOne(['usuario_id' => $usuarioId]);
+        return $loja ? $loja->isWhatsappConectado() : false;
+    }
 }
