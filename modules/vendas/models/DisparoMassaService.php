@@ -1,0 +1,923 @@
+<?php
+
+namespace app\modules\vendas\services;
+
+use Yii;
+use app\modules\vendas\models\Produto;
+use app\modules\vendas\models\Cliente;
+use app\modules\vendas\models\DisparoMassa;
+use app\modules\vendas\models\DisparoItem;
+use app\modules\evolution\services\EvolutionService;
+use app\modules\evolution\models\WhatsappConfig;
+
+/**
+ * Serviço responsável por orquestrar a criação e execução de disparos em massa de cards.
+ */
+class DisparoMassaService
+{
+    /** @var CardGeneratorService */
+    private $cardService;
+
+    /** @var EvolutionService */
+    private $evolutionService;
+
+    /** @var EmailDisparoService */
+    private $emailService;
+
+    public function __construct()
+    {
+        $this->cardService = new CardGeneratorService();
+        $this->evolutionService = new EvolutionService();
+        $this->emailService = new EmailDisparoService();
+    }
+
+    /**
+     * Cria uma nova campanha de disparo em massa e agenda os itens na fila.
+     *
+     * @param string $usuarioId UUID do usuário/loja
+     * @param array $produtosIds Lista de UUIDs dos produtos
+     * @param array $canais Lista de canais selecionados ('status', 'whatsapp', 'email')
+     * @param array $clientesIds Lista de UUIDs dos clientes (para whatsapp/email)
+     * @param array $visualOptions Opções de renderização do card ('template', 'corTema', 'fundoEstilo')
+     * @param string|null $mensagemTexto Mensagem promocional customizada
+     * @param string|array $telefonesManuais Telefones adicionais digitados manualmente
+     * @param string|array $emailsManuais E-mails adicionais digitados manualmente
+     * @return DisparoMassa
+     * @throws \Exception
+     */
+    public function criarCampanhaDisparo(
+        string $usuarioId,
+        array $produtosIds,
+        array $canais,
+        array $clientesIds = [],
+        array $visualOptions = [],
+        ?string $mensagemTexto = null,
+        $telefonesManuais = '',
+        $emailsManuais = ''
+    ): DisparoMassa {
+        if (empty($produtosIds)) {
+            throw new \Exception("Nenhum produto selecionado para o disparo em massa.");
+        }
+
+        if (empty($canais)) {
+            throw new \Exception("Selecione pelo menos um canal de envio (WhatsApp Status, WhatsApp Direto ou E-mail).");
+        }
+
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            $campanha = new DisparoMassa();
+            $campanha->usuario_id = $usuarioId;
+            $campanha->titulo = 'Campanha Disparo em Massa - ' . date('d/m/Y H:i');
+            $campanha->canais = $canais;
+            $campanha->configuracoes = $visualOptions;
+            $campanha->mensagem_texto = $mensagemTexto;
+            $campanha->status = DisparoMassa::STATUS_PENDENTE;
+            $campanha->total_itens = 0;
+            $campanha->save(false);
+
+            $produtos = Produto::findAll(['id' => $produtosIds, 'usuario_id' => $usuarioId]);
+            $clientes = !empty($clientesIds) ? Cliente::findAll(['id' => $clientesIds]) : [];
+
+            // Processar lista de telefones manuais
+            $listaTelefonesManuais = $this->extrairLinhasDestino($telefonesManuais);
+            // Processar lista de e-mails manuais
+            $listaEmailsManuais = array_filter(array_map('trim', $this->extrairLinhasDestino($emailsManuais)));
+
+            $totalAgendados = 0;
+
+            foreach ($produtos as $produto) {
+                // 1. Gerar os cards do produto (Stories para status, Feed para WhatsApp/Email)
+                $cardFeed = null;
+                $cardStories = null;
+
+                if (in_array(DisparoMassa::CANAL_STATUS, $canais)) {
+                    $cardStories = $this->cardService->gerarCard($produto, 'stories', $visualOptions);
+                }
+
+                if (in_array(DisparoMassa::CANAL_WHATSAPP, $canais) || in_array(DisparoMassa::CANAL_EMAIL, $canais)) {
+                    $cardFeed = $this->cardService->gerarCard($produto, 'feed', $visualOptions);
+                }
+
+                // 2. Agendar canal: WhatsApp Status
+                if (in_array(DisparoMassa::CANAL_STATUS, $canais)) {
+                    $item = new DisparoItem();
+                    $item->disparo_id = $campanha->id;
+                    $item->produto_id = $produto->id;
+                    $item->canal = DisparoMassa::CANAL_STATUS;
+                    $item->card_path = $cardStories ? $cardStories->card_path : ($cardFeed ? $cardFeed->card_path : null);
+                    $item->card_url = $cardStories ? $cardStories->getUrlCompleta() : ($cardFeed ? $cardFeed->getUrlCompleta() : null);
+                    $item->mensagem_personalizada = $this->substituirVariaveis($mensagemTexto, $produto);
+                    $item->status = DisparoItem::STATUS_PENDENTE;
+                    $item->save(false);
+                    $totalAgendados++;
+                }
+
+                // 3. Agendar canal: WhatsApp Direto para Clientes Cadastrados
+                if (in_array(DisparoMassa::CANAL_WHATSAPP, $canais)) {
+                    foreach ($clientes as $cliente) {
+                        $telefone = !empty($cliente->telefone) ? $cliente->telefone : $cliente->celular;
+                        if (empty($telefone)) {
+                            continue;
+                        }
+
+                        $item = new DisparoItem();
+                        $item->disparo_id = $campanha->id;
+                        $item->produto_id = $produto->id;
+                        $item->cliente_id = $cliente->id;
+                        $item->canal = DisparoMassa::CANAL_WHATSAPP;
+                        $item->destino = $telefone;
+                        $item->card_path = $cardFeed ? $cardFeed->card_path : null;
+                        $item->card_url = $cardFeed ? $cardFeed->getUrlCompleta() : null;
+                        $item->mensagem_personalizada = $this->substituirVariaveis($mensagemTexto, $produto, $cliente);
+                        $item->status = DisparoItem::STATUS_PENDENTE;
+                        $item->save(false);
+                        $totalAgendados++;
+                    }
+
+                    // Agendar telefones manuais adicionais
+                    foreach ($listaTelefonesManuais as $telManual) {
+                        $item = new DisparoItem();
+                        $item->disparo_id = $campanha->id;
+                        $item->produto_id = $produto->id;
+                        $item->canal = DisparoMassa::CANAL_WHATSAPP;
+                        $item->destino = $telManual;
+                        $item->card_path = $cardFeed ? $cardFeed->card_path : null;
+                        $item->card_url = $cardFeed ? $cardFeed->getUrlCompleta() : null;
+                        $item->mensagem_personalizada = $this->substituirVariaveis($mensagemTexto, $produto);
+                        $item->status = DisparoItem::STATUS_PENDENTE;
+                        $item->save(false);
+                        $totalAgendados++;
+                    }
+                }
+
+                // 4. Agendar canal: E-mail Marketing para Clientes Cadastrados
+                if (in_array(DisparoMassa::CANAL_EMAIL, $canais)) {
+                    foreach ($clientes as $cliente) {
+                        if (empty($cliente->email) || !filter_var($cliente->email, FILTER_VALIDATE_EMAIL)) {
+                            continue;
+                        }
+
+                        $item = new DisparoItem();
+                        $item->disparo_id = $campanha->id;
+                        $item->produto_id = $produto->id;
+                        $item->cliente_id = $cliente->id;
+                        $item->canal = DisparoMassa::CANAL_EMAIL;
+                        $item->destino = $cliente->email;
+                        $item->card_path = $cardFeed ? $cardFeed->card_path : null;
+                        $item->card_url = $cardFeed ? $cardFeed->getUrlCompleta() : null;
+                        $item->mensagem_personalizada = $this->substituirVariaveis($mensagemTexto, $produto, $cliente);
+                        $item->status = DisparoItem::STATUS_PENDENTE;
+                        $item->save(false);
+                        $totalAgendados++;
+                    }
+
+                    // Agendar e-mails manuais adicionais
+                    foreach ($listaEmailsManuais as $emailManual) {
+                        $item = new DisparoItem();
+                        $item->disparo_id = $campanha->id;
+                        $item->produto_id = $produto->id;
+                        $item->canal = DisparoMassa::CANAL_EMAIL;
+                        $item->destino = $emailManual;
+                        $item->card_path = $cardFeed ? $cardFeed->card_path : null;
+                        $item->card_url = $cardFeed ? $cardFeed->getUrlCompleta() : null;
+                        $item->mensagem_personalizada = $this->substituirVariaveis($mensagemTexto, $produto);
+                        $item->status = DisparoItem::STATUS_PENDENTE;
+                        $item->save(false);
+                        $totalAgendados++;
+                    }
+                }
+            }
+
+            $campanha->total_itens = $totalAgendados;
+            $campanha->save(false);
+
+            $transaction->commit();
+
+            return $campanha;
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+            Yii::error("Erro ao criar campanha de disparo em massa: " . $e->getMessage(), __METHOD__);
+            throw $e;
+        }
+    }
+
+    /**
+     * Processa os itens pendentes na fila de disparos.
+     *
+     * @param string|null $disparoId ID específico do disparo ou null para todos pendentes
+     * @param int $limit Número máximo de itens a processar nesta rodada
+     * @return int Quantidade de itens processados
+     */
+    /**
+     * Processa os itens pendentes na fila de disparos com proteções ativas anti-banimento:
+     * - Isolamento por Tenant (Round-robin)
+     * - Teto Diário de Mensagens por WhatsApp
+     * - Circuit Breaker (pausa automática após 3 falhas consecutivas)
+     * - Pré-validação de números no WhatsApp
+     * - Jitter humano (15s a 45s) e pausas de lote
+     *
+     * @param string|null $disparoId ID específico do disparo ou null para todos pendentes
+     * @param int $limit Número máximo de itens a processar nesta rodada
+     * @return int Quantidade de itens processados
+     */
+    public function processarFilaDisparo(?string $disparoId = null, int $limit = 50): int
+    {
+        $query = DisparoItem::find()
+            ->where(['status' => DisparoItem::STATUS_PENDENTE])
+            ->orderBy(['created_at' => SORT_ASC])
+            ->limit($limit);
+
+        if ($disparoId) {
+            $query->andWhere(['disparo_id' => $disparoId]);
+        }
+
+        /** @var DisparoItem[] $itens */
+        $itens = $query->all();
+        $processados = 0;
+
+        // Rastreamento por tenant para Circuit Breaker e controle de lotes
+        $tenantConsecutiveErrors = [];
+        $tenantBatchCount = [];
+
+        foreach ($itens as $item) {
+            $campanha = $item->disparo;
+            $produto = $item->produto;
+            $usuarioId = $campanha ? $campanha->usuario_id : ($produto ? $produto->usuario_id : null);
+
+            if (empty($usuarioId)) {
+                $item->status = DisparoItem::STATUS_ERRO;
+                $item->erro_mensagem = "Tenant/Usuário não identificado.";
+                $item->save(false);
+                continue;
+            }
+
+            // 1. Inicializa contadores do tenant
+            if (!isset($tenantConsecutiveErrors[$usuarioId])) {
+                $tenantConsecutiveErrors[$usuarioId] = 0;
+            }
+            if (!isset($tenantBatchCount[$usuarioId])) {
+                $tenantBatchCount[$usuarioId] = 0;
+            }
+
+            // 2. Circuit Breaker Check: Se o tenant já teve 3 erros seguidos, pula seus itens
+            if ($tenantConsecutiveErrors[$usuarioId] >= 3) {
+                if ($campanha && $campanha->status !== DisparoMassa::STATUS_PAUSADO) {
+                    $campanha->status = DisparoMassa::STATUS_PAUSADO;
+                    $campanha->save(false);
+                    Yii::error("DisparoMassa: Campanha {$campanha->id} do tenant {$usuarioId} pausada pelo Circuit Breaker.", __METHOD__);
+                }
+                continue;
+            }
+
+            // 3. Checagem de Configuração e Limite Diário
+            $usaPulseAgent = \app\modules\vendas\models\BridgeWhatsappLoja::isLojaConectada($usuarioId);
+            $configWp = null;
+            if ($item->canal === DisparoMassa::CANAL_STATUS || $item->canal === DisparoMassa::CANAL_WHATSAPP) {
+                if (!$usaPulseAgent) {
+                    $configWp = WhatsappConfig::findByEmpresa($usuarioId);
+                    if (!$configWp || (!$configWp->isMetaOficial() && empty($configWp->token))) {
+                        $item->status = DisparoItem::STATUS_ERRO;
+                        $item->erro_mensagem = "WhatsApp não configurado ou desconectado para esta loja.";
+                        $item->save(false);
+                        $tenantConsecutiveErrors[$usuarioId]++;
+                        continue;
+                    }
+
+                    // Teto diário de segurança
+                    if (!$configWp->podeEnviarHoje()) {
+                        if ($campanha && $campanha->status !== DisparoMassa::STATUS_PAUSADO) {
+                            $campanha->status = DisparoMassa::STATUS_PAUSADO;
+                            $campanha->save(false);
+                        }
+                        Yii::warning("DisparoMassa: Limite diário atingido para tenant {$usuarioId} ({$configWp->mensagens_enviadas_hoje}/{$configWp->limite_diario_mensagens}). Campanha pausada.", __METHOD__);
+                        continue;
+                    }
+                }
+            }
+
+            // Bloqueio atômico de status para evitar processamento concorrente
+            $affected = DisparoItem::updateAll(
+                ['status' => DisparoItem::STATUS_PROCESSANDO],
+                ['id' => $item->id, 'status' => DisparoItem::STATUS_PENDENTE]
+            );
+            if ($affected === 0) {
+                continue;
+            }
+            $item->status = DisparoItem::STATUS_PROCESSANDO;
+
+            $sucesso = false;
+            $erroMsg = null;
+
+            try {
+                $cardAbsPath = Yii::getAlias('@app/web/') . ltrim($item->card_path, '/');
+                $cardBase64 = null;
+                if (file_exists($cardAbsPath) && !empty($item->card_path)) {
+                    $ext = strtolower(pathinfo($item->card_path, PATHINFO_EXTENSION));
+                    if (in_array($ext, ['png', 'jpg', 'jpeg', 'webp'])) {
+                        // Aplica randomização de hash de mídia a cada envio
+                        $cardBase64 = \app\modules\evolution\helpers\MediaRandomizerHelper::randomizeImageHash($cardAbsPath);
+                    }
+                }
+
+                $isVideo = (!empty($item->card_path) && strtolower(pathinfo($item->card_path, PATHINFO_EXTENSION)) === 'mp4')
+                        || (!empty($item->card_url) && strtolower(pathinfo(parse_url($item->card_url, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION)) === 'mp4');
+
+                $mediaType = $isVideo ? 'video' : 'image';
+                $urlAbsoluta = $this->garantirUrlAbsoluta(!empty($item->card_url) ? $item->card_url : $item->card_path);
+                $mediaParam = !empty($cardBase64) ? $cardBase64 : (!empty($urlAbsoluta) ? $urlAbsoluta : null);
+
+                // Aplica Spintax dinâmico na mensagem personalizada
+                $textoPersonalizado = !empty($item->mensagem_personalizada)
+                    ? $this->processarSpintax($item->mensagem_personalizada)
+                    : ($produto ? $produto->nome : 'Oferta');
+
+                switch ($item->canal) {
+                    case DisparoMassa::CANAL_STATUS:
+                        if ($mediaParam) {
+                            if ($usaPulseAgent) {
+                                $midiaEnvio = !empty($urlAbsoluta) ? $urlAbsoluta : $mediaParam;
+                                $res = BridgeWhatsappService::enfileirarMensagem($usuarioId, 'status@broadcast', $textoPersonalizado, $midiaEnvio, $mediaType);
+                                if (!$res['success']) {
+                                    $sucesso = false;
+                                    $erroMsg = $res['message'];
+                                } else {
+                                    $msgId = $res['mensagem_id'];
+                                    $sucesso = false;
+                                    $erroMsg = null;
+                                    $limiteSegundos = 15;
+                                    $inicio = time();
+                                    while ((time() - $inicio) <= $limiteSegundos) {
+                                        $msgDb = \app\modules\vendas\models\BridgeWhatsappMensagem::findOne($msgId);
+                                        if ($msgDb && $msgDb->status === \app\modules\vendas\models\BridgeWhatsappMensagem::STATUS_DELIVERED) {
+                                            $sucesso = true;
+                                            break;
+                                        }
+                                        if ($msgDb && $msgDb->status === \app\modules\vendas\models\BridgeWhatsappMensagem::STATUS_FAILED) {
+                                            $sucesso = false;
+                                            $erroMsg = $msgDb->erro_motivo ?: 'Falha ao postar no Status via WhatsApp Local (Pulse Agent).';
+                                            break;
+                                        }
+                                        usleep(400000); // 400ms
+                                    }
+                                    if (!$sucesso && empty($erroMsg)) {
+                                        $erroMsg = "Tempo limite excedido aguardando confirmação do WhatsApp Local (Pulse Agent).";
+                                    }
+                                }
+                            } else {
+                                $sucesso = $this->evolutionService->sendWhatsAppStatus($usuarioId, $mediaParam, $textoPersonalizado, $mediaType);
+                                if (!$sucesso) {
+                                    $erroMsg = $this->evolutionService->lastError ?: "Falha ao postar no Status do WhatsApp.";
+                                }
+                            }
+                        } else {
+                            $erroMsg = "Arquivo de mídia não encontrado.";
+                        }
+                        break;
+
+                    case DisparoMassa::CANAL_WHATSAPP:
+                        if ($mediaParam && !empty($item->destino)) {
+                            if ($usaPulseAgent) {
+                                $midiaEnvio = !empty($urlAbsoluta) ? $urlAbsoluta : $mediaParam;
+                                $res = BridgeWhatsappService::enfileirarMensagem($usuarioId, $item->destino, $textoPersonalizado, $midiaEnvio, $mediaType);
+                                if (!$res['success']) {
+                                    $sucesso = false;
+                                    $erroMsg = $res['message'];
+                                } else {
+                                    $msgId = $res['mensagem_id'];
+                                    $sucesso = false;
+                                    $erroMsg = null;
+                                    $limiteSegundos = 15;
+                                    $inicio = time();
+                                    while ((time() - $inicio) <= $limiteSegundos) {
+                                        $msgDb = \app\modules\vendas\models\BridgeWhatsappMensagem::findOne($msgId);
+                                        if ($msgDb && $msgDb->status === \app\modules\vendas\models\BridgeWhatsappMensagem::STATUS_DELIVERED) {
+                                            $sucesso = true;
+                                            break;
+                                        }
+                                        if ($msgDb && $msgDb->status === \app\modules\vendas\models\BridgeWhatsappMensagem::STATUS_FAILED) {
+                                            $sucesso = false;
+                                            $erroMsg = $msgDb->erro_motivo ?: "Falha ao enviar para {$item->destino} via WhatsApp Local (Pulse Agent).";
+                                            break;
+                                        }
+                                        usleep(400000); // 400ms
+                                    }
+                                    if (!$sucesso && empty($erroMsg)) {
+                                        $erroMsg = "Tempo limite excedido aguardando confirmação de envio para {$item->destino}.";
+                                    }
+                                }
+                            } else {
+                                // Pré-validação do número no WhatsApp
+                                $validJid = $this->evolutionService->validateWhatsappNumber($usuarioId, $item->destino);
+                                if (!$validJid) {
+                                    $sucesso = false;
+                                    $erroMsg = "O número {$item->destino} não está registrado ou ativo no WhatsApp.";
+                                } else {
+                                    $sucesso = $this->evolutionService->sendMedia($usuarioId, $validJid, $mediaParam, $textoPersonalizado, $mediaType);
+                                    if (!$sucesso) {
+                                        $erroMsg = $this->evolutionService->lastError ?: "Falha ao enviar mensagem de mídia para {$item->destino}.";
+                                    }
+                                }
+                            }
+                        } else {
+                            $erroMsg = "Mídia ou número de telefone de destino ausente.";
+                        }
+                        break;
+
+                    case DisparoMassa::CANAL_EMAIL:
+                        $emailDest = trim((string)$item->destino);
+                        if (empty($emailDest) || !filter_var($emailDest, FILTER_VALIDATE_EMAIL)) {
+                            $sucesso = false;
+                            $erroMsg = "E-mail de destino inválido: '{$item->destino}'.";
+                        } else {
+                            $sucesso = $this->emailService->enviarEmailCard(
+                                $emailDest,
+                                $produto,
+                                $cardAbsPath,
+                                $item->card_url,
+                                $textoPersonalizado
+                            );
+                            if (!$sucesso) {
+                                $erroMsg = "Falha ao disparar e-mail para {$emailDest}.";
+                            }
+                        }
+                        break;
+
+                    case DisparoMassa::CANAL_HUB:
+                        $hubMsg = \app\modules\vendas\models\ClienteInbox::postar(
+                            $usuarioId,
+                            $item->cliente_id,
+                            $isVideo ? \app\modules\vendas\models\ClienteInbox::TIPO_VIDEO : \app\modules\vendas\models\ClienteInbox::TIPO_CARD,
+                            $produto ? $produto->nome : 'Oferta Especial',
+                            $textoPersonalizado,
+                            $urlAbsoluta
+                        );
+                        $sucesso = ($hubMsg !== null);
+                        if (!$sucesso) {
+                            $erroMsg = "Falha ao postar no Direct Hub do Cliente.";
+                        }
+                        break;
+                }
+            } catch (\Exception $e) {
+                $sucesso = false;
+                $erroMsg = $e->getMessage();
+            }
+
+            if ($sucesso) {
+                $item->status = DisparoItem::STATUS_ENVIADO;
+                $item->enviado_em = date('Y-m-d H:i:s');
+                $item->erro_mensagem = null;
+                $tenantConsecutiveErrors[$usuarioId] = 0; // Reseta Circuit Breaker
+                $tenantBatchCount[$usuarioId]++;
+
+                if ($item->disparo) {
+                    $item->disparo->updateCounters(['itens_enviados' => 1]);
+                }
+            } else {
+                $item->status = DisparoItem::STATUS_ERRO;
+                $item->erro_mensagem = $erroMsg ?: 'Falha de envio desconhecida.';
+                $tenantConsecutiveErrors[$usuarioId]++;
+
+                if ($item->disparo) {
+                    $item->disparo->updateCounters(['itens_erro' => 1]);
+                }
+            }
+
+            $item->save(false);
+            $processados++;
+
+            if ($item->disparo) {
+                $c = $item->disparo;
+                if (($c->itens_enviados + $c->itens_erro) >= $c->total_itens) {
+                    $c->status = DisparoMassa::STATUS_CONCLUIDO;
+                    $c->save(false);
+                } else if ($c->status === DisparoMassa::STATUS_PENDENTE) {
+                    $c->status = DisparoMassa::STATUS_PROCESSANDO;
+                    $c->save(false);
+                }
+            }
+
+            // 4. Jitter e Pausa de Lote anti-banimento apenas para canais de WhatsApp
+            if ($item->canal === DisparoMassa::CANAL_WHATSAPP && $sucesso) {
+                $delayMinSec = $configWp ? max(10, (int)($configWp->delay_min / 1000)) : 15;
+                $delayMaxSec = $configWp ? max(15, (int)($configWp->delay_max / 1000)) : 45;
+                $jitter = rand($delayMinSec, $delayMaxSec);
+                sleep($jitter);
+
+                // Pausa de lote a cada lote_tamanho (default: 15 envios)
+                $loteTamanho = $configWp ? (int)$configWp->lote_tamanho : 15;
+                $lotePausa = $configWp ? (int)$configWp->lote_pausa_segundos : 120;
+                if ($loteTamanho > 0 && ($tenantBatchCount[$usuarioId] % $loteTamanho === 0)) {
+                    Yii::info("DisparoMassa: Pausa de lote de {$lotePausa}s acionada para tenant {$usuarioId}.", __METHOD__);
+                    sleep($lotePausa);
+                }
+            }
+        }
+
+        return $processados;
+    }
+
+    /**
+     * Reseta os itens de uma campanha que apresentaram erro para 'pendente' e reprocessa a fila.
+     *
+     * @param string $disparoId
+     * @return int Quantidade de itens reprocessados
+     */
+    public function retentarItensComErro(string $disparoId): int
+    {
+        $campanha = DisparoMassa::findOne($disparoId);
+        if (!$campanha) {
+            return 0;
+        }
+
+        $itensErro = DisparoItem::findAll(['disparo_id' => $disparoId, 'status' => DisparoItem::STATUS_ERRO]);
+        if (empty($itensErro)) {
+            return 0;
+        }
+
+        foreach ($itensErro as $item) {
+            $item->status = DisparoItem::STATUS_PENDENTE;
+            $item->erro_mensagem = null;
+            $item->save(false);
+        }
+
+        // Recalcular contadores da campanha
+        $campanha->itens_erro = max(0, (int)$campanha->itens_erro - count($itensErro));
+        $campanha->status = DisparoMassa::STATUS_PENDENTE;
+        $campanha->save(false);
+
+        // Processar a fila imediatamente
+        return $this->processarFilaDisparo($disparoId, 50);
+    }
+
+    /**
+     * Cria uma nova campanha de disparo a partir de uma lista de IDs de ProdutoCard (cards pré-gerados).
+     *
+     * @param string $usuarioId
+     * @param array $cardsIds IDs dos ProdutoCard pré-gerados
+     * @param array $canais ('whatsapp', 'status')
+     * @param array $clientesIds
+     * @param string|null $mensagemTexto
+     * @param string|array $telefonesManuais
+     * @param array $antiBanConfig Opções anti-ban ('delay_min', 'delay_max', 'lote_tamanho', 'lote_pausa_segundos', 'incluir_optout')
+     * @return DisparoMassa
+     * @throws \Exception
+     */
+    public function criarCampanhaDisparoCardsExistentes(
+        string $usuarioId,
+        array $cardsIds,
+        array $canais,
+        array $clientesIds = [],
+        ?string $mensagemTexto = null,
+        $telefonesManuais = '',
+        array $antiBanConfig = []
+    ): DisparoMassa {
+        if (empty($cardsIds)) {
+            throw new \Exception("Nenhum card selecionado para o disparo.");
+        }
+
+        if (empty($canais)) {
+            throw new \Exception("Selecione pelo menos um canal de envio (WhatsApp Status ou WhatsApp Direto).");
+        }
+
+        $cards = \app\modules\vendas\models\ProdutoCard::find()
+            ->where(['id' => $cardsIds, 'usuario_id' => $usuarioId])
+            ->all();
+
+        if (empty($cards)) {
+            throw new \Exception("Nenhum card válido encontrado para envio.");
+        }
+
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            $campanha = new DisparoMassa();
+            $campanha->usuario_id = $usuarioId;
+            $campanha->titulo = 'Disparo de Cards - ' . date('d/m/Y H:i');
+            $campanha->canais = $canais;
+            $campanha->configuracoes = $antiBanConfig;
+            $campanha->mensagem_texto = $mensagemTexto;
+            $campanha->status = DisparoMassa::STATUS_PENDENTE;
+            $campanha->total_itens = 0;
+            $campanha->save(false);
+
+            $clientes = !empty($clientesIds) ? Cliente::findAll(['id' => $clientesIds]) : [];
+            $listaTelefonesManuais = $this->extrairLinhasDestino($telefonesManuais);
+            $totalAgendados = 0;
+
+            $incluirOptout = !empty($antiBanConfig['incluir_optout']);
+
+            foreach ($cards as $card) {
+                $produto = $card->produto;
+                if (!$produto) {
+                    continue;
+                }
+
+                $cardPath = $card->card_path;
+                $cardUrl = $card->getUrlCompleta();
+
+                // 1. WhatsApp Status
+                if (in_array(DisparoMassa::CANAL_STATUS, $canais)) {
+                    $item = new DisparoItem();
+                    $item->disparo_id = $campanha->id;
+                    $item->produto_id = $produto->id;
+                    $item->canal = DisparoMassa::CANAL_STATUS;
+                    $item->card_path = $cardPath;
+                    $item->card_url = $cardUrl;
+                    $item->mensagem_personalizada = $this->substituirVariaveis($mensagemTexto, $produto, null, $incluirOptout);
+                    $item->status = DisparoItem::STATUS_PENDENTE;
+                    $item->save(false);
+                    $totalAgendados++;
+                }
+
+                // 2. WhatsApp Direto para Clientes Cadastrados
+                if (in_array(DisparoMassa::CANAL_WHATSAPP, $canais)) {
+                    foreach ($clientes as $cliente) {
+                        $telefone = !empty($cliente->telefone) ? $cliente->telefone : $cliente->celular;
+                        if (empty($telefone)) {
+                            continue;
+                        }
+
+                        $item = new DisparoItem();
+                        $item->disparo_id = $campanha->id;
+                        $item->produto_id = $produto->id;
+                        $item->cliente_id = $cliente->id;
+                        $item->canal = DisparoMassa::CANAL_WHATSAPP;
+                        $item->destino = $telefone;
+                        $item->card_path = $cardPath;
+                        $item->card_url = $cardUrl;
+                        $item->mensagem_personalizada = $this->substituirVariaveis($mensagemTexto, $produto, $cliente, $incluirOptout);
+                        $item->status = DisparoItem::STATUS_PENDENTE;
+                        $item->save(false);
+                        $totalAgendados++;
+                    }
+
+                    // Agendar telefones manuais adicionais
+                    foreach ($listaTelefonesManuais as $telManual) {
+                        $item = new DisparoItem();
+                        $item->disparo_id = $campanha->id;
+                        $item->produto_id = $produto->id;
+                        $item->canal = DisparoMassa::CANAL_WHATSAPP;
+                        $item->destino = $telManual;
+                        $item->card_path = $cardPath;
+                        $item->card_url = $cardUrl;
+                        $item->mensagem_personalizada = $this->substituirVariaveis($mensagemTexto, $produto, null, $incluirOptout);
+                        $item->status = DisparoItem::STATUS_PENDENTE;
+                        $item->save(false);
+                        $totalAgendados++;
+                    }
+                }
+            }
+
+            $campanha->total_itens = $totalAgendados;
+            $campanha->save(false);
+
+            $transaction->commit();
+
+            return $campanha;
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+            Yii::error("Erro ao criar campanha de disparo de cards pré-gerados: " . $e->getMessage(), __METHOD__);
+            throw $e;
+        }
+    }
+
+    /**
+     * Cria e enfileira uma nova campanha de disparo para VÍDEOS PROMOCIONAIS pré-gerados.
+     */
+    public function criarCampanhaDisparoVideosExistentes(
+        string $lojaId,
+        array $videosIds,
+        array $canais,
+        array $clientesIds,
+        ?string $mensagemTexto = null,
+        ?string $telefonesManuais = null,
+        array $antiBanConfig = []
+    ): DisparoMassa {
+        $transaction = Yii::$app->db->beginTransaction();
+
+        try {
+            $campanha = new DisparoMassa();
+            $campanha->usuario_id = $lojaId;
+            $campanha->titulo = 'Disparo de Vídeos - ' . date('d/m/Y H:i');
+            $campanha->canais = $canais;
+            $campanha->configuracoes = $antiBanConfig;
+            $campanha->mensagem_texto = $mensagemTexto;
+            $campanha->status = DisparoMassa::STATUS_PENDENTE;
+            $campanha->total_itens = 0;
+            $campanha->save(false);
+
+            $videos = \app\modules\vendas\models\ProdutoVideo::find()->where(['id' => $videosIds])->all();
+
+            if (empty($videos)) {
+                throw new \Exception("Nenhum vídeo válido encontrado para disparo.");
+            }
+
+            $clientes = [];
+            if (!empty($clientesIds)) {
+                $clientes = Cliente::find()->where(['id' => $clientesIds])->all();
+            }
+
+            $listaTelefonesManuais = $this->extrairLinhasDestino($telefonesManuais);
+            $incluirOptout = !empty($antiBanConfig['incluir_optout']);
+            $totalAgendados = 0;
+
+            foreach ($videos as $vid) {
+                $produto = $vid->produto;
+                if (!$produto) {
+                    continue;
+                }
+
+                $videoPath = $vid->video_path;
+                $videoUrl = $vid->getUrlCompleta();
+
+                // 1. WhatsApp Status
+                if (in_array(DisparoMassa::CANAL_STATUS, $canais)) {
+                    $item = new DisparoItem();
+                    $item->disparo_id = $campanha->id;
+                    $item->produto_id = $produto->id;
+                    $item->canal = DisparoMassa::CANAL_STATUS;
+                    $item->destino = 'status@broadcast';
+                    $item->card_path = $videoPath;
+                    $item->card_url = $videoUrl;
+                    $item->mensagem_personalizada = $this->substituirVariaveis($mensagemTexto, $produto, null, $incluirOptout);
+                    $item->status = DisparoItem::STATUS_PENDENTE;
+                    $item->save(false);
+                    $totalAgendados++;
+                }
+
+                // 2. WhatsApp Direto para Clientes Cadastrados
+                if (in_array(DisparoMassa::CANAL_WHATSAPP, $canais)) {
+                    foreach ($clientes as $cliente) {
+                        $telefone = !empty($cliente->telefone) ? $cliente->telefone : $cliente->celular;
+                        if (empty($telefone)) {
+                            continue;
+                        }
+
+                        $item = new DisparoItem();
+                        $item->disparo_id = $campanha->id;
+                        $item->produto_id = $produto->id;
+                        $item->cliente_id = $cliente->id;
+                        $item->canal = DisparoMassa::CANAL_WHATSAPP;
+                        $item->destino = $telefone;
+                        $item->card_path = $videoPath;
+                        $item->card_url = $videoUrl;
+                        $item->mensagem_personalizada = $this->substituirVariaveis($mensagemTexto, $produto, $cliente, $incluirOptout);
+                        $item->status = DisparoItem::STATUS_PENDENTE;
+                        $item->save(false);
+                        $totalAgendados++;
+                    }
+
+                    // Telefones Manuais
+                    foreach ($listaTelefonesManuais as $telManual) {
+                        $item = new DisparoItem();
+                        $item->disparo_id = $campanha->id;
+                        $item->produto_id = $produto->id;
+                        $item->canal = DisparoMassa::CANAL_WHATSAPP;
+                        $item->destino = $telManual;
+                        $item->card_path = $videoPath;
+                        $item->card_url = $videoUrl;
+                        $item->mensagem_personalizada = $this->substituirVariaveis($mensagemTexto, $produto, null, $incluirOptout);
+                        $item->status = DisparoItem::STATUS_PENDENTE;
+                        $item->save(false);
+                        $totalAgendados++;
+                    }
+                }
+            }
+
+            if ($totalAgendados === 0) {
+                throw new \Exception("Nenhum destinatário válido foi selecionado. Selecione ao menos um cliente, insira um número manual ou marque a caixa do WhatsApp Status.");
+            }
+
+            $campanha->total_itens = $totalAgendados;
+            $campanha->save(false);
+
+            $transaction->commit();
+
+            return $campanha;
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+            Yii::error("Erro ao criar campanha de disparo de vídeos pré-gerados: " . $e->getMessage(), __METHOD__);
+            throw $e;
+        }
+    }
+
+    /**
+     * Garante que uma URL de mídia seja um link público absoluto com protocolo (https://...).
+     */
+    private function garantirUrlAbsoluta(?string $urlOrPath): ?string
+    {
+        if (empty($urlOrPath)) {
+            return null;
+        }
+
+        if (strpos($urlOrPath, 'data:image') === 0 || strpos($urlOrPath, 'data:video') === 0) {
+            return $urlOrPath;
+        }
+
+        $resUrl = null;
+
+        if (strpos($urlOrPath, 'http://') === 0 || strpos($urlOrPath, 'https://') === 0) {
+            $resUrl = $urlOrPath;
+        } else {
+            $caminho = ltrim($urlOrPath, '/');
+            if (Yii::$app->has('request') && Yii::$app->get('request') instanceof \yii\web\Request && !empty(Yii::$app->request->hostInfo)) {
+                $resUrl = \yii\helpers\Url::to('@web/' . $caminho, true);
+            } else {
+                $baseUrl = Yii::$app->params['domain'] ?? 'https://alex-bird.oncode.app.br';
+                $resUrl = rtrim($baseUrl, '/') . '/' . $caminho;
+            }
+        }
+
+        // Higieniza removendo trechos index.php/ de URLs de arquivos de mídia estáticos
+        if (!empty($resUrl) && (strpos($resUrl, '/uploads/') !== false || strpos($resUrl, '/assets/') !== false || strpos($resUrl, '/imagens/') !== false)) {
+            $resUrl = str_replace(['/index.php/', '/index.php'], ['/', ''], $resUrl);
+        }
+
+        return $resUrl;
+    }
+
+    /**
+     * Extrai linhas ou valores separados por vírgula, ponto e vírgula, espaço ou quebra de linha.
+     */
+    private function extrairLinhasDestino($input): array
+    {
+        if (is_array($input)) {
+            return array_filter(array_map('trim', $input));
+        }
+
+        if (empty($input) || !is_string($input)) {
+            return [];
+        }
+
+        $linhas = preg_split('/[\n\r,;\s]+/', $input);
+        return array_values(array_filter(array_map('trim', $linhas)));
+    }
+
+    /**
+     * Substitui variáveis dinâmicas no texto da mensagem ({NOME}, {PRODUTO}, {PRECO}) e aplica SpinTax.
+     */
+    private function substituirVariaveis(?string $texto, Produto $produto, ?Cliente $cliente = null, bool $incluirOptout = false): string
+    {
+        $baseUrl = Yii::$app->params['domain'] ?? 'https://alex-bird.oncode.app.br';
+        if (Yii::$app->has('request') && method_exists(Yii::$app->request, 'getHostInfo') && Yii::$app->request->getHostInfo()) {
+            $baseUrl = Yii::$app->request->getHostInfo();
+        }
+        $linkProduto = rtrim($baseUrl, '/') . '/vendas/produto/view?id=' . $produto->id;
+
+        if (empty($texto)) {
+            $preco = 'R$ ' . number_format((float)$produto->getPrecoFinal(), 2, ',', '.');
+            $texto = "🔥 *OFERTA ESPECIAL* 🔥\n\n*{$produto->nome}*\nPreço: *{$preco}*\n\n🛒 *Compre aqui:* {$linkProduto}\n\nPeça já pelo nosso atendimento!";
+        } else {
+            $preco = 'R$ ' . number_format((float)$produto->getPrecoFinal(), 2, ',', '.');
+
+            $replacements = [
+                '{PRODUTO}' => $produto->nome,
+                '{PRECO}' => $preco,
+                '{MARCA}' => $produto->marca ?: '',
+                '{NOME}' => $cliente ? (!empty($cliente->nome_completo) ? $cliente->nome_completo : $cliente->nome) : 'Cliente',
+                '{LINK}' => $linkProduto,
+                '{URL_PRODUTO}' => $linkProduto,
+                '{URL}' => $linkProduto,
+            ];
+
+            $texto = strtr($texto, $replacements);
+        }
+
+        // Processar sintaxe SpinTax {opção1|opção2|opção3}
+        $texto = $this->processarSpintax($texto);
+
+        if ($incluirOptout && strpos($texto, 'PARAR') === false) {
+            $texto .= "\n\n_Para não receber mais ofertas, responda PARAR._";
+        }
+
+        return $texto;
+    }
+
+    /**
+     * Processa sintaxe SpinTax recursiva em strings no formato {opção1|opção2|{sub1|sub2}}
+     *
+     * @param string $texto
+     * @param int $maxDepth Limite de profundidade para evitar loops infinitos
+     * @return string
+     */
+    public function processarSpintax(string $texto, int $maxDepth = 5): string
+    {
+        if (empty($texto) || $maxDepth <= 0) {
+            return $texto;
+        }
+
+        $pattern = '/\{([^{}]+)\}/';
+        while (preg_match($pattern, $texto) && $maxDepth > 0) {
+            $texto = preg_replace_callback($pattern, function ($matches) {
+                $choices = explode('|', $matches[1]);
+                if (count($choices) > 1) {
+                    return $choices[array_rand($choices)];
+                }
+                return $matches[0];
+            }, $texto);
+            $maxDepth--;
+        }
+
+        return $texto;
+    }
+}
+
