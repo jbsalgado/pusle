@@ -2252,6 +2252,14 @@ class MercadoPagoController extends Controller
      */
     private function resolveBaseUrl(): string
     {
+        // ✅ FIX: Usa APP_URL do .env se disponível.
+        // Necessário quando o servidor está atrás de proxy reverso (Nginx/Apache)
+        // pois o PHP enxerga HTTP_HOST=127.0.0.1 em vez do domínio real.
+        $appUrl = getenv('APP_URL') ?: null;
+        if ($appUrl) {
+            return rtrim($appUrl, '/');
+        }
+
         if (Yii::$app instanceof \yii\web\Application && Yii::$app->request->hasMethod('getHostInfo')) {
             return rtrim(Yii::$app->request->hostInfo . Yii::$app->request->baseUrl, '/');
         }

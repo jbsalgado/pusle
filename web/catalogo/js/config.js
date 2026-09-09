@@ -229,7 +229,11 @@ export async function carregarConfigLoja() {
         GATEWAY_CONFIG.habilitado = config.api_de_pagamento || false;
         GATEWAY_CONFIG.gateway = config.gateway_pagamento || 'nenhum';
         GATEWAY_CONFIG.mercadopago_public_key = config.mercadopago_public_key;
+        GATEWAY_CONFIG.mercadopago_sandbox = config.mercadopago_sandbox || false; // ✅ FIX: campo faltando
         GATEWAY_CONFIG.asaas_sandbox = config.asaas_sandbox || false;
+
+        // ✅ FIX: Propaga para window para acesso global em gateway-pagamento.js
+        window.GATEWAY_CONFIG = { ...GATEWAY_CONFIG };
 
         console.log('[Config] ℹ️ Gateway:', GATEWAY_CONFIG.gateway,
             GATEWAY_CONFIG.habilitado ? '✅ HABILITADO' : '❌ DESABILITADO');

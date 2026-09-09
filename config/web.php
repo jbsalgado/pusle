@@ -42,6 +42,22 @@ $config = [
             'parsers' => [
                 'application/json' => 'yii\web\JsonParser',
             ],
+            // ✅ FIX: Trusted Proxies — necessário quando rodando atrás de Nginx/Apache reverso.
+            // Sem isso, PHP enxerga HTTP_HOST=127.0.0.1 e o hostInfo fica errado,
+            // causando notification_url incorreta no Mercado Pago webhook.
+            'trustedHosts' => [
+                '127.0.0.1',
+                '::1',
+                '10.0.0.0/8',
+                '172.16.0.0/12',
+                '192.168.0.0/16',
+            ],
+            'secureHeaders' => [
+                'X-Forwarded-For',
+                'X-Forwarded-Host',
+                'X-Forwarded-Proto',
+                'X-Forwarded-Port',
+            ],
             // Detecta automaticamente o baseUrl baseado no SCRIPT_NAME e REQUEST_URI
             // Se o DocumentRoot está em /srv/http/pulse/web, o SCRIPT_NAME será /index.php
             // Se o DocumentRoot está na raiz, o SCRIPT_NAME será /pulse/web/index.php

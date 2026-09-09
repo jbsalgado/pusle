@@ -164,10 +164,30 @@ export function iniciarPollingStatusVenda(vendaId, gateway = 'asaas') {
             return;
         }
 
+        // 1️⃣ Tentativa primária: consulta pelo UUID da venda no Pulse
         const resultado = await verificarStatusVenda(vendaId);
 
         if (resultado.status === 'pago') {
             tratarPagamentoConfirmado(resultado.pedido_id || vendaId, resultado.dados, gateway);
+            return;
+        }
+
+        // 2️⃣ ✅ FIX: Fallback — consulta diretamente o status no Mercado Pago pelo payment_id numérico
+        // Isso garante detecção mesmo se o webhook atrasar ou a venda ainda não foi quitada no banco
+        if (gateway === 'mercadopago' && window.mpPaymentIdNumerico) {
+            const statusText = document.getElementById('pix-status-text');
+            const resultadoMP = await verificarStatusPagamentoMP(
+                window.mpPaymentIdNumerico,
+                statusText
+            );
+            if (resultadoMP.status === 'pago') {
+                console.log('[Gateway] ✅ Pagamento confirmado via consulta direta ao MP (fallback)');
+                tratarPagamentoConfirmado(
+                    resultadoMP.pedido_id || vendaId,
+                    resultadoMP.dados,
+                    gateway
+                );
+            }
         }
 
     }, 5000);
@@ -299,6 +319,8 @@ async function processarMercadoPago(dadosPedido, carrinho, cliente, pedidoId = n
             window.currentGateway = 'mercadopago';
             window.pedidoPreventivoId = pedidoId;
             currentPaymentId = pedidoId;
+            // ✅ FIX: Salva o payment_id NUMÉRICO do MP para uso no polling de fallback
+            window.mpPaymentIdNumerico = resultado.payment_id;
 
             // Adapt to the structure expected by mostrarModalPix
             const pixData = {
