@@ -109,12 +109,22 @@ class VendaExpressaController extends Controller
         // Resumo de Vendas de Hoje
         $resumoHoje = $this->getResumoHoje($lojaId);
 
+        // Dispositivos Point ativos para a loja
+        $dispositivosPoint = [];
+        if ($temMercadoPago) {
+            $dispositivosPoint = Yii::$app->db->createCommand("
+                SELECT id, nome, device_id, status FROM prest_dispositivos_pagamento
+                WHERE usuario_id = :usuario_id AND status = 'ativo'
+            ", [':usuario_id' => $lojaId])->queryAll();
+        }
+
         return $this->render('index', [
             'produtos' => $produtos,
             'formasPagamento' => $formasPagamento,
             'resumoHoje' => $resumoHoje,
             'lojaConfig' => $lojaConfig,
             'temMercadoPago' => $temMercadoPago,
+            'dispositivosPoint' => $dispositivosPoint,
             'lojaId' => $lojaId,
         ]);
     }

@@ -379,6 +379,102 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
     </div>
 </div>
 
+<!-- Modal Mercado Pago Integrado (Point Maquininha & Pix Dinâmico) -->
+<div id="modalMercadoPagoPDV" class="fixed inset-0 z-[150] hidden bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-cyan-500/40 rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-4 text-white relative">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">💳</span>
+                <div>
+                    <h3 class="font-extrabold text-base text-cyan-400">Mercado Pago Integrado</h3>
+                    <p class="text-[10px] text-slate-400">Cobrança no balcão com baixa automática</p>
+                </div>
+            </div>
+            <button type="button" onclick="fecharModalMercadoPagoPDV()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <!-- Valor a Pagar -->
+        <div class="bg-slate-800/80 border border-slate-700 p-3 rounded-2xl text-center space-y-0.5">
+            <div class="text-[10px] uppercase font-bold text-slate-400">Total a Cobrar</div>
+            <div class="text-2xl font-montserrat font-black text-cyan-400">R$ <span id="mpModalValor">0,00</span></div>
+        </div>
+
+        <!-- Abas: Maquininha Point / Pix Dinâmico -->
+        <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 gap-1 text-xs font-bold">
+            <button type="button" id="tabBtnPoint" onclick="trocarAbaMp('point')" class="flex-1 py-2 rounded-lg transition bg-cyan-500 text-slate-950 shadow">
+                💳 Maquininha Point
+            </button>
+            <button type="button" id="tabBtnPixMp" onclick="trocarAbaMp('pix')" class="flex-1 py-2 rounded-lg transition text-slate-400 hover:text-white">
+                ⚡ Pix Dinâmico
+            </button>
+        </div>
+
+        <!-- Conteúdo Aba 1: Maquininha Point -->
+        <div id="mpConteudoPoint" class="space-y-3">
+            <div class="space-y-1">
+                <label class="block text-[10px] font-bold text-slate-400 uppercase">Selecione a Maquininha (Point)</label>
+                <select id="mpSelectDevice" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-cyan-400">
+                    <!-- Opções inseridas dinamicamente via JS -->
+                </select>
+            </div>
+
+            <!-- Status do Terminal -->
+            <div id="mpStatusTerminal" class="hidden bg-slate-950/80 border border-cyan-500/30 p-3 rounded-xl text-center space-y-2">
+                <div class="inline-block animate-spin text-xl text-cyan-400">⏳</div>
+                <div class="text-xs font-bold text-cyan-300" id="mpStatusTerminalTexto">Aguardando inserção ou aproximação do cartão no terminal...</div>
+                <div class="text-[10px] text-slate-400">Solicite ao cliente que insira o cartão ou aproxime (NFC).</div>
+            </div>
+
+            <button type="button" id="btnDispararPoint" onclick="dispararCobrancaPoint()" class="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-slate-950 font-montserrat font-black text-sm rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                <span>🚀 Enviar para Maquininha</span>
+            </button>
+
+            <button type="button" id="btnCancelarPoint" onclick="cancelarCobrancaPoint()" class="hidden w-full py-2 bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-xs font-bold rounded-xl border border-rose-500/30 transition">
+                ❌ Cancelar no Terminal
+            </button>
+        </div>
+
+        <!-- Conteúdo Aba 2: Pix Dinâmico -->
+        <div id="mpConteudoPix" class="hidden space-y-3">
+            <!-- QR Code do Mercado Pago -->
+            <div class="bg-white p-3 rounded-2xl flex items-center justify-center min-h-[190px]" id="mpPixQrCodeContainer">
+                <div class="text-slate-500 text-xs font-bold py-6 text-center">
+                    Clique abaixo para gerar o Pix Dinâmico com baixa automática
+                </div>
+            </div>
+
+            <!-- Código Copia e Cola -->
+            <div id="mpPixCopiaColaContainer" class="hidden space-y-1.5">
+                <label class="block text-[10px] font-bold text-slate-400 uppercase">Pix Copia e Cola</label>
+                <textarea id="mpPixCodigo" readonly rows="2" class="w-full bg-slate-950 border border-slate-800 text-slate-300 rounded-xl p-2 text-[10px] font-mono select-all focus:outline-none resize-none"></textarea>
+                <button type="button" onclick="copiarCodigoPixMp()" id="btnCopiarPixMp" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 font-bold text-xs rounded-xl border border-slate-700 transition">
+                    📋 Copiar Código PIX
+                </button>
+            </div>
+
+            <button type="button" id="btnGerarPixMp" onclick="gerarPixDinamicoMp()" class="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-montserrat font-black text-sm rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                <span>⚡ Gerar Pix Mercado Pago</span>
+            </button>
+
+            <div id="mpPixStatusWaiting" class="hidden text-center text-xs font-bold text-emerald-400 animate-pulse">
+                Aguardando confirmação do pagamento...
+            </div>
+        </div>
+
+        <!-- Opção de Concluir Manualmente ou Fechar -->
+        <div class="pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
+            <button type="button" onclick="concluirVendaMercadoPagoManualmente()" class="text-[11px] text-slate-400 hover:text-amber-400 font-bold underline transition">
+                Registrar sem acionar terminal
+            </button>
+            <button type="button" onclick="fecharModalMercadoPagoPDV()" class="text-xs font-bold text-slate-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-slate-800 transition">
+                Fechar
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Modal Comprovante de Venda Expressa (Envio Evolution API) -->
 <div id="modalComprovanteVenda" class="fixed inset-0 z-[160] hidden bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
     <div class="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl max-w-md w-full p-5 space-y-4 text-white relative my-8">
@@ -535,6 +631,14 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
     let itensVendaMap = {};
     let formaPagamentoSelecionadaId = '<?= $fpPadrao ? $fpPadrao->id : (count($formasPagamento) > 0 ? $formasPagamento[0]->id : "") ?>';
     let formaPagamentoSelecionadaNome = '<?= $fpPadrao ? Html::encode($fpPadrao->nome) : (count($formasPagamento) > 0 ? Html::encode($formasPagamento[0]->nome) : "") ?>';
+    let formaPagamentoSelecionadaTipo = '<?= $fpPadrao ? Html::encode($fpPadrao->tipo) : "" ?>';
+    const temMercadoPagoConfig = <?= json_encode((bool)($temMercadoPago ?? false)) ?>;
+    const lojaIdAtual = <?= json_encode((string)($lojaId ?? '')) ?>;
+    const dispositivosPointDisponiveis = <?= json_encode($dispositivosPoint ?? []) ?>;
+    const baseUrlApp = '<?= Yii::$app->request->baseUrl ?>';
+    let mpPollingInterval = null;
+    let mpIntentIdAtual = null;
+    let mpPaymentIdAtual = null;
     let indexItemFocado = -1;
     let dadosUltimaVendaFinalizada = null;
 
@@ -1034,6 +1138,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
     function selecionarFormaPagamento(id, btn) {
         formaPagamentoSelecionadaId = id;
         formaPagamentoSelecionadaNome = btn.getAttribute('data-nome') || btn.innerText;
+        formaPagamentoSelecionadaTipo = btn.getAttribute('data-tipo') || '';
         document.querySelectorAll('.btn-forma-pagamento').forEach(b => {
             b.className = 'btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700';
         });
@@ -1469,6 +1574,12 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             }
         }
 
+        const ehMercadoPago = (formaPagamentoSelecionadaNome || '').toLowerCase().includes('mercado') || (formaPagamentoSelecionadaTipo || '').toUpperCase() === 'MERCADOPAGO';
+        if (ehMercadoPago && temMercadoPagoConfig) {
+            abrirModalMercadoPagoPDV();
+            return;
+        }
+
         const ehPix = (formaPagamentoSelecionadaNome || '').toLowerCase().includes('pix');
 
         if (ehPix) {
@@ -1572,6 +1683,316 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
     function confirmarEEfetivarVendaPix() {
         fecharModalPixEstatico();
         efetivarVendaExpressa();
+    }
+
+    // ==========================================
+    // MERCADO PAGO INTEGRADO NO PDV (POINT & PIX)
+    // ==========================================
+    function abrirModalMercadoPagoPDV() {
+        const totalStr = document.getElementById('displayTotalFinal').textContent;
+        document.getElementById('mpModalValor').textContent = totalStr;
+
+        const selectDevice = document.getElementById('mpSelectDevice');
+        selectDevice.innerHTML = '';
+        if (dispositivosPointDisponiveis && dispositivosPointDisponiveis.length > 0) {
+            dispositivosPointDisponiveis.forEach(dev => {
+                const opt = document.createElement('option');
+                opt.value = dev.device_id;
+                opt.textContent = `${dev.nome || 'Point'} (${dev.device_id})`;
+                selectDevice.appendChild(opt);
+            });
+        } else {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = 'Nenhuma maquininha cadastrada (Cadastre em Configurações)';
+            selectDevice.appendChild(opt);
+        }
+
+        trocarAbaMp('point');
+        document.getElementById('mpStatusTerminal')?.classList.add('hidden');
+        const btnDisparar = document.getElementById('btnDispararPoint');
+        if (btnDisparar) {
+            btnDisparar.disabled = false;
+            btnDisparar.classList.remove('hidden');
+            btnDisparar.innerHTML = '<span>🚀 Enviar para Maquininha</span>';
+        }
+        document.getElementById('btnCancelarPoint')?.classList.add('hidden');
+        document.getElementById('mpPixQrCodeContainer').innerHTML = '<div class="text-slate-500 text-xs font-bold py-6 text-center">Clique abaixo para gerar o Pix Dinâmico com baixa automática</div>';
+        document.getElementById('mpPixCopiaColaContainer')?.classList.add('hidden');
+        document.getElementById('mpPixStatusWaiting')?.classList.add('hidden');
+        const btnGerar = document.getElementById('btnGerarPixMp');
+        if (btnGerar) {
+            btnGerar.disabled = false;
+            btnGerar.classList.remove('hidden');
+            btnGerar.innerHTML = '<span>⚡ Gerar Pix Mercado Pago</span>';
+        }
+
+        document.getElementById('modalMercadoPagoPDV').classList.remove('hidden');
+    }
+
+    function fecharModalMercadoPagoPDV() {
+        if (mpPollingInterval) {
+            clearInterval(mpPollingInterval);
+            mpPollingInterval = null;
+        }
+        document.getElementById('modalMercadoPagoPDV').classList.add('hidden');
+    }
+
+    function trocarAbaMp(aba) {
+        const btnPoint = document.getElementById('tabBtnPoint');
+        const btnPix = document.getElementById('tabBtnPixMp');
+        const conteudoPoint = document.getElementById('mpConteudoPoint');
+        const conteudoPix = document.getElementById('mpConteudoPix');
+
+        if (aba === 'point') {
+            btnPoint.className = 'flex-1 py-2 rounded-lg transition bg-cyan-500 text-slate-950 shadow';
+            btnPix.className = 'flex-1 py-2 rounded-lg transition text-slate-400 hover:text-white';
+            conteudoPoint.classList.remove('hidden');
+            conteudoPix.classList.add('hidden');
+        } else {
+            btnPix.className = 'flex-1 py-2 rounded-lg transition bg-cyan-500 text-slate-950 shadow';
+            btnPoint.className = 'flex-1 py-2 rounded-lg transition text-slate-400 hover:text-white';
+            conteudoPix.classList.remove('hidden');
+            conteudoPoint.classList.add('hidden');
+        }
+    }
+
+    async function dispararCobrancaPoint() {
+        const selectDevice = document.getElementById('mpSelectDevice');
+        const deviceId = selectDevice ? selectDevice.value : '';
+
+        if (!deviceId) {
+            alert('Por favor, selecione uma maquininha Point ou cadastre o número de série em Configurações > Mercado Pago.');
+            return;
+        }
+
+        const totalNum = getTotalVendaNumerico();
+        if (totalNum <= 0) {
+            alert('Valor da venda inválido.');
+            return;
+        }
+
+        const btnDisparar = document.getElementById('btnDispararPoint');
+        const btnCancelar = document.getElementById('btnCancelarPoint');
+        const statusDiv = document.getElementById('mpStatusTerminal');
+        const statusTexto = document.getElementById('mpStatusTerminalTexto');
+
+        btnDisparar.disabled = true;
+        btnDisparar.innerHTML = '<span>⏳ Enviando comando ao terminal...</span>';
+
+        try {
+            const resp = await fetch(`${baseUrlApp}/index.php/api/mercado-pago/criar-pagamento-point`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tenant_id: lojaIdAtual,
+                    device_id: deviceId,
+                    amount: totalNum,
+                    order_id: 'PDV-' + Date.now()
+                })
+            });
+
+            const data = await resp.json();
+            if (!resp.ok || !data.sucesso) {
+                throw new Error(data.message || 'Falha ao enviar cobrança para a maquininha Point.');
+            }
+
+            mpIntentIdAtual = data.data?.id;
+            btnDisparar.classList.add('hidden');
+            btnCancelar.classList.remove('hidden');
+            statusDiv.classList.remove('hidden');
+            statusTexto.textContent = 'Cobrança enviada! Aguardando o cliente passar o cartão...';
+
+            iniciarPollingPoint(mpIntentIdAtual, deviceId);
+        } catch (e) {
+            alert('Erro ao acionar Maquininha: ' + e.message);
+            btnDisparar.disabled = false;
+            btnDisparar.innerHTML = '<span>🚀 Enviar para Maquininha</span>';
+        }
+    }
+
+    function iniciarPollingPoint(intentId, deviceId) {
+        if (mpPollingInterval) clearInterval(mpPollingInterval);
+
+        mpPollingInterval = setInterval(async () => {
+            try {
+                const resp = await fetch(`${baseUrlApp}/index.php/api/mercado-pago/consultar-status-point?intent_id=${intentId}&tenant_id=${lojaIdAtual}`);
+                const data = await resp.json();
+
+                if (data.sucesso && data.status) {
+                    const st = data.status.toUpperCase();
+                    if (st === 'FINISHED' || st === 'PROCESSED') {
+                        clearInterval(mpPollingInterval);
+                        mpPollingInterval = null;
+                        document.getElementById('mpStatusTerminalTexto').textContent = '✅ Pagamento Aprovado na Maquininha!';
+                        setTimeout(() => {
+                            fecharModalMercadoPagoPDV();
+                            efetivarVendaExpressa();
+                        }, 1000);
+                    } else if (['CANCELED', 'CANCELLED', 'FAILED', 'ABORTED', 'ERROR'].includes(st)) {
+                        clearInterval(mpPollingInterval);
+                        mpPollingInterval = null;
+                        alert('Pagamento cancelado ou recusado na maquininha.');
+                        document.getElementById('mpStatusTerminal')?.classList.add('hidden');
+                        const btnDisparar = document.getElementById('btnDispararPoint');
+                        if (btnDisparar) {
+                            btnDisparar.disabled = false;
+                            btnDisparar.classList.remove('hidden');
+                            btnDisparar.innerHTML = '<span>🚀 Enviar para Maquininha</span>';
+                        }
+                        document.getElementById('btnCancelarPoint')?.classList.add('hidden');
+                    }
+                }
+            } catch (err) {
+                console.warn('Erro ao checar status Point:', err);
+            }
+        }, 2000);
+    }
+
+    async function cancelarCobrancaPoint() {
+        const selectDevice = document.getElementById('mpSelectDevice');
+        const deviceId = selectDevice ? selectDevice.value : '';
+
+        if (!mpIntentIdAtual || !deviceId) return;
+
+        if (mpPollingInterval) {
+            clearInterval(mpPollingInterval);
+            mpPollingInterval = null;
+        }
+
+        try {
+            await fetch(`${baseUrlApp}/index.php/api/mercado-pago/cancelar-pagamento-point`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tenant_id: lojaIdAtual,
+                    device_id: deviceId,
+                    intent_id: mpIntentIdAtual
+                })
+            });
+        } catch (e) {
+            console.error('Erro ao cancelar:', e);
+        }
+
+        document.getElementById('mpStatusTerminal')?.classList.add('hidden');
+        const btnDisparar = document.getElementById('btnDispararPoint');
+        if (btnDisparar) {
+            btnDisparar.disabled = false;
+            btnDisparar.classList.remove('hidden');
+            btnDisparar.innerHTML = '<span>🚀 Enviar para Maquininha</span>';
+        }
+        document.getElementById('btnCancelarPoint')?.classList.add('hidden');
+    }
+
+    async function gerarPixDinamicoMp() {
+        const totalNum = getTotalVendaNumerico();
+        if (totalNum <= 0) {
+            alert('Valor da venda inválido.');
+            return;
+        }
+
+        const btnGerar = document.getElementById('btnGerarPixMp');
+        btnGerar.disabled = true;
+        btnGerar.innerHTML = '<span>⏳ Gerando Pix Mercado Pago...</span>';
+
+        const orderIdTemporario = 'PDV-' + Date.now();
+
+        try {
+            const resp = await fetch(`${baseUrlApp}/index.php/api/mercado-pago/criar-pagamento-pix-split`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tenant_id: lojaIdAtual,
+                    order_id: orderIdTemporario,
+                    amount: totalNum,
+                    description: 'Venda Expressa PDV'
+                })
+            });
+
+            const data = await resp.json();
+            if (!resp.ok || !data.sucesso) {
+                throw new Error(data.message || 'Falha ao gerar Pix dinâmico.');
+            }
+
+            mpPaymentIdAtual = data.payment_id;
+
+            const containerQr = document.getElementById('mpPixQrCodeContainer');
+            containerQr.innerHTML = '';
+            if (data.qr_code_base64) {
+                const img = document.createElement('img');
+                img.src = 'data:image/png;base64,' + data.qr_code_base64;
+                img.className = 'w-48 h-48 rounded-xl border border-slate-200 shadow-md';
+                containerQr.appendChild(img);
+            } else if (data.qr_code && typeof QRCode !== 'undefined') {
+                new QRCode(containerQr, {
+                    text: data.qr_code,
+                    width: 190,
+                    height: 190
+                });
+            } else {
+                containerQr.innerHTML = '<div class="text-xs text-slate-700 font-bold p-4">QR Code pronto! Utilize o Copia e Cola abaixo.</div>';
+            }
+
+            if (data.qr_code) {
+                document.getElementById('mpPixCodigo').value = data.qr_code;
+                document.getElementById('mpPixCopiaColaContainer').classList.remove('hidden');
+            }
+
+            btnGerar.classList.add('hidden');
+            document.getElementById('mpPixStatusWaiting').classList.remove('hidden');
+
+            iniciarPollingPixMp(mpPaymentIdAtual);
+        } catch (e) {
+            alert('Erro ao gerar Pix Mercado Pago: ' + e.message);
+            btnGerar.disabled = false;
+            btnGerar.innerHTML = '<span>⚡ Gerar Pix Mercado Pago</span>';
+        }
+    }
+
+    function iniciarPollingPixMp(paymentId) {
+        if (mpPollingInterval) clearInterval(mpPollingInterval);
+
+        mpPollingInterval = setInterval(async () => {
+            try {
+                const resp = await fetch(`${baseUrlApp}/index.php/api/mercado-pago/consultar-status-pix?payment_id=${paymentId}&tenant_id=${lojaIdAtual}`);
+                const data = await resp.json();
+
+                if (data.sucesso && data.status) {
+                    if (data.status === 'approved') {
+                        clearInterval(mpPollingInterval);
+                        mpPollingInterval = null;
+                        document.getElementById('mpPixStatusWaiting').textContent = '✅ Pagamento Pix Confirmado!';
+                        document.getElementById('mpPixStatusWaiting').className = 'text-center text-sm font-black text-emerald-400';
+                        setTimeout(() => {
+                            fecharModalMercadoPagoPDV();
+                            efetivarVendaExpressa();
+                        }, 1000);
+                    }
+                }
+            } catch (err) {
+                console.warn('Erro ao checar status Pix:', err);
+            }
+        }, 2500);
+    }
+
+    function copiarCodigoPixMp() {
+        const textarea = document.getElementById('mpPixCodigo');
+        if (!textarea || !textarea.value) return;
+        textarea.select();
+        navigator.clipboard.writeText(textarea.value).then(() => {
+            const btn = document.getElementById('btnCopiarPixMp');
+            btn.innerHTML = '<span>✅ Código Copiado!</span>';
+            setTimeout(() => {
+                btn.innerHTML = '<span>📋 Copiar Código PIX</span>';
+            }, 2000);
+        });
+    }
+
+    function concluirVendaMercadoPagoManualmente() {
+        if (confirm('Deseja registrar a venda diretamente sem acionar o terminal/Pix do Mercado Pago?')) {
+            fecharModalMercadoPagoPDV();
+            efetivarVendaExpressa();
+        }
     }
 
     function restaurarBotaoEfetivarVenda() {

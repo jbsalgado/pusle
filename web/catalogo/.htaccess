@@ -1,5 +1,13 @@
-# Desabilita rewrite do Yii2 dentro da pasta catalogo
-RewriteEngine Off
+# Habilita rewrite para permitir arquivos estáticos e rotas dinâmicas (ex: feed-meta.xml)
+RewriteEngine On
+
+# Permite acesso direto aos arquivos estáticos que realmente existem
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Se o arquivo/rota não existir fisicamente na pasta catalogo, repassa para o Yii2
+RewriteRule ^ ../index.php [L]
 
 # Permite acesso direto aos arquivos
 <IfModule mod_headers.c>

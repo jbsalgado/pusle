@@ -10,7 +10,7 @@
 // - DINHEIRO sempre removido
 // - PIX_ESTATICO e PAGAR_AO_ENTREGADOR sempre disponíveis
 
-import { CONFIG, API_ENDPOINTS, carregarConfigLoja } from './config.js?v=20260904_v5';
+import { CONFIG, API_ENDPOINTS, carregarConfigLoja } from './config.js';
 import { 
     getCarrinho, 
     setCarrinho, 
@@ -41,7 +41,7 @@ import {
     formatarQuantidade,
     verificarElementosCriticos
 } from './utils.js';
-import { ELEMENTOS_CRITICOS } from './config.js?v=20260904_v5';
+import { ELEMENTOS_CRITICOS } from './config.js';
 import { inicializarMonitoramentoRede } from './network.js';
 import { cadastrarCliente } from './customer.js';
 
@@ -1794,6 +1794,7 @@ window.buscarCliente = async function() {
         }
 
         clienteAtual = cliente;
+        window.clienteAtual = cliente;
 
         // Tratar diferentes estruturas de resposta possíveis
         const nomeCliente = cliente.nome_completo || 
@@ -2016,6 +2017,7 @@ window.cadastrarClienteModal = async function() {
 
         // Preencher cliente no pedido
         clienteAtual = clienteCadastrado;
+        window.clienteAtual = clienteCadastrado;
         const inputClienteId = document.getElementById('cliente_id');
         if (inputClienteId && clienteCadastrado.id) {
             inputClienteId.value = clienteCadastrado.id;
@@ -2128,6 +2130,41 @@ window.confirmarPedido = async function() {
             const vendaId = resultado.dados?.id || resultado.dados?.venda?.id;
             
             // ===============================================
+            // ✅ GATEWAY DINÂMICO: Se foi redirecionado ou exibiu modal de pagamento
+            // o gateway-pagamento.js já cuida do resto — não fazer nada aqui
+            // ===============================================
+            if (resultado.redirecionado) {
+                return; // MP Redirect ou processamento assíncrono
+            }
+
+            if (resultado.mensagem === 'Modal PIX exibido. Aguardando pagamento.') {
+                 console.log('[App] ✅ Modal PIX dinâmico exibido. Aguardando confirmação...');
+                 fecharModal('modal-cliente-pedido');
+                 limparCarrinho();
+                 await carregarCarrinhoInicial();
+                 atualizarBadgeCarrinho();
+                 return;
+            }
+
+            // ✅ PIX DINÂMICO via gateway: se o tipo é PIX e gateway está ativo,
+            // mostrarModalPix() já foi chamado — verificar se o modal existe
+            const isPixDinamico = (tipoFormaPagamento === 'PIX' || tipoFormaPagamento === 'PIX_DINAMICO');
+            const gatewayAtivo = window.GATEWAY_CONFIG?.gateway && window.GATEWAY_CONFIG.gateway !== 'nenhum';
+            if (isPixDinamico && gatewayAtivo && window.GATEWAY_CONFIG?.habilitado) {
+                // O modal PIX já foi criado pelo gateway-pagamento.js
+                // Só precisamos limpar o carrinho e fechar o modal de pedido
+                const modalPixExiste = !!document.getElementById('modal-pix-asaas');
+                if (modalPixExiste) {
+                    console.log('[App] ✅ Modal PIX dinâmico ativo. Limpando carrinho...');
+                    fecharModal('modal-cliente-pedido');
+                    limparCarrinho();
+                    await carregarCarrinhoInicial();
+                    atualizarBadgeCarrinho();
+                    return;
+                }
+            }
+            
+            // ===============================================
             // ✅ AJUSTE: Verifica se é PIX ESTATICO para abrir modal
             // ===============================================
             const isPixEstatico = tipoFormaPagamento === 'PIX_ESTATICO';
@@ -2178,7 +2215,10 @@ window.confirmarPedido = async function() {
             // Se o modal PIX dinâmico foi exibido, o gateway-pagamento.js cuida do resto.
             if (resultado.mensagem === 'Modal PIX exibido. Aguardando pagamento.') {
                  console.log('[App] Modal PIX dinâmico exibido. Aguardando confirmação...');
-                 // Não faz mais nada aqui, o polling está ativo
+                 fecharModal('modal-cliente-pedido');
+                 limparCarrinho();
+                 await carregarCarrinhoInicial();
+                 atualizarBadgeCarrinho();
                  return;
             }
             // ===============================================

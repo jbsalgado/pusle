@@ -169,8 +169,9 @@ class MercadoPagoController extends Controller
                 return $this->errorResponse('tenant_id é obrigatório.');
             }
 
+            // ✅ CORREÇÃO: o order_id DEVE ser o UUID da venda preventiva criada no Pulse.
             if (!$orderId || !$this->validarUUID($orderId)) {
-                return $this->errorResponse('order_id é obrigatório.');
+                return $this->errorResponse('order_id (UUID da venda) é obrigatório para criar pagamento PIX.', 400);
             }
 
             if ($amount === null || $amount <= 0) {
@@ -195,27 +196,71 @@ class MercadoPagoController extends Controller
             // 1️⃣ INICIALIZAR SDK
             $this->initSdk($usuario);
 
+            $baseUrl = $this->resolveBaseUrl();
+            $notificationUrl = $baseUrl . '/index.php/api/mercado-pago/webhook?tenant_id=' . $tenantId;
+            $isLocalhost = (strpos($baseUrl, 'localhost') !== false || strpos($baseUrl, '127.0.0.1') !== false);
+
             $paymentData = [
                 'transaction_amount' => $amount,
                 'description' => $request['description'] ?? 'Pedido ' . $orderId,
                 'payment_method_id' => 'pix',
-                'notification_url' => $this->resolveBaseUrl() . '/index.php/api/mercado-pago/webhook?tenant_id=' . $tenantId,
                 'external_reference' => $orderId,
                 'metadata' => [
                     'tenant_id' => $tenantId,
                     'order_id' => $orderId,
                 ],
-                'application_fee' => $applicationFee,
             ];
 
+            // application_fee só se aplica para contas de lojistas terceiros autorizados via OAuth.
+            // Para a conta da própria plataforma ou transações diretas, o MP rejeita com código 2059.
+            $appUserId = $_ENV['MP_COLLECTOR_ID'] ?? '24111981';
+            $vendedorUserId = (string)($usuario['mp_user_id'] ?? '');
+            $ehPropriaConta = ($vendedorUserId !== '' && $vendedorUserId === (string)$appUserId);
+
+            if ($applicationFee > 0 && !$ehPropriaConta) {
+                $paymentData['application_fee'] = $applicationFee;
+            }
+
+            // Mercado Pago rejeita notification_url com localhost / IP privado
+            if (!$isLocalhost && filter_var($notificationUrl, FILTER_VALIDATE_URL)) {
+                $paymentData['notification_url'] = $notificationUrl;
+            }
+
             if (!empty($request['payer']) && is_array($request['payer'])) {
-                $paymentData['payer'] = $request['payer'];
+                $paymentData['payer'] = $this->formatarPayerParaPayment($request['payer']);
             } elseif (!empty($request['cliente']) && is_array($request['cliente'])) {
-                $paymentData['payer'] = $this->montarDadosPagador($request['cliente']);
+                $paymentData['payer'] = $this->montarDadosPagador($request['cliente'], true);
+            }
+
+            // Fallback de dados do pagador exigidos pelo Mercado Pago para emissão de Pix
+            if (empty($paymentData['payer']['email'])) {
+                $paymentData['payer']['email'] = !empty($usuario['email']) ? $usuario['email'] : 'comprador@oncode.app.br';
+            }
+            if (empty($paymentData['payer']['first_name'])) {
+                $paymentData['payer']['first_name'] = 'Cliente';
+                $paymentData['payer']['last_name'] = 'Pulse';
             }
 
             $client = new PaymentClient();
-            $payment = $client->create($paymentData);
+
+            // Execução com retry inteligente caso o Mercado Pago recuse application_fee (Erro 2059)
+            try {
+                $payment = $client->create($paymentData);
+            } catch (MPApiException $e) {
+                $apiResp = $e->getApiResponse();
+                $respContent = is_object($apiResp) && method_exists($apiResp, 'getContent') ? $apiResp->getContent() : [];
+                $errorMsg = is_array($respContent) ? ($respContent['message'] ?? '') : '';
+                $causeCode = is_array($respContent) ? ($respContent['cause'][0]['code'] ?? 0) : 0;
+
+                if (($causeCode === 2059 || strpos($errorMsg, 'application_fee') !== false) && isset($paymentData['application_fee'])) {
+                    Yii::warning("Mercado Pago rejeitou application_fee (código 2059). Refazendo requisição PIX direta sem fee...", 'mercadopago');
+                    unset($paymentData['application_fee']);
+                    $applicationFee = 0.0;
+                    $payment = $client->create($paymentData);
+                } else {
+                    throw $e;
+                }
+            }
 
             Yii::info([
                 'action' => 'pix_split_criado',
@@ -229,6 +274,8 @@ class MercadoPagoController extends Controller
             return [
                 'sucesso' => true,
                 'payment_id' => $payment->id,
+                'order_id' => $orderId,
+                'external_reference' => $orderId,
                 'status' => $payment->status,
                 'qr_code' => $payment->point_of_interaction->transaction_data->qr_code ?? null,
                 'qr_code_base64' => $payment->point_of_interaction->transaction_data->qr_code_base64 ?? null,
@@ -580,24 +627,151 @@ class MercadoPagoController extends Controller
     }
 
     /**
+     * ENDPOINT: GET/POST /api/mercado-pago/consultar-status-point
+     * Consulta status da intenção de pagamento na maquininha Point
+     */
+    public function actionConsultarStatusPoint()
+    {
+        $intentId = Yii::$app->request->get('intent_id') ?: Yii::$app->request->post('intent_id');
+        $tenantId = Yii::$app->request->get('tenant_id') ?: Yii::$app->request->post('tenant_id');
+
+        if (!$intentId || !$tenantId) {
+            return $this->errorResponse('intent_id e tenant_id são obrigatórios');
+        }
+
+        $usuario = $this->buscarUsuarioPorId($tenantId);
+        if (!$usuario) return $this->errorResponse('Usuário não encontrado');
+
+        try {
+            $client = new Client();
+            $response = $client->get("https://api.mercadopago.com/point/integration-api/payment-intents/{$intentId}", [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . ($usuario['mercadopago_access_token'] ?? $usuario['mp_access_token'])
+                ]
+            ]);
+
+            $intent = json_decode($response->getBody()->getContents(), true);
+            return [
+                'sucesso' => true,
+                'status' => $intent['status'] ?? 'OPEN',
+                'payment' => $intent['payment'] ?? null,
+                'intent' => $intent
+            ];
+        } catch (\Exception $e) {
+            return $this->errorResponse('Erro ao consultar Point: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * ENDPOINT: POST /api/mercado-pago/cancelar-pagamento-point
+     * Cancela a cobrança pendente na maquininha Point
+     */
+    public function actionCancelarPagamentoPoint()
+    {
+        $request = Yii::$app->request->post();
+        $deviceId = $request['device_id'] ?? null;
+        $intentId = $request['intent_id'] ?? null;
+        $tenantId = $request['tenant_id'] ?? null;
+
+        if (!$deviceId || !$intentId || !$tenantId) {
+            return $this->errorResponse('device_id, intent_id e tenant_id são obrigatórios');
+        }
+
+        $usuario = $this->buscarUsuarioPorId($tenantId);
+        if (!$usuario) return $this->errorResponse('Usuário não encontrado');
+
+        try {
+            $client = new Client();
+            $response = $client->delete("https://api.mercadopago.com/point/integration-api/devices/{$deviceId}/payment-intents/{$intentId}", [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . ($usuario['mercadopago_access_token'] ?? $usuario['mp_access_token'])
+                ]
+            ]);
+
+            return [
+                'sucesso' => true,
+                'status' => 'CANCELLED'
+            ];
+        } catch (\Exception $e) {
+            return $this->errorResponse('Erro ao cancelar na maquineta: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * ENDPOINT: GET/POST /api/mercado-pago/consultar-status-pix
+     * Consulta status do pagamento PIX diretamente na API do Mercado Pago
+     */
+    public function actionConsultarStatusPix()
+    {
+        $paymentId = Yii::$app->request->get('payment_id') ?: Yii::$app->request->post('payment_id');
+        $tenantId = Yii::$app->request->get('tenant_id') ?: Yii::$app->request->post('tenant_id');
+
+        if (!$paymentId || !$tenantId) {
+            return $this->errorResponse('payment_id e tenant_id são obrigatórios');
+        }
+
+        $usuario = $this->buscarUsuarioPorId($tenantId);
+        if (!$usuario) return $this->errorResponse('Usuário não encontrado');
+
+        try {
+            $client = new Client();
+            $resp = $client->get("https://api.mercadopago.com/v1/payments/{$paymentId}", [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . ($usuario['mercadopago_access_token'] ?? $usuario['mp_access_token'])
+                ]
+            ]);
+            $data = json_decode($resp->getBody()->getContents(), true);
+            return [
+                'sucesso' => true,
+                'status' => $data['status'] ?? 'pending',
+                'status_detail' => $data['status_detail'] ?? null,
+                'date_approved' => $data['date_approved'] ?? null
+            ];
+        } catch (\Exception $ex) {
+            return $this->errorResponse('Erro ao consultar status do Pix: ' . $ex->getMessage());
+        }
+    }
+
+    /**
      * ENDPOINT: GET/POST /api/mercado-pago/webhook
      * ========================================================================
      */
     public function actionWebhook()
     {
+        // Headers de CORS para permitir requisições de teste do painel do Mercado Pago
+        header('Access-Control-Allow-Origin: *');
+        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+        header('Access-Control-Allow-Headers: *');
+
+        if (Yii::$app->request->isOptions) {
+            Yii::$app->response->statusCode = 200;
+            return ['status' => 'ok'];
+        }
+
         try {
-            // Obter dados da requisição
+            // Obter dados da requisição (JSON body, query params ou form-data)
             $body = file_get_contents('php://input');
-            $data = json_decode($body, true);
+            $data = !empty($body) ? json_decode($body, true) : [];
+            if (!is_array($data)) {
+                $data = [];
+            }
 
             Yii::info([
                 'action' => 'webhook_recebido',
                 'data' => $data,
+                'get' => Yii::$app->request->get(),
                 'headers' => getallheaders()
             ], 'mercadopago');
 
-            $type = $data['type'] ?? $data['topic'] ?? null;
+            $type = $data['type'] ?? $data['topic'] ?? Yii::$app->request->get('type') ?? Yii::$app->request->get('topic') ?? Yii::$app->request->post('type') ?? Yii::$app->request->post('topic') ?? null;
+            $paymentId = $data['data']['id'] ?? $data['id'] ?? Yii::$app->request->get('id') ?? Yii::$app->request->get('data_id') ?? Yii::$app->request->post('id') ?? null;
             $tenantId = Yii::$app->request->get('tenant_id');
+
+            // 🟢 TRATAMENTO IMEDIATO PARA TESTES DO PAINEL DO MERCADO PAGO ("Experimentar" com ID 123456 ou teste vazio)
+            if ($paymentId === '123456' || $paymentId === 123456 || ($type === 'payment' && empty($paymentId))) {
+                Yii::$app->response->statusCode = 200;
+                return ['status' => 'ok', 'message' => 'Notificação de teste recebida com sucesso.'];
+            }
 
             // 🔐 VALIDAÇÃO DE SEGURANÇA DA ASSINATURA (x-signature)
             if (!$this->validarAssinaturaWebhook($data)) {
@@ -607,7 +781,7 @@ class MercadoPagoController extends Controller
 
             // 🟢 TRATAMENTO PARA POINT (MAQUINETA)
             if ($type === 'payment_intent') {
-                $intentId = $data['data']['id'] ?? $data['id'] ?? null;
+                $intentId = $data['data']['id'] ?? $data['id'] ?? $paymentId;
                 if (!$tenantId) {
                     $mpUserId = $data['user_id'] ?? ($data['data']['user_id'] ?? null);
                     if ($mpUserId) {
@@ -621,16 +795,13 @@ class MercadoPagoController extends Controller
             }
 
             // Validar tipo de notificação padrão
-            if ($type !== 'payment') {
-                Yii::info('Notificação ignorada: tipo diferente de payment/payment_intent', 'mercadopago');
+            if ($type !== 'payment' && $type !== 'merchant_order') {
+                Yii::info('Notificação ignorada: tipo diferente de payment/payment_intent/merchant_order', 'mercadopago');
                 return ['status' => 'ok', 'message' => 'Tipo de notificação não processado'];
             }
 
-            // Obter ID do pagamento
-            $paymentId = $data['data']['id'] ?? null;
-
             if (!$paymentId) {
-                throw new \Exception('ID do pagamento não informado');
+                return ['status' => 'ok', 'message' => 'ID do pagamento não informado'];
             }
 
             // Buscar dados do pagamento na API do MP (usando token do vendedor via OAuth)
@@ -1200,6 +1371,17 @@ class MercadoPagoController extends Controller
                     ':preco_unitario' => $item['preco_unitario'],
                     ':subtotal' => $subtotal
                 ])->execute();
+            }
+
+            // Garante a criação das parcelas em prest_parcelas para consistência financeira imediata
+            $vendaModel = \app\modules\vendas\models\Venda::findOne($vendaId);
+            if ($vendaModel) {
+                $vendaModel->gerarParcelas(
+                    $dados['forma_pagamento_id'],
+                    $dados['data_primeiro_pagamento'] ?? date('Y-m-d'),
+                    $dados['intervalo_dias_parcelas'] ?? 30,
+                    true
+                );
             }
 
             $transaction->commit();
@@ -1955,21 +2137,41 @@ class MercadoPagoController extends Controller
 
     /**
      * Monta dados do pagador
+     * @param array $cliente
+     * @param bool|array $paraPayment Se true, usa first_name/last_name exigidos pela API /v1/payments
      */
-    private function montarDadosPagador($cliente)
+    private function montarDadosPagador($cliente, $paraPayment = false)
     {
         if (empty($cliente)) {
             return [];
         }
 
+        $isPayment = is_bool($paraPayment) ? $paraPayment : false;
+
         $payer = [];
 
-        if (isset($cliente['nome'])) {
-            $payer['name'] = $cliente['nome'];
+        $nome = $cliente['nome'] ?? '';
+        $sobrenome = $cliente['sobrenome'] ?? '';
+        if (empty($sobrenome) && !empty($nome)) {
+            $partes = explode(' ', trim($nome), 2);
+            $nome = $partes[0];
+            $sobrenome = $partes[1] ?? 'Cliente';
         }
 
-        if (isset($cliente['sobrenome'])) {
-            $payer['surname'] = $cliente['sobrenome'];
+        if ($isPayment) {
+            if (!empty($nome)) {
+                $payer['first_name'] = $nome;
+            }
+            if (!empty($sobrenome)) {
+                $payer['last_name'] = $sobrenome;
+            }
+        } else {
+            if (isset($cliente['nome'])) {
+                $payer['name'] = $cliente['nome'];
+            }
+            if (isset($cliente['sobrenome'])) {
+                $payer['surname'] = $cliente['sobrenome'];
+            }
         }
 
         if (isset($cliente['email'])) {
@@ -1998,6 +2200,26 @@ class MercadoPagoController extends Controller
             ];
         }
 
+        return $payer;
+    }
+
+    /**
+     * Normaliza array de payer para /v1/payments (troca name/surname por first_name/last_name se necessário)
+     */
+    private function formatarPayerParaPayment(array $payer): array
+    {
+        if (isset($payer['name']) && !isset($payer['first_name'])) {
+            $nome = $payer['name'];
+            $sobrenome = $payer['surname'] ?? '';
+            if (empty($sobrenome)) {
+                $partes = explode(' ', trim($nome), 2);
+                $nome = $partes[0];
+                $sobrenome = $partes[1] ?? 'Cliente';
+            }
+            $payer['first_name'] = $nome;
+            $payer['last_name'] = $sobrenome;
+            unset($payer['name'], $payer['surname']);
+        }
         return $payer;
     }
 

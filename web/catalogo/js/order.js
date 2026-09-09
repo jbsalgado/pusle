@@ -11,7 +11,7 @@ import { processarPagamento } from './gateway-pagamento.js';
  */
 function validarDadosPedido(dadosPedido, carrinho) {
     console.log('[Order] 📋 Validando dados do pedido...', dadosPedido);
-    
+
     if (carrinho.length === 0) {
         throw new Error('Carrinho está vazio');
     }
@@ -32,14 +32,14 @@ function validarDadosPedido(dadosPedido, carrinho) {
         }
 
         let numeroParcelas = parseInt(dadosPedido.numero_parcelas, 10) || 1;
-        
+
         // ✅ VALIDAÇÃO: DINHEIRO e PIX não permitem parcelamento
         // Busca a forma de pagamento para verificar o tipo
         if (dadosPedido.forma_pagamento_id) {
             // Tenta buscar a forma de pagamento do array global (se disponível)
             const formasPagamento = window.formasPagamento || [];
             const formaSelecionada = formasPagamento.find(f => f.id === dadosPedido.forma_pagamento_id);
-            
+
             if (formaSelecionada) {
                 const tipo = formaSelecionada.tipo || '';
                 if (tipo === 'DINHEIRO' || tipo === 'PIX' || tipo === 'PIX_ESTATICO' || tipo === 'PAGAR_AO_ENTREGADOR') {
@@ -52,19 +52,19 @@ function validarDadosPedido(dadosPedido, carrinho) {
                 }
             }
         }
-        
+
         // Validar parcelas apenas quando número de parcelas > 1
         if (numeroParcelas > 1) {
             if (!dadosPedido.data_primeiro_pagamento) {
                 throw new Error('Por favor, informe a data do primeiro pagamento para vendas parceladas.');
             }
-            
+
             const intervaloDias = parseInt(dadosPedido.intervalo_dias_parcelas, 10);
-            
+
             if (isNaN(intervaloDias) || intervaloDias < 1) {
                 throw new Error('Por favor, informe um intervalo válido entre as parcelas (mínimo 1 dia).');
             }
-            
+
             if (intervaloDias > 365) {
                 throw new Error('O intervalo entre parcelas não pode ser maior que 365 dias.');
             }
@@ -80,7 +80,7 @@ function validarDadosPedido(dadosPedido, carrinho) {
  */
 function prepararObjetoPedido(dadosPedido, carrinho) {
     console.log('[Order] 🔧 Preparando objeto do pedido...');
-    
+
     const pedido = {
         usuario_id: CONFIG.ID_USUARIO_LOJA,
         cliente_id: dadosPedido.cliente_id,
@@ -100,7 +100,7 @@ function prepararObjetoPedido(dadosPedido, carrinho) {
         if (dadosPedido.data_primeiro_pagamento) {
             pedido.data_primeiro_pagamento = dadosPedido.data_primeiro_pagamento;
         }
-        
+
         if (dadosPedido.intervalo_dias_parcelas) {
             pedido.intervalo_dias_parcelas = parseInt(dadosPedido.intervalo_dias_parcelas, 10);
         }
@@ -122,7 +122,7 @@ async function tentarEnvioDireto(pedido) {
         console.log('[Order] 🌐 Tentando envio direto...');
         console.log('[Order] 📦 Pedido:', JSON.stringify(pedido, null, 2));
         console.log('[Order] 🎯 URL:', API_ENDPOINTS.PEDIDO_CREATE);
-        
+
         const response = await fetch(API_ENDPOINTS.PEDIDO_CREATE, {
             method: 'POST',
             headers: {
@@ -134,7 +134,7 @@ async function tentarEnvioDireto(pedido) {
         });
 
         console.log('[Order] 📡 Status:', response.status, response.statusText);
-        
+
         // Tentar obter resposta como texto primeiro
         const responseText = await response.text();
         console.log('[Order] 📄 Resposta bruta:', responseText);
@@ -144,7 +144,7 @@ async function tentarEnvioDireto(pedido) {
                 const resultado = JSON.parse(responseText);
                 console.log('[Order] ✅ Pedido enviado com sucesso!');
                 console.log('[Order] 📄 Resultado:', resultado);
-                
+
                 return {
                     sucesso: true,
                     dados: resultado
@@ -159,7 +159,7 @@ async function tentarEnvioDireto(pedido) {
         } else {
             console.error('[Order] ❌ Erro no envio. Status:', response.status);
             console.error('[Order] ❌ Resposta:', responseText);
-            
+
             return {
                 sucesso: false,
                 erro: `Erro ${response.status}: ${responseText}`
@@ -168,7 +168,7 @@ async function tentarEnvioDireto(pedido) {
     } catch (error) {
         console.error('[Order] ❌ Falha na requisição:', error);
         console.error('[Order] Stack trace:', error.stack);
-        
+
         return {
             sucesso: false,
             erro: error.message,
@@ -202,23 +202,23 @@ async function registrarSyncPedido() {
 function configurarSincronizacaoManual() {
     window.addEventListener('online', async () => {
         console.log('[Order] 🌐 Conexão restaurada! Verificando pedidos pendentes...');
-        
+
         const { idbKeyval } = await import('./utils.js');
         const { STORAGE_KEYS } = await import('./config.js');
-        
+
         try {
             const pedidoPendente = await idbKeyval.get(STORAGE_KEYS.PEDIDO_PENDENTE);
-            
+
             if (pedidoPendente) {
                 console.log('[Order] 📦 Pedido pendente encontrado, tentando reenviar...');
-                
+
                 const resultado = await tentarEnvioDireto(pedidoPendente);
-                
+
                 if (resultado.sucesso) {
                     console.log('[Order] ✅ Pedido pendente enviado com sucesso!');
-                    
+
                     await idbKeyval.del(STORAGE_KEYS.PEDIDO_PENDENTE);
-                    
+
                     if ('Notification' in window && Notification.permission === 'granted') {
                         new Notification('Pedido Enviado', {
                             body: 'Seu pedido offline foi enviado com sucesso!',
@@ -227,7 +227,7 @@ function configurarSincronizacaoManual() {
                     } else {
                         alert('Pedido offline enviado com sucesso!');
                     }
-                    
+
                     setTimeout(() => window.location.reload(), 2000);
                 } else {
                     console.error('[Order] ❌ Falha ao reenviar pedido pendente:', resultado.erro);
@@ -239,7 +239,7 @@ function configurarSincronizacaoManual() {
             console.error('[Order] ❌ Erro ao verificar pedidos pendentes:', error);
         }
     });
-    
+
     console.log('[Order] 👂 Listener de reconexão configurado');
 }
 
@@ -251,11 +251,17 @@ configurarSincronizacaoManual();
  */
 async function buscarDadosCliente(clienteId) {
     console.log('[Order] 🔍 Buscando dados do cliente:', clienteId);
-    
+
+    // 1. Se já tivermos o clienteAtual carregado no window ou no form, usa ele diretamente!
+    if (window.clienteAtual && (window.clienteAtual.id === clienteId || window.clienteAtual.cliente?.id === clienteId)) {
+        console.log('[Order] ⚡ Cliente já disponível em memória (window.clienteAtual):', window.clienteAtual);
+        return window.clienteAtual.cliente || window.clienteAtual;
+    }
+
     try {
         const url = `${API_ENDPOINTS.CLIENTE}/${clienteId}`;
         console.log('[Order] 📡 URL da API:', url);
-        
+
         const response = await fetch(url, {
             method: 'GET',
             headers: {
@@ -263,15 +269,14 @@ async function buscarDadosCliente(clienteId) {
                 'Content-Type': 'application/json'
             }
         });
-        
+
         console.log('[Order] 📡 Status da resposta:', response.status);
-        
+
         // Obter resposta como texto primeiro
         const responseText = await response.text();
         console.log('[Order] 📄 Resposta bruta:', responseText);
-        
+
         if (!response.ok) {
-            // Tentar parsear erro JSON se possível
             let errorMessage = `Erro ao buscar dados do cliente (Status: ${response.status})`;
             try {
                 const errorJson = JSON.parse(responseText);
@@ -279,34 +284,45 @@ async function buscarDadosCliente(clienteId) {
                     errorMessage += `: ${errorJson.message || errorJson.error}`;
                 }
             } catch (e) {
-                // Se não for JSON, usar texto bruto
                 if (responseText) {
                     errorMessage += `: ${responseText}`;
                 }
             }
             throw new Error(errorMessage);
         }
-        
-        // Tentar parsear resposta JSON
-        try {
-            const cliente = JSON.parse(responseText);
-            console.log('[Order] ✅ Cliente encontrado:', cliente);
-            
-            // Validar dados mínimos do cliente
-            if (!cliente || !cliente.id) {
-                throw new Error('Dados do cliente incompletos ou inválidos');
-            }
-            
-            return cliente;
-        } catch (e) {
-            console.error('[Order] ❌ Erro ao parsear JSON do cliente:', e);
-            throw new Error('Resposta inválida do servidor ao buscar cliente');
+
+        const cliente = JSON.parse(responseText);
+        console.log('[Order] ✅ Cliente encontrado:', cliente);
+
+        if (!cliente || !cliente.id) {
+            throw new Error('Dados do cliente incompletos ou inválidos');
         }
-        
+
+        return cliente;
+
     } catch (error) {
-        console.error('[Order] ❌ Erro ao buscar cliente:', error);
-        console.error('[Order] Stack trace:', error.stack);
-        throw error; // Re-lança o erro para que finalizarPedido possa capturá-lo
+        console.warn('[Order] ⚠️ Falha ao buscar cliente via API, verificando dados no formulário...', error);
+
+        // Fallback resiliente: extrair dados do cliente preenchidos na tela
+        const nomeInput = document.getElementById('nome-cliente')?.value || document.getElementById('cadastro-nome')?.value || 'Cliente Pulse';
+        const cpfInput = document.getElementById('cpf-cliente')?.value || document.getElementById('cadastro-cpf')?.value || '';
+        const telefoneInput = document.getElementById('telefone-cliente')?.value || document.getElementById('cadastro-telefone')?.value || '';
+        const emailInput = document.getElementById('email-cliente')?.value || document.getElementById('cadastro-email')?.value || '';
+
+        if (clienteId || cpfInput || nomeInput) {
+            console.log('[Order] ✅ Usando dados de fallback do cliente para processar gateway:', nomeInput);
+            return {
+                id: clienteId || 'cliente-temp',
+                nome: nomeInput,
+                nome_completo: nomeInput,
+                cpf: cpfInput,
+                cpf_cnpj: cpfInput,
+                telefone: telefoneInput,
+                email: emailInput
+            };
+        }
+
+        throw error;
     }
 }
 
@@ -318,49 +334,52 @@ export async function finalizarPedido(dadosPedido, carrinho) {
     try {
         // 1️⃣ VALIDAR DADOS
         validarDadosPedido(dadosPedido, carrinho);
-        
+
         console.log('[Order] 🚀 Iniciando finalização do pedido...');
         console.log('[Order] 🏪 Loja (usuario_id):', CONFIG.ID_USUARIO_LOJA);
         console.log('[Order] 💳 Gateway:', GATEWAY_CONFIG.gateway);
         console.log('[Order] 📊 Gateway habilitado:', GATEWAY_CONFIG.habilitado);
-        
+
         // 2️⃣ DECIDIR FLUXO: Gateway Externo vs. Interno
-        
+
         // ✅ CORREÇÃO: PIX ESTATICO e PAGAR_AO_ENTREGADOR sempre usam fluxo interno
         const formaPagamentoSelecionada = window.formasPagamento?.find(fp => fp.id === dadosPedido.forma_pagamento_id);
-        const tipoFormaPagamento = formaPagamentoSelecionada?.tipo || '';
+        const tipoFormaPagamento = (formaPagamentoSelecionada?.tipo || '').toUpperCase().trim();
         const usaFluxoInterno = tipoFormaPagamento === 'PIX_ESTATICO' || tipoFormaPagamento === 'PAGAR_AO_ENTREGADOR';
-        
-        if (GATEWAY_CONFIG.habilitado && GATEWAY_CONFIG.gateway !== 'nenhum' && !usaFluxoInterno) {
+
+        const gatewayHabilitado = (window.GATEWAY_CONFIG && window.GATEWAY_CONFIG.habilitado !== undefined)
+            ? window.GATEWAY_CONFIG.habilitado
+            : GATEWAY_CONFIG.habilitado;
+        const gatewayAtivo = (window.GATEWAY_CONFIG && window.GATEWAY_CONFIG.gateway)
+            ? window.GATEWAY_CONFIG.gateway
+            : GATEWAY_CONFIG.gateway;
+
+        console.log('[Order] 💳 Gateway:', gatewayAtivo);
+        console.log('[Order] 📊 Gateway habilitado:', gatewayHabilitado);
+        console.log('[Order] 🔍 Tipo Forma Pagamento:', tipoFormaPagamento);
+
+        if (gatewayHabilitado && gatewayAtivo !== 'nenhum' && !usaFluxoInterno) {
             // ============================================
             // FLUXO COM GATEWAY EXTERNO (MP ou Asaas)
             // ============================================
-            console.log('[Order] 🔵 Usando gateway externo:', GATEWAY_CONFIG.gateway);
-            
-            // Buscar dados do cliente com tratamento de erro melhorado
+            console.log('[Order] 🔵 Usando gateway externo:', gatewayAtivo);
+
+            // Buscar dados do cliente com tratamento resiliente
             let cliente = null;
             try {
                 cliente = await buscarDadosCliente(dadosPedido.cliente_id);
             } catch (error) {
-                console.error('[Order] ❌ Falha ao buscar dados do cliente:', error);
-                
-                // Oferecer opção de continuar sem gateway se falhar
-                const continuarSemGateway = confirm(
-                    'Erro ao buscar dados do cliente.\n\n' +
-                    'Detalhes: ' + error.message + '\n\n' +
-                    'Deseja tentar enviar o pedido sem usar o gateway de pagamento?'
-                );
-                
-                if (continuarSemGateway) {
-                    console.log('[Order] ⚠️ Continuando sem gateway por escolha do usuário');
-                    // Mudar para fluxo interno temporariamente
-                    GATEWAY_CONFIG.habilitado = false;
-                    return await finalizarPedido(dadosPedido, carrinho);
-                } else {
-                    throw error;
-                }
+                console.warn('[Order] ⚠️ Falha ao buscar cliente pela API, usando dados em memória:', error);
             }
-            
+
+            if (!cliente) {
+                cliente = window.clienteAtual?.cliente || window.clienteAtual || {
+                    id: dadosPedido.cliente_id,
+                    nome: document.getElementById('nome-cliente-info')?.textContent || 'Cliente Pulse',
+                    cpf: document.getElementById('cpf-cliente')?.value || ''
+                };
+            }
+
             // Verificação extra de segurança
             if (!cliente || !cliente.id) {
                 throw new Error('Dados do cliente não disponíveis para processamento do pagamento');
@@ -370,7 +389,7 @@ export async function finalizarPedido(dadosPedido, carrinho) {
             // Isso garante que tenhamos o registro da venda mesmo se o cliente abandonar o checkout
             console.log('[Order] 💾 Registrando pedido preventivo no Pulse...');
             const pedidoPre = prepararObjetoPedido(dadosPedido, carrinho);
-            
+
             // Força a forma de pagamento no registro inicial se disponível
             if (dadosPedido.forma_pagamento_id) {
                 pedidoPre.forma_pagamento_id = dadosPedido.forma_pagamento_id;
@@ -380,73 +399,92 @@ export async function finalizarPedido(dadosPedido, carrinho) {
             try {
                 const resultadoRegistro = await tentarEnvioDireto(pedidoPre);
                 if (resultadoRegistro.sucesso) {
-                    pedidoId = resultadoRegistro.dados.venda?.id || resultadoRegistro.dados.id;
-                    console.log('[Order] ✅ Pedido preventivo registrado ID:', pedidoId);
+                    // O backend retorna { success: true, data: { id: "uuid", ... }, message }
+                    // Tenta múltiplos formatos para evitar perder o UUID da venda preventiva
+                    const dadosRegistro = resultadoRegistro.dados || {};
+                    pedidoId = dadosRegistro.data?.id
+                        || dadosRegistro.venda?.id
+                        || dadosRegistro.id;
+
+                    if (pedidoId) {
+                        console.log('[Order] ✅ Pedido preventivo registrado ID:', pedidoId);
+                    } else {
+                        console.warn('[Order] ⚠️ Pedido preventivo retornou sem ID (response):', JSON.stringify(dadosRegistro));
+                    }
                 }
             } catch (err) {
                 console.warn('[Order] ⚠️ Falha ao registrar pedido preventivo (prosseguindo apenas com gateway):', err);
             }
-            
+
+            // ✅ CRÍTICO: Sem o UUID da venda preventiva o gateway não consegue
+            // vincular o pagamento nem fazer polling de status. Aborta com mensagem clara.
+            if (!pedidoId) {
+                throw new Error('Não foi possível registrar o pedido preventivo no sistema. Por favor, tente novamente.');
+            }
+
+            // Salva referência do UUID para uso no polling após o modal PIX
+            window.pedidoPreventivoId = pedidoId;
+
             // Processar via gateway (redireciona ou mostra modal)
             // Passamos o pedidoId (opcional) para o gateway vincular o pagamento
             return await processarPagamento(dadosPedido, carrinho, cliente, pedidoId);
-            
+
         } else {
             // ============================================
             // FLUXO INTERNO (Atual - Sem Gateway)
             // ============================================
             console.log('[Order] 🟢 Usando fluxo interno (sem gateway)');
-            
+
             const pedido = prepararObjetoPedido(dadosPedido, carrinho);
-            
+
             // Verificar se está online
             const estaOnline = navigator.onLine;
             console.log('[Order] 📶 Status da conexão:', estaOnline ? 'ONLINE' : 'OFFLINE');
-            
+
             if (!estaOnline) {
                 // OFFLINE: Salvar localmente
                 console.log('[Order] 🔴 Offline detectado, salvando localmente...');
-                
+
                 const salvou = await salvarPedidoPendente(pedido);
                 if (!salvou) {
                     throw new Error('Erro ao salvar pedido localmente');
                 }
-                
+
                 await registrarSyncPedido();
-                
+
                 return {
                     sucesso: true,
                     offline: true,
                     mensagem: 'Você está offline. O pedido foi salvo localmente e será enviado automaticamente quando a conexão for restaurada.'
                 };
             }
-            
+
             // ONLINE: Tentar envio direto
             const resultadoDireto = await tentarEnvioDireto(pedido);
-            
+
             if (resultadoDireto.sucesso) {
                 // ✅ Enviado com sucesso!
                 console.log('[Order] 🎉 Pedido finalizado com sucesso via envio direto');
-                
+
                 return {
                     sucesso: true,
                     mensagem: `Pedido realizado com sucesso!\n\nNúmero: ${resultadoDireto.dados.venda?.id || 'N/A'}\nValor Total: R$ ${resultadoDireto.dados.venda?.valor_total || '0.00'}`
                 };
             }
-            
+
             // Envio falhou - salvar localmente
             console.warn('[Order] ⚠️ Envio direto falhou, salvando para sincronização...');
             console.warn('[Order] Motivo:', resultadoDireto.erro);
-            
+
             const salvou = await salvarPedidoPendente(pedido);
             if (!salvou) {
                 throw new Error('Erro ao salvar pedido localmente');
             }
-            
+
             console.log('[Order] 💾 Pedido salvo localmente');
-            
+
             const syncRegistrado = await registrarSyncPedido();
-            
+
             if (syncRegistrado) {
                 return {
                     sucesso: true,
@@ -461,7 +499,7 @@ export async function finalizarPedido(dadosPedido, carrinho) {
                 };
             }
         }
-        
+
     } catch (error) {
         console.error('[Order] ❌ Erro ao finalizar pedido:', error);
         console.error('[Order] Stack trace:', error.stack);
@@ -480,11 +518,11 @@ export async function cancelarPedido(pedidoId) {
                 'Content-Type': 'application/json'
             }
         });
-        
+
         if (!response.ok) {
             throw new Error('Erro ao cancelar pedido');
         }
-        
+
         return await response.json();
     } catch (error) {
         console.error('[Order] Erro ao cancelar pedido:', error);

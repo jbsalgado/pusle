@@ -27,11 +27,12 @@ class MercadoPagoController extends Controller
         $this->stdout("=== Renovação de Tokens do Mercado Pago ===\n", Console::FG_CYAN);
         $this->stdout("Iniciando em: " . date('Y-m-d H:i:s') . "\n\n");
 
-        $appId = getenv('MP_APP_ID') ?: getenv('MERCADO_PAGO_APP_ID');
-        $clientSecret = getenv('MP_CLIENT_SECRET') ?: getenv('MERCADO_PAGO_CLIENT_SECRET');
+        $appId = $_ENV['MP_APP_ID'] ?? $_SERVER['MP_APP_ID'] ?? $_ENV['MP_APP_CLIENT_ID'] ?? $_SERVER['MP_APP_CLIENT_ID'] ?? getenv('MP_APP_ID') ?: getenv('MERCADO_PAGO_APP_ID') ?: getenv('MP_APP_CLIENT_ID') ?: (Yii::$app->params['mp_app_id'] ?? null);
+        $clientSecret = $_ENV['MP_CLIENT_SECRET'] ?? $_SERVER['MP_CLIENT_SECRET'] ?? $_ENV['MP_APP_CLIENT_SECRET'] ?? $_SERVER['MP_APP_CLIENT_SECRET'] ?? getenv('MP_CLIENT_SECRET') ?: getenv('MERCADO_PAGO_CLIENT_SECRET') ?: getenv('MP_APP_CLIENT_SECRET') ?: (Yii::$app->params['mp_app_secret'] ?? null);
 
         if (empty($appId) || empty($clientSecret)) {
-            $this->stderr("ERRO: MP_APP_ID ou MP_CLIENT_SECRET não configurados no ambiente.\n", Console::FG_RED);
+            $this->stderr("ERRO: MP_APP_ID (ou MP_APP_CLIENT_ID) e MP_CLIENT_SECRET não configurados no ambiente (.env).\n", Console::FG_RED);
+            $this->stderr("Configure no seu arquivo .env:\n  MP_APP_ID=seu_client_id\n  MP_CLIENT_SECRET=seu_client_secret\n", Console::FG_YELLOW);
             return ExitCode::CONFIG;
         }
 
@@ -41,10 +42,11 @@ class MercadoPagoController extends Controller
         $limiteVencimento = date('Y-m-d H:i:s', strtotime('+15 days'));
 
         $usuarios = Yii::$app->db->createCommand("
-            SELECT id, nome, mp_refresh_token, mp_token_expiration 
+            SELECT id, nome, 
+                   COALESCE(mp_refresh_token, '') AS mp_refresh_token, 
+                   mp_token_expiration 
             FROM prest_usuarios 
-            WHERE api_de_pagamento = true 
-              AND gateway_pagamento = 'mercadopago' 
+            WHERE (api_de_pagamento = true OR gateway_pagamento = 'mercadopago' OR mp_access_token IS NOT NULL OR mercadopago_access_token IS NOT NULL)
               AND mp_refresh_token IS NOT NULL 
               AND (mp_token_expiration IS NULL OR mp_token_expiration <= :limite)
         ", [':limite' => $limiteVencimento])->queryAll();
@@ -85,13 +87,16 @@ class MercadoPagoController extends Controller
                             ->format('Y-m-d H:i:sP');
                     }
 
-                    Yii::$app->db->createCommand()->update('prest_usuarios', [
+                    $updateData = [
                         'mp_access_token' => $payload['access_token'] ?? null,
+                        'mercadopago_access_token' => $payload['access_token'] ?? null,
                         'mp_refresh_token' => $payload['refresh_token'] ?? null,
                         'mp_public_key' => $payload['public_key'] ?? null,
+                        'mercadopago_public_key' => $payload['public_key'] ?? null,
                         'mp_user_id' => isset($payload['user_id']) ? (string)$payload['user_id'] : null,
                         'mp_token_expiration' => $expiration,
-                    ], 'id = :id', [':id' => $usuario['id']])->execute();
+                    ];
+                    Yii::$app->db->createCommand()->update('prest_usuarios', $updateData, 'id = :id', [':id' => $usuario['id']])->execute();
 
                     $this->stdout("  ✓ Token renovado com sucesso! Válido até: " . ($expiration ?: 'N/A') . "\n", Console::FG_GREEN);
                     $sucessos++;

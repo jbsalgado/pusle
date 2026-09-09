@@ -42,20 +42,20 @@ const getLojaSlugOrId = () => {
  */
 const detectApiBaseUrl = () => {
     const pathname = window.location.pathname;
-    
+
     // O base path é tudo o que vem ANTES de '/catalogo'
     const parts = pathname.split('/catalogo');
     let basePath = parts[0];
-    
+
     // Se o path contém index.php dentro do basePath (ex: /pulse/web/index.php/catalogo)
     if (basePath.includes('/index.php')) {
         const match = basePath.match(/^(.+\/index\.php)/);
         if (match) return match[1];
     }
-    
+
     // Remove barra final se existir
     basePath = basePath.replace(/\/$/, '');
-    
+
     // Adiciona /index.php ao final
     return (basePath || '') + '/index.php';
 };
@@ -65,22 +65,22 @@ const detectApiBaseUrl = () => {
  */
 const detectWebBaseUrl = () => {
     const pathname = window.location.pathname;
-    
+
     // O base path é tudo o que vem ANTES de '/catalogo'
     const parts = pathname.split('/catalogo');
     let basePath = parts[0];
-    
+
     // Remove /index.php se existir no base path
     basePath = basePath.replace(/\/index\.php.*$/, '');
-    
+
     // Remove barra final se existir
     basePath = basePath.replace(/\/$/, '');
-    
+
     // Garante que comece com /
     if (!basePath.startsWith('/')) {
         basePath = '/' + basePath;
     }
-    
+
     return basePath || '/';
 };
 
@@ -127,12 +127,12 @@ export const API_ENDPOINTS = {
     COLABORADOR_BUSCA_CPF: `${_urlApiBase}/api/colaborador/buscar-cpf`,
     PEDIDO: `${_urlApiBase}/api/pedido`, // GET - listar pedidos
     PEDIDO_CREATE: `${_urlApiBase}/api/pedido/create`, // POST - criar pedido
-    
+
     // ✅ ENDPOINTS DE USUÁRIO
     USUARIO_CONFIG: `${_urlApiBase}/api/usuario/config`,
     USUARIO_CONFIG_BY_SLUG: `${_urlApiBase}/api/usuario/config-by-slug`, // ✅ NOVO endpoint dinâmico
     USUARIO_DADOS_LOJA: `${_urlApiBase}/api/usuario/dados-loja`,
-    
+
     // =======================================================
     // ✅ CORREÇÃO: ENDPOINTS ADICIONADOS DO BACKUP
     // =======================================================
@@ -140,11 +140,12 @@ export const API_ENDPOINTS = {
     FORMA_PAGAMENTO: `${_urlApiBase}/api/forma-pagamento`,
     CALCULO_PARCELA: `${_urlApiBase}/api/calculo/calcular-parcelas`,
     // =======================================================
-    
+
     // Mercado Pago
     MERCADOPAGO_CRIAR_PREFERENCIA: `${_urlApiBase}/api/mercado-pago/criar-preferencia`,
     MERCADOPAGO_CRIAR_PIX_SPLIT: `${_urlApiBase}/api/mercado-pago/criar-pagamento-pix-split`,
-    
+    MERCADOPAGO_CONSULTAR_STATUS_PIX: `${_urlApiBase}/api/mercado-pago/consultar-status-pix`,
+
     // Asaas
     ASAAS_CRIAR_COBRANCA: `${_urlApiBase}/api/asaas/criar-cobranca`,
     ASAAS_GERAR_QR_PIX: `${_urlApiBase}/api/asaas/gerar-qrcode-pix`,
@@ -154,7 +155,7 @@ export const API_ENDPOINTS = {
 
     // ✅ NOVO: Endpoint genérico para consulta de status de pedido/venda
     PEDIDO_STATUS: `${_urlApiBase}/api/pedido/status`,
-    
+
     // ✅ NOVO: Endpoint para buscar parcelas de uma venda
     PEDIDO_PARCELAS: `${_urlApiBase}/api/pedido/parcelas`,
     // ✅ NOVO: Endpoint para confirmar recebimento de venda
@@ -231,15 +232,15 @@ export async function carregarConfigLoja() {
         GATEWAY_CONFIG.asaas_sandbox = config.asaas_sandbox || false;
 
         console.log('[Config] ℹ️ Gateway:', GATEWAY_CONFIG.gateway,
-                    GATEWAY_CONFIG.habilitado ? '✅ HABILITADO' : '❌ DESABILITADO');
+            GATEWAY_CONFIG.habilitado ? '✅ HABILITADO' : '❌ DESABILITADO');
         console.log('[Config] ✅ Loja ativa: ID=', CONFIG.ID_USUARIO_LOJA);
 
         const catalogoAtivo = (CONFIG.LOJA_INFO?.catalogo_ativo !== false) && (config.catalogo_ativo !== false);
 
         // Sinaliza loja identificada com sucesso e status do catálogo
-        return { 
-            ...GATEWAY_CONFIG, 
-            lojaIdentificada: true, 
+        return {
+            ...GATEWAY_CONFIG,
+            lojaIdentificada: true,
             catalogoAtivo: catalogoAtivo,
             lojaInfo: { ...(CONFIG.LOJA_INFO || {}), ...config }
         };

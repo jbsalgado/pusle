@@ -106,10 +106,10 @@ $config = [
             'useFileTransport' => false,
             'transport' => [
                 'scheme' => 'smtps',
-                'host' => 'smtp.gmail.com',
-                'username' => 'only.code.cru@gmail.com',
-                'password' => 'dxnctubwrfcnbeus',
-                'port' => 465,
+                'host' => $_ENV['SMTP_HOST'] ?? 'smtp.gmail.com',
+                'username' => $_ENV['SMTP_USERNAME'] ?? 'only.code.cru@gmail.com',
+                'password' => $_ENV['SMTP_PASSWORD'] ?? 'dxnctubwrfcnbeus',
+                'port' => (int)($_ENV['SMTP_PORT'] ?? 465),
             ],
         ],
         'log' => [
@@ -144,6 +144,14 @@ $config = [
                 'POST encarte/enviar-pedido/<token:[\w-]+>' => 'vendas/encarte-publico/enviar-pedido',
                 'GET encarte/pdf/<token:[\w-]+>' => 'vendas/encarte-publico/pdf',
                 'GET encarte/<token:[\w-]+>' => 'vendas/encarte-publico/ver',
+                // Feed de Catálogo para Meta Commerce / Instagram Shopping
+                'GET,HEAD catalogo/meta-feed.xml' => 'catalogo-feed/meta-xml',
+                'GET,HEAD catalogo/meta-feed' => 'catalogo-feed/meta-xml',
+                'GET,HEAD catalogo/feed-meta.xml' => 'catalogo-feed/meta-xml',
+                'GET,HEAD catalogo/feed-meta' => 'catalogo-feed/meta-xml',
+                // Webhooks Universais de Marketplaces (Mercado Livre, Shopee, Magalu, Temu, iFood)
+                'POST marketplace/webhook/<marketplace:[\w-]+>' => 'marketplace/webhook/receive',
+                'GET,POST marketplace/webhook/receive' => 'marketplace/webhook/receive',
                 // Regras da Integração Meta Social (Instagram / Facebook)
                 'POST social-integration/connect' => 'social-integration/connect',
                 'GET social-integration/accounts' => 'social-integration/accounts',
@@ -159,7 +167,10 @@ $config = [
                 'GET api/produto/marcas' => 'api/produto/marcas',
                 'GET api/produto/<id:[\w-]+>' => 'api/produto/view',
                 // Regras REST específicas para cliente
+                'GET api/cliente/buscar-cpf' => 'api/cliente/buscar-cpf',
+                'GET api/cliente/dados-cobranca' => 'api/cliente/dados-cobranca',
                 'POST api/cliente' => 'api/cliente/create',
+                'GET api/cliente/<id:[0-9a-fA-F-]{36}>' => 'api/cliente/view',
                 'GET api/cliente' => 'api/cliente/index',
                 // Regras genéricas para módulo API - suporta hífens em actions
                 'api/<controller:\w+>/<action:[\w-]+>' => 'api/<controller>/<action>',

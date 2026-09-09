@@ -202,6 +202,10 @@ $this->params['breadcrumbs'][] = $this->title;
                                     </a>
                                 </div>
 
+                                <button type="button" onclick="abrirModalPublicarSocial('<?= $enc->id ?>', '<?= Html::encode(addslashes($enc->titulo)) ?>', '<?= Html::encode($urlPublica) ?>')" class="w-full py-2 px-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <span>📢 Publicar no Instagram & Facebook</span>
+                                </button>
+
                                 <div class="grid grid-cols-3 gap-1.5 pt-1">
                                     <button type="button" onclick="copiarLinkPublico('<?= Html::encode($urlPublica) ?>')" class="py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] rounded-lg transition flex items-center justify-center gap-1 cursor-pointer">
                                         <span>🔗 Copiar</span>
@@ -293,4 +297,134 @@ $this->params['breadcrumbs'][] = $this->title;
         })
         .catch(err => alert('Erro de comunicação: ' + err.message));
     }
+
+    let encarteSocialAtual = { id: '', titulo: '', url: '' };
+
+    function abrirModalPublicarSocial(id, titulo, url) {
+        encarteSocialAtual = { id, titulo, url };
+        document.getElementById('socialModalTitulo').textContent = titulo;
+        document.getElementById('socialLegenda').value = '✨ Confira as novidades e ofertas imperdíveis do nosso novo encarte digital!\n\n👉 Acesse agora: ' + url + '\n\n#ofertas #promocao #catalogo #compras';
+        
+        const modal = document.getElementById('modalPublicarSocial');
+        modal.classList.remove('hidden');
+
+        // Carrega contas conectadas
+        const selectConta = document.getElementById('socialContaSelect');
+        selectConta.innerHTML = '<option value="">Carregando contas conectadas...</option>';
+
+        fetch('<?= Url::to(['/social-integration/accounts']) ?>')
+            .then(r => r.json())
+            .then(data => {
+                selectConta.innerHTML = '';
+                if (data.accounts && data.accounts.length > 0) {
+                    data.accounts.forEach(acc => {
+                        const opt = document.createElement('option');
+                        opt.value = acc.id;
+                        opt.textContent = (acc.page_name || 'Conta Meta') + ' (' + acc.status + ')';
+                        selectConta.appendChild(opt);
+                    });
+                } else {
+                    selectConta.innerHTML = '<option value="">Nenhuma conta Meta conectada ainda</option>';
+                }
+            })
+            .catch(err => {
+                selectConta.innerHTML = '<option value="">Erro ao buscar contas</option>';
+            });
+    }
+
+    function fecharModalPublicarSocial() {
+        document.getElementById('modalPublicarSocial').classList.add('hidden');
+    }
+
+    async function enviarPublicacaoSocial() {
+        const contaId = document.getElementById('socialContaSelect').value;
+        if (!contaId) {
+            alert('Por favor, selecione uma conta conectada da Meta.');
+            return;
+        }
+
+        const platform = document.getElementById('socialPlataformaSelect').value;
+        const caption = document.getElementById('socialLegenda').value;
+        const btn = document.getElementById('btnDispararPublicacaoSocial');
+
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Enfileirando publicação...';
+
+        try {
+            const resp = await fetch('<?= Url::to(['/social-integration/publish']) ?>', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    social_account_id: contaId,
+                    platform: platform,
+                    media_type: 'IMAGE',
+                    media_url: encarteSocialAtual.url,
+                    caption: caption
+                })
+            });
+
+            const resData = await resp.json();
+            if (resp.ok && resData.success) {
+                alert('🚀 ' + (resData.message || 'Publicação enviada com sucesso para a fila!'));
+                fecharModalPublicarSocial();
+            } else {
+                alert('Erro ao publicar: ' + (resData.error || (resData.errors ? JSON.stringify(resData.errors) : 'Falha desconhecida.')));
+            }
+        } catch (e) {
+            alert('Erro de rede: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '🚀 Publicar Agora';
+        }
+    }
 </script>
+
+<!-- Modal 1-Clique: Publicar no Instagram & Facebook -->
+<div id="modalPublicarSocial" class="fixed inset-0 z-[150] hidden bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-purple-500/40 rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-4 text-white relative">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">📢</span>
+                <div>
+                    <h3 class="font-extrabold text-base text-purple-400">Publicar nas Redes Sociais</h3>
+                    <p class="text-[10px] text-slate-400" id="socialModalTitulo">Encarte Digital</p>
+                </div>
+            </div>
+            <button type="button" onclick="fecharModalPublicarSocial()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <div class="space-y-3 text-xs">
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Conta Meta Conectada</label>
+                <select id="socialContaSelect" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-purple-400">
+                    <option value="">Carregando...</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Plataforma</label>
+                <select id="socialPlataformaSelect" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-purple-400">
+                    <option value="BOTH">Ambas (Instagram Feed + Facebook Página)</option>
+                    <option value="INSTAGRAM">Apenas Instagram Feed / Carrossel</option>
+                    <option value="FACEBOOK">Apenas Facebook Página</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Legenda da Publicação</label>
+                <textarea id="socialLegenda" rows="4" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-sans text-xs focus:outline-none focus:border-purple-400 resize-none"></textarea>
+            </div>
+        </div>
+
+        <div class="pt-2 border-t border-slate-800 flex items-center justify-end gap-2">
+            <button type="button" onclick="fecharModalPublicarSocial()" class="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition">
+                Cancelar
+            </button>
+            <button type="button" id="btnDispararPublicacaoSocial" onclick="enviarPublicacaoSocial()" class="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-black text-xs rounded-xl shadow-lg transition flex items-center gap-1.5 cursor-pointer">
+                <span>🚀 Publicar Agora</span>
+            </button>
+        </div>
+    </div>
+</div>

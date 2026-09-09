@@ -51,12 +51,14 @@ class TemuService extends MarketplaceService
                 $sku = $vinculo->sku_marketplace ?: $vinculo->marketplace_produto_id;
                 $url = "{$this->apiBaseUrl}/bg/goods/local/inventory/update";
 
+                $payload = [
+                    'sku_id' => $sku,
+                    'available_quantity' => max(0, (int)$quantidade),
+                ];
+
                 $this->request('POST', $url, [
-                    'headers' => $this->getAuthHeaders(),
-                    'json' => [
-                        'sku_id' => $sku,
-                        'available_quantity' => max(0, (int)$quantidade),
-                    ],
+                    'headers' => $this->getAuthHeaders('/bg/goods/local/inventory/update', $payload),
+                    'json' => $payload,
                 ]);
 
                 $vinculo->estoque_marketplace = (int)$quantidade;
@@ -101,12 +103,14 @@ class TemuService extends MarketplaceService
                 $precoFinal = $novoPreco ? (float)$novoPreco : $vinculo->getPrecoFinal();
                 $url = "{$this->apiBaseUrl}/bg/goods/local/price/update";
 
+                $payload = [
+                    'sku_id' => $sku,
+                    'price' => $precoFinal,
+                ];
+
                 $this->request('POST', $url, [
-                    'headers' => $this->getAuthHeaders(),
-                    'json' => [
-                        'sku_id' => $sku,
-                        'price' => $precoFinal,
-                    ],
+                    'headers' => $this->getAuthHeaders('/bg/goods/local/price/update', $payload),
+                    'json' => $payload,
                 ]);
 
                 $vinculo->preco_marketplace = $precoFinal;
@@ -133,12 +137,14 @@ class TemuService extends MarketplaceService
         $url = "{$this->apiBaseUrl}/bg/order/local/list";
 
         try {
+            $payload = [
+                'status' => 'PENDING_SHIPMENT',
+                'page_size' => 50,
+            ];
+
             $response = $this->request('POST', $url, [
-                'headers' => $this->getAuthHeaders(),
-                'json' => [
-                    'status' => 'PENDING_SHIPMENT',
-                    'page_size' => 50,
-                ],
+                'headers' => $this->getAuthHeaders('/bg/order/local/list', $payload),
+                'json' => $payload,
             ]);
 
             $orderList = $response['data']['order_list'] ?? [];
@@ -204,11 +210,84 @@ class TemuService extends MarketplaceService
         return $dto;
     }
 
-    protected function getAuthHeaders(): array
+    /**
+     * Confirma o envio e despacho do pedido local na Temu (L2L) com Rastreio e NF-e
+     * 
+     * @param string $orderSn Código do pedido na Temu
+     * @param string $trackingNumber Código de rastreamento da transportadora
+     * @param string $carrierCode Código da transportadora parceira
+     * @param string|null $nfeKey Chave de acesso de 44 dígitos da NF-e
+     * @return bool
+     */
+    public function confirmShipment(string $orderSn, string $trackingNumber, string $carrierCode, ?string $nfeKey = null): bool
     {
+        $url = "{$this->apiBaseUrl}/bg/order/local/shipment/confirm";
+        $payload = [
+            'order_sn' => $orderSn,
+            'tracking_number' => $trackingNumber,
+            'shipping_carrier' => $carrierCode,
+        ];
+
+        if (!empty($nfeKey)) {
+            $payload['invoice_access_key'] = preg_replace('/\D/', '', $nfeKey);
+        }
+
+        try {
+            $this->request('POST', $url, [
+                'headers' => $this->getAuthHeaders('/bg/order/local/shipment/confirm', $payload),
+                'json' => $payload,
+            ]);
+
+            Yii::info("[TemuService] Despacho confirmado com sucesso para o pedido {$orderSn} (Rastreio: {$trackingNumber}).", 'marketplace');
+            return true;
+        } catch (\Throwable $e) {
+            $this->handleError($e, "confirmShipment ({$orderSn})");
+            return false;
+        }
+    }
+
+    /**
+     * Gera a assinatura da Temu Open Platform (L2L Brasil)
+     * Regra: app_secret + parâmetros ordenados (chave+valor) + app_secret -> MD5 Uppercase
+     * 
+     * @param string $apiPath Caminho da API
+     * @param array $params Parâmetros enviados no corpo ou query
+     * @param int $timestamp Timestamp Unix
+     * @return string Assinatura em hexadecimal uppercase
+     */
+    public function generateSignature(string $apiPath, array $params = [], int $timestamp = 0): string
+    {
+        $appKey = (string)($this->config['client_id'] ?? '');
+        $appSecret = (string)($this->config['client_secret'] ?? '');
+
+        $signParams = $params;
+        $signParams['app_key'] = $appKey;
+        $signParams['timestamp'] = $timestamp ?: time();
+
+        ksort($signParams);
+
+        $signString = $appSecret;
+        foreach ($signParams as $k => $v) {
+            if ($v !== null && $v !== '') {
+                $signString .= $k . (is_array($v) ? json_encode($v, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : (string)$v);
+            }
+        }
+        $signString .= $appSecret;
+
+        return strtoupper(md5($signString));
+    }
+
+    protected function getAuthHeaders(string $path = '', array $bodyParams = []): array
+    {
+        $timestamp = time();
+        $appKey = (string)($this->config['client_id'] ?? '');
+        $sign = $this->generateSignature($path, $bodyParams, $timestamp);
+
         return [
             'Authorization' => 'Bearer ' . ($this->config['access_token'] ?? ''),
-            'app-key' => $this->config['client_id'] ?? '',
+            'app-key' => $appKey,
+            'timestamp' => (string)$timestamp,
+            'sign' => $sign,
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
         ];

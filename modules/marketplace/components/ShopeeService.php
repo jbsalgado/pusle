@@ -351,6 +351,145 @@ class ShopeeService extends MarketplaceService
     }
 
     /**
+     * Faz upload de imagem para a CDN da Shopee (Media Space)
+     * 
+     * @param string $imagePath Caminho local ou URL do arquivo de imagem
+     * @return string|null image_id retornado pela Shopee
+     */
+    public function uploadImage(string $imagePath): ?string
+    {
+        $path = '/api/v2/media_space/upload_image';
+        $timestamp = time();
+        $sign = $this->generateSignature($path, $timestamp);
+        $partnerId = (int)($this->config['client_id'] ?? 0);
+
+        $url = "{$this->apiBaseUrl}{$path}?partner_id={$partnerId}&timestamp={$timestamp}&sign={$sign}";
+
+        try {
+            $tempFile = null;
+            if (!file_exists($imagePath) && filter_var($imagePath, FILTER_VALIDATE_URL)) {
+                $tempFile = tempnam(sys_get_temp_dir(), 'shopee_img_');
+                file_put_contents($tempFile, file_get_contents($imagePath));
+                $uploadFile = $tempFile;
+            } else {
+                $uploadFile = $imagePath;
+            }
+
+            if (!file_exists($uploadFile)) {
+                throw new \Exception("Arquivo de imagem não encontrado: {$imagePath}");
+            }
+
+            $client = new \GuzzleHttp\Client();
+            $response = $client->post($url, [
+                'multipart' => [
+                    [
+                        'name' => 'image',
+                        'contents' => fopen($uploadFile, 'r'),
+                        'filename' => basename($uploadFile)
+                    ]
+                ],
+                'timeout' => 30
+            ]);
+
+            if ($tempFile && file_exists($tempFile)) {
+                @unlink($tempFile);
+            }
+
+            $body = json_decode($response->getBody()->getContents(), true);
+            if (!empty($body['response']['image_info']['image_id'])) {
+                $imageId = (string)$body['response']['image_info']['image_id'];
+                Yii::info("[ShopeeService] Imagem enviada com sucesso para CDN da Shopee. Image ID: {$imageId}", 'marketplace');
+                return $imageId;
+            }
+
+            Yii::error("[ShopeeService] Resposta da Shopee sem image_id: " . json_encode($body), 'marketplace');
+            return null;
+        } catch (\Throwable $e) {
+            $this->handleError($e, "uploadImage ({$imagePath})");
+            return null;
+        }
+    }
+
+    /**
+     * Solicita geração de documento de envio (etiqueta de frete) para um pedido na Shopee
+     * 
+     * @param string $orderSn Código do pedido na Shopee
+     * @param string $documentType 'NORMAL_AIR_WAYBILL' ou 'THERMAL_AIR_WAYBILL'
+     * @return array|null Dados da solicitação
+     */
+    public function createShippingDocument(string $orderSn, string $documentType = 'NORMAL_AIR_WAYBILL'): ?array
+    {
+        $this->garantirTokenValido();
+
+        $path = '/api/v2/logistics/create_shipping_document';
+        $timestamp = time();
+        $shopId = (string)($this->config['seller_id_externo'] ?? '');
+        $accessToken = (string)($this->config['access_token'] ?? '');
+        $sign = $this->generateSignature($path, $timestamp, $accessToken, $shopId);
+
+        $url = "{$this->apiBaseUrl}{$path}?partner_id={$this->config['client_id']}&timestamp={$timestamp}&access_token={$accessToken}&shop_id={$shopId}&sign={$sign}";
+
+        try {
+            $response = $this->request('POST', $url, [
+                'json' => [
+                    'order_list' => [
+                        [
+                            'order_sn' => $orderSn,
+                            'shipping_document_type' => $documentType
+                        ]
+                    ]
+                ]
+            ]);
+
+            Yii::info("[ShopeeService] Documento de envio solicitado para pedido {$orderSn}.", 'marketplace');
+            return $response['response'] ?? $response;
+        } catch (\Throwable $e) {
+            $this->handleError($e, "createShippingDocument ({$orderSn})");
+            return null;
+        }
+    }
+
+    /**
+     * Baixa a etiqueta de envio do pedido na Shopee em PDF binário
+     * 
+     * @param string $orderSn Código do pedido na Shopee
+     * @return string|null Conteúdo binário do PDF da etiqueta
+     */
+    public function getShippingDocument(string $orderSn): ?string
+    {
+        $this->garantirTokenValido();
+
+        $path = '/api/v2/logistics/download_shipping_document';
+        $timestamp = time();
+        $shopId = (string)($this->config['seller_id_externo'] ?? '');
+        $accessToken = (string)($this->config['access_token'] ?? '');
+        $sign = $this->generateSignature($path, $timestamp, $accessToken, $shopId);
+
+        $url = "{$this->apiBaseUrl}{$path}?partner_id={$this->config['client_id']}&timestamp={$timestamp}&access_token={$accessToken}&shop_id={$shopId}&sign={$sign}";
+
+        try {
+            $client = new \GuzzleHttp\Client();
+            $response = $client->post($url, [
+                'json' => [
+                    'order_list' => [
+                        ['order_sn' => $orderSn]
+                    ]
+                ],
+                'timeout' => 30
+            ]);
+
+            if ($response->getStatusCode() === 200) {
+                return (string)$response->getBody();
+            }
+
+            return null;
+        } catch (\Throwable $e) {
+            $this->handleError($e, "getShippingDocument ({$orderSn})");
+            return null;
+        }
+    }
+
+    /**
      * Normaliza pedido da Shopee para o DTO canônico
      */
     public function normalizeOrderToDTO(array $orderData): MarketplaceOrderDTO

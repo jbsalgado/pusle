@@ -27,7 +27,7 @@ class PedidoController extends BaseController
         // Usa 'except' para garantir que confirmar-recebimento não exija autenticação
         $behaviors['authenticator'] = [
             'class' => \yii\filters\auth\HttpBearerAuth::class,
-            'optional' => ['create', 'index', 'parcelas', 'confirmar-recebimento'],
+            'optional' => ['create', 'index', 'parcelas', 'confirmar-recebimento', 'status'],
         ];
         // VerbFilter já é tratado pelo rest\Controller se configurado, mas mantemos local se necessário
         return $behaviors;
@@ -96,7 +96,35 @@ class PedidoController extends BaseController
             throw new BadRequestHttpException('venda_id é obrigatório');
         }
 
-        $venda = Venda::find()->where(['id' => $venda_id])->one();
+        // ✅ CORREÇÃO: se não for UUID válido, é provavelmente payment_id do MP.
+        // Evita erro 500 do PostgreSQL "invalid input syntax for type uuid".
+        if (!preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/', (string)$venda_id)) {
+            Yii::warning("actionStatus recebeu venda_id não-UUID: {$venda_id}", 'api');
+            return [
+                'sucesso' => true,
+                'venda_id' => $venda_id,
+                'status' => 'PROCESSANDO',
+                'pago' => false,
+                'recusado' => false,
+                'motivo' => null,
+                'data_atualizacao' => null,
+            ];
+        }
+
+        try {
+            $venda = Venda::find()->where(['id' => $venda_id])->one();
+        } catch (\Throwable $e) {
+            Yii::error("Erro ao buscar venda {$venda_id} no actionStatus: " . $e->getMessage(), 'api');
+            return [
+                'sucesso' => false,
+                'venda_id' => $venda_id,
+                'status' => 'PROCESSANDO',
+                'pago' => false,
+                'recusado' => false,
+                'motivo' => 'Erro temporário ao consultar status',
+                'data_atualizacao' => null,
+            ];
+        }
 
         if (!$venda) {
             throw new NotFoundHttpException('Venda não encontrada');

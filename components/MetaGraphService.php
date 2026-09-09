@@ -138,7 +138,8 @@ class MetaGraphService extends Component
         string $accessToken,
         string $mediaType,
         string $mediaUrl,
-        ?string $caption = null
+        ?string $caption = null,
+        ?array $productTags = null
     ): string {
         $params = [
             'access_token' => $accessToken,
@@ -146,6 +147,11 @@ class MetaGraphService extends Component
 
         if (!empty($caption)) {
             $params['caption'] = $caption;
+        }
+
+        if (!empty($productTags)) {
+            // Meta espera product_tags como JSON string contendo array de [{product_id: "...", x: 0.5, y: 0.5}]
+            $params['product_tags'] = json_encode($productTags);
         }
 
         $upperMediaType = strtoupper($mediaType);
@@ -262,6 +268,83 @@ class MetaGraphService extends Component
         }
 
         return (string) $publishedId;
+    }
+
+    /**
+     * Envia eventos de conversão server-side via Meta Conversions API (CAPI).
+     * 
+     * @param string $pixelId ID do Pixel/Dataset da Meta
+     * @param string $accessToken Access Token com permissão ads_management/events
+     * @param string $eventName Nome do evento ('Purchase', 'AddToCart', 'ViewContent', 'Lead', etc.)
+     * @param array $userData Dados do usuário (email, phone, first_name, last_name, external_id, client_ip_address, client_user_agent)
+     * @param array $customData Dados do evento (value, currency, contents, order_id, etc.)
+     * @param string|null $eventSourceUrl URL de origem do evento
+     * @param string|null $eventId ID único para desduplicação (Browser Pixel vs CAPI)
+     * @return array Resposta da Meta CAPI
+     * @throws Exception
+     */
+    public function sendConversionEvent(
+        string $pixelId,
+        string $accessToken,
+        string $eventName,
+        array $userData = [],
+        array $customData = [],
+        ?string $eventSourceUrl = null,
+        ?string $eventId = null
+    ): array {
+        $normalizedUserData = [];
+
+        // Hashing seguro SHA-256 exigido pela Meta para PII (Personally Identifiable Information)
+        if (!empty($userData['email'])) {
+            $normalizedUserData['em'] = [hash('sha256', strtolower(trim($userData['email'])))];
+        }
+        if (!empty($userData['phone'])) {
+            $phoneClean = preg_replace('/\D/', '', $userData['phone']);
+            if (strlen($phoneClean) <= 11) {
+                $phoneClean = '55' . $phoneClean;
+            }
+            $normalizedUserData['ph'] = [hash('sha256', $phoneClean)];
+        }
+        if (!empty($userData['first_name'])) {
+            $normalizedUserData['fn'] = [hash('sha256', strtolower(trim($userData['first_name'])))];
+        }
+        if (!empty($userData['last_name'])) {
+            $normalizedUserData['ln'] = [hash('sha256', strtolower(trim($userData['last_name'])))];
+        }
+        if (!empty($userData['external_id'])) {
+            $normalizedUserData['external_id'] = [hash('sha256', (string)$userData['external_id'])];
+        }
+        if (!empty($userData['client_ip_address'])) {
+            $normalizedUserData['client_ip_address'] = $userData['client_ip_address'];
+        }
+        if (!empty($userData['client_user_agent'])) {
+            $normalizedUserData['client_user_agent'] = $userData['client_user_agent'];
+        }
+
+        $eventPayload = [
+            'event_name' => $eventName,
+            'event_time' => time(),
+            'action_source' => 'website',
+            'user_data' => $normalizedUserData,
+        ];
+
+        if (!empty($customData)) {
+            $eventPayload['custom_data'] = $customData;
+        }
+        if (!empty($eventSourceUrl)) {
+            $eventPayload['event_source_url'] = $eventSourceUrl;
+        }
+        if (!empty($eventId)) {
+            $eventPayload['event_id'] = $eventId;
+        }
+
+        $params = [
+            'data' => [$eventPayload],
+            'access_token' => $accessToken,
+        ];
+
+        $response = $this->_httpClient->post("{$pixelId}/events", $params)->send();
+        return $this->handleResponse($response, "Meta Conversions API ({$eventName})");
     }
 
     /**
