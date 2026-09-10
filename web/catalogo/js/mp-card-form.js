@@ -97,6 +97,16 @@ export async function inicializarCardForm(containerId, valorTotal, onTokenGenera
             onFormMounted: (error) => {
                 if (error) {
                     console.error('[MP CardForm] ❌ Erro ao montar formulário:', error);
+                } else {
+                    console.log('[MP CardForm] ✅ Formulário montado com sucesso');
+                    // Dispara evento input nos campos preenchidos para sincronizar validação do SDK
+                    ['form-checkout__cardholderName', 'form-checkout__identificationNumber', 'form-checkout__cardholderEmail'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el && el.value) {
+                            el.dispatchEvent(new Event('input', { bubbles: true }));
+                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    });
                 }
             },
             onSubmit: async (event) => {
@@ -214,33 +224,39 @@ export async function buscarParcelasMP(valorTotal, bin = null, paymentMethodId =
 /**
  * Gera o HTML do modal/container do formulário de cartão.
  * Pode ser inserido em qualquer ponto do DOM.
+ *
+ * @param {Object|null} cliente - Dados do cliente para pré-preenchimento
  */
-export function gerarHtmlFormCartao() {
+export function gerarHtmlFormCartao(cliente = null) {
+    const nomeVal = (cliente?.nome_completo || cliente?.nome || '').trim();
+    const docVal = (cliente?.cpf_cnpj || cliente?.cpf || '').replace(/\D/g, '');
+    const emailVal = (cliente?.email || '').trim();
+
     return `
 <form id="form-checkout-mp-cartao" class="mp-card-form-container">
 
     <!-- Número do cartão -->
     <div class="mp-field-group">
-        <label class="mp-label">Número do Cartão</label>
+        <label class="mp-label" for="form-checkout__cardNumber">Número do Cartão</label>
         <div id="form-checkout__cardNumber" class="mp-sdk-field"></div>
     </div>
 
     <!-- Linha: validade + CVV -->
     <div class="mp-field-row">
         <div class="mp-field-group">
-            <label class="mp-label">Validade</label>
+            <label class="mp-label" for="form-checkout__expirationDate">Validade</label>
             <div id="form-checkout__expirationDate" class="mp-sdk-field"></div>
         </div>
         <div class="mp-field-group">
-            <label class="mp-label">CVV</label>
+            <label class="mp-label" for="form-checkout__securityCode">CVV</label>
             <div id="form-checkout__securityCode" class="mp-sdk-field"></div>
         </div>
     </div>
 
     <!-- Nome do titular -->
     <div class="mp-field-group">
-        <label class="mp-label">Nome no Cartão</label>
-        <div id="form-checkout__cardholderName" class="mp-sdk-field"></div>
+        <label class="mp-label" for="form-checkout__cardholderName">Nome no Cartão</label>
+        <input type="text" id="form-checkout__cardholderName" class="mp-input" placeholder="Nome como no cartão" autocomplete="cc-name" value="${nomeVal}" />
     </div>
 
     <!-- Banco emissor (preenchido automaticamente pelo SDK) -->
@@ -248,7 +264,7 @@ export function gerarHtmlFormCartao() {
 
     <!-- Parcelas -->
     <div class="mp-field-group">
-        <label class="mp-label">Parcelas</label>
+        <label class="mp-label" for="form-checkout__installments">Parcelas</label>
         <select id="form-checkout__installments" class="mp-select">
             <option value="">Selecione as parcelas</option>
         </select>
@@ -257,19 +273,19 @@ export function gerarHtmlFormCartao() {
     <!-- CPF / Tipo de documento -->
     <div class="mp-field-row">
         <div class="mp-field-group" style="flex:0 0 110px;">
-            <label class="mp-label">Tipo Doc.</label>
+            <label class="mp-label" for="form-checkout__identificationType">Tipo Doc.</label>
             <select id="form-checkout__identificationType" class="mp-select"></select>
         </div>
         <div class="mp-field-group">
-            <label class="mp-label">CPF / Documento</label>
-            <div id="form-checkout__identificationNumber" class="mp-sdk-field"></div>
+            <label class="mp-label" for="form-checkout__identificationNumber">CPF / Documento</label>
+            <input type="text" id="form-checkout__identificationNumber" class="mp-input" placeholder="Número do documento" inputmode="numeric" value="${docVal}" />
         </div>
     </div>
 
     <!-- E-mail -->
     <div class="mp-field-group">
-        <label class="mp-label">E-mail</label>
-        <div id="form-checkout__cardholderEmail" class="mp-sdk-field"></div>
+        <label class="mp-label" for="form-checkout__cardholderEmail">E-mail</label>
+        <input type="email" id="form-checkout__cardholderEmail" class="mp-input" placeholder="E-mail" autocomplete="email" value="${emailVal}" />
     </div>
 
     <!-- Mensagem de erro -->

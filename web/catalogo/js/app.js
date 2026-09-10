@@ -2115,17 +2115,6 @@ window.confirmarPedido = async function() {
                     'background:rgba(0,0,0,0.75)',
                     'display:flex;align-items:center;justify-content:center;padding:16px',
                 ].join(';');
-                modalCartao.innerHTML = `
-                    <div style="background:#fff;border-radius:16px;padding:28px 24px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-                            <h3 style="font-size:18px;font-weight:700;color:#1e293b;margin:0">💳 Pagamento com Cartão</h3>
-                            <button id="btn-fechar-modal-cartao" style="background:none;border:none;font-size:22px;cursor:pointer;color:#64748b;line-height:1">&times;</button>
-                        </div>
-                        <p style="font-size:13px;color:#64748b;margin:0 0 18px">
-                            Seus dados são protegidos e tokenizados pelo Mercado Pago.
-                        </p>
-                        ${gerarHtmlFormCartao()}
-                    </div>`;
                 document.body.appendChild(modalCartao);
 
                 // Estilos do formulário
@@ -2138,10 +2127,10 @@ window.confirmarPedido = async function() {
                         .mp-field-row{display:flex;gap:12px}
                         .mp-field-row .mp-field-group{flex:1}
                         .mp-label{font-size:12px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.5px}
-                        .mp-sdk-field,.mp-select{height:44px;border:1.5px solid #cbd5e1;border-radius:8px;padding:0 12px;font-size:14px;width:100%;box-sizing:border-box;background:#f8fafc;transition:border-color .2s}
+                        .mp-sdk-field,.mp-select,.mp-input{height:44px;border:1.5px solid #cbd5e1;border-radius:8px;padding:0 12px;font-size:14px;width:100%;box-sizing:border-box;background:#f8fafc;color:#1e293b;transition:border-color .2s}
                         .mp-sdk-field{padding:0} /* SDK injeta iframe interno */
                         .mp-sdk-field:focus-within{border-color:#7c3aed;background:#fff}
-                        .mp-select:focus{border-color:#7c3aed;outline:none;background:#fff}
+                        .mp-input:focus,.mp-select:focus{border-color:#7c3aed;outline:none;background:#fff}
                         .mp-error-msg{color:#ef4444;font-size:13px;min-height:18px;margin:0}
                         .mp-btn-pay{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;width:100%;transition:opacity .2s;margin-top:4px}
                         .mp-btn-pay:hover{opacity:.92}
@@ -2150,16 +2139,35 @@ window.confirmarPedido = async function() {
                     document.head.appendChild(style);
                 }
             }
+
+            const dadosClienteParaCartao = clienteAtual?.cliente || clienteAtual;
+
+            // Garante HTML limpo e pré-preenchido com dados do cliente a cada abertura
+            modalCartao.innerHTML = `
+                <div style="background:#fff;border-radius:16px;padding:28px 24px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+                        <h3 style="font-size:18px;font-weight:700;color:#1e293b;margin:0">💳 Pagamento com Cartão</h3>
+                        <button id="btn-fechar-modal-cartao" style="background:none;border:none;font-size:22px;cursor:pointer;color:#64748b;line-height:1">&times;</button>
+                    </div>
+                    <p style="font-size:13px;color:#64748b;margin:0 0 18px">
+                        Seus dados são protegidos e tokenizados pelo Mercado Pago.
+                    </p>
+                    ${gerarHtmlFormCartao(dadosClienteParaCartao)}
+                </div>`;
+
             modalCartao.style.display = 'flex';
 
-            // Botão fechar
-            document.getElementById('btn-fechar-modal-cartao')?.addEventListener('click', () => {
-                modalCartao.style.display = 'none';
-                destruirCardForm();
-            });
-
-            // Inicializa o CardForm do MP e aguarda o token
+            // Inicializa o CardForm do MP e aguarda o token ou cancelamento
             await new Promise((resolve, reject) => {
+                const btnFechar = document.getElementById('btn-fechar-modal-cartao');
+                if (btnFechar) {
+                    btnFechar.onclick = () => {
+                        modalCartao.style.display = 'none';
+                        destruirCardForm();
+                        reject(new Error('PAGAMENTO_CANCELADO'));
+                    };
+                }
+
                 inicializarCardForm('form-checkout-mp-cartao', valorTotal, async (token, installments, paymentMethodId, issuerId) => {
                     // Token gerado com sucesso — fecha modal e prossegue
                     modalCartao.style.display = 'none';
@@ -2172,8 +2180,21 @@ window.confirmarPedido = async function() {
             });
 
         } catch (err) {
+            if (err.message === 'PAGAMENTO_CANCELADO') {
+                const btnConfirmar = document.getElementById('btn-confirmar-pedido');
+                if (btnConfirmar) {
+                    btnConfirmar.disabled = false;
+                    btnConfirmar.textContent = '✅ Confirmar Pedido';
+                }
+                return;
+            }
             console.error('[App] ❌ Erro ao inicializar CardForm MP:', err);
             alert('Não foi possível carregar o formulário de cartão: ' + err.message);
+            const btnConfirmar = document.getElementById('btn-confirmar-pedido');
+            if (btnConfirmar) {
+                btnConfirmar.disabled = false;
+                btnConfirmar.textContent = '✅ Confirmar Pedido';
+            }
             return;
         }
     }
