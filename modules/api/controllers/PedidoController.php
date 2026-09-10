@@ -809,23 +809,29 @@ class PedidoController extends BaseController
                 }
             }
 
-            // Recarrega venda com relacionamentos
-            $venda->refresh();
-            unset($venda->parcelas);
-            unset($venda->itens);
-            unset($venda->cliente);
+            // ✅ FIX #1: Recarrega a venda com todos os relacionamentos via eager loading explícito
+            // O padrão anterior (unset + populateRelation com lazy load) não garantia que
+            // itens.produto fossem carregados antes do toArray(), causando comprovante zerado.
+            $vendaComRelacoes = Venda::find()
+                ->where(['id' => $venda->id])
+                ->with([
+                    'itens',
+                    'itens.produto',
+                    'cliente',
+                    'parcelas',
+                    'parcelas.formaPagamento',
+                    'formaPagamento',
+                    'vendedor',
+                ])
+                ->one();
 
-            $venda->populateRelation('itens', $venda->itens);
-            $venda->populateRelation('cliente', $venda->cliente);
-            $venda->populateRelation('parcelas', $venda->parcelas);
-
-            foreach ($venda->itens as $item) {
-                unset($item->produto);
-                $item->populateRelation('produto', $item->produto);
+            if (!$vendaComRelacoes) {
+                // Fallback: usa a instância já disponível sem eager load
+                $vendaComRelacoes = $venda;
             }
 
             Yii::$app->response->statusCode = 200;
-            return $this->success($venda->toArray([], ['itens.produto', 'parcelas.formaPagamento', 'cliente', 'vendedor', 'formaPagamento']), 'Recebimento confirmado');
+            return $this->success($vendaComRelacoes->toArray([], ['itens.produto', 'parcelas.formaPagamento', 'cliente', 'vendedor', 'formaPagamento']), 'Recebimento confirmado');
         } catch (\Exception $e) {
             Yii::error('Erro ao confirmar recebimento: ' . $e->getMessage(), 'api');
             throw new ServerErrorHttpException('Erro ao confirmar recebimento: ' . $e->getMessage());

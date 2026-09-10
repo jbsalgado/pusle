@@ -114,7 +114,8 @@ export async function gerarComprovanteVenda(carrinho, dadosPedido) {
     // Calcula totais
     const valorTotal = carrinho.reduce((total, item) => {
         // ✅ CORREÇÃO: Priorizar preço promocional (preco_final) se disponível
-        const preco = parseFloat(item.preco_final || item.preco || item.preco_venda_sugerido || item.preco_unitario || 0);
+        // preco_unitario_venda é o campo retornado pelo backend (VendaItem model)
+        const preco = parseFloat(item.preco_final || item.preco_unitario_venda || item.preco || item.preco_venda_sugerido || item.preco_unitario || 0);
         const qtd = parseFloat(item.quantidade || 0);
         return total + (preco * qtd);
     }, 0);
@@ -298,10 +299,11 @@ export async function gerarComprovanteVenda(carrinho, dadosPedido) {
     
     ${carrinho.map(item => {
         // ✅ CORREÇÃO: Priorizar preço promocional (preco_final) se disponível
-        const preco = parseFloat(item.preco_final || item.preco || item.preco_venda_sugerido || item.preco_unitario || 0);
+        // preco_unitario_venda é o campo retornado pelo backend (VendaItem model)
+        const preco = parseFloat(item.preco_final || item.preco_unitario_venda || item.preco || item.preco_venda_sugerido || item.preco_unitario || 0);
         const qtd = parseFloat(item.quantidade || 0);
         const subtotal = preco * qtd;
-        const nomeProduto = item.nome || item.descricao || item.nome_produto || 'Produto';
+        const nomeProduto = item.nome || item.produto?.nome || item.descricao || item.nome_produto || item.nome_item_manual || 'Produto';
         return `
         <div class="item">
             <div class="item-descricao">${nomeProduto}</div>

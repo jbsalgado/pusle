@@ -145,6 +145,9 @@ export const API_ENDPOINTS = {
     MERCADOPAGO_CRIAR_PREFERENCIA: `${_urlApiBase}/api/mercado-pago/criar-preferencia`,
     MERCADOPAGO_CRIAR_PIX_SPLIT: `${_urlApiBase}/api/mercado-pago/criar-pagamento-pix-split`,
     MERCADOPAGO_CONSULTAR_STATUS_PIX: `${_urlApiBase}/api/mercado-pago/consultar-status-pix`,
+    // ✅ Checkout transparente — Cartão de Crédito/Débito
+    MERCADOPAGO_PAGAR_CARTAO: `${_urlApiBase}/api/mercado-pago/pagar-cartao`,
+    MERCADOPAGO_BUSCAR_PARCELAS: `${_urlApiBase}/api/mercado-pago/buscar-parcelas`,
 
     // Asaas
     ASAAS_CRIAR_COBRANCA: `${_urlApiBase}/api/asaas/criar-cobranca`,

@@ -343,9 +343,15 @@ export async function finalizarPedido(dadosPedido, carrinho) {
         // 2️⃣ DECIDIR FLUXO: Gateway Externo vs. Interno
 
         // ✅ CORREÇÃO: PIX ESTATICO e PAGAR_AO_ENTREGADOR sempre usam fluxo interno
+        // ✅ FIX #2: CARTAO_CREDITO, CARTAO_DEBITO e CARTAO genérico também usam fluxo interno
+        // (checkout transparente de cartão via gateway não está implementado —
+        //  o pedido é registrado e o pagamento acontece presencialmente / na entrega)
         const formaPagamentoSelecionada = window.formasPagamento?.find(fp => fp.id === dadosPedido.forma_pagamento_id);
         const tipoFormaPagamento = (formaPagamentoSelecionada?.tipo || '').toUpperCase().trim();
-        const usaFluxoInterno = tipoFormaPagamento === 'PIX_ESTATICO' || tipoFormaPagamento === 'PAGAR_AO_ENTREGADOR';
+        const isCartao = ['CARTAO_CREDITO', 'CARTAO_DEBITO', 'CARTAO'].includes(tipoFormaPagamento);
+        const usaFluxoInterno = tipoFormaPagamento === 'PIX_ESTATICO'
+            || tipoFormaPagamento === 'PAGAR_AO_ENTREGADOR'
+            || isCartao;
 
         const gatewayHabilitado = (window.GATEWAY_CONFIG && window.GATEWAY_CONFIG.habilitado !== undefined)
             ? window.GATEWAY_CONFIG.habilitado

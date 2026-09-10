@@ -248,6 +248,19 @@ export async function processarPagamento(dadosPedido, carrinho, cliente, pedidoI
     console.log('[Gateway] 🔍 window.GATEWAY_CONFIG:', JSON.stringify(window.GATEWAY_CONFIG));
     console.log('[Gateway] 🔍 GATEWAY_CONFIG (módulo):', JSON.stringify(GATEWAY_CONFIG));
 
+    // ✅ FIX #2: Cartão de crédito/débito NÃO usa o fluxo PIX do gateway.
+    // Checkout transparente de cartão não está implementado — usa fluxo interno.
+    const formaPagamentoId = dadosPedido?.forma_pagamento_id;
+    const formasPagamento = window.formasPagamento || [];
+    const formaSelecionada = formasPagamento.find(f => f.id === formaPagamentoId);
+    const tipoFormaPagamento = (formaSelecionada?.tipo || '').toUpperCase().trim();
+    const isCartao = ['CARTAO_CREDITO', 'CARTAO_DEBITO', 'CARTAO'].includes(tipoFormaPagamento);
+
+    if (isCartao) {
+        console.log('[Gateway] 💳 Forma de pagamento é CARTÃO — iniciando checkout transparente Mercado Pago.');
+        return await processarCartaoMercadoPago(dadosPedido, carrinho, cliente, pedidoId);
+    }
+
     switch (gateway) {
         case 'mercadopago':
             return await processarMercadoPago(dadosPedido, carrinho, cliente, pedidoId);
@@ -260,6 +273,7 @@ export async function processarPagamento(dadosPedido, carrinho, cliente, pedidoI
             return await processarFluxoInterno(dadosPedido, carrinho);
     }
 }
+
 
 async function processarMercadoPago(dadosPedido, carrinho, cliente, pedidoId = null) {
     try {
@@ -352,6 +366,144 @@ async function processarMercadoPago(dadosPedido, carrinho, cliente, pedidoId = n
         throw error;
     }
 }
+
+// Processa pagamento com cartão de crédito/débito via Mercado Pago Checkout Transparente
+async function processarCartaoMercadoPago(dadosPedido, carrinho, cliente, pedidoId = null) {
+    try {
+        const valorTotal = carrinho.reduce((total, item) =>
+            total + ((item.preco_venda_sugerido || item.preco || 0) * (item.quantidade || 1)), 0
+        );
+
+        if (!pedidoId) {
+            throw new Error('ID do pedido preventivo ausente para pagamento com cartão.');
+        }
+
+        // ✅ Verifica se o token foi gerado pelo CardForm
+        if (!window.mpCardToken) {
+            throw new Error('Token do cartão não encontrado. Por favor, preencha os dados do cartão.');
+        }
+
+        const payload = {
+            tenant_id:         CONFIG.ID_USUARIO_LOJA,
+            order_id:          pedidoId,
+            amount:            valorTotal,
+            token:             window.mpCardToken,
+            installments:      window.mpInstallments    || 1,
+            payment_method_id: window.mpPaymentMethodId || null,  // bandeira: 'visa', 'master', etc.
+            issuer_id:         window.mpIssuerId        || null,  // banco emissor
+            description:       `Pedido ${pedidoId} - Cartão`,
+            cliente: {
+                nome:      cliente.nome || cliente.nome_completo || '',
+                sobrenome: cliente.sobrenome || '',
+                email:     cliente.email || '',
+                telefone:  cliente.telefone || '',
+                cpf:       cliente.cpf_cnpj || cliente.cpf || '',
+                cep:       cliente.cep || '',
+                logradouro: cliente.logradouro || '',
+                numero:    cliente.numero || ''
+            }
+        };
+
+        console.log('[MP Cartão] 🚀 Enviando pagamento ao backend:', {
+            ...payload,
+            token: payload.token ? `${payload.token.substring(0, 8)}...` : null
+        });
+
+        const response = await fetch(API_ENDPOINTS.MERCADOPAGO_PAGAR_CARTAO, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.mensagem || err.erro || 'Erro ao processar pagamento com cartão');
+        }
+
+        const result = await response.json();
+        console.log('[MP Cartão] 📡 Resposta:', result);
+
+        if (result.sucesso && result.status === 'approved') {
+            // Limpar token após uso
+            window.mpCardToken       = null;
+            window.mpInstallments    = null;
+            window.mpPaymentMethodId = null;
+            window.mpIssuerId        = null;
+
+            tratarPagamentoConfirmado(pedidoId, result, 'mercadopago');
+            return { sucesso: true, gateway: 'mercadopago', dados: result };
+        }
+
+        // Pagamento em análise (anti-fraude)
+        if (!result.sucesso && (result.status === 'in_process' || result.status === 'pending')) {
+            _mostrarMensagemCartao(
+                '⏳ Pagamento em Análise',
+                result.mensagem || 'Seu pagamento está sendo analisado. Você será notificado.',
+                'warning'
+            );
+            return { sucesso: false, gateway: 'mercadopago', status: result.status, dados: result };
+        }
+
+        // Pagamento recusado — oferecer fallback para PIX se disponível
+        const msgRecusa = result.mensagem || 'Pagamento não aprovado pelo cartão.';
+        const oferecePixFallback = window.GATEWAY_CONFIG?.gateway === 'mercadopago';
+
+        if (oferecePixFallback) {
+            const usarPix = confirm(
+                `${msgRecusa}\n\nDeseja tentar pagar via PIX?`
+            );
+            if (usarPix) {
+                console.log('[MP Cartão] 🔄 Usuário optou por fallback PIX');
+                // Reutiliza o mesmo pedido preventivo
+                const { processarPagamento } = await import('./gateway-pagamento.js');
+                // Força o gateway PIX temporariamente
+                const configOriginal = window.GATEWAY_CONFIG.gateway;
+                return await processarMercadoPago(dadosPedido, carrinho, cliente, pedidoId);
+            }
+        } else {
+            alert(msgRecusa);
+        }
+
+        throw new Error(msgRecusa);
+
+    } catch (error) {
+        console.error('[MP Cartão] ❌ Erro:', error);
+        // Limpar token em caso de erro também
+        window.mpCardToken       = null;
+        window.mpInstallments    = null;
+        window.mpPaymentMethodId = null;
+        window.mpIssuerId        = null;
+        throw error;
+    }
+}
+
+/**
+ * Exibe mensagem informativa para o usuário sobre o status do pagamento de cartão.
+ */
+function _mostrarMensagemCartao(titulo, mensagem, tipo = 'info') {
+    const cores = {
+        info:    '#3B82F6',
+        warning: '#F59E0B',
+        error:   '#EF4444',
+        success: '#10B981',
+    };
+    const cor = cores[tipo] || cores.info;
+
+    const div = document.createElement('div');
+    div.style.cssText = `
+        position: fixed; top: 20px; right: 20px; z-index: 999999;
+        background: white; border-left: 4px solid ${cor};
+        padding: 16px 20px; border-radius: 8px; max-width: 360px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15); font-family: sans-serif;
+    `;
+    div.innerHTML = `
+        <strong style="display:block;margin-bottom:6px;color:${cor}">${titulo}</strong>
+        <span style="color:#374151;font-size:14px">${mensagem}</span>
+    `;
+    document.body.appendChild(div);
+    setTimeout(() => div.remove(), 7000);
+}
+
 
 async function processarAsaas(dadosPedido, carrinho, cliente, pedidoId = null) {
     try {

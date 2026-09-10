@@ -301,10 +301,316 @@ class MercadoPagoController extends Controller
 
     /**
      * ========================================================================
+     * ENDPOINT: POST /api/mercado-pago/pagar-cartao
+     * Checkout transparente — processa pagamento via cartão de crédito/débito.
+     * Recebe o card token gerado pelo SDK MP no front-end e cobra diretamente.
+     * ========================================================================
+     */
+    public function actionPagarCartao()
+    {
+        try {
+            $request = Yii::$app->request->post();
+
+            // --- Validações ---
+            $tenantId    = $request['tenant_id']    ?? null;
+            $orderId     = $request['order_id']     ?? null;
+            $cardToken   = $request['token']        ?? null;
+            $installments = isset($request['installments']) ? (int)$request['installments'] : 1;
+            $amount      = isset($request['amount'])  ? (float)$request['amount']  : null;
+
+            if (!$tenantId || !$this->validarUUID($tenantId)) {
+                return $this->errorResponse('tenant_id é obrigatório e deve ser um UUID válido.');
+            }
+            if (!$orderId || !$this->validarUUID($orderId)) {
+                return $this->errorResponse('order_id (UUID da venda preventiva) é obrigatório.', 400);
+            }
+            if (empty($cardToken)) {
+                return $this->errorResponse('token do cartão é obrigatório.', 400);
+            }
+            if ($amount === null || $amount <= 0) {
+                return $this->errorResponse('amount deve ser maior que zero.', 400);
+            }
+            if ($installments < 1 || $installments > 12) {
+                return $this->errorResponse('installments deve estar entre 1 e 12.', 400);
+            }
+
+            // --- Buscar loja e credenciais ---
+            $usuario = $this->buscarUsuarioPorId($tenantId);
+            if (!$usuario) {
+                return $this->errorResponse('Loja não encontrada.', 404);
+            }
+
+            $accessToken = $this->obterTokenVendedor($usuario);
+            if (!$accessToken) {
+                return $this->errorResponse('Loja não conectada ao Mercado Pago via OAuth.', 422);
+            }
+
+            // --- Inicializar SDK com token do vendedor ---
+            $this->initSdk($usuario);
+
+            $baseUrl         = $this->resolveBaseUrl();
+            $isLocalhost     = (strpos($baseUrl, 'localhost') !== false || strpos($baseUrl, '127.0.0.1') !== false);
+            $notificationUrl = $baseUrl . '/index.php/api/mercado-pago/webhook?tenant_id=' . $tenantId;
+
+            // --- Montagem do pagador ---
+            $payer = [];
+            if (!empty($request['cliente']) && is_array($request['cliente'])) {
+                $payer = $this->montarDadosPagador($request['cliente'], true);
+            }
+            if (empty($payer['email'])) {
+                $payer['email'] = !empty($usuario['email']) ? $usuario['email'] : 'comprador@oncode.app.br';
+            }
+            if (empty($payer['first_name'])) {
+                $payer['first_name'] = 'Cliente';
+                $payer['last_name']  = 'Pulse';
+            }
+
+            // --- Application fee (split) ---
+            $applicationFee = $this->calcularApplicationFee($amount);
+            $appUserId      = $_ENV['MP_COLLECTOR_ID'] ?? '24111981';
+            $vendedorUserId = (string)($usuario['mp_user_id'] ?? '');
+            $ehPropriaConta = ($vendedorUserId !== '' && $vendedorUserId === (string)$appUserId);
+
+            // --- Payload do pagamento ---
+            $paymentData = [
+                'transaction_amount' => $amount,
+                'token'              => $cardToken,
+                'description'        => $request['description'] ?? 'Pedido ' . $orderId,
+                'installments'       => $installments,
+                'payment_method_id'  => $request['payment_method_id'] ?? null, // Ex: 'visa', 'master'
+                'issuer_id'          => isset($request['issuer_id']) ? (int)$request['issuer_id'] : null,
+                'external_reference' => $orderId,
+                'capture'            => true, // Captura automática
+                'payer'              => $payer,
+                'metadata'           => [
+                    'tenant_id' => $tenantId,
+                    'order_id'  => $orderId,
+                ],
+            ];
+
+            // Remove campos nulos opcionais para evitar rejeição da API
+            foreach (['payment_method_id', 'issuer_id'] as $optKey) {
+                if (empty($paymentData[$optKey])) {
+                    unset($paymentData[$optKey]);
+                }
+            }
+
+            if ($applicationFee > 0 && !$ehPropriaConta) {
+                $paymentData['application_fee'] = $applicationFee;
+            }
+            if (!$isLocalhost && filter_var($notificationUrl, FILTER_VALIDATE_URL)) {
+                $paymentData['notification_url'] = $notificationUrl;
+            }
+
+            Yii::info([
+                'action'       => 'cartao_pagamento_iniciando',
+                'tenant_id'    => $tenantId,
+                'order_id'     => $orderId,
+                'amount'       => $amount,
+                'installments' => $installments,
+            ], 'mercadopago');
+
+            $client  = new PaymentClient();
+
+            // --- Execução com retry sem application_fee (erro 2059) ---
+            try {
+                $payment = $client->create($paymentData);
+            } catch (MPApiException $e) {
+                $apiResp     = $e->getApiResponse();
+                $respContent = is_object($apiResp) && method_exists($apiResp, 'getContent') ? $apiResp->getContent() : [];
+                $causeCode   = is_array($respContent) ? ($respContent['cause'][0]['code'] ?? 0) : 0;
+
+                if (($causeCode === 2059 || strpos($respContent['message'] ?? '', 'application_fee') !== false)
+                    && isset($paymentData['application_fee'])
+                ) {
+                    Yii::warning('Cartão: retentativa sem application_fee (código 2059).', 'mercadopago');
+                    unset($paymentData['application_fee']);
+                    $applicationFee = 0.0;
+                    $payment = $client->create($paymentData);
+                } else {
+                    throw $e;
+                }
+            }
+
+            $status       = $payment->status;
+            $statusDetail = $payment->status_detail;
+            $paymentId    = $payment->id;
+
+            Yii::info([
+                'action'        => 'cartao_pagamento_processado',
+                'payment_id'    => $paymentId,
+                'status'        => $status,
+                'status_detail' => $statusDetail,
+                'tenant_id'     => $tenantId,
+                'order_id'      => $orderId,
+            ], 'mercadopago');
+
+            // --- Retorno por status ---
+            if ($status === 'approved') {
+                // Baixa estoque, gera parcelas e registra caixa
+                $this->registrarLogFinanceiro($tenantId, $orderId, $paymentId, $amount, $applicationFee, 'approved');
+                $this->liberarPedido($tenantId, $orderId, $amount, $paymentId, $applicationFee);
+
+                return [
+                    'sucesso'        => true,
+                    'status'         => 'approved',
+                    'status_detail'  => $statusDetail,
+                    'payment_id'     => $paymentId,
+                    'order_id'       => $orderId,
+                    'installments'   => $installments,
+                    'amount'         => $amount,
+                    'mensagem'       => 'Pagamento aprovado com sucesso!',
+                ];
+            }
+
+            if ($status === 'in_process' || $status === 'pending') {
+                return [
+                    'sucesso'       => false,
+                    'status'        => $status,
+                    'status_detail' => $statusDetail,
+                    'payment_id'    => $paymentId,
+                    'order_id'      => $orderId,
+                    'mensagem'      => 'Pagamento em análise. Você será notificado quando for aprovado.',
+                ];
+            }
+
+            // rejected / cancelled
+            $mensagensRecusa = [
+                'cc_rejected_insufficient_amount' => 'Saldo insuficiente no cartão.',
+                'cc_rejected_bad_filled_security_code' => 'CVV inválido.',
+                'cc_rejected_bad_filled_date' => 'Data de validade incorreta.',
+                'cc_rejected_bad_filled_other' => 'Dados do cartão incorretos.',
+                'cc_rejected_call_for_authorize' => 'Autorização necessária. Entre em contato com seu banco.',
+                'cc_rejected_card_disabled' => 'Cartão desativado. Contate seu banco.',
+                'cc_rejected_duplicated_payment' => 'Pagamento duplicado detectado.',
+                'cc_rejected_high_risk' => 'Pagamento recusado por segurança. Tente outro cartão.',
+            ];
+            $mensagem = $mensagensRecusa[$statusDetail] ?? "Pagamento recusado ({$statusDetail}). Tente novamente ou use outro cartão.";
+
+            return [
+                'sucesso'       => false,
+                'status'        => $status,
+                'status_detail' => $statusDetail,
+                'payment_id'    => $paymentId,
+                'order_id'      => $orderId,
+                'mensagem'      => $mensagem,
+            ];
+
+        } catch (MPApiException $e) {
+            $apiResp = $e->getApiResponse();
+            $content = is_object($apiResp) && method_exists($apiResp, 'getContent') ? $apiResp->getContent() : [];
+            $msg     = is_array($content) ? ($content['message'] ?? $e->getMessage()) : $e->getMessage();
+
+            Yii::error([
+                'action'       => 'cartao_erro_mp_api',
+                'error'        => $msg,
+                'api_response' => $content,
+            ], 'mercadopago');
+
+            return $this->errorResponse('Erro no Mercado Pago: ' . $msg, $e->getStatusCode() ?: 422);
+        } catch (\Throwable $e) {
+            Yii::error([
+                'action' => 'cartao_erro_interno',
+                'error'  => $e->getMessage(),
+                'trace'  => $e->getTraceAsString(),
+            ], 'mercadopago');
+            return $this->errorResponse('Erro interno ao processar pagamento com cartão.', 500);
+        }
+    }
+
+    /**
+     * ========================================================================
+     * ENDPOINT: GET /api/mercado-pago/buscar-parcelas
+     * Retorna as opções de parcelamento disponíveis para um BIN de cartão.
+     * Parâmetros: tenant_id, amount, bin (primeiros 6 dígitos do cartão), payment_method_id
+     * ========================================================================
+     */
+    public function actionBuscarParcelas()
+    {
+        try {
+            $tenantId        = Yii::$app->request->get('tenant_id');
+            $amount          = (float)(Yii::$app->request->get('amount') ?? 0);
+            $bin             = Yii::$app->request->get('bin');
+            $paymentMethodId = Yii::$app->request->get('payment_method_id', 'credit_card');
+
+            if (!$tenantId || !$this->validarUUID($tenantId)) {
+                return $this->errorResponse('tenant_id é obrigatório.');
+            }
+            if ($amount <= 0) {
+                return $this->errorResponse('amount deve ser maior que zero.');
+            }
+
+            $usuario = $this->buscarUsuarioPorId($tenantId);
+            if (!$usuario) {
+                return $this->errorResponse('Loja não encontrada.', 404);
+            }
+
+            $accessToken = $this->obterTokenVendedor($usuario);
+            if (!$accessToken) {
+                return $this->errorResponse('Loja não conectada ao Mercado Pago.', 422);
+            }
+
+            // Consulta a API de parcelamento do MP via Guzzle
+            $queryParams = http_build_query(array_filter([
+                'amount'            => $amount,
+                'bin'               => $bin,
+                'payment_method_id' => $paymentMethodId,
+            ]));
+
+            $httpClient = new Client();
+            $response   = $httpClient->get("https://api.mercadopago.com/v1/payment_methods/installments?{$queryParams}", [
+                'headers' => [
+                    'Authorization' => "Bearer {$accessToken}",
+                    'Content-Type'  => 'application/json',
+                ],
+                'http_errors' => false,
+            ]);
+
+            $statusCode = $response->getStatusCode();
+            $data       = json_decode($response->getBody()->getContents(), true);
+
+            if ($statusCode !== 200 || !is_array($data)) {
+                return $this->errorResponse('Não foi possível buscar as opções de parcelamento.', 422);
+            }
+
+            // Extrai apenas as parcelas até 12x do primeiro resultado
+            $parcelas = [];
+            if (!empty($data[0]['payer_costs'])) {
+                foreach ($data[0]['payer_costs'] as $option) {
+                    if ($option['installments'] > 12) continue;
+                    $parcelas[] = [
+                        'installments'           => $option['installments'],
+                        'installment_rate'        => $option['installment_rate'],
+                        'total_amount'            => $option['total_amount'],
+                        'installment_amount'      => $option['installment_amount'],
+                        'recommended_message'     => $option['recommended_message'] ?? null,
+                        'labels'                  => $option['labels'] ?? [],
+                    ];
+                }
+            }
+
+            return [
+                'sucesso'  => true,
+                'parcelas' => $parcelas,
+                'amount'   => $amount,
+            ];
+
+        } catch (\Throwable $e) {
+            Yii::error([
+                'action' => 'buscar_parcelas_erro',
+                'error'  => $e->getMessage(),
+            ], 'mercadopago');
+            return $this->errorResponse('Erro ao buscar parcelas: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * ========================================================================
      * ENDPOINT: POST /api/mercado-pago/criar-preferencia
      * ========================================================================
      */
     public function actionCriarPreferencia()
+
     {
         $transaction = Yii::$app->db->beginTransaction();
 

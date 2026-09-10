@@ -2087,7 +2087,98 @@ window.confirmarPedido = async function() {
     const tipoFormaPagamento = formaPagamentoSelecionada?.tipo || '';
     const permiteParcelamento = tipoFormaPagamento !== 'DINHEIRO' && tipoFormaPagamento !== 'PIX' && tipoFormaPagamento !== 'PIX_ESTATICO' && tipoFormaPagamento !== 'PAGAR_AO_ENTREGADOR';
     
-    // Se não permite parcelamento, força para 1 parcela
+    // ===============================================
+    // ✅ CHECKOUT TRANSPARENTE — Cartão via Mercado Pago
+    // Se o gateway MP está ativo e a forma é cartão, exibe o CardForm
+    // antes de prosseguir para que o token seja gerado pelo SDK.
+    // ===============================================
+    const isCartaoGateway = ['CARTAO_CREDITO', 'CARTAO_DEBITO', 'CARTAO'].includes(tipoFormaPagamento.toUpperCase().trim());
+    const gatewayMpAtivo  = window.GATEWAY_CONFIG?.gateway === 'mercadopago' && window.GATEWAY_CONFIG?.habilitado;
+
+    if (isCartaoGateway && gatewayMpAtivo) {
+        // Calcula o valor total para o CardForm
+        const carrinhoAtual = getCarrinho();
+        const valorTotal    = carrinhoAtual.reduce((acc, item) =>
+            acc + ((item.preco_venda_sugerido || item.preco || 0) * (item.quantidade || 1)), 0
+        );
+
+        try {
+            const { inicializarCardForm, gerarHtmlFormCartao, destruirCardForm } = await import('./mp-card-form.js');
+
+            // Cria modal do CardForm se ainda não existir
+            let modalCartao = document.getElementById('modal-mp-cartao');
+            if (!modalCartao) {
+                modalCartao = document.createElement('div');
+                modalCartao.id = 'modal-mp-cartao';
+                modalCartao.style.cssText = [
+                    'position:fixed;inset:0;z-index:99998',
+                    'background:rgba(0,0,0,0.75)',
+                    'display:flex;align-items:center;justify-content:center;padding:16px',
+                ].join(';');
+                modalCartao.innerHTML = `
+                    <div style="background:#fff;border-radius:16px;padding:28px 24px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+                            <h3 style="font-size:18px;font-weight:700;color:#1e293b;margin:0">💳 Pagamento com Cartão</h3>
+                            <button id="btn-fechar-modal-cartao" style="background:none;border:none;font-size:22px;cursor:pointer;color:#64748b;line-height:1">&times;</button>
+                        </div>
+                        <p style="font-size:13px;color:#64748b;margin:0 0 18px">
+                            Seus dados são protegidos e tokenizados pelo Mercado Pago.
+                        </p>
+                        ${gerarHtmlFormCartao()}
+                    </div>`;
+                document.body.appendChild(modalCartao);
+
+                // Estilos do formulário
+                if (!document.getElementById('mp-card-form-styles')) {
+                    const style = document.createElement('style');
+                    style.id = 'mp-card-form-styles';
+                    style.textContent = `
+                        .mp-card-form-container{display:flex;flex-direction:column;gap:14px}
+                        .mp-field-group{display:flex;flex-direction:column;gap:5px}
+                        .mp-field-row{display:flex;gap:12px}
+                        .mp-field-row .mp-field-group{flex:1}
+                        .mp-label{font-size:12px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.5px}
+                        .mp-sdk-field,.mp-select{height:44px;border:1.5px solid #cbd5e1;border-radius:8px;padding:0 12px;font-size:14px;width:100%;box-sizing:border-box;background:#f8fafc;transition:border-color .2s}
+                        .mp-sdk-field{padding:0} /* SDK injeta iframe interno */
+                        .mp-sdk-field:focus-within{border-color:#7c3aed;background:#fff}
+                        .mp-select:focus{border-color:#7c3aed;outline:none;background:#fff}
+                        .mp-error-msg{color:#ef4444;font-size:13px;min-height:18px;margin:0}
+                        .mp-btn-pay{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;width:100%;transition:opacity .2s;margin-top:4px}
+                        .mp-btn-pay:hover{opacity:.92}
+                        .mp-btn-pay:disabled{opacity:.55;cursor:not-allowed}
+                    `;
+                    document.head.appendChild(style);
+                }
+            }
+            modalCartao.style.display = 'flex';
+
+            // Botão fechar
+            document.getElementById('btn-fechar-modal-cartao')?.addEventListener('click', () => {
+                modalCartao.style.display = 'none';
+                destruirCardForm();
+            });
+
+            // Inicializa o CardForm do MP e aguarda o token
+            await new Promise((resolve, reject) => {
+                inicializarCardForm('form-checkout-mp-cartao', valorTotal, async (token, installments, paymentMethodId, issuerId) => {
+                    // Token gerado com sucesso — fecha modal e prossegue
+                    modalCartao.style.display = 'none';
+                    window.mpCardToken       = token;
+                    window.mpInstallments    = installments;
+                    window.mpPaymentMethodId = paymentMethodId;
+                    window.mpIssuerId        = issuerId;
+                    resolve();
+                }).catch(reject);
+            });
+
+        } catch (err) {
+            console.error('[App] ❌ Erro ao inicializar CardForm MP:', err);
+            alert('Não foi possível carregar o formulário de cartão: ' + err.message);
+            return;
+        }
+    }
+
+
     const selectParcelas = document.getElementById('numero-parcelas');
     let numeroParcelas = parseInt(selectParcelas?.value || 1, 10);
     if (!permiteParcelamento && numeroParcelas > 1) {
@@ -2226,9 +2317,27 @@ window.confirmarPedido = async function() {
             // ✅ CORREÇÃO: Para vendas online, comprovante só é exibido após confirmação de pagamento
             // PAGAR_AO_ENTREGADOR também não gera comprovante imediatamente (aguarda confirmação na entrega)
             const isPagarAoEntregador = tipoFormaPagamento === 'PAGAR_AO_ENTREGADOR';
+            const isCartaoInterno = ['CARTAO_CREDITO', 'CARTAO_DEBITO', 'CARTAO'].includes(tipoFormaPagamento);
             
             if (isPagarAoEntregador) {
                 alert('Pedido realizado com sucesso! O comprovante será gerado após a confirmação do pagamento na entrega.');
+            } else if (isCartaoInterno) {
+                // ✅ FIX #2 UX: Cartão usa fluxo interno — pedido registrado, cobrança presencial
+                const nomeForma = formaPagamentoSelecionada?.nome || 'Cartão';
+                alert(`✅ Pedido registrado com sucesso! Pagamento via ${nomeForma} será processado presencialmente / na entrega.`);
+                // Gera comprovante imediatamente com dados disponíveis
+                try {
+                    const { gerarComprovanteVenda } = await import('./receipt.js');
+                    const carrinhoSnapshot = getCarrinho();
+                    await gerarComprovanteVenda(carrinhoSnapshot, {
+                        venda_id: vendaId,
+                        forma_pagamento: nomeForma,
+                        numero_parcelas: numeroParcelas || 1,
+                        parcelas: null
+                    });
+                } catch (errComp) {
+                    console.warn('[App] ⚠️ Erro ao gerar comprovante de cartão:', errComp);
+                }
             } else {
                 // Para outras formas de pagamento online, aguarda confirmação
                 alert('Pedido realizado com sucesso! Aguardando confirmação de pagamento...');
@@ -2494,8 +2603,14 @@ function inicializarEventListeners() {
                 throw new Error(`Erro ao confirmar recebimento: ${response.status}`);
             }
             
-            const vendaConfirmada = await response.json();
-            console.log('[App] ✅ Recebimento confirmado:', vendaConfirmada);
+            const respostaConfirmacao = await response.json();
+            console.log('[App] 🔍 Resposta confirmar-recebimento (raw):', respostaConfirmacao);
+
+            // ✅ FIX #1: O backend envolve o retorno em { sucesso, data, mensagem } —
+            // desempacotar .data para acessar itens, valor_total, formaPagamento, etc.
+            const vendaConfirmada = respostaConfirmacao.data || respostaConfirmacao;
+            console.log('[App] ✅ Recebimento confirmado (dados desempacotados):', vendaConfirmada);
+            console.log('[App] 🔍 vendaConfirmada.itens:', vendaConfirmada.itens);
             
             // Gera comprovante após confirmação
             const { gerarComprovanteVenda } = await import('./receipt.js');
@@ -2503,12 +2618,15 @@ function inicializarEventListeners() {
             
             // Busca parcelas se houver
             let parcelas = null;
-            if (vendaConfirmada.numero_parcelas > 1) {
+            const numeroParcConfirmada = vendaConfirmada.numero_parcelas || 0;
+            if (numeroParcConfirmada > 1) {
                 try {
-                    const response = await fetch(`${API_ENDPOINTS.PEDIDO_PARCELAS}?venda_id=${vendaId}`);
-                    if (response.ok) {
-                        const dadosParcelas = await response.json();
-                        parcelas = dadosParcelas.parcelas || null;
+                    const respParcelas = await fetch(`${API_ENDPOINTS.PEDIDO_PARCELAS}?venda_id=${vendaId}`);
+                    if (respParcelas.ok) {
+                        const dadosParcelas = await respParcelas.json();
+                        // Desempacota envelope .data se presente
+                        const parcelasPayload = dadosParcelas.data || dadosParcelas;
+                        parcelas = parcelasPayload.parcelas || null;
                     }
                 } catch (error) {
                     console.warn('[App] Erro ao buscar parcelas:', error);
@@ -2519,7 +2637,11 @@ function inicializarEventListeners() {
                 venda_id: vendaId,
                 itens: carrinho,
                 valorTotal: vendaConfirmada.valor_total,
-                forma_pagamento: vendaConfirmada.formaPagamento?.nome || 'Não informado',
+                // ✅ Tenta ambas as chaves (snake_case e camelCase) para compatibilidade
+                forma_pagamento: vendaConfirmada.forma_pagamento?.nome
+                    || vendaConfirmada.formaPagamento?.nome
+                    || 'Não informado',
+                numero_parcelas: numeroParcConfirmada,
                 parcelas: parcelas,
                 cliente: vendaConfirmada.cliente
             });
