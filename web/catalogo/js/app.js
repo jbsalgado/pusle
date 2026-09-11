@@ -26,7 +26,7 @@ import {
     atualizarBadgeProduto
 } from './cart.js';
 import { carregarCarrinho, limparDadosLocaisPosSinc } from './storage.js';
-import { finalizarPedido } from './order.js?v=20260911_08';
+import { finalizarPedido } from './order.js?v=20260911_09';
 import { 
     carregarFormasPagamento, 
     calcularParcelas, 
@@ -2123,7 +2123,7 @@ window.confirmarPedido = async function() {
         );
 
         try {
-            const { inicializarCardForm, gerarHtmlFormCartao, destruirCardForm } = await import('./mp-card-form.js?v=20260911_08');
+            const { inicializarCardForm, gerarHtmlFormCartao, destruirCardForm } = await import('./mp-card-form.js?v=20260911_09');
 
             // Cria modal do CardForm se ainda não existir
             let modalCartao = document.getElementById('modal-mp-cartao');
@@ -2440,6 +2440,12 @@ window.confirmarPedido = async function() {
                 console.log('[App] ℹ️ Pagamento com cartão recusado. Carrinho e formulário mantidos para nova tentativa.');
                 btnConfirmar.disabled = false;
                 btnConfirmar.textContent = '✅ Confirmar Pedido';
+                if (resultado.acao === 'outro_cartao') {
+                    window.mpCardToken = null;
+                    window.mpInstallments = null;
+                    window.mpPaymentMethodId = null;
+                    window.mpIssuerId = null;
+                }
                 return;
             }
             alert(`Erro: ${resultado.mensagem || 'Erro desconhecido ao processar pedido.'}`);

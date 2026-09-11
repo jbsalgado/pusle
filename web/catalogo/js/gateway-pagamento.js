@@ -487,24 +487,21 @@ async function processarCartaoMercadoPago(dadosPedido, carrinho, cliente, pedido
         const msgRecusa = result.mensagem || 'Pagamento não aprovado pelo cartão.';
         console.warn('[MP Cartão] ⚠️ Pagamento recusado:', msgRecusa);
 
-        _mostrarMensagemCartao(
-            '⚠️ Cartão Não Aprovado',
-            `${msgRecusa}`,
-            'warning'
-        );
+        const decisao = await exibirModalDecisaoRecusa(msgRecusa);
 
-        const tentarPix = confirm(`⚠️ O pagamento com cartão não foi aprovado:\n"${msgRecusa}"\n\nDeseja pagar com PIX para concluir seu pedido imediatamente?\n\n• [OK] Gerar QR Code PIX\n• [Cancelar] Tentar com outro cartão`);
-
-        if (tentarPix) {
+        if (decisao === 'pix') {
+            console.log('[MP Cartão] ⚡ Cliente optou por pagar com PIX após recusa do cartão.');
             // Redireciona para o fluxo PIX do Mercado Pago usando o mesmo pedido preventivo
             return await processarMercadoPago(dadosPedido, carrinho, cliente, pedidoId);
         } else {
+            console.log('[MP Cartão] 💳 Cliente optou por tentar com outro cartão.');
             // Retorna insucesso mas com status rejected para permitir reabertura do formulário de cartão
             return {
                 sucesso: false,
                 gateway: 'mercadopago',
                 status: 'rejected',
-                mensagem: msgRecusa
+                mensagem: msgRecusa,
+                acao: 'outro_cartao'
             };
         }
 
@@ -520,6 +517,183 @@ async function processarCartaoMercadoPago(dadosPedido, carrinho, cliente, pedido
         alert('Houve uma falha ao comunicar com a operadora do cartão. Redirecionando para pagamento via PIX...');
         return await processarMercadoPago(dadosPedido, carrinho, cliente, pedidoId);
     }
+}
+
+/**
+ * Exibe modal moderno e intuitivo de decisão quando o pagamento com cartão é recusado.
+ * Permite que o cliente escolha entre '⚡ Pagar com PIX' ou '💳 Outro Cartão'.
+ * Retorna uma Promise que resolve em 'pix' ou 'outro_cartao'.
+ */
+function exibirModalDecisaoRecusa(msgRecusa) {
+    return new Promise((resolve) => {
+        // Remove modal anterior caso exista
+        const modalExistente = document.getElementById('modal-decisao-recusa-cartao');
+        if (modalExistente) modalExistente.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'modal-decisao-recusa-cartao';
+        modal.style.cssText = `
+            position: fixed;
+            inset: 0;
+            z-index: 999999;
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            animation: mpFadeIn 0.2s ease-out;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        `;
+
+        modal.innerHTML = `
+            <style>
+                @keyframes mpFadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                @keyframes mpScaleIn {
+                    from { opacity: 0; transform: scale(0.95) translateY(6px); }
+                    to { opacity: 1; transform: scale(1) translateY(0); }
+                }
+                .modal-recusa-card {
+                    background: #ffffff;
+                    border-radius: 20px;
+                    width: 100%;
+                    max-width: 440px;
+                    padding: 24px 20px 20px;
+                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+                    animation: mpScaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+                    position: relative;
+                    box-sizing: border-box;
+                }
+                .btn-recusa-action {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                    padding: 13px 16px;
+                    min-height: 48px;
+                    border-radius: 12px;
+                    font-size: 15px;
+                    font-weight: 700;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    flex: 1;
+                    min-width: 140px;
+                    text-align: center;
+                    border: none;
+                    box-sizing: border-box;
+                    text-decoration: none;
+                }
+                .btn-recusa-outro-cartao {
+                    background: #f1f5f9;
+                    color: #334155;
+                    border: 1.5px solid #cbd5e1;
+                }
+                .btn-recusa-outro-cartao:hover {
+                    background: #e2e8f0;
+                    border-color: #94a3b8;
+                    color: #0f172a;
+                }
+                .btn-recusa-pagar-pix {
+                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                    color: #ffffff;
+                    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+                }
+                .btn-recusa-pagar-pix:hover {
+                    filter: brightness(1.08);
+                    transform: translateY(-1px);
+                    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.5);
+                }
+                @media (max-width: 420px) {
+                    .btn-recusa-actions-container {
+                        flex-direction: column !important;
+                    }
+                    .btn-recusa-action {
+                        width: 100% !important;
+                        flex: none !important;
+                    }
+                }
+            </style>
+            <div class="modal-recusa-card">
+                <button id="btn-recusa-fechar" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:22px;color:#94a3b8;cursor:pointer;line-height:1;padding:4px;border-radius:6px;" title="Fechar">&times;</button>
+                
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+                    <div style="width:44px;height:44px;border-radius:12px;background:#fef3c7;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">
+                        ⚠️
+                    </div>
+                    <div>
+                        <h3 style="font-size:17px;font-weight:800;color:#0f172a;margin:0 0 2px;">Cartão Não Aprovado</h3>
+                        <span style="font-size:12px;font-weight:600;color:#d97706;text-transform:uppercase;letter-spacing:0.5px;">Aviso da Operadora</span>
+                    </div>
+                </div>
+
+                <div style="background:#fff1f2;border:1px solid #ffe4e6;border-left:4px solid #f43f5e;border-radius:10px;padding:12px 14px;margin-bottom:16px;">
+                    <p style="margin:0;font-size:13.5px;line-height:1.45;color:#9f1239;font-weight:600;">
+                        "${msgRecusa || 'Não foi possível autorizar o pagamento com este cartão.'}"
+                    </p>
+                </div>
+
+                <p style="font-size:14px;line-height:1.5;color:#475569;margin:0 0 20px;">
+                    Deseja pagar com <strong>PIX</strong> para concluir seu pedido imediatamente ou tentar com <strong>outro cartão</strong>?
+                </p>
+
+                <div class="btn-recusa-actions-container" style="display:flex;gap:12px;width:100%;">
+                    <button type="button" id="btn-recusa-outro-cartao" class="btn-recusa-action btn-recusa-outro-cartao">
+                        💳 Outro Cartão
+                    </button>
+                    <button type="button" id="btn-recusa-pagar-pix" class="btn-recusa-action btn-recusa-pagar-pix">
+                        ⚡ Pagar com PIX
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        let finalizado = false;
+        const fechar = (opcao) => {
+            if (finalizado) return;
+            finalizado = true;
+            document.removeEventListener('keydown', onKeyDown);
+            modal.remove();
+            resolve(opcao);
+        };
+
+        const onKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                fechar('outro_cartao');
+            }
+        };
+        document.addEventListener('keydown', onKeyDown);
+
+        // Clique no fundo (backdrop)
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                fechar('outro_cartao');
+            }
+        });
+
+        // Botão Fechar X
+        const btnFechar = modal.querySelector('#btn-recusa-fechar');
+        if (btnFechar) {
+            btnFechar.onclick = () => fechar('outro_cartao');
+        }
+
+        // Botão Outro Cartão
+        const btnOutroCartao = modal.querySelector('#btn-recusa-outro-cartao');
+        if (btnOutroCartao) {
+            btnOutroCartao.onclick = () => fechar('outro_cartao');
+        }
+
+        // Botão Pagar com PIX
+        const btnPagarPix = modal.querySelector('#btn-recusa-pagar-pix');
+        if (btnPagarPix) {
+            btnPagarPix.onclick = () => fechar('pix');
+        }
+    });
 }
 
 /**
