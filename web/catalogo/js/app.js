@@ -26,12 +26,12 @@ import {
     atualizarBadgeProduto
 } from './cart.js';
 import { carregarCarrinho, limparDadosLocaisPosSinc } from './storage.js';
-import { finalizarPedido } from './order.js?v=20260911_05';
+import { finalizarPedido } from './order.js?v=20260911_06';
 import { 
     carregarFormasPagamento, 
     calcularParcelas, 
     formatarInfoParcelas 
-} from './payment.js?v=20260911_05';
+} from './payment.js?v=20260911_06';
 import { 
     validarCPF, 
     formatarCPF, 
@@ -2281,9 +2281,6 @@ window.confirmarPedido = async function() {
             if (resultado.mensagem === 'Modal PIX exibido. Aguardando pagamento.') {
                  console.log('[App] ✅ Modal PIX dinâmico exibido. Aguardando confirmação...');
                  fecharModal('modal-cliente-pedido');
-                 limparCarrinho();
-                 await carregarCarrinhoInicial();
-                 atualizarBadgeCarrinho();
                  btnConfirmar.disabled = false;
                  btnConfirmar.textContent = '✅ Confirmar Pedido';
                  return;
@@ -2295,14 +2292,11 @@ window.confirmarPedido = async function() {
             const gatewayAtivo = window.GATEWAY_CONFIG?.gateway && window.GATEWAY_CONFIG.gateway !== 'nenhum';
             if (isPixDinamico && gatewayAtivo && window.GATEWAY_CONFIG?.habilitado) {
                 // O modal PIX já foi criado pelo gateway-pagamento.js
-                // Só precisamos limpar o carrinho e fechar o modal de pedido
+                // Só precisamos fechar o modal de pedido — o carrinho permanece intacto até o pagamento ser confirmado
                 const modalPixExiste = !!document.getElementById('modal-pix-asaas');
                 if (modalPixExiste) {
-                    console.log('[App] ✅ Modal PIX dinâmico ativo. Limpando carrinho...');
+                    console.log('[App] ✅ Modal PIX dinâmico ativo. Aguardando confirmação...');
                     fecharModal('modal-cliente-pedido');
-                    limparCarrinho();
-                    await carregarCarrinhoInicial();
-                    atualizarBadgeCarrinho();
                     btnConfirmar.disabled = false;
                     btnConfirmar.textContent = '✅ Confirmar Pedido';
                     return;
@@ -2361,9 +2355,6 @@ window.confirmarPedido = async function() {
             if (resultado.mensagem === 'Modal PIX exibido. Aguardando pagamento.') {
                  console.log('[App] Modal PIX dinâmico exibido. Aguardando confirmação...');
                  fecharModal('modal-cliente-pedido');
-                 limparCarrinho();
-                 await carregarCarrinhoInicial();
-                 atualizarBadgeCarrinho();
                  btnConfirmar.disabled = false;
                  btnConfirmar.textContent = '✅ Confirmar Pedido';
                  return;
@@ -2378,6 +2369,9 @@ window.confirmarPedido = async function() {
             
             if (isPagarAoEntregador) {
                 alert('Pedido realizado com sucesso! O comprovante será gerado após a confirmação do pagamento na entrega.');
+                limparCarrinho();
+                await carregarCarrinhoInicial();
+                atualizarBadgeCarrinho();
             } else if (isCartaoSemGateway) {
                 // Cobrança presencial apenas se a loja NÃO possuir gateway MP configurado
                 const nomeForma = formaPagamentoSelecionada?.nome || 'Cartão';
@@ -2395,18 +2389,14 @@ window.confirmarPedido = async function() {
                 } catch (errComp) {
                     console.warn('[App] ⚠️ Erro ao gerar comprovante de cartão:', errComp);
                 }
-            } else if (resultado.gateway === 'mercadopago' && resultado.status !== 'approved') {
-                console.warn('[App] ⚠️ Pagamento de cartão não aprovado ou pendente. Comprovante retido.');
-            } else {
-                // Para outras formas de pagamento online, aguarda confirmação
-                alert('Pedido realizado com sucesso! Aguardando confirmação de pagamento...');
-            }
-            
-            if (!resultado.offline) {
-                // Limpar carrinho apenas se não for offline
                 limparCarrinho();
                 await carregarCarrinhoInicial();
                 atualizarBadgeCarrinho();
+            } else if (resultado.gateway === 'mercadopago' && resultado.status !== 'approved') {
+                console.warn('[App] ⚠️ Pagamento de cartão não aprovado ou pendente. Carrinho mantido.');
+            } else {
+                // Para outras formas de pagamento online, aguarda confirmação
+                alert('Pedido realizado com sucesso! Aguardando confirmação de pagamento...');
             }
             
             fecharModal('modal-cliente-pedido');
@@ -2416,6 +2406,12 @@ window.confirmarPedido = async function() {
             if (resultado.gateway === 'mercadopago' && (resultado.status === 'in_process' || resultado.status === 'pending')) {
                 alert(`⏳ Atenção: ${resultado.mensagem || 'Seu pagamento com cartão está em análise pelo Mercado Pago. Você será notificado assim que for concluído.'}`);
                 fecharModal('modal-cliente-pedido');
+                return;
+            }
+            if (resultado.gateway === 'mercadopago' && resultado.status === 'rejected') {
+                console.log('[App] ℹ️ Pagamento com cartão recusado. Carrinho e formulário mantidos para nova tentativa.');
+                btnConfirmar.disabled = false;
+                btnConfirmar.textContent = '✅ Confirmar Pedido';
                 return;
             }
             alert(`Erro: ${resultado.mensagem || 'Erro desconhecido ao processar pedido.'}`);

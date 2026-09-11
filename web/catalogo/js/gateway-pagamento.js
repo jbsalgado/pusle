@@ -201,7 +201,17 @@ window.cancelarPollingPix = function () {
     }
     const modalPix = document.getElementById('modal-pix-asaas');
     if (modalPix) modalPix.remove();
-}
+
+    // Reabilita o botão de confirmação e garante sincronização do carrinho
+    const btnConfirmar = document.getElementById('btn-confirmar-pedido');
+    if (btnConfirmar) {
+        btnConfirmar.disabled = false;
+        btnConfirmar.textContent = '✅ Confirmar Pedido';
+    }
+    if (typeof window.atualizarBadgeCarrinho === 'function') {
+        window.atualizarBadgeCarrinho();
+    }
+};
 
 // ✅ FUNÇÃO PARA TESTE MANUAL NO SANDBOX
 window.simularPagamentoSandbox = async function () {
@@ -463,20 +473,30 @@ async function processarCartaoMercadoPago(dadosPedido, carrinho, cliente, pedido
             return { sucesso: false, gateway: 'mercadopago', status: result.status, dados: result };
         }
 
-        // 3️⃣ CASO RECUSADO / NÃO APROVADO: Redireciona automaticamente para PIX
+        // 3️⃣ CASO RECUSADO / NÃO APROVADO: Oferece tentar outro cartão ou ir para o PIX
         const msgRecusa = result.mensagem || 'Pagamento não aprovado pelo cartão.';
-        console.warn('[MP Cartão] ⚠️ Pagamento recusado:', msgRecusa, '— Redirecionando para PIX...');
+        console.warn('[MP Cartão] ⚠️ Pagamento recusado:', msgRecusa);
 
         _mostrarMensagemCartao(
             '⚠️ Cartão Não Aprovado',
-            `${msgRecusa} Redirecionando para pagamento via PIX...`,
+            `${msgRecusa}`,
             'warning'
         );
 
-        alert(`⚠️ O pagamento com cartão não foi aprovado:\n"${msgRecusa}"\n\nNão se preocupe! Vamos gerar o QR Code PIX para que você conclua seu pedido imediatamente.`);
+        const tentarPix = confirm(`⚠️ O pagamento com cartão não foi aprovado:\n"${msgRecusa}"\n\nDeseja pagar com PIX para concluir seu pedido imediatamente?\n\n• [OK] Gerar QR Code PIX\n• [Cancelar] Tentar com outro cartão`);
 
-        // Redireciona para o fluxo PIX do Mercado Pago usando o mesmo pedido preventivo
-        return await processarMercadoPago(dadosPedido, carrinho, cliente, pedidoId);
+        if (tentarPix) {
+            // Redireciona para o fluxo PIX do Mercado Pago usando o mesmo pedido preventivo
+            return await processarMercadoPago(dadosPedido, carrinho, cliente, pedidoId);
+        } else {
+            // Retorna insucesso mas com status rejected para permitir reabertura do formulário de cartão
+            return {
+                sucesso: false,
+                gateway: 'mercadopago',
+                status: 'rejected',
+                mensagem: msgRecusa
+            };
+        }
 
     } catch (error) {
         console.error('[MP Cartão] ❌ Erro:', error);
