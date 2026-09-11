@@ -2240,8 +2240,24 @@ window.confirmarPedido = async function() {
         console.log('[App] 📥 Resultado:', resultado);
         
         if (resultado.sucesso) {
-            const vendaId = resultado.dados?.id || resultado.dados?.venda?.id;
+            const vendaId = resultado.dados?.id || resultado.dados?.venda?.id || resultado.dados?.order_id || window.pedidoPreventivoId;
             
+            // ===============================================
+            // ✅ CARTÃO MERCADO PAGO APROVADO ONLINE
+            // ===============================================
+            const isCartaoAprovadoMP = resultado.gateway === 'mercadopago' && (resultado.status === 'approved' || resultado.dados?.status === 'approved');
+            if (isCartaoAprovadoMP) {
+                console.log('[App] 🎉 Pagamento com cartão Mercado Pago aprovado!');
+                alert('🎉 Pagamento Aprovado com Sucesso! Seu pedido foi confirmado e está sendo preparado.');
+                fecharModal('modal-cliente-pedido');
+                limparCarrinho();
+                await carregarCarrinhoInicial();
+                atualizarBadgeCarrinho();
+                btnConfirmar.disabled = false;
+                btnConfirmar.textContent = '✅ Confirmar Pedido';
+                return;
+            }
+
             // ===============================================
             // ✅ GATEWAY DINÂMICO: Se foi redirecionado ou exibiu modal de pagamento
             // o gateway-pagamento.js já cuida do resto — não fazer nada aqui
@@ -2256,6 +2272,8 @@ window.confirmarPedido = async function() {
                  limparCarrinho();
                  await carregarCarrinhoInicial();
                  atualizarBadgeCarrinho();
+                 btnConfirmar.disabled = false;
+                 btnConfirmar.textContent = '✅ Confirmar Pedido';
                  return;
             }
 
@@ -2273,6 +2291,8 @@ window.confirmarPedido = async function() {
                     limparCarrinho();
                     await carregarCarrinhoInicial();
                     atualizarBadgeCarrinho();
+                    btnConfirmar.disabled = false;
+                    btnConfirmar.textContent = '✅ Confirmar Pedido';
                     return;
                 }
             }
@@ -2332,6 +2352,8 @@ window.confirmarPedido = async function() {
                  limparCarrinho();
                  await carregarCarrinhoInicial();
                  atualizarBadgeCarrinho();
+                 btnConfirmar.disabled = false;
+                 btnConfirmar.textContent = '✅ Confirmar Pedido';
                  return;
             }
             // ===============================================
@@ -2339,12 +2361,12 @@ window.confirmarPedido = async function() {
             // ✅ CORREÇÃO: Para vendas online, comprovante só é exibido após confirmação de pagamento
             // PAGAR_AO_ENTREGADOR também não gera comprovante imediatamente (aguarda confirmação na entrega)
             const isPagarAoEntregador = tipoFormaPagamento === 'PAGAR_AO_ENTREGADOR';
-            const isCartaoInterno = ['CARTAO_CREDITO', 'CARTAO_DEBITO', 'CARTAO'].includes(tipoFormaPagamento);
+            const isCartaoSemGateway = ['CARTAO_CREDITO', 'CARTAO_DEBITO', 'CARTAO'].includes(tipoFormaPagamento) && !gatewayMpAtivo;
             
             if (isPagarAoEntregador) {
                 alert('Pedido realizado com sucesso! O comprovante será gerado após a confirmação do pagamento na entrega.');
-            } else if (isCartaoInterno) {
-                // ✅ FIX #2 UX: Cartão usa fluxo interno — pedido registrado, cobrança presencial
+            } else if (isCartaoSemGateway) {
+                // Cobrança presencial apenas se a loja NÃO possuir gateway MP configurado
                 const nomeForma = formaPagamentoSelecionada?.nome || 'Cartão';
                 alert(`✅ Pedido registrado com sucesso! Pagamento via ${nomeForma} será processado presencialmente / na entrega.`);
                 // Gera comprovante imediatamente com dados disponíveis

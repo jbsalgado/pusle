@@ -415,65 +415,80 @@ async function processarCartaoMercadoPago(dadosPedido, carrinho, cliente, pedido
             body: JSON.stringify(payload)
         });
 
+        let result = null;
         if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.mensagem || err.erro || 'Erro ao processar pagamento com cartão');
+            let erroMsg = 'Pagamento com cartão não foi aprovado pela operadora.';
+            try {
+                const err = await response.json();
+                erroMsg = err.mensagem || err.erro || erroMsg;
+            } catch (_) {}
+            result = { sucesso: false, status: 'rejected', mensagem: erroMsg };
+        } else {
+            result = await response.json();
         }
 
-        const result = await response.json();
         console.log('[MP Cartão] 📡 Resposta:', result);
 
+        // Limpar token e dados de cartão após processamento
+        window.mpCardToken       = null;
+        window.mpInstallments    = null;
+        window.mpPaymentMethodId = null;
+        window.mpIssuerId        = null;
+
+        // 1️⃣ CASO APROVADO: Dispara confirmação da venda online
         if (result.sucesso && result.status === 'approved') {
-            // Limpar token após uso
-            window.mpCardToken       = null;
-            window.mpInstallments    = null;
-            window.mpPaymentMethodId = null;
-            window.mpIssuerId        = null;
+            _mostrarMensagemCartao(
+                '✅ Pagamento Aprovado!',
+                'Seu pagamento com cartão foi confirmado com sucesso. O pedido está sendo preparado!',
+                'success'
+            );
 
             tratarPagamentoConfirmado(pedidoId, result, 'mercadopago');
-            return { sucesso: true, gateway: 'mercadopago', dados: result };
+            return {
+                sucesso: true,
+                gateway: 'mercadopago',
+                status: 'approved',
+                mensagem: 'Pagamento aprovado com sucesso!',
+                dados: { ...result, id: pedidoId, venda_id: pedidoId }
+            };
         }
 
-        // Pagamento em análise (anti-fraude)
+        // 2️⃣ CASO EM ANÁLISE / PENDENTE (Anti-fraude)
         if (!result.sucesso && (result.status === 'in_process' || result.status === 'pending')) {
             _mostrarMensagemCartao(
                 '⏳ Pagamento em Análise',
-                result.mensagem || 'Seu pagamento está sendo analisado. Você será notificado.',
+                result.mensagem || 'Seu pagamento está em análise pelo Mercado Pago. Você será notificado.',
                 'warning'
             );
             return { sucesso: false, gateway: 'mercadopago', status: result.status, dados: result };
         }
 
-        // Pagamento recusado — oferecer fallback para PIX se disponível
+        // 3️⃣ CASO RECUSADO / NÃO APROVADO: Redireciona automaticamente para PIX
         const msgRecusa = result.mensagem || 'Pagamento não aprovado pelo cartão.';
-        const oferecePixFallback = window.GATEWAY_CONFIG?.gateway === 'mercadopago';
+        console.warn('[MP Cartão] ⚠️ Pagamento recusado:', msgRecusa, '— Redirecionando para PIX...');
 
-        if (oferecePixFallback) {
-            const usarPix = confirm(
-                `${msgRecusa}\n\nDeseja tentar pagar via PIX?`
-            );
-            if (usarPix) {
-                console.log('[MP Cartão] 🔄 Usuário optou por fallback PIX');
-                // Reutiliza o mesmo pedido preventivo
-                const { processarPagamento } = await import('./gateway-pagamento.js');
-                // Força o gateway PIX temporariamente
-                const configOriginal = window.GATEWAY_CONFIG.gateway;
-                return await processarMercadoPago(dadosPedido, carrinho, cliente, pedidoId);
-            }
-        } else {
-            alert(msgRecusa);
-        }
+        _mostrarMensagemCartao(
+            '⚠️ Cartão Não Aprovado',
+            `${msgRecusa} Redirecionando para pagamento via PIX...`,
+            'warning'
+        );
 
-        throw new Error(msgRecusa);
+        alert(`⚠️ O pagamento com cartão não foi aprovado:\n"${msgRecusa}"\n\nNão se preocupe! Vamos gerar o QR Code PIX para que você conclua seu pedido imediatamente.`);
+
+        // Redireciona para o fluxo PIX do Mercado Pago usando o mesmo pedido preventivo
+        return await processarMercadoPago(dadosPedido, carrinho, cliente, pedidoId);
 
     } catch (error) {
         console.error('[MP Cartão] ❌ Erro:', error);
-        // Limpar token em caso de erro também
         window.mpCardToken       = null;
         window.mpInstallments    = null;
         window.mpPaymentMethodId = null;
         window.mpIssuerId        = null;
-        throw error;
+
+        // Fallback de segurança para PIX caso ocorra qualquer falha na comunicação de cartão
+        console.log('[MP Cartão] 🔄 Tentando fallback para PIX devido a erro de conexão...');
+        alert('Houve uma falha ao comunicar com a operadora do cartão. Redirecionando para pagamento via PIX...');
+        return await processarMercadoPago(dadosPedido, carrinho, cliente, pedidoId);
     }
 }
 
