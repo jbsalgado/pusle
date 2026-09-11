@@ -1,6 +1,7 @@
 {
-  "version": "1.4.3",
-  "updated_at": "2026-09-11T07:25:00-03:00",
+  "version": "1.4.5",
+  "updated_at": "2026-09-11T17:21:00-03:00",
   "force_update": true,
-  "changelog": "Modal personalizado de recusa de cartão com opções diretas 'Pagar com PIX' e 'Outro Cartão'."
+  "changelog": "Validações visuais no CardForm Mercado Pago, destaque de campos obrigatórios (validade/cvv) e correção de recusa de débito online."
 }
+

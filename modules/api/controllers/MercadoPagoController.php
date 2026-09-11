@@ -401,8 +401,11 @@ class MercadoPagoController extends Controller
             ];
 
             if ($isDebito) {
-                $paymentData['payment_type_id']     = 'debit_card';
-                $paymentData['three_d_secure_mode'] = 'optional';
+                // No Brasil, apenas Elo Débito ('debelo') possui rota transparente direta de débito no MP.
+                if ($paymentMethodId === 'debelo') {
+                    $paymentData['payment_type_id']     = 'debit_card';
+                    $paymentData['three_d_secure_mode'] = 'optional';
+                }
             }
 
             // Remove campos nulos opcionais para evitar rejeição da API
@@ -496,7 +499,7 @@ class MercadoPagoController extends Controller
             // rejected / cancelled
             if ($isDebito) {
                 $mensagensRecusa = [
-                    'cc_rejected_bad_filled_card_number'   => 'Número do cartão incorreto ou inválido. Por favor, confira os números digitados.',
+                    'cc_rejected_bad_filled_card_number'   => 'Este cartão não autorizou cobrança no débito online nesta operadora. Por favor, selecione "Cartão de Crédito" (à vista) ou pague via PIX.',
                     'cc_rejected_bad_filled_security_code' => 'Código de segurança (CVV) incorreto.',
                     'cc_rejected_bad_filled_date'          => 'Data de validade incorreta.',
                     'cc_rejected_bad_filled_other'         => 'Dados do cartão incorretos. Por favor, revise as informações.',
@@ -506,7 +509,7 @@ class MercadoPagoController extends Controller
                     'cc_rejected_duplicated_payment'       => 'Pagamento duplicado detectado para esta compra.',
                     'cc_rejected_high_risk'                => 'Pagamento de débito não autorizado pela análise de segurança. Recomendamos concluir via PIX.',
                     'cc_rejected_max_attempts'             => 'Limite de tentativas excedido para este cartão de débito. Tente pagar via PIX.',
-                    'cc_rejected_card_type_not_allowed'    => 'Este cartão não autorizou débito via e-commerce. Recomendamos concluir via PIX.',
+                    'cc_rejected_card_type_not_allowed'    => 'Este cartão não autorizou débito via e-commerce. Recomendamos concluir via PIX ou Cartão de Crédito à vista.',
                     'cc_rejected_blacklist'                => 'Cartão de débito não autorizado pela instituição bancária.',
                 ];
             } else {
@@ -538,17 +541,49 @@ class MercadoPagoController extends Controller
             ];
 
         } catch (MPApiException $e) {
-            $apiResp = $e->getApiResponse();
-            $content = is_object($apiResp) && method_exists($apiResp, 'getContent') ? $apiResp->getContent() : [];
-            $msg     = is_array($content) ? ($content['message'] ?? $e->getMessage()) : $e->getMessage();
+            $apiResp     = $e->getApiResponse();
+            $content     = is_object($apiResp) && method_exists($apiResp, 'getContent') ? $apiResp->getContent() : [];
+            $msg         = is_array($content) ? ($content['message'] ?? $e->getMessage()) : $e->getMessage();
+            $causeCode   = 0;
+            $causeDesc   = '';
+
+            if (is_array($content) && !empty($content['cause']) && is_array($content['cause'])) {
+                $causeCode = (int)($content['cause'][0]['code'] ?? 0);
+                $causeDesc = (string)($content['cause'][0]['description'] ?? '');
+            }
 
             Yii::error([
                 'action'       => 'cartao_erro_mp_api',
                 'error'        => $msg,
+                'cause_code'   => $causeCode,
+                'cause_desc'   => $causeDesc,
                 'api_response' => $content,
             ], 'mercadopago');
 
-            return $this->errorResponse('Erro no Mercado Pago: ' . $msg, $e->getStatusCode() ?: 422);
+            // Tradução amigável e humana dos códigos técnicos da API do Mercado Pago
+            $mensagemAmigavel = null;
+
+            if ($causeCode === 10102 || $msg === 'not_result_by_params' || strpos((string)$msg, 'not_result_by_params') !== false) {
+                if ($isDebito) {
+                    $mensagemAmigavel = 'Este cartão não é aceito para compras no débito online. No Brasil, o Mercado Pago autoriza débito online direto apenas para cartões compatíveis (ex: Elo Débito). Por favor, selecione a opção "Cartão de Crédito" ou finalize via PIX.';
+                } else {
+                    $mensagemAmigavel = 'Dados ou modalidade do cartão não autorizados pela operadora para esta transação. Por favor, tente com outro cartão ou pague via PIX.';
+                }
+            } elseif ($causeCode === 3003 || strpos((string)$msg, 'card_token_id') !== false) {
+                $mensagemAmigavel = 'Os dados de segurança do cartão expiraram ou são inválidos. Por favor, redigite o número, validade e CVV.';
+            } elseif ($causeCode === 2059 || strpos((string)$msg, 'application_fee') !== false) {
+                $mensagemAmigavel = 'Instabilidade temporária na comunicação com a operadora. Por favor, tente novamente ou pague via PIX.';
+            } elseif ($causeCode === 2060 || strpos((string)$msg, 'customer') !== false) {
+                $mensagemAmigavel = 'Não foi possível validar os dados do titular junto à operadora. Verifique o CPF e e-mail informados.';
+            } elseif (strpos((string)$msg, 'payment_method_not_found') !== false || $causeCode === 2006) {
+                $mensagemAmigavel = 'Bandeira ou cartão não suportado para esta operação. Por favor, tente outro cartão ou pague via PIX.';
+            }
+
+            if (!$mensagemAmigavel) {
+                $mensagemAmigavel = 'Não foi possível processar o pagamento com este cartão (' . ($msg ?: 'Operação não autorizada') . '). Recomendamos tentar com outro cartão ou pagar via PIX.';
+            }
+
+            return $this->errorResponse($mensagemAmigavel, $e->getStatusCode() ?: 422);
         } catch (\Throwable $e) {
             Yii::error([
                 'action' => 'cartao_erro_interno',

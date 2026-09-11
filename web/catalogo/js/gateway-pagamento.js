@@ -441,6 +441,11 @@ async function processarCartaoMercadoPago(dadosPedido, carrinho, cliente, pedido
                 const err = await response.json();
                 erroMsg = err.mensagem || err.erro || erroMsg;
             } catch (_) {}
+
+            if (typeof erroMsg === 'string' && (erroMsg.includes('not_result_by_params') || erroMsg.includes('No result found'))) {
+                erroMsg = 'Este cartão não é aceito para compras no débito online. No Brasil, o Mercado Pago autoriza débito online direto apenas para cartões compatíveis (ex: Elo Débito). Por favor, selecione "Cartão de Crédito" ou finalize via PIX.';
+            }
+
             result = { sucesso: false, status: 'rejected', mensagem: erroMsg };
         } else {
             result = await response.json();
@@ -526,6 +531,14 @@ async function processarCartaoMercadoPago(dadosPedido, carrinho, cliente, pedido
  */
 function exibirModalDecisaoRecusa(msgRecusa) {
     return new Promise((resolve) => {
+        if (typeof msgRecusa === 'string' && (
+            msgRecusa.includes('not_result_by_params') || 
+            msgRecusa.includes('No result found') ||
+            (msgRecusa.includes('débito') && (msgRecusa.includes('Número do cartão') || msgRecusa.includes('autorizou')))
+        )) {
+            msgRecusa = 'Este cartão não autoriza compras no débito online nesta operadora. Recomendamos selecionar a opção "Cartão de Crédito" (cobrança à vista no saldo/limite da conta sem juros) ou finalizar via PIX.';
+        }
+
         // Remove modal anterior caso exista
         const modalExistente = document.getElementById('modal-decisao-recusa-cartao');
         if (modalExistente) modalExistente.remove();

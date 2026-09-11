@@ -127,6 +127,25 @@ export async function inicializarCardForm(containerId, valorTotal, onTokenGenera
                             el.dispatchEvent(new Event('input', { bubbles: true }));
                             el.dispatchEvent(new Event('change', { bubbles: true }));
                         }
+                        if (el) {
+                            el.addEventListener('input', () => {
+                                el.classList.remove('mp-field-error');
+                                el.style.borderColor = '';
+                                el.style.backgroundColor = '';
+                            });
+                        }
+                    });
+
+                    // Limpa erro ao clicar nos iframes do SDK
+                    ['form-checkout__cardNumber', 'form-checkout__expirationDate', 'form-checkout__securityCode'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) {
+                            el.addEventListener('click', () => {
+                                el.classList.remove('mp-field-error');
+                                el.style.borderColor = '';
+                                el.style.backgroundColor = '';
+                            });
+                        }
                     });
                 }
             },
@@ -149,11 +168,12 @@ export async function inicializarCardForm(containerId, valorTotal, onTokenGenera
                 if (submitBtn) submitBtn.disabled = false;
             },
             onError: (errors) => {
-                console.error('[MP CardForm] Erros de validação:', errors);
+                console.error('[MP CardForm] Erros de validação capturados pelo SDK:', errors);
                 const submitBtn = document.getElementById('btn-pagar-cartao');
                 if (submitBtn && !submitBtn.textContent.includes('Processando')) {
                     submitBtn.disabled = false;
                 }
+                _exibirErrosValidacaoCardForm(errors);
             },
         },
     });
@@ -162,12 +182,143 @@ export async function inicializarCardForm(containerId, valorTotal, onTokenGenera
 }
 
 /**
- * Manipula o submit do CardForm: gera token e chama o callback.
+ * Remove destaque de erro visual dos campos do formulário
+ */
+function _limparEstilosErrosCardForm() {
+    const ids = [
+        'form-checkout__cardNumber',
+        'form-checkout__expirationDate',
+        'form-checkout__securityCode',
+        'form-checkout__cardholderName',
+        'form-checkout__identificationNumber',
+        'form-checkout__cardholderEmail',
+        'form-checkout__installments'
+    ];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.classList.remove('mp-field-error');
+            el.style.borderColor = '';
+            el.style.backgroundColor = '';
+        }
+    });
+    const errorEl = document.getElementById('mp-card-error');
+    if (errorEl) {
+        errorEl.textContent = '';
+    }
+}
+
+/**
+ * Destaca visualmente um campo com erro
+ */
+function _marcarCampoComErro(id) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.classList.add('mp-field-error');
+        el.style.borderColor = '#ef4444';
+        el.style.backgroundColor = '#fff1f2';
+    }
+}
+
+/**
+ * Mapeia erros do SDK v2 em mensagens claras em português e destaca campos
+ */
+function _exibirErrosValidacaoCardForm(errors) {
+    _limparEstilosErrosCardForm();
+    const errorEl = document.getElementById('mp-card-error');
+    const mensagens = [];
+
+    if (!Array.isArray(errors) || errors.length === 0) {
+        if (errorEl) {
+            errorEl.textContent = '⚠️ Por favor, revise os dados do cartão (número, validade MM/AA e CVV).';
+        }
+        return;
+    }
+
+    let primeiroCampoFoco = null;
+
+    errors.forEach(err => {
+        const field = (err.field || err.name || '').toLowerCase();
+        const msg = (err.message || err.cause || '').toLowerCase();
+
+        if (field.includes('cardnumber') || msg.includes('card_number') || msg.includes('cardnumber')) {
+            _marcarCampoComErro('form-checkout__cardNumber');
+            mensagens.push('Número do cartão inválido ou incompleto');
+            if (!primeiroCampoFoco) primeiroCampoFoco = 'form-checkout__cardNumber';
+        } else if (field.includes('expiration') || field.includes('date') || msg.includes('expiration') || msg.includes('date')) {
+            _marcarCampoComErro('form-checkout__expirationDate');
+            mensagens.push('Data de validade obrigatória (MM/AA)');
+            if (!primeiroCampoFoco) primeiroCampoFoco = 'form-checkout__expirationDate';
+        } else if (field.includes('security') || field.includes('cvv') || field.includes('code') || msg.includes('security_code')) {
+            _marcarCampoComErro('form-checkout__securityCode');
+            mensagens.push('Código de segurança (CVV) obrigatório');
+            if (!primeiroCampoFoco) primeiroCampoFoco = 'form-checkout__securityCode';
+        } else if (field.includes('cardholdername') || field.includes('name') || msg.includes('cardholder_name')) {
+            _marcarCampoComErro('form-checkout__cardholderName');
+            mensagens.push('Nome impresso no cartão obrigatório');
+            if (!primeiroCampoFoco) primeiroCampoFoco = 'form-checkout__cardholderName';
+        } else if (field.includes('identification') || field.includes('doc') || msg.includes('identification')) {
+            _marcarCampoComErro('form-checkout__identificationNumber');
+            mensagens.push('CPF/Documento inválido');
+            if (!primeiroCampoFoco) primeiroCampoFoco = 'form-checkout__identificationNumber';
+        } else if (field.includes('email') || msg.includes('email')) {
+            _marcarCampoComErro('form-checkout__cardholderEmail');
+            mensagens.push('E-mail inválido');
+            if (!primeiroCampoFoco) primeiroCampoFoco = 'form-checkout__cardholderEmail';
+        } else if (field.includes('installment') || msg.includes('installment')) {
+            _marcarCampoComErro('form-checkout__installments');
+            mensagens.push('Selecione as parcelas');
+        } else {
+            mensagens.push(err.message || 'Dados do cartão incompletos');
+        }
+    });
+
+    if (errorEl) {
+        const unicas = [...new Set(mensagens)];
+        errorEl.textContent = '⚠️ ' + unicas.join(' • ');
+    }
+
+    if (primeiroCampoFoco) {
+        const el = document.getElementById(primeiroCampoFoco);
+        if (el && typeof el.focus === 'function') {
+            try { el.focus(); } catch (_) {}
+        }
+    }
+}
+
+/**
+ * Manipula o submit do CardForm: valida campos, gera token e chama o callback.
  */
 async function _handleCardFormSubmit() {
     const submitBtn = document.getElementById('btn-pagar-cartao');
     const errorEl   = document.getElementById('mp-card-error');
     const isDebito  = (_tipoCartao === 'debit_card');
+
+    _limparEstilosErrosCardForm();
+
+    // Validações rápidas pré-submit nos campos de texto visíveis
+    const nomeEl  = document.getElementById('form-checkout__cardholderName');
+    const docEl   = document.getElementById('form-checkout__identificationNumber');
+    const emailEl = document.getElementById('form-checkout__cardholderEmail');
+
+    if (nomeEl && !nomeEl.value.trim()) {
+        _marcarCampoComErro('form-checkout__cardholderName');
+        if (errorEl) errorEl.textContent = '⚠️ Por favor, informe o nome exatamente como impresso no cartão.';
+        nomeEl.focus();
+        return;
+    }
+    if (docEl && docEl.value.replace(/\D/g, '').length < 11) {
+        _marcarCampoComErro('form-checkout__identificationNumber');
+        if (errorEl) errorEl.textContent = '⚠️ Por favor, informe um CPF válido com 11 dígitos.';
+        docEl.focus();
+        return;
+    }
+    if (emailEl && (!emailEl.value.trim() || !emailEl.value.includes('@'))) {
+        _marcarCampoComErro('form-checkout__cardholderEmail');
+        if (errorEl) errorEl.textContent = '⚠️ Por favor, informe um e-mail válido para o comprovante.';
+        emailEl.focus();
+        return;
+    }
 
     if (submitBtn) {
         submitBtn.disabled    = true;
@@ -184,7 +335,7 @@ async function _handleCardFormSubmit() {
         const issuerId        = formData.issuerId;
 
         if (!token) {
-            throw new Error('Não foi possível gerar o token do cartão. Verifique os dados informados.');
+            throw new Error('Não foi possível validar os dados do cartão. Por favor, confira o número, a data de validade (MM/AA) e o CVV.');
         }
 
         // Salva no window para que gateway-pagamento.js consuma
@@ -201,7 +352,13 @@ async function _handleCardFormSubmit() {
         }
     } catch (error) {
         console.error('[MP CardForm] ❌ Erro:', error);
-        if (errorEl) errorEl.textContent = error.message || 'Erro ao processar cartão. Tente novamente.';
+        if (errorEl) {
+            let msg = error.message || 'Erro ao processar cartão. Tente novamente.';
+            if (msg.includes('not_result_by_params') || msg.includes('No result found')) {
+                msg = 'Este cartão não é aceito para compras no débito online. Por favor, tente na opção Crédito ou pague via PIX.';
+            }
+            errorEl.textContent = msg;
+        }
     } finally {
         if (submitBtn) {
             submitBtn.disabled    = false;
@@ -272,11 +429,13 @@ export function gerarHtmlFormCartao(cliente = null, tipoCartao = 'credit_card') 
 <form id="form-checkout-mp-cartao" class="mp-card-form-container">
 
     ${isDebito ? `
-    <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
-        <span style="font-size:18px;">💳</span>
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #3b82f6;border-radius:8px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px;">
+        <span style="font-size:20px;line-height:1.2;">💳</span>
         <div>
-            <div style="font-size:13px;font-weight:700;color:#1e293b;">Cartão de Débito (À vista)</div>
-            <div style="font-size:11px;color:#64748b;">Cobrança debitada diretamente da conta bancária</div>
+            <div style="font-size:13px;font-weight:700;color:#1e40af;">Cartão de Débito (Cobrança à vista)</div>
+            <div style="font-size:11px;color:#1e3a8a;line-height:1.4;margin-top:2px;">
+                Cobrança à vista debitada na conta. Cartões múltiplos (débito/crédito) são aceitos e processados à vista (1x) sem qualquer acréscimo.
+            </div>
         </div>
     </div>
     ` : ''}

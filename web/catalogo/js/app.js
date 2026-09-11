@@ -26,7 +26,7 @@ import {
     atualizarBadgeProduto
 } from './cart.js';
 import { carregarCarrinho, limparDadosLocaisPosSinc } from './storage.js';
-import { finalizarPedido } from './order.js?v=20260911_09';
+import { finalizarPedido } from './order.js?v=20260911_11';
 import { 
     carregarFormasPagamento, 
     calcularParcelas, 
@@ -2123,7 +2123,7 @@ window.confirmarPedido = async function() {
         );
 
         try {
-            const { inicializarCardForm, gerarHtmlFormCartao, destruirCardForm } = await import('./mp-card-form.js?v=20260911_09');
+            const { inicializarCardForm, gerarHtmlFormCartao, destruirCardForm } = await import('./mp-card-form.js?v=20260911_11');
 
             // Cria modal do CardForm se ainda não existir
             let modalCartao = document.getElementById('modal-mp-cartao');
@@ -2152,7 +2152,8 @@ window.confirmarPedido = async function() {
                         .mp-sdk-field iframe{width:100%!important;height:100%!important;border:none!important;background:transparent!important}
                         .mp-sdk-field:focus-within{border-color:#7c3aed;background:#fff}
                         .mp-input:focus,.mp-select:focus{border-color:#7c3aed;outline:none;background:#fff}
-                        .mp-error-msg{color:#ef4444;font-size:13px;min-height:18px;margin:0}
+                        .mp-error-msg{color:#ef4444;font-size:13px;min-height:18px;margin:0;font-weight:600}
+                        .mp-field-error{border-color:#ef4444!important;background:#fff1f2!important;box-shadow:0 0 0 3px rgba(239,68,68,0.15)!important}
                         .mp-btn-pay{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;width:100%;transition:opacity .2s;margin-top:4px}
                         .mp-btn-pay:hover{opacity:.92}
                         .mp-btn-pay:disabled{opacity:.55;cursor:not-allowed}
