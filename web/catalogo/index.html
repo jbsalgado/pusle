@@ -8,6 +8,15 @@
     <link rel="stylesheet" href="style.css?v=20260414_shopee_v2" />
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#007BFF" />
+    <script>
+      (function() {
+        const _origWarn = console.warn;
+        console.warn = function(...args) {
+          if (typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+          _origWarn.apply(console, args);
+        };
+      })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
