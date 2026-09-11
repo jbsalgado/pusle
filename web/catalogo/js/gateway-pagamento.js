@@ -393,15 +393,20 @@ async function processarCartaoMercadoPago(dadosPedido, carrinho, cliente, pedido
             throw new Error('Token do cartão não encontrado. Por favor, preencha os dados do cartão.');
         }
 
+        const tipoCartao = window.mpTipoCartao || (dadosPedido?.forma_pagamento_tipo === 'CARTAO_DEBITO' ? 'debit_card' : 'credit_card');
+        const isDebito   = (tipoCartao === 'debit_card');
+
         const payload = {
             tenant_id:         CONFIG.ID_USUARIO_LOJA,
             order_id:          pedidoId,
             amount:            valorTotal,
             token:             window.mpCardToken,
-            installments:      window.mpInstallments    || 1,
+            installments:      isDebito ? 1 : (window.mpInstallments || 1),
             payment_method_id: window.mpPaymentMethodId || null,  // bandeira: 'visa', 'master', etc.
             issuer_id:         window.mpIssuerId        || null,  // banco emissor
-            description:       `Pedido ${pedidoId} - Cartão`,
+            tipo_cartao:       tipoCartao,
+            payment_type_id:   tipoCartao,
+            description:       `Pedido ${pedidoId} - Cartão (${isDebito ? 'Débito' : 'Crédito'})`,
             cliente: {
                 nome:      cliente.nome || cliente.nome_completo || '',
                 sobrenome: cliente.sobrenome || '',
@@ -414,7 +419,7 @@ async function processarCartaoMercadoPago(dadosPedido, carrinho, cliente, pedido
             }
         };
 
-        console.log('[MP Cartão] 🚀 Enviando pagamento ao backend:', {
+        console.log('[MP Cartão] 🚀 Enviando pagamento ao backend (' + tipoCartao + '):', {
             ...payload,
             token: payload.token ? `${payload.token.substring(0, 8)}...` : null
         });
@@ -444,6 +449,7 @@ async function processarCartaoMercadoPago(dadosPedido, carrinho, cliente, pedido
         window.mpInstallments    = null;
         window.mpPaymentMethodId = null;
         window.mpIssuerId        = null;
+        window.mpTipoCartao      = null;
 
         // 1️⃣ CASO APROVADO: Dispara confirmação da venda online
         if (result.sucesso && result.status === 'approved') {

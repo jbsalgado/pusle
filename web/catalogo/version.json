@@ -1,6 +1,6 @@
 {
-  "version": "1.4.1",
-  "updated_at": "2026-09-11T02:30:00-03:00",
+  "version": "1.4.2",
+  "updated_at": "2026-09-11T03:15:00-03:00",
   "force_update": true,
-  "changelog": "Preserva itens no carrinho em caso de recusa ou cancelamento de pagamento."
+  "changelog": "Suporte a Cartão de Débito com bloqueio de parcelas à vista e cobrança correta no débito."
 }

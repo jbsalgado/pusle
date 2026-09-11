@@ -371,22 +371,39 @@ class MercadoPagoController extends Controller
             $vendedorUserId = (string)($usuario['mp_user_id'] ?? '');
             $ehPropriaConta = ($vendedorUserId !== '' && $vendedorUserId === (string)$appUserId);
 
+            $tipoCartao  = $request['tipo_cartao'] ?? $request['payment_type_id'] ?? 'credit_card';
+            $isDebito    = ($tipoCartao === 'debit_card');
+            if ($isDebito) {
+                $installments = 1;
+            }
+
             // --- Payload do pagamento ---
+            $paymentMethodId = $request['payment_method_id'] ?? null;
+            if ($isDebito && strtolower((string)$paymentMethodId) === 'elo') {
+                $paymentMethodId = 'debelo';
+            }
+
             $paymentData = [
                 'transaction_amount' => $amount,
                 'token'              => $cardToken,
-                'description'        => $request['description'] ?? 'Pedido ' . $orderId,
+                'description'        => $request['description'] ?? ('Pedido ' . $orderId . ($isDebito ? ' (Débito)' : '')),
                 'installments'       => $installments,
-                'payment_method_id'  => $request['payment_method_id'] ?? null, // Ex: 'visa', 'master'
+                'payment_method_id'  => $paymentMethodId, // Ex: 'visa', 'master', 'debelo'
                 'issuer_id'          => isset($request['issuer_id']) ? (int)$request['issuer_id'] : null,
                 'external_reference' => $orderId,
                 'capture'            => true, // Captura automática
                 'payer'              => $payer,
                 'metadata'           => [
-                    'tenant_id' => $tenantId,
-                    'order_id'  => $orderId,
+                    'tenant_id'   => $tenantId,
+                    'order_id'    => $orderId,
+                    'tipo_cartao' => $tipoCartao,
                 ],
             ];
+
+            if ($isDebito) {
+                $paymentData['payment_type_id']     = 'debit_card';
+                $paymentData['three_d_secure_mode'] = 'optional';
+            }
 
             // Remove campos nulos opcionais para evitar rejeição da API
             foreach (['payment_method_id', 'issuer_id'] as $optKey) {
@@ -408,6 +425,8 @@ class MercadoPagoController extends Controller
                 'order_id'     => $orderId,
                 'amount'       => $amount,
                 'installments' => $installments,
+                'tipo_cartao'  => $tipoCartao,
+                'method_id'    => $paymentData['payment_method_id'] ?? null,
             ], 'mercadopago');
 
             $client  = new PaymentClient();
@@ -475,20 +494,37 @@ class MercadoPagoController extends Controller
             }
 
             // rejected / cancelled
-            $mensagensRecusa = [
-                'cc_rejected_bad_filled_card_number'   => 'Número do cartão incorreto ou inválido. Por favor, confira os números digitados.',
-                'cc_rejected_bad_filled_security_code' => 'Código de segurança (CVV) incorreto.',
-                'cc_rejected_bad_filled_date'          => 'Data de validade incorreta.',
-                'cc_rejected_bad_filled_other'         => 'Dados do cartão incorretos. Por favor, revise as informações.',
-                'cc_rejected_insufficient_amount'      => 'Saldo ou limite insuficiente no cartão.',
-                'cc_rejected_call_for_authorize'       => 'Autorização pendente. Entre em contato com a administradora do seu cartão para autorizar a compra.',
-                'cc_rejected_card_disabled'            => 'Cartão bloqueado ou desativado. Entre em contato com seu banco.',
-                'cc_rejected_duplicated_payment'       => 'Pagamento duplicado detectado para esta compra.',
-                'cc_rejected_high_risk'                => 'Pagamento recusado pela análise de segurança. Recomendamos pagar via PIX ou utilizar outro cartão.',
-                'cc_rejected_max_attempts'             => 'Limite de tentativas excedido para este cartão. Tente pagar via PIX.',
-                'cc_rejected_card_type_not_allowed'    => 'Tipo de cartão não aceito. Verifique se o cartão é de crédito ou débito válido.',
-                'cc_rejected_blacklist'                => 'Cartão não autorizado pela instituição bancária.',
-            ];
+            if ($isDebito) {
+                $mensagensRecusa = [
+                    'cc_rejected_bad_filled_card_number'   => 'Número do cartão incorreto ou inválido. Por favor, confira os números digitados.',
+                    'cc_rejected_bad_filled_security_code' => 'Código de segurança (CVV) incorreto.',
+                    'cc_rejected_bad_filled_date'          => 'Data de validade incorreta.',
+                    'cc_rejected_bad_filled_other'         => 'Dados do cartão incorretos. Por favor, revise as informações.',
+                    'cc_rejected_insufficient_amount'      => 'Saldo insuficiente na conta bancária vinculada ao cartão de débito.',
+                    'cc_rejected_call_for_authorize'       => 'Transação não autorizada. Verifique se as compras no débito online estão habilitadas no aplicativo do seu banco.',
+                    'cc_rejected_card_disabled'            => 'Cartão de débito bloqueado ou desativado. Entre em contato com seu banco.',
+                    'cc_rejected_duplicated_payment'       => 'Pagamento duplicado detectado para esta compra.',
+                    'cc_rejected_high_risk'                => 'Pagamento de débito não autorizado pela análise de segurança. Recomendamos concluir via PIX.',
+                    'cc_rejected_max_attempts'             => 'Limite de tentativas excedido para este cartão de débito. Tente pagar via PIX.',
+                    'cc_rejected_card_type_not_allowed'    => 'Este cartão não autorizou débito via e-commerce. Recomendamos concluir via PIX.',
+                    'cc_rejected_blacklist'                => 'Cartão de débito não autorizado pela instituição bancária.',
+                ];
+            } else {
+                $mensagensRecusa = [
+                    'cc_rejected_bad_filled_card_number'   => 'Número do cartão incorreto ou inválido. Por favor, confira os números digitados.',
+                    'cc_rejected_bad_filled_security_code' => 'Código de segurança (CVV) incorreto.',
+                    'cc_rejected_bad_filled_date'          => 'Data de validade incorreta.',
+                    'cc_rejected_bad_filled_other'         => 'Dados do cartão incorretos. Por favor, revise as informações.',
+                    'cc_rejected_insufficient_amount'      => 'Saldo ou limite insuficiente no cartão.',
+                    'cc_rejected_call_for_authorize'       => 'Autorização pendente. Entre em contato com a administradora do seu cartão para autorizar a compra.',
+                    'cc_rejected_card_disabled'            => 'Cartão bloqueado ou desativado. Entre em contato com seu banco.',
+                    'cc_rejected_duplicated_payment'       => 'Pagamento duplicado detectado para esta compra.',
+                    'cc_rejected_high_risk'                => 'Pagamento recusado pela análise de segurança. Recomendamos pagar via PIX ou utilizar outro cartão.',
+                    'cc_rejected_max_attempts'             => 'Limite de tentativas excedido para este cartão. Tente pagar via PIX.',
+                    'cc_rejected_card_type_not_allowed'    => 'Tipo de cartão não aceito. Verifique se o cartão é de crédito ou débito válido.',
+                    'cc_rejected_blacklist'                => 'Cartão não autorizado pela instituição bancária.',
+                ];
+            }
             $mensagem = $mensagensRecusa[$statusDetail] ?? "Pagamento não aprovado pela operadora ({$statusDetail}). Tente novamente ou use outro cartão.";
 
             return [
@@ -497,6 +533,7 @@ class MercadoPagoController extends Controller
                 'status_detail' => $statusDetail,
                 'payment_id'    => $paymentId,
                 'order_id'      => $orderId,
+                'tipo_cartao'   => $tipoCartao,
                 'mensagem'      => $mensagem,
             ];
 

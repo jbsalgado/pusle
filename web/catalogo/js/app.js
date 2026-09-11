@@ -26,12 +26,12 @@ import {
     atualizarBadgeProduto
 } from './cart.js';
 import { carregarCarrinho, limparDadosLocaisPosSinc } from './storage.js';
-import { finalizarPedido } from './order.js?v=20260911_06';
+import { finalizarPedido } from './order.js?v=20260911_07';
 import { 
-    carregarFormasPagamento, 
-    calcularParcelas, 
-    formatarInfoParcelas 
-} from './payment.js?v=20260911_06';
+    atualizarParcelamento, 
+    popularParcelas, 
+    atualizarCamposParcelamento 
+} from './payment.js?v=20260911_07';
 import { 
     validarCPF, 
     formatarCPF, 
@@ -1596,8 +1596,8 @@ function controlarParcelasPorFormaPagamento() {
     
     const tipo = formaSelecionada.tipo || '';
     
-    // Se for DINHEIRO, PIX ou PIX ESTATICO, desabilita parcelamento
-    if (tipo === 'DINHEIRO' || tipo === 'PIX' || tipo === 'PIX_ESTATICO') {
+    // Se for DINHEIRO, PIX, PIX ESTATICO ou CARTAO_DEBITO, desabilita parcelamento
+    if (tipo === 'DINHEIRO' || tipo === 'PIX' || tipo === 'PIX_ESTATICO' || tipo === 'CARTAO_DEBITO') {
         // SEMPRE força para "À vista" - IMPORTANTE: fazer ANTES de desabilitar
         selectParcelas.value = '1';
         // Dispara evento change para atualizar campos relacionados
@@ -2085,7 +2085,7 @@ window.confirmarPedido = async function() {
     // Verifica se a forma de pagamento permite parcelamento antes de pegar o valor
     const formaPagamentoSelecionada = formasPagamento.find(fp => fp.id === formaPagamentoId);
     const tipoFormaPagamento = formaPagamentoSelecionada?.tipo || '';
-    const permiteParcelamento = tipoFormaPagamento !== 'DINHEIRO' && tipoFormaPagamento !== 'PIX' && tipoFormaPagamento !== 'PIX_ESTATICO' && tipoFormaPagamento !== 'PAGAR_AO_ENTREGADOR';
+    const permiteParcelamento = !['DINHEIRO', 'PIX', 'PIX_ESTATICO', 'PAGAR_AO_ENTREGADOR', 'CARTAO_DEBITO'].includes(tipoFormaPagamento);
     
     // ===============================================
     // ✅ CHECKOUT TRANSPARENTE — Cartão via Mercado Pago
@@ -2093,6 +2093,8 @@ window.confirmarPedido = async function() {
     // antes de prosseguir para que o token seja gerado pelo SDK.
     // ===============================================
     const isCartaoGateway = ['CARTAO_CREDITO', 'CARTAO_DEBITO', 'CARTAO'].includes(tipoFormaPagamento.toUpperCase().trim());
+    const isDebito        = (tipoFormaPagamento.toUpperCase().trim() === 'CARTAO_DEBITO');
+    const tipoCartao      = isDebito ? 'debit_card' : 'credit_card';
     const gatewayMpAtivo  = window.GATEWAY_CONFIG?.gateway === 'mercadopago' && window.GATEWAY_CONFIG?.habilitado;
 
     if (isCartaoGateway && gatewayMpAtivo) {
@@ -2103,7 +2105,7 @@ window.confirmarPedido = async function() {
         );
 
         try {
-            const { inicializarCardForm, gerarHtmlFormCartao, destruirCardForm } = await import('./mp-card-form.js?v=20260911_05');
+            const { inicializarCardForm, gerarHtmlFormCartao, destruirCardForm } = await import('./mp-card-form.js?v=20260911_07');
 
             // Cria modal do CardForm se ainda não existir
             let modalCartao = document.getElementById('modal-mp-cartao');
@@ -2142,18 +2144,22 @@ window.confirmarPedido = async function() {
             }
 
             const dadosClienteParaCartao = clienteAtual?.cliente || clienteAtual;
+            const tituloModal = isDebito ? '💳 Pagamento com Cartão de Débito' : '💳 Pagamento com Cartão de Crédito';
+            const subTituloModal = isDebito 
+                ? 'Pagamento à vista cobrado do saldo da sua conta corrente.' 
+                : 'Seus dados são protegidos e tokenizados pelo Mercado Pago.';
 
             // Garante HTML limpo e pré-preenchido com dados do cliente a cada abertura
             modalCartao.innerHTML = `
                 <div style="background:#fff;border-radius:16px;padding:28px 24px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-                        <h3 style="font-size:18px;font-weight:700;color:#1e293b;margin:0">💳 Pagamento com Cartão</h3>
+                        <h3 style="font-size:18px;font-weight:700;color:#1e293b;margin:0">${tituloModal}</h3>
                         <button id="btn-fechar-modal-cartao" style="background:none;border:none;font-size:22px;cursor:pointer;color:#64748b;line-height:1">&times;</button>
                     </div>
                     <p style="font-size:13px;color:#64748b;margin:0 0 18px">
-                        Seus dados são protegidos e tokenizados pelo Mercado Pago.
+                        ${subTituloModal}
                     </p>
-                    ${gerarHtmlFormCartao(dadosClienteParaCartao)}
+                    ${gerarHtmlFormCartao(dadosClienteParaCartao, tipoCartao)}
                 </div>`;
 
             modalCartao.style.display = 'flex';
@@ -2173,11 +2179,12 @@ window.confirmarPedido = async function() {
                     // Token gerado com sucesso — fecha modal e prossegue
                     modalCartao.style.display = 'none';
                     window.mpCardToken       = token;
-                    window.mpInstallments    = installments;
+                    window.mpInstallments    = isDebito ? 1 : installments;
                     window.mpPaymentMethodId = paymentMethodId;
                     window.mpIssuerId        = issuerId;
+                    window.mpTipoCartao      = tipoCartao;
                     resolve();
-                }).catch(reject);
+                }, tipoCartao).catch(reject);
             });
 
         } catch (err) {

@@ -16,6 +16,7 @@ import { API_ENDPOINTS, CONFIG } from './config.js';
 let mpInstance        = null;   // instância MercadoPago()
 let cardFormInstance  = null;   // instância cardForm
 let _onTokenGenerated = null;   // callback externo
+let _tipoCartao       = 'credit_card'; // 'debit_card' | 'credit_card'
 
 /**
  * Inicializa o CardForm do Mercado Pago dentro de um elemento HTML.
@@ -23,10 +24,13 @@ let _onTokenGenerated = null;   // callback externo
  * @param {string}   containerId        - ID do elemento onde o form será montado
  * @param {number}   valorTotal         - Valor total da compra (para cálculo de parcelas)
  * @param {Function} onTokenGenerated   - Callback chamado quando o token estiver pronto
- *                                        Recebe: (token, installments, paymentMethodId, issuerId)
+ *                                        Recebe: (token, installments, paymentMethodId, issuerId, tipoCartao)
+ * @param {string}   tipoCartao         - 'debit_card' ou 'credit_card'
  */
-export async function inicializarCardForm(containerId, valorTotal, onTokenGenerated) {
+export async function inicializarCardForm(containerId, valorTotal, onTokenGenerated, tipoCartao = 'credit_card') {
     _onTokenGenerated = onTokenGenerated;
+    _tipoCartao       = tipoCartao || 'credit_card';
+    window.mpTipoCartao = _tipoCartao;
 
     // Garante que o SDK MP está carregado
     if (typeof window.MercadoPago === 'undefined') {
@@ -115,7 +119,7 @@ export async function inicializarCardForm(containerId, valorTotal, onTokenGenera
                 if (error) {
                     console.error('[MP CardForm] ❌ Erro ao montar formulário:', error);
                 } else {
-                    console.log('[MP CardForm] ✅ Formulário montado com sucesso');
+                    console.log('[MP CardForm] ✅ Formulário montado com sucesso (' + _tipoCartao + ')');
                     // Dispara evento input nos campos preenchidos para sincronizar validação do SDK
                     ['form-checkout__cardholderName', 'form-checkout__identificationNumber', 'form-checkout__cardholderEmail'].forEach(id => {
                         const el = document.getElementById(id);
@@ -163,6 +167,7 @@ export async function inicializarCardForm(containerId, valorTotal, onTokenGenera
 async function _handleCardFormSubmit() {
     const submitBtn = document.getElementById('btn-pagar-cartao');
     const errorEl   = document.getElementById('mp-card-error');
+    const isDebito  = (_tipoCartao === 'debit_card');
 
     if (submitBtn) {
         submitBtn.disabled    = true;
@@ -174,7 +179,7 @@ async function _handleCardFormSubmit() {
         const formData = cardFormInstance.getCardFormData();
 
         const token           = formData.token;
-        const installments    = parseInt(formData.installments, 10) || 1;
+        const installments    = isDebito ? 1 : (parseInt(formData.installments, 10) || 1);
         const paymentMethodId = formData.paymentMethodId;   // ex: 'visa', 'master'
         const issuerId        = formData.issuerId;
 
@@ -183,15 +188,16 @@ async function _handleCardFormSubmit() {
         }
 
         // Salva no window para que gateway-pagamento.js consuma
-        window.mpCardToken    = token;
-        window.mpInstallments = installments;
+        window.mpCardToken       = token;
+        window.mpInstallments    = installments;
         window.mpPaymentMethodId = paymentMethodId;
-        window.mpIssuerId     = issuerId;
+        window.mpIssuerId        = issuerId;
+        window.mpTipoCartao      = _tipoCartao;
 
-        console.log('[MP CardForm] ✅ Token gerado:', token, '| Parcelas:', installments, '| Bandeira:', paymentMethodId);
+        console.log('[MP CardForm] ✅ Token gerado:', token, '| Tipo:', _tipoCartao, '| Parcelas:', installments, '| Bandeira:', paymentMethodId);
 
         if (typeof _onTokenGenerated === 'function') {
-            await _onTokenGenerated(token, installments, paymentMethodId, issuerId);
+            await _onTokenGenerated(token, installments, paymentMethodId, issuerId, _tipoCartao);
         }
     } catch (error) {
         console.error('[MP CardForm] ❌ Erro:', error);
@@ -199,7 +205,7 @@ async function _handleCardFormSubmit() {
     } finally {
         if (submitBtn) {
             submitBtn.disabled    = false;
-            submitBtn.textContent = '💳 Pagar com Cartão';
+            submitBtn.textContent = isDebito ? '💳 Pagar no Débito' : '💳 Pagar com Cartão';
         }
     }
 }
@@ -216,6 +222,8 @@ export function destruirCardForm() {
     window.mpInstallments    = null;
     window.mpPaymentMethodId = null;
     window.mpIssuerId        = null;
+    window.mpTipoCartao      = null;
+    _tipoCartao              = 'credit_card';
 }
 
 /**
@@ -251,15 +259,27 @@ export async function buscarParcelasMP(valorTotal, bin = null, paymentMethodId =
  * Gera o HTML do modal/container do formulário de cartão.
  * Pode ser inserido em qualquer ponto do DOM.
  *
- * @param {Object|null} cliente - Dados do cliente para pré-preenchimento
+ * @param {Object|null} cliente     - Dados do cliente para pré-preenchimento
+ * @param {string}      tipoCartao  - 'debit_card' ou 'credit_card'
  */
-export function gerarHtmlFormCartao(cliente = null) {
+export function gerarHtmlFormCartao(cliente = null, tipoCartao = 'credit_card') {
+    const isDebito = (tipoCartao === 'debit_card');
     const nomeVal = (cliente?.nome_completo || cliente?.nome || '').trim();
     const docVal = (cliente?.cpf_cnpj || cliente?.cpf || '').replace(/\D/g, '');
     const emailVal = (cliente?.email || '').trim();
 
     return `
 <form id="form-checkout-mp-cartao" class="mp-card-form-container">
+
+    ${isDebito ? `
+    <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:18px;">💳</span>
+        <div>
+            <div style="font-size:13px;font-weight:700;color:#1e293b;">Cartão de Débito (À vista)</div>
+            <div style="font-size:11px;color:#64748b;">Cobrança debitada diretamente da conta bancária</div>
+        </div>
+    </div>
+    ` : ''}
 
     <!-- Número do cartão -->
     <div class="mp-field-group">
@@ -288,11 +308,11 @@ export function gerarHtmlFormCartao(cliente = null) {
     <!-- Banco emissor (preenchido automaticamente pelo SDK) -->
     <select id="form-checkout__issuer" class="mp-select" style="position:absolute;opacity:0;pointer-events:none;height:0;width:0;"></select>
 
-    <!-- Parcelas -->
-    <div class="mp-field-group">
+    <!-- Parcelas (se Débito, campo oculto para atender o SDK mantendo 1x) -->
+    <div class="mp-field-group" style="${isDebito ? 'display:none;' : ''}">
         <label class="mp-label" for="form-checkout__installments">Parcelas</label>
         <select id="form-checkout__installments" class="mp-select">
-            <option value="">Selecione as parcelas</option>
+            <option value="1">1x à vista</option>
         </select>
     </div>
 
@@ -319,8 +339,9 @@ export function gerarHtmlFormCartao(cliente = null) {
 
     <!-- Botão submit -->
     <button id="btn-pagar-cartao" type="submit" class="mp-btn-pay">
-        💳 Pagar com Cartão
+        ${isDebito ? '💳 Pagar no Débito' : '💳 Pagar com Cartão'}
     </button>
 
 </form>`;
 }
+
