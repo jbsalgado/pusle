@@ -116,8 +116,8 @@ const ID_USUARIO_LOJA = getLojaId();
 const API_PRODUTO_URL = `${URL_API}/api/produto?usuario_id=${ID_USUARIO_LOJA}`;
 const API_PEDIDO_URL = `${URL_API}/api/pedido`;
 
-// ✅ AJUSTE: Incrementado para v21
-const CACHE_NAME = 'catalogo-cache-v21'; 
+// ✅ AJUSTE: Incrementado para v22
+const CACHE_NAME = 'catalogo-cache-v22'; 
 
 const APP_SHELL_FILES = [
     `${URL_BASE_WEB}/catalogo/index.html`,
@@ -251,13 +251,15 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // 3. ARQUIVOS CRÍTICOS (HTML, JS) - NETWORK-FIRST
-    const isCriticalFile = CRITICAL_FILES.some(file => 
+    // 3. ARQUIVOS DE CÓDIGO (JS, HTML, CSS) - SEMPRE NETWORK-FIRST
+    // Garante que qualquer atualização nos scripts do catálogo seja refletida imediatamente
+    const isCodeAsset = url.pathname.endsWith('.js') || url.pathname.endsWith('.html') || url.pathname.endsWith('.css');
+    const isCriticalFile = isCodeAsset || CRITICAL_FILES.some(file => 
         event.request.url.includes(file)
     );
     
     if (isCriticalFile) {
-        console.log('[SW] Arquivo crítico detectado, usando Network-First:', event.request.url);
+        console.log('[SW] Arquivo de código detectado, usando Network-First:', event.request.url);
         event.respondWith(
             fetch(event.request)
                 .then(networkResponse => {

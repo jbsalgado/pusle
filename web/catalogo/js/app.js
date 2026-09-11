@@ -26,12 +26,12 @@ import {
     atualizarBadgeProduto
 } from './cart.js';
 import { carregarCarrinho, limparDadosLocaisPosSinc } from './storage.js';
-import { finalizarPedido } from './order.js';
+import { finalizarPedido } from './order.js?v=20260911_05';
 import { 
     carregarFormasPagamento, 
     calcularParcelas, 
     formatarInfoParcelas 
-} from './payment.js';
+} from './payment.js?v=20260911_05';
 import { 
     validarCPF, 
     formatarCPF, 
@@ -2103,7 +2103,7 @@ window.confirmarPedido = async function() {
         );
 
         try {
-            const { inicializarCardForm, gerarHtmlFormCartao, destruirCardForm } = await import('./mp-card-form.js?v=20260911_03');
+            const { inicializarCardForm, gerarHtmlFormCartao, destruirCardForm } = await import('./mp-card-form.js?v=20260911_05');
 
             // Cria modal do CardForm se ainda não existir
             let modalCartao = document.getElementById('modal-mp-cartao');
@@ -2249,6 +2249,18 @@ window.confirmarPedido = async function() {
             if (isCartaoAprovadoMP) {
                 console.log('[App] 🎉 Pagamento com cartão Mercado Pago aprovado!');
                 alert('🎉 Pagamento Aprovado com Sucesso! Seu pedido foi confirmado e está sendo preparado.');
+                try {
+                    const { gerarComprovanteVenda } = await import('./receipt.js?v=20260911_05');
+                    const carrinhoSnapshot = getCarrinho();
+                    await gerarComprovanteVenda(carrinhoSnapshot, {
+                        venda_id: vendaId,
+                        forma_pagamento: formaPagamentoSelecionada?.nome || 'Cartão (Mercado Pago)',
+                        numero_parcelas: numeroParcelas || 1,
+                        parcelas: null
+                    });
+                } catch (errComp) {
+                    console.warn('[App] ⚠️ Erro ao gerar comprovante:', errComp);
+                }
                 fecharModal('modal-cliente-pedido');
                 limparCarrinho();
                 await carregarCarrinhoInicial();
@@ -2361,7 +2373,8 @@ window.confirmarPedido = async function() {
             // ✅ CORREÇÃO: Para vendas online, comprovante só é exibido após confirmação de pagamento
             // PAGAR_AO_ENTREGADOR também não gera comprovante imediatamente (aguarda confirmação na entrega)
             const isPagarAoEntregador = tipoFormaPagamento === 'PAGAR_AO_ENTREGADOR';
-            const isCartaoSemGateway = ['CARTAO_CREDITO', 'CARTAO_DEBITO', 'CARTAO'].includes(tipoFormaPagamento) && !gatewayMpAtivo;
+            const gatewayMpAtivoConfirmar = window.GATEWAY_CONFIG?.gateway === 'mercadopago' && window.GATEWAY_CONFIG?.habilitado;
+            const isCartaoSemGateway = ['CARTAO_CREDITO', 'CARTAO_DEBITO', 'CARTAO'].includes(tipoFormaPagamento) && !gatewayMpAtivoConfirmar;
             
             if (isPagarAoEntregador) {
                 alert('Pedido realizado com sucesso! O comprovante será gerado após a confirmação do pagamento na entrega.');
@@ -2371,7 +2384,7 @@ window.confirmarPedido = async function() {
                 alert(`✅ Pedido registrado com sucesso! Pagamento via ${nomeForma} será processado presencialmente / na entrega.`);
                 // Gera comprovante imediatamente com dados disponíveis
                 try {
-                    const { gerarComprovanteVenda } = await import('./receipt.js');
+                    const { gerarComprovanteVenda } = await import('./receipt.js?v=20260911_05');
                     const carrinhoSnapshot = getCarrinho();
                     await gerarComprovanteVenda(carrinhoSnapshot, {
                         venda_id: vendaId,
@@ -2382,6 +2395,8 @@ window.confirmarPedido = async function() {
                 } catch (errComp) {
                     console.warn('[App] ⚠️ Erro ao gerar comprovante de cartão:', errComp);
                 }
+            } else if (resultado.gateway === 'mercadopago' && resultado.status !== 'approved') {
+                console.warn('[App] ⚠️ Pagamento de cartão não aprovado ou pendente. Comprovante retido.');
             } else {
                 // Para outras formas de pagamento online, aguarda confirmação
                 alert('Pedido realizado com sucesso! Aguardando confirmação de pagamento...');
@@ -2397,7 +2412,12 @@ window.confirmarPedido = async function() {
             fecharModal('modal-cliente-pedido');
 
         } else {
-            // Se finalizarPedido falhou
+            // Se finalizarPedido retornou insucesso
+            if (resultado.gateway === 'mercadopago' && (resultado.status === 'in_process' || resultado.status === 'pending')) {
+                alert(`⏳ Atenção: ${resultado.mensagem || 'Seu pagamento com cartão está em análise pelo Mercado Pago. Você será notificado assim que for concluído.'}`);
+                fecharModal('modal-cliente-pedido');
+                return;
+            }
             alert(`Erro: ${resultado.mensagem || 'Erro desconhecido ao processar pedido.'}`);
         }
         
