@@ -28,9 +28,9 @@ import {
 import { carregarCarrinho, limparDadosLocaisPosSinc } from './storage.js';
 import { finalizarPedido } from './order.js?v=20260911_07';
 import { 
-    atualizarParcelamento, 
-    popularParcelas, 
-    atualizarCamposParcelamento 
+    carregarFormasPagamento, 
+    calcularParcelas, 
+    formatarInfoParcelas 
 } from './payment.js?v=20260911_07';
 import { 
     validarCPF, 
