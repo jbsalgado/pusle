@@ -4,7 +4,7 @@
 import { CONFIG, API_ENDPOINTS, GATEWAY_CONFIG } from './config.js';
 import { salvarPedidoPendente } from './storage.js';
 import { validarUUID } from './utils.js';
-import { processarPagamento } from './gateway-pagamento.js?v=20260911_07';
+import { processarPagamento } from './gateway-pagamento.js?v=20260911_08';
 
 /**
  * Valida dados do pedido antes de enviar

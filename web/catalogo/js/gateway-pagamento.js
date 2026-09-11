@@ -393,8 +393,12 @@ async function processarCartaoMercadoPago(dadosPedido, carrinho, cliente, pedido
             throw new Error('Token do cartão não encontrado. Por favor, preencha os dados do cartão.');
         }
 
-        const tipoCartao = window.mpTipoCartao || (dadosPedido?.forma_pagamento_tipo === 'CARTAO_DEBITO' ? 'debit_card' : 'credit_card');
-        const isDebito   = (tipoCartao === 'debit_card');
+        const isDebito = (window.mpTipoCartao === 'debit_card') ||
+                         (dadosPedido?.tipo_cartao === 'debit_card') ||
+                         (dadosPedido?.forma_pagamento_tipo === 'CARTAO_DEBITO') ||
+                         (dadosPedido?.forma_pagamento_nome?.toLowerCase()?.includes('débito')) ||
+                         (dadosPedido?.forma_pagamento_nome?.toLowerCase()?.includes('debito'));
+        const tipoCartao = isDebito ? 'debit_card' : 'credit_card';
 
         const payload = {
             tenant_id:         CONFIG.ID_USUARIO_LOJA,

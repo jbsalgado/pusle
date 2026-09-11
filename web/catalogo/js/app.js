@@ -26,12 +26,12 @@ import {
     atualizarBadgeProduto
 } from './cart.js';
 import { carregarCarrinho, limparDadosLocaisPosSinc } from './storage.js';
-import { finalizarPedido } from './order.js?v=20260911_07';
+import { finalizarPedido } from './order.js?v=20260911_08';
 import { 
     carregarFormasPagamento, 
     calcularParcelas, 
     formatarInfoParcelas 
-} from './payment.js?v=20260911_07';
+} from './payment.js?v=20260911_08';
 import { 
     validarCPF, 
     formatarCPF, 
@@ -1594,10 +1594,18 @@ function controlarParcelasPorFormaPagamento() {
     const formaSelecionada = formasPagamento.find(f => f.id === formaPagamentoId);
     if (!formaSelecionada) return;
     
-    const tipo = formaSelecionada.tipo || '';
+    const tipo = (formaSelecionada.tipo || '').toUpperCase().trim();
+    const nome = (formaSelecionada.nome || '').toLowerCase();
+    const textoOption = selectFormaPagamento?.selectedOptions?.[0]?.text?.toLowerCase() || '';
+
+    const isDebito = (tipo === 'CARTAO_DEBITO') ||
+                     nome.includes('débito') ||
+                     nome.includes('debito') ||
+                     textoOption.includes('débito') ||
+                     textoOption.includes('debito');
     
     // Se for DINHEIRO, PIX, PIX ESTATICO ou CARTAO_DEBITO, desabilita parcelamento
-    if (tipo === 'DINHEIRO' || tipo === 'PIX' || tipo === 'PIX_ESTATICO' || tipo === 'CARTAO_DEBITO') {
+    if (tipo === 'DINHEIRO' || tipo === 'PIX' || tipo === 'PIX_ESTATICO' || isDebito) {
         // SEMPRE força para "À vista" - IMPORTANTE: fazer ANTES de desabilitar
         selectParcelas.value = '1';
         // Dispara evento change para atualizar campos relacionados
@@ -1613,7 +1621,7 @@ function controlarParcelasPorFormaPagamento() {
             campoIntervaloParcelas.classList.add('hidden');
         }
         
-        console.log('[App] 🔒 Parcelamento desabilitado para forma de pagamento:', tipo);
+        console.log('[App] 🔒 Parcelamento desabilitado para forma de pagamento:', formaSelecionada.nome, '(isDebito:', isDebito, ')');
     } else {
         // Habilita parcelamento para outras formas
         selectParcelas.disabled = false;
@@ -2084,16 +2092,26 @@ window.confirmarPedido = async function() {
     
     // Verifica se a forma de pagamento permite parcelamento antes de pegar o valor
     const formaPagamentoSelecionada = formasPagamento.find(fp => fp.id === formaPagamentoId);
-    const tipoFormaPagamento = formaPagamentoSelecionada?.tipo || '';
-    const permiteParcelamento = !['DINHEIRO', 'PIX', 'PIX_ESTATICO', 'PAGAR_AO_ENTREGADOR', 'CARTAO_DEBITO'].includes(tipoFormaPagamento);
+    const tipoFormaPagamento = (formaPagamentoSelecionada?.tipo || '').toUpperCase().trim();
+    const nomeFormaPagamento = (formaPagamentoSelecionada?.nome || '').toLowerCase();
+    const textoOptionPgto    = document.getElementById('forma-pagamento')?.selectedOptions?.[0]?.text?.toLowerCase() || '';
+
+    const isDebito           = (tipoFormaPagamento === 'CARTAO_DEBITO') ||
+                               nomeFormaPagamento.includes('débito') ||
+                               nomeFormaPagamento.includes('debito') ||
+                               textoOptionPgto.includes('débito') ||
+                               textoOptionPgto.includes('debito');
+
+    const permiteParcelamento = !['DINHEIRO', 'PIX', 'PIX_ESTATICO', 'PAGAR_AO_ENTREGADOR'].includes(tipoFormaPagamento) && !isDebito;
     
     // ===============================================
     // ✅ CHECKOUT TRANSPARENTE — Cartão via Mercado Pago
     // Se o gateway MP está ativo e a forma é cartão, exibe o CardForm
     // antes de prosseguir para que o token seja gerado pelo SDK.
     // ===============================================
-    const isCartaoGateway = ['CARTAO_CREDITO', 'CARTAO_DEBITO', 'CARTAO'].includes(tipoFormaPagamento.toUpperCase().trim());
-    const isDebito        = (tipoFormaPagamento.toUpperCase().trim() === 'CARTAO_DEBITO');
+    const isCartaoGateway = ['CARTAO_CREDITO', 'CARTAO_DEBITO', 'CARTAO'].includes(tipoFormaPagamento) ||
+                            nomeFormaPagamento.includes('cartão') || nomeFormaPagamento.includes('cartao') ||
+                            textoOptionPgto.includes('cartão') || textoOptionPgto.includes('cartao');
     const tipoCartao      = isDebito ? 'debit_card' : 'credit_card';
     const gatewayMpAtivo  = window.GATEWAY_CONFIG?.gateway === 'mercadopago' && window.GATEWAY_CONFIG?.habilitado;
 
@@ -2105,7 +2123,7 @@ window.confirmarPedido = async function() {
         );
 
         try {
-            const { inicializarCardForm, gerarHtmlFormCartao, destruirCardForm } = await import('./mp-card-form.js?v=20260911_07');
+            const { inicializarCardForm, gerarHtmlFormCartao, destruirCardForm } = await import('./mp-card-form.js?v=20260911_08');
 
             // Cria modal do CardForm se ainda não existir
             let modalCartao = document.getElementById('modal-mp-cartao');
@@ -2228,7 +2246,10 @@ window.confirmarPedido = async function() {
             observacoes: document.getElementById('observacoes-pedido').value || null,
             colaborador_vendedor_id: colaboradorAtual?.id || null, // Pega o ID do objeto colaborador
             forma_pagamento_id: formaPagamentoId, // Usar a variável validada
-            numero_parcelas: numeroParcelas,
+            forma_pagamento_tipo: isDebito ? 'CARTAO_DEBITO' : tipoFormaPagamento,
+            forma_pagamento_nome: formaPagamentoSelecionada?.nome || (isDebito ? 'Cartão de Débito' : 'Cartão de Crédito'),
+            tipo_cartao: tipoCartao,
+            numero_parcelas: isDebito ? 1 : numeroParcelas,
             data_primeiro_pagamento: permiteParcelamento && numeroParcelas > 1 ? document.getElementById('data-primeiro-pagamento')?.value || null : null,
             intervalo_dias_parcelas: permiteParcelamento && numeroParcelas > 1 ? parseInt(document.getElementById('intervalo-dias')?.value || 30, 10) : null,
             
