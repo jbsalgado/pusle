@@ -131,9 +131,14 @@ export async function inicializarCardForm(containerId, valorTotal, onTokenGenera
                 await _handleCardFormSubmit();
             },
             onFetching: (resource) => {
-                // Opcional: mostrar loading enquanto busca dados (bandeira, parcelas)
-                const submitBtn = document.getElementById('btn-pagar-cartao');
-                if (submitBtn) submitBtn.disabled = true;
+                // Mercado Pago SDK v2: onFetching é chamado ao consultar bandeira/banco/parcelas pelo BIN do cartão.
+                // DEVE retornar uma função callback que o SDK executa quando o fetch assíncrono termina.
+                return () => {
+                    const submitBtn = document.getElementById('btn-pagar-cartao');
+                    if (submitBtn && !submitBtn.textContent.includes('Processando')) {
+                        submitBtn.disabled = false;
+                    }
+                };
             },
             onReady: () => {
                 const submitBtn = document.getElementById('btn-pagar-cartao');
@@ -141,6 +146,10 @@ export async function inicializarCardForm(containerId, valorTotal, onTokenGenera
             },
             onError: (errors) => {
                 console.error('[MP CardForm] Erros de validação:', errors);
+                const submitBtn = document.getElementById('btn-pagar-cartao');
+                if (submitBtn && !submitBtn.textContent.includes('Processando')) {
+                    submitBtn.disabled = false;
+                }
             },
         },
     });
