@@ -2128,7 +2128,8 @@ window.confirmarPedido = async function() {
                         .mp-field-row .mp-field-group{flex:1}
                         .mp-label{font-size:12px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.5px}
                         .mp-sdk-field,.mp-select,.mp-input{height:44px;border:1.5px solid #cbd5e1;border-radius:8px;padding:0 12px;font-size:14px;width:100%;box-sizing:border-box;background:#f8fafc;color:#1e293b;transition:border-color .2s}
-                        .mp-sdk-field{padding:0} /* SDK injeta iframe interno */
+                        .mp-sdk-field{padding:0;position:relative;overflow:hidden;display:flex;align-items:center}
+                        .mp-sdk-field iframe{width:100%!important;height:100%!important;border:none!important;background:transparent!important}
                         .mp-sdk-field:focus-within{border-color:#7c3aed;background:#fff}
                         .mp-input:focus,.mp-select:focus{border-color:#7c3aed;outline:none;background:#fff}
                         .mp-error-msg{color:#ef4444;font-size:13px;min-height:18px;margin:0}

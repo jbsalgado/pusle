@@ -38,35 +38,52 @@ export async function inicializarCardForm(containerId, valorTotal, onTokenGenera
         throw new Error('Mercado Pago Public Key não configurada para esta loja.');
     }
 
-    // Inicializa instância MP (reutiliza se já existir com a mesma key)
-    if (!mpInstance || mpInstance._options?.publicKey !== publicKey) {
-        mpInstance = new window.MercadoPago(publicKey, {
-            locale: 'pt-BR',
-        });
-    }
-
     // Destrói instância anterior do cardForm se existir
     if (cardFormInstance) {
         try { cardFormInstance.unmount(); } catch (_) {}
         cardFormInstance = null;
     }
 
+    // Cria nova instância MP para garantir que o cardForm monte os iframes sem usar cache antigo
+    mpInstance = new window.MercadoPago(publicKey, {
+        locale: 'pt-BR',
+    });
+
     cardFormInstance = mpInstance.cardForm({
         amount:    String(valorTotal.toFixed(2)),
+        iframe:    true,
         autoMount: true,
         form: {
             id:         containerId,
             cardNumber: {
                 id:          'form-checkout__cardNumber',
                 placeholder: 'Número do cartão',
+                style: {
+                    fontSize: '14px',
+                    color: '#1e293b',
+                    padding: '0 12px',
+                    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                },
             },
             expirationDate: {
                 id:          'form-checkout__expirationDate',
                 placeholder: 'MM/AA',
+                style: {
+                    fontSize: '14px',
+                    color: '#1e293b',
+                    padding: '0 12px',
+                    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                },
             },
             securityCode: {
                 id:          'form-checkout__securityCode',
                 placeholder: 'CVV',
+                style: {
+                    fontSize: '14px',
+                    color: '#1e293b',
+                    padding: '0 12px',
+                    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                },
             },
             cardholderName: {
                 id:          'form-checkout__cardholderName',
@@ -260,7 +277,7 @@ export function gerarHtmlFormCartao(cliente = null) {
     </div>
 
     <!-- Banco emissor (preenchido automaticamente pelo SDK) -->
-    <select id="form-checkout__issuer" class="mp-select" style="display:none;"></select>
+    <select id="form-checkout__issuer" class="mp-select" style="position:absolute;opacity:0;pointer-events:none;height:0;width:0;"></select>
 
     <!-- Parcelas -->
     <div class="mp-field-group">
