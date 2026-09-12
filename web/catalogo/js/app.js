@@ -2123,7 +2123,7 @@ window.confirmarPedido = async function() {
         );
 
         try {
-            const { inicializarCardForm, gerarHtmlFormCartao, destruirCardForm } = await import('./mp-card-form.js?v=20260911_11');
+            const { inicializarCardForm, gerarHtmlFormCartao, destruirCardForm, inicializarWalletBrick, destruirWalletBrick } = await import('./mp-card-form.js?v=20260912_1');
 
             // Cria modal do CardForm se ainda não existir
             let modalCartao = document.getElementById('modal-mp-cartao');
@@ -2183,18 +2183,102 @@ window.confirmarPedido = async function() {
 
             modalCartao.style.display = 'flex';
 
+            // Carrega Wallet Brick em segundo plano para o pagamento por aproximação / 1-clique
+            let pollingWalletTimer = null;
+            const carregarWalletModal = async () => {
+                try {
+                    const respPref = await fetch(API_ENDPOINTS.MERCADOPAGO_CRIAR_PREFERENCIA_CARTEIRA, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            tenant_id: CONFIG.ID_USUARIO_LOJA,
+                            valor_total: valorTotal,
+                            cliente: dadosClienteParaCartao,
+                            itens: carrinhoAtual.map(it => ({
+                                title: it.nome || 'Produto',
+                                quantidade: it.quantidade || 1,
+                                preco_unitario: it.preco_venda_sugerido || it.preco || 0
+                            }))
+                        })
+                    });
+                    const dataPref = await respPref.json();
+                    if (dataPref.sucesso && dataPref.preference_id) {
+                        await inicializarWalletBrick('wallet-brick-container', dataPref.preference_id, {
+                            onSubmit: () => {
+                                console.log('[App] ⚡ Wallet Brick acionado. Iniciando verificação de aprovação...');
+                                if (pollingWalletTimer) clearInterval(pollingWalletTimer);
+                                pollingWalletTimer = setInterval(async () => {
+                                    try {
+                                        const urlSt = `${API_ENDPOINTS.MERCADOPAGO_CONSULTAR_STATUS_PREFERENCIA}?external_reference=${encodeURIComponent(dataPref.external_reference)}&preference_id=${encodeURIComponent(dataPref.preference_id)}&tenant_id=${encodeURIComponent(CONFIG.ID_USUARIO_LOJA)}`;
+                                        const resSt = await fetch(urlSt);
+                                        const dtSt = await resSt.json();
+                                        if (dtSt.sucesso && dtSt.status === 'approved') {
+                                            clearInterval(pollingWalletTimer);
+                                            pollingWalletTimer = null;
+                                            modalCartao.style.display = 'none';
+                                            destruirWalletBrick();
+                                            destruirCardForm();
+
+                                            alert('🎉 Pagamento Aprovado com Sucesso via Carteira Digital! Seu pedido foi confirmado e está sendo preparado.');
+                                            try {
+                                                const { gerarComprovanteVenda } = await import('./receipt.js?v=20260911_05');
+                                                await gerarComprovanteVenda(carrinhoAtual, {
+                                                    venda_id: dataPref.external_reference,
+                                                    forma_pagamento: 'Carteira Digital (Google Pay / Apple Pay / MP)',
+                                                    numero_parcelas: 1
+                                                });
+                                            } catch (errComp) {
+                                                console.warn('[App] ⚠️ Erro comprovante wallet:', errComp);
+                                            }
+                                            fecharModal('modal-cliente-pedido');
+                                            limparCarrinho();
+                                            await carregarCarrinhoInicial();
+                                            atualizarBadgeCarrinho();
+                                            const btnConfirmar = document.getElementById('btn-confirmar-pedido');
+                                            if (btnConfirmar) {
+                                                btnConfirmar.disabled = false;
+                                                btnConfirmar.textContent = '✅ Confirmar Pedido';
+                                            }
+                                        }
+                                    } catch (errPoll) {
+                                        console.warn('[App] Erro polling carteira:', errPoll);
+                                    }
+                                }, 2500);
+                            }
+                        });
+                    }
+                } catch (eWb) {
+                    console.warn('[App] Aviso ao preparar Carteira Digital:', eWb);
+                    const wbContainer = document.getElementById('wallet-brick-container');
+                    if (wbContainer) {
+                        wbContainer.innerHTML = '<span style="font-size:11px;color:#94a3b8">Utilize os campos do cartão abaixo</span>';
+                    }
+                }
+            };
+            carregarWalletModal();
+
             // Inicializa o CardForm do MP e aguarda o token ou cancelamento
             await new Promise((resolve, reject) => {
                 const btnFechar = document.getElementById('btn-fechar-modal-cartao');
                 if (btnFechar) {
                     btnFechar.onclick = () => {
+                        if (pollingWalletTimer) {
+                            clearInterval(pollingWalletTimer);
+                            pollingWalletTimer = null;
+                        }
                         modalCartao.style.display = 'none';
+                        destruirWalletBrick();
                         destruirCardForm();
                         reject(new Error('PAGAMENTO_CANCELADO'));
                     };
                 }
 
                 inicializarCardForm('form-checkout-mp-cartao', valorTotal, async (token, installments, paymentMethodId, issuerId) => {
+                    if (pollingWalletTimer) {
+                        clearInterval(pollingWalletTimer);
+                        pollingWalletTimer = null;
+                    }
+                    destruirWalletBrick();
                     // Token gerado com sucesso — fecha modal e prossegue
                     modalCartao.style.display = 'none';
                     window.mpCardToken       = token;

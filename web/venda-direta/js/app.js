@@ -1676,6 +1676,7 @@ function popularFormasPagamento(formas, usandoCache = false) {
         selectAtual.disabled = false;
         const temMpConfigurado = window.GATEWAY_CONFIG?.habilitado && window.GATEWAY_CONFIG?.gateway === 'mercadopago';
         let pixJaAdicionadoMp = false;
+        let walletJaAdicionadoMp = false;
 
         formas.forEach(forma => {
             const nomeLower = (forma.nome || '').toLowerCase();
@@ -1707,6 +1708,17 @@ function popularFormasPagamento(formas, usandoCache = false) {
                 selectAtual.options[selectAtual.options.length] = option;
             }
         });
+
+        // 3. Carteira Digital / Aproximação (Google Pay, Apple Pay & 1-Clique)
+        if (temMpConfigurado && !walletJaAdicionadoMp) {
+            const formaBase = formas.find(f => (f.tipo === 'MERCADOPAGO' || f.tipo === 'CARTAO_CREDITO' || f.tipo === 'CARTAO' || f.tipo === 'PIX')) || formas[0];
+            if (formaBase) {
+                const optWallet = new Option('📱 Carteira Digital / Aproximação (Google Pay / 1-Clique)', formaBase.id);
+                optWallet.setAttribute('data-tipo', 'MP_WALLET');
+                selectAtual.options[selectAtual.options.length] = optWallet;
+                walletJaAdicionadoMp = true;
+            }
+        }
         formasPagamento = formas;
         // Disponibiliza globalmente para validação em order.js
         window.formasPagamento = formas;

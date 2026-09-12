@@ -448,13 +448,16 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             <div class="text-2xl font-montserrat font-black text-cyan-400">R$ <span id="mpModalValor">0,00</span></div>
         </div>
 
-        <!-- Abas: Pix Dinâmico / Maquininha Point / Cartão Online -->
+        <!-- Abas: Pix Dinâmico / Maquininha Point / Carteira Digital / Cartão Online -->
         <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 gap-1 text-[11px] font-bold">
             <button type="button" id="tabBtnPixMp" onclick="trocarAbaMp('pix')" class="flex-1 py-2 rounded-lg transition bg-cyan-500 text-slate-950 shadow">
                 ⚡ Pix Dinâmico
             </button>
             <button type="button" id="tabBtnPoint" onclick="trocarAbaMp('point')" class="flex-1 py-2 rounded-lg transition text-slate-400 hover:text-white">
                 💳 Maquininha Point
+            </button>
+            <button type="button" id="tabBtnWalletMp" onclick="trocarAbaMp('wallet')" class="flex-1 py-2 rounded-lg transition text-slate-400 hover:text-white">
+                📱 Carteira Digital
             </button>
             <button type="button" id="tabBtnCartaoMp" onclick="trocarAbaMp('cartao')" class="flex-1 py-2 rounded-lg transition text-slate-400 hover:text-white">
                 🌐 Cartão Online
@@ -484,6 +487,31 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             <button type="button" id="btnCancelarPoint" onclick="cancelarCobrancaPoint()" class="hidden w-full py-2 bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-xs font-bold rounded-xl border border-rose-500/30 transition">
                 ❌ Cancelar no Terminal
             </button>
+        </div>
+
+        <!-- Conteúdo Aba: Carteira Digital & Aproximação (Google Pay, Apple Pay, 1-Clique) -->
+        <div id="mpConteudoWallet" class="hidden space-y-3">
+            <div class="bg-slate-950/90 border border-cyan-500/30 p-3 rounded-2xl text-center space-y-2">
+                <div class="text-xs font-black text-cyan-400 uppercase tracking-wide">📱 Pagamento por Aproximação</div>
+                <p class="text-[11px] text-slate-300 leading-tight">
+                    Pague em 1 clique com <strong>Google Pay</strong>, <strong>Apple Pay</strong> ou carteira Mercado Pago.
+                </p>
+                <div id="mpWalletBrickContainer" class="p-2 min-h-[50px] flex items-center justify-center">
+                    <div class="text-xs text-slate-400 flex items-center gap-2 animate-pulse" id="mpWalletLoading">
+                        <span class="inline-block animate-spin">⏳</span> Carregando carteira digital...
+                    </div>
+                </div>
+            </div>
+
+            <!-- QR Code do Link de Pagamento para o Celular do Cliente -->
+            <div id="mpWalletQrContainer" class="hidden bg-white p-3 rounded-2xl flex flex-col items-center justify-center text-slate-900">
+                <img id="mpWalletQrImg" src="" alt="QR Code Aproximação" class="w-32 h-32 rounded-lg mb-1 shadow-sm border border-slate-200">
+                <span class="text-[10px] text-slate-600 font-bold">Cliente pode escanear com o celular para aproximar</span>
+            </div>
+
+            <div id="mpWalletStatusWaiting" class="text-center text-xs font-bold text-cyan-400 animate-pulse">
+                Aguardando autorização da carteira digital...
+            </div>
         </div>
 
         <!-- Conteúdo Aba 2: Pix Dinâmico -->
@@ -1907,10 +1935,17 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         }
     }
 
+    let mpWalletBrickInstance = null;
+
     function fecharModalMercadoPagoPDV() {
         if (mpPollingInterval) {
             clearInterval(mpPollingInterval);
             mpPollingInterval = null;
+        }
+
+        if (mpWalletBrickInstance) {
+            try { mpWalletBrickInstance.unmount(); } catch (_) {}
+            mpWalletBrickInstance = null;
         }
 
         // Se houver uma pré-venda em aberto não quitada, cancela para não deixar órfã
@@ -1936,27 +1971,174 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
     function trocarAbaMp(aba) {
         const btnPoint = document.getElementById('tabBtnPoint');
         const btnPix = document.getElementById('tabBtnPixMp');
+        const btnWallet = document.getElementById('tabBtnWalletMp');
         const btnCartao = document.getElementById('tabBtnCartaoMp');
         const conteudoPoint = document.getElementById('mpConteudoPoint');
         const conteudoPix = document.getElementById('mpConteudoPix');
+        const conteudoWallet = document.getElementById('mpConteudoWallet');
         const conteudoCartao = document.getElementById('mpConteudoCartao');
         const conteudo3DS = document.getElementById('mpConteudo3DS');
 
         const activeClass = 'flex-1 py-2 rounded-lg transition bg-cyan-500 text-slate-950 shadow font-extrabold';
         const inactiveClass = 'flex-1 py-2 rounded-lg transition text-slate-400 hover:text-white';
 
-        [btnPix, btnPoint, btnCartao].forEach(b => { if (b) b.className = inactiveClass; });
-        [conteudoPix, conteudoPoint, conteudoCartao, conteudo3DS].forEach(c => { if (c) c.classList.add('hidden'); });
+        [btnPix, btnPoint, btnWallet, btnCartao].forEach(b => { if (b) b.className = inactiveClass; });
+        [conteudoPix, conteudoPoint, conteudoWallet, conteudoCartao, conteudo3DS].forEach(c => { if (c) c.classList.add('hidden'); });
 
         if (aba === 'point') {
             if (btnPoint) btnPoint.className = activeClass;
             if (conteudoPoint) conteudoPoint.classList.remove('hidden');
+        } else if (aba === 'wallet') {
+            if (btnWallet) btnWallet.className = activeClass;
+            if (conteudoWallet) conteudoWallet.classList.remove('hidden');
+            iniciarCarteiraDigitalVendaExpressa();
         } else if (aba === 'cartao') {
             if (btnCartao) btnCartao.className = activeClass;
             if (conteudoCartao) conteudoCartao.classList.remove('hidden');
         } else {
             if (btnPix) btnPix.className = activeClass;
             if (conteudoPix) conteudoPix.classList.remove('hidden');
+        }
+    }
+
+    async function iniciarCarteiraDigitalVendaExpressa() {
+        try {
+            if (mpPollingInterval) {
+                clearInterval(mpPollingInterval);
+                mpPollingInterval = null;
+            }
+
+            const totalNum = getTotalVendaNumerico();
+            if (totalNum <= 0) {
+                alert('Adicione pelo menos um item à venda para prosseguir.');
+                return;
+            }
+
+            // Garante pré-venda salva para vincular o split e a baixa automática
+            if (!mpVendaIdAtual) {
+                await criarPreVendaPdv('EM_ABERTO');
+            }
+
+            const loadingEl = document.getElementById('mpWalletLoading');
+            if (loadingEl) loadingEl.classList.remove('hidden');
+
+            const clienteNomeVal = document.getElementById('clienteNome')?.value || 'Cliente Balcão';
+            const clienteCpfVal = document.getElementById('clienteCpf')?.value || '';
+            const clienteTelVal = document.getElementById('clienteWhatsapp')?.value || '';
+
+            // 1. Criar Preferência com Split de Carteira Digital
+            const resp = await fetch(`${baseUrlApp}/index.php/api/mercado-pago/criar-preferencia-carteira-digital`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>'
+                },
+                body: JSON.stringify({
+                    venda_id: mpVendaIdAtual,
+                    tenant_id: lojaIdAtual,
+                    valor_total: totalNum,
+                    cliente: {
+                        nome: clienteNomeVal,
+                        cpf: clienteCpfVal,
+                        telefone: clienteTelVal
+                    }
+                })
+            });
+
+            const data = await resp.json();
+            if (!data.sucesso || !data.preference_id) {
+                throw new Error(data.mensagem || 'Não foi possível gerar preferência de pagamento.');
+            }
+
+            // 2. Exibir QR Code para aproximação via celular
+            const qrContainer = document.getElementById('mpWalletQrContainer');
+            const qrImg = document.getElementById('mpWalletQrImg');
+            if (qrContainer && qrImg && data.init_point) {
+                qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data.init_point)}`;
+                qrContainer.classList.remove('hidden');
+            }
+
+            // 3. Carregar SDK Mercado Pago e instanciar Wallet Brick no PDV
+            const publicKey = data.public_key;
+            if (typeof window.MercadoPago === 'undefined') {
+                await new Promise((res, rej) => {
+                    const s = document.createElement('script');
+                    s.src = 'https://sdk.mercadopago.com/js/v2';
+                    s.onload = res;
+                    s.onerror = rej;
+                    document.head.appendChild(s);
+                });
+            }
+
+            if (publicKey) {
+                const mp = new window.MercadoPago(publicKey, { locale: 'pt-BR' });
+                const bricks = mp.bricks();
+                const container = document.getElementById('mpWalletBrickContainer');
+                if (container) container.innerHTML = '';
+
+                if (mpWalletBrickInstance) {
+                    try { mpWalletBrickInstance.unmount(); } catch(_) {}
+                    mpWalletBrickInstance = null;
+                }
+
+                mpWalletBrickInstance = await bricks.create('wallet', 'mpWalletBrickContainer', {
+                    initialization: {
+                        preferenceId: data.preference_id,
+                        redirectMode: 'modal'
+                    },
+                    customization: {
+                        texts: { action: 'pay', valueProp: 'convenience_all' },
+                        visual: { buttonBackground: 'black', borderRadius: '12px' }
+                    }
+                });
+            }
+
+            // 4. Iniciar Polling de Status
+            let tentativas = 0;
+            mpPollingInterval = setInterval(async () => {
+                tentativas++;
+                if (tentativas > 120) {
+                    clearInterval(mpPollingInterval);
+                    mpPollingInterval = null;
+                    return;
+                }
+                try {
+                    const url = `${baseUrlApp}/index.php/api/mercado-pago/consultar-status-preferencia?external_reference=${encodeURIComponent(mpVendaIdAtual)}&preference_id=${encodeURIComponent(data.preference_id)}&tenant_id=${encodeURIComponent(lojaIdAtual)}`;
+                    const resSt = await fetch(url);
+                    const dtSt = await resSt.json();
+                    if (dtSt.sucesso && dtSt.status === 'approved') {
+                        clearInterval(mpPollingInterval);
+                        mpPollingInterval = null;
+
+                        const statusWaiting = document.getElementById('mpWalletStatusWaiting');
+                        if (statusWaiting) {
+                            statusWaiting.innerHTML = '✅ <span class="text-emerald-400 font-bold">Pagamento Aprovado! Finalizando venda...</span>';
+                        }
+
+                        setTimeout(async () => {
+                            await confirmarVendaPdv(mpVendaIdAtual);
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Pagamento Aprovado!',
+                                    text: 'Cobrança via Carteira Digital confirmada com sucesso.',
+                                    timer: 2500,
+                                    showConfirmButton: false
+                                });
+                            }
+                        }, 500);
+                    }
+                } catch (ePoll) {
+                    console.warn('Polling wallet error:', ePoll);
+                }
+            }, 2500);
+
+        } catch (err) {
+            console.error('Erro carteira digital expressa:', err);
+            const container = document.getElementById('mpWalletBrickContainer');
+            if (container) {
+                container.innerHTML = `<span class="text-xs text-rose-400 font-bold">${err.message}</span>`;
+            }
         }
     }
 

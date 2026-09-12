@@ -300,8 +300,8 @@ export async function finalizarPedido(dadosPedido, carrinho) {
         // Obter GATEWAY_CONFIG do window (carregado pelo app.js)
         const gatewayConfig = window.GATEWAY_CONFIG || { habilitado: false, gateway: 'nenhum' };
         
-        // Se gateway está habilitado E a forma de pagamento requer gateway (MERCADOPAGO, PIX dinâmico, POINT etc)
-        if (gatewayConfig.habilitado && !usaFluxoInterno && (tipoFormaPagamento === 'MERCADOPAGO' || tipoFormaPagamento === 'PIX' || tipoFormaPagamento === 'PIX_MERCADOPAGO' || tipoFormaPagamento === 'MP_POINT')) {
+        // Se gateway está habilitado E a forma de pagamento requer gateway (MERCADOPAGO, PIX dinâmico, POINT, Carteira Digital etc)
+        if (gatewayConfig.habilitado && !usaFluxoInterno && (tipoFormaPagamento === 'MERCADOPAGO' || tipoFormaPagamento === 'PIX' || tipoFormaPagamento === 'PIX_MERCADOPAGO' || tipoFormaPagamento === 'MP_POINT' || tipoFormaPagamento === 'MP_WALLET' || tipoFormaPagamento === 'CARTEIRA_DIGITAL')) {
             console.log('[Order] 🔵 Usando gateway externo:', gatewayConfig.gateway);
             
             // Buscar dados do cliente ou usar padrão Balcão para venda direta

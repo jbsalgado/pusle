@@ -49,7 +49,12 @@ async function processarMercadoPago(dadosPedido, carrinho, cliente) {
         return await processarMercadoPagoPixDinamico(dadosPedido, carrinho, cliente);
     }
 
-    // 3. Cartão Online ou Geral Mercado Pago
+    // 3. Carteira Digital / Aproximação / Google Pay / Apple Pay / 1-Clique
+    if (tipo === 'MP_WALLET' || tipo === 'CARTEIRA_DIGITAL' || nome.includes('carteira') || nome.includes('aproximação') || nome.includes('aproximacao')) {
+        return await processarMercadoPagoCarteiraDigital(dadosPedido, carrinho, cliente);
+    }
+
+    // 4. Cartão Online ou Geral Mercado Pago
     return await processarMercadoPagoCartaoOnline(dadosPedido, carrinho, cliente);
 }
 
@@ -256,6 +261,245 @@ function iniciarPollingPixMercadoPago(paymentId, pedidoId, dadosPedido, carrinho
             console.warn('[MP Pix] Erro ao consultar status Pix:', err);
         }
     }, 3000);
+}
+
+/**
+ * MERCADO PAGO - CARTEIRA DIGITAL / APROXIMAÇÃO (Google Pay, Apple Pay & 1-Clique)
+ */
+async function processarMercadoPagoCarteiraDigital(dadosPedido, carrinho, cliente) {
+    try {
+        console.log('[MP Wallet] ⚡ Iniciando fluxo de Carteira Digital / Aproximação...');
+
+        // 1. Criar pré-registro do pedido para obter UUID válido
+        const { finalizarPedido } = await import('./order.js');
+        const backupHabilitado = GATEWAY_CONFIG.habilitado;
+        GATEWAY_CONFIG.habilitado = false; 
+
+        const respPedido = await finalizarPedido(dadosPedido, carrinho);
+        GATEWAY_CONFIG.habilitado = backupHabilitado;
+
+        if (!respPedido.sucesso) {
+            throw new Error('Falha ao registrar pedido antes de gerar Carteira Digital: ' + (respPedido.erro || 'Erro desconhecido'));
+        }
+
+        const pedidoId = respPedido.dados?.id || respPedido.dados?.venda?.id || respPedido.dados?.venda_id;
+        const valorTotal = carrinho.reduce((t, i) => t + ((i.preco_final || i.preco_venda_sugerido) * i.quantidade), 0);
+
+        // 2. Criar Preferência com Split de Carteira Digital
+        console.log('[MP Wallet] ⚡ Criando preferência de Carteira Digital para pedido:', pedidoId);
+        const respPref = await fetchWithAuth(API_ENDPOINTS.MERCADOPAGO_CRIAR_PREFERENCIA_CARTEIRA, {
+            method: 'POST',
+            body: JSON.stringify({
+                tenant_id: CONFIG.ID_USUARIO_LOJA,
+                venda_id: pedidoId,
+                valor_total: valorTotal,
+                cliente: {
+                    nome: cliente.nome || 'Consumidor Balcão',
+                    email: cliente.email || 'cliente@pdv.com',
+                    cpf: cliente.cpf_cnpj || cliente.cpf || ''
+                },
+                itens: carrinho.map(item => ({
+                    title: item.nome || 'Produto',
+                    quantidade: item.quantidade || 1,
+                    preco_unitario: item.preco_final || item.preco_venda_sugerido || 0
+                }))
+            })
+        });
+
+        const dataPref = await respPref.json();
+        if (!respPref.ok || !dataPref.sucesso) {
+            throw new Error(dataPref.message || dataPref.mensagem || 'Falha ao criar cobrança de carteira digital.');
+        }
+
+        // 3. Exibir Modal da Carteira Digital com Wallet Brick e QR Code
+        mostrarModalCarteiraDigitalMercadoPago(dataPref, pedidoId, valorTotal, dadosPedido, carrinho);
+
+        // 4. Iniciar Polling de Status
+        iniciarPollingCarteiraDigitalMercadoPago(dataPref.external_reference, dataPref.preference_id, pedidoId, dadosPedido, carrinho);
+
+        return {
+            sucesso: true,
+            gateway: 'mercadopago_wallet',
+            pedido_id: pedidoId,
+            preference_id: dataPref.preference_id
+        };
+
+    } catch (error) {
+        console.error('[MP Wallet] ❌ Erro:', error);
+        alert('Erro ao iniciar pagamento por Carteira Digital: ' + error.message);
+        throw error;
+    }
+}
+
+function mostrarModalCarteiraDigitalMercadoPago(dataPref, pedidoId, valorTotal, dadosPedido, carrinho) {
+    const modalExistente = document.getElementById('modal-wallet-mercadopago');
+    if (modalExistente) modalExistente.remove();
+
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(dataPref.init_point || '')}`;
+
+    const modal = document.createElement('div');
+    modal.id = 'modal-wallet-mercadopago';
+    modal.className = 'fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-3xl p-6 max-w-md w-full mx-auto shadow-2xl text-center space-y-4">
+            <div class="flex items-center justify-between border-b pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">📱</span>
+                    <div class="text-left">
+                        <h3 class="text-lg font-black text-gray-900 leading-tight">Carteira Digital & Aproximação</h3>
+                        <p class="text-[11px] text-cyan-600 font-bold">Google Pay • Apple Pay • 1-Clique</p>
+                    </div>
+                </div>
+                <button type="button" id="btn-fechar-modal-wallet-mp" class="text-gray-400 hover:text-gray-700 p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Valor a Pagar -->
+            <div class="bg-slate-900 text-white p-4 rounded-2xl shadow-inner">
+                <span class="text-[11px] text-cyan-300 uppercase font-bold tracking-wider">Total a Cobrar</span>
+                <div class="text-3xl font-black text-white">R$ ${valorTotal.toFixed(2).replace('.', ',')}</div>
+            </div>
+
+            <!-- Container do Wallet Brick (Pagamento 1-Clique na tela) -->
+            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200 space-y-3">
+                <div class="flex items-center justify-center gap-2 text-xs font-bold text-gray-700">
+                    <span>⚡</span>
+                    <span>Pagar diretamente neste dispositivo:</span>
+                </div>
+                <div id="vd-wallet-brick-container" style="min-height: 48px;" class="flex items-center justify-center">
+                    <div class="text-xs text-gray-400 flex items-center gap-2 animate-pulse">
+                        <span class="inline-block animate-spin">⏳</span> Carregando Carteiras Digitais...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Divisor Ou no Celular -->
+            <div class="relative flex py-1 items-center">
+                <div class="flex-grow border-t border-gray-200"></div>
+                <span class="flex-shrink mx-3 text-gray-400 text-[11px] font-bold uppercase">ou aproxime pelo celular do cliente</span>
+                <div class="flex-grow border-t border-gray-200"></div>
+            </div>
+
+            <!-- QR Code para Aproximação no Smartphone do Cliente -->
+            <div class="bg-gray-50 p-3 rounded-2xl border border-gray-100 flex flex-col items-center justify-center">
+                <img src="${qrCodeUrl}" alt="QR Code Aproximação" class="w-36 h-36 rounded-lg shadow-sm border border-gray-200 mx-auto mb-2">
+                <p class="text-[11px] text-gray-500 font-medium">Cliente pode escanear com a câmera do celular para pagar por aproximação/biometria.</p>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-center space-y-1">
+                <div class="flex items-center justify-center gap-2 text-emerald-700 font-bold text-xs" id="status-wallet-mp-texto">
+                    <span class="inline-block animate-spin">⏳</span>
+                    <span>Aguardando aprovação da carteira digital...</span>
+                </div>
+                <p class="text-[10px] text-emerald-600">A venda será confirmada e liberada automaticamente com baixa de estoque.</p>
+            </div>
+
+            <button type="button" id="btn-cancelar-wallet-mp-direta" class="w-full py-2 text-gray-500 hover:text-red-600 text-xs font-bold transition">
+                Cancelar Cobrança
+            </button>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Inicializa o Wallet Brick no container do PDV
+    const publicKey = dataPref.public_key || window.GATEWAY_CONFIG?.mercadopago_public_key;
+    if (typeof window.MercadoPago !== 'undefined' && publicKey) {
+        try {
+            const mp = new window.MercadoPago(publicKey, { locale: 'pt-BR' });
+            const bricks = mp.bricks();
+            const container = document.getElementById('vd-wallet-brick-container');
+            if (container) container.innerHTML = '';
+            bricks.create('wallet', 'vd-wallet-brick-container', {
+                initialization: {
+                    preferenceId: dataPref.preference_id,
+                    redirectMode: 'modal'
+                },
+                customization: {
+                    texts: { action: 'pay', valueProp: 'convenience_all' },
+                    visual: { buttonBackground: 'black', borderRadius: '12px' }
+                }
+            }).catch(e => {
+                console.warn('[MP Wallet] Falha no brick embutido:', e);
+            });
+        } catch (eMp) {
+            console.warn('[MP Wallet] Erro ao instanciar Brick:', eMp);
+        }
+    }
+
+    const fechar = () => {
+        if (pollingIntervalId) {
+            clearInterval(pollingIntervalId);
+            pollingIntervalId = null;
+        }
+        modal.remove();
+    };
+
+    modal.querySelector('#btn-fechar-modal-wallet-mp').onclick = fechar;
+    modal.querySelector('#btn-cancelar-wallet-mp-direta').onclick = fechar;
+}
+
+function iniciarPollingCarteiraDigitalMercadoPago(externalReference, preferenceId, pedidoId, dadosPedido, carrinho) {
+    if (pollingIntervalId) clearInterval(pollingIntervalId);
+
+    pollingAttempts = 0;
+    console.log(`[MP Wallet] 🔄 Iniciando polling para external_reference: ${externalReference}, preferenceId: ${preferenceId}`);
+
+    pollingIntervalId = setInterval(async () => {
+        pollingAttempts++;
+
+        if (pollingAttempts > maxPollingAttempts) {
+            clearInterval(pollingIntervalId);
+            pollingIntervalId = null;
+            const statusTexto = document.getElementById('status-wallet-mp-texto');
+            if (statusTexto) {
+                statusTexto.innerHTML = '<span class="text-red-600 font-bold">Tempo esgotado. Verifique se o pagamento foi concluído.</span>';
+            }
+            return;
+        }
+
+        try {
+            const url = `${API_ENDPOINTS.MERCADOPAGO_CONSULTAR_STATUS_PREFERENCIA}?external_reference=${encodeURIComponent(externalReference || pedidoId)}&preference_id=${encodeURIComponent(preferenceId || '')}&tenant_id=${encodeURIComponent(CONFIG.ID_USUARIO_LOJA)}`;
+            const resp = await fetchWithAuth(url);
+            const data = await resp.json();
+
+            if (data.sucesso && data.status === 'approved') {
+                console.log('[MP Wallet] ✅ Pagamento por Carteira Digital aprovado!');
+                if (pollingIntervalId) {
+                    clearInterval(pollingIntervalId);
+                    pollingIntervalId = null;
+                }
+
+                const statusTexto = document.getElementById('status-wallet-mp-texto');
+                if (statusTexto) {
+                    statusTexto.innerHTML = '✅ <span class="text-emerald-700 font-bold">Pagamento Aprovado! Finalizando venda...</span>';
+                }
+
+                setTimeout(() => {
+                    const modal = document.getElementById('modal-wallet-mercadopago');
+                    if (modal) modal.remove();
+
+                    // Dispara evento de confirmação global
+                    window.dispatchEvent(new CustomEvent('pagamentoConfirmado', {
+                        detail: {
+                            pedidoId: pedidoId,
+                            gateway: 'mercadopago_wallet',
+                            dados: data,
+                            originalDadosPedido: {
+                                ...dadosPedido,
+                                id: pedidoId,
+                                itens: carrinho,
+                                carrinho: carrinho
+                            }
+                        }
+                    }));
+                }, 1000);
+            }
+        } catch (err) {
+            console.warn('[MP Wallet] Erro ao consultar status da preferência:', err);
+        }
+    }, 2500);
 }
 
 /**

@@ -119,6 +119,8 @@ export const API_ENDPOINTS = {
     
     // Mercado Pago
     MERCADOPAGO_CRIAR_PREFERENCIA: `${CONFIG.URL_API}/api/mercado-pago/criar-preferencia`,
+    MERCADOPAGO_CRIAR_PREFERENCIA_CARTEIRA: `${CONFIG.URL_API}/api/mercado-pago/criar-preferencia-carteira-digital`,
+    MERCADOPAGO_CONSULTAR_STATUS_PREFERENCIA: `${CONFIG.URL_API}/api/mercado-pago/consultar-status-preferencia`,
     MERCADOPAGO_LISTAR_DISPOSITIVOS: `${CONFIG.URL_API}/api/mercado-pago/listar-dispositivos`,
     MERCADOPAGO_CRIAR_PAGAMENTO_POINT: `${CONFIG.URL_API}/api/mercado-pago/criar-pagamento-point`,
     MERCADOPAGO_CRIAR_PIX_SPLIT: `${CONFIG.URL_API}/api/mercado-pago/criar-pagamento-pix-split`,

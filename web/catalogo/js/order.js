@@ -400,25 +400,27 @@ export async function finalizarPedido(dadosPedido, carrinho) {
                 pedidoPre.forma_pagamento_id = dadosPedido.forma_pagamento_id;
             }
 
-            let pedidoId = null;
-            try {
-                const resultadoRegistro = await tentarEnvioDireto(pedidoPre);
-                if (resultadoRegistro.sucesso) {
-                    // O backend retorna { success: true, data: { id: "uuid", ... }, message }
-                    // Tenta múltiplos formatos para evitar perder o UUID da venda preventiva
-                    const dadosRegistro = resultadoRegistro.dados || {};
-                    pedidoId = dadosRegistro.data?.id
-                        || dadosRegistro.venda?.id
-                        || dadosRegistro.id;
+            let pedidoId = dadosPedido.venda_id || window.pedidoPreventivoId || null;
+            if (!pedidoId) {
+                try {
+                    const resultadoRegistro = await tentarEnvioDireto(pedidoPre);
+                    if (resultadoRegistro.sucesso) {
+                        // O backend retorna { success: true, data: { id: "uuid", ... }, message }
+                        // Tenta múltiplos formatos para evitar perder o UUID da venda preventiva
+                        const dadosRegistro = resultadoRegistro.dados || {};
+                        pedidoId = dadosRegistro.data?.id
+                            || dadosRegistro.venda?.id
+                            || dadosRegistro.id;
 
-                    if (pedidoId) {
-                        console.log('[Order] ✅ Pedido preventivo registrado ID:', pedidoId);
-                    } else {
-                        console.warn('[Order] ⚠️ Pedido preventivo retornou sem ID (response):', JSON.stringify(dadosRegistro));
+                        if (pedidoId) {
+                            console.log('[Order] ✅ Pedido preventivo registrado ID:', pedidoId);
+                        } else {
+                            console.warn('[Order] ⚠️ Pedido preventivo retornou sem ID (response):', JSON.stringify(dadosRegistro));
+                        }
                     }
+                } catch (err) {
+                    console.warn('[Order] ⚠️ Falha ao registrar pedido preventivo (prosseguindo apenas com gateway):', err);
                 }
-            } catch (err) {
-                console.warn('[Order] ⚠️ Falha ao registrar pedido preventivo (prosseguindo apenas com gateway):', err);
             }
 
             // ✅ CRÍTICO: Sem o UUID da venda preventiva o gateway não consegue

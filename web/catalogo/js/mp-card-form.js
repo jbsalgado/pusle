@@ -428,6 +428,31 @@ export function gerarHtmlFormCartao(cliente = null, tipoCartao = 'credit_card') 
     return `
 <form id="form-checkout-mp-cartao" class="mp-card-form-container">
 
+    <!-- Seção de Pagamento Rápido: Carteiras Digitais (Google Pay / Apple Pay / 1-Clique) -->
+    <div id="mp-wallet-quickpay-section" style="margin-bottom: 4px;">
+        <div style="background: linear-gradient(135deg, #090d16, #1e1b4b); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 14px; padding: 14px 16px; text-align: center; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.15);">
+            <div style="display:flex; align-items:center; justify-content:center; gap: 8px; margin-bottom: 4px;">
+                <span style="font-size: 15px;">⚡</span>
+                <span style="font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #a5f3fc;">Aproximação & Carteiras Digitais</span>
+            </div>
+            <p style="font-size: 11px; color: #cbd5e1; margin: 0 0 10px 0; line-height: 1.3;">
+                Pague em 1 clique com <strong>Google Pay</strong>, <strong>Apple Pay</strong> ou biometria.
+            </p>
+            <div id="wallet-brick-container" style="min-height: 48px; display: flex; align-items: center; justify-content: center;">
+                <div id="wallet-brick-loading" style="font-size: 11px; color: #94a3b8; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <div style="width: 14px; height: 14px; border: 2px solid #818cf8; border-top-color: transparent; border-radius: 50%; animation: mp-spin 0.8s linear infinite;"></div>
+                    Carregando carteira digital...
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: center; margin: 16px 0 12px 0;">
+            <div style="flex: 1; border-bottom: 1px solid #e2e8f0;"></div>
+            <span style="padding: 0 10px; font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Ou preencha os dados do cartão</span>
+            <div style="flex: 1; border-bottom: 1px solid #e2e8f0;"></div>
+        </div>
+    </div>
+
     ${isDebito ? `
     <div style="background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #3b82f6;border-radius:8px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px;">
         <span style="font-size:20px;line-height:1.2;">💳</span>
@@ -503,4 +528,88 @@ export function gerarHtmlFormCartao(cliente = null, tipoCartao = 'credit_card') 
 
 </form>`;
 }
+
+let walletBrickInstance = null;
+
+/**
+ * Inicializa o componente oficial de Carteira Digital (Wallet Brick)
+ * com suporte nativo a Google Pay, Apple Pay e 1-Clique Mercado Pago.
+ *
+ * @param {string} containerId - ID do container HTML
+ * @param {string} preferenceId - ID da preferência gerada no backend com split
+ * @param {Object} options - Callbacks opcionais (onReady, onSubmit, onError)
+ */
+export async function inicializarWalletBrick(containerId, preferenceId, options = {}) {
+    if (typeof window.MercadoPago === 'undefined') {
+        throw new Error('SDK Mercado Pago não carregado.');
+    }
+    const publicKey = window.GATEWAY_CONFIG?.mercadopago_public_key;
+    if (!publicKey) {
+        throw new Error('Mercado Pago Public Key não configurada.');
+    }
+
+    if (!mpInstance) {
+        mpInstance = new window.MercadoPago(publicKey, { locale: 'pt-BR' });
+    }
+
+    const bricksBuilder = mpInstance.bricks();
+    const container = document.getElementById(containerId);
+    if (!container) return null;
+
+    container.innerHTML = ''; // Limpa conteúdo anterior
+
+    try {
+        if (walletBrickInstance) {
+            try { walletBrickInstance.unmount(); } catch (_) {}
+            walletBrickInstance = null;
+        }
+
+        walletBrickInstance = await bricksBuilder.create('wallet', containerId, {
+            initialization: {
+                preferenceId: preferenceId,
+                redirectMode: 'modal' // Abre modal integrado com autenticação biométrica
+            },
+            customization: {
+                texts: {
+                    action: 'pay',
+                    valueProp: 'convenience_all'
+                },
+                visual: {
+                    buttonBackground: 'black',
+                    borderRadius: '12px'
+                }
+            },
+            callbacks: {
+                onReady: () => {
+                    console.log('[Wallet Brick] ✅ Pronto para pagamento por aproximação/carteiras digitais');
+                    if (options.onReady) options.onReady();
+                },
+                onSubmit: () => {
+                    console.log('[Wallet Brick] ⚡ Iniciando pagamento com Carteira Digital...');
+                    if (options.onSubmit) options.onSubmit();
+                },
+                onError: (error) => {
+                    console.error('[Wallet Brick] ❌ Erro:', error);
+                    if (options.onError) options.onError(error);
+                }
+            }
+        });
+
+        return walletBrickInstance;
+    } catch (err) {
+        console.error('[Wallet Brick] Falha ao renderizar:', err);
+        throw err;
+    }
+}
+
+/**
+ * Destrói a instância do Wallet Brick
+ */
+export function destruirWalletBrick() {
+    if (walletBrickInstance) {
+        try { walletBrickInstance.unmount(); } catch (_) {}
+        walletBrickInstance = null;
+    }
+}
+
 

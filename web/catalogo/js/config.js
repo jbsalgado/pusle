@@ -143,6 +143,8 @@ export const API_ENDPOINTS = {
 
     // Mercado Pago
     MERCADOPAGO_CRIAR_PREFERENCIA: `${_urlApiBase}/api/mercado-pago/criar-preferencia`,
+    MERCADOPAGO_CRIAR_PREFERENCIA_CARTEIRA: `${_urlApiBase}/api/mercado-pago/criar-preferencia-carteira-digital`,
+    MERCADOPAGO_CONSULTAR_STATUS_PREFERENCIA: `${_urlApiBase}/api/mercado-pago/consultar-status-preferencia`,
     MERCADOPAGO_CRIAR_PIX_SPLIT: `${_urlApiBase}/api/mercado-pago/criar-pagamento-pix-split`,
     MERCADOPAGO_CONSULTAR_STATUS_PIX: `${_urlApiBase}/api/mercado-pago/consultar-status-pix`,
     // ✅ Checkout transparente — Cartão de Crédito/Débito

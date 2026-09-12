@@ -762,7 +762,8 @@ class MercadoPagoController extends Controller
             }
 
             // ✅ VERIFICAR SE MERCADO PAGO ESTÁ CONFIGURADO
-            if (empty($usuario['mercadopago_access_token'])) {
+            $accessToken = $this->obterTokenVendedor($usuario);
+            if (empty($accessToken)) {
                 $transaction->rollBack();
                 Yii::info([
                     'action' => 'mercadopago_nao_configurado',
@@ -941,7 +942,8 @@ class MercadoPagoController extends Controller
                 'external_reference' => $externalReference,
                 'valor_total' => $valorTotal,
                 'preferencia_local_id' => $preferenciaId,
-                'marketplace_fee' => $marketplaceFee
+                'marketplace_fee' => $marketplaceFee,
+                'public_key' => $usuario['mp_public_key'] ?? $usuario['mercadopago_public_key'] ?? null,
             ];
         } catch (MPApiException $e) {
             $transaction->rollBack();
@@ -960,6 +962,347 @@ class MercadoPagoController extends Controller
                 'trace' => $e->getTraceAsString()
             ], 'mercadopago');
             return $this->errorResponse('Erro interno: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * ENDPOINT: POST /api/mercado-pago/criar-preferencia-carteira-digital
+     * Cria preferência otimizada para Carteiras Digitais (Google Pay, Apple Pay e Wallet Brick 1-Clique)
+     * com split da SaaS já retido.
+     */
+    public function actionCriarPreferenciaCarteiraDigital()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        $request = Yii::$app->request->post() ?: json_decode(Yii::$app->request->getRawBody(), true) ?: [];
+        $vendaId = $request['venda_id'] ?? $request['order_id'] ?? null;
+        $tenantId = $request['usuario_id'] ?? $request['tenant_id'] ?? null;
+
+        // Se veio venda_id, busca os dados da venda existente
+        if ($vendaId && !$tenantId) {
+            $venda = Venda::findOne(['id' => $vendaId]);
+            if ($venda) {
+                $tenantId = $venda->usuario_id;
+            }
+        }
+
+        if (!$tenantId) {
+            $tenantId = \app\components\TenantHelper::getId();
+        }
+
+        if (!$tenantId) {
+            return [
+                'sucesso' => false,
+                'mensagem' => 'Identificador da loja (tenant_id) não informado.'
+            ];
+        }
+
+        $usuario = $this->buscarUsuarioPorId($tenantId);
+        if (!$usuario) {
+            return [
+                'sucesso' => false,
+                'mensagem' => 'Loja não encontrada.'
+            ];
+        }
+
+        $accessToken = $this->obterTokenVendedor($usuario);
+        if (empty($accessToken)) {
+            return [
+                'sucesso' => false,
+                'mensagem' => 'Mercado Pago não configurado para esta loja.'
+            ];
+        }
+
+        $itens = [];
+        $valorTotal = 0;
+
+        if (!empty($request['itens']) && is_array($request['itens'])) {
+            foreach ($request['itens'] as $item) {
+                $precoUnit = floatval($item['preco_unitario'] ?? $item['preco'] ?? 0);
+                $qtd = intval($item['quantidade'] ?? 1);
+                $subtotal = $precoUnit * $qtd;
+                $valorTotal += $subtotal;
+                $itens[] = [
+                    'title' => mb_substr($item['nome'] ?? $item['title'] ?? 'Produto', 0, 256),
+                    'quantity' => $qtd,
+                    'unit_price' => $precoUnit,
+                    'currency_id' => 'BRL'
+                ];
+            }
+        } elseif ($vendaId) {
+            $venda = Venda::findOne(['id' => $vendaId]);
+            if ($venda) {
+                $valorTotal = (float)$venda->valor_total;
+                if (!empty($venda->itens)) {
+                    foreach ($venda->itens as $item) {
+                        $itens[] = [
+                            'title' => mb_substr($item->produto->nome ?? 'Item da Venda', 0, 256),
+                            'quantity' => (int)$item->quantidade,
+                            'unit_price' => (float)$item->preco_unitario_venda,
+                            'currency_id' => 'BRL'
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Se ainda não tiver itens montados, monta item com valor total informado
+        if (empty($itens)) {
+            $valorTotal = floatval($request['valor_total'] ?? $request['amount'] ?? 0);
+            if ($valorTotal <= 0) {
+                return [
+                    'sucesso' => false,
+                    'mensagem' => 'Valor total inválido para cobrança.'
+                ];
+            }
+            $itens[] = [
+                'title' => 'Pedido ' . ($vendaId ? '#' . substr($vendaId, 0, 8) : ($usuario['nome'] ?? 'Pulse')),
+                'quantity' => 1,
+                'unit_price' => $valorTotal,
+                'currency_id' => 'BRL'
+            ];
+        }
+
+        $marketplaceFee = $this->calcularApplicationFee($valorTotal);
+        $externalReference = $vendaId ?: $this->gerarExternalReference($usuario['id']);
+        $baseUrl = $this->resolveBaseUrl();
+        $catalogoPath = $usuario['catalogo_path'] ?? 'catalogo';
+
+        $payer = [];
+        if (!empty($request['cliente'])) {
+            $cli = $request['cliente'];
+            $payer = [
+                'name' => $cli['nome'] ?? 'Cliente',
+                'email' => $cli['email'] ?? 'cliente@loja.com.br',
+            ];
+            if (!empty($cli['cpf'])) {
+                $payer['identification'] = [
+                    'type' => 'CPF',
+                    'number' => preg_replace('/\D/', '', $cli['cpf'])
+                ];
+            }
+        } else {
+            $payer = [
+                'name' => 'Cliente',
+                'email' => 'cliente@loja.com.br'
+            ];
+        }
+
+        $backUrls = [
+            'success' => "{$baseUrl}/{$catalogoPath}/payment-success.html",
+            'failure' => "{$baseUrl}/{$catalogoPath}/payment-failure.html",
+            'pending' => "{$baseUrl}/{$catalogoPath}/payment-pending.html"
+        ];
+        if (strpos($baseUrl, 'localhost') !== false || strpos($baseUrl, '127.0.0.1') !== false) {
+            $backUrls = [
+                'success' => "https://catalogos.oncode.app.br/{$catalogoPath}/payment-success.html",
+                'failure' => "https://catalogos.oncode.app.br/{$catalogoPath}/payment-failure.html",
+                'pending' => "https://catalogos.oncode.app.br/{$catalogoPath}/payment-pending.html"
+            ];
+        }
+
+        $preferenceData = [
+            'items' => $itens,
+            'payer' => $payer,
+            'external_reference' => (string)$externalReference,
+            'marketplace_fee' => $marketplaceFee,
+            'statement_descriptor' => mb_substr($usuario['nome'] ?? 'Loja Online', 0, 22),
+            'notification_url' => (strpos($baseUrl, 'localhost') !== false || strpos($baseUrl, '127.0.0.1') !== false)
+                ? "https://catalogos.oncode.app.br/index.php/api/mercado-pago/webhook?tenant_id={$usuario['id']}"
+                : "{$baseUrl}/index.php/api/mercado-pago/webhook?tenant_id={$usuario['id']}",
+            'back_urls' => $backUrls,
+            'auto_return' => 'approved',
+            'payment_methods' => [
+                'installments' => 12
+            ],
+            'metadata' => [
+                'usuario_id' => $usuario['id'],
+                'venda_id' => $vendaId,
+                'origem' => 'carteira_digital_wallet'
+            ]
+        ];
+
+        try {
+            $httpClient = new Client(['base_uri' => 'https://api.mercadopago.com']);
+            $response = $httpClient->post('/checkout/preferences', [
+                'headers' => [
+                    'Authorization' => "Bearer {$accessToken}",
+                    'Content-Type' => 'application/json',
+                    'X-Idempotency-Key' => 'pref_wallet_' . substr(md5($externalReference . time()), 0, 16)
+                ],
+                'json' => $preferenceData,
+                'http_errors' => false
+            ]);
+
+            $statusCode = $response->getStatusCode();
+            $body = json_decode($response->getBody()->getContents(), true);
+
+            if ($statusCode !== 200 && $statusCode !== 201) {
+                $msg = $body['message'] ?? 'Erro ao gerar preferência no Mercado Pago.';
+                return [
+                    'sucesso' => false,
+                    'mensagem' => $msg,
+                    'detalhes' => $body
+                ];
+            }
+
+            $publicKey = $usuario['mp_public_key'] ?? $usuario['mercadopago_public_key'] ?? null;
+
+            return [
+                'sucesso' => true,
+                'preference_id' => $body['id'],
+                'init_point' => $body['init_point'] ?? null,
+                'sandbox_init_point' => $body['sandbox_init_point'] ?? null,
+                'external_reference' => $externalReference,
+                'public_key' => $publicKey,
+                'valor_total' => $valorTotal,
+                'marketplace_fee' => $marketplaceFee,
+                'tenant_id' => $usuario['id']
+            ];
+
+        } catch (\Throwable $e) {
+            Yii::error('Erro ao criar preferência de carteira digital: ' . $e->getMessage(), 'mercadopago');
+            return [
+                'sucesso' => false,
+                'mensagem' => 'Erro ao comunicar com Mercado Pago: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * ========================================================================
+     * ENDPOINT: GET|POST /api/mercado-pago/consultar-status-preferencia
+     * Consulta status do pagamento associado a uma preferência ou external_reference.
+     * Utilizado para polling imediato quando o cliente paga via Carteira Digital / 1-Clique.
+     * ========================================================================
+     */
+    public function actionConsultarStatusPreferencia()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        $externalReference = Yii::$app->request->get('external_reference') ?: Yii::$app->request->post('external_reference');
+        $preferenceId = Yii::$app->request->get('preference_id') ?: Yii::$app->request->post('preference_id');
+        $tenantId = Yii::$app->request->get('tenant_id') ?: Yii::$app->request->post('tenant_id');
+
+        if (!$externalReference && !$preferenceId) {
+            return $this->errorResponse('external_reference ou preference_id é obrigatório.');
+        }
+
+        if (!$tenantId) {
+            $tenantId = \app\components\TenantHelper::getId();
+        }
+
+        // Se a venda já foi liberada pelo Webhook, retorna aprovado imediatamente
+        if ($externalReference && $this->validarUUID($externalReference)) {
+            $venda = Venda::findOne(['id' => $externalReference]);
+            if ($venda) {
+                if (!$tenantId) {
+                    $tenantId = $venda->usuario_id;
+                }
+                if ($venda->status_venda_codigo === StatusVenda::QUITADA) {
+                    return [
+                        'sucesso' => true,
+                        'status' => 'approved',
+                        'venda_id' => $venda->id,
+                        'mensagem' => 'Venda já quitada e liberada.'
+                    ];
+                }
+            }
+        }
+
+        if (!$tenantId) {
+            return $this->errorResponse('tenant_id não informado.');
+        }
+
+        $usuario = $this->buscarUsuarioPorId($tenantId);
+        if (!$usuario) {
+            return $this->errorResponse('Loja não encontrada.');
+        }
+
+        $accessToken = $this->obterTokenVendedor($usuario);
+        if (empty($accessToken)) {
+            return $this->errorResponse('Token de acesso do Mercado Pago não configurado.');
+        }
+
+        try {
+            $client = new Client();
+            $payments = [];
+
+            // 1. Busca no endpoint de search de pagamentos por external_reference
+            if ($externalReference) {
+                $resp = $client->get('https://api.mercadopago.com/v1/payments/search', [
+                    'headers' => [
+                        'Authorization' => "Bearer {$accessToken}"
+                    ],
+                    'query' => [
+                        'external_reference' => (string)$externalReference,
+                        'sort' => 'date_created',
+                        'criteria' => 'desc'
+                    ],
+                    'http_errors' => false
+                ]);
+
+                if ($resp->getStatusCode() === 200) {
+                    $searchBody = json_decode($resp->getBody()->getContents(), true);
+                    $payments = $searchBody['results'] ?? [];
+                }
+            }
+
+            // 2. Se não achou por external_reference e tiver preference_id, busca em merchant_orders
+            if (empty($payments) && $preferenceId) {
+                $respMo = $client->get('https://api.mercadopago.com/merchant_orders', [
+                    'headers' => [
+                        'Authorization' => "Bearer {$accessToken}"
+                    ],
+                    'query' => [
+                        'preference_id' => (string)$preferenceId
+                    ],
+                    'http_errors' => false
+                ]);
+                if ($respMo->getStatusCode() === 200) {
+                    $moBody = json_decode($respMo->getBody()->getContents(), true);
+                    $orders = $moBody['elements'] ?? [];
+                    foreach ($orders as $ord) {
+                        if (!empty($ord['payments'])) {
+                            $payments = array_merge($payments, $ord['payments']);
+                        }
+                    }
+                }
+            }
+
+            // Avalia os pagamentos encontrados
+            foreach ($payments as $payment) {
+                $status = $payment['status'] ?? '';
+                if ($status === 'approved') {
+                    $paymentId = $payment['id'] ?? null;
+                    $amount = (float)($payment['transaction_amount'] ?? 0);
+                    $fee = (float)($payment['fee_details'][0]['amount'] ?? 0);
+
+                    if ($externalReference && $this->validarUUID($externalReference)) {
+                        $this->liberarPedido($tenantId, $externalReference, $amount, $paymentId, $fee);
+                    }
+
+                    return [
+                        'sucesso' => true,
+                        'status' => 'approved',
+                        'payment_id' => $paymentId,
+                        'status_detail' => $payment['status_detail'] ?? 'acreditado',
+                        'date_approved' => $payment['date_approved'] ?? date('Y-m-d H:i:s'),
+                        'venda_id' => $externalReference
+                    ];
+                }
+            }
+
+            $latestStatus = !empty($payments[0]['status']) ? $payments[0]['status'] : 'pending';
+            return [
+                'sucesso' => true,
+                'status' => $latestStatus,
+                'status_detail' => $payments[0]['status_detail'] ?? null
+            ];
+
+        } catch (\Throwable $e) {
+            Yii::error('Erro ao consultar status da preferência MP: ' . $e->getMessage(), 'mercadopago');
+            return $this->errorResponse('Erro ao consultar status: ' . $e->getMessage(), 500);
         }
     }
 
