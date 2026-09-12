@@ -32,15 +32,11 @@ class UsuarioController extends Controller
             ],
         ];
 
-        // Reinsere o authenticator DEPOIS do CORS filter
-        if ($auth) {
-            $behaviors['authenticator'] = $auth;
-        } else {
-            $behaviors['authenticator'] = [
-                'class' => \yii\filters\auth\HttpBearerAuth::class,
-            ];
-        }
-        $behaviors['authenticator']['optional'] = ['dados-loja', 'config', 'config-by-slug', 'lojas'];
+        // Configura o authenticator DEPOIS do CORS filter
+        $behaviors['authenticator'] = [
+            'class' => \yii\filters\auth\HttpBearerAuth::class,
+            'optional' => ['dados-loja', 'config', 'config-by-slug', 'lojas'],
+        ];
 
         $behaviors['contentNegotiator']['formats']['application/json'] = Response::FORMAT_JSON;
 

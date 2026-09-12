@@ -37,6 +37,8 @@ class VendaExpressaController extends Controller
                 'class' => VerbFilter::class,
                 'actions' => [
                     'salvar' => ['POST'],
+                    'confirmar-pagamento' => ['POST'],
+                    'cancelar-pre-venda' => ['POST'],
                 ],
             ],
         ];
@@ -72,6 +74,8 @@ class VendaExpressaController extends Controller
 
         // Garante que a loja possua a forma de pagamento 'Boleto / Fiado'
         FormaPagamentoHelper::ensureBoletoFiado($lojaId);
+        // Garante opções do Mercado Pago se a loja estiver conectada
+        FormaPagamentoHelper::ensureMercadoPagoFormas($lojaId);
 
         // Formas de pagamento estritamente da loja logada (elimina duplicidades)
         $formasPagamento = FormaPagamento::find()
@@ -87,7 +91,7 @@ class VendaExpressaController extends Controller
                 ->all();
         }
 
-        // Ordenação lógica para PDV: 1. Dinheiro (Padrão), 2. PIX, 3. Cartão Débito, 4. Cartão Crédito, 5. Boleto / Fiado
+        // Ordenação lógica para PDV: 1. Dinheiro (Padrão), 2. PIX, 3. Cartão Débito, 4. Cartão Crédito, 5. Mercado Pago, 6. Boleto / Fiado
         usort($formasPagamento, function ($a, $b) {
             $prioridade = function ($item) {
                 $nome = mb_strtolower($item->nome);
@@ -97,7 +101,8 @@ class VendaExpressaController extends Controller
                 if (strpos($nome, 'débito') !== false || strpos($nome, 'debito') !== false || $tipo === 'CARTAO_DEBITO') return 3;
                 if (strpos($nome, 'crédito') !== false || strpos($nome, 'credito') !== false || $tipo === 'CARTAO_CREDITO') return 4;
                 if (strpos($tipo, 'CARTAO') !== false) return 5;
-                if (strpos($nome, 'boleto') !== false || strpos($nome, 'fiado') !== false || $tipo === 'BOLETO') return 6;
+                if (strpos($nome, 'mercado') !== false || $tipo === 'MERCADOPAGO' || $tipo === 'MP_POINT') return 6;
+                if (strpos($nome, 'boleto') !== false || strpos($nome, 'fiado') !== false || $tipo === 'BOLETO') return 7;
                 return 10;
             };
             return $prioridade($a) <=> $prioridade($b);
@@ -445,7 +450,14 @@ class VendaExpressaController extends Controller
             $venda->acrescimo_valor = $valAcrescimo;
             $venda->acrescimo_tipo = $valAcrescimo > 0 ? $acrescimoTipo : null;
             $venda->numero_parcelas = 1;
-            $venda->status_venda_codigo = $isAPrazo ? StatusVenda::EM_ABERTO : StatusVenda::QUITADA;
+            
+            $statusInicial = $request->post('status_inicial');
+            if ($statusInicial === StatusVenda::EM_ABERTO || $statusInicial === 'EM_ABERTO') {
+                $venda->status_venda_codigo = StatusVenda::EM_ABERTO;
+            } else {
+                $venda->status_venda_codigo = $isAPrazo ? StatusVenda::EM_ABERTO : StatusVenda::QUITADA;
+            }
+            
             $venda->data_primeiro_vencimento = $isAPrazo ? $dataVencimentoFormatada : null;
             $venda->forma_pagamento_id = !empty($formaPagamentoId) ? $formaPagamentoId : null;
 
@@ -655,5 +667,70 @@ class VendaExpressaController extends Controller
             'total_vendas' => $qtdHoje,
             'top_produto' => $topProdutoNome,
         ];
+    }
+
+    /**
+     * Confirma pagamento e quita uma venda pré-criada (Pix Dinâmico ou Cartão)
+     */
+    public function actionConfirmarPagamento()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $lojaId = $this->getLojaId();
+        if (!$lojaId) {
+            return ['success' => false, 'message' => 'Usuário não autenticado.'];
+        }
+
+        $vendaId = Yii::$app->request->post('venda_id');
+        if (!$vendaId) {
+            return ['success' => false, 'message' => 'venda_id é obrigatório.'];
+        }
+
+        $venda = Venda::findOne(['id' => $vendaId, 'usuario_id' => $lojaId]);
+        if (!$venda) {
+            return ['success' => false, 'message' => 'Venda não encontrada.'];
+        }
+
+        $venda->status_venda_codigo = StatusVenda::QUITADA;
+        $venda->save(false, ['status_venda_codigo']);
+
+        // Quita parcelas pendentes
+        foreach ($venda->parcelas as $parc) {
+            $parc->data_pagamento = date('Y-m-d');
+            $parc->valor_pago = $parc->valor;
+            $parc->status = \app\modules\vendas\models\Parcela::STATUS_PAGA;
+            $parc->save(false);
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Pagamento confirmado e venda quitada com sucesso!',
+            'venda_id' => $venda->id,
+            'resumoHoje' => $this->getResumoHoje($lojaId),
+        ];
+    }
+
+    /**
+     * Cancela uma pré-venda que não foi paga pelo cliente
+     */
+    public function actionCancelarPreVenda()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $lojaId = $this->getLojaId();
+        if (!$lojaId) {
+            return ['success' => false, 'message' => 'Usuário não autenticado.'];
+        }
+
+        $vendaId = Yii::$app->request->post('venda_id');
+        if (!$vendaId) {
+            return ['success' => false, 'message' => 'venda_id é obrigatório.'];
+        }
+
+        $venda = Venda::findOne(['id' => $vendaId, 'usuario_id' => $lojaId]);
+        if ($venda && $venda->status_venda_codigo === StatusVenda::EM_ABERTO) {
+            $venda->status_venda_codigo = StatusVenda::CANCELADA;
+            $venda->save(false, ['status_venda_codigo']);
+        }
+
+        return ['success' => true];
     }
 }

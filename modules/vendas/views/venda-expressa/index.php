@@ -230,19 +230,66 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                             <?php foreach ($formasPagamento as $index => $fp): 
                                 $nomeExibicao = $fp->nome;
                                 $isBoleto = (mb_stripos($nomeExibicao, 'boleto') !== false || mb_stripos($nomeExibicao, 'fiado') !== false || $fp->tipo === 'BOLETO');
-                                if ($isBoleto) {
-                                    $nomeExibicao = '📄 Boleto / Fiado';
-                                }
-                                $isAtivoInicial = ($fpPadrao && $fp->id === $fpPadrao->id);
-                                $isMercadoPago = (mb_stripos($fp->nome, 'mercado') !== false || $fp->tipo === 'MERCADOPAGO');
+                                $isPix = (mb_stripos($nomeExibicao, 'pix') !== false || $fp->tipo === 'PIX' || $fp->tipo === 'PIX_ESTATICO');
+                                $isMercadoPago = (mb_stripos($fp->nome, 'mercado') !== false || $fp->tipo === 'MERCADOPAGO' || $fp->tipo === 'MP_POINT');
                                 $mpDesativado = ($isMercadoPago && !$temMercadoPago);
+                                $isAtivoInicial = ($fpPadrao && $fp->id === $fpPadrao->id);
                             ?>
-                                <?php if ($mpDesativado): ?>
-                                    <button type="button" onclick="alert('O Mercado Pago não está conectado nas configurações da sua loja. Conecte sua conta do Mercado Pago para ativar este canal de pagamento.')" 
-                                             class="p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1 bg-slate-900/40 text-slate-500 border-slate-800 opacity-60 cursor-not-allowed" 
-                                             title="Requer Integração Mercado Pago">
-                                        <span><?= Html::encode($nomeExibicao) ?> <span class="text-[9px] text-rose-400 font-extrabold">(Requer MP)</span></span>
+                                <?php if ($isBoleto): ?>
+                                    <button type="button" onclick="selecionarFormaPagamento('<?= $fp->id ?>', this)" 
+                                             class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 <?= $isAtivoInicial ? 'bg-amber-400 text-slate-900 border-amber-300 shadow-md' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700' ?>" 
+                                             data-id="<?= $fp->id ?>"
+                                             data-tipo="<?= $fp->tipo ?>"
+                                             data-nome="Boleto / Fiado">
+                                        <span>📄 Boleto / Fiado</span>
                                     </button>
+
+                                <?php elseif ($isPix && $temMercadoPago): ?>
+                                    <!-- 1. PIX Estático (Chave da Loja - Sem Taxas) -->
+                                    <button type="button" onclick="selecionarFormaPagamento('<?= $fp->id ?>', this)" 
+                                             class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 <?= $isAtivoInicial ? 'bg-amber-400 text-slate-900 border-amber-300 shadow-md' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700' ?>" 
+                                             data-id="<?= $fp->id ?>"
+                                             data-tipo="PIX_ESTATICO"
+                                             data-nome="PIX (Chave da Loja)"
+                                             title="Pagamento direto na chave Pix da loja, sem taxas e sem split">
+                                        <div class="text-center leading-tight">
+                                            <span class="block">📱 PIX Loja</span>
+                                            <span class="text-[9px] text-emerald-400 font-bold block">(Sem Taxa)</span>
+                                        </div>
+                                    </button>
+                                    <!-- 2. PIX Dinâmico (Mercado Pago com Split e Baixa Automática) -->
+                                    <button type="button" onclick="selecionarFormaPagamento('<?= $fp->id ?>', this)" 
+                                             class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700" 
+                                             data-id="<?= $fp->id ?>"
+                                             data-tipo="PIX_MERCADOPAGO"
+                                             data-nome="PIX Mercado Pago"
+                                             title="QR Code dinâmico do Mercado Pago com baixa automática e split">
+                                        <div class="text-center leading-tight">
+                                            <span class="block">⚡ PIX MP</span>
+                                            <span class="text-[9px] text-cyan-300 font-bold block">(Baixa Auto)</span>
+                                        </div>
+                                    </button>
+
+                                <?php elseif ($isMercadoPago): ?>
+                                    <?php if ($mpDesativado): ?>
+                                        <button type="button" onclick="alert('O Mercado Pago não está conectado nas configurações da sua loja.')" 
+                                                 class="p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1 bg-slate-900/40 text-slate-500 border-slate-800 opacity-60 cursor-not-allowed">
+                                            <span>💳 Mercado Pago <span class="text-[9px] text-rose-400 font-extrabold">(Requer MP)</span></span>
+                                        </button>
+                                    <?php else: ?>
+                                        <button type="button" onclick="selecionarFormaPagamento('<?= $fp->id ?>', this)" 
+                                                 class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 <?= $isAtivoInicial ? 'bg-amber-400 text-slate-900 border-amber-300 shadow-md' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700' ?>" 
+                                                 data-id="<?= $fp->id ?>"
+                                                 data-tipo="<?= $fp->tipo ?>"
+                                                 data-nome="Mercado Pago"
+                                                 title="Cobrança no Mercado Pago (Point Maquininha ou Cartão Online)">
+                                            <div class="text-center leading-tight">
+                                                <span class="block">💳 Mercado Pago</span>
+                                                <span class="text-[9px] text-cyan-300 font-bold block">(Point/Online)</span>
+                                            </div>
+                                        </button>
+                                    <?php endif; ?>
+
                                 <?php else: ?>
                                     <button type="button" onclick="selecionarFormaPagamento('<?= $fp->id ?>', this)" 
                                              class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 <?= $isAtivoInicial ? 'bg-amber-400 text-slate-900 border-amber-300 shadow-md' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700' ?>" 
@@ -401,18 +448,21 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             <div class="text-2xl font-montserrat font-black text-cyan-400">R$ <span id="mpModalValor">0,00</span></div>
         </div>
 
-        <!-- Abas: Maquininha Point / Pix Dinâmico -->
-        <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 gap-1 text-xs font-bold">
-            <button type="button" id="tabBtnPoint" onclick="trocarAbaMp('point')" class="flex-1 py-2 rounded-lg transition bg-cyan-500 text-slate-950 shadow">
+        <!-- Abas: Pix Dinâmico / Maquininha Point / Cartão Online -->
+        <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 gap-1 text-[11px] font-bold">
+            <button type="button" id="tabBtnPixMp" onclick="trocarAbaMp('pix')" class="flex-1 py-2 rounded-lg transition bg-cyan-500 text-slate-950 shadow">
+                ⚡ Pix Dinâmico
+            </button>
+            <button type="button" id="tabBtnPoint" onclick="trocarAbaMp('point')" class="flex-1 py-2 rounded-lg transition text-slate-400 hover:text-white">
                 💳 Maquininha Point
             </button>
-            <button type="button" id="tabBtnPixMp" onclick="trocarAbaMp('pix')" class="flex-1 py-2 rounded-lg transition text-slate-400 hover:text-white">
-                ⚡ Pix Dinâmico
+            <button type="button" id="tabBtnCartaoMp" onclick="trocarAbaMp('cartao')" class="flex-1 py-2 rounded-lg transition text-slate-400 hover:text-white">
+                🌐 Cartão Online
             </button>
         </div>
 
         <!-- Conteúdo Aba 1: Maquininha Point -->
-        <div id="mpConteudoPoint" class="space-y-3">
+        <div id="mpConteudoPoint" class="hidden space-y-3">
             <div class="space-y-1">
                 <label class="block text-[10px] font-bold text-slate-400 uppercase">Selecione a Maquininha (Point)</label>
                 <select id="mpSelectDevice" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-cyan-400">
@@ -437,7 +487,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         </div>
 
         <!-- Conteúdo Aba 2: Pix Dinâmico -->
-        <div id="mpConteudoPix" class="hidden space-y-3">
+        <div id="mpConteudoPix" class="space-y-3">
             <!-- QR Code do Mercado Pago -->
             <div class="bg-white p-3 rounded-2xl flex items-center justify-center min-h-[190px]" id="mpPixQrCodeContainer">
                 <div class="text-slate-500 text-xs font-bold py-6 text-center">
@@ -461,6 +511,51 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             <div id="mpPixStatusWaiting" class="hidden text-center text-xs font-bold text-emerald-400 animate-pulse">
                 Aguardando confirmação do pagamento...
             </div>
+        </div>
+
+        <!-- Conteúdo Aba 3: Cartão Online Digitado -->
+        <div id="mpConteudoCartao" class="hidden space-y-3">
+            <div class="space-y-1">
+                <label class="block text-[10px] font-bold text-slate-400 uppercase">Número do Cartão</label>
+                <input type="text" id="mpCartaoNumero" maxlength="19" placeholder="0000 0000 0000 0000" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono font-bold text-white focus:outline-none focus:border-cyan-400">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div class="space-y-1">
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase">Validade (MM/AA)</label>
+                    <input type="text" id="mpCartaoValidade" maxlength="5" placeholder="MM/AA" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono font-bold text-white focus:outline-none focus:border-cyan-400">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase">CVV</label>
+                    <input type="text" id="mpCartaoCvv" maxlength="4" placeholder="123" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono font-bold text-white focus:outline-none focus:border-cyan-400">
+                </div>
+            </div>
+            <div class="space-y-1">
+                <label class="block text-[10px] font-bold text-slate-400 uppercase">Nome no Cartão</label>
+                <input type="text" id="mpCartaoNome" placeholder="NOME DO TITULAR" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold uppercase text-white focus:outline-none focus:border-cyan-400">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div class="space-y-1">
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase">CPF do Titular</label>
+                    <input type="text" id="mpCartaoCpf" maxlength="14" placeholder="000.000.000-00" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono font-bold text-white focus:outline-none focus:border-cyan-400">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase">Parcelas</label>
+                    <select id="mpCartaoParcelas" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-cyan-400">
+                        <option value="1">1x à vista</option>
+                        <option value="2">2x</option>
+                        <option value="3">3x</option>
+                        <option value="4">4x</option>
+                        <option value="5">5x</option>
+                        <option value="6">6x</option>
+                        <option value="10">10x</option>
+                        <option value="12">12x</option>
+                    </select>
+                </div>
+            </div>
+            <div id="mpCartaoFeedback" class="hidden p-2.5 rounded-xl text-xs font-bold text-center"></div>
+            <button type="button" id="btnProcessarCartaoMp" onclick="processarCartaoOnlineMp()" class="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-slate-950 font-montserrat font-black text-sm rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                <span>💳 Cobrar Cartão via Mercado Pago</span>
+            </button>
         </div>
 
         <!-- Opção de Concluir Manualmente ou Fechar -->
@@ -1574,19 +1669,38 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             }
         }
 
-        const ehMercadoPago = (formaPagamentoSelecionadaNome || '').toLowerCase().includes('mercado') || (formaPagamentoSelecionadaTipo || '').toUpperCase() === 'MERCADOPAGO';
-        if (ehMercadoPago && temMercadoPagoConfig) {
-            abrirModalMercadoPagoPDV();
+        // 2. PIX Dinâmico Mercado Pago (com split e baixa automática)
+        if (formaPagamentoSelecionadaTipo === 'PIX_MERCADOPAGO' || (formaPagamentoSelecionadaNome || '').includes('PIX MP')) {
+            if (temMercadoPagoConfig) {
+                abrirModalMercadoPagoPDV('pix');
+                return;
+            } else {
+                alert('Mercado Pago não conectado. Abrindo PIX da loja (sem taxa).');
+                abrirModalPixEstatico();
+                return;
+            }
+        }
+
+        // 3. PIX Estático Loja (sem taxas, confirmação manual)
+        if (formaPagamentoSelecionadaTipo === 'PIX_ESTATICO' || ((formaPagamentoSelecionadaNome || '').toLowerCase().includes('pix') && !(formaPagamentoSelecionadaNome || '').toLowerCase().includes('mercado'))) {
+            abrirModalPixEstatico();
             return;
         }
 
-        const ehPix = (formaPagamentoSelecionadaNome || '').toLowerCase().includes('pix');
-
-        if (ehPix) {
-            abrirModalPixEstatico();
-        } else {
-            efetivarVendaExpressa();
+        // 4. Mercado Pago (Point Maquininha ou Cartão Online)
+        const ehMercadoPago = (formaPagamentoSelecionadaTipo === 'MERCADOPAGO' || formaPagamentoSelecionadaTipo === 'MP_POINT' || (formaPagamentoSelecionadaNome || '').toLowerCase().includes('mercado'));
+        if (ehMercadoPago) {
+            if (temMercadoPagoConfig) {
+                abrirModalMercadoPagoPDV('point');
+                return;
+            } else {
+                alert('O Mercado Pago não está conectado nas configurações da sua loja.');
+                return;
+            }
         }
+
+        // 5. Demais formas (Dinheiro, Cartão Balcão, etc.)
+        efetivarVendaExpressa();
     }
 
     function gerarEMVPixString(chave, nome, cidade, valor) {
@@ -1686,29 +1800,36 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
     }
 
     // ==========================================
-    // MERCADO PAGO INTEGRADO NO PDV (POINT & PIX)
+    // MERCADO PAGO INTEGRADO NO PDV (POINT, PIX & CARTÃO)
     // ==========================================
-    function abrirModalMercadoPagoPDV() {
+    let mpVendaIdAtual = null;
+    let preVendaVendaData = null;
+
+    function abrirModalMercadoPagoPDV(abaInicial = 'point') {
         const totalStr = document.getElementById('displayTotalFinal').textContent;
         document.getElementById('mpModalValor').textContent = totalStr;
 
         const selectDevice = document.getElementById('mpSelectDevice');
-        selectDevice.innerHTML = '';
-        if (dispositivosPointDisponiveis && dispositivosPointDisponiveis.length > 0) {
-            dispositivosPointDisponiveis.forEach(dev => {
+        if (selectDevice) {
+            selectDevice.innerHTML = '';
+            if (dispositivosPointDisponiveis && dispositivosPointDisponiveis.length > 0) {
+                dispositivosPointDisponiveis.forEach(dev => {
+                    const opt = document.createElement('option');
+                    opt.value = dev.device_id;
+                    opt.textContent = `${dev.nome || 'Point'} (${dev.device_id})`;
+                    selectDevice.appendChild(opt);
+                });
+            } else {
                 const opt = document.createElement('option');
-                opt.value = dev.device_id;
-                opt.textContent = `${dev.nome || 'Point'} (${dev.device_id})`;
+                opt.value = '';
+                opt.textContent = 'Nenhuma maquininha cadastrada (Cadastre em Configurações)';
                 selectDevice.appendChild(opt);
-            });
-        } else {
-            const opt = document.createElement('option');
-            opt.value = '';
-            opt.textContent = 'Nenhuma maquininha cadastrada (Cadastre em Configurações)';
-            selectDevice.appendChild(opt);
+            }
         }
 
-        trocarAbaMp('point');
+        trocarAbaMp(abaInicial);
+
+        // Reset Point
         document.getElementById('mpStatusTerminal')?.classList.add('hidden');
         const btnDisparar = document.getElementById('btnDispararPoint');
         if (btnDisparar) {
@@ -1717,9 +1838,15 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             btnDisparar.innerHTML = '<span>🚀 Enviar para Maquininha</span>';
         }
         document.getElementById('btnCancelarPoint')?.classList.add('hidden');
+
+        // Reset Pix
         document.getElementById('mpPixQrCodeContainer').innerHTML = '<div class="text-slate-500 text-xs font-bold py-6 text-center">Clique abaixo para gerar o Pix Dinâmico com baixa automática</div>';
         document.getElementById('mpPixCopiaColaContainer')?.classList.add('hidden');
-        document.getElementById('mpPixStatusWaiting')?.classList.add('hidden');
+        const statusWaitPix = document.getElementById('mpPixStatusWaiting');
+        if (statusWaitPix) {
+            statusWaitPix.className = 'hidden text-center text-xs font-bold text-emerald-400 animate-pulse';
+            statusWaitPix.textContent = 'Aguardando confirmação do pagamento...';
+        }
         const btnGerar = document.getElementById('btnGerarPixMp');
         if (btnGerar) {
             btnGerar.disabled = false;
@@ -1727,7 +1854,32 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             btnGerar.innerHTML = '<span>⚡ Gerar Pix Mercado Pago</span>';
         }
 
+        // Reset Cartao
+        const feedbackCartao = document.getElementById('mpCartaoFeedback');
+        if (feedbackCartao) {
+            feedbackCartao.classList.add('hidden');
+            feedbackCartao.textContent = '';
+        }
+        const btnCartao = document.getElementById('btnProcessarCartaoMp');
+        if (btnCartao) {
+            btnCartao.disabled = false;
+            btnCartao.innerHTML = '<span>💳 Cobrar Cartão via Mercado Pago</span>';
+        }
+
+        // Preenche nome do cliente no titular se disponível
+        const nomeCli = document.getElementById('clienteNome')?.value || '';
+        const cpfCli = document.getElementById('clienteCpf')?.value || '';
+        const inputNomeCartao = document.getElementById('mpCartaoNome');
+        const inputCpfCartao = document.getElementById('mpCartaoCpf');
+        if (inputNomeCartao && !inputNomeCartao.value && nomeCli) inputNomeCartao.value = nomeCli.toUpperCase();
+        if (inputCpfCartao && !inputCpfCartao.value && cpfCli) inputCpfCartao.value = cpfCli;
+
         document.getElementById('modalMercadoPagoPDV').classList.remove('hidden');
+
+        // Se abriu na aba pix, gera automaticamente o QR Code para agilizar o atendimento
+        if (abaInicial === 'pix') {
+            gerarPixDinamicoMp();
+        }
     }
 
     function fecharModalMercadoPagoPDV() {
@@ -1735,26 +1887,160 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             clearInterval(mpPollingInterval);
             mpPollingInterval = null;
         }
+
+        // Se houver uma pré-venda em aberto não quitada, cancela para não deixar órfã
+        if (mpVendaIdAtual) {
+            try {
+                fetch('<?= Url::to(['/vendas/venda-expressa/cancelar-pre-venda']) ?>', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: new URLSearchParams({ venda_id: mpVendaIdAtual })
+                });
+            } catch (e) {}
+            mpVendaIdAtual = null;
+            preVendaVendaData = null;
+        }
+
         document.getElementById('modalMercadoPagoPDV').classList.add('hidden');
     }
 
     function trocarAbaMp(aba) {
         const btnPoint = document.getElementById('tabBtnPoint');
         const btnPix = document.getElementById('tabBtnPixMp');
+        const btnCartao = document.getElementById('tabBtnCartaoMp');
         const conteudoPoint = document.getElementById('mpConteudoPoint');
         const conteudoPix = document.getElementById('mpConteudoPix');
+        const conteudoCartao = document.getElementById('mpConteudoCartao');
+
+        const activeClass = 'flex-1 py-2 rounded-lg transition bg-cyan-500 text-slate-950 shadow font-extrabold';
+        const inactiveClass = 'flex-1 py-2 rounded-lg transition text-slate-400 hover:text-white';
+
+        [btnPix, btnPoint, btnCartao].forEach(b => { if (b) b.className = inactiveClass; });
+        [conteudoPix, conteudoPoint, conteudoCartao].forEach(c => { if (c) c.classList.add('hidden'); });
 
         if (aba === 'point') {
-            btnPoint.className = 'flex-1 py-2 rounded-lg transition bg-cyan-500 text-slate-950 shadow';
-            btnPix.className = 'flex-1 py-2 rounded-lg transition text-slate-400 hover:text-white';
-            conteudoPoint.classList.remove('hidden');
-            conteudoPix.classList.add('hidden');
+            if (btnPoint) btnPoint.className = activeClass;
+            if (conteudoPoint) conteudoPoint.classList.remove('hidden');
+        } else if (aba === 'cartao') {
+            if (btnCartao) btnCartao.className = activeClass;
+            if (conteudoCartao) conteudoCartao.classList.remove('hidden');
         } else {
-            btnPix.className = 'flex-1 py-2 rounded-lg transition bg-cyan-500 text-slate-950 shadow';
-            btnPoint.className = 'flex-1 py-2 rounded-lg transition text-slate-400 hover:text-white';
-            conteudoPix.classList.remove('hidden');
-            conteudoPoint.classList.add('hidden');
+            if (btnPix) btnPix.className = activeClass;
+            if (conteudoPix) conteudoPix.classList.remove('hidden');
         }
+    }
+
+    async function criarPreVendaPdv(statusInicial = 'EM_ABERTO') {
+        const lista = Object.values(itensVendaMap);
+        if (lista.length === 0) {
+            throw new Error('Adicione pelo menos um produto antes de efetivar.');
+        }
+
+        const payloadItens = lista.map(item => ({
+            produto_id: item.produto_id || item.id,
+            variante_id: item.variante_id || null,
+            quantidade: item.qtd,
+            preco_unitario: item.precoVal
+        }));
+
+        const clienteNomeInput = document.getElementById('clienteNome')?.value || '';
+        const clienteCpfInput = document.getElementById('clienteCpf')?.value || '';
+        const clienteWhatsappInput = document.getElementById('clienteWhatsapp')?.value || '';
+
+        const payload = {
+            itens: payloadItens,
+            forma_pagamento_id: formaPagamentoSelecionadaId,
+            a_prazo: false,
+            status_inicial: statusInicial,
+            observacoes: document.getElementById('inputObservacoes')?.value || '',
+            cliente_nome: clienteNomeInput,
+            cliente_cpf: clienteCpfInput,
+            cliente_whatsapp: clienteWhatsappInput,
+            desconto_valor: document.getElementById('descontoGeral')?.value || 0,
+            desconto_tipo: document.getElementById('descontoTipo')?.value || 'VALOR',
+            acrescimo_valor: document.getElementById('acrescimoGeral')?.value || 0,
+            acrescimo_tipo: document.getElementById('acrescimoTipo')?.value || 'VALOR'
+        };
+
+        const resp = await fetch('<?= Url::to(['/vendas/venda-expressa/salvar']) ?>', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await resp.json();
+        if (!resp.ok || !data.success) {
+            throw new Error(data.message || 'Falha ao registrar pré-venda.');
+        }
+
+        mpVendaIdAtual = data.venda_id;
+        preVendaVendaData = {
+            ...data,
+            venda_id: data.venda_id,
+            valor_total: data.valor_total,
+            subtotal_bruto: data.subtotal_bruto,
+            total_desconto: data.total_desconto,
+            acrescimo_valor: data.acrescimo_valor,
+            cliente_nome: data.cliente_nome || clienteNomeInput || 'Cliente Balcão',
+            cliente_telefone: data.cliente_telefone || clienteWhatsappInput || '',
+            data_hora: new Date().toLocaleString('pt-BR'),
+            forma_pagamento: data.forma_pagamento || formaPagamentoSelecionadaNome,
+            itens: (data.itens && data.itens.length > 0) ? data.itens : [...lista]
+        };
+
+        return data;
+    }
+
+    async function confirmarVendaPdv(vendaId) {
+        try {
+            const resp = await fetch('<?= Url::to(['/vendas/venda-expressa/confirmar-pagamento']) ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new URLSearchParams({ venda_id: vendaId })
+            });
+            const data = await resp.json();
+            if (data.success && data.resumoHoje) {
+                document.getElementById('resumoValor').textContent = data.resumoHoje.valor_total;
+                document.getElementById('resumoQtd').textContent = data.resumoHoje.total_vendas;
+                document.getElementById('resumoTop').textContent = data.resumoHoje.top_produto;
+            }
+        } catch (e) {
+            console.error('Erro ao confirmar quitação:', e);
+        }
+
+        setTimeout(() => {
+            if (mpPollingInterval) {
+                clearInterval(mpPollingInterval);
+                mpPollingInterval = null;
+            }
+            document.getElementById('modalMercadoPagoPDV').classList.add('hidden');
+
+            limparItensVenda();
+            document.getElementById('inputObservacoes').value = '';
+            document.getElementById('clienteNome').value = '';
+            document.getElementById('clienteCpf').value = '';
+            document.getElementById('clienteWhatsapp').value = '';
+
+            if (preVendaVendaData) {
+                preVendaVendaData.status_venda = 'QUITADA';
+                dadosUltimaVendaFinalizada = preVendaVendaData;
+                exibirModalComprovanteVenda(dadosUltimaVendaFinalizada);
+            }
+            mpVendaIdAtual = null;
+            preVendaVendaData = null;
+        }, 800);
     }
 
     async function dispararCobrancaPoint() {
@@ -1781,6 +2067,10 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         btnDisparar.innerHTML = '<span>⏳ Enviando comando ao terminal...</span>';
 
         try {
+            if (!mpVendaIdAtual) {
+                await criarPreVendaPdv('EM_ABERTO');
+            }
+
             const resp = await fetch(`${baseUrlApp}/index.php/api/mercado-pago/criar-pagamento-point`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1788,7 +2078,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                     tenant_id: lojaIdAtual,
                     device_id: deviceId,
                     amount: totalNum,
-                    order_id: 'PDV-' + Date.now()
+                    order_id: mpVendaIdAtual
                 })
             });
 
@@ -1825,10 +2115,14 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                         clearInterval(mpPollingInterval);
                         mpPollingInterval = null;
                         document.getElementById('mpStatusTerminalTexto').textContent = '✅ Pagamento Aprovado na Maquininha!';
-                        setTimeout(() => {
-                            fecharModalMercadoPagoPDV();
-                            efetivarVendaExpressa();
-                        }, 1000);
+                        if (mpVendaIdAtual) {
+                            await confirmarVendaPdv(mpVendaIdAtual);
+                        } else {
+                            setTimeout(() => {
+                                fecharModalMercadoPagoPDV();
+                                efetivarVendaExpressa();
+                            }, 1000);
+                        }
                     } else if (['CANCELED', 'CANCELLED', 'FAILED', 'ABORTED', 'ERROR'].includes(st)) {
                         clearInterval(mpPollingInterval);
                         mpPollingInterval = null;
@@ -1892,20 +2186,24 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         }
 
         const btnGerar = document.getElementById('btnGerarPixMp');
-        btnGerar.disabled = true;
-        btnGerar.innerHTML = '<span>⏳ Gerando Pix Mercado Pago...</span>';
-
-        const orderIdTemporario = 'PDV-' + Date.now();
+        if (btnGerar) {
+            btnGerar.disabled = true;
+            btnGerar.innerHTML = '<span>⏳ Gerando Pix Mercado Pago...</span>';
+        }
 
         try {
+            if (!mpVendaIdAtual) {
+                await criarPreVendaPdv('EM_ABERTO');
+            }
+
             const resp = await fetch(`${baseUrlApp}/index.php/api/mercado-pago/criar-pagamento-pix-split`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     tenant_id: lojaIdAtual,
-                    order_id: orderIdTemporario,
+                    order_id: mpVendaIdAtual,
                     amount: totalNum,
-                    description: 'Venda Expressa PDV'
+                    description: 'Venda Expressa PDV #' + mpVendaIdAtual.substring(0, 8)
                 })
             });
 
@@ -1921,16 +2219,12 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             if (data.qr_code_base64) {
                 const img = document.createElement('img');
                 img.src = 'data:image/png;base64,' + data.qr_code_base64;
-                img.className = 'w-48 h-48 rounded-xl border border-slate-200 shadow-md';
+                img.className = 'w-48 h-48 rounded-xl border border-slate-200 shadow-md mx-auto';
                 containerQr.appendChild(img);
-            } else if (data.qr_code && typeof QRCode !== 'undefined') {
-                new QRCode(containerQr, {
-                    text: data.qr_code,
-                    width: 190,
-                    height: 190
-                });
+            } else if (data.qr_code) {
+                containerQr.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data.qr_code)}" alt="QR Code PIX" class="w-48 h-48 rounded-xl border border-slate-200 shadow-md mx-auto">`;
             } else {
-                containerQr.innerHTML = '<div class="text-xs text-slate-700 font-bold p-4">QR Code pronto! Utilize o Copia e Cola abaixo.</div>';
+                containerQr.innerHTML = '<div class="text-xs text-slate-700 font-bold p-4 text-center">QR Code pronto! Utilize o Copia e Cola abaixo.</div>';
             }
 
             if (data.qr_code) {
@@ -1938,18 +2232,25 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                 document.getElementById('mpPixCopiaColaContainer').classList.remove('hidden');
             }
 
-            btnGerar.classList.add('hidden');
-            document.getElementById('mpPixStatusWaiting').classList.remove('hidden');
+            if (btnGerar) btnGerar.classList.add('hidden');
+            const statusWait = document.getElementById('mpPixStatusWaiting');
+            if (statusWait) {
+                statusWait.className = 'text-center text-xs font-bold text-emerald-400 animate-pulse';
+                statusWait.textContent = '⏳ Aguardando confirmação do pagamento...';
+                statusWait.classList.remove('hidden');
+            }
 
-            iniciarPollingPixMp(mpPaymentIdAtual);
+            iniciarPollingPixMp(mpPaymentIdAtual, mpVendaIdAtual);
         } catch (e) {
             alert('Erro ao gerar Pix Mercado Pago: ' + e.message);
-            btnGerar.disabled = false;
-            btnGerar.innerHTML = '<span>⚡ Gerar Pix Mercado Pago</span>';
+            if (btnGerar) {
+                btnGerar.disabled = false;
+                btnGerar.innerHTML = '<span>⚡ Gerar Pix Mercado Pago</span>';
+            }
         }
     }
 
-    function iniciarPollingPixMp(paymentId) {
+    function iniciarPollingPixMp(paymentId, vendaId) {
         if (mpPollingInterval) clearInterval(mpPollingInterval);
 
         mpPollingInterval = setInterval(async () => {
@@ -1961,18 +2262,128 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                     if (data.status === 'approved') {
                         clearInterval(mpPollingInterval);
                         mpPollingInterval = null;
-                        document.getElementById('mpPixStatusWaiting').textContent = '✅ Pagamento Pix Confirmado!';
-                        document.getElementById('mpPixStatusWaiting').className = 'text-center text-sm font-black text-emerald-400';
-                        setTimeout(() => {
-                            fecharModalMercadoPagoPDV();
-                            efetivarVendaExpressa();
-                        }, 1000);
+                        const statusWait = document.getElementById('mpPixStatusWaiting');
+                        if (statusWait) {
+                            statusWait.textContent = '✅ Pagamento Pix Confirmado com Sucesso!';
+                            statusWait.className = 'text-center text-sm font-black text-emerald-400';
+                        }
+                        await confirmarVendaPdv(vendaId);
                     }
                 }
             } catch (err) {
                 console.warn('Erro ao checar status Pix:', err);
             }
         }, 2500);
+    }
+
+    async function processarCartaoOnlineMp() {
+        const numCartao = (document.getElementById('mpCartaoNumero')?.value || '').replace(/\D/g, '');
+        const validade = (document.getElementById('mpCartaoValidade')?.value || '').trim();
+        const cvv = (document.getElementById('mpCartaoCvv')?.value || '').trim();
+        const nome = (document.getElementById('mpCartaoNome')?.value || '').trim();
+        const cpf = (document.getElementById('mpCartaoCpf')?.value || '').replace(/\D/g, '');
+        const parcelas = parseInt(document.getElementById('mpCartaoParcelas')?.value || '1', 10);
+        const feedback = document.getElementById('mpCartaoFeedback');
+
+        if (numCartao.length < 13 || numCartao.length > 19) {
+            alert('Por favor, informe um número de cartão válido (13 a 19 dígitos).');
+            document.getElementById('mpCartaoNumero')?.focus();
+            return;
+        }
+
+        const partesVal = validade.split('/');
+        if (partesVal.length !== 2) {
+            alert('Por favor, informe a validade no formato MM/AA.');
+            document.getElementById('mpCartaoValidade')?.focus();
+            return;
+        }
+        const mes = parseInt(partesVal[0], 10);
+        let ano = parseInt(partesVal[1], 10);
+        if (ano < 100) ano += 2000;
+        if (isNaN(mes) || mes < 1 || mes > 12) {
+            alert('Mês de validade inválido (01 a 12).');
+            return;
+        }
+
+        if (cvv.length < 3) {
+            alert('Código CVV inválido (3 ou 4 dígitos).');
+            document.getElementById('mpCartaoCvv')?.focus();
+            return;
+        }
+
+        if (!nome) {
+            alert('Informe o nome impresso no cartão.');
+            document.getElementById('mpCartaoNome')?.focus();
+            return;
+        }
+
+        if (cpf.length !== 11) {
+            alert('Informe um CPF válido do titular do cartão (11 dígitos).');
+            document.getElementById('mpCartaoCpf')?.focus();
+            return;
+        }
+
+        const totalNum = getTotalVendaNumerico();
+        if (totalNum <= 0) {
+            alert('Valor total da venda inválido.');
+            return;
+        }
+
+        const btn = document.getElementById('btnProcessarCartaoMp');
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳ Processando cobrança no Mercado Pago...</span>';
+        if (feedback) {
+            feedback.className = 'p-2.5 rounded-xl text-xs font-bold text-center bg-cyan-500/10 text-cyan-300 border border-cyan-500/30';
+            feedback.textContent = 'Enviando dados do cartão e solicitando autorização...';
+            feedback.classList.remove('hidden');
+        }
+
+        try {
+            if (!mpVendaIdAtual) {
+                await criarPreVendaPdv('EM_ABERTO');
+            }
+
+            const emailCliente = document.getElementById('clienteWhatsapp')?.value ? `${document.getElementById('clienteWhatsapp').value.replace(/\D/g, '')}@pdv.com` : 'cliente@loja.com';
+
+            const resp = await fetch(`${baseUrlApp}/index.php/api/mercado-pago/pagar-cartao`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tenant_id: lojaIdAtual,
+                    order_id: mpVendaIdAtual,
+                    amount: totalNum,
+                    installments: parcelas,
+                    card_number: numCartao,
+                    card_holder: nome,
+                    expiration_month: mes,
+                    expiration_year: ano,
+                    security_code: cvv,
+                    doc_number: cpf,
+                    email: emailCliente
+                })
+            });
+
+            const data = await resp.json();
+            if (!resp.ok || !data.sucesso) {
+                throw new Error(data.message || 'Cartão recusado pelo Mercado Pago.');
+            }
+
+            if (feedback) {
+                feedback.className = 'p-2.5 rounded-xl text-xs font-bold text-center bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+                feedback.textContent = '✅ Pagamento Aprovado com Sucesso!';
+            }
+
+            await confirmarVendaPdv(mpVendaIdAtual);
+
+        } catch (e) {
+            if (feedback) {
+                feedback.className = 'p-2.5 rounded-xl text-xs font-bold text-center bg-rose-500/20 text-rose-300 border border-rose-500/40';
+                feedback.textContent = '❌ ' + e.message;
+            }
+            alert('Falha ao processar cartão: ' + e.message);
+            btn.disabled = false;
+            btn.innerHTML = '<span>💳 Cobrar Cartão via Mercado Pago</span>';
+        }
     }
 
     function copiarCodigoPixMp() {
@@ -2355,5 +2766,39 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
 
     document.addEventListener('DOMContentLoaded', function() {
         checarExibicaoVencimentoFiado();
+
+        const inputCardNum = document.getElementById('mpCartaoNumero');
+        if (inputCardNum) {
+            inputCardNum.addEventListener('input', (e) => {
+                let v = e.target.value.replace(/\D/g, '').substring(0, 19);
+                e.target.value = v.replace(/(\d{4})(?=\d)/g, '$1 ');
+            });
+        }
+        const inputCardVal = document.getElementById('mpCartaoValidade');
+        if (inputCardVal) {
+            inputCardVal.addEventListener('input', (e) => {
+                let v = e.target.value.replace(/\D/g, '').substring(0, 4);
+                if (v.length >= 3) {
+                    e.target.value = v.substring(0, 2) + '/' + v.substring(2);
+                } else {
+                    e.target.value = v;
+                }
+            });
+        }
+        const inputCardCpf = document.getElementById('mpCartaoCpf');
+        if (inputCardCpf) {
+            inputCardCpf.addEventListener('input', (e) => {
+                let v = e.target.value.replace(/\D/g, '').substring(0, 11);
+                if (v.length > 9) {
+                    e.target.value = v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
+                } else if (v.length > 6) {
+                    e.target.value = v.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
+                } else if (v.length > 3) {
+                    e.target.value = v.replace(/(\d{3})(\d{1,3})/, '$1.$2');
+                } else {
+                    e.target.value = v;
+                }
+            });
+        }
     });
 </script>

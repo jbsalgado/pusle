@@ -1674,11 +1674,38 @@ function popularFormasPagamento(formas, usandoCache = false) {
     
     if (formas && formas.length > 0) {
         selectAtual.disabled = false;
+        const temMpConfigurado = window.GATEWAY_CONFIG?.habilitado && window.GATEWAY_CONFIG?.gateway === 'mercadopago';
+        let pixJaAdicionadoMp = false;
+
         formas.forEach(forma => {
-            const option = new Option(forma.nome, forma.id);
-            // Armazena o tipo no atributo data-tipo para facilitar acesso
-            option.setAttribute('data-tipo', forma.tipo || '');
-            selectAtual.options[selectAtual.options.length] = option;
+            const nomeLower = (forma.nome || '').toLowerCase();
+            const tipo = forma.tipo || '';
+            const isPix = tipo === 'PIX' || tipo === 'PIX_ESTATICO' || nomeLower.includes('pix');
+            
+            if (isPix && temMpConfigurado) {
+                // 1. PIX Estático da Loja (Sem Taxa)
+                const optEstatico = new Option('📱 PIX Loja (Sem Taxa - Chave)', forma.id);
+                optEstatico.setAttribute('data-tipo', 'PIX_ESTATICO');
+                selectAtual.options[selectAtual.options.length] = optEstatico;
+
+                // 2. PIX Dinâmico Mercado Pago (Baixa Automática)
+                if (!pixJaAdicionadoMp) {
+                    const optMp = new Option('⚡ PIX Mercado Pago (Baixa Auto)', forma.id);
+                    optMp.setAttribute('data-tipo', 'PIX_MERCADOPAGO');
+                    selectAtual.options[selectAtual.options.length] = optMp;
+                    pixJaAdicionadoMp = true;
+                }
+            } else {
+                let nomeExibicao = forma.nome;
+                if (tipo === 'MERCADOPAGO') {
+                    nomeExibicao = '💳 Mercado Pago (Point / Cartão)';
+                } else if (tipo === 'MP_POINT') {
+                    nomeExibicao = '📟 Mercado Pago Point (Maquininha)';
+                }
+                const option = new Option(nomeExibicao, forma.id);
+                option.setAttribute('data-tipo', tipo);
+                selectAtual.options[selectAtual.options.length] = option;
+            }
         });
         formasPagamento = formas;
         // Disponibiliza globalmente para validação em order.js
@@ -2180,6 +2207,11 @@ window.confirmarPedido = async function() {
                 }
                 
                 return digitos.length === 11 ? val.trim() : null; // envia com pontuação se válido
+            })(),
+            tipo_pagamento_selecionado: (() => {
+                const selectFp = document.getElementById('forma-pagamento');
+                const opt = selectFp?.options[selectFp.selectedIndex];
+                return opt?.getAttribute('data-tipo') || null;
             })()
         };
         
@@ -2206,6 +2238,15 @@ window.confirmarPedido = async function() {
         });
         
         if (resultado.sucesso && !resultado.offline) {
+            // Se foi iniciado fluxo de gateway transparente (Point, Pix MP, Cartao MP, Asaas), o modal correspondente já está aberto e o polling cuidará da finalização
+            if (resultado.gateway && (resultado.gateway.startsWith('mercadopago') || resultado.gateway === 'asaas')) {
+                console.log('[App] ⏳ Pagamento iniciado via gateway transparente:', resultado.gateway);
+                btnConfirmar.disabled = false;
+                btnConfirmar.textContent = '✅ Confirmar Venda';
+                fecharModal('modal-cliente-pedido');
+                return;
+            }
+
             // ✅ NOVO FLUXO: NÃO confirma recebimento imediatamente
             // Confirmação só acontece quando usuário clicar em "Confirmar Recebimento"
             
@@ -2281,8 +2322,10 @@ window.confirmarPedido = async function() {
 
             // Verifica o tipo de pagamento para decidir o fluxo
             const formaPagamentoSelecionada = formasPagamento.find(fp => fp.id == formaPagamentoId);
-            const tipoPagamento = formaPagamentoSelecionada?.tipo || '';
-            const isPix = tipoPagamento === 'PIX' || tipoPagamento === 'PIX_ESTATICO';
+            const tipoPagamento = dadosPedido.tipo_pagamento_selecionado || formaPagamentoSelecionada?.tipo || '';
+            const nomePagamento = (formaPagamentoSelecionada?.nome || '').toLowerCase();
+            const ehPixMp = tipoPagamento === 'PIX_MERCADOPAGO' || (tipoPagamento === 'PIX' && (window.GATEWAY_CONFIG?.habilitado && window.GATEWAY_CONFIG?.gateway === 'mercadopago')) || nomePagamento.includes('mercado');
+            const isPix = !ehPixMp && (tipoPagamento === 'PIX' || tipoPagamento === 'PIX_ESTATICO');
             const isDinheiro = tipoPagamento === 'DINHEIRO';
             const isVista = dadosPedido.numero_parcelas === 1;
 

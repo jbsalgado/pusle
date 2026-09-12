@@ -43,6 +43,7 @@ class FormaPagamentoController extends Controller
         // TODO: Adicionar validação se $usuarioId é um UUID válido e/ou se existe na tabela usuarios, se necessário.
 
         // ✅ 3. Usar o usuario_id recebido para buscar as formas de pagamento
+        \app\modules\vendas\helpers\FormaPagamentoHelper::ensureMercadoPagoFormas($usuarioId);
         $formas = FormaPagamento::getListaDropdown($usuarioId);
 
         // Verificação se o retorno é um array

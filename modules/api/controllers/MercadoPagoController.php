@@ -169,9 +169,9 @@ class MercadoPagoController extends Controller
                 return $this->errorResponse('tenant_id é obrigatório.');
             }
 
-            // ✅ CORREÇÃO: o order_id DEVE ser o UUID da venda preventiva criada no Pulse.
+            // ✅ order_id deve ser UUID (venda do Pulse). Se não for enviado ou for formato provisório de PDV, gera UUID válido.
             if (!$orderId || !$this->validarUUID($orderId)) {
-                return $this->errorResponse('order_id (UUID da venda) é obrigatório para criar pagamento PIX.', 400);
+                $orderId = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
             }
 
             if ($amount === null || $amount <= 0) {
@@ -322,10 +322,7 @@ class MercadoPagoController extends Controller
                 return $this->errorResponse('tenant_id é obrigatório e deve ser um UUID válido.');
             }
             if (!$orderId || !$this->validarUUID($orderId)) {
-                return $this->errorResponse('order_id (UUID da venda preventiva) é obrigatório.', 400);
-            }
-            if (empty($cardToken)) {
-                return $this->errorResponse('token do cartão é obrigatório.', 400);
+                $orderId = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
             }
             if ($amount === null || $amount <= 0) {
                 return $this->errorResponse('amount deve ser maior que zero.', 400);
@@ -343,6 +340,20 @@ class MercadoPagoController extends Controller
             $accessToken = $this->obterTokenVendedor($usuario);
             if (!$accessToken) {
                 return $this->errorResponse('Loja não conectada ao Mercado Pago via OAuth.', 422);
+            }
+
+            // Se token não foi enviado mas recebemos dados do cartão (PDV balcão), tokeniza via API
+            if (empty($cardToken) && !empty($request['card_number'])) {
+                $tokenResp = $this->criarTokenCartaoApi($usuario, $request);
+                if (!empty($tokenResp['id'])) {
+                    $cardToken = $tokenResp['id'];
+                } else {
+                    return $this->errorResponse('Erro ao validar dados do cartão: ' . ($tokenResp['message'] ?? 'Dados inválidos'), 400);
+                }
+            }
+
+            if (empty($cardToken)) {
+                return $this->errorResponse('token do cartão é obrigatório.', 400);
             }
 
             // --- Inicializar SDK com token do vendedor ---
@@ -2470,6 +2481,67 @@ class MercadoPagoController extends Controller
         }
 
         return $valido;
+    }
+
+    /**
+     * Tokeniza dados do cartão via API do Mercado Pago (para fluxos de PDV balcão)
+     */
+    private function criarTokenCartaoApi($usuario, array $cardData)
+    {
+        $accessToken = $this->obterTokenVendedor($usuario);
+        if (!$accessToken) {
+            return ['error' => true, 'message' => 'Token do lojista não encontrado'];
+        }
+
+        try {
+            $client = new \GuzzleHttp\Client();
+            $cardNum = preg_replace('/\D/', '', $cardData['card_number'] ?? '');
+            $holder = trim($cardData['cardholder_name'] ?? ($cardData['nome'] ?? 'TITULAR'));
+            $docNum = preg_replace('/\D/', '', $cardData['payer_cpf'] ?? ($cardData['cliente']['cpf'] ?? '00000000000'));
+            if (strlen($docNum) !== 11 && strlen($docNum) !== 14) {
+                $docNum = '00000000000';
+            }
+
+            $body = [
+                'card_number' => $cardNum,
+                'cardholder' => [
+                    'name' => $holder ?: 'TITULAR',
+                    'identification' => [
+                        'type' => strlen($docNum) === 14 ? 'CNPJ' : 'CPF',
+                        'number' => $docNum,
+                    ],
+                ],
+                'expiration_month' => (int)($cardData['expiration_month'] ?? 0),
+                'expiration_year' => (int)($cardData['expiration_year'] ?? 0),
+                'security_code' => trim($cardData['security_code'] ?? ($cardData['cvv'] ?? '')),
+            ];
+
+            $resp = $client->post('https://api.mercadopago.com/v1/card_tokens', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $accessToken,
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => $body,
+            ]);
+
+            return json_decode($resp->getBody()->getContents(), true);
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            $resp = $e->getResponse();
+            $respData = $resp ? json_decode($resp->getBody()->getContents(), true) : [];
+            $msg = $respData['message'] ?? $e->getMessage();
+            if (!empty($respData['cause']) && is_array($respData['cause'])) {
+                $causes = [];
+                foreach ($respData['cause'] as $c) {
+                    if (!empty($c['description'])) $causes[] = $c['description'];
+                }
+                if (!empty($causes)) {
+                    $msg .= ' (' . implode(', ', $causes) . ')';
+                }
+            }
+            return ['error' => true, 'message' => $msg];
+        } catch (\Exception $e) {
+            return ['error' => true, 'message' => $e->getMessage()];
+        }
     }
 
     /**

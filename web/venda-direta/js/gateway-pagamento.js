@@ -32,82 +32,458 @@ export async function processarPagamento(dadosPedido, carrinho, cliente) {
  * - O vendedor recebe confirmação na tela
  */
 async function processarMercadoPago(dadosPedido, carrinho, cliente) {
-    // Verificar se é Point (Maquineta física)
     const formasPagamento = window.formasPagamento || [];
     const formaSelecionada = formasPagamento.find(f => f.id === dadosPedido.forma_pagamento_id);
-    const tipo = formaSelecionada ? formaSelecionada.tipo : '';
+    const tipo = dadosPedido.tipo_pagamento_selecionado || (formaSelecionada ? formaSelecionada.tipo : '');
+    const nome = formaSelecionada ? (formaSelecionada.nome || '').toLowerCase() : '';
 
+    console.log('[MP] 💳 Selecionado:', { tipo, nome, dadosPedido });
+
+    // 1. Point Maquininha física
     if (tipo === 'MP_POINT') {
         return await processarMercadoPagoPoint(dadosPedido, carrinho, cliente);
     }
 
+    // 2. Pix Dinâmico com Split e Baixa Automática
+    if (tipo === 'PIX' || tipo === 'PIX_MERCADOPAGO' || nome.includes('pix')) {
+        return await processarMercadoPagoPixDinamico(dadosPedido, carrinho, cliente);
+    }
+
+    // 3. Cartão Online ou Geral Mercado Pago
+    return await processarMercadoPagoCartaoOnline(dadosPedido, carrinho, cliente);
+}
+
+/**
+ * MERCADO PAGO - PIX DINÂMICO COM SPLIT E BAIXA AUTOMÁTICA
+ */
+async function processarMercadoPagoPixDinamico(dadosPedido, carrinho, cliente) {
     try {
-        const pedidoGateway = {
-            usuario_id: CONFIG.ID_USUARIO_LOJA,
-            cliente_id: dadosPedido.cliente_id,
-            itens: carrinho.map(item => ({
-                produto_id: item.produto_id || item.id || null,
-                nome: item.nome || 'Produto',
-                descricao: item.descricao || '',
-                quantidade: item.quantidade || 1,
-                preco_unitario: item.preco_venda_sugerido || 0
-            })),
-            cliente: {
-                nome: cliente.nome || '',
-                sobrenome: cliente.sobrenome || '',
-                email: cliente.email || '',
-                telefone: cliente.telefone || '',
-                cpf: cliente.cpf_cnpj || '',
-                cep: cliente.cep || '',
-                logradouro: cliente.logradouro || '',
-                numero: cliente.numero || '',
-                cidade: cliente.endereco_cidade || cliente.cidade || '',
-                estado: cliente.endereco_estado || cliente.estado || ''
-            },
-            // Informações específicas de venda direta
-            colaborador_vendedor_id: dadosPedido.colaborador_vendedor_id || null,
-            observacoes: dadosPedido.observacoes || null,
-            numero_parcelas: dadosPedido.numero_parcelas || 1,
-            data_primeiro_pagamento: dadosPedido.data_primeiro_pagamento || null,
-            intervalo_dias_parcelas: dadosPedido.intervalo_dias_parcelas || 30
-        };
-        
-        console.log('[Gateway] Criando preferência no backend...', JSON.stringify(pedidoGateway, null, 2));
-        
-        const response = await fetchWithAuth(API_ENDPOINTS.MERCADOPAGO_CRIAR_PREFERENCIA, {
-            method: 'POST',
-            body: JSON.stringify(pedidoGateway)
-        });
-        
-        if (!response.ok) {
-            const erro = await response.json();
-            throw new Error(erro.erro || 'Erro ao criar preferência');
+        console.log('[MP Pix] ⚡ Iniciando fluxo de Pix Dinâmico transparente...');
+
+        // 1. Criar pré-registro do pedido para obter UUID válido
+        const { finalizarPedido } = await import('./order.js');
+        const backupHabilitado = GATEWAY_CONFIG.habilitado;
+        GATEWAY_CONFIG.habilitado = false; 
+
+        const respPedido = await finalizarPedido(dadosPedido, carrinho);
+        GATEWAY_CONFIG.habilitado = backupHabilitado;
+
+        if (!respPedido.sucesso) {
+            throw new Error('Falha ao registrar pedido antes de gerar Pix: ' + (respPedido.erro || 'Erro desconhecido'));
         }
-        
-        const resultado = await response.json();
-        
-        // Salvar referências para acompanhamento
-        localStorage.setItem('mp_preference_id', resultado.preference_id);
-        localStorage.setItem('mp_external_ref', resultado.external_reference);
-        localStorage.setItem('mp_venda_direta', 'true');
-        
-        // Redirecionar para checkout do Mercado Pago
-        // Usar sandbox_init_point se estiver em sandbox
-        const checkoutUrl = resultado.sandbox_init_point || resultado.init_point;
-        window.location.href = checkoutUrl;
-        
+
+        const pedidoId = respPedido.dados?.id || respPedido.dados?.venda?.id || respPedido.dados?.venda_id;
+        const valorTotal = carrinho.reduce((t, i) => t + ((i.preco_final || i.preco_venda_sugerido) * i.quantidade), 0);
+
+        // 2. Chamar endpoint de criação de Pix com Split
+        console.log('[MP Pix] ⚡ Chamando criar-pagamento-pix-split para pedido:', pedidoId);
+        const respPix = await fetchWithAuth(API_ENDPOINTS.MERCADOPAGO_CRIAR_PIX_SPLIT, {
+            method: 'POST',
+            body: JSON.stringify({
+                tenant_id: CONFIG.ID_USUARIO_LOJA,
+                order_id: pedidoId,
+                amount: valorTotal,
+                description: `Venda Direta #${(pedidoId || '').substring(0, 8)}`
+            })
+        });
+
+        const dataPix = await respPix.json();
+        if (!respPix.ok || !dataPix.sucesso) {
+            throw new Error(dataPix.message || dataPix.erro || 'Falha ao gerar QR Code do Pix no Mercado Pago');
+        }
+
+        // 3. Exibir modal do Pix transparente
+        mostrarModalPixMercadoPago(dataPix, pedidoId, dadosPedido, carrinho);
+
+        // 4. Iniciar polling de status no backend
+        iniciarPollingPixMercadoPago(dataPix.payment_id, pedidoId, dadosPedido, carrinho);
+
         return {
             sucesso: true,
-            gateway: 'mercadopago',
-            redirecionado: true,
-            preference_id: resultado.preference_id,
-            external_reference: resultado.external_reference
+            gateway: 'mercadopago_pix',
+            pedido_id: pedidoId,
+            payment_id: dataPix.payment_id
         };
-        
+
     } catch (error) {
-        console.error('[MP] ❌ Erro:', error);
+        console.error('[MP Pix] ❌ Erro:', error);
+        alert('Erro ao gerar Pix Dinâmico: ' + error.message);
         throw error;
     }
+}
+
+function mostrarModalPixMercadoPago(pixData, pedidoId, dadosPedido, carrinho) {
+    const modalExistente = document.getElementById('modal-pix-mercadopago');
+    if (modalExistente) modalExistente.remove();
+
+    const qrSrc = pixData.qr_code_base64 
+        ? `data:image/png;base64,${pixData.qr_code_base64}` 
+        : `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(pixData.qr_code || '')}`;
+
+    const modal = document.createElement('div');
+    modal.id = 'modal-pix-mercadopago';
+    modal.className = 'fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-auto shadow-2xl text-center space-y-4">
+            <div class="flex items-center justify-between border-b pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">⚡</span>
+                    <div class="text-left">
+                        <h3 class="text-lg font-black text-gray-900 leading-tight">PIX Mercado Pago</h3>
+                        <p class="text-[11px] text-cyan-600 font-bold">QR Code Dinâmico com Baixa Automática</p>
+                    </div>
+                </div>
+                <button type="button" id="btn-fechar-modal-pix-mp" class="text-gray-400 hover:text-gray-700 p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="bg-gray-50 p-3 rounded-xl border border-gray-100 flex items-center justify-center min-h-[220px]">
+                <img src="${qrSrc}" alt="QR Code PIX" class="w-48 h-48 rounded-lg shadow-sm border border-gray-200 mx-auto">
+            </div>
+
+            ${pixData.qr_code ? `
+                <div class="space-y-1.5 text-left">
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase">Pix Copia e Cola:</label>
+                    <div class="flex gap-2">
+                        <input type="text" readonly value="${pixData.qr_code}" id="input-pix-copiacola-mp" class="flex-1 bg-gray-100 border border-gray-200 text-xs font-mono p-2 rounded-lg truncate select-all focus:outline-none">
+                        <button type="button" id="btn-copiar-pix-mp-direta" class="px-3 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-lg transition shrink-0">
+                            Copiar
+                        </button>
+                    </div>
+                </div>
+            ` : ''}
+
+            <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-center space-y-1">
+                <div class="flex items-center justify-center gap-2 text-emerald-700 font-bold text-xs" id="status-pix-mp-texto">
+                    <span class="inline-block animate-spin">⏳</span>
+                    <span>Aguardando o cliente efetuar o pagamento...</span>
+                </div>
+                <p class="text-[10px] text-emerald-600">A venda será confirmada automaticamente assim que o banco aprovar.</p>
+            </div>
+
+            <button type="button" id="btn-cancelar-pix-mp-direta" class="w-full py-2.5 text-gray-500 hover:text-red-600 text-xs font-bold transition">
+                Cancelar Cobrança PIX
+            </button>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const btnCopiar = modal.querySelector('#btn-copiar-pix-mp-direta');
+    if (btnCopiar) {
+        btnCopiar.onclick = () => {
+            const input = modal.querySelector('#input-pix-copiacola-mp');
+            if (input) {
+                navigator.clipboard.writeText(input.value).then(() => {
+                    btnCopiar.textContent = '✅ Copiado!';
+                    setTimeout(() => { btnCopiar.textContent = 'Copiar'; }, 2000);
+                });
+            }
+        };
+    }
+
+    const fechar = () => {
+        if (pollingIntervalId) {
+            clearInterval(pollingIntervalId);
+            pollingIntervalId = null;
+        }
+        modal.remove();
+    };
+
+    modal.querySelector('#btn-fechar-modal-pix-mp').onclick = fechar;
+    modal.querySelector('#btn-cancelar-pix-mp-direta').onclick = fechar;
+}
+
+function iniciarPollingPixMercadoPago(paymentId, pedidoId, dadosPedido, carrinho) {
+    if (pollingIntervalId) clearInterval(pollingIntervalId);
+
+    pollingAttempts = 0;
+    console.log(`[MP Pix] 🔄 Iniciando polling para payment_id: ${paymentId}, pedidoId: ${pedidoId}`);
+
+    pollingIntervalId = setInterval(async () => {
+        pollingAttempts++;
+
+        if (pollingAttempts > maxPollingAttempts) {
+            clearInterval(pollingIntervalId);
+            pollingIntervalId = null;
+            const statusTexto = document.getElementById('status-pix-mp-texto');
+            if (statusTexto) {
+                statusTexto.innerHTML = '<span class="text-red-600 font-bold">Tempo esgotado. Verifique se o cliente pagou.</span>';
+            }
+            return;
+        }
+
+        try {
+            const resp = await fetchWithAuth(`${API_ENDPOINTS.MERCADOPAGO_CONSULTAR_STATUS_PIX}?payment_id=${paymentId}&tenant_id=${CONFIG.ID_USUARIO_LOJA}`);
+            const data = await resp.json();
+
+            if (data.sucesso && data.status) {
+                if (data.status === 'approved') {
+                    console.log('[MP Pix] ✅ Pagamento PIX aprovado com sucesso!');
+                    if (pollingIntervalId) {
+                        clearInterval(pollingIntervalId);
+                        pollingIntervalId = null;
+                    }
+
+                    const statusTexto = document.getElementById('status-pix-mp-texto');
+                    if (statusTexto) {
+                        statusTexto.innerHTML = '✅ <span class="text-emerald-700 font-bold">Pagamento Confirmado! Finalizando venda...</span>';
+                    }
+
+                    setTimeout(() => {
+                        const modal = document.getElementById('modal-pix-mercadopago');
+                        if (modal) modal.remove();
+
+                        // Dispara evento de confirmação global
+                        window.dispatchEvent(new CustomEvent('pagamentoConfirmado', {
+                            detail: {
+                                pedidoId: pedidoId,
+                                gateway: 'mercadopago_pix',
+                                dados: data,
+                                originalDadosPedido: {
+                                    ...dadosPedido,
+                                    id: pedidoId,
+                                    itens: carrinho,
+                                    carrinho: carrinho
+                                }
+                            }
+                        }));
+                    }, 1000);
+                }
+            }
+        } catch (err) {
+            console.warn('[MP Pix] Erro ao consultar status Pix:', err);
+        }
+    }, 3000);
+}
+
+/**
+ * MERCADO PAGO - CARTÃO ONLINE DIRETO NO PDV
+ */
+async function processarMercadoPagoCartaoOnline(dadosPedido, carrinho, cliente) {
+    try {
+        console.log('[MP Cartão] 💳 Iniciando fluxo de cartão online...');
+
+        // 1. Criar pré-registro do pedido para obter UUID válido
+        const { finalizarPedido } = await import('./order.js');
+        const backupHabilitado = GATEWAY_CONFIG.habilitado;
+        GATEWAY_CONFIG.habilitado = false; 
+
+        const respPedido = await finalizarPedido(dadosPedido, carrinho);
+        GATEWAY_CONFIG.habilitado = backupHabilitado;
+
+        if (!respPedido.sucesso) {
+            throw new Error('Falha ao registrar pedido antes de cobrar cartão: ' + (respPedido.erro || 'Erro desconhecido'));
+        }
+
+        const pedidoId = respPedido.dados?.id || respPedido.dados?.venda?.id || respPedido.dados?.venda_id;
+        const valorTotal = carrinho.reduce((t, i) => t + ((i.preco_final || i.preco_venda_sugerido) * i.quantidade), 0);
+
+        // 2. Exibir modal do Cartão transparente
+        return await mostrarModalCartaoMercadoPago(pedidoId, valorTotal, dadosPedido, carrinho, cliente);
+
+    } catch (error) {
+        console.error('[MP Cartão] ❌ Erro:', error);
+        alert('Erro ao iniciar cobrança no cartão: ' + error.message);
+        throw error;
+    }
+}
+
+function mostrarModalCartaoMercadoPago(pedidoId, valorTotal, dadosPedido, carrinho, cliente) {
+    return new Promise((resolve) => {
+        const modalExistente = document.getElementById('modal-cartao-mercadopago');
+        if (modalExistente) modalExistente.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'modal-cartao-mercadopago';
+        modal.className = 'fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4';
+        modal.innerHTML = `
+            <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-auto shadow-2xl space-y-4">
+                <div class="flex items-center justify-between border-b pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">💳</span>
+                        <div class="text-left">
+                            <h3 class="text-lg font-black text-gray-900 leading-tight">Mercado Pago Cartão</h3>
+                            <p class="text-[11px] text-cyan-600 font-bold">Cobrança transparente no balcão</p>
+                        </div>
+                    </div>
+                    <button type="button" id="btn-fechar-modal-cartao-mp" class="text-gray-400 hover:text-gray-700 p-1">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <div class="bg-gray-50 border border-gray-200 p-3 rounded-xl text-center">
+                    <span class="text-xs text-gray-500 uppercase font-bold">Total a Cobrar</span>
+                    <div class="text-2xl font-black text-gray-900">R$ ${valorTotal.toFixed(2).replace('.', ',')}</div>
+                </div>
+
+                <form id="form-cartao-mp-direta" class="space-y-3 text-left">
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-700 uppercase mb-1">Número do Cartão</label>
+                        <input type="text" id="mp-direta-cartao-numero" maxlength="19" placeholder="0000 0000 0000 0000" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-sm font-mono font-bold text-gray-900 focus:outline-none focus:border-brand-500" required>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-700 uppercase mb-1">Validade (MM/AA)</label>
+                            <input type="text" id="mp-direta-cartao-validade" maxlength="5" placeholder="MM/AA" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-sm font-mono font-bold text-gray-900 focus:outline-none focus:border-brand-500" required>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-700 uppercase mb-1">CVV</label>
+                            <input type="text" id="mp-direta-cartao-cvv" maxlength="4" placeholder="123" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-sm font-mono font-bold text-gray-900 focus:outline-none focus:border-brand-500" required>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-700 uppercase mb-1">Nome no Cartão</label>
+                        <input type="text" id="mp-direta-cartao-nome" placeholder="NOME COMO NO CARTÃO" value="${(cliente?.nome || '').toUpperCase()}" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-sm font-bold uppercase text-gray-900 focus:outline-none focus:border-brand-500" required>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-700 uppercase mb-1">CPF do Titular</label>
+                            <input type="text" id="mp-direta-cartao-cpf" maxlength="14" placeholder="000.000.000-00" value="${cliente?.cpf_cnpj || ''}" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-sm font-mono font-bold text-gray-900 focus:outline-none focus:border-brand-500" required>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-700 uppercase mb-1">Parcelas</label>
+                            <select id="mp-direta-cartao-parcelas" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-sm font-bold text-gray-900 focus:outline-none focus:border-brand-500">
+                                <option value="1">1x à vista</option>
+                                <option value="2">2x</option>
+                                <option value="3">3x</option>
+                                <option value="4">4x</option>
+                                <option value="5">5x</option>
+                                <option value="6">6x</option>
+                                <option value="10">10x</option>
+                                <option value="12">12x</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="mp-direta-cartao-feedback" class="hidden p-2.5 rounded-xl text-xs font-bold text-center"></div>
+
+                    <button type="submit" id="btn-cobrar-cartao-mp-direta" class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-black text-sm rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                        <span>💳 Cobrar Cartão via Mercado Pago</span>
+                    </button>
+                </form>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Masks
+        const inputNum = modal.querySelector('#mp-direta-cartao-numero');
+        if (inputNum) {
+            inputNum.addEventListener('input', (e) => {
+                let v = e.target.value.replace(/\D/g, '').substring(0, 19);
+                e.target.value = v.replace(/(\d{4})(?=\d)/g, '$1 ');
+            });
+        }
+        const inputVal = modal.querySelector('#mp-direta-cartao-validade');
+        if (inputVal) {
+            inputVal.addEventListener('input', (e) => {
+                let v = e.target.value.replace(/\D/g, '').substring(0, 4);
+                if (v.length >= 3) e.target.value = v.substring(0, 2) + '/' + v.substring(2);
+                else e.target.value = v;
+            });
+        }
+        const inputCpf = modal.querySelector('#mp-direta-cartao-cpf');
+        if (inputCpf) {
+            inputCpf.addEventListener('input', (e) => {
+                let v = e.target.value.replace(/\D/g, '').substring(0, 11);
+                if (v.length > 9) e.target.value = v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
+                else if (v.length > 6) e.target.value = v.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
+                else if (v.length > 3) e.target.value = v.replace(/(\d{3})(\d{1,3})/, '$1.$2');
+                else e.target.value = v;
+            });
+        }
+
+        const fechar = () => {
+            modal.remove();
+            resolve({ sucesso: false, cancelado: true });
+        };
+        modal.querySelector('#btn-fechar-modal-cartao-mp').onclick = fechar;
+
+        const form = modal.querySelector('#form-cartao-mp-direta');
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const feedback = modal.querySelector('#mp-direta-cartao-feedback');
+            const btn = modal.querySelector('#btn-cobrar-cartao-mp-direta');
+
+            const numCartao = inputNum.value.replace(/\D/g, '');
+            const val = inputVal.value.trim().split('/');
+            const cvv = modal.querySelector('#mp-direta-cartao-cvv').value.trim();
+            const nome = modal.querySelector('#mp-direta-cartao-nome').value.trim();
+            const cpf = inputCpf.value.replace(/\D/g, '');
+            const parcelas = parseInt(modal.querySelector('#mp-direta-cartao-parcelas').value, 10);
+
+            if (val.length !== 2) {
+                alert('Validade deve estar no formato MM/AA');
+                return;
+            }
+            const mes = parseInt(val[0], 10);
+            let ano = parseInt(val[1], 10);
+            if (ano < 100) ano += 2000;
+
+            btn.disabled = true;
+            btn.textContent = '⏳ Processando cobrança...';
+            feedback.className = 'p-2.5 rounded-xl text-xs font-bold text-center bg-cyan-50 text-cyan-800 border border-cyan-200';
+            feedback.textContent = 'Enviando dados do cartão para o Mercado Pago...';
+            feedback.classList.remove('hidden');
+
+            try {
+                const resp = await fetchWithAuth(API_ENDPOINTS.MERCADOPAGO_PAGAR_CARTAO, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        tenant_id: CONFIG.ID_USUARIO_LOJA,
+                        order_id: pedidoId,
+                        amount: valorTotal,
+                        installments: parcelas,
+                        card_number: numCartao,
+                        card_holder: nome,
+                        expiration_month: mes,
+                        expiration_year: ano,
+                        security_code: cvv,
+                        doc_number: cpf,
+                        email: cliente?.email || 'cliente@pdv.com'
+                    })
+                });
+
+                const data = await resp.json();
+                if (!resp.ok || !data.sucesso) {
+                    throw new Error(data.message || 'Cartão recusado pelo Mercado Pago.');
+                }
+
+                feedback.className = 'p-2.5 rounded-xl text-xs font-bold text-center bg-emerald-50 text-emerald-800 border border-emerald-200';
+                feedback.textContent = '✅ Pagamento Aprovado com Sucesso!';
+
+                setTimeout(() => {
+                    modal.remove();
+                    window.dispatchEvent(new CustomEvent('pagamentoConfirmado', {
+                        detail: {
+                            pedidoId: pedidoId,
+                            gateway: 'mercadopago_cartao',
+                            dados: data,
+                            originalDadosPedido: {
+                                ...dadosPedido,
+                                id: pedidoId,
+                                itens: carrinho,
+                                carrinho: carrinho
+                            }
+                        }
+                    }));
+                    resolve({ sucesso: true, gateway: 'mercadopago_cartao', pedido_id: pedidoId });
+                }, 1000);
+
+            } catch (err) {
+                feedback.className = 'p-2.5 rounded-xl text-xs font-bold text-center bg-red-50 text-red-800 border border-red-200';
+                feedback.textContent = '❌ ' + err.message;
+                alert('Falha ao processar cartão: ' + err.message);
+                btn.disabled = false;
+                btn.textContent = '💳 Cobrar Cartão via Mercado Pago';
+            }
+        };
+    });
 }
 
 /**

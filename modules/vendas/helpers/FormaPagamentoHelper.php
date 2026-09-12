@@ -19,8 +19,13 @@ class FormaPagamentoHelper
         return [
             FormaPagamento::TIPO_DINHEIRO => 'Dinheiro',
             FormaPagamento::TIPO_PIX => 'PIX',
+            FormaPagamento::TIPO_PIX_ESTATICO => 'PIX (Chave da Loja)',
             FormaPagamento::TIPO_CARTAO => 'Cartão',
-            FormaPagamento::TIPO_BOLETO => 'Boleto',
+            FormaPagamento::TIPO_CARTAO_CREDITO => 'Cartão de Crédito',
+            FormaPagamento::TIPO_CARTAO_DEBITO => 'Cartão de Débito',
+            FormaPagamento::TIPO_BOLETO => 'Boleto / Fiado',
+            FormaPagamento::TIPO_MERCADOPAGO => 'Mercado Pago',
+            FormaPagamento::TIPO_MP_POINT => 'Mercado Pago Point',
         ];
     }
 
@@ -294,6 +299,40 @@ class FormaPagamentoHelper
         }
 
         return $fp;
+    }
+
+    /**
+     * Garante que a loja que possui Mercado Pago conectado possua as formas de pagamento integradas
+     * @param string $usuarioId
+     * @return void
+     */
+    public static function ensureMercadoPagoFormas($usuarioId)
+    {
+        $user = \app\models\Usuario::findOne($usuarioId);
+        if (!$user || !$user->temMercadoPagoConfigurado()) {
+            return;
+        }
+
+        $temMp = FormaPagamento::find()
+            ->where(['usuario_id' => $usuarioId])
+            ->andWhere(['or',
+                ['tipo' => [FormaPagamento::TIPO_MERCADOPAGO, FormaPagamento::TIPO_MP_POINT]],
+                ['ilike', 'nome', 'Mercado Pago']
+            ])
+            ->one();
+
+        if (!$temMp) {
+            $fp = new FormaPagamento();
+            $fp->usuario_id = $usuarioId;
+            $fp->nome = 'Mercado Pago';
+            $fp->tipo = FormaPagamento::TIPO_MERCADOPAGO;
+            $fp->ativo = true;
+            $fp->aceita_parcelamento = true;
+            $fp->save(false);
+        } else if (!in_array($temMp->tipo, [FormaPagamento::TIPO_MERCADOPAGO, FormaPagamento::TIPO_MP_POINT])) {
+            $temMp->tipo = FormaPagamento::TIPO_MERCADOPAGO;
+            $temMp->save(false, ['tipo']);
+        }
     }
 
     /**

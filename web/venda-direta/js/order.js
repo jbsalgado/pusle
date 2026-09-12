@@ -294,28 +294,35 @@ export async function finalizarPedido(dadosPedido, carrinho) {
         
         // 2️⃣ VERIFICAR SE DEVE USAR GATEWAY
         const formaPagamentoSelecionada = window.formasPagamento?.find(fp => fp.id === dadosPedido.forma_pagamento_id);
-        const tipoFormaPagamento = formaPagamentoSelecionada?.tipo || '';
+        const tipoFormaPagamento = dadosPedido.tipo_pagamento_selecionado || formaPagamentoSelecionada?.tipo || '';
         const usaFluxoInterno = tipoFormaPagamento === 'PIX_ESTATICO' || tipoFormaPagamento === 'PAGAR_AO_ENTREGADOR' || tipoFormaPagamento === 'DINHEIRO';
         
         // Obter GATEWAY_CONFIG do window (carregado pelo app.js)
         const gatewayConfig = window.GATEWAY_CONFIG || { habilitado: false, gateway: 'nenhum' };
         
         // Se gateway está habilitado E a forma de pagamento requer gateway (MERCADOPAGO, PIX dinâmico, POINT etc)
-        if (gatewayConfig.habilitado && !usaFluxoInterno && (tipoFormaPagamento === 'MERCADOPAGO' || tipoFormaPagamento === 'PIX' || tipoFormaPagamento === 'MP_POINT')) {
+        if (gatewayConfig.habilitado && !usaFluxoInterno && (tipoFormaPagamento === 'MERCADOPAGO' || tipoFormaPagamento === 'PIX' || tipoFormaPagamento === 'PIX_MERCADOPAGO' || tipoFormaPagamento === 'MP_POINT')) {
             console.log('[Order] 🔵 Usando gateway externo:', gatewayConfig.gateway);
             
-            // Buscar dados do cliente
-            let cliente = null;
+            // Buscar dados do cliente ou usar padrão Balcão para venda direta
+            let cliente = {
+                nome: dadosPedido.cliente_nome || 'Cliente',
+                sobrenome: 'Balcão',
+                email: 'cliente@pdv.com',
+                telefone: dadosPedido.cliente_telefone || '',
+                cpf_cnpj: dadosPedido.cpf_consumidor || ''
+            };
+
             if (dadosPedido.cliente_id) {
                 try {
                     const { buscarClientePorId } = await import('./customer.js');
-                    cliente = await buscarClientePorId(dadosPedido.cliente_id);
+                    const cliEncontrado = await buscarClientePorId(dadosPedido.cliente_id);
+                    if (cliEncontrado) {
+                        cliente = cliEncontrado;
+                    }
                 } catch (error) {
-                    console.error('[Order] ❌ Falha ao buscar dados do cliente:', error);
-                    throw new Error('Erro ao buscar dados do cliente para processamento do pagamento');
+                    console.warn('[Order] ⚠️ Falha ao buscar dados do cliente, usando dados balcão:', error);
                 }
-            } else {
-                throw new Error('Cliente é obrigatório para pagamento via gateway');
             }
             
             // Processar via gateway

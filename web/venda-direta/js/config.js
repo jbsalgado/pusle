@@ -121,6 +121,9 @@ export const API_ENDPOINTS = {
     MERCADOPAGO_CRIAR_PREFERENCIA: `${CONFIG.URL_API}/api/mercado-pago/criar-preferencia`,
     MERCADOPAGO_LISTAR_DISPOSITIVOS: `${CONFIG.URL_API}/api/mercado-pago/listar-dispositivos`,
     MERCADOPAGO_CRIAR_PAGAMENTO_POINT: `${CONFIG.URL_API}/api/mercado-pago/criar-pagamento-point`,
+    MERCADOPAGO_CRIAR_PIX_SPLIT: `${CONFIG.URL_API}/api/mercado-pago/criar-pagamento-pix-split`,
+    MERCADOPAGO_CONSULTAR_STATUS_PIX: `${CONFIG.URL_API}/api/mercado-pago/consultar-status-pix`,
+    MERCADOPAGO_PAGAR_CARTAO: `${CONFIG.URL_API}/api/mercado-pago/pagar-cartao`,
     
     // Asaas
     ASAAS_CRIAR_COBRANCA: `${CONFIG.URL_API}/api/asaas/criar-cobranca`,
@@ -152,6 +155,9 @@ export let GATEWAY_CONFIG = {
     mercadopago_public_key: null,
     asaas_sandbox: false
 };
+if (typeof window !== 'undefined') {
+    window.GATEWAY_CONFIG = GATEWAY_CONFIG;
+}
 
 // ✅ Configuração da Chave PIX Estática
 // DEPRECATED: Agora os dados PIX são carregados da API (tabela prest_configuracoes)
@@ -180,6 +186,9 @@ export async function carregarConfigLoja() {
         GATEWAY_CONFIG.gateway = config.gateway_pagamento || 'nenhum';
         GATEWAY_CONFIG.mercadopago_public_key = config.mercadopago_public_key;
         GATEWAY_CONFIG.asaas_sandbox = config.asaas_sandbox || false;
+        if (typeof window !== 'undefined') {
+            window.GATEWAY_CONFIG = GATEWAY_CONFIG;
+        }
         
         console.log('[Config] Gateway:', GATEWAY_CONFIG.gateway, 
                     GATEWAY_CONFIG.habilitado ? '✅ HABILITADO' : '❌ DESABILITADO');

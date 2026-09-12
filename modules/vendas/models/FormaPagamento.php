@@ -40,6 +40,8 @@ class FormaPagamento extends ActiveRecord
     const TIPO_TRANSFERENCIA = 'TRANSFERENCIA';
     const TIPO_CHEQUE = 'CHEQUE';
     const TIPO_PAGAR_AO_ENTREGADOR = 'PAGAR_AO_ENTREGADOR'; // Pagar ao Entregador (permite escolher DINHEIRO ou PIX ESTATICO na entrega)
+    const TIPO_MERCADOPAGO = 'MERCADOPAGO';
+    const TIPO_MP_POINT = 'MP_POINT';
     const TIPO_OUTRO = 'OUTRO';
 
     /**
@@ -92,6 +94,8 @@ class FormaPagamento extends ActiveRecord
                 self::TIPO_TRANSFERENCIA,
                 self::TIPO_CHEQUE,
                 self::TIPO_PAGAR_AO_ENTREGADOR,
+                self::TIPO_MERCADOPAGO,
+                self::TIPO_MP_POINT,
                 self::TIPO_OUTRO
             ]],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
