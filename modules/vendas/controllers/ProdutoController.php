@@ -920,7 +920,8 @@ class ProdutoController extends Controller
 
                     $transaction->commit();
                     Yii::$app->session->setFlash('success', 'Produto cadastrado com sucesso com grade unificada!');
-                    return $this->redirect(['view', 'id' => $model->id]);
+                    $returnTo = Yii::$app->request->get('return_to') ?: ['index'];
+                    return $this->redirect($returnTo);
                 }
             } catch (\Exception $e) {
                 $transaction->rollBack();
@@ -976,7 +977,8 @@ class ProdutoController extends Controller
 
                     $transaction->commit();
                     Yii::$app->session->setFlash('success', 'Produto e grade de variações atualizados com sucesso!');
-                    return $this->redirect(['view', 'id' => $model->id]);
+                    $returnTo = Yii::$app->request->get('return_to') ?: ['index'];
+                    return $this->redirect($returnTo);
                 }
             } catch (\Exception $e) {
                 $transaction->rollBack();
@@ -2509,6 +2511,16 @@ class ProdutoController extends Controller
         $estoque = (float)$estoqueStr;
         $irParaMatriz = (int)$request->post('ir_para_matriz', 0) === 1;
 
+        $tamanhosJson = trim($request->post('tamanhos_json', ''));
+        $tamanhosList = [];
+        if (!empty($tamanhosJson)) {
+            $decoded = json_decode($tamanhosJson, true);
+            if (is_array($decoded) && count($decoded) > 0) {
+                $tamanhosList = $decoded;
+            }
+        }
+        $possuiGrade = count($tamanhosList) > 0;
+
         if (empty($nome)) {
             return ['success' => false, 'message' => 'O nome do produto é obrigatório.'];
         }
@@ -2548,12 +2560,32 @@ class ProdutoController extends Controller
             $produto->estoque_atual = ($estoque > 0) ? $estoque : 0;
             $produto->estoque_minimo = 0;
             $produto->ponto_corte = 0;
-            if ($irParaMatriz) {
+            if ($possuiGrade || $irParaMatriz) {
                 $produto->modo_grade = 'matriz';
             }
 
             if (!$produto->save()) {
                 throw new \Exception('Erro ao salvar produto: ' . implode(', ', $produto->getFirstErrors()));
+            }
+
+            // Se o usuário selecionou tamanhos diretamente no modal rápido
+            if ($possuiGrade) {
+                foreach ($tamanhosList as $tItem) {
+                    $tamNome = mb_strtoupper(trim($tItem['tamanho'] ?? ''), 'UTF-8');
+                    $tamQtd = max(0, (float)($tItem['qtd'] ?? 1));
+                    if (!empty($tamNome)) {
+                        $var = new ProdutoVariante();
+                        $var->produto_id = (string)$produto->id;
+                        $var->cor = 'PADRÃO';
+                        $var->tamanho = $tamNome;
+                        $var->estoque_atual = $tamQtd;
+                        $var->preco_venda_sugerido = null;
+                        $var->ativo = true;
+                        $var->codigo_referencia = ($produto->codigo_referencia ?: 'PROD') . '-PADRAO-' . $tamNome;
+                        $var->save(false);
+                    }
+                }
+                $produto->recalculateStockSum();
             }
 
             $files = UploadedFile::getInstancesByName('fotos');

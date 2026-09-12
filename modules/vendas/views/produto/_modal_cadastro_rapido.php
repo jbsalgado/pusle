@@ -46,17 +46,19 @@ $topCategorias = array_slice($categorias, 0, 4);
             <div>
                 <h4 class="text-xl sm:text-2xl font-black text-slate-900">Produto Cadastrado com Sucesso!</h4>
                 <p id="msgSucessoNomeProduto" class="text-base text-slate-600 font-bold mt-1.5"></p>
+                <p id="msgSucessoDetalhesGrade" class="text-xs sm:text-sm text-emerald-700 font-bold mt-1"></p>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">O produto já está disponível para vendas e encartes.</p>
             </div>
 
             <!-- Preview do produto recém salvo -->
-            <div id="previewCardRecemSalvo" class="w-full max-w-sm bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center gap-3 mx-auto text-left">
-                <div id="imgRecemSalvo" class="w-14 h-14 rounded-xl bg-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center text-xl">
+            <div id="previewCardRecemSalvo" class="w-full max-w-sm bg-slate-50 border border-slate-200 rounded-2xl p-3.5 flex items-center gap-3.5 mx-auto text-left shadow-xs">
+                <div id="imgRecemSalvo" class="w-16 h-16 rounded-xl bg-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center text-2xl">
                     📦
                 </div>
                 <div class="flex-1 min-w-0">
                     <p id="nomeRecemSalvo" class="text-sm font-bold text-slate-900 truncate"></p>
                     <p id="precoRecemSalvo" class="text-base font-black text-emerald-600"></p>
+                    <p id="tamanhosRecemSalvo" class="text-xs text-indigo-700 font-bold mt-0.5 truncate"></p>
                 </div>
             </div>
 
@@ -75,7 +77,7 @@ $topCategorias = array_slice($categorias, 0, 4);
         <!-- Formulário Principal -->
         <form id="formCadastroRapido" onsubmit="salvarProdutoRapido(event, false)" class="p-4 sm:p-6 space-y-5 overflow-y-auto flex-1 overscroll-contain">
             
-            <!-- 1. FOTO DO PRODUTO (Câmera Direta e Galeria com Alvos Grandes) -->
+            <!-- 1. FOTO DO PRODUTO (Câmera ao Vivo Real e Galeria) -->
             <div class="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-4 transition hover:border-emerald-500/70">
                 <div class="flex items-center justify-between mb-2">
                     <label class="block text-sm sm:text-base font-black text-slate-800 uppercase tracking-wide flex items-center gap-2">
@@ -85,7 +87,32 @@ $topCategorias = array_slice($categorias, 0, 4);
                     <span class="text-xs font-semibold text-slate-500">Recomendado</span>
                 </div>
 
-                <!-- Preview Grande da Foto Selecionada -->
+                <!-- Visor da Câmera ao Vivo (WebRTC) -->
+                <div id="containerCameraAoVivo" class="hidden mb-3 p-3 bg-black rounded-2xl relative flex flex-col items-center shadow-lg">
+                    <div class="relative w-full aspect-video max-h-60 rounded-xl overflow-hidden bg-black flex items-center justify-center">
+                        <video id="videoCameraAoVivo" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                        <canvas id="canvasCameraSnapshot" class="hidden"></canvas>
+                    </div>
+
+                    <!-- Botões de Controle da Câmera -->
+                    <div class="flex items-center justify-between gap-2.5 mt-3 w-full px-1">
+                        <button type="button" onclick="alternarCameraAoVivo()" class="px-3.5 py-2.5 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 active:scale-95">
+                            <span class="text-base">🔄</span>
+                            <span>Virar</span>
+                        </button>
+
+                        <button type="button" onclick="capturarFotoCameraAoVivo()" class="h-13 sm:h-14 px-5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-black rounded-2xl shadow-lg active:scale-95 transition flex items-center gap-2 text-sm sm:text-base">
+                            <span class="text-xl">📸</span>
+                            <span>Tirar Foto Agora</span>
+                        </button>
+
+                        <button type="button" onclick="fecharCameraAoVivo()" class="px-3.5 py-2.5 bg-red-600/80 hover:bg-red-600 text-white rounded-xl text-xs font-bold transition active:scale-95">
+                            <span>✕ Cancelar</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Preview Grande da Foto Selecionada/Capturada -->
                 <div id="previewFotoPrincipalContainer" class="hidden mb-3 relative rounded-2xl overflow-hidden border-2 border-emerald-500 bg-white aspect-video max-h-48 flex items-center justify-center group shadow-sm">
                     <img id="imgPreviewPrincipal" src="" alt="Foto Principal" class="w-full h-full object-contain">
                     <div class="absolute top-2 left-2 bg-emerald-600 text-white text-[11px] font-black px-2.5 py-1 rounded-full uppercase shadow">
@@ -99,27 +126,27 @@ $topCategorias = array_slice($categorias, 0, 4);
 
                 <!-- Botões de Ação para Foto (Amigáveis para Idosos) -->
                 <div id="botoesEscolhaFoto" class="grid grid-cols-2 gap-2.5">
-                    <!-- Botão 1: Câmera Direta do Celular -->
-                    <button type="button" onclick="document.getElementById('rapido_foto_camera').click()" class="h-14 sm:h-16 bg-white hover:bg-emerald-50 active:bg-emerald-100 border-2 border-emerald-500/50 hover:border-emerald-600 rounded-2xl flex items-center justify-center gap-2.5 px-3 shadow-xs active:scale-95 transition text-slate-800">
+                    <!-- Botão 1: Aciona Câmera ao Vivo Real -->
+                    <button type="button" onclick="abrirCameraOuFallback()" class="h-14 sm:h-16 bg-white hover:bg-emerald-50 active:bg-emerald-100 border-2 border-emerald-500/50 hover:border-emerald-600 rounded-2xl flex items-center justify-center gap-2.5 px-3 shadow-xs active:scale-95 transition text-slate-800">
                         <span class="text-2xl">📸</span>
                         <div class="text-left">
                             <span class="block text-xs sm:text-sm font-black text-emerald-800 leading-tight">Tirar Foto</span>
-                            <span class="block text-[10px] sm:text-xs text-slate-500 font-medium">Usar Câmera</span>
+                            <span class="block text-[10px] sm:text-xs text-slate-500 font-medium">Abrir Câmera</span>
                         </div>
                     </button>
 
-                    <!-- Botão 2: Galeria do Celular -->
+                    <!-- Botão 2: Galeria do Celular/PC -->
                     <button type="button" onclick="document.getElementById('rapido_fotos_galeria').click()" class="h-14 sm:h-16 bg-white hover:bg-slate-100 active:bg-slate-200 border-2 border-slate-200 hover:border-slate-400 rounded-2xl flex items-center justify-center gap-2.5 px-3 shadow-xs active:scale-95 transition text-slate-800">
                         <span class="text-2xl">🖼️</span>
                         <div class="text-left">
                             <span class="block text-xs sm:text-sm font-black text-slate-800 leading-tight">Galeria</span>
-                            <span class="block text-[10px] sm:text-xs text-slate-500 font-medium">Escolher do celular</span>
+                            <span class="block text-[10px] sm:text-xs text-slate-500 font-medium">Escolher foto</span>
                         </div>
                     </button>
                 </div>
 
                 <!-- Inputs Nativos Ocultos -->
-                <input type="file" id="rapido_foto_camera" accept="image/*" capture="environment" class="hidden" onchange="adicionarFotoRapida(this)">
+                <input type="file" id="rapido_foto_camera_fallback" accept="image/*" capture="environment" class="hidden" onchange="adicionarFotoRapida(this)">
                 <input type="file" id="rapido_fotos_galeria" multiple accept="image/*" class="hidden" onchange="adicionarFotoRapida(this)">
 
                 <!-- Miniaturas adicionais caso selecione várias fotos -->
@@ -132,7 +159,7 @@ $topCategorias = array_slice($categorias, 0, 4);
                     <span>🏷️ Nome do Produto <span class="text-red-500">*</span></span>
                     <span class="text-xs font-normal text-slate-400">Obrigatório</span>
                 </label>
-                <input type="text" id="rapido_nome" required placeholder="Ex: Arroz Tio João 5kg, Camiseta..." autocomplete="off" class="w-full h-14 px-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-base sm:text-lg font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition">
+                <input type="text" id="rapido_nome" required placeholder="Ex: Camisa Polo Azul, Arroz 5kg, Tênis..." autocomplete="off" class="w-full h-14 px-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-base sm:text-lg font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition">
             </div>
 
             <!-- 3. PREÇO DE VENDA (Gigante e com Máscara Automática de Centavos) -->
@@ -214,22 +241,68 @@ $topCategorias = array_slice($categorias, 0, 4);
                 </select>
             </div>
 
-            <!-- 6. CARD INTELIGENTE DE GRADE / VARIAÇÕES (PONTE COM CREATE-MATRIZ) -->
-            <div class="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200/80 rounded-2xl p-4 text-slate-800">
-                <div class="flex items-start gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-xl flex-shrink-0 shadow-sm">
-                        👕
+            <!-- 6. GRADE DE TAMANHOS INTEGRADA (SEM REDIRECIONAMENTO DE TELA!) -->
+            <div id="cardGradeTamanhosIntegrada" class="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200/90 rounded-2xl p-4 transition-all">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-xl flex-shrink-0 shadow-sm">
+                            👕
+                        </div>
+                        <div>
+                            <span class="block text-sm sm:text-base font-black text-indigo-950 leading-tight">Tem tamanhos diferentes?</span>
+                            <span class="block text-xs text-indigo-700 font-medium">Roupas (P, M, G) ou Calçados</span>
+                        </div>
                     </div>
-                    <div class="flex-1 min-w-0">
-                        <h4 class="text-sm font-black text-indigo-950 leading-tight">Tem tamanhos ou cores diferentes?</h4>
-                        <p class="text-xs text-indigo-800/80 mt-0.5 font-medium">Você pode salvar e ir direto para a <strong>Grade Completa (Matriz)</strong> para definir P, M, G ou cores.</p>
-                        
-                        <div class="mt-3">
-                            <button type="button" onclick="salvarEIrParaMatriz(event)" class="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs sm:text-sm font-black rounded-xl shadow-xs transition flex items-center justify-center gap-2">
-                                <span>⚡ Salvar e Criar Grade de Tamanhos</span>
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                    
+                    <!-- Botão de Ativar Grade em 1 Toque -->
+                    <button type="button" id="btnToggleGradeTamanhos" onclick="toggleGradeTamanhos()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs sm:text-sm font-black rounded-xl shadow-xs transition flex items-center gap-1.5 shrink-0">
+                        <span id="textoBtnToggleGrade">+ Adicionar Tamanhos</span>
+                    </button>
+                </div>
+
+                <!-- Painel Expansível de Tamanhos (Abre no mesmo modal) -->
+                <div id="painelGradeTamanhos" class="hidden mt-4 pt-3.5 border-t border-indigo-200/80 space-y-3.5">
+                    
+                    <!-- Presets Rápidos -->
+                    <div>
+                        <label class="block text-xs font-black uppercase text-indigo-900 mb-1.5 tracking-wider">Escolha rápida por tipo:</label>
+                        <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                            <button type="button" onclick="aplicarPresetGrade(['P', 'M', 'G', 'GG'])" class="btn-preset-grade px-3 py-2 bg-white hover:bg-indigo-100 text-indigo-900 font-black text-xs rounded-xl border-2 border-indigo-200 shadow-xs active:scale-95 transition shrink-0">
+                                👕 P, M, G, GG
+                            </button>
+                            <button type="button" onclick="aplicarPresetGrade(['PP', 'P', 'M', 'G', 'GG', 'XG'])" class="btn-preset-grade px-3 py-2 bg-white hover:bg-indigo-100 text-indigo-900 font-black text-xs rounded-xl border-2 border-indigo-200 shadow-xs active:scale-95 transition shrink-0">
+                                👗 PP ao XG
+                            </button>
+                            <button type="button" onclick="aplicarPresetGrade(['36', '37', '38', '39', '40', '41', '42'])" class="btn-preset-grade px-3 py-2 bg-white hover:bg-indigo-100 text-indigo-900 font-black text-xs rounded-xl border-2 border-indigo-200 shadow-xs active:scale-95 transition shrink-0">
+                                👟 Calçados (36 ao 42)
+                            </button>
+                            <button type="button" onclick="aplicarPresetGrade(['ÚNICO'])" class="btn-preset-grade px-3 py-2 bg-white hover:bg-indigo-100 text-indigo-900 font-black text-xs rounded-xl border-2 border-indigo-200 shadow-xs active:scale-95 transition shrink-0">
+                                ✨ Tamanho Único
                             </button>
                         </div>
+                    </div>
+
+                    <!-- Lista de Tamanhos Ativos com Steppers de Quantidade -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-xs font-black uppercase text-indigo-900">Tamanhos Ativos & Quantidades:</label>
+                            <span id="badgeTotalItensGrade" class="text-xs font-black bg-indigo-600 text-white px-2.5 py-0.5 rounded-full">0 peças no total</span>
+                        </div>
+
+                        <!-- Grid dinâmico de cards por tamanho -->
+                        <div id="gridChipsTamanhosAtivos" class="grid grid-cols-2 sm:grid-cols-3 gap-2 empty:hidden"></div>
+                        
+                        <p id="msgNenhumTamanhoSelecionado" class="text-xs text-indigo-800/80 italic py-2 text-center bg-white/70 rounded-xl border border-indigo-100">
+                            Toque em um dos botões acima ou digite um tamanho abaixo.
+                        </p>
+                    </div>
+
+                    <!-- Inclusão de Tamanho Avulso -->
+                    <div class="flex items-center gap-2 pt-1">
+                        <input type="text" id="inputNovoTamanhoAvulso" placeholder="Outro tamanho (Ex: 44, G1, 38...)" class="flex-1 h-11 px-3.5 bg-white border-2 border-indigo-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 uppercase focus:border-indigo-500 focus:outline-none">
+                        <button type="button" onclick="adicionarTamanhoAvulso()" class="h-11 px-4 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-black rounded-xl transition shrink-0">
+                            + Incluir
+                        </button>
                     </div>
                 </div>
             </div>
@@ -245,7 +318,7 @@ $topCategorias = array_slice($categorias, 0, 4);
                 </summary>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3.5 mt-2 border-t border-slate-200">
-                    <div>
+                    <div id="blocoEstoqueSimples">
                         <label for="rapido_estoque" class="block text-xs font-bold text-slate-700 uppercase mb-1">Estoque Inicial</label>
                         <input type="number" id="rapido_estoque" placeholder="0" min="0" step="1" class="w-full h-12 px-3 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                     </div>
@@ -285,6 +358,9 @@ $topCategorias = array_slice($categorias, 0, 4);
 
 <script>
     let arquivosFotosRapidas = [];
+    let tamanhosGradeAtivos = {}; // { 'P': 1, 'M': 2, ... }
+    let streamCameraAoVivo = null;
+    let cameraFacingModeAtual = 'environment'; // 'environment' (traseira) ou 'user' (frontal)
 
     // Formatação de Moeda em Tempo Real amigável
     function aplicarMascaraMoedaModal(input) {
@@ -305,7 +381,17 @@ $topCategorias = array_slice($categorias, 0, 4);
         document.getElementById('formCadastroRapido').classList.remove('hidden');
         document.getElementById('sucessoCadastroRapido').classList.add('hidden');
         arquivosFotosRapidas = [];
+        tamanhosGradeAtivos = {};
+        fecharCameraAoVivo();
         atualizarVisualFotos();
+        renderizarChipsTamanhos();
+        
+        // Reset da grade de tamanhos (fechada por padrão)
+        const painelGrade = document.getElementById('painelGradeTamanhos');
+        painelGrade.classList.add('hidden');
+        document.getElementById('textoBtnToggleGrade').textContent = '+ Adicionar Tamanhos';
+        document.getElementById('btnToggleGradeTamanhos').classList.remove('bg-red-600');
+        document.getElementById('btnToggleGradeTamanhos').classList.add('bg-indigo-600');
         
         // Unidade padrão UN
         selecionarUnidadeRapida('UN');
@@ -325,20 +411,107 @@ $topCategorias = array_slice($categorias, 0, 4);
 
     // Fechamento do modal
     function fecharModalCadastroRapido() {
+        fecharCameraAoVivo();
         document.getElementById('modalCadastroRapido').classList.add('hidden');
     }
 
-    // Gerenciador de Fotos
+    // ==========================================
+    // CÂMERA AO VIVO REAL (WebRTC)
+    // ==========================================
+    function abrirCameraOuFallback() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            // Fallback nativo
+            document.getElementById('rapido_foto_camera_fallback').click();
+            return;
+        }
+        iniciarCameraAoVivo();
+    }
+
+    function iniciarCameraAoVivo() {
+        const container = document.getElementById('containerCameraAoVivo');
+        const botoesEscolha = document.getElementById('botoesEscolhaFoto');
+        const video = document.getElementById('videoCameraAoVivo');
+
+        botoesEscolha.classList.add('hidden');
+        container.classList.remove('hidden');
+
+        if (streamCameraAoVivo) {
+            streamCameraAoVivo.getTracks().forEach(t => t.stop());
+        }
+
+        const constraints = {
+            video: {
+                facingMode: cameraFacingModeAtual ? { ideal: cameraFacingModeAtual } : 'environment',
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            },
+            audio: false
+        };
+
+        navigator.mediaDevices.getUserMedia(constraints)
+            .then(stream => {
+                streamCameraAoVivo = stream;
+                video.srcObject = stream;
+                video.play();
+            })
+            .catch(err => {
+                console.warn('Erro ao abrir câmera WebRTC:', err);
+                fecharCameraAoVivo();
+                // Aciona o input tradicional caso o usuário bloqueie permissão ou dê erro
+                document.getElementById('rapido_foto_camera_fallback').click();
+            });
+    }
+
+    function alternarCameraAoVivo() {
+        cameraFacingModeAtual = (cameraFacingModeAtual === 'environment') ? 'user' : 'environment';
+        iniciarCameraAoVivo();
+    }
+
+    function fecharCameraAoVivo() {
+        if (streamCameraAoVivo) {
+            streamCameraAoVivo.getTracks().forEach(t => t.stop());
+            streamCameraAoVivo = null;
+        }
+        const video = document.getElementById('videoCameraAoVivo');
+        if (video) video.srcObject = null;
+        const container = document.getElementById('containerCameraAoVivo');
+        if (container) container.classList.add('hidden');
+        const botoesEscolha = document.getElementById('botoesEscolhaFoto');
+        if (botoesEscolha && arquivosFotosRapidas.length === 0) {
+            botoesEscolha.classList.remove('hidden');
+        }
+    }
+
+    function capturarFotoCameraAoVivo() {
+        const video = document.getElementById('videoCameraAoVivo');
+        const canvas = document.getElementById('canvasCameraSnapshot');
+        if (!video || !video.videoWidth) return;
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(blob => {
+            if (!blob) return;
+            const file = new File([blob], 'foto_camera_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+            arquivosFotosRapidas.unshift(file); // Coloca como foto principal
+            fecharCameraAoVivo();
+            atualizarVisualFotos();
+        }, 'image/jpeg', 0.88);
+    }
+
+    // Gerenciador de Fotos via Input de Arquivo (Galeria / Fallback)
     function adicionarFotoRapida(input) {
         if (!input.files || input.files.length === 0) return;
         
-        // Adiciona novos arquivos à lista
         Array.from(input.files).forEach(f => {
             arquivosFotosRapidas.push(f);
         });
         
+        fecharCameraAoVivo();
         atualizarVisualFotos();
-        input.value = ''; // Limpa input para permitir selecionar a mesma foto novamente se desejar
+        input.value = '';
     }
 
     function removerFotoPrincipal() {
@@ -362,9 +535,13 @@ $topCategorias = array_slice($categorias, 0, 4);
         if (arquivosFotosRapidas.length === 0) {
             containerPrincipal.classList.add('hidden');
             imgPrincipal.src = '';
-            botoesEscolha.classList.remove('hidden');
+            if (document.getElementById('containerCameraAoVivo').classList.contains('hidden')) {
+                botoesEscolha.classList.remove('hidden');
+            }
             return;
         }
+
+        botoesEscolha.classList.add('hidden');
 
         // Exibe a foto principal
         const primeiraFoto = arquivosFotosRapidas[0];
@@ -397,7 +574,115 @@ $topCategorias = array_slice($categorias, 0, 4);
         }
     }
 
-    // Seleção de Unidade com 1 toque
+    // ==========================================
+    // GRADE DE TAMANHOS INTEGRADA (SEM REDIRECIONAMENTO)
+    // ==========================================
+    function toggleGradeTamanhos() {
+        const painel = document.getElementById('painelGradeTamanhos');
+        const btnTexto = document.getElementById('textoBtnToggleGrade');
+        const btn = document.getElementById('btnToggleGradeTamanhos');
+
+        if (painel.classList.contains('hidden')) {
+            painel.classList.remove('hidden');
+            btnTexto.textContent = '✕ Fechar Tamanhos';
+            btn.classList.remove('bg-indigo-600');
+            btn.classList.add('bg-slate-700');
+            
+            // Se ainda não tiver tamanhos, aplica o preset de roupas automaticamente como sugestão
+            if (Object.keys(tamanhosGradeAtivos).length === 0) {
+                aplicarPresetGrade(['P', 'M', 'G', 'GG']);
+            }
+        } else {
+            painel.classList.add('hidden');
+            btnTexto.textContent = '+ Adicionar Tamanhos';
+            btn.classList.remove('bg-slate-700');
+            btn.classList.add('bg-indigo-600');
+        }
+    }
+
+    function aplicarPresetGrade(listaTamanhos) {
+        tamanhosGradeAtivos = {};
+        listaTamanhos.forEach(tam => {
+            tamanhosGradeAtivos[tam] = 1; // 1 peça de cada por padrão
+        });
+        renderizarChipsTamanhos();
+    }
+
+    function adicionarTamanhoAvulso() {
+        const input = document.getElementById('inputNovoTamanhoAvulso');
+        const val = input.value.trim().toUpperCase();
+        if (!val) return;
+
+        // Se digitou múltiplos separados por vírgula
+        const partes = val.split(',').map(s => s.trim().toUpperCase()).filter(s => s.length > 0);
+        partes.forEach(p => {
+            if (!tamanhosGradeAtivos[p]) {
+                tamanhosGradeAtivos[p] = 1;
+            }
+        });
+
+        input.value = '';
+        renderizarChipsTamanhos();
+    }
+
+    function alterarQtdTamanho(tam, delta) {
+        if (!tamanhosGradeAtivos[tam]) return;
+        tamanhosGradeAtivos[tam] = Math.max(1, tamanhosGradeAtivos[tam] + delta);
+        renderizarChipsTamanhos();
+    }
+
+    function removerTamanhoGrade(tam) {
+        delete tamanhosGradeAtivos[tam];
+        renderizarChipsTamanhos();
+    }
+
+    function renderizarChipsTamanhos() {
+        const grid = document.getElementById('gridChipsTamanhosAtivos');
+        const msgVazio = document.getElementById('msgNenhumTamanhoSelecionado');
+        const badgeTotal = document.getElementById('badgeTotalItensGrade');
+        grid.innerHTML = '';
+
+        const chaves = Object.keys(tamanhosGradeAtivos);
+        let totalPecas = 0;
+
+        if (chaves.length === 0) {
+            msgVazio.classList.remove('hidden');
+            badgeTotal.textContent = '0 peças no total';
+            return;
+        }
+
+        msgVazio.classList.add('hidden');
+
+        chaves.forEach(tam => {
+            const qtd = tamanhosGradeAtivos[tam];
+            totalPecas += qtd;
+
+            const card = document.createElement('div');
+            card.className = 'bg-white border-2 border-indigo-300 rounded-xl p-2.5 flex items-center justify-between shadow-xs transition';
+            card.innerHTML = `
+                <div class="flex items-center gap-1.5 min-w-0">
+                    <span class="w-8 h-8 rounded-lg bg-indigo-600 text-white font-black text-xs flex items-center justify-center shrink-0">
+                        ${tam}
+                    </span>
+                    <span class="text-xs font-black text-slate-800 truncate">${tam}</span>
+                </div>
+                
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button type="button" onclick="alterarQtdTamanho('${tam}', -1)" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-sm flex items-center justify-center active:scale-95 transition">-</button>
+                    <span class="w-6 text-center text-xs font-black text-slate-900">${qtd}</span>
+                    <button type="button" onclick="alterarQtdTamanho('${tam}', 1)" class="w-7 h-7 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-black text-sm flex items-center justify-center active:scale-95 transition">+</button>
+                    <button type="button" onclick="removerTamanhoGrade('${tam}')" class="w-6 h-6 ml-1 text-slate-400 hover:text-red-600 font-bold text-xs flex items-center justify-center transition">✕</button>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+
+        badgeTotal.textContent = `${totalPecas} peça${totalPecas > 1 ? 's' : ''} no total`;
+    }
+
+    // ==========================================
+    // UNIDADES & CATEGORIAS
+    // ==========================================
     function selecionarUnidadeRapida(unidade, el) {
         document.getElementById('rapido_unidade').value = unidade;
         const wrapperOutro = document.getElementById('wrapperUnidadeOutro');
@@ -412,7 +697,6 @@ $topCategorias = array_slice($categorias, 0, 4);
             el.classList.remove('bg-slate-50', 'text-slate-700', 'border-slate-200');
             el.classList.add('bg-emerald-500', 'text-white', 'border-emerald-500');
         } else {
-            // Padrão UN
             const btnUN = document.querySelector('.btn-chip-unidade');
             if (btnUN) {
                 btnUN.classList.remove('bg-slate-50', 'text-slate-700', 'border-slate-200');
@@ -436,7 +720,6 @@ $topCategorias = array_slice($categorias, 0, 4);
         document.getElementById('rapido_unidade').value = sel.value;
     }
 
-    // Seleção de Categoria Rápida por Chips
     function selecionarCategoriaChip(catId, el) {
         document.getElementById('rapido_categoria_id').value = catId;
         document.querySelectorAll('.btn-chip-categoria').forEach(btn => {
@@ -449,19 +732,20 @@ $topCategorias = array_slice($categorias, 0, 4);
         }
     }
 
-    // Reiniciar para novo cadastro
     function reiniciarFormCadastroRapido() {
         document.getElementById('sucessoCadastroRapido').classList.add('hidden');
         document.getElementById('formCadastroRapido').classList.remove('hidden');
         document.getElementById('formCadastroRapido').reset();
         arquivosFotosRapidas = [];
+        tamanhosGradeAtivos = {};
+        fecharCameraAoVivo();
         atualizarVisualFotos();
+        renderizarChipsTamanhos();
         selecionarUnidadeRapida('UN');
         const inputNome = document.getElementById('rapido_nome');
         if (inputNome) inputNome.focus();
     }
 
-    // Concluir e fechar
     function concluirEFecharCadastroRapido() {
         fecharModalCadastroRapido();
         if (typeof window.inserirProdutoNaTabelaIndex === 'function') {
@@ -471,12 +755,9 @@ $topCategorias = array_slice($categorias, 0, 4);
         }
     }
 
-    // Salvar e ir para a Grade Completa (Matriz)
-    function salvarEIrParaMatriz(e) {
-        salvarProdutoRapido(e, true);
-    }
-
-    // Salvamento do Produto via AJAX
+    // ==========================================
+    // SALVAR PRODUTO RAPIDO (AJAX UNIFICADO)
+    // ==========================================
     function salvarProdutoRapido(e, irParaMatriz = false) {
         if (e && e.preventDefault) e.preventDefault();
         
@@ -521,6 +802,16 @@ $topCategorias = array_slice($categorias, 0, 4);
         formData.append('ir_para_matriz', irParaMatriz ? '1' : '0');
         formData.append(csrfParam, csrfToken);
 
+        // Anexa os tamanhos da grade integrada caso selecionados
+        const listaTamanhosEnvio = Object.keys(tamanhosGradeAtivos).map(tam => ({
+            tamanho: tam,
+            qtd: tamanhosGradeAtivos[tam]
+        }));
+        if (listaTamanhosEnvio.length > 0) {
+            formData.append('tamanhos_json', JSON.stringify(listaTamanhosEnvio));
+        }
+
+        // Anexa fotos
         arquivosFotosRapidas.forEach((file) => {
             formData.append('fotos[]', file);
         });
@@ -557,13 +848,7 @@ $topCategorias = array_slice($categorias, 0, 4);
                     window.inserirProdutoNaTabelaIndex(data.produto);
                 }
 
-                // Se o usuário solicitou ir para a Matriz
-                if (irParaMatriz && data.url_matriz) {
-                    window.location.href = data.url_matriz;
-                    return;
-                }
-
-                // Exibe tela de sucesso amigável
+                // Exibe tela de sucesso amigável (SEM REDIRECIONAR O IDOSO!)
                 document.getElementById('formCadastroRapido').classList.add('hidden');
                 const sucessoDiv = document.getElementById('sucessoCadastroRapido');
                 sucessoDiv.classList.remove('hidden');
@@ -571,6 +856,17 @@ $topCategorias = array_slice($categorias, 0, 4);
                 document.getElementById('msgSucessoNomeProduto').textContent = data.produto.nome;
                 document.getElementById('nomeRecemSalvo').textContent = data.produto.nome;
                 document.getElementById('precoRecemSalvo').textContent = 'R$ ' + data.produto.preco;
+
+                const msgGrade = document.getElementById('msgSucessoDetalhesGrade');
+                const tamanhosRecem = document.getElementById('tamanhosRecemSalvo');
+                if (listaTamanhosEnvio.length > 0) {
+                    const nomesTams = listaTamanhosEnvio.map(t => `${t.tamanho} (${t.qtd})`).join(', ');
+                    msgGrade.textContent = `Grade criada: ${nomesTams}`;
+                    tamanhosRecem.textContent = `Tamanhos: ${nomesTams}`;
+                } else {
+                    msgGrade.textContent = '';
+                    tamanhosRecem.textContent = '';
+                }
 
                 const imgCard = document.getElementById('imgRecemSalvo');
                 if (data.produto.foto) {
@@ -590,3 +886,4 @@ $topCategorias = array_slice($categorias, 0, 4);
         });
     }
 </script>
+
