@@ -52,17 +52,36 @@ class DashboardFinanceiroController extends Controller
         $contasPagar = $this->getProximasContasPagar($usuarioId, 10);
         $parcelasReceber = $this->getProximasParcelasReceber($usuarioId, 10);
 
+        // Extrato de Splits da SaaS (Mercado Pago)
+        $splitsSaaS = \app\modules\vendas\models\SaasFinancialLog::find()
+            ->where(['tenant_id' => $usuarioId])
+            ->orderBy(['created_at' => SORT_DESC])
+            ->limit(15)
+            ->all();
+
         return $this->render('index', [
             'kpis' => $kpis,
             'charts' => $charts,
             'alertas' => $alertas,
             'contasPagar' => $contasPagar,
             'parcelasReceber' => $parcelasReceber,
+            'splitsSaaS' => $splitsSaaS,
         ]);
     }
 
     protected function getFinancialKPIs($usuarioId)
     {
+        // KPIs de Split SaaS
+        $mpSplitBruto = (float)(Yii::$app->db->createCommand("
+            SELECT SUM(total_amount) FROM saas_financial_logs 
+            WHERE tenant_id = :uid AND (status = 'approved' OR status = 'received' OR status = 'confirmed')
+        ", [':uid' => $usuarioId])->queryScalar() ?: 0);
+
+        $taxasPlataforma = (float)(Yii::$app->db->createCommand("
+            SELECT SUM(platform_fee) FROM saas_financial_logs 
+            WHERE tenant_id = :uid AND (status = 'approved' OR status = 'received' OR status = 'confirmed')
+        ", [':uid' => $usuarioId])->queryScalar() ?: 0);
+
         // KPIs de Vendas (existentes)
         $kpis = [
             'receita_total' => Venda::find()
@@ -74,10 +93,9 @@ class DashboardFinanceiroController extends Controller
                 ->sum('valor_total') ?: 0,
             'comissoes_pendentes' => Comissao::find()->where(['usuario_id' => $usuarioId, 'status' => Comissao::STATUS_PENDENTE])->sum('valor_comissao') ?: 0,
             'valor_recebido_asaas' => AsaasCobrancas::find()->where(['usuario_id' => $usuarioId, 'status' => 'RECEIVED'])->sum('valor_recebido') ?: 0,
-            'taxas_plataforma' => Yii::$app->db->createCommand("
-                SELECT SUM(platform_fee) FROM saas_financial_logs 
-                WHERE tenant_id = :uid AND (status = 'approved' OR status = 'received' OR status = 'confirmed')
-            ", [':uid' => $usuarioId])->queryScalar() ?: 0,
+            'taxas_plataforma' => $taxasPlataforma,
+            'mp_split_bruto' => $mpSplitBruto,
+            'mp_liquido_loja' => max(0, $mpSplitBruto - $taxasPlataforma),
             'inadimplencia' => Parcela::find()->alias('p')
                 ->innerJoin('prest_vendas v', 'v.id = p.venda_id')
                 ->where(['v.usuario_id' => $usuarioId])

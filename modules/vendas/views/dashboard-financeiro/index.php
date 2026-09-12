@@ -187,10 +187,11 @@ $this->title = 'Dashboard Financeiro';
         </div>
     </div>
 
-    <!-- Tabelas de Contas -->
+    <!-- Tabelas de Contas e Splits -->
     <?= $this->render('_tabelas', [
         'contasPagar' => $contasPagar,
         'parcelasReceber' => $parcelasReceber,
+        'splitsSaaS' => $splitsSaaS ?? [],
     ]) ?>
 </div>
 

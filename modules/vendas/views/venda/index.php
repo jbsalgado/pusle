@@ -179,8 +179,13 @@ $this->title = 'Vendas Efetivadas';
                         [
                             'attribute' => 'id',
                             'label' => 'Nº Venda',
+                            'format' => 'raw',
                             'value' => function ($model) {
-                                return '#' . substr($model->id, 0, 8);
+                                $html = '#' . substr($model->id, 0, 8);
+                                if ($model->getMpPaymentId()) {
+                                    $html .= ' <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black bg-cyan-100 text-cyan-800 border border-cyan-300 ml-1" title="Mercado Pago com Split SaaS">MP</span>';
+                                }
+                                return $html;
                             },
                             'contentOptions' => ['class' => 'px-6 py-4 text-sm font-medium text-gray-900'],
                         ],
@@ -274,7 +279,12 @@ $this->title = 'Vendas Efetivadas';
                         <div class="px-5 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between">
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-black text-indigo-400 tracking-widest uppercase italic">Pulse System</span>
-                                <span class="text-[11px] font-black text-gray-900 tracking-tighter uppercase">VENDA #<?= substr($venda->id, 0, 8) ?></span>
+                                <div class="flex items-center space-x-1.5">
+                                    <span class="text-[11px] font-black text-gray-900 tracking-tighter uppercase">VENDA #<?= substr($venda->id, 0, 8) ?></span>
+                                    <?php if ($venda->getMpPaymentId()): ?>
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black bg-cyan-100 text-cyan-800 border border-cyan-300">MP</span>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                             <?php
                             $status = $venda->status_venda_codigo;

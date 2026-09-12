@@ -1169,6 +1169,249 @@ class MercadoPagoController extends Controller
     }
 
     /**
+     * ENDPOINT: POST /api/mercado-pago/estornar-pagamento
+     * Estorna um pagamento aprovado via Mercado Pago (API de Refunds)
+     * e reverte os lançamentos de estoque, parcelas, caixa e status da venda.
+     *
+     * Parâmetros aceitos (JSON ou form-data):
+     * - order_id / venda_id: UUID da venda no Pulse
+     * - payment_id: ID do pagamento no Mercado Pago (opcional se order_id for fornecido)
+     * - amount: Valor a ser estornado (opcional, default = total)
+     * - motivo: Motivo do cancelamento/estorno
+     */
+    public function actionEstornarPagamento()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        $request = Yii::$app->request;
+        $orderId = $request->post('order_id') ?: $request->post('venda_id') ?: $request->get('order_id');
+        $paymentId = $request->post('payment_id') ?: $request->get('payment_id');
+        $amount = $request->post('amount') ?: $request->get('amount');
+        $motivo = $request->post('motivo') ?: 'Solicitação de estorno do lojista';
+
+        // 1. Localizar a venda
+        $venda = null;
+        if ($orderId) {
+            $venda = Venda::findOne(['id' => $orderId]);
+        }
+
+        // Se não achou por order_id, tenta localizar pelo payment_id no saas_financial_logs
+        if (!$venda && $paymentId) {
+            $log = \app\modules\vendas\models\SaasFinancialLog::findOne(['mp_payment_id' => (string)$paymentId]);
+            if ($log && $log->order_id) {
+                $venda = Venda::findOne(['id' => $log->order_id]);
+                $orderId = $log->order_id;
+            }
+        }
+
+        if (!$venda) {
+            return [
+                'sucesso' => false,
+                'mensagem' => 'Venda não encontrada para estorno.',
+            ];
+        }
+
+        // Validação de Tenant / Permissão
+        $usuarioLogadoId = Yii::$app->user->id ?? \app\components\TenantHelper::getId();
+        if ($usuarioLogadoId && $venda->usuario_id !== $usuarioLogadoId) {
+            $colab = \app\modules\vendas\models\Colaborador::findOne(['prest_usuario_login_id' => $usuarioLogadoId]);
+            if (!$colab || $colab->usuario_id !== $venda->usuario_id) {
+                return [
+                    'sucesso' => false,
+                    'mensagem' => 'Acesso negado: Você não tem permissão para estornar esta venda.',
+                ];
+            }
+        }
+
+        $tenantId = $venda->usuario_id;
+        $usuario = $this->buscarUsuarioPorId($tenantId);
+        if (!$usuario) {
+            return [
+                'sucesso' => false,
+                'mensagem' => 'Configuração do lojista não encontrada.',
+            ];
+        }
+
+        $accessToken = $this->obterTokenVendedor($usuario);
+        if (empty($accessToken)) {
+            return [
+                'sucesso' => false,
+                'mensagem' => 'Token de acesso do Mercado Pago não configurado para esta loja.',
+            ];
+        }
+
+        // Se paymentId não veio explícito, pega da venda (via log ou observações)
+        if (empty($paymentId)) {
+            $paymentId = $venda->getMpPaymentId();
+        }
+
+        if (empty($paymentId)) {
+            return [
+                'sucesso' => false,
+                'mensagem' => 'ID do pagamento Mercado Pago não identificado nesta venda.',
+            ];
+        }
+
+        // 2. Chamar a API oficial de Refunds do Mercado Pago
+        // POST https://api.mercadopago.com/v1/payments/{id}/refunds
+        try {
+            $client = new Client();
+            $url = "https://api.mercadopago.com/v1/payments/{$paymentId}/refunds";
+
+            $payload = [];
+            if (!empty($amount) && (float)$amount > 0 && (float)$amount < (float)$venda->valor_total) {
+                $payload['amount'] = (float)$amount;
+            }
+
+            $options = [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $accessToken,
+                    'Content-Type' => 'application/json',
+                    'X-Idempotency-Key' => uniqid('ref_' . $paymentId . '_', true),
+                ],
+                'http_errors' => false,
+            ];
+            if (!empty($payload)) {
+                $options['json'] = $payload;
+            }
+
+            $response = $client->post($url, $options);
+            $statusCode = $response->getStatusCode();
+            $bodyRaw = $response->getBody()->getContents();
+            $result = json_decode($bodyRaw, true);
+
+            Yii::info([
+                'action' => 'mp_refund_response',
+                'order_id' => $venda->id,
+                'payment_id' => $paymentId,
+                'status_code' => $statusCode,
+                'response' => $result,
+            ], 'mercadopago');
+
+            // Sucesso do MP pode ser status 200 ou 201 com status 'approved'
+            $refundApproved = ($statusCode === 200 || $statusCode === 201)
+                && isset($result['status'])
+                && in_array($result['status'], ['approved', 'in_process']);
+
+            // Tratar caso onde o pagamento já estava estornado no MP
+            $alreadyRefunded = false;
+            if ($statusCode === 400 && isset($result['message']) && stripos($result['message'], 'refund') !== false) {
+                $alreadyRefunded = true;
+            }
+
+            if (!$refundApproved && !$alreadyRefunded) {
+                $erroMsg = $result['message'] ?? 'Falha ao processar estorno no Mercado Pago.';
+                if (!empty($result['cause']) && is_array($result['cause'])) {
+                    $causes = array_map(function($c) { return $c['description'] ?? ''; }, $result['cause']);
+                    $erroMsg .= ' (' . implode(', ', array_filter($causes)) . ')';
+                }
+                return [
+                    'sucesso' => false,
+                    'mensagem' => $erroMsg,
+                    'detalhes' => $result,
+                ];
+            }
+
+            $refundId = $result['id'] ?? null;
+            $refundAmount = $result['amount'] ?? ($amount ?: $venda->valor_total);
+
+            // 3. Atualizar saas_financial_logs para 'refunded'
+            $log = \app\modules\vendas\models\SaasFinancialLog::findOne([
+                'tenant_id' => $tenantId,
+                'order_id' => $venda->id,
+            ]);
+            if ($log) {
+                $log->status = \app\modules\vendas\models\SaasFinancialLog::STATUS_REFUNDED;
+                $log->save(false, ['status']);
+            } else {
+                $this->registrarLogFinanceiro($tenantId, $venda->id, $paymentId, (float)$refundAmount, 0, 'refunded');
+            }
+
+            // 4. Executar transição da venda para CANCELADA (estorno de estoque, parcelas e caixa)
+            try {
+                $venda->alterarStatus(StatusVenda::CANCELADA);
+            } catch (\Throwable $e) {
+                Yii::warning("Aviso ao alterar status da venda no estorno: " . $e->getMessage(), 'mercadopago');
+                $venda->status_venda_codigo = StatusVenda::CANCELADA;
+                $venda->data_atualizacao = new Expression('NOW()');
+                $venda->save(false, ['status_venda_codigo', 'data_atualizacao']);
+            }
+
+            // Registrar observação de auditoria na venda
+            $obsEstorno = "\n[ESTORNO AUTOMÁTICO MERCADO PAGO]\n"
+                . "Refund ID: " . ($refundId ?: 'N/A') . "\n"
+                . "Data: " . date('d/m/Y H:i:s') . "\n"
+                . "Valor: R$ " . number_format($refundAmount, 2, ',', '.') . "\n"
+                . "Motivo: " . $motivo;
+            $venda->observacoes = trim(($venda->observacoes ?? '') . $obsEstorno);
+            $venda->save(false, ['observacoes']);
+
+            return [
+                'sucesso' => true,
+                'mensagem' => 'Pagamento estornado com sucesso no Mercado Pago!',
+                'refund_id' => $refundId,
+                'payment_id' => $paymentId,
+                'valor_estornado' => (float)$refundAmount,
+                'status' => 'refunded',
+            ];
+
+        } catch (\Throwable $e) {
+            Yii::error("Exceção ao estornar pagamento MP: " . $e->getMessage(), 'mercadopago');
+            return [
+                'sucesso' => false,
+                'mensagem' => 'Erro interno ao comunicar com o Mercado Pago: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * ENDPOINT: GET/POST /api/mercado-pago/consultar-split-venda
+     * Consulta detalhes do split de uma venda
+     */
+    public function actionConsultarSplitVenda()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        $orderId = Yii::$app->request->get('order_id') ?: Yii::$app->request->post('order_id');
+        if (!$orderId) {
+            return ['sucesso' => false, 'mensagem' => 'order_id é obrigatório.'];
+        }
+
+        $venda = Venda::findOne(['id' => $orderId]);
+        if (!$venda) {
+            return ['sucesso' => false, 'mensagem' => 'Venda não encontrada.'];
+        }
+
+        $log = $venda->saasFinancialLog;
+        $paymentId = $venda->getMpPaymentId();
+
+        if (!$log && !$paymentId) {
+            return [
+                'sucesso' => true,
+                'possui_split' => false,
+                'mensagem' => 'Esta venda não possui registros de split no Mercado Pago.',
+            ];
+        }
+
+        $totalBruto = $log ? (float)$log->total_amount : (float)$venda->valor_total;
+        $taxaSaaS = $log ? (float)$log->platform_fee : 0.0;
+        $liquidoLojista = max(0, $totalBruto - $taxaSaaS);
+        $status = $log ? $log->status : ($venda->status_venda_codigo === StatusVenda::CANCELADA ? 'refunded' : 'approved');
+
+        return [
+            'sucesso' => true,
+            'possui_split' => true,
+            'mp_payment_id' => $paymentId,
+            'total_bruto' => $totalBruto,
+            'taxa_saas' => $taxaSaaS,
+            'liquido_lojista' => $liquidoLojista,
+            'percentual_taxa' => $totalBruto > 0 ? round(($taxaSaaS / $totalBruto) * 100, 2) : 0,
+            'status' => $status,
+            'data_criacao' => $log ? $log->created_at : $venda->data_venda,
+        ];
+    }
+
+    /**
      * ENDPOINT: GET/POST /api/mercado-pago/webhook
      * ========================================================================
      */
@@ -1867,20 +2110,19 @@ class MercadoPagoController extends Controller
     {
         $preferencia = $this->buscarPreferenciaPorExternalRef($externalReference);
 
-        if ($preferencia && $preferencia['pedido_id']) {
-            $sql = "
-                UPDATE prest_vendas
-                SET 
-                    status = 'cancelado',
-                    observacoes = CONCAT(observacoes, E'\n\n', :motivo),
-                    updated_at = NOW()
-                WHERE id = :id::uuid
-            ";
-
-            Yii::$app->db->createCommand($sql, [
-                ':id' => $preferencia['pedido_id'],
-                ':motivo' => $motivo
-            ])->execute();
+        if ($preferencia && !empty($preferencia['pedido_id'])) {
+            $venda = Venda::findOne(['id' => $preferencia['pedido_id']]);
+            if ($venda) {
+                try {
+                    $venda->alterarStatus(StatusVenda::CANCELADA);
+                } catch (\Throwable $e) {
+                    $venda->status_venda_codigo = StatusVenda::CANCELADA;
+                    $venda->data_atualizacao = new Expression('NOW()');
+                    $venda->save(false, ['status_venda_codigo', 'data_atualizacao']);
+                }
+                $venda->observacoes = trim(($venda->observacoes ?? '') . "\n\n" . $motivo);
+                $venda->save(false, ['observacoes']);
+            }
         }
     }
 
@@ -1889,7 +2131,7 @@ class MercadoPagoController extends Controller
      */
     private function estornarPedido($externalReference)
     {
-        $this->cancelarPedido($externalReference, 'Pagamento estornado');
+        $this->cancelarPedido($externalReference, 'Pagamento estornado no Mercado Pago');
     }
 
     /**

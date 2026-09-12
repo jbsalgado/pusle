@@ -384,10 +384,14 @@ class Venda extends ActiveRecord
     {
         $statusAtual = $this->status_venda_codigo;
 
-        // Bloqueia alteração se já estiver QUITADA ou CANCELADA (para garantir integridade)
-        $statusBloqueados = [StatusVenda::QUITADA, StatusVenda::CANCELADA];
-        if (in_array($statusAtual, $statusBloqueados) && $novoStatus !== $statusAtual) {
-            throw new \Exception("Esta venda está com status '{$statusAtual}' e não pode ser alterada para garantir a integridade dos registros.");
+        // Não permite alterar uma venda já CANCELADA
+        if ($statusAtual === StatusVenda::CANCELADA) {
+            throw new \Exception("Esta venda já foi cancelada e seu status não pode ser modificado.");
+        }
+
+        // Se estiver QUITADA, só permite alterar se for para CANCELADA (com estorno/devolução de estoque)
+        if ($statusAtual === StatusVenda::QUITADA && $novoStatus !== StatusVenda::CANCELADA) {
+            throw new \Exception("Esta venda está quitada e só pode ser transicionada para Cancelada (com estorno).");
         }
 
         if ($statusAtual === $novoStatus) {
@@ -636,8 +640,42 @@ class Venda extends ActiveRecord
      * Retorna o último cupom fiscal emitido para esta venda
      * @return CupomFiscal|null
      */
-    public function getUltimoCupomFiscal()
+    /**
+     * Retorna o registro financeiro de auditoria de split do SaaS
+     * @return \yii\db\ActiveQuery
+     */
+    public function getSaasFinancialLog()
     {
-        return $this->getCuponsFiscais()->one();
+        return $this->hasOne(\app\modules\vendas\models\SaasFinancialLog::class, ['order_id' => 'id']);
+    }
+
+    /**
+     * Retorna todos os registros financeiros de auditoria de split associados à venda
+     * @return \yii\db\ActiveQuery
+     */
+    public function getSaasFinancialLogs()
+    {
+        return $this->hasMany(\app\modules\vendas\models\SaasFinancialLog::class, ['order_id' => 'id'])
+            ->orderBy(['id' => SORT_DESC]);
+    }
+
+    /**
+     * Retorna o ID do pagamento Mercado Pago associado (via log ou observações)
+     * @return string|null
+     */
+    public function getMpPaymentId(): ?string
+    {
+        if ($this->saasFinancialLog && !empty($this->saasFinancialLog->mp_payment_id)) {
+            return (string)$this->saasFinancialLog->mp_payment_id;
+        }
+
+        // Fallback: extrai de observações via regex
+        if (!empty($this->observacoes)) {
+            if (preg_match('/(?:Mercado\s*Pago\s*#|Payment\s*ID:\s*|mp_payment_id:\s*)(\d{8,15})/i', $this->observacoes, $matches)) {
+                return $matches[1];
+            }
+        }
+
+        return null;
     }
 }
