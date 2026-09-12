@@ -1609,6 +1609,8 @@ class MercadoPagoController extends Controller
             // Se aprovado, garante liberação da venda (idempotente)
             if ($status === 'approved') {
                 if ($externalRef && $this->validarUUID($externalRef)) {
+                    $platformFee = $this->calcularApplicationFee($amount);
+                    $this->registrarLogFinanceiro($tenantId, $externalRef, $paymentId, $amount, $platformFee, 'approved');
                     $this->liberarPedido($tenantId, $externalRef, $amount, $paymentId, $fee);
                 }
             }
