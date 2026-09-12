@@ -6,22 +6,17 @@ use Yii;
 use yii\web\BadRequestHttpException;
 use yii\web\ServerErrorHttpException;
 use GuzzleHttp\Client;
+use app\modules\evolution\models\WhatsappConfig;
+use app\modules\vendas\models\BridgeWhatsappLoja;
+use app\modules\vendas\models\BridgeWhatsappMensagem;
+use app\modules\vendas\services\BridgeWhatsappService;
 
 /**
  * Class WhatsappController
  *
- * Proxy seguro para envio de mensagens via WhatsApp (Evolution API / Node Wrapper).
- *
- * Estratégia para envio de imagens:
- * 1. Recebe a imagem em base64 do frontend.
- * 2. Salva o arquivo temporariamente em /web/uploads/whatsapp/ (pasta pública).
- * 3. Envia a URL pública do arquivo para o wrapper Node, que a baixa e envia via WhatsApp.
- * 4. Limpa arquivos com mais de 1 hora automaticamente.
- *
- * Por que URL e não base64 direto?
- * O wrapper Node leve instalado na VPS só suporta envio de texto.
- * Ao hospedar a imagem no próprio servidor (em produção, o mesmo IP),
- * o wrapper consegue acessar e encaminhar a mídia ao WhatsApp.
+ * Proxy inteligente e unificado para envio de mensagens via WhatsApp:
+ * - Detecta automaticamente a conexão ativa: WhatsApp Local (Agente Whatsmeow) ou Evolution API (Cloud / Meta).
+ * - Suporta envio de texto e comprovantes/mídias em Base64 para ambos os canais.
  */
 class WhatsappController extends BaseController
 {
@@ -35,22 +30,107 @@ class WhatsappController extends BaseController
     public function behaviors()
     {
         $behaviors = parent::behaviors();
-        // Torna a autenticação Bearer opcional para a action 'send', 
+        // Torna a autenticação Bearer opcional para 'send' e 'status-conexao',
         // permitindo que o Yii2 use a sessão (Cookie) do backend se o token não for enviado.
         if (isset($behaviors['authenticator'])) {
-            $behaviors['authenticator']['optional'] = ['send'];
+            $behaviors['authenticator']['optional'] = ['send', 'status-conexao'];
         }
         return $behaviors;
     }
 
     /**
-     * Envia mensagem de texto ou imagem via WhatsApp.
+     * Detecta automaticamente as conexões de WhatsApp ativas para a empresa.
+     * Retorna o canal prioritário ('agente_local' | 'evolution' | 'nenhum') e detalhes das conexões.
+     */
+    public static function detectarConexaoWhatsapp(string $empresaId): array
+    {
+        // 1. Canal WhatsApp Local (Agente Whatsmeow / Pulse Bridge)
+        $bridge = BridgeWhatsappLoja::findOne(['usuario_id' => $empresaId]);
+        $agenteOnline = $bridge ? $bridge->isAgenteOnline() : false;
+        $agenteConectado = $bridge ? $bridge->isWhatsappConectado() : false;
+        $agenteTelefone = $bridge ? $bridge->telefone_conectado : null;
+        $agenteNome = $bridge ? $bridge->push_name : null;
+
+        // 2. Canal Evolution API / Meta Cloud
+        $config = WhatsappConfig::findByEmpresa($empresaId);
+        $evolutionConectado = false;
+        $evolutionTipo = 'evolution';
+        $evolutionTelefone = null;
+
+        if ($config !== null) {
+            if ($config->isMetaOficial()) {
+                $evolutionConectado = true;
+                $evolutionTipo = 'meta_cloud';
+                $evolutionTelefone = $config->meta_phone_number_id;
+            } elseif ($config->status === 'CONNECTED' && !empty($config->token)) {
+                $evolutionConectado = true;
+                $evolutionTipo = 'evolution';
+            }
+        }
+
+        // 3. Determinação do Canal Ativo / Prioritário
+        // Se o Agente Local estiver com WhatsApp conectado e online na máquina física do caixa, prioriza ele.
+        // Caso contrário, se a Evolution API estiver conectada no servidor, utiliza Evolution API.
+        $canalAtivo = 'nenhum';
+        $descricao = 'Nenhum WhatsApp conectado';
+
+        if ($agenteConectado) {
+            $canalAtivo = 'agente_local';
+            $descricao = 'WhatsApp Local (Agente)' . ($agenteNome ? " - {$agenteNome}" : '') . ($agenteTelefone ? " ({$agenteTelefone})" : '');
+        } elseif ($evolutionConectado) {
+            $canalAtivo = 'evolution';
+            $descricao = ($evolutionTipo === 'meta_cloud') ? 'WhatsApp Meta Oficial' : 'WhatsApp Cloud (Evolution API)';
+        }
+
+        return [
+            'canal_ativo' => $canalAtivo,
+            'descricao' => $descricao,
+            'agente_local' => [
+                'configurado' => (bool)$bridge,
+                'online' => $agenteOnline,
+                'conectado' => $agenteConectado,
+                'telefone' => $agenteTelefone,
+                'nome' => $agenteNome,
+            ],
+            'evolution' => [
+                'configurado' => (bool)$config,
+                'conectado' => $evolutionConectado,
+                'tipo' => $evolutionTipo,
+                'telefone' => $evolutionTelefone,
+            ],
+        ];
+    }
+
+    /**
+     * Retorna o status das conexões de WhatsApp ativas do tenant atual.
+     * GET /api/whatsapp/status-conexao
+     */
+    public function actionStatusConexao()
+    {
+        if (Yii::$app->user->isGuest) {
+            throw new \yii\web\UnauthorizedHttpException('Autenticação necessária.');
+        }
+
+        $usuario = Yii::$app->user->identity;
+        if (!$usuario) {
+            throw new BadRequestHttpException('Tenant não identificado.');
+        }
+        $empresaId = $usuario->getTenantId();
+
+        $status = self::detectarConexaoWhatsapp($empresaId);
+        return $this->success($status);
+    }
+
+    /**
+     * Envia mensagem de texto ou imagem via WhatsApp utilizando o canal ativo
+     * detectado automaticamente (Agente Local ou Evolution API).
      *
      * POST /api/whatsapp/send
      * Campos aceitos:
-     *   - numero  (obrigatório)
+     *   - numero   (obrigatório)
      *   - mensagem (texto ou legenda da imagem)
-     *   - base64  (imagem em base64 com ou sem prefixo data:)
+     *   - base64   (imagem em base64 com ou sem prefixo data:)
+     *   - canal    (opcional: 'agente_local' | 'evolution' para forçar canal)
      */
     public function actionSend()
     {
@@ -64,10 +144,11 @@ class WhatsappController extends BaseController
             throw new BadRequestHttpException('Apenas requisições POST são permitidas.');
         }
 
-        $data     = json_decode($request->getRawBody(), true);
-        $numero   = $data['numero']   ?? null;
-        $mensagem = $data['mensagem'] ?? null;
-        $base64   = $data['base64']   ?? null;
+        $data          = json_decode($request->getRawBody(), true) ?: [];
+        $numero        = $data['numero']        ?? null;
+        $mensagem      = $data['mensagem']      ?? null;
+        $base64        = $data['base64']        ?? null;
+        $canalDesejado = $data['canal']         ?? null;
 
         if (!$numero) {
             throw new BadRequestHttpException('O número de WhatsApp é obrigatório.');
@@ -82,16 +163,6 @@ class WhatsappController extends BaseController
             throw new BadRequestHttpException('Tenant não identificado.');
         }
         $empresaId = $usuario->getTenantId();
-
-        $config = \app\modules\evolution\models\WhatsappConfig::findByEmpresa($empresaId);
-        if ($config === null || empty($config->token)) {
-            throw new BadRequestHttpException('Integração com WhatsApp não configurada ou inativa para esta empresa.');
-        }
-
-        // Validação de limite diário de mensagens por loja
-        if (!$config->podeEnviarHoje()) {
-            return $this->error("Limite diário de envios atingido para este WhatsApp ({$config->mensagens_enviadas_hoje}/{$config->limite_diario_mensagens}). Envios pausados por segurança anti-ban.", 429);
-        }
 
         // 2. Sanitização e normalização do número
         $numero = preg_replace('/[^0-9]/', '', $numero);
@@ -121,92 +192,159 @@ class WhatsappController extends BaseController
             $textoFinal .= "\n\n_Ref: " . substr(uniqid(), -5) . '_';
         }
 
-        // 3.5. Cálculo do delay dinâmico seguro
-        $delayMin = isset($config->delay_min) ? (int)$config->delay_min : 15000;
-        $delayMax = isset($config->delay_max) ? (int)$config->delay_max : 45000;
-        if ($delayMin > $delayMax) {
-            $delayMax = $delayMin;
-        }
-        $delay = rand($delayMin, $delayMax);
-        $simularDigitacao = isset($config->simular_digitacao) ? (bool)$config->simular_digitacao : true;
+        // 4. Detecção automática de conexão ativa
+        $statusConexao = self::detectarConexaoWhatsapp($empresaId);
+        $canal = $canalDesejado ?: $statusConexao['canal_ativo'];
 
-        $apiDelay = 0;
-        if ($delay > 0) {
-            if ($simularDigitacao) {
-                // Passa o delay diretamente para a API do Go para simular digitação (composing)
-                $apiDelay = min(3000, $delay);
-            }
+        // Se o canal desejado foi forçado mas não está conectado, recai no canal_ativo detectado
+        if ($canal === 'agente_local' && !$statusConexao['agente_local']['conectado']) {
+            $canal = $statusConexao['canal_ativo'];
+        } elseif ($canal === 'evolution' && !$statusConexao['evolution']['conectado']) {
+            $canal = $statusConexao['canal_ativo'];
         }
 
-        // 4. Configurações da API Evolution Go
-        $evolutionConfig = Yii::$app->params['evolution'] ?? [];
-        $baseUrl = rtrim($evolutionConfig['baseUrl'] ?? 'http://localhost:8080', '/');
+        // Caso nenhum canal esteja conectado
+        if ($canal === 'nenhum') {
+            $fallbackUrl = 'https://api.whatsapp.com/send?phone=' . $numero . '&text=' . rawurlencode($textoFinal);
+            return [
+                'success' => false,
+                'canal' => 'nenhum',
+                'message' => 'Nenhuma conexão de WhatsApp está ativa no momento (Agente Local offline e Evolution API desconectada).',
+                'fallback_url' => $fallbackUrl,
+            ];
+        }
 
-        // 5. Limpeza de imagens antigas (Opcional, mantido para limpar sujeira passada)
-        $this->limparImagensAntigas();
-
-        try {
-            $client = new \yii\httpclient\Client(['baseUrl' => $baseUrl]);
+        // 5. Roteamento: DISPARO VIA AGENTE LOCAL (Pulse Bridge Go Whatsmeow)
+        if ($canal === 'agente_local') {
+            $midiaUrl = null;
+            $tipoMsg = BridgeWhatsappMensagem::TIPO_TEXT;
 
             if ($base64) {
-                // Aplica o Anti-Ban Media Randomizer para quebrar o hash de imagens duplicadas
-                $cleanBase64 = \app\modules\evolution\helpers\MediaRandomizerHelper::randomizeImageHash($base64);
-                $cleanBase64 = preg_replace('/^data:image\/[a-z]+;base64,/i', '', $cleanBase64);
-                
-                // Tenta descobrir a extensão a partir do prefixo original, senao assume jpg
-                $extension = 'jpg';
-                if (preg_match('/^data:image\/([a-z]+);base64,/i', $base64, $matches)) {
-                    $extension = $matches[1] === 'jpeg' ? 'jpg' : $matches[1];
+                $caminhoRelativo = $this->salvarImagemTemporaria($base64);
+                if ($caminhoRelativo) {
+                    $midiaUrl = Yii::$app->request->hostInfo . $caminhoRelativo;
+                    $tipoMsg = BridgeWhatsappMensagem::TIPO_IMAGE;
+                }
+            }
+
+            $resFila = BridgeWhatsappService::enfileirarMensagem(
+                $empresaId,
+                $numero,
+                $textoFinal,
+                $midiaUrl,
+                $tipoMsg
+            );
+
+            if ($resFila['success']) {
+                return $this->success([
+                    'canal' => 'agente_local',
+                    'mensagem_id' => $resFila['mensagem_id'] ?? null,
+                    'telefone_conectado' => $statusConexao['agente_local']['telefone'] ?? null,
+                ], 'Comprovante enfileirado com sucesso para envio via WhatsApp Local (Agente)!');
+            } else {
+                return $this->error('Falha ao enfileirar no Agente Local: ' . ($resFila['message'] ?? 'Erro desconhecido'), 500);
+            }
+        }
+
+        // 6. Roteamento: DISPARO VIA EVOLUTION API (Cloud Go Engine)
+        if ($canal === 'evolution') {
+            $config = WhatsappConfig::findByEmpresa($empresaId);
+            if ($config === null || empty($config->token)) {
+                return $this->error('Instância da Evolution API não configurada ou inativa.', 400);
+            }
+
+            // Validação de limite diário de mensagens por loja
+            if (!$config->podeEnviarHoje()) {
+                return $this->error("Limite diário de envios atingido para este WhatsApp ({$config->mensagens_enviadas_hoje}/{$config->limite_diario_mensagens}). Envios pausados por segurança anti-ban.", 429);
+            }
+
+            // Cálculo do delay dinâmico seguro
+            $delayMin = isset($config->delay_min) ? (int)$config->delay_min : 15000;
+            $delayMax = isset($config->delay_max) ? (int)$config->delay_max : 45000;
+            if ($delayMin > $delayMax) {
+                $delayMax = $delayMin;
+            }
+            $delay = rand($delayMin, $delayMax);
+            $simularDigitacao = isset($config->simular_digitacao) ? (bool)$config->simular_digitacao : true;
+
+            $apiDelay = 0;
+            if ($delay > 0 && $simularDigitacao) {
+                $apiDelay = min(3000, $delay);
+            }
+
+            $evolutionConfig = Yii::$app->params['evolution'] ?? [];
+            $baseUrl = rtrim($evolutionConfig['baseUrl'] ?? 'http://localhost:8080', '/');
+
+            // Limpeza de imagens antigas
+            $this->limparImagensAntigas();
+
+            try {
+                $client = new \yii\httpclient\Client(['baseUrl' => $baseUrl]);
+
+                if ($base64) {
+                    // Aplica o Anti-Ban Media Randomizer para quebrar o hash de imagens duplicadas
+                    $cleanBase64 = \app\modules\evolution\helpers\MediaRandomizerHelper::randomizeImageHash($base64);
+                    $cleanBase64 = preg_replace('/^data:image\/[a-z]+;base64,/i', '', $cleanBase64);
+                    
+                    // Tenta descobrir a extensão a partir do prefixo original, senao assume jpg
+                    $extension = 'jpg';
+                    if (preg_match('/^data:image\/([a-z]+);base64,/i', $base64, $matches)) {
+                        $extension = $matches[1] === 'jpeg' ? 'jpg' : $matches[1];
+                    }
+
+                    $response = $client->createRequest()
+                        ->setMethod('POST')
+                        ->setFormat(\yii\httpclient\Client::FORMAT_JSON)
+                        ->setUrl('/send/media')
+                        ->addHeaders([
+                            'Content-Type' => 'application/json',
+                            'apikey'       => $config->token, // token da instância do tenant
+                        ])
+                        ->setData([
+                            'number'   => $numero,
+                            'url'      => $cleanBase64,
+                            'type'     => 'image',
+                            'caption'  => $textoFinal,
+                            'filename' => 'comprovante.' . $extension,
+                            'delay'    => $apiDelay,
+                        ])
+                        ->send();
+
+                } else {
+                    $response = $client->createRequest()
+                        ->setMethod('POST')
+                        ->setFormat(\yii\httpclient\Client::FORMAT_JSON)
+                        ->setUrl('/send/text')
+                        ->addHeaders([
+                            'Content-Type' => 'application/json',
+                            'apikey'       => $config->token,
+                        ])
+                        ->setData([
+                            'number' => $numero,
+                            'text'   => $textoFinal,
+                            'delay'  => $apiDelay,
+                        ])
+                        ->send();
                 }
 
-                $response = $client->createRequest()
-                    ->setMethod('POST')
-                    ->setFormat(\yii\httpclient\Client::FORMAT_JSON)
-                    ->setUrl('/send/media')
-                    ->addHeaders([
-                        'Content-Type' => 'application/json',
-                        'apikey'       => $config->token, // token da instância do tenant
-                    ])
-                    ->setData([
-                        'number'   => $numero,
-                        'url'      => $cleanBase64,
-                        'type'     => 'image',
-                        'caption'  => $textoFinal,
-                        'filename' => 'comprovante.' . $extension,
-                        'delay'    => $apiDelay,
-                    ])
-                    ->send();
+                if (!$response->isOk) {
+                    Yii::error('Erro na Evolution API: ' . $response->statusCode . ' ' . $response->content, __METHOD__);
+                    return $this->error('Erro ao enviar mensagem via WhatsApp: ' . $response->content, $response->statusCode);
+                }
 
-            } else {
-                $response = $client->createRequest()
-                    ->setMethod('POST')
-                    ->setFormat(\yii\httpclient\Client::FORMAT_JSON)
-                    ->setUrl('/send/text')
-                    ->addHeaders([
-                        'Content-Type' => 'application/json',
-                        'apikey'       => $config->token,
-                    ])
-                    ->setData([
-                        'number' => $numero,
-                        'text'   => $textoFinal,
-                        'delay'  => $apiDelay,
-                    ])
-                    ->send();
+                $config->incrementarEnvioHoje();
+                $body = json_decode($response->content, true);
+                return $this->success(array_merge(is_array($body) ? $body : [], [
+                    'canal' => 'evolution'
+                ]), 'Mensagem enviada com sucesso para o WhatsApp.');
+
+            } catch (\Exception $e) {
+                Yii::error('Exceção ao enviar mensagem WhatsApp: ' . $e->getMessage(), __METHOD__);
+                throw new ServerErrorHttpException('Erro de comunicação com o servidor de WhatsApp: ' . $e->getMessage());
             }
-
-            if (!$response->isOk) {
-                Yii::error('Erro na Evolution API: ' . $response->statusCode . ' ' . $response->content, __METHOD__);
-                return $this->error('Erro ao enviar mensagem via WhatsApp: ' . $response->content, $response->statusCode);
-            }
-
-            $config->incrementarEnvioHoje();
-            $body = json_decode($response->content, true);
-            return $this->success($body, 'Mensagem enviada com sucesso para o WhatsApp.');
-
-        } catch (\Exception $e) {
-            Yii::error('Exceção ao enviar mensagem WhatsApp: ' . $e->getMessage(), __METHOD__);
-            throw new ServerErrorHttpException('Erro de comunicação com o servidor de WhatsApp: ' . $e->getMessage());
         }
+
+        return $this->error('Canal de WhatsApp não suportado.', 400);
     }
 
     /**

@@ -29,7 +29,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                         <h1 class="text-2xl font-black text-white tracking-tight">Venda Expressa</h1>
                         <span class="bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">Modo Encarte</span>
                     </div>
-                    <p class="text-xs text-slate-400 mt-1">Registre suas vendas do WhatsApp ou balcão com cadastro de clientes para Evolution API</p>
+                    <p class="text-xs text-slate-400 mt-1">Registre suas vendas do WhatsApp ou balcão com envio automático de comprovantes</p>
                 </div>
             </div>
 
@@ -109,7 +109,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                 <div class="bg-slate-800 border border-slate-700 p-4 rounded-3xl shadow-xl space-y-3">
                     <div class="flex items-center justify-between border-b border-slate-700 pb-2">
                         <h3 class="font-extrabold text-xs text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                            <span>👤 Cliente (Disparos WhatsApp / Evolution API)</span>
+                            <span>👤 Cliente (Comprovante via WhatsApp)</span>
                             <span id="badgeClienteObrigatorioFiado" class="hidden text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 uppercase tracking-normal animate-pulse">Obrigatório no Boleto/Fiado</span>
                         </h3>
                         <span class="text-[10px] text-slate-400 font-medium">Cadastra e busca automaticamente</span>
@@ -654,9 +654,24 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
 
         <!-- Botões de Ação -->
         <div class="space-y-2 pt-2 border-t border-slate-800">
-            <button type="button" id="btnEnviarWhatsappEvolution" onclick="enviarComprovanteWhatsAppEvolution()" class="w-full py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-montserrat font-extrabold text-xs rounded-xl shadow-lg transition flex items-center justify-center gap-2">
-                <span>📱 Enviar Comprovante via WhatsApp (Evolution API)</span>
+            <button type="button" id="btnEnviarWhatsapp" onclick="enviarComprovanteWhatsApp()" class="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-montserrat font-extrabold text-xs rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                <span>📱 Enviar Comprovante via WhatsApp</span>
             </button>
+
+            <!-- Badge Dinâmico de Conexão WhatsApp Ativa (Agente Local vs Evolution API) -->
+            <div id="statusCanalWhatsappBadge" class="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-slate-800/90 border border-slate-700 text-[11px] font-medium">
+                <?php if (isset($statusWhatsapp) && $statusWhatsapp['canal_ativo'] === 'agente_local'): ?>
+                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span class="text-emerald-300 font-semibold">Conexão Ativa: WhatsApp Local (Agente<?= !empty($statusWhatsapp['agente_local']['nome']) ? ' - ' . Html::encode($statusWhatsapp['agente_local']['nome']) : '' ?>)</span>
+                <?php elseif (isset($statusWhatsapp) && $statusWhatsapp['canal_ativo'] === 'evolution'): ?>
+                    <span class="inline-block w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                    <span class="text-cyan-300 font-semibold">Conexão Ativa: <?= Html::encode($statusWhatsapp['descricao']) ?></span>
+                <?php else: ?>
+                    <span class="inline-block w-2 h-2 rounded-full bg-amber-400"></span>
+                    <span class="text-slate-400">Nenhum WhatsApp Conectado (Disparo Manual Web)</span>
+                <?php endif; ?>
+            </div>
+
             <div class="grid grid-cols-2 gap-2">
                 <button type="button" onclick="imprimirRecibo80mm()" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition">
                     🖨️ Recibo 80mm
@@ -2825,6 +2840,10 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
     }
 
     function exibirModalComprovanteVenda(vendaData) {
+        dadosUltimaVendaFinalizada = vendaData;
+        if (typeof atualizarBadgeStatusWhatsapp === 'function') {
+            atualizarBadgeStatusWhatsapp();
+        }
         const container = document.getElementById('comprovanteReciboContainer');
         const modal = document.getElementById('modalComprovanteVenda');
 
@@ -2982,7 +3001,32 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         }
     }
 
-    async function enviarComprovanteWhatsAppEvolution() {
+    async function atualizarBadgeStatusWhatsapp() {
+        const badge = document.getElementById('statusCanalWhatsappBadge');
+        if (!badge) return;
+        try {
+            const resp = await fetch('<?= Url::to(['/api/whatsapp/status-conexao']) ?>');
+            if (resp.ok) {
+                const res = await resp.json();
+                const data = res.data || res;
+                if (data.canal_ativo === 'agente_local') {
+                    const nome = data.agente_local && data.agente_local.nome ? ' - ' + data.agente_local.nome : '';
+                    badge.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span class="text-emerald-300 font-semibold">Conexão Ativa: WhatsApp Local (Agente${nome})</span>`;
+                } else if (data.canal_ativo === 'evolution') {
+                    badge.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                        <span class="text-cyan-300 font-semibold">Conexão Ativa: ${data.descricao || 'Evolution API'}</span>`;
+                } else {
+                    badge.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-amber-400"></span>
+                        <span class="text-slate-400">Nenhum WhatsApp Conectado (Disparo Manual Web)</span>`;
+                }
+            }
+        } catch (e) {
+            console.warn('Falha ao atualizar status do WhatsApp:', e);
+        }
+    }
+
+    async function enviarComprovanteWhatsApp() {
         if (!dadosUltimaVendaFinalizada) {
             alert('Nenhuma venda finalizada encontrada.');
             return;
@@ -3001,9 +3045,11 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         }
         if (numFinal.length <= 11) numFinal = "55" + numFinal;
 
-        const btn = document.getElementById('btnEnviarWhatsappEvolution');
-        btn.disabled = true;
-        btn.innerHTML = '<span>⏳ Fotografando recibo e enviando via Evolution API...</span>';
+        const btn = document.getElementById('btnEnviarWhatsapp') || document.getElementById('btnEnviarWhatsappEvolution');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳ Fotografando recibo e enviando via WhatsApp...</span>';
+        }
 
         try {
             if (typeof html2canvas === 'undefined') {
@@ -3045,21 +3091,38 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             });
 
             const resData = await response.json();
-            btn.disabled = false;
-            btn.innerHTML = '<span>📱 Enviar Comprovante via WhatsApp (Evolution API)</span>';
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<span>📱 Enviar Comprovante via WhatsApp</span>';
+            }
 
             if (response.ok && resData.success) {
-                alert('✅ Comprovante enviado com sucesso via WhatsApp / Evolution API!');
+                if (resData.data && resData.data.canal === 'agente_local') {
+                    alert('✅ Comprovante enviado com sucesso para o WhatsApp do cliente via Agente Local!\nO recibo será entregue em instantes.');
+                } else if (resData.data && resData.data.canal === 'evolution') {
+                    alert('✅ Comprovante enviado com sucesso via WhatsApp (Evolution API)!');
+                } else {
+                    alert('✅ Comprovante enviado com sucesso via WhatsApp!');
+                }
+            } else if (resData.canal === 'nenhum' && resData.fallback_url) {
+                if (confirm((resData.message || 'Nenhuma conexão ativa.') + '\n\nDeseja abrir o WhatsApp Web/App para enviar a mensagem do comprovante manualmente?')) {
+                    window.open(resData.fallback_url, '_blank');
+                }
             } else {
-                alert('❌ Erro ao enviar imagem: ' + (resData.message || resData.name || 'Falha na conexão com a Evolution API'));
+                alert('❌ Erro ao enviar comprovante: ' + (resData.message || resData.name || 'Falha na conexão com o WhatsApp'));
             }
 
         } catch (err) {
-            btn.disabled = false;
-            btn.innerHTML = '<span>📱 Enviar Comprovante via WhatsApp (Evolution API)</span>';
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<span>📱 Enviar Comprovante via WhatsApp</span>';
+            }
             alert('❌ Erro de comunicação ao gerar o comprovante: ' + err.message);
         }
     }
+
+    // Alias para compatibilidade com chamadas anteriores
+    window.enviarComprovanteWhatsAppEvolution = enviarComprovanteWhatsApp;
 
     document.addEventListener('DOMContentLoaded', function() {
         checarExibicaoVencimentoFiado();

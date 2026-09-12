@@ -125,6 +125,9 @@ class VendaExpressaController extends Controller
 
         $statusPixEstatico = $usuarioLoja ? $usuarioLoja->getStatusPixEstatico() : null;
 
+        // Detecção inteligente da conexão ativa de WhatsApp da loja (Agente Local vs Evolution API)
+        $statusWhatsapp = \app\modules\api\controllers\WhatsappController::detectarConexaoWhatsapp($lojaId);
+
         return $this->render('index', [
             'produtos' => $produtos,
             'formasPagamento' => $formasPagamento,
@@ -132,6 +135,7 @@ class VendaExpressaController extends Controller
             'lojaConfig' => $lojaConfig,
             'temMercadoPago' => $temMercadoPago,
             'statusPixEstatico' => $statusPixEstatico,
+            'statusWhatsapp' => $statusWhatsapp,
             'dispositivosPoint' => $dispositivosPoint,
             'lojaId' => $lojaId,
         ]);
