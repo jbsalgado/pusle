@@ -2505,6 +2505,9 @@ class ProdutoController extends Controller
         $precoCustoStr = str_replace(',', '.', trim($request->post('preco_custo', '0')));
         $precoCusto = (float)$precoCustoStr;
         $codigoBarras = trim($request->post('codigo_barras', ''));
+        $estoqueStr = str_replace(',', '.', trim($request->post('estoque', '0')));
+        $estoque = (float)$estoqueStr;
+        $irParaMatriz = (int)$request->post('ir_para_matriz', 0) === 1;
 
         if (empty($nome)) {
             return ['success' => false, 'message' => 'O nome do produto é obrigatório.'];
@@ -2542,9 +2545,12 @@ class ProdutoController extends Controller
             $produto->marca = !empty($marca) ? $marca : null;
             $produto->codigo_barras = !empty($codigoBarras) ? $codigoBarras : null;
             $produto->ativo = true;
-            $produto->estoque_atual = 0;
+            $produto->estoque_atual = ($estoque > 0) ? $estoque : 0;
             $produto->estoque_minimo = 0;
             $produto->ponto_corte = 0;
+            if ($irParaMatriz) {
+                $produto->modo_grade = 'matriz';
+            }
 
             if (!$produto->save()) {
                 throw new \Exception('Erro ao salvar produto: ' . implode(', ', $produto->getFirstErrors()));
@@ -2583,9 +2589,12 @@ class ProdutoController extends Controller
 
             $transaction->commit();
 
+            $urlMatriz = $irParaMatriz ? \yii\helpers\Url::to(['/vendas/produto/update-matriz', 'id' => $produto->id]) : null;
+
             return [
                 'success' => true,
                 'message' => 'Produto cadastrado com sucesso!',
+                'url_matriz' => $urlMatriz,
                 'produto' => [
                     'id' => $produto->id,
                     'nome' => $produto->nome,
