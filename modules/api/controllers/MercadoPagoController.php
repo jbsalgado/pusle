@@ -13,6 +13,7 @@ use GuzzleHttp\Client;
 use app\modules\vendas\models\Venda;
 use app\modules\vendas\models\StatusVenda;
 use app\modules\vendas\models\Produto;
+use app\modules\vendas\models\PrestGatewayTransacao;
 use app\modules\caixa\helpers\CaixaHelper;
 
 // SDK 3.7 - Importações
@@ -271,6 +272,21 @@ class MercadoPagoController extends Controller
                 'amount' => $amount,
             ], 'mercadopago');
 
+            // Registro auditável unificado da transação do gateway
+            PrestGatewayTransacao::registrar([
+                'tenant_id'          => $tenantId,
+                'venda_id'           => $orderId,
+                'gateway'            => PrestGatewayTransacao::GATEWAY_MERCADOPAGO,
+                'transacao_id'       => (string)$payment->id,
+                'tipo_pagamento'     => PrestGatewayTransacao::TIPO_PIX,
+                'valor_bruto'        => $amount,
+                'taxa_saas'          => $applicationFee,
+                'status'             => $payment->status ?? 'pending',
+                'status_detail'      => $payment->status_detail ?? null,
+                'payload_requisicao' => $paymentData,
+                'payload_resposta'   => $payment,
+            ]);
+
             return [
                 'sucesso' => true,
                 'payment_id' => $payment->id,
@@ -475,6 +491,39 @@ class MercadoPagoController extends Controller
                 'tenant_id'     => $tenantId,
                 'order_id'      => $orderId,
             ], 'mercadopago');
+
+            // Registro auditável unificado da transação do cartão
+            $taxaGateway = 0.0;
+            if (!empty($payment->fee_details) && is_array($payment->fee_details)) {
+                foreach ($payment->fee_details as $f) {
+                    $taxaGateway += (float)($f['amount'] ?? $f->amount ?? 0);
+                }
+            }
+            $bandeiraCartao = $payment->payment_method_id ?? null;
+            $ultimosDigitos = null;
+            if (isset($payment->card) && isset($payment->card->last_four_digits)) {
+                $ultimosDigitos = (string)$payment->card->last_four_digits;
+            } elseif (is_array($payment) && isset($payment['card']['last_four_digits'])) {
+                $ultimosDigitos = (string)$payment['card']['last_four_digits'];
+            }
+
+            PrestGatewayTransacao::registrar([
+                'tenant_id'              => $tenantId,
+                'venda_id'               => $orderId,
+                'gateway'                => PrestGatewayTransacao::GATEWAY_MERCADOPAGO,
+                'transacao_id'           => (string)$paymentId,
+                'tipo_pagamento'         => $isDebito ? PrestGatewayTransacao::TIPO_DEBIT_CARD : PrestGatewayTransacao::TIPO_CREDIT_CARD,
+                'valor_bruto'            => $amount,
+                'taxa_gateway'           => $taxaGateway,
+                'taxa_saas'              => $applicationFee,
+                'status'                 => $status,
+                'status_detail'          => $statusDetail,
+                'cartao_bandeira'        => $bandeiraCartao,
+                'cartao_ultimos_digitos' => $ultimosDigitos,
+                'parcelas'               => (int)$installments,
+                'payload_requisicao'     => $paymentData,
+                'payload_resposta'       => $payment,
+            ]);
 
             // --- Retorno por status ---
             if ($status === 'approved') {
@@ -931,6 +980,20 @@ class MercadoPagoController extends Controller
                 'ambiente' => $request['ambiente']
             ]);
 
+            // Registro unificado da transação do gateway
+            PrestGatewayTransacao::registrar([
+                'tenant_id'          => $usuario['id'],
+                'venda_id'           => ($externalReference && $this->validarUUID($externalReference)) ? $externalReference : null,
+                'gateway'            => PrestGatewayTransacao::GATEWAY_MERCADOPAGO,
+                'transacao_id'       => (string)$preference->id,
+                'tipo_pagamento'     => 'checkout_pro',
+                'valor_bruto'        => $valorTotal,
+                'taxa_saas'          => $marketplaceFee,
+                'status'             => 'pending',
+                'payload_requisicao' => $request,
+                'payload_resposta'   => $responseBody ?? null,
+            ]);
+
             $transaction->commit();
 
             // 🔟 RETORNAR DADOS
@@ -1147,6 +1210,20 @@ class MercadoPagoController extends Controller
             }
 
             $publicKey = $usuario['mp_public_key'] ?? $usuario['mercadopago_public_key'] ?? null;
+
+            // Registro unificado da transação do gateway (Carteira Digital)
+            PrestGatewayTransacao::registrar([
+                'tenant_id'          => $usuario['id'],
+                'venda_id'           => ($vendaId && $this->validarUUID($vendaId)) ? $vendaId : null,
+                'gateway'            => PrestGatewayTransacao::GATEWAY_MERCADOPAGO,
+                'transacao_id'       => (string)$body['id'],
+                'tipo_pagamento'     => PrestGatewayTransacao::TIPO_WALLET,
+                'valor_bruto'        => $valorTotal,
+                'taxa_saas'          => $marketplaceFee,
+                'status'             => 'pending',
+                'payload_requisicao' => $preferenceData,
+                'payload_resposta'   => $body,
+            ]);
 
             return [
                 'sucesso' => true,
@@ -1383,6 +1460,25 @@ class MercadoPagoController extends Controller
                 'intent_id' => $result['id'] ?? null
             ], 'mercadopago');
 
+            // Registro unificado da transação do gateway (Point)
+            PrestGatewayTransacao::registrar([
+                'tenant_id'          => $tenantId,
+                'venda_id'           => ($orderId && $this->validarUUID($orderId)) ? $orderId : null,
+                'gateway'            => PrestGatewayTransacao::GATEWAY_MERCADOPAGO,
+                'transacao_id'       => (string)($result['id'] ?? $orderId),
+                'tipo_pagamento'     => PrestGatewayTransacao::TIPO_POINT,
+                'valor_bruto'        => $amount,
+                'taxa_saas'          => $applicationFee,
+                'status'             => $result['status'] ?? 'pending',
+                'payload_requisicao' => [
+                    'device_id'       => $deviceId,
+                    'amount'          => $amount,
+                    'order_id'        => $orderId,
+                    'application_fee' => $applicationFee,
+                ],
+                'payload_resposta'   => $result,
+            ]);
+
             return [
                 'sucesso' => true,
                 'data' => $result
@@ -1488,13 +1584,26 @@ class MercadoPagoController extends Controller
                 ]
             ]);
             $data = json_decode($resp->getBody()->getContents(), true);
-            $status = $data['status'] ?? 'pending';
+            // Atualizar status e payload completo na auditoria do gateway
+            $externalRef = $data['external_reference'] ?? null;
+            $amount = (float)($data['transaction_amount'] ?? 0);
+            $fee = (float)($data['fee_details'][0]['amount'] ?? 0);
+
+            PrestGatewayTransacao::registrar([
+                'tenant_id'          => $tenantId,
+                'venda_id'           => ($externalRef && $this->validarUUID($externalRef)) ? $externalRef : null,
+                'gateway'            => PrestGatewayTransacao::GATEWAY_MERCADOPAGO,
+                'transacao_id'       => (string)$paymentId,
+                'tipo_pagamento'     => PrestGatewayTransacao::TIPO_PIX,
+                'valor_bruto'        => $amount,
+                'taxa_gateway'       => $fee,
+                'status'             => $status,
+                'status_detail'      => $data['status_detail'] ?? null,
+                'payload_resposta'   => $data,
+            ]);
 
             // Se aprovado, garante liberação da venda (idempotente)
             if ($status === 'approved') {
-                $externalRef = $data['external_reference'] ?? null;
-                $amount = (float)($data['transaction_amount'] ?? 0);
-                $fee = (float)($data['fee_details'][0]['amount'] ?? 0);
                 if ($externalRef && $this->validarUUID($externalRef)) {
                     $this->liberarPedido($tenantId, $externalRef, $amount, $paymentId, $fee);
                 }
@@ -1669,6 +1778,17 @@ class MercadoPagoController extends Controller
             } else {
                 $this->registrarLogFinanceiro($tenantId, $venda->id, $paymentId, (float)$refundAmount, 0, 'refunded');
             }
+
+            // Atualizar auditoria unificada do gateway para 'refunded'
+            PrestGatewayTransacao::registrar([
+                'tenant_id'        => $tenantId,
+                'venda_id'         => $venda->id,
+                'gateway'          => PrestGatewayTransacao::GATEWAY_MERCADOPAGO,
+                'transacao_id'     => (string)$paymentId,
+                'status'           => PrestGatewayTransacao::STATUS_REFUNDED,
+                'status_detail'    => 'refunded',
+                'payload_resposta' => $result,
+            ]);
 
             // 4. Executar transição da venda para CANCELADA (estorno de estoque, parcelas e caixa)
             try {
@@ -2148,6 +2268,59 @@ class MercadoPagoController extends Controller
                 'payment_status' => $status,
                 'payment_type' => $pagamento->payment_type_id ?? null,
                 'transaction_amount' => $pagamento->transaction_amount ?? null
+            ]);
+        }
+
+        // Atualizar auditoria unificada de transação do gateway
+        $targetTenantId = $tenantId;
+        $targetVendaId  = $orderId;
+        if (!$targetTenantId && !empty($externalReference)) {
+            $pref = $this->buscarPreferenciaPorExternalRef($externalReference);
+            if ($pref) {
+                $targetTenantId = $pref['usuario_id'] ?? null;
+            }
+        }
+        if (!$targetVendaId && !empty($externalReference) && $this->validarUUID($externalReference)) {
+            $targetVendaId = $externalReference;
+        }
+        if (!$targetTenantId && $targetVendaId) {
+            $vendaObj = Venda::findOne($targetVendaId);
+            if ($vendaObj) {
+                $targetTenantId = $vendaObj->usuario_id;
+            }
+        }
+
+        if ($targetTenantId) {
+            $taxaGateway = 0.0;
+            if (!empty($pagamento->fee_details) && is_array($pagamento->fee_details)) {
+                foreach ($pagamento->fee_details as $f) {
+                    $taxaGateway += (float)($f['amount'] ?? $f->amount ?? 0);
+                }
+            }
+
+            $bandeiraCartao = $pagamento->payment_method_id ?? null;
+            $ultimosDigitos = null;
+            if (isset($pagamento->card) && isset($pagamento->card->last_four_digits)) {
+                $ultimosDigitos = (string)$pagamento->card->last_four_digits;
+            } elseif (is_array($pagamento) && isset($pagamento['card']['last_four_digits'])) {
+                $ultimosDigitos = (string)$pagamento['card']['last_four_digits'];
+            }
+
+            PrestGatewayTransacao::registrar([
+                'tenant_id'              => $targetTenantId,
+                'venda_id'               => $targetVendaId,
+                'gateway'                => PrestGatewayTransacao::GATEWAY_MERCADOPAGO,
+                'transacao_id'           => (string)$pagamento->id,
+                'tipo_pagamento'         => $pagamento->payment_type_id ?? null,
+                'valor_bruto'            => $valorTotal,
+                'taxa_gateway'           => $taxaGateway,
+                'taxa_saas'              => $platformFee,
+                'status'                 => $status,
+                'status_detail'          => $statusDetail,
+                'cartao_bandeira'        => $bandeiraCartao,
+                'cartao_ultimos_digitos' => $ultimosDigitos,
+                'parcelas'               => (int)($pagamento->installments ?? 1),
+                'payload_resposta'       => $pagamento,
             ]);
         }
 

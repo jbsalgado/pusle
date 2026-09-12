@@ -1659,6 +1659,17 @@ class AsaasController extends BaseController
                     'created_at' => new Expression('NOW()'),
                 ])->execute();
             }
+
+            // Registro unificado no PrestGatewayTransacao
+            \app\modules\vendas\models\PrestGatewayTransacao::registrar([
+                'tenant_id'    => $tenantId,
+                'venda_id'     => $this->validarUUID($orderId) ? $orderId : null,
+                'gateway'      => \app\modules\vendas\models\PrestGatewayTransacao::GATEWAY_ASAAS,
+                'transacao_id' => (string)$paymentId,
+                'valor_bruto'  => $totalAmount,
+                'taxa_saas'    => $platformFee,
+                'status'       => $status,
+            ]);
         } catch (\Exception $e) {
             Yii::error('Erro ao registrar log financeiro Asaas: ' . $e->getMessage(), 'asaas');
         }
