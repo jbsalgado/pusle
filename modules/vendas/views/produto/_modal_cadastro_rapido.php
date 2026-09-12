@@ -290,7 +290,7 @@ $topCategorias = array_slice($categorias, 0, 4);
                         </div>
 
                         <!-- Grid dinâmico de cards por tamanho -->
-                        <div id="gridChipsTamanhosAtivos" class="grid grid-cols-2 sm:grid-cols-3 gap-2 empty:hidden"></div>
+                        <div id="gridChipsTamanhosAtivos" class="grid grid-cols-1 sm:grid-cols-2 gap-3 empty:hidden"></div>
                         
                         <p id="msgNenhumTamanhoSelecionado" class="text-xs text-indigo-800/80 italic py-2 text-center bg-white/70 rounded-xl border border-indigo-100">
                             Toque em um dos botões acima ou digite um tamanho abaixo.
@@ -658,20 +658,24 @@ $topCategorias = array_slice($categorias, 0, 4);
             totalPecas += qtd;
 
             const card = document.createElement('div');
-            card.className = 'bg-white border-2 border-indigo-300 rounded-xl p-2.5 flex items-center justify-between shadow-xs transition';
+            card.className = 'bg-white border-2 border-indigo-200 hover:border-indigo-400 rounded-2xl p-3 flex flex-col gap-2.5 shadow-xs transition';
             card.innerHTML = `
-                <div class="flex items-center gap-1.5 min-w-0">
-                    <span class="w-8 h-8 rounded-lg bg-indigo-600 text-white font-black text-xs flex items-center justify-center shrink-0">
-                        ${tam}
+                <div class="flex items-center justify-between gap-2 border-b border-indigo-100/80 pb-2">
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 text-white font-black text-xs sm:text-sm rounded-xl shadow-xs">
+                        <span>🏷️</span>
+                        <span class="tracking-wide">TAMANHO:</span>
+                        <span class="text-amber-300 text-sm sm:text-base font-black ml-0.5 underline decoration-amber-400 decoration-2">${tam}</span>
                     </span>
-                    <span class="text-xs font-black text-slate-800 truncate">${tam}</span>
+                    <button type="button" onclick="removerTamanhoGrade('${tam}')" title="Remover tamanho ${tam}" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-600 font-bold text-xs flex items-center justify-center transition active:scale-90">✕</button>
                 </div>
                 
-                <div class="flex items-center gap-1.5 shrink-0">
-                    <button type="button" onclick="alterarQtdTamanho('${tam}', -1)" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-sm flex items-center justify-center active:scale-95 transition">-</button>
-                    <span class="w-6 text-center text-xs font-black text-slate-900">${qtd}</span>
-                    <button type="button" onclick="alterarQtdTamanho('${tam}', 1)" class="w-7 h-7 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-black text-sm flex items-center justify-center active:scale-95 transition">+</button>
-                    <button type="button" onclick="removerTamanhoGrade('${tam}')" class="w-6 h-6 ml-1 text-slate-400 hover:text-red-600 font-bold text-xs flex items-center justify-center transition">✕</button>
+                <div class="flex items-center justify-between gap-2 pt-0.5">
+                    <span class="text-xs font-bold text-slate-600">Qtd de Peças:</span>
+                    <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-1">
+                        <button type="button" onclick="alterarQtdTamanho('${tam}', -1)" title="Diminuir" class="w-8 h-8 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-black text-base flex items-center justify-center active:scale-95 shadow-2xs transition">-</button>
+                        <span class="min-w-[28px] text-center text-sm font-black text-indigo-950">${qtd}</span>
+                        <button type="button" onclick="alterarQtdTamanho('${tam}', 1)" title="Aumentar" class="w-8 h-8 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-black text-base flex items-center justify-center active:scale-95 shadow-2xs transition">+</button>
+                    </div>
                 </div>
             `;
             grid.appendChild(card);
