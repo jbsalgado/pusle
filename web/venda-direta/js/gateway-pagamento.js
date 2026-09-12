@@ -450,8 +450,14 @@ function mostrarModalCartaoMercadoPago(pedidoId, valorTotal, dadosPedido, carrin
                 });
 
                 const data = await resp.json();
+                if (data.status === 'requires_action' && data.three_ds_url) {
+                    console.log('[MP Cartão 3DS] 🔐 Autenticação bancária 3DS necessária:', data.three_ds_url);
+                    exibirDesafio3DsVendaDireta(modal, data.three_ds_url, data.payment_id, pedidoId, dadosPedido, carrinho, resolve);
+                    return;
+                }
+
                 if (!resp.ok || !data.sucesso) {
-                    throw new Error(data.message || 'Cartão recusado pelo Mercado Pago.');
+                    throw new Error(data.message || data.mensagem || 'Cartão recusado pelo Mercado Pago.');
                 }
 
                 feedback.className = 'p-2.5 rounded-xl text-xs font-bold text-center bg-emerald-50 text-emerald-800 border border-emerald-200';
@@ -484,6 +490,120 @@ function mostrarModalCartaoMercadoPago(pedidoId, valorTotal, dadosPedido, carrin
             }
         };
     });
+}
+
+/**
+ * Exibe o desafio 3DS (Three-D Secure) na Venda Direta com suporte a iframe e link externo seguro
+ */
+function exibirDesafio3DsVendaDireta(modal, threeDsUrl, paymentId, pedidoId, dadosPedido, carrinho, resolve) {
+    const cardContent = modal.querySelector('.max-w-md');
+    if (!cardContent) return;
+
+    cardContent.innerHTML = `
+        <div class="flex items-center justify-between border-b pb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">🔐</span>
+                <div class="text-left">
+                    <h3 class="text-lg font-black text-gray-900 leading-tight">Autenticação do Banco (3DS)</h3>
+                    <p class="text-[11px] text-cyan-600 font-bold">Confirmação de segurança do cartão</p>
+                </div>
+            </div>
+            <button type="button" id="btn-fechar-3ds-mp-direta" class="text-gray-400 hover:text-gray-700 p-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-left space-y-1">
+            <div class="flex items-center gap-2 text-amber-800 font-bold text-xs">
+                <span>🛡️</span>
+                <span>O banco emissor solicitou a autenticação da compra.</span>
+            </div>
+            <p class="text-[11px] text-amber-700">Conclua a verificação no quadro abaixo ou abra diretamente no aplicativo/site do banco.</p>
+        </div>
+
+        <div class="rounded-xl overflow-hidden border border-gray-200 bg-gray-50 min-h-[300px] relative">
+            <iframe src="${threeDsUrl}" id="iframe-3ds-direta" class="w-full h-80 border-0 rounded-xl" allow="payment"></iframe>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <a href="${threeDsUrl}" target="_blank" rel="noopener noreferrer" class="w-full py-2.5 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl text-center shadow transition flex items-center justify-center gap-2">
+                <span>📲 Abrir tela do Banco em nova janela</span>
+                <span>↗</span>
+            </a>
+            <div id="status-3ds-mp-texto" class="text-center text-xs font-bold text-gray-500 py-1 flex items-center justify-center gap-2">
+                <span class="inline-block animate-spin">⏳</span>
+                <span>Aguardando você confirmar no banco...</span>
+            </div>
+            <button type="button" id="btn-cancelar-3ds-direta" class="w-full py-2 text-gray-500 hover:text-red-600 text-xs font-bold transition">
+                Cancelar Autenticação
+            </button>
+        </div>
+    `;
+
+    // Polling de verificação de aprovação
+    let pollInterval = null;
+    let attempts = 0;
+    const maxAttempts = 80;
+
+    const cleanup = () => {
+        if (pollInterval) clearInterval(pollInterval);
+        pollInterval = null;
+    };
+
+    const fecharBtn = cardContent.querySelector('#btn-fechar-3ds-mp-direta');
+    if (fecharBtn) fecharBtn.onclick = () => { cleanup(); modal.remove(); };
+
+    const cancelarBtn = cardContent.querySelector('#btn-cancelar-3ds-direta');
+    if (cancelarBtn) cancelarBtn.onclick = () => { cleanup(); modal.remove(); };
+
+    pollInterval = setInterval(async () => {
+        attempts++;
+        if (attempts > maxAttempts) {
+            cleanup();
+            const statusEl = cardContent.querySelector('#status-3ds-mp-texto');
+            if (statusEl) statusEl.innerHTML = '<span class="text-red-600 font-bold">Tempo limite de autenticação excedido.</span>';
+            return;
+        }
+
+        try {
+            const resp = await fetchWithAuth(`${API_ENDPOINTS.MERCADOPAGO_CONSULTAR_STATUS_PIX}?payment_id=${paymentId}&tenant_id=${CONFIG.ID_USUARIO_LOJA}`);
+            const data = await resp.json();
+
+            if (data.sucesso && data.status === 'approved') {
+                cleanup();
+                const statusEl = cardContent.querySelector('#status-3ds-mp-texto');
+                if (statusEl) {
+                    statusEl.innerHTML = '✅ <span class="text-emerald-700 font-bold">Autenticação Aprovada! Finalizando venda...</span>';
+                }
+
+                setTimeout(() => {
+                    modal.remove();
+                    window.dispatchEvent(new CustomEvent('pagamentoConfirmado', {
+                        detail: {
+                            pedidoId: pedidoId,
+                            gateway: 'mercadopago_cartao',
+                            dados: data,
+                            originalDadosPedido: {
+                                ...dadosPedido,
+                                id: pedidoId,
+                                itens: carrinho,
+                                carrinho: carrinho
+                            }
+                        }
+                    }));
+                    resolve({ sucesso: true, gateway: 'mercadopago_cartao', pedido_id: pedidoId });
+                }, 1000);
+            } else if (data.sucesso && (data.status === 'rejected' || data.status === 'cancelled')) {
+                cleanup();
+                const statusEl = cardContent.querySelector('#status-3ds-mp-texto');
+                if (statusEl) {
+                    statusEl.innerHTML = '❌ <span class="text-red-600 font-bold">Autenticação não autorizada pelo banco.</span>';
+                }
+            }
+        } catch (err) {
+            console.warn('[MP 3DS] Erro na consulta 3DS:', err);
+        }
+    }, 2500);
 }
 
 /**

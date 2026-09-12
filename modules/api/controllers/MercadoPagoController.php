@@ -411,12 +411,10 @@ class MercadoPagoController extends Controller
                 ],
             ];
 
+            // Habilita three_d_secure_mode para permitir autenticação em cartões de débito e crédito que exigem 3DS
+            $paymentData['three_d_secure_mode'] = 'optional';
             if ($isDebito) {
-                // No Brasil, apenas Elo Débito ('debelo') possui rota transparente direta de débito no MP.
-                if ($paymentMethodId === 'debelo') {
-                    $paymentData['payment_type_id']     = 'debit_card';
-                    $paymentData['three_d_secure_mode'] = 'optional';
-                }
+                $paymentData['payment_type_id'] = 'debit_card';
             }
 
             // Remove campos nulos opcionais para evitar rejeição da API
@@ -493,6 +491,39 @@ class MercadoPagoController extends Controller
                     'installments'   => $installments,
                     'amount'         => $amount,
                     'mensagem'       => 'Pagamento aprovado com sucesso!',
+                ];
+            }
+
+            // --- Verificação de desafio 3DS (Three-D Secure) ---
+            $threeDsUrl = null;
+            if (!empty($payment->transaction_details) && !empty($payment->transaction_details->external_resource_url)) {
+                $threeDsUrl = $payment->transaction_details->external_resource_url;
+            } elseif (!empty($payment->point_of_interaction) 
+                && !empty($payment->point_of_interaction->transaction_data) 
+                && !empty($payment->point_of_interaction->transaction_data->ticket_url)
+            ) {
+                $threeDsUrl = $payment->point_of_interaction->transaction_data->ticket_url;
+            } elseif (is_array($payment) && !empty($payment['transaction_details']['external_resource_url'])) {
+                $threeDsUrl = $payment['transaction_details']['external_resource_url'];
+            }
+
+            if ($threeDsUrl && ($status === 'in_process' || $status === 'pending' || $status === 'requires_action' || $statusDetail === 'pending_challenge')) {
+                Yii::info([
+                    'action'       => 'cartao_desafio_3ds_detectado',
+                    'payment_id'   => $paymentId,
+                    'three_ds_url' => $threeDsUrl,
+                ], 'mercadopago');
+
+                return [
+                    'sucesso'        => false,
+                    'status'         => 'requires_action',
+                    'action_type'    => '3ds_challenge',
+                    'three_ds_url'   => $threeDsUrl,
+                    'payment_id'     => $paymentId,
+                    'order_id'       => $orderId,
+                    'status_detail'  => $statusDetail,
+                    'tipo_cartao'    => $tipoCartao,
+                    'mensagem'       => 'Autenticação de segurança 3DS necessária no banco emissor do cartão.',
                 ];
             }
 
@@ -1114,14 +1145,26 @@ class MercadoPagoController extends Controller
                 ]
             ]);
             $data = json_decode($resp->getBody()->getContents(), true);
+            $status = $data['status'] ?? 'pending';
+
+            // Se aprovado, garante liberação da venda (idempotente)
+            if ($status === 'approved') {
+                $externalRef = $data['external_reference'] ?? null;
+                $amount = (float)($data['transaction_amount'] ?? 0);
+                $fee = (float)($data['fee_details'][0]['amount'] ?? 0);
+                if ($externalRef && $this->validarUUID($externalRef)) {
+                    $this->liberarPedido($tenantId, $externalRef, $amount, $paymentId, $fee);
+                }
+            }
+
             return [
                 'sucesso' => true,
-                'status' => $data['status'] ?? 'pending',
+                'status' => $status,
                 'status_detail' => $data['status_detail'] ?? null,
                 'date_approved' => $data['date_approved'] ?? null
             ];
         } catch (\Exception $ex) {
-            return $this->errorResponse('Erro ao consultar status do Pix: ' . $ex->getMessage());
+            return $this->errorResponse('Erro ao consultar status do pagamento: ' . $ex->getMessage());
         }
     }
 

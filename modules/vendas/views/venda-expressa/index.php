@@ -558,6 +558,31 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             </button>
         </div>
 
+        <!-- Conteúdo Aba 4: Desafio 3DS -->
+        <div id="mpConteudo3DS" class="hidden space-y-3">
+            <div class="bg-amber-500/15 border border-amber-500/30 p-3 rounded-2xl text-left space-y-1">
+                <div class="flex items-center gap-2 text-amber-300 font-bold text-xs">
+                    <span>🛡️</span>
+                    <span>Autenticação de Segurança (3DS)</span>
+                </div>
+                <p class="text-[11px] text-amber-200/80">O banco emissor do cartão solicitou a confirmação da transação para autorizar a compra.</p>
+            </div>
+
+            <div class="rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 min-h-[300px]">
+                <iframe id="iframe3dsVendaExpressa" src="about:blank" class="w-full h-80 border-0 rounded-2xl" allow="payment"></iframe>
+            </div>
+
+            <a id="btnLink3dsVendaExpressa" href="#" target="_blank" rel="noopener noreferrer" class="w-full py-2.5 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl text-center shadow transition flex items-center justify-center gap-2">
+                <span>📲 Abrir tela do Banco em nova aba</span>
+                <span>↗</span>
+            </a>
+
+            <div id="status3dsVendaExpressa" class="text-center text-xs font-bold text-cyan-400 py-1 flex items-center justify-center gap-2">
+                <span class="inline-block animate-spin">⏳</span>
+                <span>Aguardando autorização no banco...</span>
+            </div>
+        </div>
+
         <!-- Opção de Concluir Manualmente ou Fechar -->
         <div class="pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
             <button type="button" onclick="concluirVendaMercadoPagoManualmente()" class="text-[11px] text-slate-400 hover:text-amber-400 font-bold underline transition">
@@ -1915,12 +1940,13 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         const conteudoPoint = document.getElementById('mpConteudoPoint');
         const conteudoPix = document.getElementById('mpConteudoPix');
         const conteudoCartao = document.getElementById('mpConteudoCartao');
+        const conteudo3DS = document.getElementById('mpConteudo3DS');
 
         const activeClass = 'flex-1 py-2 rounded-lg transition bg-cyan-500 text-slate-950 shadow font-extrabold';
         const inactiveClass = 'flex-1 py-2 rounded-lg transition text-slate-400 hover:text-white';
 
         [btnPix, btnPoint, btnCartao].forEach(b => { if (b) b.className = inactiveClass; });
-        [conteudoPix, conteudoPoint, conteudoCartao].forEach(c => { if (c) c.classList.add('hidden'); });
+        [conteudoPix, conteudoPoint, conteudoCartao, conteudo3DS].forEach(c => { if (c) c.classList.add('hidden'); });
 
         if (aba === 'point') {
             if (btnPoint) btnPoint.className = activeClass;
@@ -2364,8 +2390,14 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             });
 
             const data = await resp.json();
+            if (data.status === 'requires_action' && data.three_ds_url) {
+                console.log('[Venda Expressa 3DS] 🔐 Autenticação bancária necessária:', data.three_ds_url);
+                exibirDesafio3DsVendaExpressa(data.three_ds_url, data.payment_id, mpVendaIdAtual);
+                return;
+            }
+
             if (!resp.ok || !data.sucesso) {
-                throw new Error(data.message || 'Cartão recusado pelo Mercado Pago.');
+                throw new Error(data.message || data.mensagem || 'Cartão recusado pelo Mercado Pago.');
             }
 
             if (feedback) {
@@ -2384,6 +2416,60 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             btn.disabled = false;
             btn.innerHTML = '<span>💳 Cobrar Cartão via Mercado Pago</span>';
         }
+    }
+
+    function exibirDesafio3DsVendaExpressa(threeDsUrl, paymentId, orderId) {
+        const conteudoPoint = document.getElementById('mpConteudoPoint');
+        const conteudoPix = document.getElementById('mpConteudoPix');
+        const conteudoCartao = document.getElementById('mpConteudoCartao');
+        const conteudo3DS = document.getElementById('mpConteudo3DS');
+        const iframe = document.getElementById('iframe3dsVendaExpressa');
+        const btnLink = document.getElementById('btnLink3dsVendaExpressa');
+        const statusTexto = document.getElementById('status3dsVendaExpressa');
+
+        [conteudoPoint, conteudoPix, conteudoCartao].forEach(c => { if (c) c.classList.add('hidden'); });
+        if (conteudo3DS) conteudo3DS.classList.remove('hidden');
+
+        if (iframe) iframe.src = threeDsUrl;
+        if (btnLink) btnLink.href = threeDsUrl;
+        if (statusTexto) statusTexto.innerHTML = '<span class="inline-block animate-spin">⏳</span><span>Aguardando autorização no banco...</span>';
+
+        if (mpPollingIntervalId) clearInterval(mpPollingIntervalId);
+
+        let attempts = 0;
+        const maxAttempts = 80;
+
+        mpPollingIntervalId = setInterval(async () => {
+            attempts++;
+            if (attempts > maxAttempts) {
+                clearInterval(mpPollingIntervalId);
+                mpPollingIntervalId = null;
+                if (statusTexto) statusTexto.innerHTML = '<span class="text-rose-400 font-bold">Tempo limite de autenticação excedido.</span>';
+                return;
+            }
+
+            try {
+                const r = await fetch(`${baseUrlApp}/index.php/api/mercado-pago/consultar-status-pix?payment_id=${paymentId}&tenant_id=${lojaIdAtual}`);
+                const res = await r.json();
+
+                if (res.sucesso && res.status === 'approved') {
+                    clearInterval(mpPollingIntervalId);
+                    mpPollingIntervalId = null;
+                    if (statusTexto) statusTexto.innerHTML = '✅ <span class="text-emerald-400 font-bold">Autenticação Aprovada! Concluindo venda...</span>';
+
+                    setTimeout(async () => {
+                        fecharModalMercadoPagoPDV();
+                        await confirmarVendaPdv(orderId);
+                    }, 1000);
+                } else if (res.sucesso && (res.status === 'rejected' || res.status === 'cancelled')) {
+                    clearInterval(mpPollingIntervalId);
+                    mpPollingIntervalId = null;
+                    if (statusTexto) statusTexto.innerHTML = '❌ <span class="text-rose-400 font-bold">Autenticação não autorizada pelo banco.</span>';
+                }
+            } catch (err) {
+                console.warn('[3DS Polling] Erro ao consultar status:', err);
+            }
+        }, 2500);
     }
 
     function copiarCodigoPixMp() {

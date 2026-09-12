@@ -478,6 +478,12 @@ async function processarCartaoMercadoPago(dadosPedido, carrinho, cliente, pedido
             };
         }
 
+        // 1.5️⃣ CASO 3DS CHALLENGE: Requer autenticação do banco emissor
+        if (result.status === 'requires_action' && result.three_ds_url) {
+            console.log('[MP Cartão] 🔐 Desafio 3DS detectado:', result.three_ds_url);
+            return await exibirModalDesafio3DSCatalogo(result.three_ds_url, result.payment_id, pedidoId, dadosPedido, carrinho, cliente);
+        }
+
         // 2️⃣ CASO EM ANÁLISE / PENDENTE (Anti-fraude)
         if (!result.sucesso && (result.status === 'in_process' || result.status === 'pending')) {
             _mostrarMensagemCartao(
@@ -522,6 +528,123 @@ async function processarCartaoMercadoPago(dadosPedido, carrinho, cliente, pedido
         alert('Houve uma falha ao comunicar com a operadora do cartão. Redirecionando para pagamento via PIX...');
         return await processarMercadoPago(dadosPedido, carrinho, cliente, pedidoId);
     }
+}
+
+/**
+ * Exibe o desafio 3DS (Three-D Secure) no Catálogo com iframe embutido e botão de abertura externa
+ */
+function exibirModalDesafio3DSCatalogo(threeDsUrl, paymentId, pedidoId, dadosPedido, carrinho, cliente) {
+    return new Promise((resolve) => {
+        const modalExistente = document.getElementById('modal-3ds-catalogo');
+        if (modalExistente) modalExistente.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'modal-3ds-catalogo';
+        modal.className = 'fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-[200] p-4';
+        modal.innerHTML = `
+            <div class="bg-white rounded-2xl p-6 max-w-lg w-full mx-auto shadow-2xl space-y-4 text-center">
+                <div class="flex items-center justify-between border-b pb-3 text-left">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">🔐</span>
+                        <div>
+                            <h3 class="text-lg font-black text-gray-900 leading-tight">Autenticação do Banco (3DS)</h3>
+                            <p class="text-xs text-brand-600 font-bold">Confirmação de segurança do seu cartão</p>
+                        </div>
+                    </div>
+                    <button type="button" id="btn-fechar-3ds-cat" class="text-gray-400 hover:text-gray-700 p-1">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-left space-y-1">
+                    <div class="flex items-center gap-2 text-amber-800 font-bold text-xs">
+                        <span>🛡️</span>
+                        <span>Seu banco solicitou a confirmação desta compra.</span>
+                    </div>
+                    <p class="text-[11px] text-amber-700">Autorize no quadro abaixo ou clique no botão para abrir no app/site do seu banco.</p>
+                </div>
+
+                <div class="rounded-xl overflow-hidden border border-gray-200 bg-gray-50 min-h-[320px] relative">
+                    <iframe src="${threeDsUrl}" id="iframe-3ds-cat" class="w-full h-80 border-0 rounded-xl" allow="payment"></iframe>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    <a href="${threeDsUrl}" target="_blank" rel="noopener noreferrer" class="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white text-xs font-black rounded-xl text-center shadow transition flex items-center justify-center gap-2">
+                        <span>📲 Abrir tela do Banco em nova aba</span>
+                        <span>↗</span>
+                    </a>
+                    <div id="status-3ds-cat-texto" class="text-center text-xs font-bold text-gray-500 py-1 flex items-center justify-center gap-2">
+                        <span class="inline-block animate-spin">⏳</span>
+                        <span>Aguardando você confirmar no banco...</span>
+                    </div>
+                    <button type="button" id="btn-cancelar-3ds-cat" class="w-full py-2 text-gray-500 hover:text-red-600 text-xs font-bold transition">
+                        Cancelar e tentar outra forma de pagamento
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        let pollInterval = null;
+        let attempts = 0;
+        const maxAttempts = 80;
+
+        const cleanup = () => {
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = null;
+        };
+
+        const fecharModal = async () => {
+            cleanup();
+            modal.remove();
+            const decisao = await exibirModalDecisaoRecusa('Autenticação no banco foi cancelada.');
+            if (decisao === 'pix') {
+                resolve(await processarMercadoPago(dadosPedido, carrinho, cliente, pedidoId));
+            } else {
+                resolve({ sucesso: false, gateway: 'mercadopago', status: 'cancelled' });
+            }
+        };
+
+        const btnFechar = modal.querySelector('#btn-fechar-3ds-cat');
+        if (btnFechar) btnFechar.onclick = fecharModal;
+
+        const btnCancelar = modal.querySelector('#btn-cancelar-3ds-cat');
+        if (btnCancelar) btnCancelar.onclick = fecharModal;
+
+        pollInterval = setInterval(async () => {
+            attempts++;
+            if (attempts > maxAttempts) {
+                cleanup();
+                const statusEl = modal.querySelector('#status-3ds-cat-texto');
+                if (statusEl) statusEl.innerHTML = '<span class="text-red-600 font-bold">Tempo limite esgotado. Verifique no seu banco.</span>';
+                return;
+            }
+
+            try {
+                const statusRes = await verificarStatusPagamentoMP(paymentId, null);
+                if (statusRes.status === 'pago') {
+                    cleanup();
+                    const statusEl = modal.querySelector('#status-3ds-cat-texto');
+                    if (statusEl) statusEl.innerHTML = '✅ <span class="text-emerald-700 font-bold">Pagamento Confirmado pelo Banco!</span>';
+
+                    setTimeout(() => {
+                        modal.remove();
+                        tratarPagamentoConfirmado(pedidoId, statusRes.dados, 'mercadopago');
+                        resolve({
+                            sucesso: true,
+                            gateway: 'mercadopago',
+                            status: 'approved',
+                            mensagem: 'Pagamento aprovado com sucesso!',
+                            dados: { ...statusRes.dados, id: pedidoId, venda_id: pedidoId }
+                        });
+                    }, 1000);
+                }
+            } catch (err) {
+                console.warn('[Catálogo 3DS] Erro no polling:', err);
+            }
+        }, 2500);
+    });
 }
 
 /**
