@@ -57,10 +57,14 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
             [['id', 'nome', 'hash_senha', 'cpf', 'telefone', 'username'], 'required'],
             [['id'], 'string'],
             [['data_criacao', 'data_atualizacao', 'blocked_at', 'confirmed_at', 'mp_token_expiration'], 'safe'],
-            [['api_de_pagamento', 'mercadopago_sandbox', 'asaas_sandbox', 'eh_dono_loja', 'is_admin'], 'boolean'],
+            [['api_de_pagamento', 'mercadopago_sandbox', 'asaas_sandbox', 'eh_dono_loja', 'is_admin', 'pix_estatico_liberado_admin'], 'boolean'],
             [['api_de_pagamento'], 'default', 'value' => false],
             [['eh_dono_loja'], 'default', 'value' => false],
             [['is_admin'], 'default', 'value' => false],
+            [['pix_estatico_liberado_admin'], 'default', 'value' => false],
+            [['pix_estatico_limite_vendas', 'pix_estatico_vendas_realizadas'], 'integer'],
+            [['pix_estatico_limite_vendas'], 'default', 'value' => 0],
+            [['pix_estatico_vendas_realizadas'], 'default', 'value' => 0],
             [['mercadopago_sandbox'], 'default', 'value' => true],
             [['asaas_sandbox'], 'default', 'value' => true],
             [['status_loja'], 'string', 'max' => 20],
@@ -138,6 +142,9 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
             'mercadopago_sandbox' => 'Mercado Pago - Modo Sandbox',
             'asaas_api_key' => 'Asaas - API Key',
             'asaas_sandbox' => 'Asaas - Modo Sandbox',
+            'pix_estatico_liberado_admin' => 'PIX Estático Liberado pelo Admin',
+            'pix_estatico_limite_vendas' => 'Limite de Vendas PIX Estático',
+            'pix_estatico_vendas_realizadas' => 'Vendas Realizadas via PIX Estático',
             'gateway_pagamento' => 'Gateway de Pagamento',
             'catalogo_path' => 'Caminho do Catálogo',
         ];
@@ -498,6 +505,131 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
         }
 
         return 'nenhum';
+    }
+
+    /**
+     * ✅ Verifica se a loja pode utilizar PIX Estático (chave própria da loja sem taxa MP).
+     * Regra de negócio:
+     * - Se NÃO tem Mercado Pago configurado -> TRUE (livre para usar chave própria)
+     * - Se TEM Mercado Pago configurado:
+     *   - Só pode usar se pix_estatico_liberado_admin == true
+     *   - E a cota não tiver sido esgotada (limite < 0 ou null = ilimitado; limite > 0 = cota máxima)
+     */
+    public function podeUsarPixEstatico(): bool
+    {
+        if (!$this->temMercadoPagoConfigurado()) {
+            return true;
+        }
+
+        if (!$this->pix_estatico_liberado_admin) {
+            return false;
+        }
+
+        $limite = $this->pix_estatico_limite_vendas !== null ? (int)$this->pix_estatico_limite_vendas : null;
+        $realizadas = (int)($this->pix_estatico_vendas_realizadas ?? 0);
+
+        // Se limite for nulo ou -1, é ilimitado
+        if ($limite === null || $limite < 0) {
+            return true;
+        }
+
+        // Se limite for 0, está bloqueado
+        if ($limite === 0) {
+            return false;
+        }
+
+        // Se tem limite numérico fixo (ex: 50, 100, 500)
+        return $realizadas < $limite;
+    }
+
+    /**
+     * ✅ Retorna status estruturado do PIX Estático para frontend e APIs
+     */
+    public function getStatusPixEstatico(): array
+    {
+        $temMp = $this->temMercadoPagoConfigurado();
+        if (!$temMp) {
+            return [
+                'bloqueado' => false,
+                'motivo' => 'sem_mercado_pago',
+                'tem_mp' => false,
+                'liberado_admin' => false,
+                'esgotado' => false,
+                'limite' => null,
+                'realizadas' => 0,
+                'restantes' => null,
+                'ilimitado' => true,
+            ];
+        }
+
+        $liberado = (bool)$this->pix_estatico_liberado_admin;
+        $limite = $this->pix_estatico_limite_vendas !== null ? (int)$this->pix_estatico_limite_vendas : null;
+        $realizadas = (int)($this->pix_estatico_vendas_realizadas ?? 0);
+        $ilimitado = ($limite === null || $limite < 0);
+
+        $esgotado = false;
+        $restantes = null;
+        if (!$ilimitado) {
+            if ($limite === 0) {
+                $esgotado = true;
+                $restantes = 0;
+            } else {
+                $restantes = max(0, $limite - $realizadas);
+                if ($restantes <= 0) {
+                    $esgotado = true;
+                }
+            }
+        }
+
+        $pode = $liberado && !$esgotado;
+
+        return [
+            'bloqueado' => !$pode,
+            'motivo' => !$liberado ? 'nao_autorizado_admin' : ($esgotado ? 'cota_esgotada' : 'liberado'),
+            'tem_mp' => true,
+            'liberado_admin' => $liberado,
+            'esgotado' => $esgotado,
+            'limite' => $limite,
+            'realizadas' => $realizadas,
+            'restantes' => $restantes,
+            'ilimitado' => $ilimitado,
+        ];
+    }
+
+    /**
+     * ✅ Incrementa de forma atômica o contador de vendas por PIX Estático
+     */
+    public function incrementarVendaPixEstatico(): bool
+    {
+        if (!$this->temMercadoPagoConfigurado()) {
+            return true;
+        }
+
+        try {
+            $sql = "UPDATE {{%prest_usuarios}} 
+                    SET pix_estatico_vendas_realizadas = COALESCE(pix_estatico_vendas_realizadas, 0) + 1,
+                        data_atualizacao = NOW()
+                    WHERE id = :id::uuid";
+            Yii::$app->db->createCommand($sql, [':id' => $this->id])->execute();
+            $this->refresh();
+            return true;
+        } catch (\Exception $e) {
+            Yii::error("Erro ao incrementar venda PIX estático para usuário {$this->id}: " . $e->getMessage(), __METHOD__);
+            return false;
+        }
+    }
+
+    /**
+     * ✅ Configura cota pelo SaaS Admin
+     */
+    public function configurarCotaPixEstatico(bool $liberado, ?int $limite, bool $zerarContador = false): bool
+    {
+        $this->pix_estatico_liberado_admin = $liberado;
+        $this->pix_estatico_limite_vendas = $limite;
+        if ($zerarContador) {
+            $this->pix_estatico_vendas_realizadas = 0;
+        }
+        return $this->save(false, ['pix_estatico_liberado_admin', 'pix_estatico_limite_vendas', 'pix_estatico_vendas_realizadas', 'data_atualizacao']);
     }
 
     /**

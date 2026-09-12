@@ -1507,10 +1507,15 @@ function popularFormasPagamento(formas) {
         }
         
         // ====================================================================
-        // REGRA 3: PIX_ESTATICO sempre disponível (não requer gateway)
+        // REGRA 3: PIX_ESTATICO (chave da loja)
+        // Bloqueado se a loja tiver Mercado Pago conectado e sem cota do admin
         // ====================================================================
         if (tipo === 'PIX_ESTATICO') {
-            console.log(`[App] ✅ MANTIDO: ${nome} (PIX_ESTATICO sempre disponível)`);
+            if (window.GATEWAY_CONFIG && window.GATEWAY_CONFIG.pix_estatico_bloqueado === true) {
+                console.log(`[App] ❌ REMOVIDO: ${nome} (PIX_ESTATICO bloqueado pelo Admin da SaaS - Mercado Pago ativo sem cota)`);
+                return false;
+            }
+            console.log(`[App] ✅ MANTIDO: ${nome} (PIX_ESTATICO disponível)`);
             return true;
         }
         

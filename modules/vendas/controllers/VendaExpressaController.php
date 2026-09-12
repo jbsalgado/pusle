@@ -123,12 +123,15 @@ class VendaExpressaController extends Controller
             ", [':usuario_id' => $lojaId])->queryAll();
         }
 
+        $statusPixEstatico = $usuarioLoja ? $usuarioLoja->getStatusPixEstatico() : null;
+
         return $this->render('index', [
             'produtos' => $produtos,
             'formasPagamento' => $formasPagamento,
             'resumoHoje' => $resumoHoje,
             'lojaConfig' => $lojaConfig,
             'temMercadoPago' => $temMercadoPago,
+            'statusPixEstatico' => $statusPixEstatico,
             'dispositivosPoint' => $dispositivosPoint,
             'lojaId' => $lojaId,
         ]);
@@ -236,6 +239,33 @@ class VendaExpressaController extends Controller
         }
 
         $formaPagamento = !empty($formaPagamentoId) ? FormaPagamento::findOne($formaPagamentoId) : null;
+
+        $usuarioLoja = Usuario::findOne($lojaId);
+
+        // Identifica se a forma de pagamento selecionada é PIX Estático (chave da loja sem gateway)
+        $usouPixEstatico = false;
+        if ($formaPagamento && ($formaPagamento->tipo === FormaPagamento::TIPO_PIX_ESTATICO || ($formaPagamento->tipo === FormaPagamento::TIPO_PIX && $usuarioLoja && $usuarioLoja->temMercadoPagoConfigurado()))) {
+            $usouPixEstatico = true;
+        }
+        if ($usaMultiplos) {
+            foreach ($pagamentosMultiplos as $pm) {
+                $fpSub = FormaPagamento::findOne($pm['forma_pagamento_id']);
+                if ($fpSub && ($fpSub->tipo === FormaPagamento::TIPO_PIX_ESTATICO || ($fpSub->tipo === FormaPagamento::TIPO_PIX && $usuarioLoja && $usuarioLoja->temMercadoPagoConfigurado()))) {
+                    $usouPixEstatico = true;
+                    break;
+                }
+            }
+        }
+
+        // Validação de Segurança: se tem Mercado Pago, só pode usar PIX Estático se autorizado pelo SaaS Admin
+        if ($usouPixEstatico && $usuarioLoja && $usuarioLoja->temMercadoPagoConfigurado()) {
+            if (!$usuarioLoja->podeUsarPixEstatico()) {
+                return [
+                    'success' => false,
+                    'message' => 'O uso de PIX Estático (chave própria da loja) está bloqueado pelo Administrador da SaaS ou a cota de vendas autorizadas foi atingida. Por favor, utilize a opção "PIX Mercado Pago" (com baixa automática).'
+                ];
+            }
+        }
 
         // Identifica se a venda é a prazo (Boleto / Fiado)
         $nomeFpLower = $formaPagamento ? mb_strtolower($formaPagamento->nome) : '';
@@ -580,6 +610,11 @@ class VendaExpressaController extends Controller
 
             $transaction->commit();
 
+            // Incrementa cota de PIX Estático se a loja estiver com Mercado Pago conectado
+            if ($usouPixEstatico && $usuarioLoja && $usuarioLoja->temMercadoPagoConfigurado()) {
+                $usuarioLoja->incrementarVendaPixEstatico();
+            }
+
             $itensResponse = [];
             $totalPecasCount = 0;
             foreach ($venda->itens as $vItem) {
@@ -618,6 +653,7 @@ class VendaExpressaController extends Controller
                 'pagamentos' => $usaMultiplos ? $pagamentosMultiplos : [],
                 'itens' => $itensResponse,
                 'resumoHoje' => $this->getResumoHoje($lojaId),
+                'statusPixEstatico' => $usuarioLoja ? $usuarioLoja->getStatusPixEstatico() : null,
             ];
 
         } catch (\Exception $e) {

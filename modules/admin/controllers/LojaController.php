@@ -54,6 +54,7 @@ class LojaController extends Controller
                 'actions' => [
                     'toggle-modulo' => ['POST'],
                     'toggle-admin'  => ['POST'],
+                    'atualizar-pix-estatico' => ['POST'],
                 ],
             ],
         ];
@@ -247,6 +248,68 @@ class LojaController extends Controller
         }
 
         return ['success' => false, 'message' => 'Erro ao reativar loja.'];
+    }
+
+    /**
+     * Atualiza liberação e cota de PIX Estático para lojistas com Mercado Pago.
+     */
+    public function actionAtualizarPixEstatico()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        $request = Yii::$app->request;
+        $usuarioId = $request->post('usuario_id');
+        $liberado = $request->post('liberado');
+        $limite = $request->post('limite');
+        $zerarContador = $request->post('zerar_contador', false);
+        $adicionarCota = $request->post('adicionar_cota', null);
+
+        if (!$usuarioId) {
+            return ['success' => false, 'message' => 'Lojista não informado.'];
+        }
+
+        $loja = $this->findLoja($usuarioId);
+
+        $boolLiberado = ($liberado === 'true' || $liberado === true || $liberado === '1' || $liberado === 1);
+        $boolZerar = ($zerarContador === 'true' || $zerarContador === true || $zerarContador === '1' || $zerarContador === 1);
+
+        $intLimite = null;
+        if ($limite !== null && $limite !== '' && $limite !== 'ilimitado') {
+            $intLimite = (int)$limite;
+        } elseif ($limite === 'ilimitado' || $limite === -1 || $limite === '-1') {
+            $intLimite = -1;
+        }
+
+        if ($adicionarCota !== null && is_numeric($adicionarCota)) {
+            $adicional = (int)$adicionarCota;
+            $atualLimite = ($loja->pix_estatico_limite_vendas !== null && $loja->pix_estatico_limite_vendas > 0) 
+                ? (int)$loja->pix_estatico_limite_vendas 
+                : 0;
+            $intLimite = $atualLimite + $adicional;
+            $boolLiberado = true;
+        }
+
+        $loja->pix_estatico_liberado_admin = $boolLiberado;
+        $loja->pix_estatico_limite_vendas = $intLimite;
+        if ($boolZerar) {
+            $loja->pix_estatico_vendas_realizadas = 0;
+        }
+
+        if ($loja->save(false, ['pix_estatico_liberado_admin', 'pix_estatico_limite_vendas', 'pix_estatico_vendas_realizadas', 'data_atualizacao'])) {
+            $status = $loja->getStatusPixEstatico();
+            $msgLimite = $status['ilimitado'] ? 'Ilimitado' : ($status['limite'] . ' vendas');
+            $msg = $boolLiberado 
+                ? "PIX Estático autorizado para \"{$loja->nome}\" com limite de {$msgLimite} ({$status['restantes']} restantes)." 
+                : "PIX Estático bloqueado para \"{$loja->nome}\". Todas as vendas PIX exigem Mercado Pago.";
+
+            return [
+                'success' => true,
+                'message' => $msg,
+                'status' => $status,
+            ];
+        }
+
+        return ['success' => false, 'message' => 'Erro ao atualizar configuração de PIX Estático.'];
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -245,21 +245,28 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                                     </button>
 
                                 <?php elseif ($isPix && $temMercadoPago): ?>
-                                    <!-- 1. PIX Estático (Chave da Loja - Sem Taxas) -->
+                                    <?php 
+                                        $pixEstaticoLiberado = ($statusPixEstatico && !$statusPixEstatico['bloqueado']);
+                                        $textoCotaPix = $statusPixEstatico ? ($statusPixEstatico['ilimitado'] ? '(Sem Taxa)' : '(' . $statusPixEstatico['restantes'] . ' rest.)') : '(Sem Taxa)';
+                                        $titleCotaPix = $statusPixEstatico ? ($statusPixEstatico['ilimitado'] ? 'Pagamento direto na chave Pix da loja (Cota Ilimitada liberada pelo Admin)' : 'Pagamento direto na chave Pix da loja (' . $statusPixEstatico['realizadas'] . ' de ' . $statusPixEstatico['limite'] . ' vendas utilizadas)') : 'Pagamento direto na chave Pix da loja';
+                                    ?>
+                                    <!-- 1. PIX Estático (Chave da Loja - Apenas se liberado pelo SaaS Admin) -->
                                     <button type="button" onclick="selecionarFormaPagamento('<?= $fp->id ?>', this)" 
-                                             class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 <?= $isAtivoInicial ? 'bg-amber-400 text-slate-900 border-amber-300 shadow-md' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700' ?>" 
+                                             id="btnPixLojaEstatico"
+                                             class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 <?= $pixEstaticoLiberado ? '' : 'hidden' ?> <?= ($isAtivoInicial && $pixEstaticoLiberado) ? 'bg-amber-400 text-slate-900 border-amber-300 shadow-md' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700' ?>" 
                                              data-id="<?= $fp->id ?>"
                                              data-tipo="PIX_ESTATICO"
                                              data-nome="PIX (Chave da Loja)"
-                                             title="Pagamento direto na chave Pix da loja, sem taxas e sem split">
+                                             title="<?= Html::encode($titleCotaPix) ?>">
                                         <div class="text-center leading-tight">
                                             <span class="block">📱 PIX Loja</span>
-                                            <span class="text-[9px] text-emerald-400 font-bold block">(Sem Taxa)</span>
+                                            <span id="labelCotaPixLoja" class="text-[9px] text-emerald-400 font-bold block"><?= Html::encode($textoCotaPix) ?></span>
                                         </div>
                                     </button>
                                     <!-- 2. PIX Dinâmico (Mercado Pago com Split e Baixa Automática) -->
                                     <button type="button" onclick="selecionarFormaPagamento('<?= $fp->id ?>', this)" 
-                                             class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700" 
+                                             id="btnPixMercadoPago"
+                                             class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 <?= ($isAtivoInicial && !$pixEstaticoLiberado) ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md' : ($isAtivoInicial ? 'bg-amber-400 text-slate-900 border-amber-300 shadow-md' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700') ?>" 
                                              data-id="<?= $fp->id ?>"
                                              data-tipo="PIX_MERCADOPAGO"
                                              data-nome="PIX Mercado Pago"
@@ -781,6 +788,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
     let formaPagamentoSelecionadaNome = '<?= $fpPadrao ? Html::encode($fpPadrao->nome) : (count($formasPagamento) > 0 ? Html::encode($formasPagamento[0]->nome) : "") ?>';
     let formaPagamentoSelecionadaTipo = '<?= $fpPadrao ? Html::encode($fpPadrao->tipo) : "" ?>';
     const temMercadoPagoConfig = <?= json_encode((bool)($temMercadoPago ?? false)) ?>;
+    let statusPixEstaticoConfig = <?= json_encode($statusPixEstatico ?? null) ?>;
     const lojaIdAtual = <?= json_encode((string)($lojaId ?? '')) ?>;
     const dispositivosPointDisponiveis = <?= json_encode($dispositivosPoint ?? []) ?>;
     const baseUrlApp = '<?= Yii::$app->request->baseUrl ?>';
@@ -1736,6 +1744,10 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
 
         // 3. PIX Estático Loja (sem taxas, confirmação manual)
         if (formaPagamentoSelecionadaTipo === 'PIX_ESTATICO' || ((formaPagamentoSelecionadaNome || '').toLowerCase().includes('pix') && !(formaPagamentoSelecionadaNome || '').toLowerCase().includes('mercado'))) {
+            if (temMercadoPagoConfig && statusPixEstaticoConfig && statusPixEstaticoConfig.bloqueado) {
+                alert('⚠️ O PIX Estático (chave própria da loja) está bloqueado pelo Administrador da SaaS ou a cota de vendas autorizadas foi atingida.\n\nPor favor, utilize a opção "⚡ PIX MP (Baixa Auto)" para receber com confirmação automática.');
+                return;
+            }
             abrirModalPixEstatico();
             return;
         }
@@ -2765,6 +2777,23 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                     document.getElementById('resumoValor').textContent = data.resumoHoje.valor_total;
                     document.getElementById('resumoQtd').textContent = data.resumoHoje.total_vendas;
                     document.getElementById('resumoTop').textContent = data.resumoHoje.top_produto;
+                }
+
+                // Atualizar cota de PIX Estático em Tempo Real
+                if (data.statusPixEstatico) {
+                    statusPixEstaticoConfig = data.statusPixEstatico;
+                    const btnLoja = document.getElementById('btnPixLojaEstatico');
+                    const labelCota = document.getElementById('labelCotaPixLoja');
+                    if (btnLoja && labelCota) {
+                        if (statusPixEstaticoConfig.bloqueado) {
+                            btnLoja.classList.add('hidden');
+                        } else {
+                            btnLoja.classList.remove('hidden');
+                            labelCota.textContent = statusPixEstaticoConfig.ilimitado 
+                                ? '(Sem Taxa)' 
+                                : `(${statusPixEstaticoConfig.restantes} rest.)`;
+                        }
+                    }
                 }
 
                 // Esvaziar carrinho de entrada

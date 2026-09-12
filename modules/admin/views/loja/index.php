@@ -403,10 +403,24 @@ $admin = Yii::$app->user->identity;
                                 <?php if ($loja->is_admin): ?>
                                     <span class="badge-status" style="background: rgba(139,92,246,0.2); color: #a78bfa; border: 1px solid rgba(139,92,246,0.3); margin-top: 4px; display: inline-flex;">🛡️ Super Admin</span>
                                 <?php endif; ?>
+                                <?php 
+                                    $temMpLoja = $loja->temMercadoPagoConfigurado();
+                                    $stPix = $loja->getStatusPixEstatico();
+                                ?>
+                                <?php if ($temMpLoja): ?>
+                                    <?php if ($stPix['bloqueado']): ?>
+                                        <span class="badge-status" style="background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.25); margin-top: 4px; display: inline-flex; font-size: 10px;" title="Mercado Pago ativo - PIX Estático Bloqueado (Sem Cota)">🔒 PIX MP Exclusivo</span>
+                                    <?php else: ?>
+                                        <span class="badge-status" style="background: rgba(16,185,129,0.12); color: #34d399; border: 1px solid rgba(16,185,129,0.25); margin-top: 4px; display: inline-flex; font-size: 10px;" title="Cota liberada: <?= $stPix['realizadas'] ?> de <?= $stPix['limite'] ?> vendas">📱 PIX Loja (<?= $stPix['ilimitado'] ? 'Ilimitado' : $stPix['restantes'] . ' rest.' ?>)</span>
+                                    <?php endif; ?>
+                                <?php endif; ?>
                             </td>
                             <td>
                                 <a href="<?= Url::to(['/admin/loja/modulos', 'id' => $loja->id]) ?>" class="btn-action" style="background: var(--primary-light); color: var(--primary);" title="Gerenciar Módulos e Acessos">
                                     ⚙️ Permissões
+                                </a>
+                                <a href="<?= Url::to(['/admin/loja/modulos', 'id' => $loja->id]) ?>" class="btn-action" style="background: rgba(6,182,212,0.15); color: #06b6d4;" title="Configurar Cota de PIX Estático">
+                                    ⚡ Cota PIX
                                 </a>
                                 <?php if ($loja->is_admin): ?>
                                     <button class="btn-action" style="background: rgba(239,68,68,0.15); color: #ef4444;" onclick="abrirModalToggleAdmin('<?= Html::encode($loja->id) ?>', '<?= Html::encode($loja->nome) ?>', true)" title="Revogar privilégio de Super Admin">

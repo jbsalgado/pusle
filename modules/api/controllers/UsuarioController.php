@@ -7,6 +7,7 @@ use yii\rest\Controller;
 use yii\web\Response;
 use yii\filters\AccessControl;
 use app\modules\vendas\models\Colaborador;
+use app\models\Usuario;
 
 class UsuarioController extends Controller
 {
@@ -122,6 +123,9 @@ class UsuarioController extends Controller
                 $catalogoAtivo = true;
             }
 
+            $usuarioModel = !empty($usuario['id']) ? Usuario::findOne($usuario['id']) : null;
+            $stPix = $usuarioModel ? $usuarioModel->getStatusPixEstatico() : null;
+
             return [
                 'id'                  => $usuario['id'],
                 'nome'                => $usuario['nome_loja'] ?: $usuario['nome'],
@@ -131,6 +135,8 @@ class UsuarioController extends Controller
                 'logo_path'           => $usuario['logo_path'] ?? null,
                 'telefone'            => $usuario['telefone'] ?? null,
                 'email'               => $usuario['email'] ?? null,
+                'pix_estatico_bloqueado' => $stPix ? $stPix['bloqueado'] : false,
+                'pix_estatico_info'   => $stPix,
             ];
 
         } catch (\Exception $e) {
@@ -262,6 +268,9 @@ class UsuarioController extends Controller
                 $catalogoAtivo = true;
             }
 
+            $usuarioModel = Usuario::findOne($lojaId);
+            $stPix = $usuarioModel ? $usuarioModel->getStatusPixEstatico() : null;
+
             return [
                 'api_de_pagamento' => $usuario['api_de_pagamento'] ?? false,
                 'gateway_pagamento' => $usuario['gateway_pagamento'] ?? 'nenhum',
@@ -272,6 +281,8 @@ class UsuarioController extends Controller
                 'imprimir_automatico' => (bool)($usuario['imprimir_automatico'] ?? false),
                 'catalogo_ativo' => $catalogoAtivo,
                 'mensagem_manutencao' => $usuario['mensagem_manutencao'] ?? null,
+                'pix_estatico_bloqueado' => $stPix ? $stPix['bloqueado'] : false,
+                'pix_estatico_info' => $stPix,
             ];
         } catch (\Exception $e) {
             Yii::$app->response->statusCode = 500;

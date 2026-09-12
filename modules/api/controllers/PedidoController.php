@@ -299,6 +299,32 @@ class PedidoController extends BaseController
             throw new ServerErrorHttpException('Não foi possível identificar o usuário da loja.');
         }
 
+        $usuarioLoja = \app\models\Usuario::findOne($usuarioId);
+
+        // Validação de PIX Estático para lojas com Mercado Pago conectado
+        $usouPixEstatico = false;
+        if ($formaPagamentoId) {
+            $fpCheck = \app\modules\vendas\models\FormaPagamento::findOne($formaPagamentoId);
+            if ($fpCheck && ($fpCheck->tipo === \app\modules\vendas\models\FormaPagamento::TIPO_PIX_ESTATICO || ($fpCheck->tipo === \app\modules\vendas\models\FormaPagamento::TIPO_PIX && $usuarioLoja && $usuarioLoja->temMercadoPagoConfigurado()))) {
+                $usouPixEstatico = true;
+            }
+        }
+        if (!empty($pagamentosMultiplos)) {
+            foreach ($pagamentosMultiplos as $pm) {
+                $fpSub = \app\modules\vendas\models\FormaPagamento::findOne($pm['forma_pagamento_id'] ?? null);
+                if ($fpSub && ($fpSub->tipo === \app\modules\vendas\models\FormaPagamento::TIPO_PIX_ESTATICO || ($fpSub->tipo === \app\modules\vendas\models\FormaPagamento::TIPO_PIX && $usuarioLoja && $usuarioLoja->temMercadoPagoConfigurado()))) {
+                    $usouPixEstatico = true;
+                    break;
+                }
+            }
+        }
+
+        if ($usouPixEstatico && $usuarioLoja && $usuarioLoja->temMercadoPagoConfigurado()) {
+            if (!$usuarioLoja->podeUsarPixEstatico()) {
+                throw new BadRequestHttpException('O uso de PIX Estático (chave própria da loja) está bloqueado pelo Administrador da SaaS ou a cota de vendas autorizadas foi atingida. Por favor, utilize a opção "PIX Mercado Pago" (com baixa automática).');
+            }
+        }
+
         $transaction = Yii::$app->db->beginTransaction();
         $valorTotalVenda = 0;
 
@@ -667,6 +693,11 @@ class PedidoController extends BaseController
             // ===== COMMIT =====
             $transaction->commit();
             Yii::error("✅ Transação commitada com sucesso!", 'api');
+
+            // Incrementa cota de PIX Estático se aplicável
+            if ($usouPixEstatico && $usuarioLoja && $usuarioLoja->temMercadoPagoConfigurado()) {
+                $usuarioLoja->incrementarVendaPixEstatico();
+            }
 
             // ===== TELEGRAM ALERT (Novo Pedido) =====
             try {

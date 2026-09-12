@@ -188,6 +188,8 @@ export async function carregarConfigLoja() {
         GATEWAY_CONFIG.gateway = config.gateway_pagamento || 'nenhum';
         GATEWAY_CONFIG.mercadopago_public_key = config.mercadopago_public_key;
         GATEWAY_CONFIG.asaas_sandbox = config.asaas_sandbox || false;
+        GATEWAY_CONFIG.pix_estatico_bloqueado = config.pix_estatico_bloqueado || false;
+        GATEWAY_CONFIG.pix_estatico_info = config.pix_estatico_info || null;
         if (typeof window !== 'undefined') {
             window.GATEWAY_CONFIG = GATEWAY_CONFIG;
         }

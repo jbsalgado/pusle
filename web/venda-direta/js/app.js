@@ -1684,10 +1684,15 @@ function popularFormasPagamento(formas, usandoCache = false) {
             const isPix = tipo === 'PIX' || tipo === 'PIX_ESTATICO' || nomeLower.includes('pix');
             
             if (isPix && temMpConfigurado) {
-                // 1. PIX Estático da Loja (Sem Taxa)
-                const optEstatico = new Option('📱 PIX Loja (Sem Taxa - Chave)', forma.id);
-                optEstatico.setAttribute('data-tipo', 'PIX_ESTATICO');
-                selectAtual.options[selectAtual.options.length] = optEstatico;
+                // 1. PIX Estático da Loja (Apenas se liberado pelo SaaS Admin)
+                if (!window.GATEWAY_CONFIG?.pix_estatico_bloqueado) {
+                    const textoCota = (window.GATEWAY_CONFIG?.pix_estatico_info?.restantes !== null && window.GATEWAY_CONFIG?.pix_estatico_info?.restantes !== undefined)
+                        ? `(${window.GATEWAY_CONFIG.pix_estatico_info.restantes} rest.)`
+                        : '(Sem Taxa)';
+                    const optEstatico = new Option(`📱 PIX Loja ${textoCota}`, forma.id);
+                    optEstatico.setAttribute('data-tipo', 'PIX_ESTATICO');
+                    selectAtual.options[selectAtual.options.length] = optEstatico;
+                }
 
                 // 2. PIX Dinâmico Mercado Pago (Baixa Automática)
                 if (!pixJaAdicionadoMp) {

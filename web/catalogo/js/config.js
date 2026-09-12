@@ -236,6 +236,8 @@ export async function carregarConfigLoja() {
         GATEWAY_CONFIG.mercadopago_public_key = config.mercadopago_public_key;
         GATEWAY_CONFIG.mercadopago_sandbox = config.mercadopago_sandbox || false; // ✅ FIX: campo faltando
         GATEWAY_CONFIG.asaas_sandbox = config.asaas_sandbox || false;
+        GATEWAY_CONFIG.pix_estatico_bloqueado = config.pix_estatico_bloqueado || false;
+        GATEWAY_CONFIG.pix_estatico_info = config.pix_estatico_info || null;
 
         // ✅ FIX: Propaga para window para acesso global em gateway-pagamento.js
         window.GATEWAY_CONFIG = { ...GATEWAY_CONFIG };
