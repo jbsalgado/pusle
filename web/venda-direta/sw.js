@@ -84,8 +84,8 @@ const ID_USUARIO_LOJA = getLojaId();
 const API_PRODUTO_URL = `${URL_API}/api/produto?usuario_id=${ID_USUARIO_LOJA}`;
 const API_PEDIDO_URL = `${URL_API}/api/pedido`;
 
-// 🔥 ATUALIZAÇÃO IMPORTANTE: Versão v14 - fix parsing monetário (9.00 não vira 900)
-const CACHE_NAME = 'venda-direta-cache-v14'; 
+// 🔥 ATUALIZAÇÃO IMPORTANTE: Versão v15 - Carteira Digital e Aproximação
+const CACHE_NAME = 'venda-direta-cache-v15'; 
 
 const APP_SHELL_FILES = [
     `${URL_BASE_WEB}/venda-direta/index.html`,

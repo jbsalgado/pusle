@@ -1,7 +1,7 @@
 {
-  "version": "1.4.5",
-  "updated_at": "2026-09-11T17:21:00-03:00",
+  "version": "1.4.6",
+  "updated_at": "2026-09-12T03:45:00-03:00",
   "force_update": true,
-  "changelog": "Validações visuais no CardForm Mercado Pago, destaque de campos obrigatórios (validade/cvv) e correção de recusa de débito online."
+  "changelog": "Carteiras digitais e pagamento por aproximação (Google Pay, Apple Pay e MP 1-Clique) integrados ao checkout."
 }
 

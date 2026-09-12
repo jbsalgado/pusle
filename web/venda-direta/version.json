@@ -1,6 +1,6 @@
 {
-  "version": "1.1.8",
-  "updated_at": "2026-09-02T09:33:00-03:00",
+  "version": "1.1.9",
+  "updated_at": "2026-09-12T03:45:00-03:00",
   "force_update": true,
-  "changelog": "Fix crítico: desconto global R$ 9,00 não convertia mais para R$ 900 devido a parsing duplo da máscara monetária."
+  "changelog": "Carteira Digital e Pagamento por Aproximação com QR Code Dinâmico e botão 1-Clique integrados ao PDV Balcão."
 }
