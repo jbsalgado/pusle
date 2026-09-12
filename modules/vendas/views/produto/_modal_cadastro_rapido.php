@@ -625,10 +625,47 @@ $topCategorias = array_slice($categorias, 0, 4);
         renderizarChipsTamanhos();
     }
 
+    function atualizarTotalPecasGrade() {
+        const badgeTotal = document.getElementById('badgeTotalItensGrade');
+        if (!badgeTotal) return;
+        const total = Object.values(tamanhosGradeAtivos).reduce((acc, v) => acc + (parseInt(v, 10) || 0), 0);
+        badgeTotal.textContent = `${total} peça${total > 1 ? 's' : ''} no total`;
+    }
+
+    function atualizarQtdDigitada(tam, val) {
+        if (!tamanhosGradeAtivos.hasOwnProperty(tam)) return;
+        const num = parseInt(val, 10);
+        if (!isNaN(num) && num > 0) {
+            tamanhosGradeAtivos[tam] = num;
+        } else {
+            tamanhosGradeAtivos[tam] = 1;
+        }
+        atualizarTotalPecasGrade();
+    }
+
+    function finalizarQtdDigitada(tam, input) {
+        if (!tamanhosGradeAtivos.hasOwnProperty(tam)) return;
+        let num = parseInt(input.value, 10);
+        if (isNaN(num) || num < 1) {
+            num = 1;
+        }
+        tamanhosGradeAtivos[tam] = num;
+        input.value = num;
+        atualizarTotalPecasGrade();
+    }
+
     function alterarQtdTamanho(tam, delta) {
-        if (!tamanhosGradeAtivos[tam]) return;
-        tamanhosGradeAtivos[tam] = Math.max(1, tamanhosGradeAtivos[tam] + delta);
-        renderizarChipsTamanhos();
+        if (!tamanhosGradeAtivos.hasOwnProperty(tam)) return;
+        const atual = parseInt(tamanhosGradeAtivos[tam], 10) || 1;
+        const novaQtd = Math.max(1, atual + delta);
+        tamanhosGradeAtivos[tam] = novaQtd;
+
+        const idInput = 'inputQtdTam_' + encodeURIComponent(tam).replace(/[^a-zA-Z0-9]/g, '_');
+        const input = document.getElementById(idInput);
+        if (input) {
+            input.value = novaQtd;
+        }
+        atualizarTotalPecasGrade();
     }
 
     function removerTamanhoGrade(tam) {
@@ -639,15 +676,13 @@ $topCategorias = array_slice($categorias, 0, 4);
     function renderizarChipsTamanhos() {
         const grid = document.getElementById('gridChipsTamanhosAtivos');
         const msgVazio = document.getElementById('msgNenhumTamanhoSelecionado');
-        const badgeTotal = document.getElementById('badgeTotalItensGrade');
         grid.innerHTML = '';
 
         const chaves = Object.keys(tamanhosGradeAtivos);
-        let totalPecas = 0;
 
         if (chaves.length === 0) {
             msgVazio.classList.remove('hidden');
-            badgeTotal.textContent = '0 peças no total';
+            atualizarTotalPecasGrade();
             return;
         }
 
@@ -655,7 +690,7 @@ $topCategorias = array_slice($categorias, 0, 4);
 
         chaves.forEach(tam => {
             const qtd = tamanhosGradeAtivos[tam];
-            totalPecas += qtd;
+            const idInput = 'inputQtdTam_' + encodeURIComponent(tam).replace(/[^a-zA-Z0-9]/g, '_');
 
             const card = document.createElement('div');
             card.className = 'bg-white border-2 border-indigo-200 hover:border-indigo-400 rounded-2xl p-3 flex flex-col gap-2.5 shadow-xs transition';
@@ -670,18 +705,27 @@ $topCategorias = array_slice($categorias, 0, 4);
                 </div>
                 
                 <div class="flex items-center justify-between gap-2 pt-0.5">
-                    <span class="text-xs font-bold text-slate-600">Qtd de Peças:</span>
-                    <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-1">
-                        <button type="button" onclick="alterarQtdTamanho('${tam}', -1)" title="Diminuir" class="w-8 h-8 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-black text-base flex items-center justify-center active:scale-95 shadow-2xs transition">-</button>
-                        <span class="min-w-[28px] text-center text-sm font-black text-indigo-950">${qtd}</span>
-                        <button type="button" onclick="alterarQtdTamanho('${tam}', 1)" title="Aumentar" class="w-8 h-8 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-black text-base flex items-center justify-center active:scale-95 shadow-2xs transition">+</button>
+                    <label for="${idInput}" class="text-xs font-bold text-slate-600 cursor-pointer">Qtd de Peças:</label>
+                    <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl p-1">
+                        <button type="button" onclick="alterarQtdTamanho('${tam}', -1)" title="Diminuir" class="w-8 h-8 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-black text-base flex items-center justify-center active:scale-95 shadow-2xs transition select-none">-</button>
+                        <input type="number" min="1" step="1" inputmode="numeric" pattern="[0-9]*"
+                               id="${idInput}"
+                               data-tam="${tam}"
+                               value="${qtd}"
+                               onfocus="this.select()"
+                               onkeydown="if(event.key === 'Enter'){ event.preventDefault(); this.blur(); }"
+                               oninput="atualizarQtdDigitada('${tam}', this.value)"
+                               onblur="finalizarQtdDigitada('${tam}', this)"
+                               title="Digite a quantidade para o tamanho ${tam}"
+                               class="w-14 sm:w-16 h-8 text-center font-black text-sm text-indigo-950 bg-white border border-slate-300 rounded-lg focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition shadow-2xs">
+                        <button type="button" onclick="alterarQtdTamanho('${tam}', 1)" title="Aumentar" class="w-8 h-8 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-black text-base flex items-center justify-center active:scale-95 shadow-2xs transition select-none">+</button>
                     </div>
                 </div>
             `;
             grid.appendChild(card);
         });
 
-        badgeTotal.textContent = `${totalPecas} peça${totalPecas > 1 ? 's' : ''} no total`;
+        atualizarTotalPecasGrade();
     }
 
     // ==========================================
