@@ -496,13 +496,15 @@ class MercadoPagoController extends Controller
             $taxaGateway = 0.0;
             if (!empty($payment->fee_details) && is_array($payment->fee_details)) {
                 foreach ($payment->fee_details as $f) {
-                    $taxaGateway += (float)($f['amount'] ?? $f->amount ?? 0);
+                    $taxaGateway += (float)(is_object($f) ? ($f->amount ?? 0) : (is_array($f) ? ($f['amount'] ?? 0) : 0));
                 }
             }
             $bandeiraCartao = $payment->payment_method_id ?? null;
             $ultimosDigitos = null;
-            if (isset($payment->card) && isset($payment->card->last_four_digits)) {
+            if (is_object($payment) && isset($payment->card) && is_object($payment->card) && isset($payment->card->last_four_digits)) {
                 $ultimosDigitos = (string)$payment->card->last_four_digits;
+            } elseif (is_object($payment) && isset($payment->card) && is_array($payment->card) && isset($payment->card['last_four_digits'])) {
+                $ultimosDigitos = (string)$payment->card['last_four_digits'];
             } elseif (is_array($payment) && isset($payment['card']['last_four_digits'])) {
                 $ultimosDigitos = (string)$payment['card']['last_four_digits'];
             }
@@ -1584,6 +1586,8 @@ class MercadoPagoController extends Controller
                 ]
             ]);
             $data = json_decode($resp->getBody()->getContents(), true);
+            $status = $data['status'] ?? 'pending';
+
             // Atualizar status e payload completo na auditoria do gateway
             $externalRef = $data['external_reference'] ?? null;
             $amount = (float)($data['transaction_amount'] ?? 0);
@@ -2294,14 +2298,16 @@ class MercadoPagoController extends Controller
             $taxaGateway = 0.0;
             if (!empty($pagamento->fee_details) && is_array($pagamento->fee_details)) {
                 foreach ($pagamento->fee_details as $f) {
-                    $taxaGateway += (float)($f['amount'] ?? $f->amount ?? 0);
+                    $taxaGateway += (float)(is_object($f) ? ($f->amount ?? 0) : (is_array($f) ? ($f['amount'] ?? 0) : 0));
                 }
             }
 
             $bandeiraCartao = $pagamento->payment_method_id ?? null;
             $ultimosDigitos = null;
-            if (isset($pagamento->card) && isset($pagamento->card->last_four_digits)) {
+            if (is_object($pagamento) && isset($pagamento->card) && is_object($pagamento->card) && isset($pagamento->card->last_four_digits)) {
                 $ultimosDigitos = (string)$pagamento->card->last_four_digits;
+            } elseif (is_object($pagamento) && isset($pagamento->card) && is_array($pagamento->card) && isset($pagamento->card['last_four_digits'])) {
+                $ultimosDigitos = (string)$pagamento->card['last_four_digits'];
             } elseif (is_array($pagamento) && isset($pagamento['card']['last_four_digits'])) {
                 $ultimosDigitos = (string)$pagamento['card']['last_four_digits'];
             }
