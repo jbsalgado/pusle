@@ -131,7 +131,7 @@ $nomeArquivo = 'cartao_' . str_pad($cartao->id, 5, '0', STR_PAD_LEFT) . '_' . $s
         .grade-tabela th { background: #e2e8f0; font-size: 7px; padding: 2px 1px; font-weight: 900; }
         .grade-tabela td { font-size: 7px; padding: 1.5px 1px; height: 13.5px; font-family: 'Courier New', Courier, monospace; }
         .col-prest { font-weight: bold; }
-        .col-saldo { font-weight: 900; }
+        .col-saldo { font-weight: 900; text-align: left !important; padding-left: 3px; }
 
         .footer { text-align: center; font-size: 6.5px; border-top: 1.5px solid #000; padding-top: 2px; margin-top: 3px; line-height: 1.2; }
 
@@ -264,7 +264,7 @@ $nomeArquivo = 'cartao_' . str_pad($cartao->id, 5, '0', STR_PAD_LEFT) . '_' . $s
                     <th style="width: 14%;">DATA PAG.</th>
                     <th style="width: 14%;">VL. RECEB.</th>
                     <th style="width: 14%;">TIPO</th>
-                    <th style="width: 15%;">SALDO</th>
+                    <th style="width: 15%; text-align: left; padding-left: 3px;">SALDO</th>
                 </tr>
             </thead>
             <tbody>

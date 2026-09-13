@@ -191,7 +191,7 @@ $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente')
                                 <th class="p-1 sm:p-1.5 border-r border-slate-900">DATA PAG</th>
                                 <th class="p-1 sm:p-1.5 border-r border-slate-900">VL. RECEB.</th>
                                 <th class="p-1 sm:p-1.5 border-r border-slate-900">TIPO</th>
-                                <th class="p-1 sm:p-1.5 border-r border-slate-900">SALDO</th>
+                                <th class="p-1 sm:p-1.5 border-r border-slate-900 text-left pl-2">SALDO</th>
                                 <th class="p-1 sm:p-1.5 print:hidden">AÇÕES</th>
                             </tr>
                         </thead>
@@ -231,7 +231,7 @@ $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente')
                                     <td class="p-1 border-r border-slate-400 font-bold uppercase text-[9px] sm:text-[10px] <?= $isPaga ? 'text-blue-900' : 'text-slate-400' ?>">
                                         <?= Html::encode($tipoNome) ?>
                                     </td>
-                                    <td class="p-1 border-r border-slate-900 font-black <?= $isPaga ? 'text-amber-950' : 'text-slate-400' ?>">
+                                    <td class="p-1 border-r border-slate-900 font-black text-left pl-2 <?= $isPaga ? 'text-amber-950' : 'text-slate-400' ?>">
                                         <?= $saldoExibido ?>
                                     </td>
                                     <td class="p-1 text-center print:hidden">
