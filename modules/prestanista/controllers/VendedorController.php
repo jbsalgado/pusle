@@ -53,7 +53,7 @@ class VendedorController extends Controller
 
             $clientes = Cliente::find()
                 ->where(['usuario_id' => $usuarioId, 'ativo' => true])
-                ->orderBy(['nome' => SORT_ASC])
+                ->orderBy(['nome_completo' => SORT_ASC])
                 ->limit(300)
                 ->all();
         }
@@ -99,7 +99,7 @@ class VendedorController extends Controller
 
         $clientes = Cliente::find()
             ->where(['usuario_id' => $usuarioId, 'ativo' => true])
-            ->orderBy(['nome' => SORT_ASC])
+            ->orderBy(['nome_completo' => SORT_ASC])
             ->limit(500)
             ->all();
 
@@ -126,9 +126,9 @@ class VendedorController extends Controller
             'clientes' => array_map(function ($c) {
                 return [
                     'id' => (string)$c->id,
-                    'nome' => $c->nome,
-                    'cpf' => $c->cpf_cnpj,
-                    'telefone' => $c->telefone_formatado ?: $c->telefone,
+                    'nome' => $c->nome_completo,
+                    'cpf' => $c->cpf,
+                    'telefone' => $c->getTelefoneFormatado() ?: $c->telefone,
                     'logradouro' => $c->endereco_logradouro,
                     'numero' => $c->endereco_numero,
                     'bairro' => $c->endereco_bairro,
@@ -221,20 +221,21 @@ class VendedorController extends Controller
                     if (!empty($clienteData['cpf'])) {
                         $cliente = Cliente::find()
                             ->where(['usuario_id' => $tenantId])
-                            ->andWhere(['cpf_cnpj' => preg_replace('/\D/', '', $clienteData['cpf'])])
+                            ->andWhere(['cpf' => preg_replace('/\D/', '', $clienteData['cpf'])])
                             ->one();
                     }
 
                     if (!$cliente) {
                         $cliente = new Cliente();
                         $cliente->usuario_id = $tenantId;
-                        $cliente->nome = trim($clienteData['nome']);
-                        $cliente->cpf_cnpj = !empty($clienteData['cpf']) ? preg_replace('/\D/', '', $clienteData['cpf']) : null;
-                        $cliente->telefone = !empty($clienteData['telefone']) ? preg_replace('/\D/', '', $clienteData['telefone']) : null;
-                        $cliente->endereco_logradouro = $clienteData['logradouro'] ?? null;
-                        $cliente->endereco_numero = $clienteData['numero'] ?? null;
-                        $cliente->endereco_bairro = $clienteData['bairro'] ?? null;
-                        $cliente->endereco_cidade = $clienteData['cidade'] ?? null;
+                        $cliente->nome_completo = trim($clienteData['nome']);
+                        $cliente->cpf = !empty($clienteData['cpf']) ? preg_replace('/\D/', '', $clienteData['cpf']) : null;
+                        $cliente->telefone = !empty($clienteData['telefone']) ? preg_replace('/\D/', '', $clienteData['telefone']) : '00000000000';
+                        $cliente->senha = '123456';
+                        $cliente->endereco_logradouro = !empty($clienteData['logradouro']) ? $clienteData['logradouro'] : 'Rua';
+                        $cliente->endereco_numero = !empty($clienteData['numero']) ? $clienteData['numero'] : 'S/N';
+                        $cliente->endereco_bairro = !empty($clienteData['bairro']) ? $clienteData['bairro'] : 'Bairro';
+                        $cliente->endereco_cidade = !empty($clienteData['cidade']) ? $clienteData['cidade'] : 'Franca';
                         $cliente->endereco_estado = $clienteData['estado'] ?? 'SP';
                         $cliente->endereco_cep = !empty($clienteData['cep']) ? preg_replace('/\D/', '', $clienteData['cep']) : null;
                         $cliente->ativo = true;

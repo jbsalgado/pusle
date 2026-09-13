@@ -131,8 +131,8 @@ class CobradorController extends Controller
                 'numero_cartao' => substr($cartao->id, 0, 8),
                 'cliente' => [
                     'id' => $cliente ? (string)$cliente->id : null,
-                    'nome' => $cliente ? $cliente->nome : 'Sem Cliente',
-                    'telefone' => $cliente ? ($cliente->telefone_formatado ?: $cliente->telefone) : '',
+                    'nome' => $cliente ? $cliente->nome_completo : 'Sem Cliente',
+                    'telefone' => $cliente ? ($cliente->getTelefoneFormatado() ?: $cliente->telefone) : '',
                     'logradouro' => $cliente ? $cliente->endereco_logradouro : '',
                     'numero' => $cliente ? $cliente->endereco_numero : '',
                     'bairro' => $cliente ? $cliente->endereco_bairro : '',
