@@ -30,6 +30,14 @@ class Module extends \yii\base\Module
             return false;
         }
 
+        // Ações públicas liberadas para clientes/visitantes sem necessidade de login
+        $controllerId = $action->controller->id;
+        $actionId = $action->id;
+        $rotaAtual = "{$controllerId}/{$actionId}";
+        if (in_array($rotaAtual, ['cartao/publico'])) {
+            return true;
+        }
+
         // Se usuário não autenticado, redireciona para login
         if (Yii::$app->user->isGuest) {
             Yii::$app->user->loginRequired();

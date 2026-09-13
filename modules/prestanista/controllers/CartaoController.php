@@ -5,6 +5,7 @@ namespace app\modules\prestanista\controllers;
 use Yii;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
+use yii\helpers\Url;
 use yii\data\Pagination;
 use app\modules\vendas\models\Venda;
 use app\modules\vendas\models\VendaItem;
@@ -191,6 +192,71 @@ class CartaoController extends Controller
         return $this->render('view', [
             'cartao' => $cartao,
             'historico' => $historico,
+        ]);
+    }
+
+    /**
+     * Retorna o token público assinado para visualização externa do cartão
+     *
+     * @param string $cartaoId
+     * @return string
+     */
+    public static function getPublicToken($cartaoId)
+    {
+        return substr(hash('sha256', (string)$cartaoId . 'pulse_prestanista_public_2026'), 0, 16);
+    }
+
+    /**
+     * Retorna a URL pública absoluta para o cliente visualizar o cartão
+     *
+     * @param string $cartaoId
+     * @return string
+     */
+    public static function getPublicUrl($cartaoId)
+    {
+        $token = self::getPublicToken($cartaoId);
+        return Url::to(['/prestanista/cartao/publico', 'id' => $cartaoId, 'token' => $token], true);
+    }
+
+    /**
+     * Ação pública de visualização do cartão de crediário
+     * Exclusiva para consulta (somente leitura), sem permissão de alteração de dados
+     * e com layout isolado sem navegação administrativa.
+     *
+     * @param string $id
+     * @param string|null $token
+     * @return string
+     * @throws NotFoundHttpException
+     */
+    public function actionPublico($id, $token = null)
+    {
+        $expectedToken = self::getPublicToken($id);
+        if ($token !== null && $token !== $expectedToken) {
+            throw new NotFoundHttpException('Link de visualização do crediário inválido ou expirado.');
+        }
+
+        $cartao = Venda::find()
+            ->where(['id' => $id])
+            ->with(['cliente', 'itens.produto', 'parcelas.formaPagamento', 'usuario', 'vendedor'])
+            ->one();
+
+        if (!$cartao) {
+            throw new NotFoundHttpException('Cartão de crediário não encontrado.');
+        }
+
+        // Histórico de baixas e pagamentos efetuados
+        $historico = HistoricoCobranca::find()
+            ->where(['cliente_id' => $cartao->cliente_id, 'tipo_acao' => HistoricoCobranca::TIPO_PAGAMENTO])
+            ->with('cobrador')
+            ->orderBy(['data_acao' => SORT_ASC])
+            ->all();
+
+        $this->layout = false;
+
+        return $this->render('publico', [
+            'cartao' => $cartao,
+            'historico' => $historico,
+            'token' => $expectedToken,
         ]);
     }
 

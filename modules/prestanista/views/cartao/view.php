@@ -19,6 +19,9 @@ foreach ($parcelas as $p) {
     }
 }
 $saldoDevedor = max(0, (float)$cartao->valor_total - $totalPago);
+$idCurto = strlen($cartao->id) > 8 ? strtoupper(substr($cartao->id, 0, 8)) : str_pad($cartao->id, 5, '0', STR_PAD_LEFT);
+$publicUrl = \app\modules\prestanista\controllers\CartaoController::getPublicUrl($cartao->id);
+$msgWhats = "Olá " . ($cliente->nome ?? $cliente->nome_completo ?? '') . "! Segue o link para você acompanhar o seu Cartão de Crediário #" . $idCurto . " na " . $lojaNome . ":\n" . $publicUrl . "\n\nSaldo restante: R$ " . number_format($saldoDevedor, 2, ',', '.') . "\nVocê pode consultar suas parcelas e baixar o cartão em PDF ou imagem a qualquer momento.";
 
 $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente');
 ?>
@@ -32,16 +35,36 @@ $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente')
         </a>
 
         <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-            <button type="button" onclick="abrirModalAjustarFrequencia()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
-                <span>🔄</span> Alterar Frequência
+            <!-- Botão Copiar Link Público -->
+            <button type="button" onclick="navigator.clipboard.writeText('<?= $publicUrl ?>'); const t = document.getElementById('toastCopiado'); t.classList.remove('hidden'); setTimeout(() => t.classList.add('hidden'), 3000);" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5 active:scale-95" title="Copiar Link Público de Visualização">
+                <span>🔗</span> Copiar Link
             </button>
-            <a href="<?= Url::to(['/prestanista/cartao/imprimir', 'id' => $cartao->id]) ?>" target="_blank" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5">
-                <span>🖨️</span> Imprimir Cartão
+
+            <!-- Abrir Visão Pública -->
+            <a href="<?= $publicUrl ?>" target="_blank" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5" title="Abrir consulta como o cliente vê">
+                <span>👁️</span> Ver Online
             </a>
-            <a href="https://api.whatsapp.com/send?phone=55<?= preg_replace('/\D/', '', $cliente->telefone ?? '') ?>&text=<?= urlencode("Olá " . ($cliente->nome ?? '') . "! Segue o resumo do seu Cartão de Crediário #" . $cartao->id . " da " . $lojaNome . ". Saldo restante: R$ " . number_format($saldoDevedor, 2, ',', '.')) ?>" target="_blank" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5">
-                <span>📱</span> WhatsApp
+
+            <!-- Alterar Frequência -->
+            <button type="button" onclick="abrirModalAjustarFrequencia()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+                <span>🔄</span> Frequência
+            </button>
+
+            <!-- Imprimir Cartão -->
+            <a href="<?= Url::to(['/prestanista/cartao/imprimir', 'id' => $cartao->id]) ?>" target="_blank" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5">
+                <span>🖨️</span> Imprimir
+            </a>
+
+            <!-- Enviar WhatsApp com Link Público -->
+            <a href="https://api.whatsapp.com/send?phone=55<?= preg_replace('/\D/', '', $cliente->telefone ?? '') ?>&text=<?= urlencode($msgWhats) ?>" target="_blank" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl transition flex items-center gap-1.5 active:scale-95 shadow-md">
+                <span>📱</span> Enviar WhatsApp
             </a>
         </div>
+    </div>
+
+    <!-- Toast de Feedback para Cópia -->
+    <div id="toastCopiado" class="hidden bg-emerald-500 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-lg text-center animate-bounce">
+        ✓ Link público do cartão copiado para a área de transferência!
     </div>
 
     <!-- O CARTÃO FÍSICO DIGITAL (LAYOUT RESPONSIVO PARA TELAS GRANDES E CELULARES) -->

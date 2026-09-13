@@ -402,10 +402,25 @@ if ($cobrador_id) {
                     </div>
 
                     <!-- Rodapé de Ações do Cartão -->
-                    <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                    <?php 
+                        $publicUrlCard = \app\modules\prestanista\controllers\CartaoController::getPublicUrl($c->id);
+                        $idCurtoCard = strlen($c->id) > 8 ? strtoupper(substr($c->id, 0, 8)) : str_pad($c->id, 5, '0', STR_PAD_LEFT);
+                        $lojaNomeCard = Yii::$app->user->identity->nome_loja ?? Yii::$app->user->identity->nome ?? 'Loja';
+                        $msgWhatsCard = "Olá " . ($cliente->nome ?? $cliente->nome_completo ?? '') . "! Segue o link para você acompanhar seu Cartão de Crediário #" . $idCurtoCard . " na " . $lojaNomeCard . ":\n" . $publicUrlCard . "\n\nSaldo restante: R$ " . number_format($saldoDevedor, 2, ',', '.') . "\nVocê pode consultar suas parcelas e baixar o cartão a qualquer momento.";
+                    ?>
+                    <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-1.5">
                         <a href="<?= Url::to(['/prestanista/cartao/view', 'id' => $c->id]) ?>" class="flex-1 py-2 px-3 bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 hover:text-amber-300 font-bold text-xs rounded-xl text-center border border-amber-500/30 transition">
-                            👁️ Ver Cartão Físico
+                            👁️ Ver Cartão
                         </a>
+                        <!-- Botão Copiar Link -->
+                        <button type="button" onclick="navigator.clipboard.writeText('<?= $publicUrlCard ?>'); alert('Link público copiado com sucesso!');" class="p-2 bg-slate-900 hover:bg-slate-800 text-amber-400 hover:text-amber-300 rounded-xl border border-slate-700 transition active:scale-95" title="Copiar Link Público">
+                            🔗
+                        </button>
+                        <!-- Botão WhatsApp -->
+                        <a href="https://api.whatsapp.com/send?phone=55<?= preg_replace('/\D/', '', $cliente->telefone ?? '') ?>&text=<?= urlencode($msgWhatsCard) ?>" target="_blank" class="p-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 hover:text-emerald-300 rounded-xl border border-emerald-500/30 transition active:scale-95" title="Enviar no WhatsApp do Cliente">
+                            💬
+                        </a>
+                        <!-- Botão Imprimir -->
                         <a href="<?= Url::to(['/prestanista/cartao/imprimir', 'id' => $c->id]) ?>" target="_blank" class="p-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition" title="Imprimir Cartão de Papel">
                             🖨️
                         </a>
