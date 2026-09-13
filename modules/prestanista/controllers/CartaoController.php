@@ -94,6 +94,76 @@ class CartaoController extends Controller
         ]);
     }
 
+    /**
+     * Permite ajustar a frequência de cobrança do cartão e recalcular as datas das parcelas pendentes
+     */
+    public function actionAjustarFrequencia($id)
+    {
+        $usuario = Yii::$app->user->identity;
+        $usuarioId = $usuario ? $usuario->getTenantId() : null;
+
+        $cartao = Venda::find()
+            ->where(['id' => $id, 'usuario_id' => $usuarioId])
+            ->with(['parcelas'])
+            ->one();
+
+        if (!$cartao) {
+            throw new NotFoundHttpException('Cartão de crediário não encontrado.');
+        }
+
+        if (Yii::$app->request->isPost) {
+            $post = Yii::$app->request->post();
+            $novaFrequencia = (int)($post['nova_frequencia'] ?? 7);
+            if (!in_array($novaFrequencia, [1, 7, 15, 30])) {
+                $novaFrequencia = 7;
+            }
+            $dataBase = !empty($post['data_base_vencimento']) ? $post['data_base_vencimento'] : ($cartao->data_primeiro_vencimento ?: date('Y-m-d'));
+
+            $transaction = Yii::$app->db->beginTransaction();
+            try {
+                // Atualiza observações com a nova tag de frequência
+                $obs = $cartao->observacoes ?: '';
+                if (preg_match('/\[FREQ:\d+\]/i', $obs)) {
+                    $obs = preg_replace('/\[FREQ:\d+\]/i', "[FREQ:{$novaFrequencia}]", $obs);
+                } else {
+                    $obs = "[FREQ:{$novaFrequencia}] " . $obs;
+                }
+                $cartao->observacoes = trim($obs);
+                $cartao->data_primeiro_vencimento = $dataBase;
+                $cartao->save(false);
+
+                // Recalcula datas das parcelas pendentes
+                $parcelas = Parcela::find()
+                    ->where(['venda_id' => $cartao->id])
+                    ->orderBy(['numero_parcela' => SORT_ASC])
+                    ->all();
+
+                $dtAtual = new \DateTime($dataBase);
+                $idxPendente = 0;
+                foreach ($parcelas as $p) {
+                    if ($p->status_parcela_codigo !== 'PAGA') {
+                        if ($idxPendente === 0) {
+                            $p->data_vencimento = $dtAtual->format('Y-m-d');
+                        } else {
+                            $dtAtual->modify("+{$novaFrequencia} days");
+                            $p->data_vencimento = $dtAtual->format('Y-m-d');
+                        }
+                        $p->save(false);
+                        $idxPendente++;
+                    }
+                }
+
+                $transaction->commit();
+                Yii::$app->session->setFlash('success', 'Frequência do cartão e parcelas atualizadas com sucesso!');
+            } catch (\Exception $e) {
+                $transaction->rollBack();
+                Yii::$app->session->setFlash('error', 'Erro ao atualizar frequência: ' . $e->getMessage());
+            }
+        }
+
+        return $this->redirect(['view', 'id' => $cartao->id]);
+    }
+
     public function actionImprimir($id, $formato = 'a4')
     {
         $usuario = Yii::$app->user->identity;
@@ -223,7 +293,7 @@ class CartaoController extends Controller
                 $venda->data_venda = $dataVenda;
                 $venda->data_primeiro_vencimento = $primeiroVencimento;
                 $venda->status_venda_codigo = 'EM_ABERTO';
-                $venda->observacoes = '[PRESTANISTA] Cartão de Crediário emitido via Gestão';
+                $venda->observacoes = "[PRESTANISTA] [FREQ:{$frequencia}] Cartão de Crediário emitido via Gestão";
 
                 if (!$venda->save()) {
                     throw new \Exception('Erro ao criar cartão: ' . json_encode($venda->errors));

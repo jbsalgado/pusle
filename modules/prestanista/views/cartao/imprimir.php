@@ -105,8 +105,12 @@ $saldoDevedor = max(0, (float)$cartao->valor_total - $totalPago);
         <div><strong>Rua:</strong> <?= Html::encode($cliente->endereco ?? '—') ?></div>
         <div><strong>Bairro:</strong> <?= Html::encode($cliente->bairro ?? '—') ?> - <?= Html::encode($cliente->cidade ?? '—') ?></div>
         <div><strong>Vendedor:</strong> <?= Html::encode($cartao->vendedor->nome ?? 'Ambulante') ?> | <strong>Tel:</strong> <?= Html::encode($cliente->telefone ?? '—') ?></div>
+        <?php $freqCartao = $cartao->getFrequenciaPrestanista(); ?>
         <div style="font-size: 9px; font-weight: bold; margin-top: 3px;">
-            [<?= $cartao->numero_parcelas > 4 ? 'X' : ' ' ?>] SEMANAL &nbsp;&nbsp; [ ] QUINZENAL &nbsp;&nbsp; [<?= $cartao->numero_parcelas <= 4 ? 'X' : ' ' ?>] MENSAL
+            [<?= $freqCartao === 'DIÁRIA' ? 'X' : ' ' ?>] DIÁRIA &nbsp;&nbsp;
+            [<?= $freqCartao === 'SEMANAL' ? 'X' : ' ' ?>] SEMANAL &nbsp;&nbsp;
+            [<?= $freqCartao === 'QUINZENAL' ? 'X' : ' ' ?>] QUINZENAL &nbsp;&nbsp;
+            [<?= $freqCartao === 'MENSAL' ? 'X' : ' ' ?>] MENSAL
         </div>
     </div>
 

@@ -738,4 +738,53 @@ class Venda extends ActiveRecord
 
         return null;
     }
+
+    /**
+     * Retorna a frequência do cartão prestanista:
+     * 'DIÁRIA', 'SEMANAL', 'QUINZENAL', 'MENSAL'
+     *
+     * @return string
+     */
+    public function getFrequenciaPrestanista(): string
+    {
+        // 1. Tag explícita gravada em observações
+        if (!empty($this->observacoes)) {
+            if (preg_match('/\[FREQ:(\d+)\]/i', $this->observacoes, $m)) {
+                $dias = (int)$m[1];
+                if ($dias === 1) return 'DIÁRIA';
+                if ($dias === 7) return 'SEMANAL';
+                if ($dias === 15) return 'QUINZENAL';
+                if ($dias === 30) return 'MENSAL';
+            }
+            if (preg_match('/\[FREQUENCIA:([A-ZÁ-Ú]+)\]/i', $this->observacoes, $m)) {
+                return mb_strtoupper($m[1], 'UTF-8');
+            }
+        }
+
+        // 2. Cálculo dinâmico baseado no intervalo real entre as parcelas
+        $parcelas = $this->parcelas;
+        if (count($parcelas) >= 2) {
+            $p1 = strtotime($parcelas[0]->data_vencimento);
+            $p2 = strtotime($parcelas[1]->data_vencimento);
+            if ($p1 && $p2) {
+                $diffDias = (int)round(abs($p2 - $p1) / 86400);
+                if ($diffDias <= 3) return 'DIÁRIA';
+                if ($diffDias >= 5 && $diffDias <= 10) return 'SEMANAL';
+                if ($diffDias >= 11 && $diffDias <= 20) return 'QUINZENAL';
+                if ($diffDias >= 25) return 'MENSAL';
+            }
+        } elseif (count($parcelas) === 1 && !empty($this->data_venda) && !empty($parcelas[0]->data_vencimento)) {
+            $pv = strtotime($this->data_venda);
+            $p1 = strtotime($parcelas[0]->data_vencimento);
+            if ($pv && $p1) {
+                $diffDias = (int)round(abs($p1 - $pv) / 86400);
+                if ($diffDias <= 3) return 'DIÁRIA';
+                if ($diffDias >= 5 && $diffDias <= 10) return 'SEMANAL';
+                if ($diffDias >= 11 && $diffDias <= 20) return 'QUINZENAL';
+                if ($diffDias >= 25) return 'MENSAL';
+            }
+        }
+
+        return 'SEMANAL';
+    }
 }

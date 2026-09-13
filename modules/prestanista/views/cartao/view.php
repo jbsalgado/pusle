@@ -32,6 +32,9 @@ $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente')
         </a>
 
         <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+            <button type="button" onclick="abrirModalAjustarFrequencia()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+                <span>🔄</span> Alterar Frequência
+            </button>
             <a href="<?= Url::to(['/prestanista/cartao/imprimir', 'id' => $cartao->id]) ?>" target="_blank" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5">
                 <span>🖨️</span> Imprimir Cartão
             </a>
@@ -117,11 +120,16 @@ $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente')
                     <div><span class="font-bold">VENDEDOR:</span> <span class="font-sans font-bold"><?= Html::encode($cartao->vendedor->nome ?? 'Ambulante') ?></span></div>
                     <div><span class="font-bold">TEL.:</span> <span class="font-sans font-bold"><?= Html::encode($cliente->telefone ?? '—') ?></span></div>
                 </div>
-                <div class="flex items-center gap-6 pt-1 text-[11px] font-sans font-black uppercase text-amber-900">
-                    <span>Frequência:</span>
-                    <span>[<?= $cartao->numero_parcelas > 4 ? 'X' : ' ' ?>] SEMANAL</span>
-                    <span>[ ] QUINZENAL</span>
-                    <span>[<?= $cartao->numero_parcelas <= 4 ? 'X' : ' ' ?>] MENSAL</span>
+                <?php $freqCartao = $cartao->getFrequenciaPrestanista(); ?>
+                <div class="flex items-center gap-4 sm:gap-6 pt-1 text-[11px] font-sans font-black uppercase text-amber-950 flex-wrap">
+                    <span class="text-amber-900 font-bold">Frequência:</span>
+                    <span class="<?= $freqCartao === 'DIÁRIA' ? 'text-amber-950 font-black underline decoration-amber-600 decoration-2' : 'text-slate-500' ?>">[<?= $freqCartao === 'DIÁRIA' ? 'X' : ' ' ?>] DIÁRIA</span>
+                    <span class="<?= $freqCartao === 'SEMANAL' ? 'text-amber-950 font-black underline decoration-amber-600 decoration-2' : 'text-slate-500' ?>">[<?= $freqCartao === 'SEMANAL' ? 'X' : ' ' ?>] SEMANAL</span>
+                    <span class="<?= $freqCartao === 'QUINZENAL' ? 'text-amber-950 font-black underline decoration-amber-600 decoration-2' : 'text-slate-500' ?>">[<?= $freqCartao === 'QUINZENAL' ? 'X' : ' ' ?>] QUINZENAL</span>
+                    <span class="<?= $freqCartao === 'MENSAL' ? 'text-amber-950 font-black underline decoration-amber-600 decoration-2' : 'text-slate-500' ?>">[<?= $freqCartao === 'MENSAL' ? 'X' : ' ' ?>] MENSAL</span>
+                    <button type="button" onclick="abrirModalAjustarFrequencia()" title="Alterar Frequência" class="text-[10px] lowercase font-bold text-amber-700 hover:text-amber-900 underline ml-auto flex items-center gap-1 cursor-pointer">
+                        <span>✏️</span> <span>alterar</span>
+                    </button>
                 </div>
             </div>
 
@@ -209,3 +217,56 @@ $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente')
     </div>
 
 </div>
+
+<!-- Modal Alterar Frequência do Cartão -->
+<div id="modalAjustarFrequencia" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 class="text-sm font-black text-white flex items-center gap-2">
+                <span>🔄</span>
+                <span>Alterar Frequência do Cartão</span>
+            </h3>
+            <button type="button" onclick="fecharModalAjustarFrequencia()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+                ✕
+            </button>
+        </div>
+
+        <form method="post" action="<?= Url::to(['/prestanista/cartao/ajustar-frequencia', 'id' => $cartao->id]) ?>" class="space-y-4">
+            <input type="hidden" name="<?= Yii::$app->request->csrfParam ?>" value="<?= Yii::$app->request->csrfToken ?>" />
+
+            <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">Frequência da Cobrança:</label>
+                <select name="nova_frequencia" id="selectNovaFrequencia" class="w-full h-11 px-3.5 bg-slate-950 border border-slate-700 rounded-xl text-xs sm:text-sm text-white font-bold focus:border-amber-500 focus:outline-none">
+                    <option value="1" <?= $freqCartao === 'DIÁRIA' ? 'selected' : '' ?>>DIÁRIA (A cada 1 dia)</option>
+                    <option value="7" <?= $freqCartao === 'SEMANAL' ? 'selected' : '' ?>>SEMANAL (A cada 7 dias)</option>
+                    <option value="15" <?= $freqCartao === 'QUINZENAL' ? 'selected' : '' ?>>QUINZENAL (A cada 15 dias)</option>
+                    <option value="30" <?= $freqCartao === 'MENSAL' ? 'selected' : '' ?>>MENSAL (A cada 30 dias)</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">Data Base para Próximo Vencimento:</label>
+                <input type="date" name="data_base_vencimento" value="<?= $cartao->data_primeiro_vencimento ?: date('Y-m-d') ?>" class="w-full h-11 px-3.5 bg-slate-950 border border-slate-700 rounded-xl text-xs sm:text-sm text-white font-bold focus:border-amber-500 focus:outline-none">
+                <p class="text-[11px] text-slate-400 mt-1">As parcelas pendentes serão recalculadas a partir desta data com o novo intervalo de cobrança.</p>
+            </div>
+
+            <div class="pt-2 border-t border-slate-800 flex items-center justify-end gap-2">
+                <button type="button" onclick="fecharModalAjustarFrequencia()" class="px-4 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:text-white text-xs font-bold transition">
+                    Cancelar
+                </button>
+                <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs rounded-xl shadow-lg transition active:scale-95">
+                    Salvar e Recalcular
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function abrirModalAjustarFrequencia() {
+        document.getElementById('modalAjustarFrequencia').classList.remove('hidden');
+    }
+    function fecharModalAjustarFrequencia() {
+        document.getElementById('modalAjustarFrequencia').classList.add('hidden');
+    }
+</script>
