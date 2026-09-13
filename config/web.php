@@ -226,6 +226,9 @@ $config = [
         'admin' => [
             'class' => 'app\modules\admin\Module',
         ],
+        'prestanista' => [
+            'class' => 'app\modules\prestanista\Module',
+        ],
     ],
     'params' => $params,
 ];

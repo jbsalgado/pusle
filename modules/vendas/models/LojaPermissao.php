@@ -383,6 +383,13 @@ class LojaPermissao extends ActiveRecord
                 'icone' => '📲',
                 'cor' => 'green',
             ],
+            'modulo-prestanista' => [
+                'grupo' => 'Módulos Especiais',
+                'label' => 'Vendas Prestanistas (Crediário Ambulante)',
+                'descricao' => 'Gestão de crediário de porta em porta com cartões, equipes de venda e cobrança, rotas e baixas offline',
+                'icone' => '📇',
+                'cor' => 'amber',
+            ],
         ];
     }
 }

@@ -1173,8 +1173,12 @@ function renderizarRota() {
         // Verifica se tem endereço suficiente para o mapa (endereco OU logradouro) E cidade
         const temEnderecoParaMapa = (cliente.endereco || cliente.endereco_logradouro || cliente.logradouro) && (cliente.endereco_cidade || cliente.cidade || cliente.bairro);
         
+        const totalPago = parcelasPagas.reduce((sum, p) => sum + parseFloat(p.valor_pago || p.valor_parcela || 0), 0);
+        const saldoDevedor = Math.max(0, parseFloat(venda.valor_total || 0) - totalPago);
+        const proximaParcela = parcelasPendentesOrdenadas.length > 0 ? parcelasPendentesOrdenadas[0] : null;
+
         return `
-            <div class="card-ficha" 
+            <div class="card-ficha bg-[#fffdf7] border-2 border-slate-900 rounded-2xl shadow-md overflow-hidden text-slate-950 font-mono mb-5" 
                  data-index="${index}"
                  data-cliente-id="${cliente.id}"
                  data-venda-id="${venda.id}"
@@ -1182,191 +1186,168 @@ function renderizarRota() {
                  data-cliente-cpf="${(cliente.cpf || '').replace(/[^0-9]/g, '')}"
                  data-venda-data="${venda.data_venda ? new Date(venda.data_venda).toISOString().split('T')[0] : ''}"
                  data-cobranca-data="${dataCobranca}">
-                <div class="p-0">
-                    <!-- COMPRADOR -->
-                    <div class="bg-gradient-to-br from-indigo-700 via-indigo-600 to-blue-700 text-white rounded-t-lg p-3 shadow-lg" style="background: linear-gradient(135deg, #4f46e5 0%, #4338ca 50%, #1e40af 100%);">
-                        <h2 class="text-sm font-bold text-white uppercase mb-2 drop-shadow-sm">COMPRADOR</h2>
-                        <h3 class="text-base font-bold text-white mb-3 drop-shadow-md">${cliente.nome || cliente.nome_completo || 'Cliente'}</h3>
-                        
-                        <!-- Informações de Localização -->
-                        <div class="space-y-1 text-xs">
-                            ${cliente.cpf ? `
-                                <div class="flex items-start">
-                                    <span class="font-semibold min-w-[60px]">CPF:</span>
-                                    <span>${formatarCPF(cliente.cpf)}</span>
-                                </div>
-                            ` : ''}
-                            
-                            ${cliente.telefone ? `
-                                <div class="flex items-start">
-                                    <span class="font-semibold min-w-[60px]">Tel:</span>
-                                    <span>${formatarTelefone(cliente.telefone)}</span>
-                                </div>
-                            ` : ''}
-                            
-                            ${cliente.endereco || cliente.endereco_logradouro || cliente.logradouro ? `
-                                <div class="flex items-start">
-                                    <span class="font-semibold min-w-[60px]">End:</span>
-                                    <span>${cliente.endereco || (cliente.endereco_logradouro || cliente.logradouro || '') + (cliente.endereco_numero || cliente.numero ? ', ' + (cliente.endereco_numero || cliente.numero) : '') + (cliente.endereco_complemento || cliente.complemento ? ' - ' + (cliente.endereco_complemento || cliente.complemento) : '')}</span>
-                                </div>
-                            ` : ''}
-                            
-                            ${cliente.endereco_bairro || cliente.bairro ? `
-                                <div class="flex items-start">
-                                    <span class="font-semibold min-w-[60px]">Bairro:</span>
-                                    <span>${cliente.endereco_bairro || cliente.bairro}</span>
-                                </div>
-                            ` : ''}
-                            
-                            ${cliente.endereco_cidade || cliente.cidade || cliente.endereco_estado || cliente.estado ? `
-                                <div class="flex items-start">
-                                    <span class="font-semibold min-w-[60px]">Cidade:</span>
-                                    <span>${cliente.endereco_cidade || cliente.cidade || ''}${cliente.endereco_estado || cliente.estado ? ' - ' + (cliente.endereco_estado || cliente.estado) : ''}</span>
-                                </div>
-                            ` : ''}
-                        </div>
-                        
-                        <!-- Botão Google Maps -->
-                        ${temEnderecoParaMapa ? `
-                            <div class="mt-3 pt-3 border-t border-indigo-300">
-                                <button class="btn-google-maps w-full bg-white text-indigo-700 px-3 py-2 rounded-lg font-medium text-xs hover:bg-indigo-50 active:bg-indigo-100 transition-colors flex items-center justify-center gap-2 shadow-sm"
-                                        data-endereco="${enderecoCompleto.replace(/"/g, '&quot;').replace(/'/g, '&#39;')}">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                    </svg>
-                                    Ver no Google Maps
-                                </button>
-                            </div>
-                        ` : ''}
+                
+                <!-- 1. CABEÇALHO DO CARTÃO FÍSICO -->
+                <div class="bg-amber-100/70 border-b-2 border-slate-900 p-3 text-center">
+                    <p class="text-[9px] uppercase font-bold tracking-widest text-slate-600">Nosso prazer é atendê-lo bem</p>
+                    <h3 class="text-base sm:text-lg font-black uppercase tracking-tight text-slate-950">CREDIÁRIOS & UTILIDADES</h3>
+                    <div class="flex items-center justify-between text-[10px] font-bold mt-1 pt-1 border-t border-slate-400">
+                        <span>DATA: <strong class="font-sans">${formatarData(venda.data_venda)}</strong></span>
+                        <span>FLS: <strong>01</strong></span>
+                        <span class="text-amber-900">Nº: <strong>#${numeroVenda}</strong></span>
                     </div>
-                    
-                    <!-- VENDA - DT VENDA - TOTAL VENDA -->
-                    <div class="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 text-white p-3 shadow-md" style="background: linear-gradient(90deg, #475569 0%, #64748b 50%, #475569 100%);">
-                        <div class="grid grid-cols-3 gap-2 text-xs">
-                            <div>
-                                <p class="font-bold text-white uppercase mb-1 drop-shadow-sm">VENDA</p>
-                                <p class="text-sm font-bold text-white drop-shadow-md">#${numeroVenda}</p>
+                </div>
+
+                <div class="p-3.5 space-y-3">
+                    <!-- 2. OBJETOS (Mercadorias) -->
+                    <div class="border-b border-slate-300 pb-2">
+                        <div class="flex justify-between text-[10px] font-bold uppercase text-slate-500 border-b border-slate-200 pb-0.5 mb-1">
+                            <span>OBJETOS</span>
+                            <span>VALOR R$</span>
+                        </div>
+                        ${itensVenda.length > 0 ? itensVenda.map(item => `
+                            <div class="flex justify-between text-xs py-0.5">
+                                <span class="font-bold truncate pr-2">${item.produto_nome || 'Mercadoria'} <span class="text-slate-500 font-normal">(${item.quantidade || 1}x)</span></span>
+                                <span class="font-black whitespace-nowrap">${formatarMoeda(item.valor_total || 0)}</span>
                             </div>
-                            <div>
-                                <p class="font-bold text-white uppercase mb-1 drop-shadow-sm">DT VENDA</p>
-                                <p class="text-sm font-medium text-white drop-shadow-sm">${formatarData(venda.data_venda)}</p>
+                        `).join('') : `
+                            <div class="flex justify-between text-xs py-0.5">
+                                <span class="font-bold">Mercadorias Diversas</span>
+                                <span class="font-black">${formatarMoeda(venda.valor_total || 0)}</span>
                             </div>
-                            <div>
-                                <p class="font-bold text-white uppercase mb-1 drop-shadow-sm">TOTAL VENDA</p>
-                                <p class="text-sm font-bold text-white drop-shadow-md">${formatarMoeda(venda.valor_total)}</p>
-                            </div>
+                        `}
+                        <div class="flex justify-between items-center pt-1 font-sans font-black text-xs border-t border-slate-300 mt-1">
+                            <span class="uppercase">TOTAL DO CARTÃO:</span>
+                            <span class="text-amber-900 text-sm">${formatarMoeda(venda.valor_total || 0)}</span>
                         </div>
                     </div>
-                    
-                    <div class="p-4">
-                    <!-- PRODUTOS -->
-                    ${itensVenda.length > 0 ? `
-                        <div class="mb-4 pb-3 border-b-2 border-gray-300">
-                            <h3 class="text-xs font-bold text-gray-700 uppercase mb-2">PRODUTOS</h3>
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-xs border-collapse">
-                                    <thead>
-                                        <tr class="bg-gray-100">
-                                            <th class="text-left p-2 border border-gray-300 font-bold text-gray-700">PRODUTO</th>
-                                            <th class="text-center p-2 border border-gray-300 font-bold text-gray-700">QTD</th>
-                                            <th class="text-right p-2 border border-gray-300 font-bold text-gray-700">VL.UNIT</th>
-                                            <th class="text-right p-2 border border-gray-300 font-bold text-gray-700">VL. TOTAL</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${itensVenda.map(item => {
-                                            const valorUnitario = item.quantidade > 0 ? item.valor_total / item.quantidade : 0;
-                                            return `
-                                                <tr>
-                                                    <td class="p-2 border border-gray-300 text-gray-900">${item.produto_nome || 'Produto'}</td>
-                                                    <td class="p-2 border border-gray-300 text-center text-gray-900">${item.quantidade || 0}</td>
-                                                    <td class="p-2 border border-gray-300 text-right text-gray-900">${formatarMoeda(valorUnitario)}</td>
-                                                    <td class="p-2 border border-gray-300 text-right font-medium text-gray-900">${formatarMoeda(item.valor_total)}</td>
-                                                </tr>
-                                            `;
-                                        }).join('')}
-                                    </tbody>
-                                </table>
-                            </div>
+
+                    <!-- 3. COMPRADOR -->
+                    <div class="border-b-2 border-slate-900 pb-2 text-xs leading-snug space-y-0.5">
+                        <div><strong class="text-slate-600">Sr.(a):</strong> <span class="font-sans font-black text-sm text-slate-950">${cliente.nome || cliente.nome_completo || 'Cliente'}</span></div>
+                        <div><strong class="text-slate-600">Rua:</strong> ${cliente.endereco || cliente.endereco_logradouro || cliente.logradouro || '—'}${cliente.endereco_numero || cliente.numero ? ', ' + (cliente.endereco_numero || cliente.numero) : ''}</div>
+                        <div class="flex justify-between">
+                            <div><strong class="text-slate-600">Bairro:</strong> ${cliente.endereco_bairro || cliente.bairro || '—'}</div>
+                            <div><strong class="text-slate-600">Cidade:</strong> ${cliente.endereco_cidade || cliente.cidade || '—'}</div>
                         </div>
-                    ` : ''}
-                    
-                    <!-- PARCELAS -->
-                    <div class="mb-4 pb-3 border-b-2 border-gray-300">
-                        <h3 class="text-xs font-bold text-gray-700 uppercase mb-2">PARCELAS</h3>
+                        <div class="flex justify-between items-center pt-1 text-[11px] border-t border-slate-200">
+                            <div><strong class="text-slate-600">Tel:</strong> ${formatarTelefone(cliente.telefone || '')}</div>
+                            <div class="font-bold text-amber-900 text-[10px]">[X] SEMANAL</div>
+                        </div>
+                    </div>
+
+                    <!-- 4. GRADE DE BAIXAS / RECEBIMENTOS (CARTELA DUPLA DATA | DINHEIRO | SALDO) -->
+                    <div>
+                        <div class="flex items-center justify-between text-[10px] font-bold uppercase text-slate-600 mb-1">
+                            <span>GRADE DE BAIXAS</span>
+                            <span class="text-amber-900 font-black">Saldo: ${formatarMoeda(saldoDevedor)}</span>
+                        </div>
                         <div class="overflow-x-auto">
-                            <table class="w-full text-xs border-collapse">
-                                <thead>
-                                    <tr class="bg-gray-100">
-                                        <th class="text-center p-2 border border-gray-300 font-bold text-gray-700">PARCELA</th>
-                                        <th class="text-center p-2 border border-gray-300 font-bold text-gray-700">VENCIMENTO</th>
-                                        <th class="text-right p-2 border border-gray-300 font-bold text-gray-700">VL PARCELA</th>
-                                        <th class="text-center p-2 border border-gray-300 font-bold text-gray-700">SITUACAO</th>
-                                        <th class="text-center p-2 border border-gray-300 font-bold text-gray-700">AÇÃO</th>
+                            <table class="w-full text-[10px] border border-slate-900 text-center border-collapse">
+                                <thead class="bg-slate-200/90 border-b border-slate-900 font-bold">
+                                    <tr>
+                                        <th class="p-1 border-r border-slate-400">DATA</th>
+                                        <th class="p-1 border-r border-slate-400">DINHEIRO</th>
+                                        <th class="p-1 border-r-2 border-slate-900">SALDO</th>
+                                        <th class="p-1 border-r border-slate-400">DATA</th>
+                                        <th class="p-1 border-r border-slate-400">DINHEIRO</th>
+                                        <th class="p-1">SALDO</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${parcelasOrdenadas.map((parcela, idx) => {
-                                        const estaPaga = parcela.status_parcela_codigo === STATUS_PARCELA.PAGA;
-                                        const estaVencida = new Date(parcela.data_vencimento) < new Date() && !estaPaga;
-                                        const situacao = estaPaga ? 'PAGA' : (estaVencida ? 'VENCIDA' : 'PENDENTE');
-                                        const situacaoClass = estaPaga ? 'text-green-600' : (estaVencida ? 'text-red-600' : 'text-yellow-600');
-                                        const numeroParcela = String(parcela.numero_parcela || idx + 1).padStart(2, '0');
-                                        const totalParcelas = String(parcelas.length).padStart(2, '0');
-                                        
-                                        // Verifica se pode pagar esta parcela
-                                        const podePagar = podePagarParcela(parcela, parcelasOrdenadas);
-                                        
-                                        return `
-                                            <tr class="${estaPaga ? 'bg-green-50' : (estaVencida ? 'bg-red-50' : '')}">
-                                                <td class="p-2 border border-gray-300 text-center text-gray-900 font-medium">${numeroParcela}/${totalParcelas}</td>
-                                                <td class="p-2 border border-gray-300 text-center text-gray-900">${formatarData(parcela.data_vencimento)}</td>
-                                                <td class="p-2 border border-gray-300 text-right text-gray-900">${formatarMoeda(parcela.valor_parcela)}</td>
-                                                <td class="p-2 border border-gray-300 text-center ${situacaoClass} font-medium">${situacao}</td>
-                                                <td class="p-2 border border-gray-300 text-center">
-                                                    ${estaPaga ? '<span class="text-green-600 text-xs">✓</span>' : podePagar ? `
-                                                        <button class="bg-blue-600 text-white px-3 py-1 rounded text-xs font-medium hover:bg-blue-700 active:bg-blue-800" 
-                                                                onclick="event.stopPropagation(); window.abrirModalRecebimento('${parcela.id}')">
-                                                            PAGAR
-                                                        </button>
-                                                    ` : '<span class="text-gray-400 text-xs" title="Pague as parcelas anteriores primeiro">-</span>'}
-                                                </td>
-                                            </tr>
-                                        `;
-                                    }).join('')}
+                                    ${(function() {
+                                        const totalLinhas = Math.max(4, Math.ceil(parcelasOrdenadas.length / 2));
+                                        let rowsHtml = '';
+                                        let saldoTmp = parseFloat(venda.valor_total || 0);
+                                        for (let l = 0; l < totalLinhas; l++) {
+                                            const p1 = parcelasOrdenadas[l] || null;
+                                            const p2 = parcelasOrdenadas[l + totalLinhas] || null;
+                                            
+                                            let p1Pago = p1 && p1.status_parcela_codigo === STATUS_PARCELA.PAGA;
+                                            let p2Pago = p2 && p2.status_parcela_codigo === STATUS_PARCELA.PAGA;
+                                            
+                                            let s1Text = '';
+                                            if (p1) {
+                                                if (p1Pago) saldoTmp -= parseFloat(p1.valor_pago || p1.valor_parcela || 0);
+                                                s1Text = formatarMoeda(Math.max(0, saldoTmp));
+                                            }
+                                            let s2Text = '';
+                                            if (p2) {
+                                                if (p2Pago) saldoTmp -= parseFloat(p2.valor_pago || p2.valor_parcela || 0);
+                                                s2Text = formatarMoeda(Math.max(0, saldoTmp));
+                                            }
+
+                                            rowsHtml += `
+                                                <tr class="h-6 border-b border-slate-300 ${p1Pago ? 'bg-emerald-50/70 text-emerald-950 font-bold' : ''}">
+                                                    <td class="p-0.5 border-r border-slate-300">${p1 ? formatarData(p1.data_pagamento || p1.data_vencimento).slice(0, 5) : ''}</td>
+                                                    <td class="p-0.5 border-r border-slate-300 font-bold">${p1 ? (p1Pago ? formatarMoeda(p1.valor_pago || p1.valor_parcela) : '-') : ''}</td>
+                                                    <td class="p-0.5 border-r-2 border-slate-900 font-black text-amber-950">${s1Text}</td>
+                                                    <td class="p-0.5 border-r border-slate-300">${p2 ? formatarData(p2.data_pagamento || p2.data_vencimento).slice(0, 5) : ''}</td>
+                                                    <td class="p-0.5 border-r border-slate-300 font-bold">${p2 ? (p2Pago ? formatarMoeda(p2.valor_pago || p2.valor_parcela) : '-') : ''}</td>
+                                                    <td class="p-0.5 font-black text-amber-950">${s2Text}</td>
+                                                </tr>
+                                            `;
+                                        }
+                                        return rowsHtml;
+                                    })()}
                                 </tbody>
                             </table>
                         </div>
                     </div>
-                    
-                    <!-- Botões de Ação -->
-                    <div class="text-center space-y-2">
-                        <div class="flex gap-2">
-                            <button class="btn-ver-detalhes flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-blue-700 active:bg-blue-800 transition-colors"
-                                    data-venda-id="${venda.id}"
-                                    data-cliente-id="${cliente.id}">
-                                VER DETALHES
+
+                    <!-- 5. AÇÃO PRINCIPAL DE BAIXA / RECEBIMENTO -->
+                    ${proximaParcela ? `
+                        <div class="pt-1">
+                            <button type="button" 
+                                    onclick="event.stopPropagation(); window.abrirModalRecebimento('${proximaParcela.id}')"
+                                    class="w-full py-3.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black text-sm rounded-xl shadow-md active:scale-98 transition flex items-center justify-center gap-2">
+                                <span class="text-base">💵</span>
+                                <span>RECEBER PARCELA (${formatarMoeda(proximaParcela.valor_parcela)})</span>
                             </button>
-                            <button class="btn-gerar-cartao flex-1 bg-green-600 text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-green-700 active:bg-green-800 transition-colors"
+                        </div>
+                    ` : `
+                        <div class="p-2.5 bg-emerald-100/90 border border-emerald-300 text-emerald-800 rounded-xl text-center font-bold text-xs">
+                            ✓ CARTÃO TOTALMENTE QUITADO!
+                        </div>
+                    `}
+
+                    <!-- 6. BOTÕES DE APOIO DO COBRADOR (WhatsApp, Visita, Maps) -->
+                    <div class="grid grid-cols-3 gap-2 pt-1">
+                        <button type="button" class="btn-marcar-visita py-2 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] rounded-lg border border-slate-300 transition"
+                                data-cliente-id="${cliente.id}"
+                                data-cliente-nome="${cliente.nome || 'Cliente'}">
+                            🚪 Visita
+                        </button>
+                        ${cliente.telefone ? `
+                            <a href="https://api.whatsapp.com/send?phone=55${cliente.telefone.replace(/\\D/g, '')}&text=${encodeURIComponent('Olá ' + (cliente.nome || '') + '! Passando para lembrar do seu Cartão Prestanista #' + numeroVenda + '. Saldo restante: ' + formatarMoeda(saldoDevedor))}" 
+                               target="_blank" 
+                               class="py-2 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[11px] rounded-lg border border-emerald-300 text-center transition flex items-center justify-center gap-1">
+                                📱 WhatsApp
+                            </a>
+                        ` : `
+                            <button type="button" class="btn-gerar-cartao py-2 px-2 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[11px] rounded-lg border border-amber-300 transition"
                                     data-venda-id="${venda.id}"
                                     data-cliente-id="${cliente.id}"
                                     data-venda-index="${index}">
-                                GERAR CARTÃO
+                                🖨️ Cartão
                             </button>
-                        </div>
-                        ${temParcelasCobravel ? `
-                            <button class="btn-marcar-visita w-full bg-yellow-500 text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-yellow-600 active:bg-yellow-700 transition-colors"
-                                    data-cliente-id="${cliente.id}"
-                                    data-cliente-nome="${cliente.nome || cliente.nome_completo || 'Cliente'}">
-                                📍 MARCAR VISITA
+                        `}
+                        ${temEnderecoParaMapa ? `
+                            <button type="button" class="btn-google-maps py-2 px-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[11px] rounded-lg border border-indigo-300 transition flex items-center justify-center gap-1"
+                                    data-endereco="${enderecoCompleto.replace(/"/g, '&quot;').replace(/'/g, '&#39;')}">
+                                🗺️ Mapa
                             </button>
                         ` : `
-                            <div class="w-full bg-green-100 text-green-700 px-4 py-2 rounded-lg font-medium text-sm text-center">
-                                ${parcelasPendentes.length > 0 ? '✓ Sem parcelas no período de cobrança' : '✓ Todas as parcelas pagas'}
-                            </div>
+                            <button type="button" class="btn-ver-detalhes py-2 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] rounded-lg border border-slate-300 transition"
+                                    data-venda-id="${venda.id}"
+                                    data-cliente-id="${cliente.id}">
+                                👁️ Ficha
+                            </button>
                         `}
                     </div>
+
+                    <div class="text-[9px] text-slate-500 text-center pt-1 border-t border-slate-300">
+                        « Deus é Fiel » • Obs.: Não aceitamos devolução.
                     </div>
                 </div>
             </div>
@@ -1497,41 +1478,44 @@ function podePagarParcela(parcela, todasParcelas) {
 /**
  * Renderiza linhas da tabela de parcelas (2 colunas por linha)
  */
-function renderizarLinhasParcelas(parcelas) {
+function renderizarLinhasParcelas(parcelas, valorTotalVenda) {
     let html = '';
-    const linhas = Math.ceil(parcelas.length / 2);
+    const totalLinhas = Math.max(4, Math.ceil(parcelas.length / 2));
+    let saldoCorrente = parseFloat(valorTotalVenda || 0);
     
-    for (let i = 0; i < linhas; i++) {
-        const parcela1 = parcelas[i * 2];
-        const parcela2 = parcelas[i * 2 + 1];
+    for (let i = 0; i < totalLinhas; i++) {
+        const parcela1 = parcelas[i];
+        const parcela2 = parcelas[i + totalLinhas];
         
         html += '<tr>';
         
-        // Primeira parcela (colunas 1-3)
+        // Primeira parcela (colunas 1-3: DATA | DINHEIRO | SALDO)
         if (parcela1) {
             const estaPaga = parcela1.status_parcela_codigo === STATUS_PARCELA.PAGA;
-            const estaVencida = new Date(parcela1.data_vencimento) < new Date() && !estaPaga;
-            const classeLinha = estaPaga ? 'parcela-paga' : (estaVencida ? 'parcela-vencida' : 'parcela-pendente');
+            const valorPago = parseFloat(parcela1.valor_pago || parcela1.valor_parcela || 0);
+            if (estaPaga) saldoCorrente -= valorPago;
+            const classeLinha = estaPaga ? 'parcela-paga font-bold text-emerald-800' : 'parcela-pendente cursor-pointer';
             
             html += `
-                <td class="${classeLinha}">${formatarDataParcela(parcela1.data_vencimento)}</td>
-                <td class="${classeLinha}">${estaPaga ? formatarMoeda(parcela1.valor_pago || parcela1.valor_parcela) : formatarMoeda(parcela1.valor_parcela)}</td>
-                <td class="${classeLinha}">${estaPaga ? '✓' : ''}</td>
+                <td class="${classeLinha}" onclick="${!estaPaga ? `window.abrirModalRecebimento('${parcela1.id}')` : ''}">${formatarDataParcela(parcela1.data_pagamento || parcela1.data_vencimento)}</td>
+                <td class="${classeLinha}" onclick="${!estaPaga ? `window.abrirModalRecebimento('${parcela1.id}')` : ''}">${estaPaga ? formatarMoeda(valorPago) : '-'}</td>
+                <td class="${classeLinha} font-bold text-amber-900" onclick="${!estaPaga ? `window.abrirModalRecebimento('${parcela1.id}')` : ''}">${formatarMoeda(Math.max(0, saldoCorrente))}</td>
             `;
         } else {
             html += '<td></td><td></td><td></td>';
         }
         
-        // Segunda parcela (colunas 4-6)
+        // Segunda parcela (colunas 4-6: DATA | DINHEIRO | SALDO)
         if (parcela2) {
             const estaPaga = parcela2.status_parcela_codigo === STATUS_PARCELA.PAGA;
-            const estaVencida = new Date(parcela2.data_vencimento) < new Date() && !estaPaga;
-            const classeLinha = estaPaga ? 'parcela-paga' : (estaVencida ? 'parcela-vencida' : 'parcela-pendente');
+            const valorPago = parseFloat(parcela2.valor_pago || parcela2.valor_parcela || 0);
+            if (estaPaga) saldoCorrente -= valorPago;
+            const classeLinha = estaPaga ? 'parcela-paga font-bold text-emerald-800' : 'parcela-pendente cursor-pointer';
             
             html += `
-                <td class="${classeLinha}">${formatarDataParcela(parcela2.data_vencimento)}</td>
-                <td class="${classeLinha}">${estaPaga ? formatarMoeda(parcela2.valor_pago || parcela2.valor_parcela) : formatarMoeda(parcela2.valor_parcela)}</td>
-                <td class="${classeLinha}">${estaPaga ? '✓' : ''}</td>
+                <td class="${classeLinha}" onclick="${!estaPaga ? `window.abrirModalRecebimento('${parcela2.id}')` : ''}">${formatarDataParcela(parcela2.data_pagamento || parcela2.data_vencimento)}</td>
+                <td class="${classeLinha}" onclick="${!estaPaga ? `window.abrirModalRecebimento('${parcela2.id}')` : ''}">${estaPaga ? formatarMoeda(valorPago) : '-'}</td>
+                <td class="${classeLinha} font-bold text-amber-900" onclick="${!estaPaga ? `window.abrirModalRecebimento('${parcela2.id}')` : ''}">${formatarMoeda(Math.max(0, saldoCorrente))}</td>
             `;
         } else {
             html += '<td></td><td></td><td></td>';
@@ -1661,23 +1645,25 @@ function renderizarParcelasFichaVenda(venda) {
     // Ordena parcelas por número
     const parcelasOrdenadas = [...parcelas].sort((a, b) => (a.numero_parcela || 0) - (b.numero_parcela || 0));
     
+    const valorTotal = venda.venda?.valor_total || venda.valor_total || 0;
+
     let html = `
         <div class="ficha-digital-papel">
             <table class="tabela-parcelas">
                 <thead>
                     <tr>
                         <th>DATA</th>
-                        <th>VALOR</th>
-                        <th>VISTO</th>
+                        <th>DINHEIRO</th>
+                        <th>SALDO</th>
                         <th>DATA</th>
-                        <th>VALOR</th>
-                        <th>VISTO</th>
+                        <th>DINHEIRO</th>
+                        <th>SALDO</th>
                     </tr>
                 </thead>
                 <tbody>
     `;
     
-    html += renderizarLinhasParcelas(parcelasOrdenadas);
+    html += renderizarLinhasParcelas(parcelasOrdenadas, valorTotal);
     
     html += `
                 </tbody>
