@@ -243,4 +243,131 @@ class CartaoController extends Controller
             'vendedores' => $vendedores,
         ]);
     }
+
+    /**
+     * Cadastro Rápido de Cliente inline (AJAX) sem sair da tela de novo cartão
+     */
+    public function actionCadastrarClienteRapido()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        $usuario = Yii::$app->user->identity;
+        $usuarioId = $usuario ? $usuario->getTenantId() : null;
+
+        if (!$usuarioId) {
+            return [
+                'success' => false,
+                'message' => 'Sessão expirada ou usuário não autenticado.',
+            ];
+        }
+
+        if (!Yii::$app->request->isPost) {
+            return [
+                'success' => false,
+                'message' => 'Método inválido. Requisição deve ser POST.',
+            ];
+        }
+
+        $post = Yii::$app->request->post();
+
+        $nomeCompleto = trim($post['nome_completo'] ?? '');
+        $telefone = trim($post['telefone'] ?? '');
+        $cpf = preg_replace('/[^0-9]/', '', $post['cpf'] ?? '');
+        $logradouro = trim($post['endereco_logradouro'] ?? '');
+        $numero = trim($post['endereco_numero'] ?? '');
+        $bairro = trim($post['endereco_bairro'] ?? '');
+        $cidade = trim($post['endereco_cidade'] ?? '');
+        $pontoReferencia = trim($post['ponto_referencia'] ?? '');
+        $observacoes = trim($post['observacoes'] ?? '');
+
+        if (empty($nomeCompleto)) {
+            return [
+                'success' => false,
+                'message' => 'O nome completo do cliente é obrigatório.',
+            ];
+        }
+
+        if (empty($telefone)) {
+            return [
+                'success' => false,
+                'message' => 'O telefone/WhatsApp do cliente é obrigatório.',
+            ];
+        }
+
+        if (empty($logradouro)) {
+            return [
+                'success' => false,
+                'message' => 'O logradouro/rua é obrigatório para localização na rota.',
+            ];
+        }
+
+        // Se número estiver vazio, definir como S/N
+        if (empty($numero)) {
+            $numero = 'S/N';
+        }
+
+        // Se bairro estiver vazio, definir como Centro
+        if (empty($bairro)) {
+            $bairro = 'Centro';
+        }
+
+        // Se cidade estiver vazia, buscar cidade de outro cliente ou da loja
+        if (empty($cidade)) {
+            $clienteAnterior = Cliente::find()->where(['usuario_id' => $usuarioId])->andWhere(['not', ['endereco_cidade' => null]])->orderBy(['data_criacao' => SORT_DESC])->one();
+            $cidade = $clienteAnterior ? $clienteAnterior->endereco_cidade : 'Cidade';
+        }
+
+        $cliente = new Cliente();
+        $cliente->usuario_id = $usuarioId;
+        $cliente->nome_completo = $nomeCompleto;
+        $cliente->telefone = $telefone;
+        $cliente->endereco_logradouro = $logradouro;
+        $cliente->endereco_numero = $numero;
+        $cliente->endereco_bairro = $bairro;
+        $cliente->endereco_cidade = $cidade;
+        $cliente->ponto_referencia = !empty($pontoReferencia) ? $pontoReferencia : null;
+        $cliente->observacoes = !empty($observacoes) ? $observacoes : '[Cadastro Rápido - Prestanista]';
+        $cliente->ativo = true;
+
+        if (!empty($cpf)) {
+            if (strlen($cpf) !== 11) {
+                return [
+                    'success' => false,
+                    'message' => 'O CPF deve ter 11 dígitos numéricos ou ser deixado em branco.',
+                ];
+            }
+            $cliente->cpf = $cpf;
+        } else {
+            $cliente->cpf = null;
+        }
+
+        // Senha para satisfazer rules() do model e permitir futuro login no PWA
+        $ultimosDigitos = preg_replace('/\D/', '', $telefone);
+        $cliente->senha = strlen($ultimosDigitos) >= 4 ? substr($ultimosDigitos, -4) : '1234';
+
+        if ($cliente->save()) {
+            return [
+                'success' => true,
+                'message' => 'Cliente cadastrado com sucesso!',
+                'cliente' => [
+                    'id' => $cliente->id,
+                    'nome' => $cliente->nome_completo,
+                    'bairro' => $cliente->endereco_bairro,
+                    'telefone' => $cliente->telefone,
+                    'endereco_completo' => $cliente->getEnderecoCompleto(),
+                ],
+            ];
+        }
+
+        $erros = [];
+        foreach ($cliente->errors as $campo => $mensagens) {
+            $erros[] = implode(', ', $mensagens);
+        }
+
+        return [
+            'success' => false,
+            'message' => 'Erro ao salvar cliente: ' . implode(' | ', $erros),
+            'errors' => $cliente->errors,
+        ];
+    }
 }

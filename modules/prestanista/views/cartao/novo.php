@@ -33,13 +33,26 @@ $this->title = 'Emitir Novo Cartão de Crediário';
         <!-- 1. Cliente & Vendedor -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-                <label class="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5">Cliente (Comprador) *</label>
-                <select name="cliente_id" required class="w-full h-12 px-3.5 bg-slate-900 border border-slate-700 rounded-xl text-xs sm:text-sm text-white focus:border-amber-500 focus:outline-none">
-                    <option value="">Selecione o Cliente...</option>
-                    <?php foreach ($clientes as $cl): ?>
-                        <option value="<?= $cl->id ?>"><?= Html::encode($cl->nome) ?> (<?= Html::encode($cl->bairro ?? 'Sem bairro') ?>)</option>
-                    <?php endforeach; ?>
-                </select>
+                <div class="flex items-center justify-between mb-1.5">
+                    <label class="block text-xs font-black text-slate-300 uppercase tracking-wider">Cliente (Comprador) *</label>
+                    <button type="button" onclick="abrirModalNovoCliente()" class="text-[11px] font-black text-amber-400 hover:text-amber-300 flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/30 transition">
+                        <span>➕</span> <span>Novo Cliente</span>
+                    </button>
+                </div>
+                <div class="flex gap-2">
+                    <select name="cliente_id" id="select-cliente" required class="flex-1 h-12 px-3.5 bg-slate-900 border border-slate-700 rounded-xl text-xs sm:text-sm text-white focus:border-amber-500 focus:outline-none">
+                        <option value="">Selecione o Cliente...</option>
+                        <?php foreach ($clientes as $cl): ?>
+                            <option value="<?= $cl->id ?>"><?= Html::encode($cl->nome) ?> (<?= Html::encode($cl->bairro ?? 'Sem bairro') ?>)</option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button type="button" onclick="abrirModalNovoCliente()" title="Cadastrar Cliente Novo Sem Sair da Tela" class="px-3.5 h-12 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl flex items-center justify-center text-sm shadow-md transition active:scale-95">
+                        ➕
+                    </button>
+                </div>
+                <p id="clienteCadastradoFeedback" class="hidden text-xs text-emerald-400 font-bold mt-1.5 flex items-center gap-1">
+                    <span>✅</span> <span id="clienteFeedbackTexto"></span>
+                </p>
             </div>
 
             <div>
@@ -122,8 +135,102 @@ $this->title = 'Emitir Novo Cartão de Crediário';
 
 </div>
 
+<!-- Modal Cadastro Rápido de Cliente -->
+<div id="modalNovoCliente" class="fixed inset-0 z-50 hidden overflow-y-auto bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" onclick="handleBackdropClick(event)">
+    <div class="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+        
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/80">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 text-lg shadow-inner">
+                    👤
+                </div>
+                <div>
+                    <h3 class="text-base font-black text-white tracking-tight">Cadastro Rápido de Cliente</h3>
+                    <p class="text-[11px] text-slate-400">Cadastre o comprador sem sair da tela e sem perder os itens</p>
+                </div>
+            </div>
+            <button type="button" onclick="fecharModalNovoCliente()" class="w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+                ✕
+            </button>
+        </div>
+
+        <!-- Form Modal -->
+        <form id="formCadastroClienteRapido" onsubmit="salvarClienteRapido(event)" class="p-6 space-y-4">
+            
+            <div id="modalClienteErro" class="hidden p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-medium"></div>
+
+            <!-- Dados Pessoais -->
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">Nome Completo do Cliente *</label>
+                    <input type="text" name="nome_completo" id="modal_nome_completo" required placeholder="Ex: Maria José da Silva" class="w-full h-11 px-3.5 bg-slate-950 border border-slate-700 rounded-xl text-xs sm:text-sm text-white focus:border-amber-500 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 mb-1">WhatsApp / Telefone *</label>
+                        <input type="tel" name="telefone" id="modal_telefone" required placeholder="(83) 98888-7777" oninput="formatarTelefone(this)" class="w-full h-11 px-3.5 bg-slate-950 border border-slate-700 rounded-xl text-xs sm:text-sm text-white focus:border-amber-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 mb-1">CPF (Opcional)</label>
+                        <input type="text" name="cpf" id="modal_cpf" placeholder="000.000.000-00" oninput="formatarCpf(this)" maxlength="14" class="w-full h-11 px-3.5 bg-slate-950 border border-slate-700 rounded-xl text-xs sm:text-sm text-white focus:border-amber-500 focus:outline-none">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Endereço e Rota de Cobrança -->
+            <div class="pt-3 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs">📍</span>
+                    <span class="text-[11px] font-black text-amber-400 uppercase tracking-wider">Localização & Rota de Cobrança</span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="col-span-2">
+                        <label class="block text-[11px] font-bold text-slate-300 mb-1">Rua / Logradouro *</label>
+                        <input type="text" name="endereco_logradouro" id="modal_endereco_logradouro" required placeholder="Ex: Rua São Sebastião" class="w-full h-11 px-3 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:border-amber-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-300 mb-1">Nº</label>
+                        <input type="text" name="endereco_numero" id="modal_endereco_numero" placeholder="120 ou S/N" class="w-full h-11 px-3 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:border-amber-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-300 mb-1">Bairro *</label>
+                        <input type="text" name="endereco_bairro" id="modal_endereco_bairro" required placeholder="Ex: Centro" class="w-full h-11 px-3 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:border-amber-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-300 mb-1">Cidade *</label>
+                        <input type="text" name="endereco_cidade" id="modal_endereco_cidade" required placeholder="Ex: Campina Grande" class="w-full h-11 px-3 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:border-amber-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-300 mb-1">Ponto de Referência (Cobrança)</label>
+                    <input type="text" name="ponto_referencia" id="modal_ponto_referencia" placeholder="Ex: Ao lado da padaria, portão azul" class="w-full h-11 px-3 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:border-amber-500 focus:outline-none">
+                </div>
+            </div>
+
+            <!-- Botões de Ação do Modal -->
+            <div class="pt-3 border-t border-slate-800 flex items-center justify-end gap-2.5">
+                <button type="button" onclick="fecharModalNovoCliente()" class="px-4 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:text-white text-xs font-bold transition">
+                    Cancelar
+                </button>
+                <button type="submit" id="btnSalvarClienteModal" class="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs rounded-xl shadow-lg transition active:scale-95 flex items-center gap-2">
+                    <span>💾</span>
+                    <span id="btnSalvarClienteTexto">Salvar e Selecionar</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
     let contadorLinhas = 1;
+
     function atualizarPrecoProduto(select, idx) {
         const option = select.options[select.selectedIndex];
         const preco = option.getAttribute('data-preco');
@@ -167,5 +274,131 @@ $this->title = 'Emitir Novo Cartão de Crediário';
         `;
         container.appendChild(novaLinha);
         contadorLinhas++;
+    }
+
+    // Modal de Cadastro Rápido de Cliente
+    function abrirModalNovoCliente() {
+        const modal = document.getElementById('modalNovoCliente');
+        const erroDiv = document.getElementById('modalClienteErro');
+        erroDiv.classList.add('hidden');
+        erroDiv.textContent = '';
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            document.getElementById('modal_nome_completo')?.focus();
+        }, 100);
+    }
+
+    function fecharModalNovoCliente() {
+        const modal = document.getElementById('modalNovoCliente');
+        modal.classList.add('hidden');
+    }
+
+    function handleBackdropClick(event) {
+        if (event.target === document.getElementById('modalNovoCliente')) {
+            fecharModalNovoCliente();
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            fecharModalNovoCliente();
+        }
+    });
+
+    // Formatação de Máscaras
+    function formatarTelefone(input) {
+        let v = input.value.replace(/\D/g, '');
+        if (v.length > 11) v = v.substring(0, 11);
+        if (v.length > 10) {
+            input.value = v.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+        } else if (v.length > 6) {
+            input.value = v.replace(/^(\d{2})(\d{4})(\d{0,4})$/, '($1) $2-$3');
+        } else if (v.length > 2) {
+            input.value = v.replace(/^(\d{2})(\d{0,5})$/, '($1) $2');
+        } else {
+            input.value = v;
+        }
+    }
+
+    function formatarCpf(input) {
+        let v = input.value.replace(/\D/g, '');
+        if (v.length > 11) v = v.substring(0, 11);
+        if (v.length > 9) {
+            input.value = v.replace(/^(\d{3})(\d{3})(\d{3})(\d{1,2})$/, '$1.$2.$3-$4');
+        } else if (v.length > 6) {
+            input.value = v.replace(/^(\d{3})(\d{3})(\d{0,3})$/, '$1.$2.$3');
+        } else if (v.length > 3) {
+            input.value = v.replace(/^(\d{3})(\d{0,3})$/, '$1.$2');
+        } else {
+            input.value = v;
+        }
+    }
+
+    async function salvarClienteRapido(event) {
+        event.preventDefault();
+        const form = document.getElementById('formCadastroClienteRapido');
+        const erroDiv = document.getElementById('modalClienteErro');
+        const btn = document.getElementById('btnSalvarClienteModal');
+        const btnTexto = document.getElementById('btnSalvarClienteTexto');
+
+        erroDiv.classList.add('hidden');
+        erroDiv.textContent = '';
+        btn.disabled = true;
+        btnTexto.textContent = 'Salvando...';
+
+        const formData = new FormData(form);
+        // Adicionar token CSRF
+        formData.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->csrfToken ?>');
+
+        try {
+            const response = await fetch('<?= Url::to(['/prestanista/cartao/cadastrar-cliente-rapido']) ?>', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.cliente) {
+                // Adiciona o novo cliente no select
+                const select = document.getElementById('select-cliente');
+                const novaOpcao = document.createElement('option');
+                novaOpcao.value = data.cliente.id;
+                novaOpcao.textContent = `${data.cliente.nome} (${data.cliente.bairro || 'Sem bairro'})`;
+                novaOpcao.selected = true;
+
+                // Insere logo após o placeholder "Selecione o Cliente..."
+                if (select.children.length > 1) {
+                    select.insertBefore(novaOpcao, select.children[1]);
+                } else {
+                    select.appendChild(novaOpcao);
+                }
+
+                select.value = data.cliente.id;
+
+                // Feedback visual na tela principal
+                const feedbackP = document.getElementById('clienteCadastradoFeedback');
+                const feedbackTexto = document.getElementById('clienteFeedbackTexto');
+                feedbackTexto.textContent = `Cliente ${data.cliente.nome} cadastrado e selecionado!`;
+                feedbackP.classList.remove('hidden');
+
+                // Limpa form do modal e fecha
+                form.reset();
+                fecharModalNovoCliente();
+
+            } else {
+                erroDiv.textContent = data.message || 'Erro ao cadastrar cliente. Verifique os campos.';
+                erroDiv.classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error('Erro na requisição:', error);
+            erroDiv.textContent = 'Ocorreu um erro ao processar a requisição. Tente novamente.';
+            erroDiv.classList.remove('hidden');
+        } finally {
+            btn.disabled = false;
+            btnTexto.textContent = 'Salvar e Selecionar';
+        }
     }
 </script>
