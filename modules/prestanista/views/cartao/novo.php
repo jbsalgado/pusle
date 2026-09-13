@@ -68,11 +68,18 @@ $this->title = 'Emitir Novo Cartão de Crediário';
 
         <!-- 2. Adicionar Objetos / Mercadorias -->
         <div class="border-t border-slate-800 pt-4 space-y-3">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between flex-wrap gap-2">
                 <label class="text-xs font-black text-slate-300 uppercase tracking-wider">Objetos Vendidos (Mercadorias)</label>
-                <button type="button" onclick="adicionarLinhaProduto()" class="text-xs font-black text-amber-400 hover:text-amber-300">
-                    + Adicionar Mercadoria
-                </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="abrirModalCadastroRapido()" class="text-[11px] font-black text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 py-1 rounded-lg border border-emerald-500/30 transition shadow-xs active:scale-95">
+                        <span>⚡</span>
+                        <span>Cadastrar Produto Expresso</span>
+                    </button>
+                    <button type="button" onclick="adicionarLinhaProduto()" class="text-xs font-black text-amber-400 hover:text-amber-300 flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/30 transition shadow-xs active:scale-95">
+                        <span>+</span>
+                        <span>Adicionar Mercadoria</span>
+                    </button>
+                </div>
             </div>
 
             <div id="containerItensVenda" class="space-y-2.5">
@@ -401,4 +408,55 @@ $this->title = 'Emitir Novo Cartão de Crediário';
             btnTexto.textContent = 'Salvar e Selecionar';
         }
     }
+
+    // Ouvinte para quando um produto expresso for cadastrado pelo modal rápido
+    window.addEventListener('produtoCadastradoRapido', function(e) {
+        const prod = e.detail;
+        if (!prod || !prod.id) return;
+
+        const precoNumerico = parseFloat(prod.preco ? prod.preco.toString().replace(/\./g, '').replace(',', '.') : 0) || 0;
+        const precoFormatado = precoNumerico.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        const textoOption = `${prod.nome} (R$ ${precoFormatado})`;
+
+        // 1. Atualiza todos os selects de mercadoria da tela adicionando a nova option
+        const selects = document.querySelectorAll('select[name*="[produto_id]"]');
+        selects.forEach(sel => {
+            const opt = document.createElement('option');
+            opt.value = prod.id;
+            opt.setAttribute('data-preco', precoNumerico);
+            opt.textContent = textoOption;
+            if (sel.children.length > 1) {
+                sel.insertBefore(opt, sel.children[1]);
+            } else {
+                sel.appendChild(opt);
+            }
+        });
+
+        // 2. Localiza a primeira linha com produto vazio ou adiciona uma nova linha
+        let linhaAlvo = null;
+        document.querySelectorAll('.item-venda-linha').forEach(linha => {
+            const sel = linha.querySelector('select[name*="[produto_id]"]');
+            if (sel && !sel.value && !linhaAlvo) {
+                linhaAlvo = linha;
+            }
+        });
+
+        if (!linhaAlvo) {
+            adicionarLinhaProduto();
+            const linhas = document.querySelectorAll('.item-venda-linha');
+            linhaAlvo = linhas[linhas.length - 1];
+        }
+
+        if (linhaAlvo) {
+            const sel = linhaAlvo.querySelector('select[name*="[produto_id]"]');
+            const inputPreco = linhaAlvo.querySelector('input[name*="[preco]"]');
+            if (sel) sel.value = prod.id;
+            if (inputPreco) inputPreco.value = precoNumerico.toFixed(2);
+            calcularTotalCartao();
+        }
+    });
 </script>
+
+<!-- Renderização do Modal de Cadastro Rápido de Produto Expresso -->
+<?= $this->render('@app/modules/vendas/views/produto/_modal_cadastro_rapido') ?>
+
