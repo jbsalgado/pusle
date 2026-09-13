@@ -207,6 +207,12 @@ class CartaoController extends Controller
                     $formaPagamento->save(false);
                 }
 
+                $dataVendaInput = !empty($post['data_venda']) ? $post['data_venda'] : date('Y-m-d');
+                $dataVenda = $dataVendaInput . ' ' . date('H:i:s');
+                $primeiroVencimento = !empty($post['primeiro_vencimento']) 
+                    ? $post['primeiro_vencimento'] 
+                    : (!empty($post['data_primeiro_vencimento']) ? $post['data_primeiro_vencimento'] : date('Y-m-d', strtotime("{$dataVendaInput} +{$frequencia} days")));
+
                 $venda = new Venda();
                 $venda->usuario_id = $usuarioId;
                 $venda->cliente_id = $clienteId;
@@ -214,7 +220,8 @@ class CartaoController extends Controller
                 $venda->forma_pagamento_id = $formaPagamento->id;
                 $venda->valor_total = $valorTotal;
                 $venda->numero_parcelas = $parcelasQtd;
-                $venda->data_venda = date('Y-m-d H:i:s');
+                $venda->data_venda = $dataVenda;
+                $venda->data_primeiro_vencimento = $primeiroVencimento;
                 $venda->status_venda_codigo = 'EM_ABERTO';
                 $venda->observacoes = '[PRESTANISTA] Cartão de Crediário emitido via Gestão';
 
@@ -234,9 +241,8 @@ class CartaoController extends Controller
                     }
                 }
 
-                // Gera parcelas
+                // Gera parcelas com base na Data da 1ª Parcela e na Frequência (intervalo em dias)
                 $saldoAFinanciar = max(0, $valorTotal - $entrada);
-                $primeiroVencimento = !empty($post['primeiro_vencimento']) ? $post['primeiro_vencimento'] : date('Y-m-d', strtotime("+{$frequencia} days"));
                 
                 $venda->gerarParcelas($formaPagamento->id, $primeiroVencimento, $frequencia);
 
@@ -247,7 +253,7 @@ class CartaoController extends Controller
                         $p1->valor_pago = $entrada;
                         if ($entrada >= $p1->valor_parcela) {
                             $p1->status_parcela_codigo = 'PAGA';
-                            $p1->data_pagamento = date('Y-m-d');
+                            $p1->data_pagamento = $dataVendaInput;
                         }
                         $p1->save(false);
                     }

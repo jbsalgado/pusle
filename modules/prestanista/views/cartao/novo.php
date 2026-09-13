@@ -103,26 +103,84 @@ $this->title = 'Emitir Novo Cartão de Crediário';
             </div>
         </div>
 
-        <!-- 3. Condições de Pagamento e Frequência -->
-        <div class="border-t border-slate-800 pt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="min-w-0">
-                <label class="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5 truncate">Frequência da Cobrança</label>
-                <select name="frequencia" class="w-full min-w-0 h-11 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:border-amber-500 focus:outline-none truncate">
-                    <option value="7" selected>SEMANAL (A cada 7 dias)</option>
-                    <option value="15">QUINZENAL (A cada 15 dias)</option>
-                    <option value="30">MENSAL (A cada 30 dias)</option>
-                </select>
+        <!-- 3. Datas Chave e Condições de Pagamento -->
+        <div class="border-t border-slate-800 pt-4 space-y-4">
+            
+            <div class="flex items-center justify-between">
+                <label class="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <span>🗓️</span>
+                    <span>Datas e Condições de Pagamento</span>
+                </label>
+                <span class="text-[11px] text-amber-400 font-bold bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full">
+                    Cálculo Automático
+                </span>
             </div>
 
-            <div class="min-w-0">
-                <label class="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5 truncate">Nº de Prestações</label>
-                <input type="number" name="numero_parcelas" value="10" min="1" max="100" class="w-full min-w-0 h-11 px-3 text-center bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-bold">
+            <!-- Linha 1: Datas Chave -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-900/60 p-3.5 rounded-2xl border border-slate-800/80">
+                <div class="min-w-0">
+                    <label class="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                        <span>📅 Data da Venda</span>
+                        <span class="text-[10px] text-slate-400 font-normal">Realização da venda</span>
+                    </label>
+                    <input type="date" name="data_venda" id="inputDataVenda" value="<?= date('Y-m-d') ?>" onchange="aoMudarDataVenda()" class="w-full min-w-0 h-11 px-3 bg-slate-950 border border-slate-700 rounded-xl text-xs sm:text-sm text-white font-bold focus:border-amber-500 focus:outline-none transition">
+                </div>
+
+                <div class="min-w-0">
+                    <label class="block text-xs font-black text-amber-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                        <span>🗓️ Data da 1ª Parcela *</span>
+                        <span class="text-[10px] text-amber-400/80 font-normal">Base dos próximos vencimentos</span>
+                    </label>
+                    <input type="date" name="primeiro_vencimento" id="inputPrimeiroVencimento" value="<?= date('Y-m-d', strtotime('+7 days')) ?>" onchange="aoMudarPrimeiroVencimento()" required class="w-full min-w-0 h-11 px-3 bg-slate-950 border-2 border-amber-500/80 focus:border-amber-400 rounded-xl text-xs sm:text-sm text-amber-300 font-black shadow-sm focus:outline-none transition">
+                </div>
             </div>
 
-            <div class="min-w-0">
-                <label class="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5 truncate">Entrada no Ato (R$)</label>
-                <input type="text" name="valor_entrada" value="0,00" class="w-full min-w-0 h-11 px-3 text-right bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-bold" placeholder="0,00">
+            <!-- Linha 2: Frequência, Prestações e Entrada -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="min-w-0">
+                    <label class="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5 truncate">Frequência da Cobrança</label>
+                    <select name="frequencia" id="selectFrequencia" onchange="aoMudarFrequencia()" class="w-full min-w-0 h-11 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:border-amber-500 focus:outline-none truncate font-bold">
+                        <option value="1">DIÁRIA (A cada 1 dia)</option>
+                        <option value="7" selected>SEMANAL (A cada 7 dias)</option>
+                        <option value="15">QUINZENAL (A cada 15 dias)</option>
+                        <option value="30">MENSAL (A cada 30 dias)</option>
+                    </select>
+                </div>
+
+                <div class="min-w-0">
+                    <label class="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5 truncate">Nº de Prestações</label>
+                    <input type="number" name="numero_parcelas" id="inputNumeroParcelas" value="10" min="1" max="100" oninput="recalcularCronogramaParcelas()" class="w-full min-w-0 h-11 px-3 text-center bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-black">
+                </div>
+
+                <div class="min-w-0">
+                    <label class="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5 truncate">Entrada no Ato (R$)</label>
+                    <input type="text" name="valor_entrada" id="inputValorEntrada" value="0,00" oninput="formatarMoedaInput(this); recalcularCronogramaParcelas()" class="w-full min-w-0 h-11 px-3 text-right bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-bold" placeholder="0,00">
+                </div>
             </div>
+
+            <!-- Painel Visual: Cronograma Previsto das Parcelas (Live Schedule) -->
+            <div id="painelCronogramaParcelas" class="bg-gradient-to-br from-slate-900/90 to-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-inner">
+                <div class="flex items-center justify-between flex-wrap gap-2 border-b border-slate-800/80 pb-2.5">
+                    <div>
+                        <span class="block text-xs font-black text-white flex items-center gap-1.5">
+                            <span>📋</span>
+                            <span id="cronogramaTituloResumo">Cronograma: 10 parcelas de R$ 0,00</span>
+                        </span>
+                        <span class="block text-[11px] text-slate-400" id="cronogramaSubtitulo">Cobrança semanal calculada a partir da 1ª parcela</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20" id="badgePrimeiroUltimoVencimento">
+                            1º: --/--/---- • Fim: --/--/----
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Lista de Parcelas Dinâmica (Grid de chips/cards) -->
+                <div id="containerGradeParcelasPrevistas" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
+                    <!-- Gerado dinamicamente via JS -->
+                </div>
+            </div>
+
         </div>
 
         <!-- 4. Resumo do Cartão & Botão de Emissão -->
@@ -238,6 +296,167 @@ $this->title = 'Emitir Novo Cartão de Crediário';
 <script>
     let contadorLinhas = 1;
 
+    // ==========================================
+    // DATAS E CRONOGRAMA DE PARCELAS PRESTANISTA
+    // ==========================================
+    function formatarDateISO(d) {
+        const ano = d.getFullYear();
+        const mes = String(d.getMonth() + 1).padStart(2, '0');
+        const dia = String(d.getDate()).padStart(2, '0');
+        return `${ano}-${mes}-${dia}`;
+    }
+
+    function formatarDateBR(d) {
+        const dia = String(d.getDate()).padStart(2, '0');
+        const mes = String(d.getMonth() + 1).padStart(2, '0');
+        const ano = d.getFullYear();
+        return `${dia}/${mes}/${ano}`;
+    }
+
+    function criarDataSemTimezone(strDate) {
+        if (!strDate) return new Date();
+        const partes = strDate.split('-');
+        if (partes.length === 3) {
+            return new Date(parseInt(partes[0], 10), parseInt(partes[1], 10) - 1, parseInt(partes[2], 10));
+        }
+        return new Date(strDate);
+    }
+
+    function formatarMoedaInput(input) {
+        let v = input.value.replace(/\D/g, '');
+        if (!v || v === '0') {
+            input.value = '0,00';
+            return;
+        }
+        let num = (parseInt(v, 10) / 100).toFixed(2);
+        let parts = num.split('.');
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        input.value = parts.join(',');
+    }
+
+    function aoMudarDataVenda() {
+        const inputVenda = document.getElementById('inputDataVenda');
+        const inputPrimeira = document.getElementById('inputPrimeiroVencimento');
+        const selectFreq = document.getElementById('selectFrequencia');
+        
+        if (!inputVenda || !inputPrimeira || !selectFreq) return;
+        
+        const frequencia = parseInt(selectFreq.value, 10) || 7;
+        const dataVenda = criarDataSemTimezone(inputVenda.value);
+        
+        // Adiciona a frequência em dias à data da venda para sugerir a 1ª parcela
+        const dataSugerida = new Date(dataVenda.getFullYear(), dataVenda.getMonth(), dataVenda.getDate() + frequencia);
+        inputPrimeira.value = formatarDateISO(dataSugerida);
+        
+        recalcularCronogramaParcelas();
+    }
+
+    function aoMudarFrequencia() {
+        const inputVenda = document.getElementById('inputDataVenda');
+        const inputPrimeira = document.getElementById('inputPrimeiroVencimento');
+        const selectFreq = document.getElementById('selectFrequencia');
+        
+        if (!inputVenda || !inputPrimeira || !selectFreq) return;
+        
+        const frequencia = parseInt(selectFreq.value, 10) || 7;
+        const dataVenda = criarDataSemTimezone(inputVenda.value);
+        
+        const dataSugerida = new Date(dataVenda.getFullYear(), dataVenda.getMonth(), dataVenda.getDate() + frequencia);
+        inputPrimeira.value = formatarDateISO(dataSugerida);
+        
+        recalcularCronogramaParcelas();
+    }
+
+    function aoMudarPrimeiroVencimento() {
+        recalcularCronogramaParcelas();
+    }
+
+    function recalcularCronogramaParcelas(totalParam) {
+        const inputPrimeira = document.getElementById('inputPrimeiroVencimento');
+        const selectFreq = document.getElementById('selectFrequencia');
+        const inputParcelas = document.getElementById('inputNumeroParcelas');
+        const inputEntrada = document.getElementById('inputValorEntrada');
+        const containerGrid = document.getElementById('containerGradeParcelasPrevistas');
+        const tituloResumo = document.getElementById('cronogramaTituloResumo');
+        const subtitulo = document.getElementById('cronogramaSubtitulo');
+        const badgeDatas = document.getElementById('badgePrimeiroUltimoVencimento');
+
+        if (!inputPrimeira || !containerGrid) return;
+
+        // Total
+        let total = (typeof totalParam === 'number') ? totalParam : 0;
+        if (typeof totalParam !== 'number') {
+            document.querySelectorAll('.item-venda-linha').forEach(linha => {
+                const qtd = parseFloat(linha.querySelector('input[name*="[quantidade]"]')?.value) || 0;
+                const preco = parseFloat(linha.querySelector('input[name*="[preco]"]')?.value) || 0;
+                total += (qtd * preco);
+            });
+        }
+
+        const numParcelas = Math.max(1, Math.min(100, parseInt(inputParcelas?.value, 10) || 1));
+        const frequencia = parseInt(selectFreq?.value, 10) || 7;
+        const dataPrimeira = criarDataSemTimezone(inputPrimeira.value || formatarDateISO(new Date()));
+
+        const entradaStr = inputEntrada?.value ? inputEntrada.value.replace(/\D/g, '') : '0';
+        const valorEntrada = (parseInt(entradaStr, 10) || 0) / 100;
+
+        const nomesDiasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        const labelFreq = frequencia === 1 ? 'diária' : (frequencia === 7 ? 'semanal' : (frequencia === 15 ? 'quinzenal' : 'mensal'));
+
+        const valorParcelaBase = numParcelas > 0 ? (total / numParcelas) : total;
+        const valorParcelaFormatado = valorParcelaBase.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+        containerGrid.innerHTML = '';
+
+        let ultimaDataFormatada = '';
+        let primeiraDataFormatada = '';
+
+        for (let i = 1; i <= numParcelas; i++) {
+            // Data da parcela atual = dataPrimeira + (i - 1) * frequencia dias
+            const diasAdicionais = (i - 1) * frequencia;
+            const dataVenc = new Date(dataPrimeira.getFullYear(), dataPrimeira.getMonth(), dataPrimeira.getDate() + diasAdicionais);
+            
+            const dataFormatada = formatarDateBR(dataVenc);
+            const diaSemana = nomesDiasSemana[dataVenc.getDay()];
+
+            if (i === 1) primeiraDataFormatada = dataFormatada;
+            if (i === numParcelas) ultimaDataFormatada = dataFormatada;
+
+            const isEntradaPaga = (i === 1 && valorEntrada > 0 && valorEntrada >= valorParcelaBase);
+            const card = document.createElement('div');
+            card.className = `p-2.5 rounded-xl border flex flex-col justify-between text-xs transition ${
+                i === 1 
+                    ? 'bg-amber-500/10 border-amber-500/40 text-amber-300 shadow-xs' 
+                    : 'bg-slate-900/80 border-slate-800 text-slate-300 hover:border-slate-700'
+            }`;
+
+            card.innerHTML = `
+                <div class="flex items-center justify-between gap-1 mb-1">
+                    <span class="font-black ${i === 1 ? 'text-amber-400' : 'text-slate-400'} text-[11px]">${i}ª Prestaç.</span>
+                    <span class="text-[10px] px-1.5 py-0.2 rounded font-bold ${i === 1 ? 'bg-amber-500/20 text-amber-300' : 'bg-slate-800 text-slate-400'}">${diaSemana}</span>
+                </div>
+                <div class="font-black text-xs text-white">
+                    ${dataFormatada}
+                </div>
+                <div class="mt-1 pt-1 border-t ${i === 1 ? 'border-amber-500/20' : 'border-slate-800/80'} flex items-center justify-between">
+                    <span class="font-bold text-[11px] ${i === 1 ? 'text-amber-200' : 'text-slate-400'}">R$ ${valorParcelaFormatado}</span>
+                    ${isEntradaPaga ? '<span class="text-[9px] font-black text-emerald-400 bg-emerald-500/10 px-1 rounded">Paga</span>' : ''}
+                </div>
+            `;
+            containerGrid.appendChild(card);
+        }
+
+        if (tituloResumo) {
+            tituloResumo.textContent = `Cronograma: ${numParcelas}x de R$ ${valorParcelaFormatado}`;
+        }
+        if (subtitulo) {
+            subtitulo.textContent = `Cobrança ${labelFreq} (a cada ${frequencia} dias) calculada a partir da 1ª parcela`;
+        }
+        if (badgeDatas) {
+            badgeDatas.textContent = `1º: ${primeiraDataFormatada} • Fim: ${ultimaDataFormatada}`;
+        }
+    }
+
     function atualizarPrecoProduto(select, idx) {
         const option = select.options[select.selectedIndex];
         const preco = option.getAttribute('data-preco');
@@ -256,6 +475,7 @@ $this->title = 'Emitir Novo Cartão de Crediário';
             total += (qtd * preco);
         });
         document.getElementById('labelTotalCalculado').textContent = 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        recalcularCronogramaParcelas(total);
     }
 
     function adicionarLinhaProduto() {
@@ -455,6 +675,15 @@ $this->title = 'Emitir Novo Cartão de Crediário';
             calcularTotalCartao();
         }
     });
+
+    // Inicialização do cronograma na carga da página
+    document.addEventListener('DOMContentLoaded', function() {
+        calcularTotalCartao();
+    });
+    // Fallback caso DOM já esteja carregado
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        setTimeout(calcularTotalCartao, 50);
+    }
 </script>
 
 <!-- Renderização do Modal de Cadastro Rápido de Produto Expresso -->
