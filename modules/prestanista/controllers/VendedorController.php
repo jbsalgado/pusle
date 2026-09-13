@@ -118,8 +118,8 @@ class VendedorController extends Controller
                 return [
                     'id' => (string)$p->id,
                     'nome' => $p->nome,
-                    'preco' => (float)$p->preco_venda,
-                    'codigo' => $p->codigo_barras ?: $p->codigo_interno,
+                    'preco' => (float)($p->preco_venda_sugerido ?: $p->preco_custo ?: 0),
+                    'codigo' => $p->codigo_referencia ?: substr($p->id, 0, 6),
                     'estoque' => (int)$p->estoque_atual,
                 ];
             }, $produtos),

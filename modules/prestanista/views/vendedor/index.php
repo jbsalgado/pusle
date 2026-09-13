@@ -395,11 +395,11 @@ $this->title = 'App do Vendedor Ambulante | Pulse Prestanista';
         const INITIAL_TENANT_ID = <?= json_encode($usuarioId) ?>;
         const INITIAL_LOJA_NOME = <?= json_encode($lojaNome) ?>;
         const INITIAL_VENDEDORES = <?= json_encode(array_map(fn($v) => ['id' => (string)$v->id, 'nome' => $v->nome_completo], $vendedores)) ?>;
-        const INITIAL_PRODUTOS = <?= json_encode(array_map(fn($p) => ['id' => (string)$p->id, 'nome' => $p->nome, 'preco' => (float)$p->preco_venda, 'codigo' => $p->codigo_barras ?: $p->codigo_interno], $produtos)) ?>;
+        const INITIAL_PRODUTOS = <?= json_encode(array_map(fn($p) => ['id' => (string)$p->id, 'nome' => $p->nome, 'preco' => (float)($p->preco_venda_sugerido ?: $p->preco_custo ?: 0), 'codigo' => $p->codigo_referencia ?: substr($p->id, 0, 6)], $produtos)) ?>;
         const INITIAL_CLIENTES = <?= json_encode(array_map(fn($c) => [
             'id' => (string)$c->id,
-            'nome' => $c->nome,
-            'telefone' => $c->telefone_formatado ?: $c->telefone,
+            'nome' => $c->nome_completo,
+            'telefone' => $c->getTelefoneFormatado() ?: $c->telefone,
             'logradouro' => $c->endereco_logradouro,
             'numero' => $c->endereco_numero,
             'bairro' => $c->endereco_bairro,
