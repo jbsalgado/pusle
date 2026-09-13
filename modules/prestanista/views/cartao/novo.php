@@ -32,32 +32,32 @@ $this->title = 'Emitir Novo Cartão de Crediário';
 
         <!-- 1. Cliente & Vendedor -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-                <div class="flex items-center justify-between mb-1.5">
-                    <label class="block text-xs font-black text-slate-300 uppercase tracking-wider">Cliente (Comprador) *</label>
-                    <button type="button" onclick="abrirModalNovoCliente()" class="text-[11px] font-black text-amber-400 hover:text-amber-300 flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/30 transition">
+            <div class="min-w-0">
+                <div class="flex items-center justify-between mb-1.5 gap-2">
+                    <label class="block text-xs font-black text-slate-300 uppercase tracking-wider truncate">Cliente (Comprador) *</label>
+                    <button type="button" onclick="abrirModalNovoCliente()" class="shrink-0 text-[11px] font-black text-amber-400 hover:text-amber-300 flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/30 transition">
                         <span>➕</span> <span>Novo Cliente</span>
                     </button>
                 </div>
-                <div class="flex gap-2">
-                    <select name="cliente_id" id="select-cliente" required class="flex-1 h-12 px-3.5 bg-slate-900 border border-slate-700 rounded-xl text-xs sm:text-sm text-white focus:border-amber-500 focus:outline-none">
+                <div class="flex gap-2 min-w-0 items-center">
+                    <select name="cliente_id" id="select-cliente" required class="flex-1 min-w-0 h-12 px-3.5 bg-slate-900 border border-slate-700 rounded-xl text-xs sm:text-sm text-white focus:border-amber-500 focus:outline-none truncate">
                         <option value="">Selecione o Cliente...</option>
                         <?php foreach ($clientes as $cl): ?>
                             <option value="<?= $cl->id ?>"><?= Html::encode($cl->nome) ?> (<?= Html::encode($cl->bairro ?? 'Sem bairro') ?>)</option>
                         <?php endforeach; ?>
                     </select>
-                    <button type="button" onclick="abrirModalNovoCliente()" title="Cadastrar Cliente Novo Sem Sair da Tela" class="px-3.5 h-12 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl flex items-center justify-center text-sm shadow-md transition active:scale-95">
+                    <button type="button" onclick="abrirModalNovoCliente()" title="Cadastrar Cliente Novo Sem Sair da Tela" class="shrink-0 w-11 h-12 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl flex items-center justify-center text-sm shadow-md transition active:scale-95">
                         ➕
                     </button>
                 </div>
-                <p id="clienteCadastradoFeedback" class="hidden text-xs text-emerald-400 font-bold mt-1.5 flex items-center gap-1">
+                <p id="clienteCadastradoFeedback" class="hidden text-xs text-emerald-400 font-bold mt-1.5 flex items-center gap-1 truncate">
                     <span>✅</span> <span id="clienteFeedbackTexto"></span>
                 </p>
             </div>
 
-            <div>
-                <label class="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5">Vendedor Ambulante</label>
-                <select name="vendedor_id" class="w-full h-12 px-3.5 bg-slate-900 border border-slate-700 rounded-xl text-xs sm:text-sm text-white focus:border-amber-500 focus:outline-none">
+            <div class="min-w-0">
+                <label class="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5 truncate">Vendedor Ambulante</label>
+                <select name="vendedor_id" class="w-full min-w-0 h-12 px-3.5 bg-slate-900 border border-slate-700 rounded-xl text-xs sm:text-sm text-white focus:border-amber-500 focus:outline-none truncate">
                     <option value="">Selecione o Vendedor...</option>
                     <?php foreach ($vendedores as $v): ?>
                         <option value="<?= $v->id ?>"><?= Html::encode($v->nome) ?></option>
@@ -78,8 +78,8 @@ $this->title = 'Emitir Novo Cartão de Crediário';
             <div id="containerItensVenda" class="space-y-2.5">
                 <!-- Linha 1 padrão -->
                 <div class="grid grid-cols-12 gap-2 item-venda-linha">
-                    <div class="col-span-7">
-                        <select name="itens[0][produto_id]" required onchange="atualizarPrecoProduto(this, 0)" class="w-full h-11 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:border-amber-500 focus:outline-none">
+                    <div class="col-span-7 min-w-0">
+                        <select name="itens[0][produto_id]" required onchange="atualizarPrecoProduto(this, 0)" class="w-full min-w-0 h-11 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:border-amber-500 focus:outline-none truncate">
                             <option value="">Selecione a mercadoria...</option>
                             <?php foreach ($produtos as $p): ?>
                                 <option value="<?= $p->id ?>" data-preco="<?= (float)$p->preco ?>"><?= Html::encode($p->nome) ?> (R$ <?= number_format($p->preco, 2, ',', '.') ?>)</option>
@@ -98,23 +98,23 @@ $this->title = 'Emitir Novo Cartão de Crediário';
 
         <!-- 3. Condições de Pagamento e Frequência -->
         <div class="border-t border-slate-800 pt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-                <label class="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5">Frequência da Cobrança</label>
-                <select name="frequencia" class="w-full h-11 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:border-amber-500 focus:outline-none">
+            <div class="min-w-0">
+                <label class="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5 truncate">Frequência da Cobrança</label>
+                <select name="frequencia" class="w-full min-w-0 h-11 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:border-amber-500 focus:outline-none truncate">
                     <option value="7" selected>SEMANAL (A cada 7 dias)</option>
                     <option value="15">QUINZENAL (A cada 15 dias)</option>
                     <option value="30">MENSAL (A cada 30 dias)</option>
                 </select>
             </div>
 
-            <div>
-                <label class="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5">Nº de Prestações</label>
-                <input type="number" name="numero_parcelas" value="10" min="1" max="100" class="w-full h-11 px-3 text-center bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-bold">
+            <div class="min-w-0">
+                <label class="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5 truncate">Nº de Prestações</label>
+                <input type="number" name="numero_parcelas" value="10" min="1" max="100" class="w-full min-w-0 h-11 px-3 text-center bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-bold">
             </div>
 
-            <div>
-                <label class="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5">Entrada no Ato (R$)</label>
-                <input type="text" name="valor_entrada" value="0,00" class="w-full h-11 px-3 text-right bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-bold" placeholder="0,00">
+            <div class="min-w-0">
+                <label class="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5 truncate">Entrada no Ato (R$)</label>
+                <input type="text" name="valor_entrada" value="0,00" class="w-full min-w-0 h-11 px-3 text-right bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-bold" placeholder="0,00">
             </div>
         </div>
 
@@ -256,8 +256,8 @@ $this->title = 'Emitir Novo Cartão de Crediário';
         const novaLinha = document.createElement('div');
         novaLinha.className = 'grid grid-cols-12 gap-2 item-venda-linha';
         novaLinha.innerHTML = `
-            <div class="col-span-7">
-                <select name="itens[${contadorLinhas}][produto_id]" required onchange="atualizarPrecoProduto(this, ${contadorLinhas})" class="w-full h-11 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:border-amber-500 focus:outline-none">
+            <div class="col-span-7 min-w-0">
+                <select name="itens[${contadorLinhas}][produto_id]" required onchange="atualizarPrecoProduto(this, ${contadorLinhas})" class="w-full min-w-0 h-11 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:border-amber-500 focus:outline-none truncate">
                     <option value="">Selecione a mercadoria...</option>
                     <?php foreach ($produtos as $p): ?>
                         <option value="<?= $p->id ?>" data-preco="<?= (float)$p->preco ?>"><?= Html::encode($p->nome) ?> (R$ <?= number_format($p->preco, 2, ',', '.') ?>)</option>
