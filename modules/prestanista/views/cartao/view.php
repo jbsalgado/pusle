@@ -76,10 +76,14 @@ $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente')
                     </thead>
                     <tbody class="divide-y divide-slate-300">
                         <?php foreach ($itens as $item): ?>
+                            <?php 
+                                $qtd = (float)$item->quantidade;
+                                $qtdFormatada = (floor($qtd) == $qtd) ? number_format($qtd, 0, ',', '.') : rtrim(rtrim(number_format($qtd, 2, ',', '.'), '0'), ',');
+                            ?>
                             <tr>
                                 <td class="py-1.5 font-bold uppercase text-slate-900">
                                     <?= Html::encode($item->produto->nome ?? 'Mercadoria') ?> 
-                                    <span class="text-slate-500 font-normal">(Qtd: <?= $item->quantidade ?>)</span>
+                                    <span class="text-slate-500 font-normal">(Qtd: <?= $qtdFormatada ?>)</span>
                                 </td>
                                 <td class="py-1.5 text-right font-black text-slate-950">
                                     R$ <?= number_format($item->valor_total_item, 2, ',', '.') ?>
@@ -162,9 +166,12 @@ $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente')
                                 $saldoAcumulado = (float)$cartao->valor_total;
                                 foreach ($parcelas as $idx => $p): 
                                     $isPaga = ($p->status_parcela_codigo === 'PAGA');
-                                    $saldoAcumulado = max(0, $saldoAcumulado - (float)$p->valor_parcela);
                                     $tipoNome = '—';
+                                    $saldoExibido = '—';
                                     if ($isPaga) {
+                                        $valorBaixado = (float)($p->valor_pago ?: $p->valor_parcela);
+                                        $saldoAcumulado = max(0, $saldoAcumulado - $valorBaixado);
+                                        $saldoExibido = 'R$ ' . number_format($saldoAcumulado, 2, ',', '.');
                                         $tipoNome = $p->formaPagamento ? ($p->formaPagamento->nome ?: $p->formaPagamento->tipo) : 'DINHEIRO';
                                     }
                             ?>
@@ -190,8 +197,8 @@ $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente')
                                     <td class="p-1 border-r border-slate-400 font-bold uppercase text-[10px] <?= $isPaga ? 'text-blue-900' : 'text-slate-400' ?>">
                                         <?= Html::encode($tipoNome) ?>
                                     </td>
-                                    <td class="p-1 border-r border-slate-900 font-black text-amber-950">
-                                        <?= number_format($saldoAcumulado, 2, ',', '.') ?>
+                                    <td class="p-1 border-r border-slate-900 font-black <?= $isPaga ? 'text-amber-950' : 'text-slate-400' ?>">
+                                        <?= $saldoExibido ?>
                                     </td>
                                     <td class="p-1 text-center print:hidden">
                                         <?php if ($isPaga): ?>
