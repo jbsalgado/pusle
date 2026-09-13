@@ -28,14 +28,14 @@ $this->title = 'Cartões de Crediário';
             </p>
         </div>
 
-        <a href="<?= Url::to(['novo']) ?>" class="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow-md transition active:scale-95 flex items-center gap-2">
+        <a href="<?= Url::to(['/prestanista/cartao/novo']) ?>" class="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow-md transition active:scale-95 flex items-center gap-2">
             <span>➕</span>
             <span>Emitir Novo Cartão</span>
         </a>
     </div>
 
     <!-- Barra de Busca & Filtros -->
-    <form method="get" action="<?= Url::to(['index']) ?>" class="bg-slate-950/80 border border-slate-800 p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-4 gap-3">
+    <form method="get" action="<?= Url::to(['/prestanista/cartao/index']) ?>" class="bg-slate-950/80 border border-slate-800 p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-4 gap-3">
         <div class="sm:col-span-2">
             <label class="block text-[11px] font-bold text-slate-400 uppercase mb-1">Buscar Cliente / Rua / Cartão</label>
             <input type="text" name="q" value="<?= Html::encode($q) ?>" placeholder="Digite nome, CPF, telefone ou nº do cartão..." class="w-full h-11 px-3.5 bg-slate-900 border border-slate-700 rounded-xl text-xs sm:text-sm text-white focus:border-amber-500 focus:outline-none">
@@ -55,7 +55,7 @@ $this->title = 'Cartões de Crediário';
                 <span>🔍</span> Filtrar
             </button>
             <?php if ($q || $status): ?>
-                <a href="<?= Url::to(['index']) ?>" class="h-11 px-3 bg-slate-900 hover:bg-slate-800 text-slate-400 font-bold text-xs rounded-xl border border-slate-800 transition flex items-center justify-center">
+                <a href="<?= Url::to(['/prestanista/cartao/index']) ?>" class="h-11 px-3 bg-slate-900 hover:bg-slate-800 text-slate-400 font-bold text-xs rounded-xl border border-slate-800 transition flex items-center justify-center">
                     ✕
                 </a>
             <?php endif; ?>
@@ -97,14 +97,14 @@ $this->title = 'Cartões de Crediário';
                         <!-- Dados do Cliente -->
                         <div class="mb-3">
                             <h3 class="text-sm font-black text-white group-hover:text-amber-400 transition truncate">
-                                <?= Html::encode($cliente->nome ?? 'Cliente Avulso') ?>
+                                <?= Html::encode($cliente ? ($cliente->nome ?? $cliente->nome_completo) : 'Cliente Avulso') ?>
                             </h3>
                             <p class="text-xs text-slate-400 truncate mt-0.5">
-                                📍 <?= Html::encode($cliente->endereco ?? 'Sem endereço cadastrado') ?>
-                                <?= $cliente->numero ? ', ' . Html::encode($cliente->numero) : '' ?>
+                                📍 <?= Html::encode($cliente ? ($cliente->logradouro ?: $cliente->endereco_logradouro ?: 'Sem endereço') : 'Sem endereço cadastrado') ?>
+                                <?= ($cliente && !empty($cliente->numero)) ? ', ' . Html::encode($cliente->numero) : '' ?>
                             </p>
                             <p class="text-xs text-slate-500 truncate">
-                                <?= Html::encode($cliente->bairro ?? '') ?> • <?= Html::encode($cliente->cidade ?? '') ?>
+                                <?= Html::encode($cliente ? ($cliente->bairro ?: $cliente->endereco_bairro) : '') ?> <?= ($cliente && ($cliente->bairro || $cliente->cidade)) ? '•' : '' ?> <?= Html::encode($cliente ? ($cliente->cidade ?: $cliente->endereco_cidade) : '') ?>
                             </p>
                         </div>
 
@@ -125,10 +125,10 @@ $this->title = 'Cartões de Crediário';
 
                     <!-- Rodapé de Ações do Cartão -->
                     <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
-                        <a href="<?= Url::to(['view', 'id' => $c->id]) ?>" class="flex-1 py-2 px-3 bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 hover:text-amber-300 font-bold text-xs rounded-xl text-center border border-amber-500/30 transition">
+                        <a href="<?= Url::to(['/prestanista/cartao/view', 'id' => $c->id]) ?>" class="flex-1 py-2 px-3 bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 hover:text-amber-300 font-bold text-xs rounded-xl text-center border border-amber-500/30 transition">
                             👁️ Ver Cartão Físico
                         </a>
-                        <a href="<?= Url::to(['imprimir', 'id' => $c->id]) ?>" target="_blank" class="p-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition" title="Imprimir Cartão de Papel">
+                        <a href="<?= Url::to(['/prestanista/cartao/imprimir', 'id' => $c->id]) ?>" target="_blank" class="p-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition" title="Imprimir Cartão de Papel">
                             🖨️
                         </a>
                     </div>

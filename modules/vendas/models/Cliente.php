@@ -243,6 +243,31 @@ class Cliente extends ActiveRecord
         return $this->nome_completo;
     }
 
+    public function getBairro()
+    {
+        return $this->endereco_bairro;
+    }
+
+    public function getNumero()
+    {
+        return $this->endereco_numero;
+    }
+
+    public function getEndereco()
+    {
+        return $this->endereco_logradouro;
+    }
+
+    public function getLogradouro()
+    {
+        return $this->endereco_logradouro;
+    }
+
+    public function getCidade()
+    {
+        return $this->endereco_cidade;
+    }
+
     // Relacionamentos
     public function getUsuario()
     {

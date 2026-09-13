@@ -19,7 +19,7 @@ class EquipeController extends Controller
 
         $colaboradores = Colaborador::find()
             ->where(['usuario_id' => $usuarioId])
-            ->orderBy(['nome' => SORT_ASC])
+            ->orderBy(['nome_completo' => SORT_ASC])
             ->all();
 
         $rotas = RotaCobranca::find()

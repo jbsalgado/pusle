@@ -22,12 +22,12 @@ $this->title = 'Emitir Novo Cartão de Crediário';
                 Preencha os dados do cliente, as mercadorias vendidas e as condições de pagamento a prazo.
             </p>
         </div>
-        <a href="<?= Url::to(['index']) ?>" class="text-xs font-bold text-slate-400 hover:text-white">
+        <a href="<?= Url::to(['/prestanista/cartao/index']) ?>" class="text-xs font-bold text-slate-400 hover:text-white">
             ✕ Cancelar
         </a>
     </div>
 
-    <form method="post" action="<?= Url::to(['novo']) ?>" id="formNovoCartao" class="bg-slate-950 border border-slate-800 p-6 rounded-3xl shadow-xl space-y-6">
+    <form method="post" action="<?= Url::to(['/prestanista/cartao/novo']) ?>" id="formNovoCartao" class="bg-slate-950 border border-slate-800 p-6 rounded-3xl shadow-xl space-y-6">
         <input type="hidden" name="<?= Yii::$app->request->csrfParam ?>" value="<?= Yii::$app->request->csrfToken ?>" />
 
         <!-- 1. Cliente & Vendedor -->

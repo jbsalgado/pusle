@@ -18,7 +18,7 @@ class CargaController extends Controller
         $usuarioId = $usuario->loja_id ?? $usuario->id;
 
         $produtos = Produto::find()
-            ->where(['usuario_id' => $usuarioId, 'status' => 'ATIVO'])
+            ->where(['usuario_id' => $usuarioId, 'ativo' => true])
             ->orderBy(['nome' => SORT_ASC])
             ->all();
 

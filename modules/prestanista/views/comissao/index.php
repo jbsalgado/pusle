@@ -22,7 +22,7 @@ $this->title = 'Comissões de Venda e Cobrança';
             </p>
         </div>
 
-        <form method="get" action="<?= Url::to(['index']) ?>" class="flex items-center gap-2">
+        <form method="get" action="<?= Url::to(['/prestanista/comissao/index']) ?>" class="flex items-center gap-2">
             <input type="month" name="mes" value="<?= Html::encode($mesFiltro) ?>" onchange="this.form.submit()" class="h-10 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-bold">
         </form>
     </div>

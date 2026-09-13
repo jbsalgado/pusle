@@ -27,7 +27,7 @@ $this->title = 'Acerto de Caixa com Cobradores';
     </div>
 
     <!-- Filtros por Data e Cobrador -->
-    <form method="get" action="<?= Url::to(['index']) ?>" class="bg-slate-950 border border-slate-800 p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <form method="get" action="<?= Url::to(['/prestanista/acerto/index']) ?>" class="bg-slate-950 border border-slate-800 p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
             <label class="block text-[11px] font-bold text-slate-400 uppercase mb-1">Data do Acerto</label>
             <input type="date" name="data" value="<?= Html::encode($dataFiltro) ?>" class="w-full h-11 px-3.5 bg-slate-900 border border-slate-700 rounded-xl text-xs sm:text-sm text-white focus:border-amber-500 focus:outline-none">

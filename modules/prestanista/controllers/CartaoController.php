@@ -33,11 +33,11 @@ class CartaoController extends Controller
         if ($q) {
             $query->andFilterWhere([
                 'or',
-                ['ilike', 'c.nome', $q],
+                ['ilike', 'c.nome_completo', $q],
                 ['ilike', 'c.cpf', $q],
                 ['ilike', 'c.telefone', $q],
-                ['ilike', 'c.bairro', $q],
-                ['ilike', 'c.endereco', $q],
+                ['ilike', 'c.endereco_bairro', $q],
+                ['ilike', 'c.endereco_logradouro', $q],
                 ['cast(v.id as text)' => $q]
             ]);
         }
@@ -200,7 +200,7 @@ class CartaoController extends Controller
             }
         }
 
-        $clientes = Cliente::find()->where(['usuario_id' => $usuarioId])->orderBy(['nome' => SORT_ASC])->limit(100)->all();
+        $clientes = Cliente::find()->where(['usuario_id' => $usuarioId])->orderBy(['nome_completo' => SORT_ASC])->limit(100)->all();
         $produtos = Produto::find()->where(['usuario_id' => $usuarioId])->orderBy(['nome' => SORT_ASC])->limit(100)->all();
         $vendedores = Colaborador::find()->where(['usuario_id' => $usuarioId, 'ativo' => true])->all();
 

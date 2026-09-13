@@ -58,6 +58,31 @@ class LojaPermissao extends ActiveRecord
     }
 
     /**
+     * Verifica se determinado módulo está liberado para o usuário/loja.
+     *
+     * @param string $moduloChave
+     * @param string|null $usuarioId
+     * @return bool
+     */
+    public static function temPermissao($moduloChave, $usuarioId = null)
+    {
+        if (!$usuarioId && Yii::$app->user && !Yii::$app->user->isGuest) {
+            $identity = Yii::$app->user->identity;
+            $usuarioId = $identity->loja_id ?? $identity->id ?? null;
+        }
+        if (!$usuarioId) {
+            return false;
+        }
+
+        $permissoes = static::getPermissoesUsuario($usuarioId);
+        if (array_key_exists($moduloChave, $permissoes)) {
+            return (bool)$permissoes[$moduloChave];
+        }
+
+        return true;
+    }
+
+    /**
      * Define/Atualiza o status de um módulo para determinado usuário.
      */
     public static function setPermissao($usuarioId, $moduloChave, $ativo)

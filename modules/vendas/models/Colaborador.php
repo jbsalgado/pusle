@@ -311,4 +311,24 @@ class Colaborador extends ActiveRecord
             ->orderBy(['nome_completo' => SORT_ASC])
             ->column();
     }
+
+    /**
+     * Getter virtual para nome (alias de nome_completo)
+     */
+    public function getNome()
+    {
+        return $this->nome_completo;
+    }
+
+    /**
+     * Getter virtual para funcao descritiva
+     */
+    public function getFuncao()
+    {
+        $funcoes = [];
+        if ($this->eh_vendedor) $funcoes[] = 'Vendedor';
+        if ($this->eh_cobrador) $funcoes[] = 'Cobrador';
+        if ($this->eh_administrador) $funcoes[] = 'Supervisor';
+        return !empty($funcoes) ? implode(' / ', $funcoes) : 'Colaborador';
+    }
 }

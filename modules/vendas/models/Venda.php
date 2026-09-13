@@ -628,6 +628,31 @@ class Venda extends ActiveRecord
     }
 
     /**
+     * Calcula e retorna o saldo devedor restante da venda
+     * @return float
+     */
+    public function getSaldoDevedor()
+    {
+        if (!empty($this->parcelas)) {
+            $saldo = 0;
+            foreach ($this->parcelas as $p) {
+                if ($p->status_parcela_codigo !== 'PAGA' && $p->status_parcela_codigo !== 'CANCELADA') {
+                    $saldo += (float)($p->valor_parcela - ($p->valor_pago ?: 0));
+                }
+            }
+            return max(0, $saldo);
+        }
+
+        $saldoDb = Parcela::find()
+            ->where(['venda_id' => $this->id])
+            ->andWhere(['!=', 'status_parcela_codigo', 'PAGA'])
+            ->andWhere(['!=', 'status_parcela_codigo', 'CANCELADA'])
+            ->sum('valor_parcela - COALESCE(valor_pago, 0)');
+
+        return $saldoDb !== null ? max(0, (float)$saldoDb) : (float)$this->valor_total;
+    }
+
+    /**
      * @return \yii\db\ActiveQuery
      */
     public function getCuponsFiscais()

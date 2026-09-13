@@ -7,8 +7,9 @@ use yii\helpers\Url;
 
 $usuario = Yii::$app->user->identity;
 $lojaNome = $usuario->nome_loja ?? $usuario->nome ?? 'Pulse Prestanista';
-$routeAtual = Yii::$app->controller->id . '/' . Yii::$app->controller->action->id;
-$controllerAtual = Yii::$app->controller->id;
+$controllerAtual = Yii::$app->controller ? Yii::$app->controller->id : '';
+$actionAtual = (Yii::$app->controller && Yii::$app->controller->action) ? Yii::$app->controller->action->id : '';
+$routeAtual = $controllerAtual . '/' . $actionAtual;
 ?>
 <?php $this->beginPage() ?>
 <!DOCTYPE html>

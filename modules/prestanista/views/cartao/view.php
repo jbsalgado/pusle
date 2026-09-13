@@ -27,12 +27,12 @@ $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente')
 
     <!-- Barra Superior com Ações Rápidas -->
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-950/90 border border-slate-800 p-4 rounded-2xl shadow-sm">
-        <a href="<?= Url::to(['index']) ?>" class="text-xs font-bold text-slate-400 hover:text-white flex items-center gap-1.5">
+        <a href="<?= Url::to(['/prestanista/cartao/index']) ?>" class="text-xs font-bold text-slate-400 hover:text-white flex items-center gap-1.5">
             <span>←</span> Voltar aos Cartões
         </a>
 
         <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-            <a href="<?= Url::to(['imprimir', 'id' => $cartao->id]) ?>" target="_blank" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5">
+            <a href="<?= Url::to(['/prestanista/cartao/imprimir', 'id' => $cartao->id]) ?>" target="_blank" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5">
                 <span>🖨️</span> Imprimir Cartão
             </a>
             <a href="https://api.whatsapp.com/send?phone=55<?= preg_replace('/\D/', '', $cliente->telefone ?? '') ?>&text=<?= urlencode("Olá " . ($cliente->nome ?? '') . "! Segue o resumo do seu Cartão de Crediário #" . $cartao->id . " da " . $lojaNome . ". Saldo restante: R$ " . number_format($saldoDevedor, 2, ',', '.')) ?>" target="_blank" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5">

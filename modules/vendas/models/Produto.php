@@ -779,6 +779,22 @@ class Produto extends ActiveRecord
     }
 
     /**
+     * Getter virtual para preco (alias de preco_venda_sugerido / getPrecoFinal)
+     */
+    public function getPreco()
+    {
+        return $this->getPrecoFinal() ?: (float)$this->preco_venda_sugerido;
+    }
+
+    /**
+     * Getter virtual para estoque (alias de estoque_atual)
+     */
+    public function getEstoque()
+    {
+        return (int)$this->estoque_atual;
+    }
+
+    /**
      * ✅ NOVO: Retorna desconto em porcentagem
      */
     public function getDescontoPromocional()

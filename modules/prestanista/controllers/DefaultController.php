@@ -72,7 +72,7 @@ class DefaultController extends Controller
         $ultimosPagamentos = HistoricoCobranca::find()
             ->where(['usuario_id' => $usuarioId, 'tipo_acao' => HistoricoCobranca::TIPO_PAGAMENTO])
             ->with(['cliente', 'cobrador', 'parcela'])
-            ->orderBy(['id' => SORT_DESC])
+            ->orderBy(['data_acao' => SORT_DESC])
             ->limit(8)
             ->all();
 
