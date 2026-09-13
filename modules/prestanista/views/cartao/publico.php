@@ -245,21 +245,22 @@ $idCurto = strlen($cartao->id) > 8 ? strtoupper(substr($cartao->id, 0, 8)) : str
                                     <?php else: ?>
                                         <?php foreach ($itens as $idx => $item): ?>
                                             <?php 
-                                                $qtdFormatada = ($item->quantidade == (int)$item->quantidade) 
-                                                    ? (int)$item->quantidade 
-                                                    : number_format($item->quantidade, 2, ',', '.');
+                                                $qtd = (float)$item->quantidade;
+                                                $qtdFormatada = (floor($qtd) == $qtd) ? number_format($qtd, 0, ',', '.') : rtrim(rtrim(number_format($qtd, 2, ',', '.'), '0'), ',');
+                                                $vlUnit = (float)($item->preco_unitario_venda ?: ($qtd > 0 ? $item->valor_total_item / $qtd : $item->valor_total_item));
+                                                $vlTotalItem = (float)($item->valor_total_item ?: ($vlUnit * $qtd));
                                             ?>
                                             <tr class="border-b border-dashed border-slate-300">
                                                 <td class="py-1"><?= str_pad($idx + 1, 2, '0', STR_PAD_LEFT) ?></td>
                                                 <td class="py-1 font-bold truncate max-w-[130px] sm:max-w-none uppercase">
-                                                    <?= Html::encode($item->produto->nome ?? $item->descricao ?? 'Item') ?>
+                                                    <?= Html::encode($item->produto->nome ?? 'Mercadoria') ?>
                                                 </td>
                                                 <td class="py-1 text-center font-bold"><?= $qtdFormatada ?></td>
                                                 <td class="py-1 text-right whitespace-nowrap font-mono text-slate-800">
-                                                    R$ <?= number_format($item->valor_unitario, 2, ',', '.') ?>
+                                                    R$ <?= number_format($vlUnit, 2, ',', '.') ?>
                                                 </td>
                                                 <td class="py-1 text-right whitespace-nowrap font-bold">
-                                                    R$ <?= number_format($item->valor_total, 2, ',', '.') ?>
+                                                    R$ <?= number_format($vlTotalItem, 2, ',', '.') ?>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
