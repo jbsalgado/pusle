@@ -133,73 +133,88 @@ $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente')
                 </div>
             </div>
 
-            <!-- GRADE DE BAIXAS / RECEBIMENTOS (COLUNAS DUPLAS IGUAL À FOTO) -->
+            <!-- GRADE DE PRESTAÇÕES & CONTROLE DE BAIXAS (LINHA COMPLETA COM 7 COLUNAS) -->
             <div class="mt-4">
-                <div class="text-center font-bold text-[10px] uppercase tracking-wider text-slate-700 mb-1">
-                    Grade de Cobranças & Baixas Semanais / Mensais
+                <div class="flex items-center justify-between mb-1.5">
+                    <div class="text-center sm:text-left font-bold text-[10px] uppercase tracking-wider text-slate-800">
+                        Grade de Prestações & Baixas de Pagamento
+                    </div>
+                    <span class="text-[10px] font-mono text-slate-600 font-bold"><?= count($parcelas) ?> Prestações</span>
                 </div>
 
-                <div class="overflow-x-auto">
-                    <table class="w-full text-[11px] font-mono border-2 border-slate-900 text-center border-collapse">
+                <div class="overflow-x-auto border-2 border-slate-900 rounded-lg">
+                    <table class="w-full text-[11px] font-mono border-collapse text-center whitespace-nowrap">
                         <thead>
-                            <tr class="bg-slate-200/90 border-b-2 border-slate-900 font-bold">
-                                <th class="p-1.5 border-r border-slate-900 w-1/6">DATA</th>
-                                <th class="p-1.5 border-r border-slate-900 w-1/6">DINHEIRO</th>
-                                <th class="p-1.5 border-r-2 border-slate-900 w-1/6">SALDO</th>
-                                <th class="p-1.5 border-r border-slate-900 w-1/6">DATA</th>
-                                <th class="p-1.5 border-r border-slate-900 w-1/6">DINHEIRO</th>
-                                <th class="p-1.5 w-1/6">SALDO</th>
+                            <tr class="bg-slate-200 border-b-2 border-slate-900 font-black text-slate-900">
+                                <th class="p-1.5 border-r border-slate-900 w-10">Nº</th>
+                                <th class="p-1.5 border-r border-slate-900">DATA PREST.</th>
+                                <th class="p-1.5 border-r border-slate-900">VL. PREST.</th>
+                                <th class="p-1.5 border-r border-slate-900">VL. COMPRA</th>
+                                <th class="p-1.5 border-r border-slate-900">DATA PAG</th>
+                                <th class="p-1.5 border-r border-slate-900">VL. RECEB.</th>
+                                <th class="p-1.5 border-r border-slate-900">TIPO</th>
+                                <th class="p-1.5 border-r border-slate-900">SALDO</th>
+                                <th class="p-1.5 print:hidden">AÇÕES</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-400">
+                        <tbody class="divide-y divide-slate-400 bg-white/60">
                             <?php 
-                                // Divide as parcelas / baixas em duas colunas de até 10 linhas
-                                $maxLinhas = max(6, ceil(count($parcelas) / 2));
-                                $saldoCorrente = (float)$cartao->valor_total;
+                                $saldoAcumulado = (float)$cartao->valor_total;
+                                foreach ($parcelas as $idx => $p): 
+                                    $isPaga = ($p->status_parcela_codigo === 'PAGA');
+                                    $saldoAcumulado = max(0, $saldoAcumulado - (float)$p->valor_parcela);
+                                    $tipoNome = '—';
+                                    if ($isPaga) {
+                                        $tipoNome = $p->formaPagamento ? ($p->formaPagamento->nome ?: $p->formaPagamento->tipo) : 'DINHEIRO';
+                                    }
                             ?>
-                            <?php for ($l = 0; $l < $maxLinhas; $l++): ?>
-                                <?php 
-                                    $pEsq = $parcelas[$l] ?? null;
-                                    $pDir = $parcelas[$l + $maxLinhas] ?? null;
-                                ?>
-                                <tr class="h-7 hover:bg-amber-100/50">
-                                    <!-- Lado Esquerdo -->
-                                    <td class="p-1 border-r border-slate-400 font-bold text-slate-800">
-                                        <?= $pEsq ? ($pEsq->status_parcela_codigo === 'PAGA' ? date('d/m', strtotime($pEsq->data_pagamento ?: $pEsq->data_vencimento)) : date('d/m', strtotime($pEsq->data_vencimento))) : '' ?>
+                                <tr class="h-8 hover:bg-amber-100/60 transition <?= $isPaga ? 'bg-emerald-50/60' : '' ?>">
+                                    <td class="p-1 border-r border-slate-400 font-bold text-slate-700">
+                                        <?= str_pad($p->numero_parcela ?: ($idx + 1), 2, '0', STR_PAD_LEFT) ?>
                                     </td>
-                                    <td class="p-1 border-r border-slate-400 font-bold text-emerald-800">
-                                        <?= $pEsq && $pEsq->status_parcela_codigo === 'PAGA' ? 'R$ ' . number_format($pEsq->valor_pago ?: $pEsq->valor_parcela, 2, ',', '.') : ($pEsq ? 'R$ ' . number_format($pEsq->valor_parcela, 2, ',', '.') : '') ?>
+                                    <td class="p-1 border-r border-slate-400 font-bold text-slate-900">
+                                        <?= date('d/m/Y', strtotime($p->data_vencimento)) ?>
                                     </td>
-                                    <td class="p-1 border-r-2 border-slate-900 font-black text-amber-900">
-                                        <?php if ($pEsq): ?>
-                                            <?php 
-                                                if ($pEsq->status_parcela_codigo === 'PAGA') {
-                                                    $saldoCorrente -= (float)($pEsq->valor_pago ?: $pEsq->valor_parcela);
-                                                }
-                                            ?>
-                                            R$ <?= number_format(max(0, $saldoCorrente), 2, ',', '.') ?>
-                                        <?php endif; ?>
+                                    <td class="p-1 border-r border-slate-400 font-bold text-slate-900">
+                                        <?= number_format($p->valor_parcela, 2, ',', '.') ?>
                                     </td>
-
-                                    <!-- Lado Direito -->
-                                    <td class="p-1 border-r border-slate-400 font-bold text-slate-800">
-                                        <?= $pDir ? ($pDir->status_parcela_codigo === 'PAGA' ? date('d/m', strtotime($pDir->data_pagamento ?: $pDir->data_vencimento)) : date('d/m', strtotime($pDir->data_vencimento))) : '' ?>
+                                    <td class="p-1 border-r border-slate-400 font-medium text-slate-600">
+                                        <?= number_format($cartao->valor_total, 2, ',', '.') ?>
                                     </td>
-                                    <td class="p-1 border-r border-slate-400 font-bold text-emerald-800">
-                                        <?= $pDir && $pDir->status_parcela_codigo === 'PAGA' ? 'R$ ' . number_format($pDir->valor_pago ?: $pDir->valor_parcela, 2, ',', '.') : ($pDir ? 'R$ ' . number_format($pDir->valor_parcela, 2, ',', '.') : '') ?>
+                                    <td class="p-1 border-r border-slate-400 font-bold <?= $isPaga ? 'text-emerald-800' : 'text-slate-400' ?>">
+                                        <?= $isPaga ? date('d/m/Y', strtotime($p->data_pagamento ?: $p->data_vencimento)) : '—' ?>
                                     </td>
-                                    <td class="p-1 font-black text-amber-900">
-                                        <?php if ($pDir): ?>
-                                            <?php 
-                                                if ($pDir->status_parcela_codigo === 'PAGA') {
-                                                    $saldoCorrente -= (float)($pDir->valor_pago ?: $pDir->valor_parcela);
-                                                }
-                                            ?>
-                                            R$ <?= number_format(max(0, $saldoCorrente), 2, ',', '.') ?>
+                                    <td class="p-1 border-r border-slate-400 font-black <?= $isPaga ? 'text-emerald-700' : 'text-slate-400' ?>">
+                                        <?= $isPaga ? number_format($p->valor_pago ?: $p->valor_parcela, 2, ',', '.') : '—' ?>
+                                    </td>
+                                    <td class="p-1 border-r border-slate-400 font-bold uppercase text-[10px] <?= $isPaga ? 'text-blue-900' : 'text-slate-400' ?>">
+                                        <?= Html::encode($tipoNome) ?>
+                                    </td>
+                                    <td class="p-1 border-r border-slate-900 font-black text-amber-950">
+                                        <?= number_format($saldoAcumulado, 2, ',', '.') ?>
+                                    </td>
+                                    <td class="p-1 text-center print:hidden">
+                                        <?php if ($isPaga): ?>
+                                            <div class="flex items-center justify-center gap-1.5">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                                    ✓ Paga
+                                                </span>
+                                                <a href="<?= Url::to(['/prestanista/cartao/estornar-parcela', 'id' => $cartao->id, 'parcela_id' => $p->id]) ?>" 
+                                                   onclick="return confirm('Deseja realmente estornar a baixa desta prestação?');"
+                                                   class="text-[10px] text-rose-600 hover:text-rose-800 underline font-bold px-1" title="Estornar baixa">
+                                                    Estornar
+                                                </a>
+                                            </div>
+                                        <?php else: ?>
+                                            <button type="button" 
+                                                    onclick="abrirModalReceberParcela('<?= $p->id ?>', '<?= $p->numero_parcela ?>', '<?= number_format($p->valor_parcela, 2, ',', '.') ?>', '<?= date('d/m/Y', strtotime($p->data_vencimento)) ?>')"
+                                                    class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded shadow transition active:scale-95 cursor-pointer">
+                                                <span>💵</span> <span>Receber</span>
+                                            </button>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
-                            <?php endfor; ?>
+                            <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
@@ -262,11 +277,77 @@ $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente')
     </div>
 </div>
 
+<!-- Modal Receber Parcela / Prestação -->
+<div id="modalReceberParcela" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 class="text-sm font-black text-white flex items-center gap-2">
+                <span>💵</span>
+                <span>Registrar Recebimento da Prestação</span>
+            </h3>
+            <button type="button" onclick="fecharModalReceberParcela()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition cursor-pointer">
+                ✕
+            </button>
+        </div>
+
+        <form method="post" action="<?= Url::to(['/prestanista/cartao/receber-parcela', 'id' => $cartao->id]) ?>" class="space-y-4">
+            <input type="hidden" name="<?= Yii::$app->request->csrfParam ?>" value="<?= Yii::$app->request->csrfToken ?>" />
+            <input type="hidden" name="parcela_id" id="receber_parcela_id" value="" />
+
+            <div class="bg-slate-950/70 border border-slate-800 rounded-2xl p-3 text-xs space-y-1">
+                <div class="text-slate-400">Prestação a Baixar: <span class="text-amber-400 font-bold" id="receber_num_parcela">#</span></div>
+                <div class="text-slate-400">Vencimento Original: <span class="text-white font-bold" id="receber_vencimento">—</span></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1.5">Data Pagamento:</label>
+                    <input type="date" name="data_pagamento" id="receber_data_pagamento" value="<?= date('Y-m-d') ?>" class="w-full h-11 px-3.5 bg-slate-950 border border-slate-700 rounded-xl text-xs sm:text-sm text-white font-bold focus:border-amber-500 focus:outline-none" required />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1.5">Valor Recebido (R$):</label>
+                    <input type="text" name="valor_pago" id="receber_valor_pago" class="w-full h-11 px-3.5 bg-slate-950 border border-slate-700 rounded-xl text-xs sm:text-sm text-white font-bold focus:border-amber-500 focus:outline-none text-right font-mono" required />
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">Forma / Tipo de Pagamento:</label>
+                <select name="tipo_pagamento" id="receber_tipo_pagamento" class="w-full h-11 px-3.5 bg-slate-950 border border-slate-700 rounded-xl text-xs sm:text-sm text-white font-bold focus:border-amber-500 focus:outline-none">
+                    <option value="PIX">PIX</option>
+                    <option value="DINHEIRO" selected>DINHEIRO (Em mãos)</option>
+                    <option value="CARTAO_DEBITO">CARTÃO DE DÉBITO</option>
+                    <option value="CARTAO_CREDITO">CARTÃO DE CRÉDITO</option>
+                    <option value="OUTRO">OUTRO</option>
+                </select>
+            </div>
+
+            <div class="pt-2 border-t border-slate-800 flex items-center justify-end gap-2">
+                <button type="button" onclick="fecharModalReceberParcela()" class="px-4 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:text-white text-xs font-bold transition">
+                    Cancelar
+                </button>
+                <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-black text-xs rounded-xl shadow-lg transition active:scale-95 cursor-pointer">
+                    Confirmar Recebimento
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
     function abrirModalAjustarFrequencia() {
         document.getElementById('modalAjustarFrequencia').classList.remove('hidden');
     }
     function fecharModalAjustarFrequencia() {
         document.getElementById('modalAjustarFrequencia').classList.add('hidden');
+    }
+    function abrirModalReceberParcela(parcelaId, numParcela, valorParcela, vencimento) {
+        document.getElementById('receber_parcela_id').value = parcelaId;
+        document.getElementById('receber_num_parcela').innerText = '#' + numParcela;
+        document.getElementById('receber_valor_pago').value = valorParcela;
+        document.getElementById('receber_vencimento').innerText = vencimento;
+        document.getElementById('modalReceberParcela').classList.remove('hidden');
+    }
+    function fecharModalReceberParcela() {
+        document.getElementById('modalReceberParcela').classList.add('hidden');
     }
 </script>

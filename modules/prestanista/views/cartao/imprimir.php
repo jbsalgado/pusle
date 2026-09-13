@@ -29,7 +29,7 @@ $saldoDevedor = max(0, (float)$cartao->valor_total - $totalPago);
         body { background: #fff; color: #000; padding: 12px; }
         .cartao-container {
             width: 100%;
-            max-width: 480px;
+            max-width: 650px;
             margin: 0 auto;
             border: 2px solid #000;
             padding: 10px;
@@ -114,47 +114,37 @@ $saldoDevedor = max(0, (float)$cartao->valor_total - $totalPago);
         </div>
     </div>
 
-    <!-- Grade de Baixas -->
+    <!-- Grade de Baixas com 7 Colunas -->
     <table class="grade-tabela">
         <thead>
             <tr>
-                <th>DATA</th>
-                <th>DINHEIRO</th>
-                <th>SALDO</th>
-                <th>DATA</th>
-                <th>DINHEIRO</th>
+                <th>DATA PREST.</th>
+                <th>VL. PREST.</th>
+                <th>VL. COMPRA</th>
+                <th>DATA PAG.</th>
+                <th>VL. RECEB.</th>
+                <th>TIPO</th>
                 <th>SALDO</th>
             </tr>
         </thead>
         <tbody>
             <?php 
-                $maxLinhas = max(6, ceil(count($parcelas) / 2));
                 $saldo = (float)$cartao->valor_total;
+                foreach ($parcelas as $p): 
+                    $isPaga = ($p->status_parcela_codigo === 'PAGA');
+                    $saldo = max(0, $saldo - (float)$p->valor_parcela);
+                    $tipoNome = $isPaga ? ($p->formaPagamento ? ($p->formaPagamento->nome ?: $p->formaPagamento->tipo) : 'DINHEIRO') : '—';
             ?>
-            <?php for ($l = 0; $l < $maxLinhas; $l++): ?>
-                <?php 
-                    $pEsq = $parcelas[$l] ?? null;
-                    $pDir = $parcelas[$l + $maxLinhas] ?? null;
-                ?>
                 <tr>
-                    <td><?= $pEsq ? ($pEsq->status_parcela_codigo === 'PAGA' ? date('d/m', strtotime($pEsq->data_pagamento ?: $pEsq->data_vencimento)) : date('d/m', strtotime($pEsq->data_vencimento))) : '' ?></td>
-                    <td><?= $pEsq && $pEsq->status_parcela_codigo === 'PAGA' ? number_format($pEsq->valor_pago ?: $pEsq->valor_parcela, 2, ',', '.') : ($pEsq ? number_format($pEsq->valor_parcela, 2, ',', '.') : '') ?></td>
-                    <td>
-                        <?php if ($pEsq): ?>
-                            <?php if ($pEsq->status_parcela_codigo === 'PAGA') $saldo -= (float)($pEsq->valor_pago ?: $pEsq->valor_parcela); ?>
-                            <?= number_format(max(0, $saldo), 2, ',', '.') ?>
-                        <?php endif; ?>
-                    </td>
-                    <td><?= $pDir ? ($pDir->status_parcela_codigo === 'PAGA' ? date('d/m', strtotime($pDir->data_pagamento ?: $pDir->data_vencimento)) : date('d/m', strtotime($pDir->data_vencimento))) : '' ?></td>
-                    <td><?= $pDir && $pDir->status_parcela_codigo === 'PAGA' ? number_format($pDir->valor_pago ?: $pDir->valor_parcela, 2, ',', '.') : ($pDir ? number_format($pDir->valor_parcela, 2, ',', '.') : '') ?></td>
-                    <td>
-                        <?php if ($pDir): ?>
-                            <?php if ($pDir->status_parcela_codigo === 'PAGA') $saldo -= (float)($pDir->valor_pago ?: $pDir->valor_parcela); ?>
-                            <?= number_format(max(0, $saldo), 2, ',', '.') ?>
-                        <?php endif; ?>
-                    </td>
+                    <td><?= date('d/m/Y', strtotime($p->data_vencimento)) ?></td>
+                    <td><?= number_format($p->valor_parcela, 2, ',', '.') ?></td>
+                    <td><?= number_format($cartao->valor_total, 2, ',', '.') ?></td>
+                    <td><?= $isPaga ? date('d/m/Y', strtotime($p->data_pagamento ?: $p->data_vencimento)) : '—' ?></td>
+                    <td><?= $isPaga ? number_format($p->valor_pago ?: $p->valor_parcela, 2, ',', '.') : '—' ?></td>
+                    <td><?= Html::encode($tipoNome) ?></td>
+                    <td><?= number_format($saldo, 2, ',', '.') ?></td>
                 </tr>
-            <?php endfor; ?>
+            <?php endforeach; ?>
         </tbody>
     </table>
 

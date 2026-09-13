@@ -14,6 +14,8 @@ use app\modules\vendas\models\Colaborador;
 use app\modules\vendas\models\HistoricoCobranca;
 use app\modules\vendas\models\Produto;
 use app\modules\vendas\models\FormaPagamento;
+use app\modules\vendas\models\StatusParcela;
+use app\modules\vendas\models\StatusVenda;
 
 /**
  * Gestão de Cartões de Crediário Prestanista
@@ -74,7 +76,7 @@ class CartaoController extends Controller
 
         $cartao = Venda::find()
             ->where(['id' => $id, 'usuario_id' => $usuarioId])
-            ->with(['cliente', 'itens.produto', 'parcelas'])
+            ->with(['cliente', 'itens.produto', 'parcelas.formaPagamento'])
             ->one();
 
         if (!$cartao) {
@@ -159,6 +161,141 @@ class CartaoController extends Controller
                 $transaction->rollBack();
                 Yii::$app->session->setFlash('error', 'Erro ao atualizar frequência: ' . $e->getMessage());
             }
+        }
+
+        return $this->redirect(['view', 'id' => $cartao->id]);
+    }
+
+    /**
+     * Registra o recebimento/baixa de uma parcela do cartão
+     */
+    public function actionReceberParcela($id)
+    {
+        $usuario = Yii::$app->user->identity;
+        $usuarioId = $usuario ? $usuario->getTenantId() : null;
+
+        $cartao = Venda::find()
+            ->where(['id' => $id, 'usuario_id' => $usuarioId])
+            ->one();
+
+        if (!$cartao) {
+            throw new NotFoundHttpException('Cartão de crediário não encontrado.');
+        }
+
+        if (Yii::$app->request->isPost) {
+            $post = Yii::$app->request->post();
+            $parcelaId = $post['parcela_id'] ?? null;
+            $valorPago = (float)str_replace(',', '.', str_replace('.', '', $post['valor_pago'] ?? '0'));
+            $dataPagamento = !empty($post['data_pagamento']) ? $post['data_pagamento'] : date('Y-m-d');
+            $tipoPagamento = trim($post['tipo_pagamento'] ?? 'DINHEIRO');
+
+            $parcela = Parcela::find()
+                ->where(['id' => $parcelaId, 'venda_id' => $cartao->id])
+                ->one();
+
+            if (!$parcela) {
+                Yii::$app->session->setFlash('error', 'Parcela não encontrada.');
+                return $this->redirect(['view', 'id' => $cartao->id]);
+            }
+
+            if ($valorPago <= 0) {
+                $valorPago = (float)$parcela->valor_parcela;
+            }
+
+            $transaction = Yii::$app->db->beginTransaction();
+            try {
+                // Localiza ou cria FormaPagamento correspondente ao tipo (PIX, DINHEIRO, CARTAO, etc.)
+                $formaPagamento = FormaPagamento::find()
+                    ->where(['usuario_id' => $usuarioId, 'ativo' => true])
+                    ->andWhere(['or',
+                        ['ilike', 'nome', $tipoPagamento],
+                        ['tipo' => $tipoPagamento]
+                    ])
+                    ->one();
+
+                if (!$formaPagamento) {
+                    $formaPagamento = new FormaPagamento();
+                    $formaPagamento->usuario_id = $usuarioId;
+                    $formaPagamento->nome = mb_strtoupper($tipoPagamento, 'UTF-8');
+                    $formaPagamento->tipo = in_array($tipoPagamento, [FormaPagamento::TIPO_PIX, FormaPagamento::TIPO_DINHEIRO, FormaPagamento::TIPO_CARTAO, FormaPagamento::TIPO_BOLETO]) ? $tipoPagamento : FormaPagamento::TIPO_OUTRO;
+                    $formaPagamento->ativo = true;
+                    $formaPagamento->save(false);
+                }
+
+                $parcela->status_parcela_codigo = StatusParcela::PAGA;
+                $parcela->data_pagamento = $dataPagamento;
+                $parcela->valor_pago = $valorPago;
+                $parcela->forma_pagamento_id = $formaPagamento->id;
+                $parcela->save(false);
+
+                // Registra Histórico de Cobrança / Baixa
+                $hist = new HistoricoCobranca();
+                $hist->usuario_id = $usuarioId;
+                $hist->parcela_id = $parcela->id;
+                $hist->cliente_id = $cartao->cliente_id;
+                $hist->cobrador_id = $cartao->colaborador_vendedor_id ?: $cartao->usuario_id;
+                $hist->tipo_acao = HistoricoCobranca::TIPO_PAGAMENTO;
+                $hist->valor_recebido = $valorPago;
+                $hist->observacao = "Recebimento da {$parcela->numero_parcela}ª prestação via {$formaPagamento->nome}";
+                $hist->data_acao = $dataPagamento . ' ' . date('H:i:s');
+                $hist->save(false);
+
+                // Atualiza status da venda
+                $pendentes = Parcela::find()
+                    ->where(['venda_id' => $cartao->id])
+                    ->andWhere(['!=', 'status_parcela_codigo', StatusParcela::PAGA])
+                    ->count();
+
+                if ($pendentes == 0) {
+                    $cartao->status_venda_codigo = StatusVenda::QUITADA;
+                } else {
+                    $cartao->status_venda_codigo = StatusVenda::PARCIALMENTE_PAGA;
+                }
+                $cartao->save(false);
+
+                $transaction->commit();
+                Yii::$app->session->setFlash('success', "Pagamento de R$ " . number_format($valorPago, 2, ',', '.') . " da {$parcela->numero_parcela}ª parcela registrado com sucesso via {$formaPagamento->nome}!");
+            } catch (\Exception $e) {
+                $transaction->rollBack();
+                Yii::$app->session->setFlash('error', 'Erro ao registrar pagamento: ' . $e->getMessage());
+            }
+        }
+
+        return $this->redirect(['view', 'id' => $cartao->id]);
+    }
+
+    /**
+     * Estorna o pagamento de uma parcela voltando-a para PENDENTE
+     */
+    public function actionEstornarParcela($id, $parcela_id)
+    {
+        $usuario = Yii::$app->user->identity;
+        $usuarioId = $usuario ? $usuario->getTenantId() : null;
+
+        $cartao = Venda::find()
+            ->where(['id' => $id, 'usuario_id' => $usuarioId])
+            ->one();
+
+        if (!$cartao) {
+            throw new NotFoundHttpException('Cartão de crediário não encontrado.');
+        }
+
+        $parcela = Parcela::find()
+            ->where(['id' => $parcela_id, 'venda_id' => $cartao->id])
+            ->one();
+
+        if ($parcela) {
+            $parcela->status_parcela_codigo = StatusParcela::PENDENTE;
+            $parcela->data_pagamento = null;
+            $parcela->valor_pago = null;
+            $parcela->save(false);
+
+            HistoricoCobranca::deleteAll(['parcela_id' => $parcela->id, 'tipo_acao' => HistoricoCobranca::TIPO_PAGAMENTO]);
+
+            $cartao->status_venda_codigo = StatusVenda::EM_ABERTO;
+            $cartao->save(false);
+
+            Yii::$app->session->setFlash('success', "Baixa da {$parcela->numero_parcela}ª parcela estornada com sucesso!");
         }
 
         return $this->redirect(['view', 'id' => $cartao->id]);
