@@ -30,11 +30,21 @@ class Module extends \yii\base\Module
             return false;
         }
 
-        // Ações públicas liberadas para clientes/visitantes sem necessidade de login
+        // Ações públicas e de campo liberadas (vendedores e cobradores de rua)
         $controllerId = $action->controller->id;
         $actionId = $action->id;
         $rotaAtual = "{$controllerId}/{$actionId}";
-        if (in_array($rotaAtual, ['cartao/publico'])) {
+        $rotasLiberadas = [
+            'cartao/publico',
+            'vendedor/index',
+            'vendedor/dados-iniciais',
+            'vendedor/sincronizar',
+            'cobrador/index',
+            'cobrador/dados-rota',
+            'cobrador/sincronizar',
+            'cobrador/salvar-ordem-rota',
+        ];
+        if (in_array($rotaAtual, $rotasLiberadas)) {
             return true;
         }
 

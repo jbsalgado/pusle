@@ -31,18 +31,26 @@ $this->title = 'Painel Prestanista - Crediário Ambulante';
             </p>
         </div>
 
-        <div class="flex items-center gap-2.5 flex-wrap w-full md:w-auto">
-            <a href="<?= Url::to(['/prestanista/cartao/novo']) ?>" class="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow-md transition active:scale-95 flex items-center justify-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap w-full md:w-auto">
+            <a href="<?= Url::to(['/prestanista/atribuicao/index']) ?>" class="px-3.5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow-md transition active:scale-95 flex items-center justify-center gap-1.5">
+                <span>🛵</span>
+                <span>Atribuir Cobrança</span>
+            </a>
+            <a href="<?= Url::to(['/prestanista/cartao/novo']) ?>" class="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs sm:text-sm rounded-xl border border-slate-700 transition active:scale-95 flex items-center justify-center gap-1.5">
                 <span>➕</span>
                 <span>Novo Cartão</span>
             </a>
-            <a href="<?= Url::to(['/prestanista/acerto/index']) ?>" class="flex-1 sm:flex-none px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs sm:text-sm rounded-xl border border-slate-700 transition active:scale-95 flex items-center justify-center gap-2">
+            <a href="<?= Url::to(['/prestanista/vendedor/index']) ?>" target="_blank" class="px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs sm:text-sm rounded-xl shadow-md transition active:scale-95 flex items-center justify-center gap-1.5" title="Abrir Aplicativo do Vendedor Ambulante">
+                <span>🛒</span>
+                <span>App Vendedor</span>
+            </a>
+            <a href="<?= Url::to(['/prestanista/cobrador/index']) ?>" target="_blank" class="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm rounded-xl shadow-md transition active:scale-95 flex items-center justify-center gap-1.5" title="Abrir Aplicativo do Cobrador de Rua">
+                <span>🛵</span>
+                <span>App Cobrador</span>
+            </a>
+            <a href="<?= Url::to(['/prestanista/acerto/index']) ?>" class="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs sm:text-sm rounded-xl border border-slate-700 transition active:scale-95 flex items-center justify-center gap-1.5">
                 <span>💰</span>
                 <span>Acerto de Caixa</span>
-            </a>
-            <a href="<?= Url::to(['/prestanista/']) ?>" target="_blank" class="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm rounded-xl shadow-md transition active:scale-95 flex items-center justify-center gap-2">
-                <span>📱</span>
-                <span>Abrir App Ambulante</span>
             </a>
         </div>
     </div>
