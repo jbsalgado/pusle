@@ -2568,20 +2568,24 @@ class ProdutoController extends Controller
                 throw new \Exception('Erro ao salvar produto: ' . implode(', ', $produto->getFirstErrors()));
             }
 
-            // Se o usuário selecionou tamanhos diretamente no modal rápido
+            // Se o usuário selecionou variações (modelo/cor e tamanhos) diretamente no modal rápido
             if ($possuiGrade) {
                 foreach ($tamanhosList as $tItem) {
                     $tamNome = mb_strtoupper(trim($tItem['tamanho'] ?? ''), 'UTF-8');
+                    $corNome = !empty($tItem['cor']) ? mb_strtoupper(trim($tItem['cor']), 'UTF-8') : 'PADRÃO';
                     $tamQtd = max(0, (float)($tItem['qtd'] ?? 1));
                     if (!empty($tamNome)) {
                         $var = new ProdutoVariante();
                         $var->produto_id = (string)$produto->id;
-                        $var->cor = 'PADRÃO';
+                        $var->cor = $corNome;
                         $var->tamanho = $tamNome;
                         $var->estoque_atual = $tamQtd;
                         $var->preco_venda_sugerido = null;
                         $var->ativo = true;
-                        $var->codigo_referencia = ($produto->codigo_referencia ?: 'PROD') . '-PADRAO-' . $tamNome;
+                        
+                        $sufixoCor = preg_replace('/[^A-Za-z0-9]/', '', $corNome);
+                        $sufixoTam = preg_replace('/[^A-Za-z0-9]/', '', $tamNome);
+                        $var->codigo_referencia = ($produto->codigo_referencia ?: 'PROD') . '-' . $sufixoCor . '-' . $sufixoTam;
                         $var->save(false);
                     }
                 }

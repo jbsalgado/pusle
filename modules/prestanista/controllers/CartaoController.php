@@ -13,6 +13,7 @@ use app\modules\vendas\models\Cliente;
 use app\modules\vendas\models\Colaborador;
 use app\modules\vendas\models\HistoricoCobranca;
 use app\modules\vendas\models\Produto;
+use app\modules\vendas\models\FormaPagamento;
 
 /**
  * Gestão de Cartões de Crediário Prestanista
@@ -178,10 +179,39 @@ class CartaoController extends Controller
                     $valorTotal += ((float)$item['preco']) * ((int)$item['quantidade']);
                 }
 
+                // Busca ou cria forma de pagamento do tipo Crediário / Prestanista para a loja
+                $formaPagamento = FormaPagamento::find()
+                    ->where(['usuario_id' => $usuarioId, 'ativo' => true])
+                    ->andWhere(['or',
+                        ['ilike', 'nome', 'crediario'],
+                        ['ilike', 'nome', 'carnê'],
+                        ['ilike', 'nome', 'carne'],
+                        ['ilike', 'nome', 'prestanista'],
+                        ['tipo' => [FormaPagamento::TIPO_BOLETO, FormaPagamento::TIPO_OUTRO]]
+                    ])
+                    ->one();
+
+                if (!$formaPagamento) {
+                    $formaPagamento = FormaPagamento::find()
+                        ->where(['usuario_id' => $usuarioId, 'ativo' => true])
+                        ->one();
+                }
+
+                if (!$formaPagamento) {
+                    $formaPagamento = new FormaPagamento();
+                    $formaPagamento->usuario_id = $usuarioId;
+                    $formaPagamento->nome = 'Crediário / Prestanista';
+                    $formaPagamento->tipo = FormaPagamento::TIPO_BOLETO;
+                    $formaPagamento->ativo = true;
+                    $formaPagamento->aceita_parcelamento = true;
+                    $formaPagamento->save(false);
+                }
+
                 $venda = new Venda();
                 $venda->usuario_id = $usuarioId;
                 $venda->cliente_id = $clienteId;
                 $venda->colaborador_vendedor_id = $vendedorId;
+                $venda->forma_pagamento_id = $formaPagamento->id;
                 $venda->valor_total = $valorTotal;
                 $venda->numero_parcelas = $parcelasQtd;
                 $venda->data_venda = date('Y-m-d H:i:s');
@@ -208,7 +238,7 @@ class CartaoController extends Controller
                 $saldoAFinanciar = max(0, $valorTotal - $entrada);
                 $primeiroVencimento = !empty($post['primeiro_vencimento']) ? $post['primeiro_vencimento'] : date('Y-m-d', strtotime("+{$frequencia} days"));
                 
-                $venda->gerarParcelas(null, $primeiroVencimento, $frequencia);
+                $venda->gerarParcelas($formaPagamento->id, $primeiroVencimento, $frequencia);
 
                 // Se teve entrada, dá baixa na 1ª parcela ou cria registro de entrada
                 if ($entrada > 0) {

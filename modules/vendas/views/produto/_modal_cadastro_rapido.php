@@ -241,69 +241,109 @@ $topCategorias = array_slice($categorias, 0, 4);
                 </select>
             </div>
 
-            <!-- 6. GRADE DE TAMANHOS INTEGRADA (SEM REDIRECIONAMENTO DE TELA!) -->
+            <!-- 6. GRADE DE VARIAÇÕES (MODELO / COR E TAMANHOS) -->
             <div id="cardGradeTamanhosIntegrada" class="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200/90 rounded-2xl p-4 transition-all">
                 <div class="flex items-center justify-between gap-2">
                     <div class="flex items-center gap-2.5">
                         <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-xl flex-shrink-0 shadow-sm">
-                            👕
+                            🎨
                         </div>
                         <div>
-                            <span class="block text-sm sm:text-base font-black text-indigo-950 leading-tight">Tem tamanhos diferentes?</span>
-                            <span class="block text-xs text-indigo-700 font-medium">Roupas (P, M, G) ou Calçados</span>
+                            <span class="block text-sm sm:text-base font-black text-indigo-950 leading-tight">Modelo, Cor e Tamanhos?</span>
+                            <span class="block text-xs text-indigo-700 font-medium">Variações por modelo/cor com grade de tamanhos</span>
                         </div>
                     </div>
                     
                     <!-- Botão de Ativar Grade em 1 Toque -->
                     <button type="button" id="btnToggleGradeTamanhos" onclick="toggleGradeTamanhos()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs sm:text-sm font-black rounded-xl shadow-xs transition flex items-center gap-1.5 shrink-0">
-                        <span id="textoBtnToggleGrade">+ Adicionar Tamanhos</span>
+                        <span id="textoBtnToggleGrade">+ Adicionar Variações</span>
                     </button>
                 </div>
 
-                <!-- Painel Expansível de Tamanhos (Abre no mesmo modal) -->
-                <div id="painelGradeTamanhos" class="hidden mt-4 pt-3.5 border-t border-indigo-200/80 space-y-3.5">
+                <!-- Painel Expansível de Variações (Abre no mesmo modal) -->
+                <div id="painelGradeTamanhos" class="hidden mt-4 pt-3.5 border-t border-indigo-200/80 space-y-4">
                     
-                    <!-- Presets Rápidos -->
-                    <div>
-                        <label class="block text-xs font-black uppercase text-indigo-900 mb-1.5 tracking-wider">Escolha rápida por tipo:</label>
-                        <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-                            <button type="button" onclick="aplicarPresetGrade(['P', 'M', 'G', 'GG'])" class="btn-preset-grade px-3 py-2 bg-white hover:bg-indigo-100 text-indigo-900 font-black text-xs rounded-xl border-2 border-indigo-200 shadow-xs active:scale-95 transition shrink-0">
-                                👕 P, M, G, GG
+                    <!-- ETAPA 1: ESCOLHA DE MODELO OU COR -->
+                    <div class="bg-white/80 border border-indigo-200 rounded-xl p-3 space-y-2.5 shadow-2xs">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-black uppercase text-indigo-950 tracking-wider">
+                                🎨 1. Modelo ou Cor:
+                            </label>
+                            <span class="text-[11px] font-bold text-indigo-600" id="labelCorAtivaTexto">Cor Ativa: PADRÃO</span>
+                        </div>
+
+                        <!-- Sugestões Rápidas de Cores -->
+                        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+                            <span class="text-[11px] font-bold text-slate-400 shrink-0">Sugestões:</span>
+                            <?php foreach (['PRETO', 'BRANCO', 'AZUL', 'VERMELHO', 'CINZA', 'ROSA', 'VERDE', 'AMARELO'] as $corSugerida): ?>
+                                <button type="button" onclick="adicionarESelecionarCor('<?= $corSugerida ?>')" class="px-2.5 py-1 bg-white hover:bg-indigo-50 border border-indigo-200 hover:border-indigo-400 text-indigo-900 font-bold text-[11px] rounded-lg shadow-2xs active:scale-95 transition shrink-0">
+                                    <?= $corSugerida ?>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <!-- Campo para Digitar Modelo/Cor Personalizado -->
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="inputNovoModeloCor" placeholder="Ex: Slim Preto, Floral, Modelo A, Dourado..." class="flex-1 h-10 px-3 bg-white border-2 border-indigo-200 rounded-xl text-xs font-bold text-slate-800 uppercase focus:border-indigo-500 focus:outline-none">
+                            <button type="button" onclick="adicionarCorDigitada()" class="h-10 px-3.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-black rounded-xl transition shrink-0">
+                                + Adicionar Cor/Modelo
                             </button>
-                            <button type="button" onclick="aplicarPresetGrade(['PP', 'P', 'M', 'G', 'GG', 'XG'])" class="btn-preset-grade px-3 py-2 bg-white hover:bg-indigo-100 text-indigo-900 font-black text-xs rounded-xl border-2 border-indigo-200 shadow-xs active:scale-95 transition shrink-0">
-                                👗 PP ao XG
-                            </button>
-                            <button type="button" onclick="aplicarPresetGrade(['36', '37', '38', '39', '40', '41', '42'])" class="btn-preset-grade px-3 py-2 bg-white hover:bg-indigo-100 text-indigo-900 font-black text-xs rounded-xl border-2 border-indigo-200 shadow-xs active:scale-95 transition shrink-0">
-                                👟 Calçados (36 ao 42)
-                            </button>
-                            <button type="button" onclick="aplicarPresetGrade(['ÚNICO'])" class="btn-preset-grade px-3 py-2 bg-white hover:bg-indigo-100 text-indigo-900 font-black text-xs rounded-xl border-2 border-indigo-200 shadow-xs active:scale-95 transition shrink-0">
-                                ✨ Tamanho Único
-                            </button>
+                        </div>
+
+                        <!-- Carrossel de Chips das Cores/Modelos Ativos -->
+                        <div class="pt-1">
+                            <label class="block text-[10px] font-black uppercase text-slate-500 mb-1">Cores/Modelos deste Produto (toque para alternar):</label>
+                            <div id="containerChipsCoresAtivas" class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin"></div>
                         </div>
                     </div>
 
-                    <!-- Lista de Tamanhos Ativos com Steppers de Quantidade -->
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <label class="text-xs font-black uppercase text-indigo-900">Tamanhos Ativos & Quantidades:</label>
-                            <span id="badgeTotalItensGrade" class="text-xs font-black bg-indigo-600 text-white px-2.5 py-0.5 rounded-full">0 peças no total</span>
+                    <!-- ETAPA 2: TAMANHOS PARA O MODELO/COR SELECIONADO -->
+                    <div class="bg-indigo-100/50 border border-indigo-200/90 rounded-xl p-3 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-black uppercase text-indigo-950 tracking-wider">
+                                📏 2. Tamanhos para <span id="spanNomeCorTamanhos" class="text-indigo-700 underline font-black">PADRÃO</span>:
+                            </label>
+                            <span id="badgeTotalPecasCorAtual" class="text-[11px] font-black bg-indigo-600 text-white px-2 py-0.5 rounded-full">0 peças</span>
                         </div>
 
-                        <!-- Grid dinâmico de cards por tamanho -->
-                        <div id="gridChipsTamanhosAtivos" class="grid grid-cols-1 sm:grid-cols-2 gap-3 empty:hidden"></div>
+                        <!-- Presets Rápidos de Tamanhos -->
+                        <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                            <button type="button" onclick="aplicarPresetGrade(['P', 'M', 'G', 'GG'])" class="btn-preset-grade px-3 py-1.5 bg-white hover:bg-indigo-100 text-indigo-900 font-black text-xs rounded-xl border-2 border-indigo-200 shadow-xs active:scale-95 transition shrink-0">
+                                👕 P, M, G, GG
+                            </button>
+                            <button type="button" onclick="aplicarPresetGrade(['PP', 'P', 'M', 'G', 'GG', 'XG'])" class="btn-preset-grade px-3 py-1.5 bg-white hover:bg-indigo-100 text-indigo-900 font-black text-xs rounded-xl border-2 border-indigo-200 shadow-xs active:scale-95 transition shrink-0">
+                                👗 PP ao XG
+                            </button>
+                            <button type="button" onclick="aplicarPresetGrade(['36', '37', '38', '39', '40', '41', '42'])" class="btn-preset-grade px-3 py-1.5 bg-white hover:bg-indigo-100 text-indigo-900 font-black text-xs rounded-xl border-2 border-indigo-200 shadow-xs active:scale-95 transition shrink-0">
+                                👟 Calçados (36 ao 42)
+                            </button>
+                            <button type="button" onclick="aplicarPresetGrade(['ÚNICO'])" class="btn-preset-grade px-3 py-1.5 bg-white hover:bg-indigo-100 text-indigo-900 font-black text-xs rounded-xl border-2 border-indigo-200 shadow-xs active:scale-95 transition shrink-0">
+                                ✨ Tamanho Único
+                            </button>
+                        </div>
+
+                        <!-- Grid dinâmico de cards por tamanho para a cor ativa -->
+                        <div id="gridChipsTamanhosAtivos" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 empty:hidden"></div>
                         
                         <p id="msgNenhumTamanhoSelecionado" class="text-xs text-indigo-800/80 italic py-2 text-center bg-white/70 rounded-xl border border-indigo-100">
                             Toque em um dos botões acima ou digite um tamanho abaixo.
                         </p>
+
+                        <!-- Inclusão de Tamanho Avulso -->
+                        <div class="flex items-center gap-2 pt-1">
+                            <input type="text" id="inputNovoTamanhoAvulso" placeholder="Outro tamanho (Ex: 44, G1, 38...)" class="flex-1 h-10 px-3 bg-white border-2 border-indigo-200 rounded-xl text-xs font-bold text-slate-800 uppercase focus:border-indigo-500 focus:outline-none">
+                            <button type="button" onclick="adicionarTamanhoAvulso()" class="h-10 px-3.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-black rounded-xl transition shrink-0">
+                                + Incluir Tamanho
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- Inclusão de Tamanho Avulso -->
-                    <div class="flex items-center gap-2 pt-1">
-                        <input type="text" id="inputNovoTamanhoAvulso" placeholder="Outro tamanho (Ex: 44, G1, 38...)" class="flex-1 h-11 px-3.5 bg-white border-2 border-indigo-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 uppercase focus:border-indigo-500 focus:outline-none">
-                        <button type="button" onclick="adicionarTamanhoAvulso()" class="h-11 px-4 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-black rounded-xl transition shrink-0">
-                            + Incluir
-                        </button>
+                    <!-- Rodapé do Card de Grade: Consolidação Total Geral -->
+                    <div class="flex items-center justify-between pt-1 text-xs font-black text-indigo-950">
+                        <span>Resumo Geral de Variações:</span>
+                        <span id="badgeTotalItensGrade" class="bg-indigo-700 text-white px-3 py-1 rounded-full shadow-2xs">0 peças em 1 cor</span>
                     </div>
+
                 </div>
             </div>
 
@@ -358,7 +398,9 @@ $topCategorias = array_slice($categorias, 0, 4);
 
 <script>
     let arquivosFotosRapidas = [];
-    let tamanhosGradeAtivos = {}; // { 'P': 1, 'M': 2, ... }
+    let corGradeAtiva = 'PADRÃO';
+    let gradeVariacoes = {}; // Estrutura: { 'PADRÃO': { 'P': 1, 'M': 2 }, 'AZUL': { 'G': 1 } }
+    let tamanhosGradeAtivos = {}; // mantido por compatibilidade
     let streamCameraAoVivo = null;
     let cameraFacingModeAtual = 'environment'; // 'environment' (traseira) ou 'user' (frontal)
 
@@ -381,16 +423,19 @@ $topCategorias = array_slice($categorias, 0, 4);
         document.getElementById('formCadastroRapido').classList.remove('hidden');
         document.getElementById('sucessoCadastroRapido').classList.add('hidden');
         arquivosFotosRapidas = [];
+        corGradeAtiva = 'PADRÃO';
+        gradeVariacoes = {};
         tamanhosGradeAtivos = {};
         fecharCameraAoVivo();
         atualizarVisualFotos();
+        renderizarChipsCores();
         renderizarChipsTamanhos();
         
         // Reset da grade de tamanhos (fechada por padrão)
         const painelGrade = document.getElementById('painelGradeTamanhos');
         painelGrade.classList.add('hidden');
-        document.getElementById('textoBtnToggleGrade').textContent = '+ Adicionar Tamanhos';
-        document.getElementById('btnToggleGradeTamanhos').classList.remove('bg-red-600');
+        document.getElementById('textoBtnToggleGrade').textContent = '+ Adicionar Variações';
+        document.getElementById('btnToggleGradeTamanhos').classList.remove('bg-slate-700');
         document.getElementById('btnToggleGradeTamanhos').classList.add('bg-indigo-600');
         
         // Unidade padrão UN
@@ -575,7 +620,7 @@ $topCategorias = array_slice($categorias, 0, 4);
     }
 
     // ==========================================
-    // GRADE DE TAMANHOS INTEGRADA (SEM REDIRECIONAMENTO)
+    // GRADE DE VARIAÇÕES (MODELO / COR E TAMANHOS)
     // ==========================================
     function toggleGradeTamanhos() {
         const painel = document.getElementById('painelGradeTamanhos');
@@ -584,81 +629,231 @@ $topCategorias = array_slice($categorias, 0, 4);
 
         if (painel.classList.contains('hidden')) {
             painel.classList.remove('hidden');
-            btnTexto.textContent = '✕ Fechar Tamanhos';
+            btnTexto.textContent = '✕ Fechar Variações';
             btn.classList.remove('bg-indigo-600');
             btn.classList.add('bg-slate-700');
             
-            // Se ainda não tiver tamanhos, aplica o preset de roupas automaticamente como sugestão
-            if (Object.keys(tamanhosGradeAtivos).length === 0) {
-                aplicarPresetGrade(['P', 'M', 'G', 'GG']);
+            // Se ainda não tiver variações configuradas, cria 'PADRÃO' com sugestão de roupas
+            if (Object.keys(gradeVariacoes).length === 0) {
+                corGradeAtiva = 'PADRÃO';
+                gradeVariacoes['PADRÃO'] = { 'P': 1, 'M': 1, 'G': 1, 'GG': 1 };
             }
+            renderizarChipsCores();
+            renderizarChipsTamanhos();
         } else {
             painel.classList.add('hidden');
-            btnTexto.textContent = '+ Adicionar Tamanhos';
+            btnTexto.textContent = '+ Adicionar Variações';
             btn.classList.remove('bg-slate-700');
             btn.classList.add('bg-indigo-600');
         }
     }
 
-    function aplicarPresetGrade(listaTamanhos) {
-        tamanhosGradeAtivos = {};
-        listaTamanhos.forEach(tam => {
-            tamanhosGradeAtivos[tam] = 1; // 1 peça de cada por padrão
+    function renderizarChipsCores() {
+        const container = document.getElementById('containerChipsCoresAtivas');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const cores = Object.keys(gradeVariacoes);
+        if (cores.length === 0) {
+            corGradeAtiva = 'PADRÃO';
+            gradeVariacoes['PADRÃO'] = {};
+            cores.push('PADRÃO');
+        }
+
+        if (!gradeVariacoes[corGradeAtiva]) {
+            corGradeAtiva = cores[0];
+        }
+
+        // Atualiza textos do cabeçalho
+        const labelTexto = document.getElementById('labelCorAtivaTexto');
+        if (labelTexto) labelTexto.textContent = `Cor/Modelo Ativo: ${corGradeAtiva}`;
+        const spanNomeCor = document.getElementById('spanNomeCorTamanhos');
+        if (spanNomeCor) spanNomeCor.textContent = corGradeAtiva;
+
+        cores.forEach(cor => {
+            const isAtiva = cor === corGradeAtiva;
+            const tams = gradeVariacoes[cor] || {};
+            const totalPecas = Object.values(tams).reduce((acc, v) => acc + (parseInt(v, 10) || 0), 0);
+
+            const btnChip = document.createElement('div');
+            btnChip.className = isAtiva
+                ? 'inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-xl shadow-xs text-xs font-black shrink-0 cursor-pointer select-none transition border-2 border-indigo-700'
+                : 'inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-indigo-50 text-indigo-950 rounded-xl shadow-2xs text-xs font-bold shrink-0 cursor-pointer select-none transition border border-indigo-200 hover:border-indigo-400';
+
+            btnChip.onclick = () => alternarCorAtiva(cor);
+
+            let htmlChip = `<span>🎨 ${cor}</span>`;
+            if (totalPecas > 0) {
+                htmlChip += `<span class="px-1.5 py-0.2 rounded-full text-[10px] ${isAtiva ? 'bg-indigo-800 text-amber-300' : 'bg-slate-100 text-slate-600'} font-black">${totalPecas}pç</span>`;
+            }
+
+            // Se houver mais de uma cor, permite remover
+            if (cores.length > 1) {
+                htmlChip += `
+                    <button type="button" onclick="removerCorGrade('${cor}', event)" title="Remover esta cor/modelo" class="ml-1 w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${isAtiva ? 'bg-indigo-700 hover:bg-red-600 text-white' : 'bg-slate-200 hover:bg-red-600 hover:text-white text-slate-600'} transition">
+                        ✕
+                    </button>
+                `;
+            }
+
+            btnChip.innerHTML = htmlChip;
+            container.appendChild(btnChip);
         });
+
+        atualizarTotalPecasGrade();
+    }
+
+    function alternarCorAtiva(cor) {
+        if (!gradeVariacoes[cor]) return;
+        corGradeAtiva = cor;
+        renderizarChipsCores();
+        renderizarChipsTamanhos();
+    }
+
+    function adicionarESelecionarCor(corNome) {
+        if (!corNome) return;
+        corNome = corNome.trim().toUpperCase();
+        if (!corNome) return;
+
+        // Se só tinha 'PADRÃO' e estava totalmente vazia, substitui por essa nova cor
+        const chaves = Object.keys(gradeVariacoes);
+        if (chaves.length === 1 && chaves[0] === 'PADRÃO' && Object.keys(gradeVariacoes['PADRÃO']).length === 0) {
+            delete gradeVariacoes['PADRÃO'];
+        }
+
+        if (!gradeVariacoes[corNome]) {
+            // Cria a cor com os mesmos tamanhos da cor anterior (para agilizar a digitação) ou preset padrão
+            const tamanhosBase = (corGradeAtiva && gradeVariacoes[corGradeAtiva] && Object.keys(gradeVariacoes[corGradeAtiva]).length > 0)
+                ? Object.keys(gradeVariacoes[corGradeAtiva])
+                : ['P', 'M', 'G', 'GG'];
+
+            gradeVariacoes[corNome] = {};
+            tamanhosBase.forEach(t => {
+                gradeVariacoes[corNome][t] = 1;
+            });
+        }
+
+        corGradeAtiva = corNome;
+        renderizarChipsCores();
+        renderizarChipsTamanhos();
+    }
+
+    function adicionarCorDigitada() {
+        const input = document.getElementById('inputNovoModeloCor');
+        if (!input) return;
+        const val = input.value.trim().toUpperCase();
+        if (!val) {
+            input.focus();
+            return;
+        }
+        adicionarESelecionarCor(val);
+        input.value = '';
+    }
+
+    function removerCorGrade(cor, e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        delete gradeVariacoes[cor];
+        const coresRestantes = Object.keys(gradeVariacoes);
+        if (coresRestantes.length === 0) {
+            corGradeAtiva = 'PADRÃO';
+            gradeVariacoes['PADRÃO'] = {};
+        } else if (corGradeAtiva === cor) {
+            corGradeAtiva = coresRestantes[0];
+        }
+        renderizarChipsCores();
+        renderizarChipsTamanhos();
+    }
+
+    function aplicarPresetGrade(listaTamanhos) {
+        if (!gradeVariacoes[corGradeAtiva]) {
+            gradeVariacoes[corGradeAtiva] = {};
+        }
+        gradeVariacoes[corGradeAtiva] = {};
+        listaTamanhos.forEach(tam => {
+            gradeVariacoes[corGradeAtiva][tam] = 1; // 1 peça de cada por padrão
+        });
+        renderizarChipsCores();
         renderizarChipsTamanhos();
     }
 
     function adicionarTamanhoAvulso() {
         const input = document.getElementById('inputNovoTamanhoAvulso');
+        if (!input) return;
         const val = input.value.trim().toUpperCase();
         if (!val) return;
+
+        if (!gradeVariacoes[corGradeAtiva]) {
+            gradeVariacoes[corGradeAtiva] = {};
+        }
 
         // Se digitou múltiplos separados por vírgula
         const partes = val.split(',').map(s => s.trim().toUpperCase()).filter(s => s.length > 0);
         partes.forEach(p => {
-            if (!tamanhosGradeAtivos[p]) {
-                tamanhosGradeAtivos[p] = 1;
+            if (!gradeVariacoes[corGradeAtiva][p]) {
+                gradeVariacoes[corGradeAtiva][p] = 1;
             }
         });
 
         input.value = '';
+        renderizarChipsCores();
         renderizarChipsTamanhos();
     }
 
     function atualizarTotalPecasGrade() {
-        const badgeTotal = document.getElementById('badgeTotalItensGrade');
-        if (!badgeTotal) return;
-        const total = Object.values(tamanhosGradeAtivos).reduce((acc, v) => acc + (parseInt(v, 10) || 0), 0);
-        badgeTotal.textContent = `${total} peça${total > 1 ? 's' : ''} no total`;
+        const badgeCor = document.getElementById('badgeTotalPecasCorAtual');
+        const badgeTotalGeral = document.getElementById('badgeTotalItensGrade');
+
+        // Total da cor ativa
+        const tamsCor = gradeVariacoes[corGradeAtiva] || {};
+        const totalCor = Object.values(tamsCor).reduce((acc, v) => acc + (parseInt(v, 10) || 0), 0);
+        if (badgeCor) {
+            badgeCor.textContent = `${totalCor} peça${totalCor !== 1 ? 's' : ''}`;
+        }
+
+        // Total geral de todas as cores
+        let totalGeral = 0;
+        let qtdCoresComItens = 0;
+        Object.keys(gradeVariacoes).forEach(c => {
+            const tams = gradeVariacoes[c];
+            const sum = Object.values(tams).reduce((acc, v) => acc + (parseInt(v, 10) || 0), 0);
+            totalGeral += sum;
+            if (Object.keys(tams).length > 0) qtdCoresComItens++;
+        });
+
+        if (badgeTotalGeral) {
+            const labelCores = qtdCoresComItens === 1 ? '1 modelo/cor' : `${qtdCoresComItens} modelos/cores`;
+            badgeTotalGeral.textContent = `${totalGeral} peça${totalGeral !== 1 ? 's' : ''} no total (${labelCores})`;
+        }
     }
 
     function atualizarQtdDigitada(tam, val) {
-        if (!tamanhosGradeAtivos.hasOwnProperty(tam)) return;
+        if (!gradeVariacoes[corGradeAtiva]) return;
         const num = parseInt(val, 10);
         if (!isNaN(num) && num > 0) {
-            tamanhosGradeAtivos[tam] = num;
+            gradeVariacoes[corGradeAtiva][tam] = num;
         } else {
-            tamanhosGradeAtivos[tam] = 1;
+            gradeVariacoes[corGradeAtiva][tam] = 1;
         }
         atualizarTotalPecasGrade();
     }
 
     function finalizarQtdDigitada(tam, input) {
-        if (!tamanhosGradeAtivos.hasOwnProperty(tam)) return;
+        if (!gradeVariacoes[corGradeAtiva]) return;
         let num = parseInt(input.value, 10);
         if (isNaN(num) || num < 1) {
             num = 1;
         }
-        tamanhosGradeAtivos[tam] = num;
+        gradeVariacoes[corGradeAtiva][tam] = num;
         input.value = num;
         atualizarTotalPecasGrade();
+        renderizarChipsCores();
     }
 
     function alterarQtdTamanho(tam, delta) {
-        if (!tamanhosGradeAtivos.hasOwnProperty(tam)) return;
-        const atual = parseInt(tamanhosGradeAtivos[tam], 10) || 1;
+        if (!gradeVariacoes[corGradeAtiva]) return;
+        const atual = parseInt(gradeVariacoes[corGradeAtiva][tam], 10) || 1;
         const novaQtd = Math.max(1, atual + delta);
-        tamanhosGradeAtivos[tam] = novaQtd;
+        gradeVariacoes[corGradeAtiva][tam] = novaQtd;
 
         const idInput = 'inputQtdTam_' + encodeURIComponent(tam).replace(/[^a-zA-Z0-9]/g, '_');
         const input = document.getElementById(idInput);
@@ -666,19 +861,28 @@ $topCategorias = array_slice($categorias, 0, 4);
             input.value = novaQtd;
         }
         atualizarTotalPecasGrade();
+        renderizarChipsCores();
     }
 
     function removerTamanhoGrade(tam) {
-        delete tamanhosGradeAtivos[tam];
+        if (gradeVariacoes[corGradeAtiva]) {
+            delete gradeVariacoes[corGradeAtiva][tam];
+        }
+        renderizarChipsCores();
         renderizarChipsTamanhos();
     }
 
     function renderizarChipsTamanhos() {
         const grid = document.getElementById('gridChipsTamanhosAtivos');
         const msgVazio = document.getElementById('msgNenhumTamanhoSelecionado');
+        if (!grid || !msgVazio) return;
         grid.innerHTML = '';
 
-        const chaves = Object.keys(tamanhosGradeAtivos);
+        if (!gradeVariacoes[corGradeAtiva]) {
+            gradeVariacoes[corGradeAtiva] = {};
+        }
+
+        const chaves = Object.keys(gradeVariacoes[corGradeAtiva]);
 
         if (chaves.length === 0) {
             msgVazio.classList.remove('hidden');
@@ -689,18 +893,21 @@ $topCategorias = array_slice($categorias, 0, 4);
         msgVazio.classList.add('hidden');
 
         chaves.forEach(tam => {
-            const qtd = tamanhosGradeAtivos[tam];
+            const qtd = gradeVariacoes[corGradeAtiva][tam];
             const idInput = 'inputQtdTam_' + encodeURIComponent(tam).replace(/[^a-zA-Z0-9]/g, '_');
 
             const card = document.createElement('div');
             card.className = 'bg-white border-2 border-indigo-200 hover:border-indigo-400 rounded-2xl p-3 flex flex-col gap-2.5 shadow-xs transition';
             card.innerHTML = `
                 <div class="flex items-center justify-between gap-2 border-b border-indigo-100/80 pb-2">
-                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 text-white font-black text-xs sm:text-sm rounded-xl shadow-xs">
-                        <span>🏷️</span>
-                        <span class="tracking-wide">TAMANHO:</span>
-                        <span class="text-amber-300 text-sm sm:text-base font-black ml-0.5 underline decoration-amber-400 decoration-2">${tam}</span>
-                    </span>
+                    <div class="flex items-center gap-1.5">
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 text-white font-black text-xs sm:text-sm rounded-xl shadow-xs">
+                            <span>🏷️</span>
+                            <span class="tracking-wide">TAMANHO:</span>
+                            <span class="text-amber-300 text-sm sm:text-base font-black ml-0.5 underline decoration-amber-400 decoration-2">${tam}</span>
+                        </span>
+                        <span class="px-2 py-0.5 bg-indigo-50 border border-indigo-200 rounded-lg text-[10px] font-black text-indigo-700">${corGradeAtiva}</span>
+                    </div>
                     <button type="button" onclick="removerTamanhoGrade('${tam}')" title="Remover tamanho ${tam}" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-600 font-bold text-xs flex items-center justify-center transition active:scale-90">✕</button>
                 </div>
                 
@@ -785,11 +992,25 @@ $topCategorias = array_slice($categorias, 0, 4);
         document.getElementById('formCadastroRapido').classList.remove('hidden');
         document.getElementById('formCadastroRapido').reset();
         arquivosFotosRapidas = [];
+        corGradeAtiva = 'PADRÃO';
+        gradeVariacoes = {};
         tamanhosGradeAtivos = {};
         fecharCameraAoVivo();
         atualizarVisualFotos();
+        renderizarChipsCores();
         renderizarChipsTamanhos();
         selecionarUnidadeRapida('UN');
+
+        const painelGrade = document.getElementById('painelGradeTamanhos');
+        if (painelGrade) painelGrade.classList.add('hidden');
+        const btnTexto = document.getElementById('textoBtnToggleGrade');
+        if (btnTexto) btnTexto.textContent = '+ Adicionar Variações';
+        const btnGrade = document.getElementById('btnToggleGradeTamanhos');
+        if (btnGrade) {
+            btnGrade.classList.remove('bg-slate-700');
+            btnGrade.classList.add('bg-indigo-600');
+        }
+
         const inputNome = document.getElementById('rapido_nome');
         if (inputNome) inputNome.focus();
     }
@@ -850,11 +1071,18 @@ $topCategorias = array_slice($categorias, 0, 4);
         formData.append('ir_para_matriz', irParaMatriz ? '1' : '0');
         formData.append(csrfParam, csrfToken);
 
-        // Anexa os tamanhos da grade integrada caso selecionados
-        const listaTamanhosEnvio = Object.keys(tamanhosGradeAtivos).map(tam => ({
-            tamanho: tam,
-            qtd: tamanhosGradeAtivos[tam]
-        }));
+        // Anexa variações de modelo/cor e tamanhos caso configurados
+        const listaTamanhosEnvio = [];
+        Object.keys(gradeVariacoes).forEach(cor => {
+            Object.keys(gradeVariacoes[cor]).forEach(tam => {
+                const qtd = parseInt(gradeVariacoes[cor][tam], 10) || 1;
+                listaTamanhosEnvio.push({
+                    cor: cor,
+                    tamanho: tam,
+                    qtd: qtd
+                });
+            });
+        });
         if (listaTamanhosEnvio.length > 0) {
             formData.append('tamanhos_json', JSON.stringify(listaTamanhosEnvio));
         }
@@ -908,9 +1136,14 @@ $topCategorias = array_slice($categorias, 0, 4);
                 const msgGrade = document.getElementById('msgSucessoDetalhesGrade');
                 const tamanhosRecem = document.getElementById('tamanhosRecemSalvo');
                 if (listaTamanhosEnvio.length > 0) {
-                    const nomesTams = listaTamanhosEnvio.map(t => `${t.tamanho} (${t.qtd})`).join(', ');
-                    msgGrade.textContent = `Grade criada: ${nomesTams}`;
-                    tamanhosRecem.textContent = `Tamanhos: ${nomesTams}`;
+                    const agrupado = {};
+                    listaTamanhosEnvio.forEach(item => {
+                        if (!agrupado[item.cor]) agrupado[item.cor] = [];
+                        agrupado[item.cor].push(`${item.tamanho} (${item.qtd})`);
+                    });
+                    const resumoStr = Object.keys(agrupado).map(c => `${c}: ${agrupado[c].join(', ')}`).join(' | ');
+                    msgGrade.textContent = `Grade criada: ${resumoStr}`;
+                    tamanhosRecem.textContent = `Variações: ${resumoStr}`;
                 } else {
                     msgGrade.textContent = '';
                     tamanhosRecem.textContent = '';
