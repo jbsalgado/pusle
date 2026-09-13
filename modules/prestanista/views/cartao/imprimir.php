@@ -205,7 +205,9 @@ $nomeArquivo = 'cartao_' . str_pad($cartao->id, 5, '0', STR_PAD_LEFT) . '_' . $s
             <thead>
                 <tr>
                     <th>OBJETOS</th>
-                    <th style="width: 70px; text-align: right;">VALOR R$</th>
+                    <th style="width: 24px; text-align: center;">QTD</th>
+                    <th style="width: 50px; text-align: right;">VL. UNIT.</th>
+                    <th style="width: 56px; text-align: right;">TOTAL R$</th>
                 </tr>
             </thead>
             <tbody>
@@ -213,20 +215,25 @@ $nomeArquivo = 'cartao_' . str_pad($cartao->id, 5, '0', STR_PAD_LEFT) . '_' . $s
                     <?php 
                         $qtd = (float)$item->quantidade;
                         $qtdFormatada = (floor($qtd) == $qtd) ? number_format($qtd, 0, ',', '.') : rtrim(rtrim(number_format($qtd, 2, ',', '.'), '0'), ',');
+                        $vlUnit = (float)($item->preco_unitario_venda ?: ($qtd > 0 ? $item->valor_total_item / $qtd : $item->valor_total_item));
                     ?>
                     <tr>
-                        <td><?= Html::encode($item->produto->nome ?? 'Mercadoria') ?> (<?= $qtdFormatada ?>x)</td>
+                        <td><?= Html::encode($item->produto->nome ?? 'Mercadoria') ?></td>
+                        <td style="text-align: center; font-weight: bold;"><?= $qtdFormatada ?></td>
+                        <td style="text-align: right;"><?= number_format($vlUnit, 2, ',', '.') ?></td>
                         <td style="text-align: right; font-weight: bold;">R$ <?= number_format($item->valor_total_item, 2, ',', '.') ?></td>
                     </tr>
                 <?php endforeach; ?>
                 <?php for ($i = count($itens); $i < 2; $i++): ?>
                     <tr>
                         <td style="color: #94a3b8;">___________________________</td>
+                        <td style="text-align: center; color: #94a3b8;">___</td>
+                        <td style="text-align: right; color: #94a3b8;">______</td>
                         <td style="text-align: right; color: #94a3b8;">R$ ________</td>
                     </tr>
                 <?php endfor; ?>
                 <tr style="font-weight: 900; background: #f8fafc;">
-                    <td>TOTAL DO CARTÃO:</td>
+                    <td colspan="3" style="text-align: right; text-transform: uppercase;">TOTAL DO CARTÃO:</td>
                     <td style="text-align: right;">R$ <?= number_format($cartao->valor_total, 2, ',', '.') ?></td>
                 </tr>
             </tbody>

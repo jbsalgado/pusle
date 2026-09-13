@@ -71,7 +71,9 @@ $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente')
                     <thead>
                         <tr class="border-b-2 border-slate-900 text-left">
                             <th class="py-1 uppercase font-bold">OBJETOS</th>
-                            <th class="py-1 text-right uppercase font-bold w-28">VALOR R$</th>
+                            <th class="py-1 text-center uppercase font-bold w-16">QTD</th>
+                            <th class="py-1 text-right uppercase font-bold w-28">VL. UNIT.</th>
+                            <th class="py-1 text-right uppercase font-bold w-28">TOTAL R$</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-300">
@@ -79,11 +81,17 @@ $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente')
                             <?php 
                                 $qtd = (float)$item->quantidade;
                                 $qtdFormatada = (floor($qtd) == $qtd) ? number_format($qtd, 0, ',', '.') : rtrim(rtrim(number_format($qtd, 2, ',', '.'), '0'), ',');
+                                $vlUnit = (float)($item->preco_unitario_venda ?: ($qtd > 0 ? $item->valor_total_item / $qtd : $item->valor_total_item));
                             ?>
                             <tr>
                                 <td class="py-1.5 font-bold uppercase text-slate-900">
-                                    <?= Html::encode($item->produto->nome ?? 'Mercadoria') ?> 
-                                    <span class="text-slate-500 font-normal">(Qtd: <?= $qtdFormatada ?>)</span>
+                                    <?= Html::encode($item->produto->nome ?? 'Mercadoria') ?>
+                                </td>
+                                <td class="py-1.5 text-center font-bold text-slate-800">
+                                    <?= $qtdFormatada ?>
+                                </td>
+                                <td class="py-1.5 text-right font-medium text-slate-700">
+                                    R$ <?= number_format($vlUnit, 2, ',', '.') ?>
                                 </td>
                                 <td class="py-1.5 text-right font-black text-slate-950">
                                     R$ <?= number_format($item->valor_total_item, 2, ',', '.') ?>
@@ -93,14 +101,16 @@ $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente')
                         <!-- Linhas vazias de preenchimento manuscrito como na foto -->
                         <?php for ($i = count($itens); $i < 3; $i++): ?>
                             <tr class="text-slate-300">
-                                <td class="py-1.5">_________________________________________</td>
+                                <td class="py-1.5">___________________________</td>
+                                <td class="py-1.5 text-center">___</td>
+                                <td class="py-1.5 text-right">R$ _________</td>
                                 <td class="py-1.5 text-right">R$ _________</td>
                             </tr>
                         <?php endfor; ?>
                     </tbody>
                     <tfoot>
                         <tr class="border-t-2 border-slate-900 font-sans">
-                            <td class="pt-2 font-black uppercase text-sm">TOTAL DO CARTÃO:</td>
+                            <td colspan="3" class="pt-2 font-black uppercase text-sm text-right pr-2">TOTAL DO CARTÃO:</td>
                             <td class="pt-2 text-right font-black text-base text-amber-900">
                                 R$ <?= number_format($cartao->valor_total, 2, ',', '.') ?>
                             </td>
