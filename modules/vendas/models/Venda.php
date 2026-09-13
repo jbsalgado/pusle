@@ -628,6 +628,41 @@ class Venda extends ActiveRecord
     }
 
     /**
+     * Retorna ActiveQuery filtrando estritamente vendas do tipo Prestanista (Crediário Ambulante)
+     * Isolando de vendas comuns de Catálogo PWA, PDV balcão e Venda Expressa.
+     *
+     * @param string|null $usuarioId
+     * @return \yii\db\ActiveQuery
+     */
+    public static function findPrestanista($usuarioId = null)
+    {
+        $query = static::find()->alias('v');
+        if ($usuarioId) {
+            $query->andWhere(['v.usuario_id' => $usuarioId]);
+        }
+
+        $query->andWhere([
+            'and',
+            [
+                'or',
+                ['is not', 'v.colaborador_vendedor_id', null],
+                ['ilike', 'v.observacoes', '%prestanista%'],
+                ['ilike', 'v.observacoes', '%cartão%'],
+                ['ilike', 'v.observacoes', '%cartao%'],
+                ['ilike', 'v.observacoes', '%crediário%'],
+                ['ilike', 'v.observacoes', '%crediario%'],
+            ],
+            [
+                'or',
+                ['!=', 'v.observacoes', 'Pedido PWA'],
+                ['is not', 'v.colaborador_vendedor_id', null]
+            ]
+        ]);
+
+        return $query;
+    }
+
+    /**
      * Calcula e retorna o saldo devedor restante da venda
      * @return float
      */

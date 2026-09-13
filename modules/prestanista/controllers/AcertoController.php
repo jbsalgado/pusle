@@ -15,7 +15,7 @@ class AcertoController extends Controller
     public function actionIndex($data = null, $cobrador_id = null)
     {
         $usuario = Yii::$app->user->identity;
-        $usuarioId = $usuario->loja_id ?? $usuario->id;
+        $usuarioId = $usuario ? $usuario->getTenantId() : null;
 
         $dataFiltro = $data ?: date('Y-m-d');
 

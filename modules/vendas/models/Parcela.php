@@ -252,4 +252,42 @@ class Parcela extends ActiveRecord
             'cliente',
         ];
     }
+
+    /**
+     * Retorna ActiveQuery filtrando estritamente parcelas vinculadas a Vendas Prestanistas
+     *
+     * @param string|null $usuarioId
+     * @return \yii\db\ActiveQuery
+     */
+    public static function findPrestanista($usuarioId = null)
+    {
+        $query = static::find()->alias('p')
+            ->innerJoin('prest_vendas v', 'v.id = p.venda_id');
+
+        if ($usuarioId) {
+            $query->andWhere(['p.usuario_id' => $usuarioId]);
+        }
+
+        $query->andWhere([
+            'and',
+            [
+                'or',
+                ['is not', 'v.colaborador_vendedor_id', null],
+                ['is not', 'p.cobrador_id', null],
+                ['is not', 'p.carteira_cobranca_id', null],
+                ['ilike', 'v.observacoes', '%prestanista%'],
+                ['ilike', 'v.observacoes', '%cartão%'],
+                ['ilike', 'v.observacoes', '%cartao%'],
+                ['ilike', 'v.observacoes', '%crediário%'],
+                ['ilike', 'v.observacoes', '%crediario%'],
+            ],
+            [
+                'or',
+                ['!=', 'v.observacoes', 'Pedido PWA'],
+                ['is not', 'v.colaborador_vendedor_id', null]
+            ]
+        ]);
+
+        return $query;
+    }
 }

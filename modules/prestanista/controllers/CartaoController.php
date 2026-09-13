@@ -22,12 +22,10 @@ class CartaoController extends Controller
     public function actionIndex($q = null, $status = null, $vendedor_id = null, $cobrador_id = null)
     {
         $usuario = Yii::$app->user->identity;
-        $usuarioId = $usuario->loja_id ?? $usuario->id;
+        $usuarioId = $usuario ? $usuario->getTenantId() : null;
 
-        $query = Venda::find()
-            ->alias('v')
+        $query = Venda::findPrestanista($usuarioId)
             ->leftJoin('prest_clientes c', 'c.id = v.cliente_id')
-            ->where(['v.usuario_id' => $usuarioId])
             ->orderBy(['v.id' => SORT_DESC]);
 
         if ($q) {
@@ -45,7 +43,7 @@ class CartaoController extends Controller
         if ($status === 'ABERTO') {
             $query->andWhere(['v.status_venda_codigo' => 'EM_ABERTO']);
         } elseif ($status === 'QUITADO') {
-            $query->andWhere(['v.status_venda_codigo' => 'FINALIZADA']);
+            $query->andWhere(['v.status_venda_codigo' => ['FINALIZADA', 'QUITADA']]);
         }
 
         if ($vendedor_id) {
@@ -98,7 +96,7 @@ class CartaoController extends Controller
     public function actionImprimir($id, $formato = 'a4')
     {
         $usuario = Yii::$app->user->identity;
-        $usuarioId = $usuario->loja_id ?? $usuario->id;
+        $usuarioId = $usuario ? $usuario->getTenantId() : null;
 
         $cartao = Venda::find()
             ->where(['id' => $id, 'usuario_id' => $usuarioId])
@@ -117,10 +115,45 @@ class CartaoController extends Controller
         ]);
     }
 
+    public function actionImprimirLote($vendedor_id = null, $status = 'ABERTO')
+    {
+        $usuario = Yii::$app->user->identity;
+        $usuarioId = $usuario ? $usuario->getTenantId() : null;
+
+        $query = Venda::findPrestanista($usuarioId)
+            ->with(['cliente', 'itens.produto', 'parcelas', 'vendedor'])
+            ->orderBy(['v.id' => SORT_DESC]);
+
+        if ($status === 'ABERTO') {
+            $query->andWhere(['v.status_venda_codigo' => 'EM_ABERTO']);
+        } elseif ($status === 'QUITADO') {
+            $query->andWhere(['v.status_venda_codigo' => ['FINALIZADA', 'QUITADA']]);
+        }
+
+        if ($vendedor_id) {
+            $query->andWhere(['v.colaborador_vendedor_id' => $vendedor_id]);
+        }
+
+        $cartoes = $query->limit(100)->all();
+        $vendedores = Colaborador::find()->where(['usuario_id' => $usuarioId, 'ativo' => true])->all();
+
+        // Se solicitado modo direto para impressão
+        if (Yii::$app->request->get('modo') === 'papel') {
+            $this->layout = false;
+        }
+
+        return $this->render('imprimir_lote', [
+            'cartoes' => $cartoes,
+            'vendedores' => $vendedores,
+            'vendedor_id' => $vendedor_id,
+            'status' => $status,
+        ]);
+    }
+
     public function actionNovo()
     {
         $usuario = Yii::$app->user->identity;
-        $usuarioId = $usuario->loja_id ?? $usuario->id;
+        $usuarioId = $usuario ? $usuario->getTenantId() : null;
 
         if (Yii::$app->request->isPost) {
             $post = Yii::$app->request->post();
@@ -153,7 +186,7 @@ class CartaoController extends Controller
                 $venda->numero_parcelas = $parcelasQtd;
                 $venda->data_venda = date('Y-m-d H:i:s');
                 $venda->status_venda_codigo = 'EM_ABERTO';
-                $venda->observacoes = 'Cartão Prestanista emitido via Gestão';
+                $venda->observacoes = '[PRESTANISTA] Cartão de Crediário emitido via Gestão';
 
                 if (!$venda->save()) {
                     throw new \Exception('Erro ao criar cartão: ' . json_encode($venda->errors));

@@ -17,20 +17,16 @@ class DefaultController extends Controller
     public function actionIndex()
     {
         $usuario = Yii::$app->user->identity;
-        $usuarioId = $usuario->loja_id ?? $usuario->id;
+        $usuarioId = $usuario ? $usuario->getTenantId() : null;
         $hoje = date('Y-m-d');
         $inicioMes = date('Y-m-01');
         $fimMes = date('Y-m-t');
 
-        // Métricas de Parcelas e Cartões
-        $queryParcelas = Parcela::find()->where(['usuario_id' => $usuarioId]);
-
-        // Total A Receber em Aberto
-        $totalAReceber = (float)Parcela::find()
-            ->where(['usuario_id' => $usuarioId])
-            ->andWhere(['!=', 'status_parcela_codigo', 'PAGA'])
-            ->andWhere(['!=', 'status_parcela_codigo', 'CANCELADA'])
-            ->sum('valor_parcela') ?? 0;
+        // Total A Receber em Aberto (Apenas Vendas Prestanistas / Crediário)
+        $totalAReceber = (float)Parcela::findPrestanista($usuarioId)
+            ->andWhere(['!=', 'p.status_parcela_codigo', 'PAGA'])
+            ->andWhere(['!=', 'p.status_parcela_codigo', 'CANCELADA'])
+            ->sum('p.valor_parcela') ?? 0;
 
         // Arrecadado Hoje
         $recebidoHoje = (float)HistoricoCobranca::find()
@@ -49,24 +45,22 @@ class DefaultController extends Controller
             ->sum('valor_recebido') ?? 0;
 
         // Total de Cartões (Vendas de Crediário / Prestanista)
-        $totalCartoes = Venda::find()->where(['usuario_id' => $usuarioId])->count();
-        $cartoesAtivos = Venda::find()->where(['usuario_id' => $usuarioId, 'status_venda_codigo' => 'EM_ABERTO'])->count();
-        $cartoesQuitados = Venda::find()->where(['usuario_id' => $usuarioId, 'status_venda_codigo' => 'FINALIZADA'])->count();
+        $totalCartoes = (int)Venda::findPrestanista($usuarioId)->count();
+        $cartoesAtivos = (int)Venda::findPrestanista($usuarioId)->andWhere(['v.status_venda_codigo' => 'EM_ABERTO'])->count();
+        $cartoesQuitados = (int)Venda::findPrestanista($usuarioId)->andWhere(['v.status_venda_codigo' => ['FINALIZADA', 'QUITADA']])->count();
 
-        // Parcelas Atrasadas
-        $parcelasAtrasadasQtd = Parcela::find()
-            ->where(['usuario_id' => $usuarioId])
-            ->andWhere(['<', 'data_vencimento', $hoje])
-            ->andWhere(['!=', 'status_parcela_codigo', 'PAGA'])
-            ->andWhere(['!=', 'status_parcela_codigo', 'CANCELADA'])
+        // Parcelas Atrasadas (Apenas Vendas Prestanistas)
+        $parcelasAtrasadasQtd = (int)Parcela::findPrestanista($usuarioId)
+            ->andWhere(['<', 'p.data_vencimento', $hoje])
+            ->andWhere(['!=', 'p.status_parcela_codigo', 'PAGA'])
+            ->andWhere(['!=', 'p.status_parcela_codigo', 'CANCELADA'])
             ->count();
 
-        $valorAtrasado = (float)Parcela::find()
-            ->where(['usuario_id' => $usuarioId])
-            ->andWhere(['<', 'data_vencimento', $hoje])
-            ->andWhere(['!=', 'status_parcela_codigo', 'PAGA'])
-            ->andWhere(['!=', 'status_parcela_codigo', 'CANCELADA'])
-            ->sum('valor_parcela') ?? 0;
+        $valorAtrasado = (float)Parcela::findPrestanista($usuarioId)
+            ->andWhere(['<', 'p.data_vencimento', $hoje])
+            ->andWhere(['!=', 'p.status_parcela_codigo', 'PAGA'])
+            ->andWhere(['!=', 'p.status_parcela_codigo', 'CANCELADA'])
+            ->sum('p.valor_parcela') ?? 0;
 
         // Últimos pagamentos registrados
         $ultimosPagamentos = HistoricoCobranca::find()

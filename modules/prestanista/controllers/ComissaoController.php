@@ -16,7 +16,7 @@ class ComissaoController extends Controller
     public function actionIndex($mes = null)
     {
         $usuario = Yii::$app->user->identity;
-        $usuarioId = $usuario->loja_id ?? $usuario->id;
+        $usuarioId = $usuario ? $usuario->getTenantId() : null;
 
         $mesFiltro = $mes ?: date('Y-m');
         $inicioMes = $mesFiltro . '-01 00:00:00';

@@ -15,7 +15,7 @@ class EquipeController extends Controller
     public function actionIndex()
     {
         $usuario = Yii::$app->user->identity;
-        $usuarioId = $usuario->loja_id ?? $usuario->id;
+        $usuarioId = $usuario ? $usuario->getTenantId() : null;
 
         $colaboradores = Colaborador::find()
             ->where(['usuario_id' => $usuarioId])
