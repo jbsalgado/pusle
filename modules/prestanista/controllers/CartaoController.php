@@ -22,13 +22,22 @@ use app\modules\vendas\models\StatusVenda;
  */
 class CartaoController extends Controller
 {
-    public function actionIndex($q = null, $status = null, $vendedor_id = null, $cobrador_id = null)
-    {
+    public function actionIndex(
+        $q = null,
+        $status = null,
+        $vendedor_id = null,
+        $cobrador_id = null,
+        $cidade = null,
+        $bairro = null,
+        $data_inicio = null,
+        $data_fim = null
+    ) {
         $usuario = Yii::$app->user->identity;
         $usuarioId = $usuario ? $usuario->getTenantId() : null;
 
         $query = Venda::findPrestanista($usuarioId)
             ->leftJoin('prest_clientes c', 'c.id = v.cliente_id')
+            ->with(['cliente', 'vendedor'])
             ->orderBy(['v.id' => SORT_DESC]);
 
         if ($q) {
@@ -47,25 +56,114 @@ class CartaoController extends Controller
             $query->andWhere(['v.status_venda_codigo' => 'EM_ABERTO']);
         } elseif ($status === 'QUITADO') {
             $query->andWhere(['v.status_venda_codigo' => ['FINALIZADA', 'QUITADA']]);
+        } elseif ($status === 'ATRASADO') {
+            $hoje = date('Y-m-d');
+            $query->andWhere(['v.status_venda_codigo' => 'EM_ABERTO'])
+                ->andWhere([
+                    'exists',
+                    (new \yii\db\Query())
+                        ->from('prest_parcelas pp')
+                        ->where('pp.venda_id = v.id')
+                        ->andWhere(['pp.status_parcela_codigo' => StatusParcela::PENDENTE])
+                        ->andWhere(['<', 'pp.data_vencimento', $hoje])
+                ]);
         }
 
         if ($vendedor_id) {
             $query->andWhere(['v.colaborador_vendedor_id' => $vendedor_id]);
         }
 
+        if ($cobrador_id) {
+            $query->andWhere([
+                'or',
+                ['exists', (new \yii\db\Query())
+                    ->from('prest_parcelas p')
+                    ->where('p.venda_id = v.id')
+                    ->andWhere(['p.cobrador_id' => $cobrador_id])
+                ],
+                ['exists', (new \yii\db\Query())
+                    ->from('prest_carteira_cobranca cc')
+                    ->where('cc.cliente_id = v.cliente_id')
+                    ->andWhere(['cc.cobrador_id' => $cobrador_id, 'cc.ativo' => true])
+                ],
+                ['exists', (new \yii\db\Query())
+                    ->from('prest_historico_cobranca hc')
+                    ->innerJoin('prest_parcelas hp', 'hp.id = hc.parcela_id')
+                    ->where('hp.venda_id = v.id')
+                    ->andWhere(['hc.cobrador_id' => $cobrador_id])
+                ]
+            ]);
+        }
+
+        if ($cidade) {
+            $query->andWhere(['ilike', 'c.endereco_cidade', trim($cidade)]);
+        }
+
+        if ($bairro) {
+            $query->andWhere(['ilike', 'c.endereco_bairro', trim($bairro)]);
+        }
+
+        if ($data_inicio) {
+            $query->andWhere(['>=', 'v.data_venda', $data_inicio]);
+        }
+
+        if ($data_fim) {
+            $query->andWhere(['<=', 'v.data_venda', $data_fim]);
+        }
+
         $countQuery = clone $query;
-        $pages = new Pagination(['totalCount' => $countQuery->count(), 'pageSize' => 15]);
+        $totalCount = $countQuery->count();
+        $pages = new Pagination(['totalCount' => $totalCount, 'pageSize' => 15]);
         $cartoes = $query->offset($pages->offset)->limit($pages->limit)->all();
 
-        $vendedores = Colaborador::find()->where(['usuario_id' => $usuarioId, 'ativo' => true])->all();
+        // Listas para dropdowns de filtros
+        $vendedores = Colaborador::find()
+            ->where(['usuario_id' => $usuarioId, 'ativo' => true])
+            ->andWhere(['or', ['eh_vendedor' => true], ['eh_vendedor' => null]])
+            ->orderBy(['nome_completo' => SORT_ASC])
+            ->all();
+
+        $cobradores = Colaborador::find()
+            ->where(['usuario_id' => $usuarioId, 'ativo' => true])
+            ->andWhere(['or', ['eh_cobrador' => true], ['eh_cobrador' => null]])
+            ->orderBy(['nome_completo' => SORT_ASC])
+            ->all();
+
+        $cidades = Cliente::find()
+            ->select('endereco_cidade')
+            ->where(['usuario_id' => $usuarioId])
+            ->andWhere(['not', ['endereco_cidade' => null]])
+            ->andWhere(['!=', 'trim(endereco_cidade)', ''])
+            ->distinct()
+            ->orderBy(['endereco_cidade' => SORT_ASC])
+            ->column();
+
+        $bairrosQuery = Cliente::find()
+            ->select('endereco_bairro')
+            ->where(['usuario_id' => $usuarioId])
+            ->andWhere(['not', ['endereco_bairro' => null]])
+            ->andWhere(['!=', 'trim(endereco_bairro)', '']);
+        if ($cidade) {
+            $bairrosQuery->andWhere(['ilike', 'endereco_cidade', trim($cidade)]);
+        }
+        $bairros = $bairrosQuery->distinct()->orderBy(['endereco_bairro' => SORT_ASC])->column();
 
         return $this->render('index', [
             'cartoes' => $cartoes,
             'pages' => $pages,
+            'totalCount' => $totalCount,
             'q' => $q,
             'status' => $status,
             'vendedor_id' => $vendedor_id,
+            'cobrador_id' => $cobrador_id,
+            'cidade' => $cidade,
+            'bairro' => $bairro,
+            'data_inicio' => $data_inicio,
+            'data_fim' => $data_fim,
             'vendedores' => $vendedores,
+            'cobradores' => $cobradores,
+            'cidades' => $cidades,
+            'bairros' => $bairros,
         ]);
     }
 
