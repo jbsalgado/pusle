@@ -53,7 +53,20 @@ class AuthController extends Controller
                     return $this->redirect(['/admin/financeiro/index']);
                 }
 
-                // Caso contrário (Dono de Loja ou Colaborador), vai para o painel de vendas
+                // Redirecionamento Inteligente para Colaboradores de Campo do Módulo Prestanista
+                if (!$usuario->eh_dono_loja && !$usuario->is_admin) {
+                    if ($usuario->isColaboradorHibrido()) {
+                        return $this->redirect(['/prestanista/campo/index']);
+                    }
+                    if ($usuario->isCobradorRua()) {
+                        return $this->redirect(['/prestanista/cobrador/index']);
+                    }
+                    if ($usuario->isVendedorAmbulante()) {
+                        return $this->redirect(['/prestanista/vendedor/index']);
+                    }
+                }
+
+                // Caso contrário (Dono de Loja ou Colaborador de retaguarda), vai para o painel de vendas
                 return $this->redirect(['/vendas/inicio']);
             }
         }

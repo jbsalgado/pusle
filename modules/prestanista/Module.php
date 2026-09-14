@@ -30,43 +30,97 @@ class Module extends \yii\base\Module
             return false;
         }
 
-        // Ações públicas e de campo liberadas (vendedores e cobradores de rua)
         $controllerId = $action->controller->id;
         $actionId = $action->id;
         $rotaAtual = "{$controllerId}/{$actionId}";
-        $rotasLiberadas = [
-            'cartao/publico',
-            'vendedor/index',
-            'vendedor/dados-iniciais',
-            'vendedor/sincronizar',
-            'cobrador/index',
-            'cobrador/dados-rota',
-            'cobrador/sincronizar',
-            'cobrador/salvar-ordem-rota',
-        ];
-        if (in_array($rotaAtual, $rotasLiberadas)) {
+
+        // 1. Rotas estritamente públicas (ex: cliente final consultando seu cartão via link/WhatsApp)
+        if ($rotaAtual === 'cartao/publico') {
             return true;
         }
 
-        // Se usuário não autenticado, redireciona para login
+        // 2. APIs de sincronização offline de campo
+        $rotasApiOffline = [
+            'vendedor/sincronizar',
+            'vendedor/dados-iniciais',
+            'cobrador/sincronizar',
+            'cobrador/dados-rota',
+            'cobrador/salvar-ordem-rota',
+        ];
+
+        // Se usuário não autenticado via web
         if (Yii::$app->user->isGuest) {
+            // Se for API offline permitida, deixa prosseguir para o controller validar o payload
+            if (in_array($rotaAtual, $rotasApiOffline)) {
+                return true;
+            }
+
             Yii::$app->user->loginRequired();
             return false;
         }
 
-        // Se o usuário logado pertence a uma loja, verifica se o módulo prestanista está liberado
         $usuario = Yii::$app->user->identity;
-        $lojaId = $usuario->loja_id ?? $usuario->id ?? null;
+        $lojaId = $usuario->getTenantId();
 
+        // 3. Verificação de permissão do módulo SaaS para a loja
         if ($lojaId && class_exists(LojaPermissao::class)) {
             if (!LojaPermissao::temPermissao('modulo-prestanista', $lojaId)) {
-                // Se não tiver permissão no SaaS Admin, exibe mensagem e redireciona
                 Yii::$app->session->setFlash('warning', 'O Módulo Prestanista não está habilitado para a sua loja. Solicite a liberação ao administrador.');
                 Yii::$app->response->redirect(['/vendas/inicio'])->send();
                 return false;
             }
         }
 
-        return true;
+        // 4. Se for Dono da Loja ou Administrador Master/Supervisor, tem acesso irrestrito
+        if ($usuario->eh_dono_loja || $usuario->is_admin || $usuario->isGestorPrestanista()) {
+            return true;
+        }
+
+        // 5. O usuário logado é um COLABORADOR DE CAMPO. Aplicar separação estrita de momentos:
+        $ehVendedor = $usuario->isVendedorAmbulante();
+        $ehCobrador = $usuario->isCobradorRua();
+
+        // A) Acesso ao App do Vendedor Ambulante (Momento de Venda e Entrada de Crediário)
+        if ($controllerId === 'vendedor') {
+            if (!$ehVendedor) {
+                Yii::$app->session->setFlash('warning', 'Seu perfil de acesso é exclusivo para Cobrança de Rua.');
+                Yii::$app->response->redirect(['/prestanista/cobrador/index'])->send();
+                return false;
+            }
+            return true;
+        }
+
+        // B) Acesso ao App do Cobrador de Rua (Momento de Cobrança em Campo e Baixa de Parcelas)
+        if ($controllerId === 'cobrador') {
+            if (!$ehCobrador) {
+                Yii::$app->session->setFlash('warning', 'Seu perfil de acesso é exclusivo para Vendas Ambulantes.');
+                Yii::$app->response->redirect(['/prestanista/vendedor/index'])->send();
+                return false;
+            }
+            return true;
+        }
+
+        // C) Acesso ao Hub Seletor de Campo (apenas se for híbrido)
+        if ($controllerId === 'campo') {
+            if ($ehVendedor || $ehCobrador) {
+                return true;
+            }
+        }
+
+        // D) Bloqueio dos Controladores de Gestão/Retaguarda para Colaboradores de Campo
+        // (default, cartao, atribuicao, acerto, carga, comissao, equipe)
+        Yii::$app->session->setFlash('error', 'Acesso restrito ao administrador da loja.');
+
+        if ($ehVendedor && $ehCobrador) {
+            Yii::$app->response->redirect(['/prestanista/campo/index'])->send();
+        } elseif ($ehCobrador) {
+            Yii::$app->response->redirect(['/prestanista/cobrador/index'])->send();
+        } elseif ($ehVendedor) {
+            Yii::$app->response->redirect(['/prestanista/vendedor/index'])->send();
+        } else {
+            Yii::$app->response->redirect(['/auth/login'])->send();
+        }
+
+        return false;
     }
 }

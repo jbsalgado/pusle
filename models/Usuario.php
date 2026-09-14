@@ -418,6 +418,67 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
     }
 
     /**
+     * Relacionamento com o registro de colaborador vinculado (se for colaborador de loja)
+     * @return \yii\db\ActiveQuery
+     */
+    public function getColaborador()
+    {
+        return $this->hasOne(\app\modules\vendas\models\Colaborador::class, ['prest_usuario_login_id' => 'id']);
+    }
+
+    /**
+     * Verifica se o usuário é vendedor ambulante ativo
+     * @return bool
+     */
+    public function isVendedorAmbulante()
+    {
+        if ($this->eh_dono_loja || $this->is_admin) {
+            return false;
+        }
+        $colab = $this->colaborador;
+        return $colab && $colab->ativo && $colab->eh_vendedor;
+    }
+
+    /**
+     * Verifica se o usuário é cobrador de rua ativo
+     * @return bool
+     */
+    public function isCobradorRua()
+    {
+        if ($this->eh_dono_loja || $this->is_admin) {
+            return false;
+        }
+        $colab = $this->colaborador;
+        return $colab && $colab->ativo && $colab->eh_cobrador;
+    }
+
+    /**
+     * Verifica se o usuário é colaborador híbrido (tanto vende quanto cobra na rua)
+     * @return bool
+     */
+    public function isColaboradorHibrido()
+    {
+        if ($this->eh_dono_loja || $this->is_admin) {
+            return false;
+        }
+        $colab = $this->colaborador;
+        return $colab && $colab->ativo && $colab->eh_vendedor && $colab->eh_cobrador;
+    }
+
+    /**
+     * Verifica se o usuário é gestor/administrador com acesso à retaguarda prestanista
+     * @return bool
+     */
+    public function isGestorPrestanista()
+    {
+        if ($this->eh_dono_loja || $this->is_admin) {
+            return true;
+        }
+        $colab = $this->colaborador;
+        return $colab && $colab->ativo && $colab->eh_administrador;
+    }
+
+    /**
      * Verifica se o usuário está bloqueado
      * @return bool
      */

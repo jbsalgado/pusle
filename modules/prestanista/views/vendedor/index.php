@@ -5,6 +5,8 @@
 /** @var app\modules\vendas\models\Produto[] $produtos */
 /** @var app\modules\vendas\models\Cliente[] $clientes */
 /** @var string|null $usuarioId */
+/** @var app\modules\vendas\models\Colaborador|null $colaboradorLogado */
+/** @var bool $ehSupervisor */
 
 use yii\helpers\Html;
 use yii\helpers\Url;
@@ -78,6 +80,12 @@ $this->title = 'App do Vendedor Ambulante | Pulse Prestanista';
                 <span class="text-base">🔄</span>
                 <span id="badge-pendentes-count" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center">0</span>
             </button>
+
+            <?php if (!Yii::$app->user->isGuest): ?>
+            <a href="<?= Url::to(['/auth/logout']) ?>" data-method="post" class="p-2 bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-xl border border-slate-700 active:scale-95 transition" title="Sair do Sistema">
+                <span class="text-base">🚪</span>
+            </a>
+            <?php endif; ?>
         </div>
     </header>
 
@@ -107,11 +115,22 @@ $this->title = 'App do Vendedor Ambulante | Pulse Prestanista';
                 <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                     Vendedor
                 </label>
-                <select id="sel-vendedor" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-500 font-medium">
-                    <?php foreach ($vendedores as $v): ?>
-                        <option value="<?= Html::encode($v->id) ?>"><?= Html::encode($v->nome_completo) ?></option>
-                    <?php endforeach; ?>
-                </select>
+                <?php if (!empty($colaboradorLogado) && empty($ehSupervisor)): ?>
+                    <div class="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                            <span class="font-bold text-amber-400"><?= Html::encode($colaboradorLogado->nome_completo) ?></span>
+                        </div>
+                        <span class="text-[10px] text-slate-500 font-mono">ID #<?= Html::encode($colaboradorLogado->id) ?></span>
+                    </div>
+                    <input type="hidden" id="sel-vendedor" value="<?= Html::encode($colaboradorLogado->id) ?>" data-nome="<?= Html::encode($colaboradorLogado->nome_completo) ?>">
+                <?php else: ?>
+                    <select id="sel-vendedor" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-500 font-medium">
+                        <?php foreach ($vendedores as $v): ?>
+                            <option value="<?= Html::encode($v->id) ?>"><?= Html::encode($v->nome_completo) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                <?php endif; ?>
             </div>
 
             <!-- Identificação do Cliente -->
@@ -754,7 +773,9 @@ $this->title = 'App do Vendedor Ambulante | Pulse Prestanista';
             const dataPrimeira = document.getElementById('campo-data-primeira').value;
             const vendedorSelect = document.getElementById('sel-vendedor');
             const vendedorId = vendedorSelect ? vendedorSelect.value : null;
-            const vendedorNome = vendedorSelect && vendedorSelect.selectedIndex >= 0 ? vendedorSelect.options[vendedorSelect.selectedIndex].text : 'Vendedor';
+            const vendedorNome = (vendedorSelect && vendedorSelect.tagName === 'SELECT' && vendedorSelect.selectedIndex >= 0)
+                ? vendedorSelect.options[vendedorSelect.selectedIndex].text
+                : (vendedorSelect ? (vendedorSelect.getAttribute('data-nome') || vendedorSelect.value) : 'Vendedor');
 
             const tempId = 'venda_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
 

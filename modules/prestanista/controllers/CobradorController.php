@@ -31,6 +31,14 @@ class CobradorController extends Controller
         $usuario = Yii::$app->user->identity;
         $usuarioId = $usuario ? $usuario->getTenantId() : ($loja_id ?: null);
 
+        $colaboradorLogado = null;
+        $ehSupervisor = false;
+
+        if ($usuario) {
+            $ehSupervisor = $usuario->eh_dono_loja || $usuario->is_admin || $usuario->isGestorPrestanista();
+            $colaboradorLogado = $usuario->colaborador;
+        }
+
         if (!$usuarioId && $cobrador_id) {
             $colab = Colaborador::findOne(['id' => $cobrador_id, 'ativo' => true]);
             if ($colab) {
@@ -49,11 +57,18 @@ class CobradorController extends Controller
         if ($usuarioId) {
             $uLoja = \app\models\Usuario::findOne($usuarioId);
             $lojaNome = $uLoja ? ($uLoja->nome_loja ?? $uLoja->nome ?? 'Pulse Prestanista') : 'Pulse Prestanista';
-            $cobradores = Colaborador::find()
-                ->where(['usuario_id' => $usuarioId, 'ativo' => true])
-                ->andWhere(['or', ['eh_cobrador' => true], ['eh_cobrador' => null]])
-                ->orderBy(['nome_completo' => SORT_ASC])
-                ->all();
+
+            // Se for colaborador cobrador comum, lista apenas a si mesmo e trava no seu id
+            if ($colaboradorLogado && !$ehSupervisor) {
+                $cobradores = [$colaboradorLogado];
+                $cobrador_id = $colaboradorLogado->id;
+            } else {
+                $cobradores = Colaborador::find()
+                    ->where(['usuario_id' => $usuarioId, 'ativo' => true])
+                    ->andWhere(['or', ['eh_cobrador' => true], ['eh_cobrador' => null]])
+                    ->orderBy(['nome_completo' => SORT_ASC])
+                    ->all();
+            }
         }
 
         $this->layout = false; // Layout mobile app dedicado
@@ -63,6 +78,8 @@ class CobradorController extends Controller
             'cobradores' => $cobradores,
             'cobradorId' => $cobrador_id,
             'usuarioId' => $usuarioId,
+            'colaboradorLogado' => $colaboradorLogado,
+            'ehSupervisor' => $ehSupervisor,
         ]);
     }
 
@@ -75,6 +92,18 @@ class CobradorController extends Controller
 
         $usuario = Yii::$app->user->identity;
         $usuarioId = $usuario ? $usuario->getTenantId() : ($loja_id ?: Yii::$app->request->get('loja_id'));
+
+        $colaboradorLogado = null;
+        $ehSupervisor = false;
+        if ($usuario) {
+            $ehSupervisor = $usuario->eh_dono_loja || $usuario->is_admin || $usuario->isGestorPrestanista();
+            $colaboradorLogado = $usuario->colaborador;
+        }
+
+        // Se for colaborador de rua e não supervisor, força a rota do próprio colaborador logado
+        if ($colaboradorLogado && !$ehSupervisor) {
+            $cobrador_id = $colaboradorLogado->id;
+        }
 
         if (!$usuarioId && $cobrador_id) {
             $colab = Colaborador::findOne(['id' => $cobrador_id, 'ativo' => true]);
@@ -218,8 +247,11 @@ class CobradorController extends Controller
         $pagamentosOffline = $payload['pagamentos_offline'] ?? [];
         $tenantId = $payload['usuario_id'] ?? null;
 
+        $usuario = Yii::$app->user->identity;
+        $colaboradorLogado = $usuario ? $usuario->colaborador : null;
+        $ehSupervisor = $usuario ? ($usuario->eh_dono_loja || $usuario->is_admin || $usuario->isGestorPrestanista()) : false;
+
         if (!$tenantId) {
-            $usuario = Yii::$app->user->identity;
             $tenantId = $usuario ? $usuario->getTenantId() : null;
         }
 
@@ -255,6 +287,11 @@ class CobradorController extends Controller
             $dataPagamento = !empty($item['data_pagamento']) ? $item['data_pagamento'] : date('Y-m-d');
             $tipoPagamento = trim($item['tipo_pagamento'] ?? 'DINHEIRO');
             $cobradorId = $item['cobrador_id'] ?? null;
+
+            // Se for colaborador autenticado de rua e não supervisor, trava o ID do cobrador nele mesmo
+            if ($colaboradorLogado && !$ehSupervisor) {
+                $cobradorId = $colaboradorLogado->id;
+            }
 
             $transaction = Yii::$app->db->beginTransaction();
             try {

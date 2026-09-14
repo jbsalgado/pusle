@@ -26,9 +26,12 @@ class EquipeController extends Controller
             ->where(['usuario_id' => $usuarioId])
             ->all();
 
+        $lojaNome = $usuario ? ($usuario->nome_loja ?? $usuario->nome ?? 'Pulse Prestanista') : 'Pulse Prestanista';
+
         return $this->render('index', [
             'colaboradores' => $colaboradores,
             'rotas' => $rotas,
+            'lojaNome' => $lojaNome,
         ]);
     }
 }

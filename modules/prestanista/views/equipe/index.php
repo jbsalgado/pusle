@@ -62,22 +62,68 @@ $this->title = 'Equipes: Vendedores e Cobradores';
                     </div>
 
                     <!-- Dados adicionais -->
-                    <div class="bg-slate-900/60 border border-slate-800/60 rounded-2xl p-3 text-xs space-y-1">
+                    <div class="bg-slate-900/60 border border-slate-800/60 rounded-2xl p-3 text-xs space-y-1.5">
                         <div class="flex justify-between text-slate-400">
-                            <span>CPF:</span>
+                            <span>CPF / Login:</span>
                             <span class="font-bold text-slate-200"><?= Html::encode($c->cpf ?: '—') ?></span>
                         </div>
                         <div class="flex justify-between text-slate-400">
                             <span>Função:</span>
                             <span class="font-bold text-slate-200"><?= Html::encode($c->funcao ?: 'Ambulante') ?></span>
                         </div>
+                        <div class="flex justify-between items-center pt-1.5 border-t border-slate-800/40">
+                            <span class="text-slate-400">Acesso ao App:</span>
+                            <?php if ($c->temLoginProprio()): ?>
+                                <span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                                    🔑 Login Ativo
+                                </span>
+                            <?php else: ?>
+                                <span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                                    ⚠️ Sem Login
+                                </span>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
 
+                <?php
+                $foneDigits = preg_replace('/\D/', '', $c->telefone ?? '');
+                if (strlen($foneDigits) >= 10 && !str_starts_with($foneDigits, '55')) {
+                    $foneDigits = '55' . $foneDigits;
+                }
+
+                $tipoFuncao = 'Colaborador';
+                if ($ehVendedor && $ehCobrador) {
+                    $tipoFuncao = 'Vendedor e Cobrador';
+                } elseif ($ehVendedor) {
+                    $tipoFuncao = 'Vendedor Ambulante';
+                } elseif ($ehCobrador) {
+                    $tipoFuncao = 'Cobrador de Rua';
+                }
+
+                $loginUrl = Url::to(['/auth/login'], true);
+                $cpfDigits = $c->cpf ? preg_replace('/\D/', '', $c->cpf) : '';
+                $lojaNomeStr = $lojaNome ?? 'Pulse Prestanista';
+
+                $msgWhatsApp = "Olá, {$c->nome}!\n\n"
+                    . "Seu acesso ao sistema como *{$tipoFuncao}* na *{$lojaNomeStr}* está liberado:\n\n"
+                    . "📱 Link de acesso: {$loginUrl}\n"
+                    . "👤 Seu Usuário (CPF): " . ($cpfDigits ?: 'Seu CPF cadastrado') . "\n\n"
+                    . "Entre no link e digite sua senha para acessar seu aplicativo de campo.";
+
+                $waUrl = !empty($foneDigits) ? "https://wa.me/{$foneDigits}?text=" . rawurlencode($msgWhatsApp) : null;
+                ?>
+
                 <div class="pt-4 border-t border-slate-800/80 mt-4 flex items-center justify-between gap-2">
                     <a href="<?= Url::to(['/vendas/colaborador/update', 'id' => $c->id]) ?>" class="flex-1 py-2 px-3 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white font-bold text-xs rounded-xl text-center border border-slate-800 transition">
-                        ✏️ Editar Cadastro
+                        ✏️ Editar
                     </a>
+                    <?php if ($c->temLoginProprio() && $waUrl): ?>
+                        <a href="<?= $waUrl ?>" target="_blank" class="py-2 px-3 bg-emerald-600/90 hover:bg-emerald-500 text-white font-black text-xs rounded-xl text-center shadow-sm transition flex items-center justify-center gap-1" title="Enviar dados de acesso via WhatsApp">
+                            <span>📲</span>
+                            <span class="hidden sm:inline">WhatsApp</span>
+                        </a>
+                    <?php endif; ?>
                 </div>
             </div>
         <?php endforeach; ?>

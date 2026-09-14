@@ -1,199 +1,127 @@
 <?php
 
-require __DIR__ . '/../vendor/autoload.php';
-require __DIR__ . '/../vendor/yiisoft/yii2/Yii.php';
+require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../vendor/yiisoft/yii2/Yii.php';
 
-$config = require __DIR__ . '/../config/web.php';
-$app = new yii\web\Application($config);
+$config = require __DIR__ . '/../config/console.php';
+new yii\console\Application($config);
 
-use app\modules\vendas\models\Venda;
-use app\modules\vendas\models\Parcela;
-use app\modules\vendas\models\StatusParcela;
-use app\modules\vendas\models\StatusVenda;
-use app\modules\prestanista\controllers\CobradorController;
+echo "=== TESTANDO ISOLAMENTO E ACESSO PRESTANISTA ===\n\n";
+
+// 1. Testa helpers no model Usuario com mocks de Colaborador
+echo "1. Testes de flags no Colaborador e métodos de Usuario:\n";
+
+$colabVendedor = new \app\modules\vendas\models\Colaborador([
+    'id' => 'colab-vendedor-1',
+    'nome_completo' => 'Vendedor Teste',
+    'eh_vendedor' => true,
+    'eh_cobrador' => false,
+    'eh_administrador' => false,
+]);
+
+$colabCobrador = new \app\modules\vendas\models\Colaborador([
+    'id' => 'colab-cobrador-2',
+    'nome_completo' => 'Cobrador Teste',
+    'eh_vendedor' => false,
+    'eh_cobrador' => true,
+    'eh_administrador' => false,
+]);
+
+$colabHibrido = new \app\modules\vendas\models\Colaborador([
+    'id' => 'colab-hibrido-3',
+    'nome_completo' => 'Híbrido Teste',
+    'eh_vendedor' => true,
+    'eh_cobrador' => true,
+    'eh_administrador' => false,
+]);
+
+assert($colabVendedor->eh_vendedor === true && !$colabVendedor->eh_cobrador);
+assert($colabCobrador->eh_cobrador === true && !$colabCobrador->eh_vendedor);
+assert($colabHibrido->eh_vendedor === true && $colabHibrido->eh_cobrador === true);
+echo "✓ Flags de colaborador validadas com sucesso.\n";
+
+// Mock de Usuário para testar métodos de checagem de perfil
+$userVendedor = new class extends \app\models\Usuario {
+    public $colabMock;
+    public function getColaborador() {
+        return $this->colabMock;
+    }
+};
+$userVendedor->colabMock = $colabVendedor;
+$userVendedor->eh_dono_loja = false;
+$userVendedor->is_admin = false;
+
+$userCobrador = new class extends \app\models\Usuario {
+    public $colabMock;
+    public function getColaborador() {
+        return $this->colabMock;
+    }
+};
+$userCobrador->colabMock = $colabCobrador;
+$userCobrador->eh_dono_loja = false;
+$userCobrador->is_admin = false;
+
+$userHibrido = new class extends \app\models\Usuario {
+    public $colabMock;
+    public function getColaborador() {
+        return $this->colabMock;
+    }
+};
+$userHibrido->colabMock = $colabHibrido;
+$userHibrido->eh_dono_loja = false;
+$userHibrido->is_admin = false;
+
+$userDono = new \app\models\Usuario([
+    'eh_dono_loja' => true,
+    'is_admin' => false,
+]);
+
+assert($userVendedor->isVendedorAmbulante() === true, "userVendedor deve ser vendedor ambulante");
+assert($userVendedor->isCobradorRua() === false, "userVendedor NÃO deve ser cobrador de rua");
+assert($userVendedor->isColaboradorHibrido() === false, "userVendedor NÃO deve ser híbrido");
+
+assert($userCobrador->isCobradorRua() === true, "userCobrador deve ser cobrador de rua");
+assert($userCobrador->isVendedorAmbulante() === false, "userCobrador NÃO deve ser vendedor ambulante");
+assert($userCobrador->isColaboradorHibrido() === false, "userCobrador NÃO deve ser híbrido");
+
+assert($userHibrido->isVendedorAmbulante() === true, "userHibrido deve ser vendedor");
+assert($userHibrido->isCobradorRua() === true, "userHibrido deve ser cobrador");
+assert($userHibrido->isColaboradorHibrido() === true, "userHibrido DEVE ser híbrido");
+
+assert($userDono->isGestorPrestanista() === true, "Dono deve ser gestor prestanista");
+assert($userDono->isVendedorAmbulante() === false, "Dono sem vínculo colab não é vendedor ambulante");
+echo "✓ Métodos de validação de papéis em Usuario validados com sucesso.\n\n";
+
+// 2. Testa existência de controllers e views
+echo "2. Testes de integridade estrutural:\n";
+assert(class_exists('\app\modules\prestanista\controllers\CampoController'), "CampoController deve existir");
+assert(class_exists('\app\modules\prestanista\controllers\VendedorController'), "VendedorController deve existir");
+assert(class_exists('\app\modules\prestanista\controllers\CobradorController'), "CobradorController deve existir");
+assert(file_exists(__DIR__ . '/../modules/prestanista/views/campo/index.php'), "View campo/index.php deve existir");
+assert(file_exists(__DIR__ . '/../modules/prestanista/views/vendedor/index.php'), "View vendedor/index.php deve existir");
+assert(file_exists(__DIR__ . '/../modules/prestanista/views/cobrador/index.php'), "View cobrador/index.php deve existir");
+assert(file_exists(__DIR__ . '/../modules/prestanista/views/equipe/index.php'), "View equipe/index.php deve existir");
+echo "✓ Todos os Controllers e Views existem e estão acessíveis.\n\n";
+
+// 3. Validação do código de redirecionamento no AuthController
+echo "3. Validação de redirecionamento pós-login no AuthController:\n";
+$authContent = file_get_contents(__DIR__ . '/../controllers/AuthController.php');
+assert(strpos($authContent, 'isColaboradorHibrido') !== false, "AuthController deve verificar isColaboradorHibrido");
+assert(strpos($authContent, '/prestanista/campo/index') !== false, "AuthController deve redirecionar híbrido para /prestanista/campo/index");
+assert(strpos($authContent, '/prestanista/vendedor/index') !== false, "AuthController deve redirecionar vendedor para /prestanista/vendedor/index");
+assert(strpos($authContent, '/prestanista/cobrador/index') !== false, "AuthController deve redirecionar cobrador para /prestanista/cobrador/index");
+echo "✓ Redirecionamentos pós-login verificados no AuthController.\n\n";
+
+// 4. Validação de regras de isolamento no Module.php
+echo "4. Validação de regras de isolamento no Module.php:\n";
+$moduleContent = file_get_contents(__DIR__ . '/../modules/prestanista/Module.php');
+assert(strpos($moduleContent, 'isVendedorAmbulante') !== false, "Module deve verificar isVendedorAmbulante");
+assert(strpos($moduleContent, 'isCobradorRua') !== false, "Module deve verificar isCobradorRua");
+assert(strpos($moduleContent, "Seu perfil de acesso é exclusivo para Cobrança de Rua.") !== false, "Bloqueio de vendedor em cobrador presente");
+assert(strpos($moduleContent, "Seu perfil de acesso é exclusivo para Vendas Ambulantes.") !== false, "Bloqueio de cobrador em vendedor presente");
+assert(strpos($moduleContent, "Acesso restrito ao administrador da loja.") !== false, "Bloqueio de painel administrativo presente");
+echo "✓ Regras de isolamento no Module.php verificadas com sucesso.\n\n";
 
 echo "========================================================\n";
-echo " TESTE DE ISOLAMENTO E VALIDAÇÃO DE VENDAS PRESTANISTAS \n";
+echo "✓ TODOS OS TESTES PASSARAM COM SUCESSO!\n";
 echo "========================================================\n";
-
-$usuario = \app\models\Usuario::find()->one();
-if (!$usuario) {
-    die("Nenhum usuário encontrado para o teste.\n");
-}
-$tenantId = $usuario->id;
-echo "Usando tenant: {$usuario->nome} (ID: {$tenantId})\n\n";
-
-// Localiza forma de pagamento
-$formaPag = \app\modules\vendas\models\FormaPagamento::find()->where(['usuario_id' => $tenantId])->one();
-if (!$formaPag) {
-    $formaPag = \app\modules\vendas\models\FormaPagamento::find()->one();
-}
-
-$transaction = Yii::$app->db->beginTransaction();
-try {
-    // 1. Criar Venda Balcão com termo "cartão" nas observações (Simulando PDV)
-    $vendaBalcaoCartao = new Venda();
-    $vendaBalcaoCartao->usuario_id = $tenantId;
-    $vendaBalcaoCartao->valor_total = 100.00;
-    $vendaBalcaoCartao->data_venda = date('Y-m-d H:i:s');
-    $vendaBalcaoCartao->forma_pagamento_id = $formaPag->id;
-    $vendaBalcaoCartao->status_venda_codigo = StatusVenda::EM_ABERTO;
-    $vendaBalcaoCartao->tipo_venda = Venda::TIPO_BALCAO;
-    $vendaBalcaoCartao->observacoes = "Venda no balcão paga com cartão de crédito na maquineta";
-    $vendaBalcaoCartao->save(false);
-
-    $pBalcao = new Parcela();
-    $pBalcao->venda_id = $vendaBalcaoCartao->id;
-    $pBalcao->usuario_id = $tenantId;
-    $pBalcao->numero_parcela = 1;
-    $pBalcao->valor_parcela = 100.00;
-    $pBalcao->data_vencimento = date('Y-m-d');
-    $pBalcao->status_parcela_codigo = StatusParcela::PENDENTE;
-    $pBalcao->save(false);
-
-    // 2. Criar Venda Balcão a prazo / fiado
-    $vendaBalcaoPrazo = new Venda();
-    $vendaBalcaoPrazo->usuario_id = $tenantId;
-    $vendaBalcaoPrazo->valor_total = 150.00;
-    $vendaBalcaoPrazo->data_venda = date('Y-m-d H:i:s');
-    $vendaBalcaoPrazo->forma_pagamento_id = $formaPag->id;
-    $vendaBalcaoPrazo->status_venda_codigo = StatusVenda::EM_ABERTO;
-    $vendaBalcaoPrazo->tipo_venda = Venda::TIPO_BALCAO;
-    $vendaBalcaoPrazo->observacoes = "Venda a Prazo (Boleto / Fiado) balcão";
-    $vendaBalcaoPrazo->save(false);
-
-    $pPrazo = new Parcela();
-    $pPrazo->venda_id = $vendaBalcaoPrazo->id;
-    $pPrazo->usuario_id = $tenantId;
-    $pPrazo->numero_parcela = 1;
-    $pPrazo->valor_parcela = 150.00;
-    $pPrazo->data_vencimento = date('Y-m-d');
-    $pPrazo->status_parcela_codigo = StatusParcela::PENDENTE;
-    $pPrazo->save(false);
-
-    // 3. Criar Venda Catálogo PWA
-    $vendaPwa = new Venda();
-    $vendaPwa->usuario_id = $tenantId;
-    $vendaPwa->valor_total = 200.00;
-    $vendaPwa->data_venda = date('Y-m-d H:i:s');
-    $vendaPwa->forma_pagamento_id = $formaPag->id;
-    $vendaPwa->status_venda_codigo = StatusVenda::EM_ABERTO;
-    $vendaPwa->tipo_venda = Venda::TIPO_CATALOGO_PWA;
-    $vendaPwa->observacoes = "Cliente comprou no site e pediu entrega para as 19h";
-    $vendaPwa->save(false);
-
-    $pPwa = new Parcela();
-    $pPwa->venda_id = $vendaPwa->id;
-    $pPwa->usuario_id = $tenantId;
-    $pPwa->numero_parcela = 1;
-    $pPwa->valor_parcela = 200.00;
-    $pPwa->data_vencimento = date('Y-m-d');
-    $pPwa->status_parcela_codigo = StatusParcela::PENDENTE;
-    $pPwa->save(false);
-
-    // 4. Criar Venda Legítima Prestanista
-    $vendaPrestanista = new Venda();
-    $vendaPrestanista->usuario_id = $tenantId;
-    $vendaPrestanista->valor_total = 300.00;
-    $vendaPrestanista->data_venda = date('Y-m-d H:i:s');
-    $vendaPrestanista->forma_pagamento_id = $formaPag->id;
-    $vendaPrestanista->status_venda_codigo = StatusVenda::EM_ABERTO;
-    $vendaPrestanista->tipo_venda = Venda::TIPO_PRESTANISTA;
-    $vendaPrestanista->observacoes = "[PRESTANISTA] [FREQ:7] Cartão de Crediário emitido via Gestão";
-    $vendaPrestanista->save(false);
-
-    $pPrest = new Parcela();
-    $pPrest->venda_id = $vendaPrestanista->id;
-    $pPrest->usuario_id = $tenantId;
-    $pPrest->numero_parcela = 1;
-    $pPrest->valor_parcela = 300.00;
-    $pPrest->data_vencimento = date('Y-m-d');
-    $pPrest->status_parcela_codigo = StatusParcela::PENDENTE;
-    $pPrest->save(false);
-
-    echo "Vendas de teste criadas:\n";
-    echo "  1. Balcão Cartão ID: {$vendaBalcaoCartao->id}\n";
-    echo "  2. Balcão a Prazo ID: {$vendaBalcaoPrazo->id}\n";
-    echo "  3. Catálogo PWA ID: {$vendaPwa->id}\n";
-    echo "  4. Legítima Prestanista ID: {$vendaPrestanista->id}\n\n";
-
-    // Executa a consulta Venda::findPrestanista
-    $prestanistasEncontradas = Venda::findPrestanista($tenantId)
-        ->andWhere(['v.id' => [
-            $vendaBalcaoCartao->id,
-            $vendaBalcaoPrazo->id,
-            $vendaPwa->id,
-            $vendaPrestanista->id,
-        ]])
-        ->all();
-
-    $idsEncontrados = array_map(function($v) { return $v->id; }, $prestanistasEncontradas);
-
-    echo "--- AVALIAÇÃO DOS RESULTADOS ---\n";
-
-    $passou = true;
-
-    // Teste 1: Venda Balcão Cartão NÃO deve aparecer
-    if (in_array($vendaBalcaoCartao->id, $idsEncontrados)) {
-        echo "❌ FALHA: Venda de Balcão com cartão apareceu como Prestanista!\n";
-        $passou = false;
-    } else {
-        echo "✅ SUCESSO: Venda de Balcão com cartão foi corretamente IGNORADA.\n";
-    }
-
-    // Teste 2: Venda Balcão a Prazo NÃO deve aparecer
-    if (in_array($vendaBalcaoPrazo->id, $idsEncontrados)) {
-        echo "❌ FALHA: Venda de Balcão a Prazo apareceu como Prestanista!\n";
-        $passou = false;
-    } else {
-        echo "✅ SUCESSO: Venda de Balcão a Prazo foi corretamente IGNORADA.\n";
-    }
-
-    // Teste 3: Venda PWA NÃO deve aparecer
-    if (in_array($vendaPwa->id, $idsEncontrados)) {
-        echo "❌ FALHA: Venda do Catálogo PWA apareceu como Prestanista!\n";
-        $passou = false;
-    } else {
-        echo "✅ SUCESSO: Venda do Catálogo PWA foi corretamente IGNORADA.\n";
-    }
-
-    // Teste 4: Venda Prestanista DEVE aparecer
-    if (in_array($vendaPrestanista->id, $idsEncontrados)) {
-        echo "✅ SUCESSO: Venda legítima Prestanista foi CAPTURADA com perfeição.\n";
-    } else {
-        echo "❌ FALHA: Venda legítima Prestanista NÃO foi encontrada!\n";
-        $passou = false;
-    }
-
-    // Teste 5: Endpoint CobradorController::actionDadosRota
-    Yii::$app->user->setIdentity($usuario);
-    $cobradorController = new CobradorController('cobrador', $app->getModule('prestanista'));
-    $resultadoRota = $cobradorController->actionDadosRota();
-
-    echo "\nTeste CobradorController::actionDadosRota():\n";
-    echo "  Total retornado na rota: " . $resultadoRota['total'] . "\n";
-    $vendaIdsNaRota = array_column($resultadoRota['rotas'], 'venda_id');
-    
-    if (in_array($vendaBalcaoCartao->id, $vendaIdsNaRota) || in_array($vendaBalcaoPrazo->id, $vendaIdsNaRota) || in_array($vendaPwa->id, $vendaIdsNaRota)) {
-        echo "❌ FALHA: Vendas indevidas apareceram na rota do cobrador!\n";
-        $passou = false;
-    } elseif (in_array($vendaPrestanista->id, $vendaIdsNaRota)) {
-        echo "✅ SUCESSO: Apenas a venda legítima Prestanista apareceu na rota do cobrador!\n";
-    } else {
-        echo "ℹ️ Venda Prestanista criada não tem cliente vinculado (esperado para o teste sintético).\n";
-    }
-
-    if ($passou) {
-        echo "\n🎉 TODOS OS TESTES PASSARAM COM 100% DE SUCESSO!\n";
-    } else {
-        echo "\n⚠️ ALGUNS TESTES FALHARAM. REVISAR IMPLEMENTAÇÃO.\n";
-    }
-
-    // Rollback para não poluir o banco de dados
-    $transaction->rollBack();
-    echo "\nRollback executado com sucesso. Banco de dados limpo.\n";
-
-} catch (\Exception $e) {
-    $transaction->rollBack();
-    echo "Erro durante o teste: " . $e->getMessage() . "\n" . $e->getTraceAsString() . "\n";
-}

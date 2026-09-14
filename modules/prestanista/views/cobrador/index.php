@@ -4,6 +4,8 @@
 /** @var app\modules\vendas\models\Colaborador[] $cobradores */
 /** @var string|null $cobradorId */
 /** @var string|null $usuarioId */
+/** @var app\modules\vendas\models\Colaborador|null $colaboradorLogado */
+/** @var bool $ehSupervisor */
 
 use yii\helpers\Html;
 use yii\helpers\Url;
@@ -76,20 +78,37 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
                 <span class="text-base">🔄</span>
                 <span id="badge-pendentes-sync" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center">0</span>
             </button>
+
+            <?php if (!Yii::$app->user->isGuest): ?>
+            <a href="<?= Url::to(['/auth/logout']) ?>" data-method="post" class="p-2 bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-xl border border-slate-700 active:scale-95 transition" title="Sair do Sistema">
+                <span class="text-base">🚪</span>
+            </a>
+            <?php endif; ?>
         </div>
     </header>
 
     <!-- Barra de Filtro de Cobrador e Busca na Rota -->
     <div class="bg-slate-900/90 border-b border-slate-800 p-3 flex flex-col sm:flex-row gap-2 items-center justify-between">
         <div class="w-full sm:w-60">
-            <select id="sel-cobrador-ativo" onchange="trocarCobrador(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-amber-500 font-medium">
-                <option value="">🛵 Toda a Carteira da Loja</option>
-                <?php foreach ($cobradores as $cob): ?>
-                    <option value="<?= Html::encode($cob->id) ?>" <?= ((string)$cobradorId === (string)$cob->id) ? 'selected' : '' ?>>
-                        <?= Html::encode($cob->nome_completo) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
+            <?php if (!empty($colaboradorLogado) && empty($ehSupervisor)): ?>
+                <div class="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        <span class="font-bold text-emerald-400"><?= Html::encode($colaboradorLogado->nome_completo) ?></span>
+                    </div>
+                    <span class="text-[10px] text-slate-500 font-mono">Rota Pessoal</span>
+                </div>
+                <input type="hidden" id="sel-cobrador-ativo" value="<?= Html::encode($colaboradorLogado->id) ?>">
+            <?php else: ?>
+                <select id="sel-cobrador-ativo" onchange="trocarCobrador(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-amber-500 font-medium">
+                    <option value="">🛵 Toda a Carteira da Loja</option>
+                    <?php foreach ($cobradores as $cob): ?>
+                        <option value="<?= Html::encode($cob->id) ?>" <?= ((string)$cobradorId === (string)$cob->id) ? 'selected' : '' ?>>
+                            <?= Html::encode($cob->nome_completo) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            <?php endif; ?>
         </div>
 
         <div class="w-full sm:flex-1 flex gap-2">

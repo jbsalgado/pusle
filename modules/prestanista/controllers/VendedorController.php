@@ -37,13 +37,27 @@ class VendedorController extends Controller
         $clientes = [];
         $lojaNome = 'Pulse Prestanista';
 
+        $colaboradorLogado = null;
+        $ehSupervisor = false;
+
+        if ($usuario) {
+            $ehSupervisor = $usuario->eh_dono_loja || $usuario->is_admin || $usuario->isGestorPrestanista();
+            $colaboradorLogado = $usuario->colaborador;
+        }
+
         if ($usuarioId) {
             $lojaNome = $usuario->nome_loja ?? $usuario->nome ?? 'Pulse Prestanista';
-            $vendedores = Colaborador::find()
-                ->where(['usuario_id' => $usuarioId, 'ativo' => true])
-                ->andWhere(['or', ['eh_vendedor' => true], ['eh_vendedor' => null]])
-                ->orderBy(['nome_completo' => SORT_ASC])
-                ->all();
+
+            // Se for colaborador vendedor comum, lista apenas a si mesmo
+            if ($colaboradorLogado && !$ehSupervisor) {
+                $vendedores = [$colaboradorLogado];
+            } else {
+                $vendedores = Colaborador::find()
+                    ->where(['usuario_id' => $usuarioId, 'ativo' => true])
+                    ->andWhere(['or', ['eh_vendedor' => true], ['eh_vendedor' => null]])
+                    ->orderBy(['nome_completo' => SORT_ASC])
+                    ->all();
+            }
 
             $produtos = Produto::find()
                 ->where(['usuario_id' => $usuarioId, 'ativo' => true])
@@ -66,6 +80,8 @@ class VendedorController extends Controller
             'produtos' => $produtos,
             'clientes' => $clientes,
             'usuarioId' => $usuarioId,
+            'colaboradorLogado' => $colaboradorLogado,
+            'ehSupervisor' => $ehSupervisor,
         ]);
     }
 
@@ -265,6 +281,13 @@ class VendedorController extends Controller
                 $frequencia = (int)($itemVenda['frequencia'] ?? 7);
                 $numeroParcelas = max(1, (int)($itemVenda['numero_parcelas'] ?? 1));
                 $vendedorId = $itemVenda['vendedor_id'] ?? null;
+
+                // Garante que o colaborador vendedor não emita vendas em nome de terceiros
+                $colabSessao = $usuario ? $usuario->colaborador : null;
+                if ($colabSessao && !$usuario->eh_dono_loja && !$usuario->is_admin) {
+                    $vendedorId = $colabSessao->id;
+                }
+
                 $dataVendaInput = !empty($itemVenda['data_venda']) ? $itemVenda['data_venda'] : date('Y-m-d');
                 $primeiroVencimento = !empty($itemVenda['data_primeiro_vencimento']) 
                     ? $itemVenda['data_primeiro_vencimento'] 
