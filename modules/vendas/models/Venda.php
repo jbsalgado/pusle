@@ -645,7 +645,7 @@ class Venda extends ActiveRecord
         $query->andWhere([
             'or',
             ['v.observacoes' => null],
-            ['not ilike', 'v.observacoes', '%Pedido PWA%']
+            ['not ilike', 'v.observacoes', 'Pedido PWA']
         ]);
 
         // Considera Prestanista se:
@@ -654,15 +654,15 @@ class Venda extends ActiveRecord
         // 3. OU forma de pagamento é do tipo Crediário / Prestanista / Carnê
         $query->andWhere([
             'or',
-            ['ilike', 'v.observacoes', '%prestanista%'],
-            ['ilike', 'v.observacoes', '%cartão%'],
-            ['ilike', 'v.observacoes', '%cartao%'],
-            ['ilike', 'v.observacoes', '%crediário%'],
-            ['ilike', 'v.observacoes', '%crediario%'],
-            ['ilike', 'v.observacoes', '%a prazo%'],
-            ['ilike', 'v.observacoes', '%fiado%'],
-            ['ilike', 'v.observacoes', '%carnê%'],
-            ['ilike', 'v.observacoes', '%carne%'],
+            ['ilike', 'v.observacoes', 'prestanista'],
+            ['ilike', 'v.observacoes', 'cartão'],
+            ['ilike', 'v.observacoes', 'cartao'],
+            ['ilike', 'v.observacoes', 'crediário'],
+            ['ilike', 'v.observacoes', 'crediario'],
+            ['ilike', 'v.observacoes', 'a prazo'],
+            ['ilike', 'v.observacoes', 'fiado'],
+            ['ilike', 'v.observacoes', 'carnê'],
+            ['ilike', 'v.observacoes', 'carne'],
             [
                 'exists',
                 (new \yii\db\Query())
@@ -676,11 +676,11 @@ class Venda extends ActiveRecord
                     ->from('prest_formas_pagamento fp')
                     ->where('fp.id = v.forma_pagamento_id')
                     ->andWhere(['or',
-                        ['ilike', 'fp.nome', '%crediario%'],
-                        ['ilike', 'fp.nome', '%crediário%'],
-                        ['ilike', 'fp.nome', '%prestanista%'],
-                        ['ilike', 'fp.nome', '%carnê%'],
-                        ['ilike', 'fp.nome', '%carne%']
+                        ['ilike', 'fp.nome', 'crediario'],
+                        ['ilike', 'fp.nome', 'crediário'],
+                        ['ilike', 'fp.nome', 'prestanista'],
+                        ['ilike', 'fp.nome', 'carnê'],
+                        ['ilike', 'fp.nome', 'carne']
                     ])
             ]
         ]);
