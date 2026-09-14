@@ -228,6 +228,19 @@ class Cliente extends ActiveRecord
     }
 
     /**
+     * Alias snake_case para propriedades mágicas do Yii
+     */
+    public function getTelefone_formatado()
+    {
+        return $this->getTelefoneFormatado();
+    }
+
+    public function getCpf_formatado()
+    {
+        return $this->getCpfFormatado();
+    }
+
+    /**
      * Getter virtual para celular (alias de telefone)
      */
     public function getCelular()

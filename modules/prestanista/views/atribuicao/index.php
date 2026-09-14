@@ -274,13 +274,16 @@ $this->title = 'Atribuição de Cobrança aos Cobradores';
                                     </td>
                                     <td class="p-3.5">
                                         <div class="font-bold text-white text-sm">
-                                            <?= Html::encode($cliente ? $cliente->nome : 'Sem Cliente') ?>
+                                            <?= Html::encode($cliente ? ($cliente->nome_completo ?: $cliente->nome) : 'Sem Cliente') ?>
                                         </div>
                                         <div class="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
                                             <span>Cartão: #<?= Html::encode(substr($venda->id, 0, 8)) ?></span>
-                                            <?php if ($cliente && $cliente->telefone_formatado): ?>
+                                            <?php 
+                                                $telFormatado = $cliente ? ($cliente->getTelefoneFormatado() ?: $cliente->telefone) : null;
+                                                if ($telFormatado): 
+                                            ?>
                                                 <span>•</span>
-                                                <span class="text-cyan-400 font-mono"><?= Html::encode($cliente->telefone_formatado) ?></span>
+                                                <span class="text-cyan-400 font-mono"><?= Html::encode($telFormatado) ?></span>
                                             <?php endif; ?>
                                         </div>
                                     </td>
