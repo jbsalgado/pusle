@@ -514,6 +514,7 @@ class PedidoController extends BaseController
             $venda->usuario_id = $usuarioId;
             $venda->cliente_id = $clienteId;
             $venda->data_venda = date('Y-m-d H:i:s');
+            $venda->tipo_venda = $isVendaDireta ? Venda::TIPO_BALCAO : Venda::TIPO_CATALOGO_PWA;
 
             if ($isOrcamento) {
                 $venda->observacoes = $data['observacoes'] ?? 'Orçamento PWA';

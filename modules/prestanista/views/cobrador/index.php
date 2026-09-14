@@ -401,8 +401,11 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
                 return;
             }
 
-            const url = '<?= Url::to(['/prestanista/cobrador/dados-rota']) ?>' + 
-                (cobradorState.cobradorId ? `?cobrador_id=${cobradorState.cobradorId}` : '');
+            const params = new URLSearchParams();
+            if (cobradorState.cobradorId) params.append('cobrador_id', cobradorState.cobradorId);
+            if (cobradorState.tenantId) params.append('loja_id', cobradorState.tenantId);
+            const queryStr = params.toString();
+            const url = '<?= Url::to(['/prestanista/cobrador/dados-rota']) ?>' + (queryStr ? '?' + queryStr : '');
 
             try {
                 const res = await fetch(url);

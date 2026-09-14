@@ -268,24 +268,16 @@ class Parcela extends ActiveRecord
             $query->andWhere(['p.usuario_id' => $usuarioId]);
         }
 
+        // Critério canônico e seguro:
+        // 1. Venda explicitamente gravada com tipo_venda = 'PRESTANISTA'
+        // 2. OU observações da venda contendo expressamente a tag '[PRESTANISTA]'
+        // 3. OU parcela vinculada a um cobrador ou carteira de cobrança
         $query->andWhere([
-            'and',
-            [
-                'or',
-                ['is not', 'v.colaborador_vendedor_id', null],
-                ['is not', 'p.cobrador_id', null],
-                ['is not', 'p.carteira_cobranca_id', null],
-                ['ilike', 'v.observacoes', '%prestanista%'],
-                ['ilike', 'v.observacoes', '%cartão%'],
-                ['ilike', 'v.observacoes', '%cartao%'],
-                ['ilike', 'v.observacoes', '%crediário%'],
-                ['ilike', 'v.observacoes', '%crediario%'],
-            ],
-            [
-                'or',
-                ['!=', 'v.observacoes', 'Pedido PWA'],
-                ['is not', 'v.colaborador_vendedor_id', null]
-            ]
+            'or',
+            ['v.tipo_venda' => Venda::TIPO_PRESTANISTA],
+            ['ilike', 'v.observacoes', '[PRESTANISTA]'],
+            ['is not', 'p.cobrador_id', null],
+            ['is not', 'p.carteira_cobranca_id', null]
         ]);
 
         return $query;

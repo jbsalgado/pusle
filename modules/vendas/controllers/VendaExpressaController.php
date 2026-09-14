@@ -484,6 +484,7 @@ class VendaExpressaController extends Controller
             $venda->acrescimo_valor = $valAcrescimo;
             $venda->acrescimo_tipo = $valAcrescimo > 0 ? $acrescimoTipo : null;
             $venda->numero_parcelas = 1;
+            $venda->tipo_venda = Venda::TIPO_BALCAO;
             
             $statusInicial = $request->post('status_inicial');
             if ($statusInicial === StatusVenda::EM_ABERTO || $statusInicial === 'EM_ABERTO') {

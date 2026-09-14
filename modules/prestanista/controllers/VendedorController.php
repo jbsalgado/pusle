@@ -282,6 +282,7 @@ class VendedorController extends Controller
                 $venda->data_venda = $dataVendaInput . ' ' . date('H:i:s');
                 $venda->data_primeiro_vencimento = $primeiroVencimento;
                 $venda->status_venda_codigo = 'EM_ABERTO';
+                $venda->tipo_venda = Venda::TIPO_PRESTANISTA;
                 $venda->observacoes = "[PRESTANISTA] [FREQ:{$frequencia}] Venda Ambulante Offline sincronizada via App";
 
                 if (!$venda->save()) {

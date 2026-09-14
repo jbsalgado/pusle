@@ -41,6 +41,7 @@ use app\modules\vendas\models\FormaPagamento;
  * @property float $desconto_global_valor
  * @property string $desconto_global_tipo
  * @property string $observacao_desconto_global
+ * @property string $tipo_venda
  * 
  * @property Usuario $usuario
  * @property Cliente $cliente
@@ -52,6 +53,10 @@ use app\modules\vendas\models\FormaPagamento;
  */
 class Venda extends ActiveRecord
 {
+    const TIPO_PRESTANISTA = 'PRESTANISTA';
+    const TIPO_BALCAO = 'BALCAO';
+    const TIPO_CATALOGO_PWA = 'CATALOGO_PWA';
+    const TIPO_MESA = 'MESA';
     /**
      * {@inheritdoc}
      */
@@ -126,6 +131,10 @@ class Venda extends ActiveRecord
             // CPF do Consumidor Final (opcional)
             [['cpf_consumidor'], 'string', 'max' => 14],
             [['cpf_consumidor'], 'default', 'value' => null],
+
+            // Modalidade / Canal da Venda
+            [['tipo_venda'], 'string', 'max' => 30],
+            [['tipo_venda'], 'default', 'value' => self::TIPO_BALCAO],
         ];
     }
 
@@ -628,8 +637,8 @@ class Venda extends ActiveRecord
     }
 
     /**
-     * Retorna ActiveQuery filtrando estritamente vendas do tipo Prestanista (Crediário Ambulante)
-     * Isolando de vendas comuns de Catálogo PWA, PDV balcão e Venda Expressa.
+     * Retorna ActiveQuery filtrando estritamente vendas do tipo Prestanista (Crediário Ambulante).
+     * Isola categoricamente de vendas comuns de Catálogo PWA, PDV balcão e Venda Expressa.
      *
      * @param string|null $usuarioId
      * @return \yii\db\ActiveQuery
@@ -641,47 +650,20 @@ class Venda extends ActiveRecord
             $query->andWhere(['v.usuario_id' => $usuarioId]);
         }
 
-        // Exclui categoricamente pedidos do e-commerce / catálogo online PWA
+        // Critério canônico e seguro:
+        // 1. Venda explicitamente gravada com tipo_venda = 'PRESTANISTA'
+        // 2. OU observações contendo expressamente a tag '[PRESTANISTA]' (utilizada pelos apps de rua)
+        // 3. OU parcelas expressamente vinculadas a um cobrador de rua (cobrador_id preenchido)
         $query->andWhere([
             'or',
-            ['v.observacoes' => null],
-            ['not ilike', 'v.observacoes', 'Pedido PWA']
-        ]);
-
-        // Considera Prestanista se:
-        // 1. Observações contêm termos de crediário / prestanista / a prazo / fiado / cartão / carnê
-        // 2. OU existe parcela com cobrador atribuído
-        // 3. OU forma de pagamento é do tipo Crediário / Prestanista / Carnê
-        $query->andWhere([
-            'or',
-            ['ilike', 'v.observacoes', 'prestanista'],
-            ['ilike', 'v.observacoes', 'cartão'],
-            ['ilike', 'v.observacoes', 'cartao'],
-            ['ilike', 'v.observacoes', 'crediário'],
-            ['ilike', 'v.observacoes', 'crediario'],
-            ['ilike', 'v.observacoes', 'a prazo'],
-            ['ilike', 'v.observacoes', 'fiado'],
-            ['ilike', 'v.observacoes', 'carnê'],
-            ['ilike', 'v.observacoes', 'carne'],
+            ['v.tipo_venda' => self::TIPO_PRESTANISTA],
+            ['ilike', 'v.observacoes', '[PRESTANISTA]'],
             [
                 'exists',
                 (new \yii\db\Query())
                     ->from('prest_parcelas pp_cob')
                     ->where('pp_cob.venda_id = v.id')
                     ->andWhere(['not', ['pp_cob.cobrador_id' => null]])
-            ],
-            [
-                'exists',
-                (new \yii\db\Query())
-                    ->from('prest_formas_pagamento fp')
-                    ->where('fp.id = v.forma_pagamento_id')
-                    ->andWhere(['or',
-                        ['ilike', 'fp.nome', 'crediario'],
-                        ['ilike', 'fp.nome', 'crediário'],
-                        ['ilike', 'fp.nome', 'prestanista'],
-                        ['ilike', 'fp.nome', 'carnê'],
-                        ['ilike', 'fp.nome', 'carne']
-                    ])
             ]
         ]);
 

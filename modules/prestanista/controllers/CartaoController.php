@@ -594,6 +594,7 @@ class CartaoController extends Controller
                 $venda->data_venda = $dataVenda;
                 $venda->data_primeiro_vencimento = $primeiroVencimento;
                 $venda->status_venda_codigo = 'EM_ABERTO';
+                $venda->tipo_venda = Venda::TIPO_PRESTANISTA;
                 $venda->observacoes = "[PRESTANISTA] [FREQ:{$frequencia}] Cartão de Crediário emitido via Gestão";
 
                 if (!$venda->save()) {

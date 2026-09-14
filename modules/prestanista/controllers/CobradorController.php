@@ -26,16 +26,29 @@ class CobradorController extends Controller
     /**
      * Tela Principal do App do Cobrador
      */
-    public function actionIndex($cobrador_id = null)
+    public function actionIndex($cobrador_id = null, $loja_id = null)
     {
         $usuario = Yii::$app->user->identity;
-        $usuarioId = $usuario ? $usuario->getTenantId() : null;
+        $usuarioId = $usuario ? $usuario->getTenantId() : ($loja_id ?: null);
+
+        if (!$usuarioId && $cobrador_id) {
+            $colab = Colaborador::findOne(['id' => $cobrador_id, 'ativo' => true]);
+            if ($colab) {
+                $usuarioId = $colab->usuario_id;
+            }
+        }
+
+        if (!$usuarioId) {
+            $primeiroColab = Colaborador::find()->where(['ativo' => true])->one();
+            $usuarioId = $primeiroColab ? $primeiroColab->usuario_id : null;
+        }
 
         $cobradores = [];
         $lojaNome = 'Pulse Prestanista';
 
         if ($usuarioId) {
-            $lojaNome = $usuario->nome_loja ?? $usuario->nome ?? 'Pulse Prestanista';
+            $uLoja = \app\models\Usuario::findOne($usuarioId);
+            $lojaNome = $uLoja ? ($uLoja->nome_loja ?? $uLoja->nome ?? 'Pulse Prestanista') : 'Pulse Prestanista';
             $cobradores = Colaborador::find()
                 ->where(['usuario_id' => $usuarioId, 'ativo' => true])
                 ->andWhere(['or', ['eh_cobrador' => true], ['eh_cobrador' => null]])
@@ -56,16 +69,32 @@ class CobradorController extends Controller
     /**
      * Retorna a lista de clientes, cartões e parcelas da rota do cobrador para armazenar offline
      */
-    public function actionDadosRota($cobrador_id = null)
+    public function actionDadosRota($cobrador_id = null, $loja_id = null)
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
 
         $usuario = Yii::$app->user->identity;
-        $usuarioId = $usuario ? $usuario->getTenantId() : null;
+        $usuarioId = $usuario ? $usuario->getTenantId() : ($loja_id ?: Yii::$app->request->get('loja_id'));
+
+        if (!$usuarioId && $cobrador_id) {
+            $colab = Colaborador::findOne(['id' => $cobrador_id, 'ativo' => true]);
+            if ($colab) {
+                $usuarioId = $colab->usuario_id;
+            }
+        }
 
         if (!$usuarioId) {
             $primeiroColab = Colaborador::find()->where(['ativo' => true])->one();
             $usuarioId = $primeiroColab ? $primeiroColab->usuario_id : null;
+        }
+
+        if (!$usuarioId) {
+            return [
+                'success' => true,
+                'total' => 0,
+                'rotas' => [],
+                'mensagem' => 'Nenhuma loja identificada para carregar a rota.'
+            ];
         }
 
         $query = Venda::findPrestanista($usuarioId)
@@ -188,6 +217,13 @@ class CobradorController extends Controller
         if (!$tenantId) {
             $usuario = Yii::$app->user->identity;
             $tenantId = $usuario ? $usuario->getTenantId() : null;
+        }
+
+        if (!$tenantId && !empty($pagamentosOffline[0]['cobrador_id'])) {
+            $colab = Colaborador::findOne(['id' => $pagamentosOffline[0]['cobrador_id'], 'ativo' => true]);
+            if ($colab) {
+                $tenantId = $colab->usuario_id;
+            }
         }
 
         if (!$tenantId) {
