@@ -269,15 +269,20 @@ class Parcela extends ActiveRecord
         }
 
         // Critério canônico e seguro:
-        // 1. Venda explicitamente gravada com tipo_venda = 'PRESTANISTA'
-        // 2. OU observações da venda contendo expressamente a tag '[PRESTANISTA]'
-        // 3. OU parcela vinculada a um cobrador ou carteira de cobrança
+        // 1. Bloqueio categórico de vendas de Catálogo PWA, PDV Balcão e Mesa
+        // 2. Venda explicitamente gravada com tipo_venda = 'PRESTANISTA'
+        // 3. OU observações da venda contendo expressamente a tag '[PRESTANISTA]'
+        // 4. OU parcela vinculada a um cobrador ou carteira de cobrança
         $query->andWhere([
-            'or',
-            ['v.tipo_venda' => Venda::TIPO_PRESTANISTA],
-            ['ilike', 'v.observacoes', '[PRESTANISTA]'],
-            ['is not', 'p.cobrador_id', null],
-            ['is not', 'p.carteira_cobranca_id', null]
+            'and',
+            ['not in', 'coalesce(v.tipo_venda, \'\')', [Venda::TIPO_CATALOGO_PWA, Venda::TIPO_BALCAO, Venda::TIPO_MESA]],
+            [
+                'or',
+                ['v.tipo_venda' => Venda::TIPO_PRESTANISTA],
+                ['ilike', 'v.observacoes', '[PRESTANISTA]'],
+                ['is not', 'p.cobrador_id', null],
+                ['is not', 'p.carteira_cobranca_id', null]
+            ]
         ]);
 
         return $query;

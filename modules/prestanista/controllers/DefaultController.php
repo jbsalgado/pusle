@@ -46,8 +46,23 @@ class DefaultController extends Controller
 
         // Total de Cartões (Vendas de Crediário / Prestanista)
         $totalCartoes = (int)Venda::findPrestanista($usuarioId)->count();
-        $cartoesAtivos = (int)Venda::findPrestanista($usuarioId)->andWhere(['v.status_venda_codigo' => 'EM_ABERTO'])->count();
+        $cartoesAtivos = (int)Venda::findPrestanista($usuarioId)->andWhere(['v.status_venda_codigo' => ['EM_ABERTO', 'PARCIALMENTE_PAGA']])->count();
         $cartoesQuitados = (int)Venda::findPrestanista($usuarioId)->andWhere(['v.status_venda_codigo' => ['FINALIZADA', 'QUITADA']])->count();
+
+        // Cartões atribuídos a cobradores de rua vs Cartões pendentes de atribuição
+        $cartoesEmRota = (int)Venda::findPrestanista($usuarioId)
+            ->andWhere(['v.status_venda_codigo' => ['EM_ABERTO', 'PARCIALMENTE_PAGA']])
+            ->andWhere([
+                'exists',
+                (new \yii\db\Query())
+                    ->from('prest_parcelas pp_cob')
+                    ->where('pp_cob.venda_id = v.id')
+                    ->andWhere(['not', ['pp_cob.cobrador_id' => null]])
+                    ->andWhere(['!=', 'pp_cob.status_parcela_codigo', 'PAGA'])
+                    ->andWhere(['!=', 'pp_cob.status_parcela_codigo', 'CANCELADA'])
+            ])
+            ->count();
+        $cartoesSemCobrador = max(0, $cartoesAtivos - $cartoesEmRota);
 
         // Parcelas Atrasadas (Apenas Vendas Prestanistas)
         $parcelasAtrasadasQtd = (int)Parcela::findPrestanista($usuarioId)
@@ -81,6 +96,8 @@ class DefaultController extends Controller
             'recebidoMes' => $recebidoMes,
             'totalCartoes' => $totalCartoes,
             'cartoesAtivos' => $cartoesAtivos,
+            'cartoesEmRota' => $cartoesEmRota,
+            'cartoesSemCobrador' => $cartoesSemCobrador,
             'cartoesQuitados' => $cartoesQuitados,
             'parcelasAtrasadasQtd' => $parcelasAtrasadasQtd,
             'valorAtrasado' => $valorAtrasado,

@@ -58,10 +58,12 @@ class AtribuicaoController extends Controller
         }
         $bairros = $bairrosQuery->distinct()->orderBy(['endereco_bairro' => SORT_ASC])->column();
 
-        // Query de vendas prestanistas
+        // Query de vendas prestanistas (estritamente compras a prestação de crediário)
         $query = Venda::findPrestanista($usuarioId)
             ->leftJoin('prest_clientes c', 'c.id = v.cliente_id')
             ->with(['cliente', 'vendedor', 'parcelas'])
+            ->andWhere(['v.tipo_venda' => Venda::TIPO_PRESTANISTA])
+            ->andWhere(['>', 'v.numero_parcelas', 1])
             ->orderBy(['c.endereco_bairro' => SORT_ASC, 'c.endereco_logradouro' => SORT_ASC, 'v.id' => SORT_DESC]);
 
         if ($status === 'ABERTO') {
@@ -150,6 +152,8 @@ class AtribuicaoController extends Controller
 
         $queryVendas = Venda::findPrestanista($usuarioId)
             ->leftJoin('prest_clientes c', 'c.id = v.cliente_id')
+            ->andWhere(['v.tipo_venda' => Venda::TIPO_PRESTANISTA])
+            ->andWhere(['>', 'v.numero_parcelas', 1])
             ->andWhere(['v.status_venda_codigo' => ['EM_ABERTO', 'PARCIALMENTE_PAGA']]);
 
         if ($modo === 'bairro' && $bairroAlvo) {

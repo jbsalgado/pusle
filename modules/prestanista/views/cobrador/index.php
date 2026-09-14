@@ -94,8 +94,11 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
 
         <div class="w-full sm:flex-1 flex gap-2">
             <input type="text" id="campo-busca-rota" oninput="filtrarCardsRota(this.value)" placeholder="🔍 Buscar cliente, rua ou bairro na rota..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 outline-none focus:border-amber-500">
-            <button onclick="baixarRotaServidor()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-xl border border-slate-700 active:scale-95 transition whitespace-nowrap flex items-center gap-1">
+            <button onclick="baixarRotaServidor(true)" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-xl border border-slate-700 active:scale-95 transition whitespace-nowrap flex items-center gap-1" title="Sincronizar rota com o servidor">
                 <span>📥</span> <span>Atualizar</span>
+            </button>
+            <button onclick="limparCacheRota()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-rose-950/50 text-slate-400 hover:text-rose-300 font-bold text-xs rounded-xl border border-slate-700 active:scale-95 transition whitespace-nowrap flex items-center gap-1" title="Limpar Cache Local e Recarregar">
+                <span>🗑️</span>
             </button>
         </div>
     </div>
@@ -347,11 +350,32 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
             cartaoAtivoParaVisualizar: null
         };
 
+        const CACHE_VERSION = 'v2_prestanista_clean';
+
+        function verificarVersaoCache() {
+            try {
+                const ver = localStorage.getItem('pulse_rota_version');
+                if (ver !== CACHE_VERSION) {
+                    console.log('Versão de cache antiga detectada. Limpando rotas obsoletas...');
+                    Object.keys(localStorage).forEach(k => {
+                        if (k.startsWith('pulse_rota_')) {
+                            localStorage.removeItem(k);
+                        }
+                    });
+                    localStorage.setItem('pulse_rota_version', CACHE_VERSION);
+                }
+            } catch (e) {
+                console.warn('Erro ao checar versão do cache', e);
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
+            verificarVersaoCache();
             configurarRede();
             carregarRotaLocalStorage();
-            if (cobradorState.cartoesRota.length === 0) {
-                baixarRotaServidor();
+            // Se estiver online, sempre busca a rota oficial atualizada no servidor
+            if (navigator.onLine) {
+                baixarRotaServidor(false);
             } else {
                 renderizarRota();
             }
@@ -382,9 +406,12 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
                 const data = localStorage.getItem(chave);
                 if (data) {
                     cobradorState.cartoesRota = JSON.parse(data);
+                } else {
+                    cobradorState.cartoesRota = [];
                 }
             } catch (e) {
                 console.warn('Erro ao ler rota do localStorage', e);
+                cobradorState.cartoesRota = [];
             }
         }
 
@@ -394,9 +421,19 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
             document.getElementById('cont-clientes-rota').textContent = cobradorState.cartoesRota.length;
         }
 
-        async function baixarRotaServidor() {
+        function limparCacheRota() {
+            if (confirm('Deseja limpar o cache local e recarregar a rota do servidor?')) {
+                const chave = `pulse_rota_${cobradorState.cobradorId || 'geral'}`;
+                localStorage.removeItem(chave);
+                cobradorState.cartoesRota = [];
+                renderizarRota();
+                baixarRotaServidor(true);
+            }
+        }
+
+        async function baixarRotaServidor(comFeedback = true) {
             if (!navigator.onLine) {
-                alert('Aparelho offline. Usando rota gravada na memória.');
+                if (comFeedback) alert('Aparelho offline. Usando rota gravada na memória.');
                 renderizarRota();
                 return;
             }
@@ -411,14 +448,19 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
                 const res = await fetch(url);
                 const data = await res.json();
                 if (data.success) {
-                    // Mescla rota recebida mantendo ordem customizada se houver
                     cobradorState.cartoesRota = data.rotas || [];
                     salvarRotaLocalStorage();
                     renderizarRota();
-                    alert(`✓ Rota atualizada com ${cobradorState.cartoesRota.length} cliente(s) a visitar!`);
+                    if (comFeedback) {
+                        if (cobradorState.cartoesRota.length > 0) {
+                            alert(`✓ Rota atualizada com ${cobradorState.cartoesRota.length} cliente(s) a visitar!`);
+                        } else {
+                            alert('Nenhuma rota atribuída para este cobrador no momento.');
+                        }
+                    }
                 }
             } catch (e) {
-                alert('Não foi possível conectar ao servidor. Exibindo rota local.');
+                if (comFeedback) alert('Não foi possível conectar ao servidor. Exibindo rota local.');
                 renderizarRota();
             }
         }
@@ -426,8 +468,8 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
         function trocarCobrador(novoId) {
             cobradorState.cobradorId = novoId;
             carregarRotaLocalStorage();
-            if (cobradorState.cartoesRota.length === 0 && navigator.onLine) {
-                baixarRotaServidor();
+            if (navigator.onLine) {
+                baixarRotaServidor(false);
             } else {
                 renderizarRota();
             }
@@ -467,7 +509,19 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
             document.getElementById('cont-clientes-rota').textContent = cobradorState.cartoesRota.length;
 
             if (filtrados.length === 0) {
-                container.innerHTML = '<div class="p-8 text-center text-slate-500 text-xs">Nenhum cliente na rota para os filtros informados.</div>';
+                if (cobradorState.cartoesRota.length === 0) {
+                    container.innerHTML = `
+                        <div class="p-8 text-center text-slate-500 space-y-2">
+                            <span class="text-4xl block">🛵</span>
+                            <h4 class="font-black text-slate-300 text-sm">Nenhuma rota atribuída a este cobrador</h4>
+                            <p class="text-xs text-slate-400 max-w-sm mx-auto">
+                                Não existem compras a prestação atribuídas a este cobrador no momento. Novas rotas são atribuídas pelo painel de gestão em "Atribuir Cobrança".
+                            </p>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = '<div class="p-8 text-center text-slate-500 text-xs">Nenhum cliente na rota para os filtros informados.</div>';
+                }
                 return;
             }
 

@@ -97,29 +97,33 @@ class CobradorController extends Controller
             ];
         }
 
+        // Uma rota de cobrança de rua SÓ EXISTE se houver um cobrador especificado
+        // e se houver cartões com parcelas expressamente atribuídas a ele.
+        // Vendas sem cobrador atribuído NUNCA compõem rotas de cobrança.
+        if (!$cobrador_id) {
+            return [
+                'success' => true,
+                'total' => 0,
+                'rotas' => [],
+                'mensagem' => 'Selecione um cobrador para carregar sua rota de cobrança atribuída.'
+            ];
+        }
+
         $query = Venda::findPrestanista($usuarioId)
             ->leftJoin('prest_clientes c', 'c.id = v.cliente_id')
             ->with(['cliente', 'itens.produto', 'parcelas.formaPagamento', 'vendedor'])
             ->andWhere(['v.status_venda_codigo' => ['EM_ABERTO', 'PARCIALMENTE_PAGA']])
+            ->andWhere(['v.tipo_venda' => Venda::TIPO_PRESTANISTA])
+            ->andWhere(['>', 'v.numero_parcelas', 1])
             ->andWhere([
-                'exists',
-                (new \yii\db\Query())
-                    ->from('prest_parcelas pp_pend')
-                    ->where('pp_pend.venda_id = v.id')
-                    ->andWhere(['pp_pend.status_parcela_codigo' => StatusParcela::PENDENTE])
-            ])
-            ->orderBy(['c.endereco_bairro' => SORT_ASC, 'c.endereco_logradouro' => SORT_ASC, 'v.id' => SORT_ASC]);
-
-        if ($cobrador_id) {
-            $query->andWhere([
                 'exists',
                 (new \yii\db\Query())
                     ->from('prest_parcelas pp')
                     ->where('pp.venda_id = v.id')
                     ->andWhere(['pp.cobrador_id' => $cobrador_id])
                     ->andWhere(['pp.status_parcela_codigo' => StatusParcela::PENDENTE])
-            ]);
-        }
+            ])
+            ->orderBy(['c.endereco_bairro' => SORT_ASC, 'c.endereco_logradouro' => SORT_ASC, 'v.id' => SORT_ASC]);
 
         $cartoes = $query->all();
 

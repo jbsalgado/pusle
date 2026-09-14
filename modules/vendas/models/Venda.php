@@ -651,19 +651,24 @@ class Venda extends ActiveRecord
         }
 
         // Critério canônico e seguro:
-        // 1. Venda explicitamente gravada com tipo_venda = 'PRESTANISTA'
-        // 2. OU observações contendo expressamente a tag '[PRESTANISTA]' (utilizada pelos apps de rua)
-        // 3. OU parcelas expressamente vinculadas a um cobrador de rua (cobrador_id preenchido)
+        // 1. Bloqueio categórico de vendas de Catálogo PWA, PDV Balcão e Mesa
+        // 2. Venda explicitamente gravada com tipo_venda = 'PRESTANISTA'
+        // 3. OU observações contendo expressamente a tag '[PRESTANISTA]' (utilizada pelos apps de rua)
+        // 4. OU parcelas expressamente vinculadas a um cobrador de rua (cobrador_id preenchido)
         $query->andWhere([
-            'or',
-            ['v.tipo_venda' => self::TIPO_PRESTANISTA],
-            ['ilike', 'v.observacoes', '[PRESTANISTA]'],
+            'and',
+            ['not in', 'coalesce(v.tipo_venda, \'\')', [self::TIPO_CATALOGO_PWA, self::TIPO_BALCAO, self::TIPO_MESA]],
             [
-                'exists',
-                (new \yii\db\Query())
-                    ->from('prest_parcelas pp_cob')
-                    ->where('pp_cob.venda_id = v.id')
-                    ->andWhere(['not', ['pp_cob.cobrador_id' => null]])
+                'or',
+                ['v.tipo_venda' => self::TIPO_PRESTANISTA],
+                ['ilike', 'v.observacoes', '[PRESTANISTA]'],
+                [
+                    'exists',
+                    (new \yii\db\Query())
+                        ->from('prest_parcelas pp_cob')
+                        ->where('pp_cob.venda_id = v.id')
+                        ->andWhere(['not', ['pp_cob.cobrador_id' => null]])
+                ]
             ]
         ]);
 

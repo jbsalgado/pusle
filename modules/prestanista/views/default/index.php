@@ -5,6 +5,8 @@
 /** @var float $recebidoMes */
 /** @var int $totalCartoes */
 /** @var int $cartoesAtivos */
+/** @var int $cartoesEmRota */
+/** @var int $cartoesSemCobrador */
 /** @var int $cartoesQuitados */
 /** @var int $parcelasAtrasadasQtd */
 /** @var float $valorAtrasado */
@@ -67,9 +69,21 @@ $this->title = 'Painel Prestanista - Crediário Ambulante';
             <div class="text-2xl font-black text-white">
                 R$ <?= number_format($totalAReceber, 2, ',', '.') ?>
             </div>
-            <p class="text-xs text-amber-400 font-semibold mt-1 flex items-center gap-1">
-                <span><?= $cartoesAtivos ?></span> cartões em aberto na rua
-            </p>
+            <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+                <span class="px-2 py-0.5 rounded-full font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20" title="Total de cartões ativos de crediário em aberto">
+                    <?= $cartoesAtivos ?> cartões em aberto
+                </span>
+                <?php if ($cartoesEmRota > 0): ?>
+                    <span class="px-2 py-0.5 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" title="Cartões atribuídos a cobradores em rota ativa">
+                        🛵 <?= $cartoesEmRota ?> em rota
+                    </span>
+                <?php endif; ?>
+                <?php if ($cartoesSemCobrador > 0): ?>
+                    <a href="<?= Url::to(['/prestanista/atribuicao/index', 'sem_cobrador' => 1]) ?>" class="px-2 py-0.5 rounded-full font-bold bg-rose-500/10 text-rose-300 border border-rose-500/20 hover:bg-rose-500/20 transition" title="Clique para distribuir aos cobradores">
+                        ⚠️ <?= $cartoesSemCobrador ?> s/ cobrador
+                    </a>
+                <?php endif; ?>
+            </div>
         </div>
 
         <!-- Recebido Hoje -->
