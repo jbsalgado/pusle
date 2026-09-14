@@ -18,6 +18,7 @@ use app\modules\vendas\models\FormaPagamento;
 use app\modules\vendas\models\StatusParcela;
 use app\modules\vendas\models\StatusVenda;
 use app\modules\vendas\models\CarteiraCobranca;
+use app\modules\vendas\models\PeriodoCobranca;
 
 /**
  * Gestão de Cartões de Crediário Prestanista
@@ -245,28 +246,33 @@ class CartaoController extends Controller
                 $cobrador = Colaborador::findOne(['id' => $cobradorId, 'usuario_id' => $usuarioId, 'ativo' => true]);
             }
 
+            $periodo = PeriodoCobranca::getOuCriarPeriodoAtual($usuarioId);
+            $periodoId = $periodo ? $periodo->id : null;
+
             $transaction = Yii::$app->db->beginTransaction();
             try {
-                // Atualiza todas as parcelas pendentes com o cobrador selecionado
-                Parcela::updateAll(
-                    ['cobrador_id' => $cobrador ? $cobrador->id : null],
-                    [
-                        'venda_id' => $cartao->id,
-                        'status_parcela_codigo' => StatusParcela::PENDENTE,
-                    ]
-                );
-
                 // Atualiza ou cria a carteira de cobrança do cliente
-                $carteira = CarteiraCobranca::findOne(['usuario_id' => $usuarioId, 'cliente_id' => $cartao->cliente_id]);
+                $carteira = null;
+                if ($periodoId) {
+                    $carteira = CarteiraCobranca::findOne(['usuario_id' => $usuarioId, 'cliente_id' => $cartao->cliente_id, 'periodo_id' => $periodoId]);
+                }
+                if (!$carteira) {
+                    $carteira = CarteiraCobranca::findOne(['usuario_id' => $usuarioId, 'cliente_id' => $cartao->cliente_id]);
+                }
+
                 if ($cobrador) {
                     if ($carteira) {
                         $carteira->cobrador_id = $cobrador->id;
+                        if ($periodoId) {
+                            $carteira->periodo_id = $periodoId;
+                        }
                         $carteira->ativo = true;
                         $carteira->save(false);
                     } else {
                         $carteira = new CarteiraCobranca();
                         $carteira->usuario_id = $usuarioId;
                         $carteira->cliente_id = $cartao->cliente_id;
+                        $carteira->periodo_id = $periodoId;
                         $carteira->cobrador_id = $cobrador->id;
                         $carteira->data_distribuicao = date('Y-m-d H:i:s');
                         $carteira->ativo = true;
@@ -274,12 +280,35 @@ class CartaoController extends Controller
                         $carteira->valor_total = (float)$cartao->valor_total;
                         $carteira->save(false);
                     }
+
+                    // Atualiza todas as parcelas pendentes com o cobrador e carteira selecionados
+                    Parcela::updateAll(
+                        [
+                            'cobrador_id' => $cobrador->id,
+                            'carteira_cobranca_id' => $carteira->id,
+                        ],
+                        [
+                            'venda_id' => $cartao->id,
+                            'status_parcela_codigo' => StatusParcela::PENDENTE,
+                        ]
+                    );
+
                     Yii::$app->session->setFlash('success', "✓ Cartão atribuído com sucesso ao cobrador {$cobrador->nome_completo}!");
                 } else {
                     if ($carteira) {
                         $carteira->cobrador_id = null;
                         $carteira->save(false);
                     }
+                    Parcela::updateAll(
+                        [
+                            'cobrador_id' => null,
+                            'carteira_cobranca_id' => null,
+                        ],
+                        [
+                            'venda_id' => $cartao->id,
+                            'status_parcela_codigo' => StatusParcela::PENDENTE,
+                        ]
+                    );
                     Yii::$app->session->setFlash('info', "Cartão desvinculado de cobrador.");
                 }
 

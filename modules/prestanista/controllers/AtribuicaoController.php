@@ -13,6 +13,7 @@ use app\modules\vendas\models\Cliente;
 use app\modules\vendas\models\Colaborador;
 use app\modules\vendas\models\StatusParcela;
 use app\modules\vendas\models\CarteiraCobranca;
+use app\modules\vendas\models\PeriodoCobranca;
 
 /**
  * AtribuicaoController - Distribuição e Atribuição de Vendas/Cartões a Cobradores de Rua
@@ -173,15 +174,54 @@ class AtribuicaoController extends Controller
             return $this->redirect(Yii::$app->request->referrer ?: ['index']);
         }
 
+        $periodo = PeriodoCobranca::getOuCriarPeriodoAtual($usuarioId);
+        $periodoId = $periodo ? $periodo->id : null;
+
         $transaction = Yii::$app->db->beginTransaction();
         try {
             $totalCartoes = 0;
             $totalParcelas = 0;
 
             foreach ($vendasAlvo as $venda) {
-                // Atualiza as parcelas pendentes
+                // Garante carteira de cobrança para o cliente
+                $carteira = null;
+                if ($periodoId) {
+                    $carteira = CarteiraCobranca::find()
+                        ->where(['usuario_id' => $usuarioId, 'cliente_id' => $venda->cliente_id, 'periodo_id' => $periodoId])
+                        ->one();
+                }
+                if (!$carteira) {
+                    $carteira = CarteiraCobranca::find()
+                        ->where(['usuario_id' => $usuarioId, 'cliente_id' => $venda->cliente_id])
+                        ->one();
+                }
+
+                if ($carteira) {
+                    $carteira->cobrador_id = $cobrador->id;
+                    if ($periodoId) {
+                        $carteira->periodo_id = $periodoId;
+                    }
+                    $carteira->ativo = true;
+                    $carteira->save(false);
+                } else {
+                    $carteira = new CarteiraCobranca();
+                    $carteira->usuario_id = $usuarioId;
+                    $carteira->cliente_id = $venda->cliente_id;
+                    $carteira->periodo_id = $periodoId;
+                    $carteira->cobrador_id = $cobrador->id;
+                    $carteira->data_distribuicao = date('Y-m-d H:i:s');
+                    $carteira->ativo = true;
+                    $carteira->total_parcelas = (int)$venda->numero_parcelas;
+                    $carteira->valor_total = (float)$venda->valor_total;
+                    $carteira->save(false);
+                }
+
+                // Atualiza as parcelas pendentes vinculando cobrador e carteira
                 $parcelasAfetadas = Parcela::updateAll(
-                    ['cobrador_id' => $cobrador->id],
+                    [
+                        'cobrador_id' => $cobrador->id,
+                        'carteira_cobranca_id' => $carteira->id,
+                    ],
                     [
                         'venda_id' => $venda->id,
                         'status_parcela_codigo' => StatusParcela::PENDENTE,
@@ -190,27 +230,6 @@ class AtribuicaoController extends Controller
 
                 $totalParcelas += $parcelasAfetadas;
                 $totalCartoes++;
-
-                // Garante carteira de cobrança para o cliente
-                $carteira = CarteiraCobranca::find()
-                    ->where(['usuario_id' => $usuarioId, 'cliente_id' => $venda->cliente_id])
-                    ->one();
-
-                if ($carteira) {
-                    $carteira->cobrador_id = $cobrador->id;
-                    $carteira->ativo = true;
-                    $carteira->save(false);
-                } else {
-                    $carteira = new CarteiraCobranca();
-                    $carteira->usuario_id = $usuarioId;
-                    $carteira->cliente_id = $venda->cliente_id;
-                    $carteira->cobrador_id = $cobrador->id;
-                    $carteira->data_distribuicao = date('Y-m-d H:i:s');
-                    $carteira->ativo = true;
-                    $carteira->total_parcelas = (int)$venda->numero_parcelas;
-                    $carteira->valor_total = (float)$venda->valor_total;
-                    $carteira->save(false);
-                }
             }
 
             $transaction->commit();

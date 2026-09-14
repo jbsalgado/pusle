@@ -199,12 +199,74 @@ class PeriodoCobranca extends ActiveRecord
      */
     public static function getPeriodoAtual($usuarioId = null)
     {
-        $usuarioId = $usuarioId ?: Yii::$app->user->id;
+        $usuarioId = $usuarioId ?: (Yii::$app->user->identity ? Yii::$app->user->identity->getTenantId() : Yii::$app->user->id);
+        if (!$usuarioId) {
+            return null;
+        }
         
         return self::find()
             ->where(['usuario_id' => $usuarioId])
             ->andWhere(['status' => [self::STATUS_ABERTO, self::STATUS_EM_COBRANCA]])
             ->orderBy(['ano_referencia' => SORT_DESC, 'mes_referencia' => SORT_DESC])
             ->one();
+    }
+
+    /**
+     * Retorna período atual ou cria automaticamente se não existir
+     */
+    public static function getOuCriarPeriodoAtual($usuarioId = null)
+    {
+        $usuarioId = $usuarioId ?: (Yii::$app->user->identity ? Yii::$app->user->identity->getTenantId() : Yii::$app->user->id);
+        if (!$usuarioId) {
+            return null;
+        }
+
+        $periodo = self::getPeriodoAtual($usuarioId);
+        if ($periodo) {
+            return $periodo;
+        }
+
+        $mes = (int)date('n');
+        $ano = (int)date('Y');
+        $dataInicio = date('Y-m-01');
+        $dataFim = date('Y-m-t');
+
+        // Verifica se existe algum período cadastrado para este mês/ano
+        $periodo = self::find()
+            ->where([
+                'usuario_id' => $usuarioId,
+                'mes_referencia' => $mes,
+                'ano_referencia' => $ano,
+            ])
+            ->one();
+
+        if ($periodo) {
+            if ($periodo->status === self::STATUS_FECHADO) {
+                $periodo->status = self::STATUS_ABERTO;
+                $periodo->save(false);
+            }
+            return $periodo;
+        }
+
+        $meses = [
+            1 => 'Janeiro', 2 => 'Fevereiro', 3 => 'Março', 4 => 'Abril',
+            5 => 'Maio', 6 => 'Junho', 7 => 'Julho', 8 => 'Agosto',
+            9 => 'Setembro', 10 => 'Outubro', 11 => 'Novembro', 12 => 'Dezembro'
+        ];
+
+        $novo = new self();
+        $novo->usuario_id = $usuarioId;
+        $novo->mes_referencia = $mes;
+        $novo->ano_referencia = $ano;
+        $novo->data_inicio = $dataInicio;
+        $novo->data_fim = $dataFim;
+        $novo->status = self::STATUS_ABERTO;
+        $novo->descricao = ($meses[$mes] ?? 'Mês ' . $mes) . '/' . $ano;
+
+        if ($novo->save(false)) {
+            return $novo;
+        }
+
+        return null;
     }
 }

@@ -74,6 +74,14 @@ class CarteiraCobranca extends ActiveRecord
                 $uuid = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
                 $this->id = $uuid;
             }
+
+            // Auto-resolve período mensal atual da loja se não informado
+            if (empty($this->periodo_id) && !empty($this->usuario_id)) {
+                $periodo = PeriodoCobranca::getOuCriarPeriodoAtual($this->usuario_id);
+                if ($periodo) {
+                    $this->periodo_id = $periodo->id;
+                }
+            }
             
             // Converte rota_id vazio para null (PostgreSQL não aceita string vazia em UUID)
             if ($this->rota_id === '' || $this->rota_id === null) {
@@ -108,9 +116,9 @@ class CarteiraCobranca extends ActiveRecord
     public function rules()
     {
         return [
-            [['periodo_id', 'cobrador_id', 'cliente_id', 'usuario_id'], 'required'],
+            [['cobrador_id', 'cliente_id', 'usuario_id'], 'required'],
             [['periodo_id', 'cobrador_id', 'cliente_id', 'usuario_id', 'rota_id'], 'string'],
-            [['rota_id'], 'default', 'value' => null], // Permite null para rota_id
+            [['rota_id', 'periodo_id'], 'default', 'value' => null],
             [['ativo'], 'boolean'],
             [['ativo'], 'default', 'value' => true],
             [['total_parcelas', 'parcelas_pagas'], 'integer', 'min' => 0],
@@ -121,7 +129,7 @@ class CarteiraCobranca extends ActiveRecord
             [['observacoes'], 'default', 'value' => ''],
             [['data_distribuicao'], 'date', 'format' => 'php:Y-m-d'],
             [['data_distribuicao'], 'default', 'value' => date('Y-m-d')],
-            [['periodo_id'], 'exist', 'skipOnError' => true, 'targetClass' => PeriodoCobranca::class, 'targetAttribute' => ['periodo_id' => 'id']],
+            [['periodo_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => PeriodoCobranca::class, 'targetAttribute' => ['periodo_id' => 'id']],
             [['cobrador_id'], 'exist', 'skipOnError' => true, 'targetClass' => Colaborador::class, 'targetAttribute' => ['cobrador_id' => 'id']],
             [['cliente_id'], 'exist', 'skipOnError' => true, 'targetClass' => Cliente::class, 'targetAttribute' => ['cliente_id' => 'id']],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
