@@ -2,7 +2,8 @@
 /** @var yii\web\View $this */
 /** @var app\modules\vendas\models\Venda[] $cartoes */
 /** @var yii\data\Pagination $pages */
-/** @var int $totalCount */
+/** @var int|null $totalCartoes */
+/** @var int|null $totalCount */
 /** @var string $q */
 /** @var string $status */
 /** @var int|string $vendedor_id */
@@ -295,7 +296,10 @@ if ($cobrador_id) {
     <!-- Resumo dos Resultados -->
     <div class="flex items-center justify-between text-xs text-slate-400 px-1">
         <div>
-            Exibindo <span class="font-black text-white"><?= count($cartoes) ?></span> de <span class="font-black text-white"><?= $totalCount ?></span> cartões encontrados.
+            <?php
+                $qtdTotalEncontrada = $totalCartoes ?? ($totalCount ?? ($pages->totalCount ?? count($cartoes)));
+            ?>
+            Exibindo <span class="font-black text-white"><?= count($cartoes) ?></span> de <span class="font-black text-white"><?= $qtdTotalEncontrada ?></span> cartões encontrados.
         </div>
         <?php if ($temAlgumFiltro): ?>
             <div class="text-[11px] text-amber-400/80">

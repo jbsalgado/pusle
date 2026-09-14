@@ -173,6 +173,7 @@ class CartaoController extends Controller
             'vendedores' => $vendedores,
             'cobradores' => $cobradores,
             'totalCartoes' => $totalCartoes,
+            'totalCount' => $totalCartoes,
         ]);
     }
 
