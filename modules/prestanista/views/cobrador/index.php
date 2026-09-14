@@ -6,6 +6,8 @@
 /** @var string|null $usuarioId */
 /** @var app\modules\vendas\models\Colaborador|null $colaboradorLogado */
 /** @var bool $ehSupervisor */
+/** @var bool $mpConectado */
+/** @var string $mpPublicKey */
 
 use yii\helpers\Html;
 use yii\helpers\Url;
@@ -35,6 +37,9 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
             }
         }
     </script>
+
+    <!-- Mercado Pago SDK v2 Oficial para Checkout Transparente e Tokenização de Cartão -->
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
 
     <!-- Bibliotecas para PDF e Imagem Client-side 100% Offline -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -219,13 +224,18 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
     </main>
 
     <!-- ========================================================================= -->
-    <!-- MODAL: RECEBER PAGAMENTO DE PARCELA (OFFLINE READY) -->
+    <!-- MODAL: RECEBER PAGAMENTO DE PARCELA (OFFLINE READY & MERCADO PAGO INTEGRADO) -->
     <!-- ========================================================================= -->
     <div id="modal-receber-pagamento" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[90vh] flex flex-col">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[92vh] flex flex-col overflow-y-auto">
             <div class="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div>
-                    <h3 class="text-sm font-black text-white">Registrar Recebimento</h3>
+                    <div class="flex items-center gap-2">
+                        <h3 class="text-sm font-black text-white">Registrar Recebimento</h3>
+                        <span id="badge-modal-mp" class="hidden text-[9px] px-2 py-0.5 rounded-full font-bold bg-sky-500/10 text-sky-400 border border-sky-500/30 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span> MP Conectado
+                        </span>
+                    </div>
                     <p class="text-[10px] text-amber-400 font-bold" id="modal-rec-cliente-nome"></p>
                 </div>
                 <button onclick="fecharModalRecebimento()" class="text-slate-400 hover:text-white p-1 text-lg">✕</button>
@@ -247,10 +257,10 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
                     <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                         Valor Recebido (R$)
                     </label>
-                    <input type="number" step="0.01" id="modal-rec-valor" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-amber-400 font-mono font-bold outline-none focus:border-amber-500">
+                    <input type="number" step="0.01" id="modal-rec-valor" oninput="aoMudarValorRecebido(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-amber-400 font-mono font-bold outline-none focus:border-amber-500">
                 </div>
 
-                <!-- Tipo de Pagamento -->
+                <!-- Forma de Pagamento -->
                 <div>
                     <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                         Forma de Pagamento
@@ -268,19 +278,158 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
                     </div>
                 </div>
 
-                <!-- Data do Pagamento -->
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                        Data do Recebimento
-                    </label>
-                    <input type="date" id="modal-rec-data" value="<?= date('Y-m-d') ?>" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-500">
-                </div>
-            </div>
+                <!-- ================= SEÇÃO: DINHEIRO / BAIXA MANUAL ================= -->
+                <div id="secao-rec-dinheiro" class="space-y-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                            Data do Recebimento
+                        </label>
+                        <input type="date" id="modal-rec-data-dinheiro" value="<?= date('Y-m-d') ?>" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-500">
+                    </div>
 
-            <button type="button" onclick="confirmarRecebimentoOffline()" class="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-slate-950 font-black text-sm rounded-2xl shadow-xl transition active:scale-98 flex items-center justify-center gap-2">
-                <span>✓</span>
-                <span>Confirmar Recebimento & Atualizar Cartão</span>
-            </button>
+                    <button type="button" onclick="confirmarRecebimentoOffline('DINHEIRO')" class="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-slate-950 font-black text-sm rounded-2xl shadow-xl transition active:scale-98 flex items-center justify-center gap-2">
+                        <span>✓</span>
+                        <span>Confirmar Recebimento em Dinheiro</span>
+                    </button>
+                </div>
+
+                <!-- ================= SEÇÃO: PIX (MERCADO PAGO DINÂMICO OU MANUAL) ================= -->
+                <div id="secao-rec-pix" class="hidden space-y-3">
+                    <!-- Se MP Conectado: Modo Dinâmico com Polling -->
+                    <div id="box-pix-mp-ativo" class="space-y-3">
+                        <!-- Estado 1: Gerar QR Code -->
+                        <div id="box-pix-mp-gerar" class="p-3 bg-slate-950 border border-slate-800 rounded-2xl text-center space-y-2">
+                            <span class="text-3xl block">⚡</span>
+                            <h4 class="text-xs font-bold text-white">Cobrança via Pix Dinâmico</h4>
+                            <p class="text-[11px] text-slate-400">Gere um QR Code exclusivo com confirmação automática na sua conta Mercado Pago.</p>
+                            <button type="button" onclick="gerarPixMp()" id="btn-gerar-pix-mp" class="w-full py-3 bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs rounded-xl shadow transition active:scale-98 flex items-center justify-center gap-2">
+                                <span>⚡</span> <span>Gerar QR Code Pix Mercado Pago</span>
+                            </button>
+                        </div>
+
+                        <!-- Estado 2: QR Code Exibido e Polling Ativo -->
+                        <div id="box-pix-mp-exibicao" class="hidden space-y-3 p-3 bg-slate-950 border border-sky-500/30 rounded-2xl text-center">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] text-sky-400 font-bold uppercase tracking-wider">Pix Mercado Pago</span>
+                                <span id="pix-mp-valor-badge" class="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/30"></span>
+                            </div>
+
+                            <div class="bg-white p-2.5 rounded-2xl max-w-[200px] mx-auto shadow-xl flex items-center justify-center">
+                                <img id="pix-mp-qrcode-img" src="" alt="QR Code Pix" class="w-full h-auto rounded-lg">
+                            </div>
+
+                            <!-- Botão Copia e Cola -->
+                            <button type="button" onclick="copiarPixCopiaECola()" id="btn-copiar-pix" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-xl border border-slate-700 transition active:scale-98 flex items-center justify-center gap-2">
+                                <span>📋</span> <span id="lbl-copiar-pix">Copiar Código Pix (Copia e Cola)</span>
+                            </button>
+
+                            <!-- Indicador de Polling em tempo real -->
+                            <div class="flex items-center justify-center gap-2 text-xs font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 py-2 px-3 rounded-xl">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                                <span>Aguardando pagamento do cliente...</span>
+                            </div>
+                            <p class="text-[10px] text-slate-400">Verificando aprovação automática no Mercado Pago a cada 3 segundos.</p>
+                        </div>
+                    </div>
+
+                    <!-- Fallback / Baixa Manual de Pix -->
+                    <div class="pt-2 border-t border-slate-800 space-y-2">
+                        <details class="text-[11px] text-slate-400">
+                            <summary class="cursor-pointer hover:text-amber-400 font-medium py-1">
+                                ⚙️ Cliente pagou fora ou está sem sinal? Baixa Manual Pix
+                            </summary>
+                            <div class="pt-2 space-y-2">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                                        Data do Recebimento
+                                    </label>
+                                    <input type="date" id="modal-rec-data-pix" value="<?= date('Y-m-d') ?>" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-500">
+                                </div>
+                                <button type="button" onclick="confirmarRecebimentoOffline('PIX')" class="w-full py-2.5 bg-slate-800 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl border border-slate-700 transition">
+                                    Registrar Baixa Manual Pix
+                                </button>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <!-- ================= SEÇÃO: CARTÃO (MERCADO PAGO OU MAQUININHA) ================= -->
+                <div id="secao-rec-cartao" class="hidden space-y-3">
+                    <!-- Formulário Cartão Transparente MP -->
+                    <div id="box-cartao-mp-ativo" class="space-y-2.5 p-3 bg-slate-950 border border-slate-800 rounded-2xl">
+                        <!-- Toggle Crédito / Débito -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button" onclick="setTipoCartaoMp('credit_card')" id="btn-tipo-credito" class="py-1.5 text-xs font-bold rounded-xl bg-amber-500 text-slate-950 border border-amber-500">
+                                Crédito
+                            </button>
+                            <button type="button" onclick="setTipoCartaoMp('debit_card')" id="btn-tipo-debito" class="py-1.5 text-xs font-bold rounded-xl bg-slate-900 text-slate-300 border border-slate-700">
+                                Débito
+                            </button>
+                        </div>
+
+                        <!-- Número do Cartão com detector de bandeira -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex justify-between items-center">
+                                <span>Número do Cartão</span>
+                                <span id="mp-card-brand-badge" class="text-amber-400 font-black"></span>
+                            </label>
+                            <input type="tel" id="mp-card-number" placeholder="0000 0000 0000 0000" maxlength="19" oninput="aoDigitarNumeroCartao(this)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono outline-none focus:border-amber-500">
+                        </div>
+
+                        <!-- Validade e CVV -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Validade</label>
+                                <input type="tel" id="mp-card-expiry" placeholder="MM/AA" maxlength="5" oninput="formatarValidadeCartao(this)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono outline-none focus:border-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">CVV</label>
+                                <input type="tel" id="mp-card-cvv" placeholder="123" maxlength="4" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono outline-none focus:border-amber-500">
+                            </div>
+                        </div>
+
+                        <!-- Nome impresso e CPF -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nome no Cartão</label>
+                            <input type="text" id="mp-card-holder" placeholder="Nome completo como impresso" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white uppercase outline-none focus:border-amber-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">CPF do Titular</label>
+                            <input type="tel" id="mp-card-cpf" placeholder="000.000.000-00" maxlength="14" oninput="formatarCpfInput(this)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono outline-none focus:border-amber-500">
+                        </div>
+
+                        <!-- Caixa de Erro amigável -->
+                        <div id="box-erro-cartao-mp" class="hidden p-2.5 bg-rose-950/40 border border-rose-500/50 rounded-xl text-rose-300 text-[11px] leading-relaxed"></div>
+
+                        <!-- Botão Cobrar no Cartão -->
+                        <button type="button" onclick="processarPagamentoCartaoMp()" id="btn-cobrar-cartao-mp" class="w-full py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-black text-xs rounded-xl shadow-lg transition active:scale-98 flex items-center justify-center gap-2">
+                            <span>💳</span> <span id="lbl-cobrar-cartao">Cobrar no Cartão via Mercado Pago</span>
+                        </button>
+                    </div>
+
+                    <!-- Fallback / Maquininha Própria / Baixa Manual -->
+                    <div class="pt-2 border-t border-slate-800 space-y-2">
+                        <details class="text-[11px] text-slate-400">
+                            <summary class="cursor-pointer hover:text-amber-400 font-medium py-1">
+                                ⚙️ Cobrou em maquininha física do cobrador? Baixa Manual Cartão
+                            </summary>
+                            <div class="pt-2 space-y-2">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                                        Data do Recebimento
+                                    </label>
+                                    <input type="date" id="modal-rec-data-cartao" value="<?= date('Y-m-d') ?>" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-500">
+                                </div>
+                                <button type="button" onclick="confirmarRecebimentoOffline('CARTAO')" class="w-full py-2.5 bg-slate-800 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl border border-slate-700 transition">
+                                    Registrar Baixa Manual Cartão
+                                </button>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+            </div>
         </div>
     </div>
 
@@ -319,12 +468,12 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
             </div>
         </div>
 
-        <!-- Cartão Atualizado Renderizado 1/4 A4 -->
+        <!-- Cartão Atualizado Renderizado 1/4 A4 Conforme Imagem Oficial -->
         <div id="area-cartao-cobrador" class="cartao-preview w-[105mm] min-h-[148mm] bg-white text-black p-3 rounded shadow-2xl border border-slate-300 flex flex-col justify-between select-text mb-6">
             <div>
                 <div class="text-center font-bold text-[11px] pb-1 border-b border-black uppercase tracking-wider">
                     <div id="cob-card-empresa"><?= Html::encode($lojaNome) ?></div>
-                    <div class="text-[8px] font-normal">CARTÃO DE COBRANÇA ATUALIZADO</div>
+                    <div class="text-[8px] font-normal">CONTROLE DE CREDIÁRIO / PRESTANISTA</div>
                 </div>
 
                 <div class="text-[9px] py-1 border-b border-black leading-tight space-y-0.5">
@@ -332,8 +481,8 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
                     <div><strong>ENDEREÇO:</strong> <span id="cob-card-cli-endereco"></span></div>
                     <div><strong>CIDADE:</strong> <span id="cob-card-cli-cidade"></span> &nbsp; <strong>FONE:</strong> <span id="cob-card-cli-fone"></span></div>
                     <div><strong>PRODUTOS:</strong> <span id="cob-card-produtos"></span></div>
-                    <div><strong>VALOR COMPRA:</strong> <span id="cob-card-vl-compra"></span> &nbsp; <strong>SALDO RESTANTE:</strong> <span id="cob-card-saldo-atual" class="font-bold"></span></div>
-                    <div class="text-[8px] text-slate-700"><strong>CARTÃO Nº:</strong> <span id="cob-card-num"></span> &nbsp; <strong>VENDEDOR:</strong> <span id="cob-card-vendedor"></span></div>
+                    <div><strong>VALOR TOTAL:</strong> <span id="cob-card-vl-total"></span> &nbsp; <strong>ENTRADA:</strong> <span id="cob-card-vl-entrada">R$ 0,00</span> &nbsp; <strong>SALDO:</strong> <span id="cob-card-saldo-atual" class="font-bold"></span></div>
+                    <div class="text-[8px] text-slate-700"><strong>EMISSÃO:</strong> <span id="cob-card-dt-emissao"></span> &nbsp; <strong>VENDEDOR:</strong> <span id="cob-card-vendedor"></span></div>
                 </div>
 
                 <!-- Tabela de Parcelas Atualizadas -->
@@ -358,7 +507,7 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
 
             <!-- Rodapé e Link On-line -->
             <div class="pt-2 border-t border-black text-[7px] text-center leading-tight">
-                <div>Comprovante autêntico emitido pelo cobrador. Saldo atualizado em tempo real.</div>
+                <div>Conserve este cartão com os devidos pagamentos autenticados pelo cobrador.</div>
                 <div id="cob-card-public-link-box" class="font-mono text-[6.5px] mt-0.5 text-blue-700"></div>
             </div>
         </div>
@@ -370,15 +519,23 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
         const TENANT_ID = <?= json_encode($usuarioId) ?>;
         const LOJA_NOME = <?= json_encode($lojaNome) ?>;
         const INITIAL_COBRADOR_ID = <?= json_encode($cobradorId) ?>;
+        const INITIAL_MP_CONECTADO = <?= json_encode((bool)($mpConectado ?? false)) ?>;
+        const INITIAL_MP_PUBLIC_KEY = <?= json_encode((string)($mpPublicKey ?? '')) ?>;
 
         let cobradorState = {
             tenantId: TENANT_ID,
             lojaNome: LOJA_NOME,
             cobradorId: INITIAL_COBRADOR_ID || '',
+            mpConectado: INITIAL_MP_CONECTADO,
+            mpPublicKey: INITIAL_MP_PUBLIC_KEY,
             cartoesRota: [],
             formaPagamentoAtiva: 'DINHEIRO',
+            tipoCartaoMp: 'credit_card',
             cartaoSelecionadoParaReceber: null,
-            cartaoAtivoParaVisualizar: null
+            cartaoAtivoParaVisualizar: null,
+            pixPollingTimer: null,
+            pixPaymentId: null,
+            pixCopiaECola: '',
         };
 
         const CACHE_VERSION = 'v2_prestanista_clean';
@@ -480,6 +637,11 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
                 const data = await res.json();
                 if (data.success) {
                     cobradorState.cartoesRota = data.rotas || [];
+                    if (data.mp_conectado !== undefined) {
+                        cobradorState.mpConectado = !!data.mp_conectado;
+                        cobradorState.mpPublicKey = data.mp_public_key || '';
+                        atualizarBadgeMpConectado();
+                    }
                     salvarRotaLocalStorage();
                     renderizarRota();
                     if (comFeedback) {
@@ -650,10 +812,34 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
         }
 
         // =========================================================================
-        // RECEBIMENTO OFFLINE DE PARCELAS
+        // RECEBIMENTO OFFLINE & MERCADO PAGO INTEGRADO (PIX DINÂMICO & CARTÃO)
         // =========================================================================
+        function atualizarBadgeMpConectado() {
+            const badge = document.getElementById('badge-modal-mp');
+            if (!badge) return;
+            if (cobradorState.mpConectado) {
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function aoMudarValorRecebido(valStr) {
+            const val = parseFloat(valStr || '0');
+            const txt = `Cobrar R$ ${val.toLocaleString('pt-BR', {minimumFractionDigits: 2})} no Cartão`;
+            const lblCartao = document.getElementById('lbl-cobrar-cartao');
+            if (lblCartao) lblCartao.textContent = txt;
+
+            const badgePix = document.getElementById('pix-mp-valor-badge');
+            if (badgePix) badgePix.textContent = `R$ ${val.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+        }
+
         function setFormaPagamento(forma) {
             cobradorState.formaPagamentoAtiva = forma;
+
+            // Se mudou de aba, para polling do PIX anterior
+            pararPollingPixMp();
+
             ['DINHEIRO', 'PIX', 'CARTAO'].forEach(f => {
                 const btn = document.getElementById('btn-forma-' + f);
                 if (f === forma) {
@@ -662,6 +848,36 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
                     btn.className = 'forma-btn py-2 text-xs font-bold rounded-xl bg-slate-950 text-slate-300 border border-slate-700';
                 }
             });
+
+            const secDinheiro = document.getElementById('secao-rec-dinheiro');
+            const secPix = document.getElementById('secao-rec-pix');
+            const secCartao = document.getElementById('secao-rec-cartao');
+
+            if (secDinheiro) secDinheiro.classList.add('hidden');
+            if (secPix) secPix.classList.add('hidden');
+            if (secCartao) secCartao.classList.add('hidden');
+
+            if (forma === 'DINHEIRO') {
+                if (secDinheiro) secDinheiro.classList.remove('hidden');
+            } else if (forma === 'PIX') {
+                if (secPix) secPix.classList.remove('hidden');
+                // Reseta estado do QR Code PIX para 'gerar'
+                const boxGerar = document.getElementById('box-pix-mp-gerar');
+                const boxExib = document.getElementById('box-pix-mp-exibicao');
+                if (boxGerar) boxGerar.classList.remove('hidden');
+                if (boxExib) boxExib.classList.add('hidden');
+            } else if (forma === 'CARTAO') {
+                if (secCartao) secCartao.classList.remove('hidden');
+                // Preenche dados padrão do cliente
+                const cartao = cobradorState.cartaoSelecionadoParaReceber;
+                if (cartao && cartao.cliente) {
+                    const elHolder = document.getElementById('mp-card-holder');
+                    if (elHolder && !elHolder.value) elHolder.value = (cartao.cliente.nome || '').toUpperCase();
+                }
+                const errBox = document.getElementById('box-erro-cartao-mp');
+                if (errBox) errBox.classList.add('hidden');
+                aoMudarValorRecebido(document.getElementById('modal-rec-valor').value);
+            }
         }
 
         function abrirModalRecebimento(vendaId) {
@@ -670,6 +886,7 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
 
             cobradorState.cartaoSelecionadoParaReceber = cartao;
             document.getElementById('modal-rec-cliente-nome').textContent = cartao.cliente.nome;
+            atualizarBadgeMpConectado();
 
             // Preenche opções de parcelas pendentes
             const sel = document.getElementById('modal-rec-sel-parcela');
@@ -688,7 +905,25 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
 
             atualizarValorParcelaSelecionada();
             setFormaPagamento('DINHEIRO');
-            document.getElementById('modal-rec-data').value = new Date().toISOString().split('T')[0];
+
+            const hoje = new Date().toISOString().split('T')[0];
+            const dtDin = document.getElementById('modal-rec-data-dinheiro');
+            if (dtDin) dtDin.value = hoje;
+            const dtPix = document.getElementById('modal-rec-data-pix');
+            if (dtPix) dtPix.value = hoje;
+            const dtCar = document.getElementById('modal-rec-data-cartao');
+            if (dtCar) dtCar.value = hoje;
+
+            // Limpa campos do cartão
+            ['mp-card-number', 'mp-card-expiry', 'mp-card-cvv', 'mp-card-cpf'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            const brandBadge = document.getElementById('mp-card-brand-badge');
+            if (brandBadge) brandBadge.textContent = '';
+            const errBox = document.getElementById('box-erro-cartao-mp');
+            if (errBox) errBox.classList.add('hidden');
+
             document.getElementById('modal-receber-pagamento').classList.remove('hidden');
         }
 
@@ -697,24 +932,385 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
             const opt = sel.options[sel.selectedIndex];
             if (opt) {
                 const val = parseFloat(opt.getAttribute('data-valor') || '0');
-                document.getElementById('modal-rec-valor').value = val.toFixed(2);
+                const inp = document.getElementById('modal-rec-valor');
+                if (inp) {
+                    inp.value = val.toFixed(2);
+                    aoMudarValorRecebido(inp.value);
+                }
             }
         }
 
         function fecharModalRecebimento() {
+            pararPollingPixMp();
             document.getElementById('modal-receber-pagamento').classList.add('hidden');
             cobradorState.cartaoSelecionadoParaReceber = null;
         }
 
-        function confirmarRecebimentoOffline() {
+        // =========================================================================
+        // PIX DINÂMICO MERCADO PAGO
+        // =========================================================================
+        async function gerarPixMp() {
             const cartao = cobradorState.cartaoSelecionadoParaReceber;
             if (!cartao) return;
 
             const sel = document.getElementById('modal-rec-sel-parcela');
             const parcelaId = sel.value;
             const valorPago = parseFloat(document.getElementById('modal-rec-valor').value || '0');
-            const dataPagamento = document.getElementById('modal-rec-data').value;
-            const forma = cobradorState.formaPagamentoAtiva;
+
+            if (valorPago <= 0) {
+                alert('Informe um valor válido para gerar o Pix.');
+                return;
+            }
+
+            const btn = document.getElementById('btn-gerar-pix-mp');
+            const originalHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span>⏳</span> <span>Gerando Pix na API Mercado Pago...</span>';
+            }
+
+            try {
+                const res = await fetch('<?= Url::to(['/prestanista/cobrador/gerar-pix-parcela']) ?>', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        parcela_id: parcelaId,
+                        valor: valorPago,
+                        cobrador_id: cobradorState.cobradorId,
+                        usuario_id: cobradorState.tenantId
+                    })
+                });
+
+                const data = await res.json();
+                if (!data.success) {
+                    throw new Error(data.mensagem || 'Não foi possível gerar o Pix.');
+                }
+
+                // Exibe o QR Code e valor
+                cobradorState.pixPaymentId = data.payment_id;
+                cobradorState.pixCopiaECola = data.qr_code || '';
+
+                const img = document.getElementById('pix-mp-qrcode-img');
+                if (img) {
+                    img.src = 'data:image/png;base64,' + data.qr_code_base64;
+                }
+
+                const badge = document.getElementById('pix-mp-valor-badge');
+                if (badge) {
+                    badge.textContent = `R$ ${valorPago.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+                }
+
+                document.getElementById('box-pix-mp-gerar').classList.add('hidden');
+                document.getElementById('box-pix-mp-exibicao').classList.remove('hidden');
+
+                // Inicia polling automático a cada 3s
+                iniciarPollingPixMp(data.payment_id, parcelaId);
+
+            } catch (e) {
+                alert('⚠️ Erro ao gerar Pix: ' + e.message);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                }
+            }
+        }
+
+        function iniciarPollingPixMp(paymentId, parcelaId) {
+            pararPollingPixMp();
+
+            cobradorState.pixPollingTimer = setInterval(async () => {
+                try {
+                    const res = await fetch(`<?= Url::to(['/prestanista/cobrador/consultar-pix-parcela']) ?>?payment_id=${paymentId}&parcela_id=${parcelaId}&cobrador_id=${cobradorState.cobradorId}`);
+                    const data = await res.json();
+
+                    if (data.success && data.status === 'approved') {
+                        pararPollingPixMp();
+                        const valor = parseFloat(document.getElementById('modal-rec-valor').value || '0');
+                        finalizarBaixaComSucesso(parcelaId, valor, 'PIX', cobradorState.cartaoSelecionadoParaReceber.venda_id, data.public_url);
+                    }
+                } catch (err) {
+                    console.warn('[Pix Polling] Falha momentânea na consulta:', err);
+                }
+            }, 3000);
+        }
+
+        function pararPollingPixMp() {
+            if (cobradorState.pixPollingTimer) {
+                clearInterval(cobradorState.pixPollingTimer);
+                cobradorState.pixPollingTimer = null;
+            }
+        }
+
+        async function copiarPixCopiaECola() {
+            if (!cobradorState.pixCopiaECola) return;
+
+            try {
+                await navigator.clipboard.writeText(cobradorState.pixCopiaECola);
+                const lbl = document.getElementById('lbl-copiar-pix');
+                if (lbl) {
+                    const original = lbl.textContent;
+                    lbl.textContent = '✓ Código Pix Copiado com Sucesso!';
+                    setTimeout(() => { lbl.textContent = original; }, 3000);
+                }
+            } catch (e) {
+                prompt('Copie o código Pix abaixo:', cobradorState.pixCopiaECola);
+            }
+        }
+
+        // =========================================================================
+        // CARTÃO TRANSPARENTE MERCADO PAGO SDK v2
+        // =========================================================================
+        function setTipoCartaoMp(tipo) {
+            cobradorState.tipoCartaoMp = tipo;
+            const btnCred = document.getElementById('btn-tipo-credito');
+            const btnDeb = document.getElementById('btn-tipo-debito');
+
+            if (tipo === 'credit_card') {
+                if (btnCred) btnCred.className = 'py-1.5 text-xs font-bold rounded-xl bg-amber-500 text-slate-950 border border-amber-500';
+                if (btnDeb) btnDeb.className = 'py-1.5 text-xs font-bold rounded-xl bg-slate-900 text-slate-300 border border-slate-700';
+            } else {
+                if (btnCred) btnCred.className = 'py-1.5 text-xs font-bold rounded-xl bg-slate-900 text-slate-300 border border-slate-700';
+                if (btnDeb) btnDeb.className = 'py-1.5 text-xs font-bold rounded-xl bg-amber-500 text-slate-950 border border-amber-500';
+            }
+        }
+
+        function detectarBandeiraCartao(numeroLimpo) {
+            const badge = document.getElementById('mp-card-brand-badge');
+            if (!badge) return;
+
+            if (/^4/.test(numeroLimpo)) {
+                badge.textContent = 'VISA';
+            } else if (/^(5[1-5]|2[2-7])/.test(numeroLimpo)) {
+                badge.textContent = 'MASTERCARD';
+            } else if (/^(4011|4312|4389|4514|4576|5041|5066|5067|5090|6277|6362|6363|650|651|655)/.test(numeroLimpo)) {
+                badge.textContent = 'ELO';
+            } else if (/^3[47]/.test(numeroLimpo)) {
+                badge.textContent = 'AMEX';
+            } else if (/^(606282|3841)/.test(numeroLimpo)) {
+                badge.textContent = 'HIPERCARD';
+            } else {
+                badge.textContent = '';
+            }
+        }
+
+        function aoDigitarNumeroCartao(input) {
+            let v = input.value.replace(/\D/g, '').substring(0, 16);
+            v = v.replace(/(\d{4})(?=\d)/g, '$1 ');
+            input.value = v;
+            detectarBandeiraCartao(v.replace(/\D/g, ''));
+        }
+
+        function formatarValidadeCartao(input) {
+            let v = input.value.replace(/\D/g, '').substring(0, 4);
+            if (v.length >= 3) {
+                v = v.substring(0, 2) + '/' + v.substring(2, 4);
+            }
+            input.value = v;
+        }
+
+        function formatarCpfInput(input) {
+            let v = input.value.replace(/\D/g, '').substring(0, 11);
+            if (v.length > 9) {
+                v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
+            } else if (v.length > 6) {
+                v = v.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
+            } else if (v.length > 3) {
+                v = v.replace(/(\d{3})(\d{1,3})/, '$1.$2');
+            }
+            input.value = v;
+        }
+
+        async function processarPagamentoCartaoMp() {
+            const cartao = cobradorState.cartaoSelecionadoParaReceber;
+            if (!cartao) return;
+
+            const errBox = document.getElementById('box-erro-cartao-mp');
+            if (errBox) errBox.classList.add('hidden');
+
+            if (!cobradorState.mpPublicKey) {
+                alert('A loja não possui chave pública do Mercado Pago configurada.');
+                return;
+            }
+
+            if (typeof window.MercadoPago === 'undefined') {
+                alert('O SDK do Mercado Pago não pôde ser carregado. Verifique a conexão com a internet.');
+                return;
+            }
+
+            const sel = document.getElementById('modal-rec-sel-parcela');
+            const parcelaId = sel.value;
+            const valorPago = parseFloat(document.getElementById('modal-rec-valor').value || '0');
+
+            if (valorPago <= 0) {
+                alert('Informe um valor válido.');
+                return;
+            }
+
+            const rawNum = (document.getElementById('mp-card-number')?.value || '').replace(/\D/g, '');
+            const rawExp = (document.getElementById('mp-card-expiry')?.value || '').split('/');
+            const cvv = (document.getElementById('mp-card-cvv')?.value || '').trim();
+            const holder = (document.getElementById('mp-card-holder')?.value || '').trim();
+            const cpf = (document.getElementById('mp-card-cpf')?.value || '').replace(/\D/g, '');
+
+            if (rawNum.length < 13) {
+                if (errBox) { errBox.textContent = '⚠️ Informe um número de cartão válido.'; errBox.classList.remove('hidden'); }
+                return;
+            }
+            if (rawExp.length !== 2 || rawExp[0].length !== 2 || rawExp[1].length !== 2) {
+                if (errBox) { errBox.textContent = '⚠️ Informe a validade no formato MM/AA.'; errBox.classList.remove('hidden'); }
+                return;
+            }
+            if (cvv.length < 3) {
+                if (errBox) { errBox.textContent = '⚠️ Informe o código de segurança (CVV).'; errBox.classList.remove('hidden'); }
+                return;
+            }
+            if (!holder) {
+                if (errBox) { errBox.textContent = '⚠️ Informe o nome impresso no cartão.'; errBox.classList.remove('hidden'); }
+                return;
+            }
+            if (cpf.length !== 11) {
+                if (errBox) { errBox.textContent = '⚠️ Informe um CPF válido com 11 dígitos.'; errBox.classList.remove('hidden'); }
+                return;
+            }
+
+            const btn = document.getElementById('btn-cobrar-cartao-mp');
+            const originalHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span>⏳</span> <span>Tokenizando e Processando no MP...</span>';
+            }
+
+            try {
+                const mp = new window.MercadoPago(cobradorState.mpPublicKey, { locale: 'pt-BR' });
+
+                const expMonth = rawExp[0];
+                const expYear = '20' + rawExp[1];
+
+                // Identifica bandeira
+                let paymentMethodId = 'visa';
+                try {
+                    const bin = rawNum.substring(0, 6);
+                    const binResp = await mp.getPaymentMethods({ bin });
+                    if (binResp && binResp.results && binResp.results.length > 0) {
+                        paymentMethodId = binResp.results[0].id;
+                    }
+                } catch (_) {}
+
+                // Tokeniza via SDK oficial
+                const cardToken = await mp.createCardToken({
+                    cardNumber: rawNum,
+                    cardholderName: holder,
+                    cardExpirationMonth: expMonth,
+                    cardExpirationYear: expYear,
+                    securityCode: cvv,
+                    identification: {
+                        type: 'CPF',
+                        number: cpf
+                    }
+                });
+
+                if (!cardToken || !cardToken.id) {
+                    throw new Error('Falha ao gerar token de segurança do cartão. Verifique os dados digitados.');
+                }
+
+                // Envia para o backend processar cobrança direta
+                const res = await fetch('<?= Url::to(['/prestanista/cobrador/pagar-cartao-parcela']) ?>', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        parcela_id: parcelaId,
+                        token: cardToken.id,
+                        payment_method_id: paymentMethodId,
+                        tipo_cartao: cobradorState.tipoCartaoMp,
+                        cobrador_id: cobradorState.cobradorId,
+                        amount: valorPago,
+                        cardholder_name: holder,
+                        identification_number: cpf
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success && data.status === 'approved') {
+                    const tipoNome = (cobradorState.tipoCartaoMp === 'debit_card') ? 'CARTAO_DEBITO' : 'CARTAO_CREDITO';
+                    finalizarBaixaComSucesso(parcelaId, valorPago, tipoNome, cartao.venda_id, data.public_url);
+                } else {
+                    const msg = data.mensagem || 'Pagamento recusado pela operadora do cartão.';
+                    if (errBox) {
+                        errBox.textContent = '❌ ' + msg;
+                        errBox.classList.remove('hidden');
+                    } else {
+                        alert('❌ ' + msg);
+                    }
+                }
+
+            } catch (e) {
+                if (errBox) {
+                    errBox.textContent = '❌ ' + e.message;
+                    errBox.classList.remove('hidden');
+                } else {
+                    alert('❌ ' + e.message);
+                }
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                }
+            }
+        }
+
+        // =========================================================================
+        // FINALIZAÇÃO DE BAIXA (ONLINE OU OFFLINE) E ATUALIZAÇÃO DO CARTÃO
+        // =========================================================================
+        function finalizarBaixaComSucesso(parcelaId, valorPago, formaNome, vendaId, publicUrl) {
+            const cartao = cobradorState.cartoesRota.find(c => c.venda_id === vendaId);
+            if (!cartao) return;
+
+            const parcela = cartao.parcelas.find(p => p.id === parcelaId);
+            if (parcela) {
+                parcela.status = 'PAGA';
+                parcela.valor_pago = valorPago;
+                parcela.data_pagamento = new Date().toLocaleDateString('pt-BR');
+                parcela.tipo_pagamento = formaNome;
+            }
+
+            cartao.total_pago = (cartao.total_pago || 0) + valorPago;
+            cartao.saldo_devedor = Math.max(0, cartao.valor_total - cartao.total_pago);
+            if (publicUrl) cartao.public_url = publicUrl;
+
+            const novaProx = cartao.parcelas.find(p => p.status !== 'PAGA');
+            cartao.proxima_parcela = novaProx ? {
+                id: novaProx.id,
+                numero: novaProx.numero,
+                data_vencimento: novaProx.data_vencimento,
+                valor: novaProx.valor_parcela
+            } : null;
+
+            salvarRotaLocalStorage();
+            fecharModalRecebimento();
+            renderizarRota(document.getElementById('campo-busca-rota').value);
+            atualizarResumoDoDia();
+
+            // Abre o cartão atualizado oficial em tela
+            abrirCartaoAtualizado(cartao.venda_id);
+        }
+
+        function confirmarRecebimentoOffline(tipoManual = 'DINHEIRO') {
+            const cartao = cobradorState.cartaoSelecionadoParaReceber;
+            if (!cartao) return;
+
+            const sel = document.getElementById('modal-rec-sel-parcela');
+            const parcelaId = sel.value;
+            const valorPago = parseFloat(document.getElementById('modal-rec-valor').value || '0');
+            
+            let dataPagamento = new Date().toISOString().split('T')[0];
+            if (tipoManual === 'DINHEIRO') {
+                dataPagamento = document.getElementById('modal-rec-data-dinheiro')?.value || dataPagamento;
+            } else if (tipoManual === 'PIX') {
+                dataPagamento = document.getElementById('modal-rec-data-pix')?.value || dataPagamento;
+            } else if (tipoManual === 'CARTAO') {
+                dataPagamento = document.getElementById('modal-rec-data-cartao')?.value || dataPagamento;
+            }
 
             if (valorPago <= 0) {
                 alert('Informe um valor válido de recebimento.');
@@ -729,13 +1325,12 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
                 parcela.status = 'PAGA';
                 parcela.valor_pago = valorPago;
                 parcela.data_pagamento = new Date(dataPagamento + 'T00:00:00').toLocaleDateString('pt-BR');
-                parcela.tipo_pagamento = forma;
+                parcela.tipo_pagamento = tipoManual;
             }
 
             cartao.total_pago = (cartao.total_pago || 0) + valorPago;
             cartao.saldo_devedor = Math.max(0, cartao.valor_total - cartao.total_pago);
 
-            // Atualiza próxima pendente
             const novaProx = cartao.parcelas.find(p => p.status !== 'PAGA');
             cartao.proxima_parcela = novaProx ? {
                 id: novaProx.id,
@@ -756,7 +1351,7 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
                 numero_parcela: parcela ? parcela.numero : 1,
                 valor_pago: valorPago,
                 data_pagamento: dataPagamento,
-                tipo_pagamento: forma,
+                tipo_pagamento: tipoManual,
                 cobrador_id: cobradorState.cobradorId,
                 data_registro: new Date().toISOString()
             });
@@ -767,7 +1362,7 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
             atualizarResumoDoDia();
             atualizarBadgesSync();
 
-            // Abre o cartão já atualizado para o cliente ver ou enviar no WhatsApp
+            // Abre o cartão atualizado
             abrirCartaoAtualizado(cartao.venda_id);
         }
 
@@ -780,7 +1375,7 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
         }
 
         // =========================================================================
-        // VISUALIZAÇÃO E EXPORTAÇÃO DO CARTÃO ATUALIZADO
+        // VISUALIZAÇÃO E EXPORTAÇÃO DO CARTÃO ATUALIZADO (CONFORME IMAGEM OFICIAL)
         // =========================================================================
         function abrirCartaoAtualizado(vendaId) {
             const cartao = cobradorState.cartoesRota.find(c => c.venda_id === vendaId);
@@ -795,9 +1390,18 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
             document.getElementById('cob-card-cli-cidade').textContent = cartao.cliente.cidade || '';
             document.getElementById('cob-card-cli-fone').textContent = cartao.cliente.telefone || '';
             document.getElementById('cob-card-produtos').textContent = cartao.produtos_descricao || '';
-            document.getElementById('cob-card-vl-compra').textContent = `R$ ${cartao.valor_total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            
+            const elVlTotal = document.getElementById('cob-card-vl-total') || document.getElementById('cob-card-vl-compra');
+            if (elVlTotal) elVlTotal.textContent = `R$ ${cartao.valor_total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            
+            const elVlEntrada = document.getElementById('cob-card-vl-entrada');
+            if (elVlEntrada) elVlEntrada.textContent = `R$ 0,00`;
+
             document.getElementById('cob-card-saldo-atual').textContent = `R$ ${cartao.saldo_devedor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-            document.getElementById('cob-card-num').textContent = cartao.numero_cartao;
+            
+            const elDtEmissao = document.getElementById('cob-card-dt-emissao');
+            if (elDtEmissao) elDtEmissao.textContent = cartao.data_venda || '';
+
             document.getElementById('cob-card-vendedor').textContent = cartao.vendedor_nome || '';
 
             // Tabela de parcelas com linha completa e saldo impresso apenas após baixa
