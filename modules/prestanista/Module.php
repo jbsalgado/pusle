@@ -39,13 +39,16 @@ class Module extends \yii\base\Module
             return true;
         }
 
-        // 2. APIs de sincronização offline de campo
+        // 2. APIs de sincronização offline de campo e pagamentos
         $rotasApiOffline = [
             'vendedor/sincronizar',
             'vendedor/dados-iniciais',
             'cobrador/sincronizar',
             'cobrador/dados-rota',
             'cobrador/salvar-ordem-rota',
+            'cobrador/gerar-pix-parcela',
+            'cobrador/consultar-pix-parcela',
+            'cobrador/pagar-cartao-parcela',
         ];
 
         // Se usuário não autenticado via web
