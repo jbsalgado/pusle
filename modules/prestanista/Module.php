@@ -58,6 +58,14 @@ class Module extends \yii\base\Module
                 return true;
             }
 
+            // Permite acesso direto ao app mobile/PWA de campo se fornecer vendedor_id ou cobrador_id
+            if ($rotaAtual === 'vendedor/index' && Yii::$app->request->get('vendedor_id')) {
+                return true;
+            }
+            if ($rotaAtual === 'cobrador/index' && (Yii::$app->request->get('cobrador_id') || Yii::$app->request->get('loja_id'))) {
+                return true;
+            }
+
             Yii::$app->user->loginRequired();
             return false;
         }
