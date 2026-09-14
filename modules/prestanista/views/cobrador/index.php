@@ -301,9 +301,21 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
                 <button onclick="baixarCartaoCobradorPdf()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow active:scale-95 transition flex items-center gap-1">
                     <span>📄</span> <span>PDF</span>
                 </button>
-                <button onclick="compartilharWhatsAppCobrador()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow active:scale-95 transition flex items-center gap-1">
+                <button onclick="compartilharWhatsAppCobrador()" id="btn-zap-cobrador" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow active:scale-95 transition flex items-center gap-1">
                     <span>💬</span> <span>Zap</span>
                 </button>
+            </div>
+        </div>
+
+        <!-- Toast de Aviso do Envio WhatsApp com Imagem (Cobrador) -->
+        <div id="toast-zap-cobrador" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] max-w-sm w-[92%] bg-slate-900/95 border border-emerald-500/60 shadow-2xl rounded-2xl p-4 text-white text-xs space-y-2 backdrop-blur-md hidden transition-all duration-300">
+            <div class="flex items-start gap-3">
+                <span class="text-2xl">📋</span>
+                <div class="flex-1">
+                    <h4 class="font-bold text-emerald-400">Cartão Pronto para Envio!</h4>
+                    <p id="msg-toast-zap-cobrador" class="text-slate-200 mt-1 leading-relaxed text-[11px]"></p>
+                </div>
+                <button onclick="document.getElementById('toast-zap-cobrador').classList.add('hidden')" class="text-slate-400 hover:text-white font-bold p-1 text-sm">✕</button>
             </div>
         </div>
 
@@ -868,32 +880,120 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
             }
         }
 
-        function compartilharWhatsAppCobrador() {
+        function mostrarAvisoZapCobrador(texto) {
+            const toast = document.getElementById('toast-zap-cobrador');
+            const msgElem = document.getElementById('msg-toast-zap-cobrador');
+            if (!toast || !msgElem) return;
+
+            msgElem.innerHTML = texto;
+            toast.classList.remove('hidden');
+
+            clearTimeout(window._toastZapCobradorTimer);
+            window._toastZapCobradorTimer = setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 12000);
+        }
+
+        async function compartilharWhatsAppCobrador() {
             const cartao = cobradorState.cartaoAtivoParaVisualizar;
             if (!cartao) return;
 
-            const cli = cartao.cliente;
-            const fone = (cli.telefone || '').replace(/\D/g, '');
+            const elem = document.getElementById('area-cartao-cobrador');
+            if (!elem) return;
 
-            let msg = `*${cobradorState.lojaNome.toUpperCase()}*\n`;
-            msg += `Olá ${cli.nome}, seu pagamento de crediário foi recebido e autenticado com sucesso pelo cobrador!\n\n`;
-            msg += `🧾 *Cartão Nº:* #${cartao.numero_cartao}\n`;
-            msg += `💰 *Saldo Devedor Atual:* R$ ${cartao.saldo_devedor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}\n`;
-            if (cartao.proxima_parcela) {
-                msg += `🗓️ *Próximo Vencimento:* ${cartao.proxima_parcela.data_vencimento} (R$ ${cartao.proxima_parcela.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})})\n`;
-            } else {
-                msg += `🎉 *Parabéns! Seu crediário está totalmente quitado!*\n`;
+            const btnZap = document.getElementById('btn-zap-cobrador');
+            const originalHtml = btnZap ? btnZap.innerHTML : '';
+            if (btnZap) {
+                btnZap.innerHTML = '<span>⏳</span> <span>Gerando...</span>';
+                btnZap.disabled = true;
             }
 
-            if (cartao.public_url) {
-                msg += `\n🔗 *Veja seu Cartão Atualizado On-line:* ${cartao.public_url}\n`;
+            try {
+                // 1. Renderiza o cartão de cobrança atualizado com alta resolução (scale 2)
+                const canvas = await html2canvas(elem, { 
+                    scale: 2, 
+                    useCORS: true, 
+                    backgroundColor: '#ffffff' 
+                });
+
+                const cli = cartao.cliente || {};
+                const fone = (cli.telefone || '').replace(/\D/g, '');
+                const cliNome = (cli.nome || 'cliente').replace(/[^a-zA-Z0-9]/g, '_');
+
+                let msg = `*${cobradorState.lojaNome.toUpperCase()}*\n`;
+                msg += `Olá ${cli.nome || 'Cliente'}, seu pagamento de crediário foi recebido e autenticado com sucesso pelo cobrador!\n\n`;
+                msg += `🧾 *Cartão Nº:* #${cartao.numero_cartao}\n`;
+                msg += `💰 *Saldo Devedor Atual:* R$ ${cartao.saldo_devedor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}\n`;
+                if (cartao.proxima_parcela) {
+                    msg += `🗓️ *Próximo Vencimento:* ${cartao.proxima_parcela.data_vencimento} (R$ ${cartao.proxima_parcela.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})})\n`;
+                } else {
+                    msg += `🎉 *Parabéns! Seu crediário está totalmente quitado!*\n`;
+                }
+
+                if (cartao.public_url) {
+                    msg += `\n🔗 *Veja seu Cartão Atualizado On-line:* ${cartao.public_url}\n`;
+                }
+
+                // 2. Converte o canvas para Blob PNG
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                const file = new File([blob], `cartao_atualizado_${cliNome}.png`, { type: 'image/png' });
+
+                // 3. FLUXO MOBILE NATIVO (Web Share API com Arquivo de Imagem)
+                // Abre o WhatsApp no celular com a IMAGEM REAL DO CARTÃO ATUALIZADO anexada no chat!
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            text: msg,
+                            title: 'Cartão de Crediário Atualizado'
+                        });
+                        return; // Enviado via folha nativa
+                    } catch (shareErr) {
+                        if (shareErr.name === 'AbortError') return; // Cancelado pelo usuário
+                        console.warn('Falha no Web Share nativo, aplicando fallback:', shareErr);
+                    }
+                }
+
+                // 4. FLUXO DESKTOP / COMPUTADOR (Clipboard API + Download + WhatsApp Web)
+                let copiadoClipboard = false;
+                try {
+                    if (navigator.clipboard && window.ClipboardItem) {
+                        await navigator.clipboard.write([
+                            new ClipboardItem({ 'image/png': blob })
+                        ]);
+                        copiadoClipboard = true;
+                    }
+                } catch (clipErr) {
+                    console.warn('Clipboard write fallback:', clipErr);
+                }
+
+                // Dispara download do arquivo PNG
+                const linkDownload = document.createElement('a');
+                linkDownload.download = `cartao_atualizado_${cliNome}.png`;
+                linkDownload.href = canvas.toDataURL('image/png');
+                linkDownload.click();
+
+                // Abre a conversa no WhatsApp Web / Desktop
+                const urlZap = fone 
+                    ? `https://api.whatsapp.com/send?phone=55${fone}&text=${encodeURIComponent(msg)}`
+                    : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+
+                window.open(urlZap, '_blank');
+
+                if (copiadoClipboard) {
+                    mostrarAvisoZapCobrador('✓ <b>A imagem do cartão foi copiada para a área de transferência!</b><br>Na janela aberta do WhatsApp, pressione <b>Ctrl + V</b> para colar a foto do cartão e enviar com o texto.');
+                } else {
+                    mostrarAvisoZapCobrador('✓ <b>Imagem do cartão baixada com sucesso!</b><br>Na janela aberta do WhatsApp, anexe o arquivo da imagem para enviar ao cliente.');
+                }
+            } catch (e) {
+                console.error('Erro ao compartilhar WhatsApp:', e);
+                alert('Erro ao preparar envio da imagem do cartão: ' + e.message);
+            } finally {
+                if (btnZap) {
+                    btnZap.innerHTML = originalHtml;
+                    btnZap.disabled = false;
+                }
             }
-
-            const urlZap = fone 
-                ? `https://api.whatsapp.com/send?phone=55${fone}&text=${encodeURIComponent(msg)}`
-                : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
-
-            window.open(urlZap, '_blank');
         }
 
         // =========================================================================

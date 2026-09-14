@@ -355,9 +355,21 @@ $this->title = 'App do Vendedor Ambulante | Pulse Prestanista';
                 <button onclick="baixarCartaoPdf()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow active:scale-95 transition flex items-center gap-1">
                     <span>📄</span> <span>PDF</span>
                 </button>
-                <button onclick="compartilharWhatsAppCartao()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow active:scale-95 transition flex items-center gap-1">
+                <button onclick="compartilharWhatsAppCartao()" id="btn-zap-cartao" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow active:scale-95 transition flex items-center gap-1">
                     <span>💬</span> <span>Zap</span>
                 </button>
+            </div>
+        </div>
+
+        <!-- Toast de Aviso do Envio WhatsApp com Imagem -->
+        <div id="toast-zap-cartao" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] max-w-sm w-[92%] bg-slate-900/95 border border-emerald-500/60 shadow-2xl rounded-2xl p-4 text-white text-xs space-y-2 backdrop-blur-md hidden transition-all duration-300">
+            <div class="flex items-start gap-3">
+                <span class="text-2xl">📋</span>
+                <div class="flex-1">
+                    <h4 class="font-bold text-emerald-400">Cartão Pronto para Envio!</h4>
+                    <p id="msg-toast-zap" class="text-slate-200 mt-1 leading-relaxed text-[11px]"></p>
+                </div>
+                <button onclick="document.getElementById('toast-zap-cartao').classList.add('hidden')" class="text-slate-400 hover:text-white font-bold p-1 text-sm">✕</button>
             </div>
         </div>
 
@@ -959,36 +971,124 @@ $this->title = 'App do Vendedor Ambulante | Pulse Prestanista';
             }
         }
 
-        function compartilharWhatsAppCartao() {
+        function mostrarAvisoZap(texto) {
+            const toast = document.getElementById('toast-zap-cartao');
+            const msgElem = document.getElementById('msg-toast-zap');
+            if (!toast || !msgElem) return;
+
+            msgElem.innerHTML = texto;
+            toast.classList.remove('hidden');
+
+            clearTimeout(window._toastZapTimer);
+            window._toastZapTimer = setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 12000);
+        }
+
+        async function compartilharWhatsAppCartao() {
             const venda = appState.vendaAtivaParaCartao;
             if (!venda) return;
 
-            const cli = venda.cliente;
-            const fone = (cli.telefone || '').replace(/\D/g, '');
-            const numParcelas = venda.numero_parcelas;
-            const valorParcela = (venda.valor_total - venda.valor_entrada) / numParcelas;
+            const elem = document.getElementById('area-cartao-render');
+            if (!elem) return;
 
-            let msg = `*${appState.lojaNome.toUpperCase()}*\n`;
-            msg += `Olá ${cli.nome}, segue o comprovante do seu crediário:\n\n`;
-            msg += `📦 *Produtos:* ${venda.itens.map(i => `${i.quantidade}x ${i.nome}`).join(', ')}\n`;
-            msg += `💰 *Valor Total:* R$ ${venda.valor_total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}\n`;
-            if (venda.valor_entrada > 0) {
-                msg += `💵 *Entrada:* R$ ${venda.valor_entrada.toLocaleString('pt-BR', {minimumFractionDigits: 2})}\n`;
-            }
-            msg += `📅 *Parcelamento:* ${numParcelas}x de R$ ${valorParcela.toLocaleString('pt-BR', {minimumFractionDigits: 2})}\n`;
-            msg += `🗓️ *1º Vencimento:* ${new Date(venda.data_primeiro_vencimento + 'T00:00:00').toLocaleDateString('pt-BR')}\n`;
-
-            if (venda.public_url) {
-                msg += `\n🔗 *Acompanhe seu Cartão On-line:* ${venda.public_url}\n`;
-            } else {
-                msg += `\n_Cartão físico emitido na sua porta. Guarde este comprovante._\n`;
+            const btnZap = document.getElementById('btn-zap-cartao');
+            const originalHtml = btnZap ? btnZap.innerHTML : '';
+            if (btnZap) {
+                btnZap.innerHTML = '<span>⏳</span> <span>Gerando...</span>';
+                btnZap.disabled = true;
             }
 
-            const urlZap = fone 
-                ? `https://api.whatsapp.com/send?phone=55${fone}&text=${encodeURIComponent(msg)}`
-                : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+            try {
+                // 1. Renderiza o cartão em imagem PNG de alta definição (escala 2x para nitidez no celular)
+                const canvas = await html2canvas(elem, { 
+                    scale: 2, 
+                    useCORS: true, 
+                    backgroundColor: '#ffffff' 
+                });
 
-            window.open(urlZap, '_blank');
+                const cli = venda.cliente || {};
+                const fone = (cli.telefone || '').replace(/\D/g, '');
+                const numParcelas = venda.numero_parcelas;
+                const valorParcela = (venda.valor_total - venda.valor_entrada) / numParcelas;
+                const cliNome = (cli.nome || 'cliente').replace(/[^a-zA-Z0-9]/g, '_');
+
+                let msg = `*${appState.lojaNome.toUpperCase()}*\n`;
+                msg += `Olá ${cli.nome || 'Cliente'}, segue o comprovante do seu crediário:\n\n`;
+                msg += `📦 *Produtos:* ${venda.itens.map(i => `${i.quantidade}x ${i.nome}`).join(', ')}\n`;
+                msg += `💰 *Valor Total:* R$ ${venda.valor_total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}\n`;
+                if (venda.valor_entrada > 0) {
+                    msg += `💵 *Entrada:* R$ ${venda.valor_entrada.toLocaleString('pt-BR', {minimumFractionDigits: 2})}\n`;
+                }
+                msg += `📅 *Parcelamento:* ${numParcelas}x de R$ ${valorParcela.toLocaleString('pt-BR', {minimumFractionDigits: 2})}\n`;
+                msg += `🗓️ *1º Vencimento:* ${new Date(venda.data_primeiro_vencimento + 'T00:00:00').toLocaleDateString('pt-BR')}\n`;
+
+                if (venda.public_url) {
+                    msg += `\n🔗 *Acompanhe seu Cartão On-line:* ${venda.public_url}\n`;
+                } else {
+                    msg += `\n_Cartão físico emitido na sua porta. Guarde este comprovante._\n`;
+                }
+
+                // 2. Converte o canvas para Blob
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                const file = new File([blob], `cartao_crediario_${cliNome}.png`, { type: 'image/png' });
+
+                // 3. FLUXO MOBILE NATIVO (Web Share API com Arquivo de Imagem)
+                // Abre o WhatsApp no celular com a IMAGEM REAL DO CARTÃO ANEXADA no chat!
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            text: msg,
+                            title: 'Cartão de Crediário'
+                        });
+                        return; // Enviado com sucesso via folha nativa
+                    } catch (shareErr) {
+                        if (shareErr.name === 'AbortError') return; // Cancelado pelo usuário
+                        console.warn('Falha no Web Share nativo, aplicando fallback:', shareErr);
+                    }
+                }
+
+                // 4. FLUXO DESKTOP / COMPUTADOR (Clipboard API + Download + WhatsApp Web)
+                let copiadoClipboard = false;
+                try {
+                    if (navigator.clipboard && window.ClipboardItem) {
+                        await navigator.clipboard.write([
+                            new ClipboardItem({ 'image/png': blob })
+                        ]);
+                        copiadoClipboard = true;
+                    }
+                } catch (clipErr) {
+                    console.warn('Clipboard write fallback:', clipErr);
+                }
+
+                // Dispara download do arquivo de imagem do cartão
+                const linkDownload = document.createElement('a');
+                linkDownload.download = `cartao_crediario_${cliNome}.png`;
+                linkDownload.href = canvas.toDataURL('image/png');
+                linkDownload.click();
+
+                // Abre a conversa no WhatsApp Web / Desktop
+                const urlZap = fone 
+                    ? `https://api.whatsapp.com/send?phone=55${fone}&text=${encodeURIComponent(msg)}`
+                    : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+
+                window.open(urlZap, '_blank');
+
+                if (copiadoClipboard) {
+                    mostrarAvisoZap('✓ <b>A imagem do cartão foi copiada para a área de transferência!</b><br>Na janela aberta do WhatsApp, pressione <b>Ctrl + V</b> para colar a imagem do cartão e enviar com o texto.');
+                } else {
+                    mostrarAvisoZap('✓ <b>Imagem do cartão baixada com sucesso!</b><br>Na janela aberta do WhatsApp, anexe o arquivo da imagem para enviar ao cliente.');
+                }
+            } catch (e) {
+                console.error('Erro ao compartilhar WhatsApp:', e);
+                alert('Erro ao preparar envio da imagem do cartão: ' + e.message);
+            } finally {
+                if (btnZap) {
+                    btnZap.innerHTML = originalHtml;
+                    btnZap.disabled = false;
+                }
+            }
         }
 
         // =========================================================================
