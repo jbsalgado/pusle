@@ -12,6 +12,7 @@
 /** @var float $valorAtrasado */
 /** @var array $ultimosPagamentos */
 /** @var array $cobradores */
+/** @var array $cobradoresResumo */
 
 use yii\helpers\Html;
 use yii\helpers\Url;
@@ -56,6 +57,31 @@ $this->title = 'Painel Prestanista - Crediário Ambulante';
             </a>
         </div>
     </div>
+
+    <!-- Alerta / Banner de Distribuição Pendente de Clientes -->
+    <?php if ($cartoesSemCobrador > 0): ?>
+        <div class="bg-gradient-to-r from-rose-950/70 via-slate-900 to-amber-950/40 border-2 border-rose-500/50 p-5 sm:p-6 rounded-3xl shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-2xl shrink-0">
+                    🛵
+                </div>
+                <div>
+                    <h3 class="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                        <span>Atenção: <?= $cartoesSemCobrador ?> Cartão(ões) Aguardando Cobrador!</span>
+                        <span class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-bold uppercase tracking-wider">Sem Rota</span>
+                    </h3>
+                    <p class="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                        Existem clientes com compras ativas a prestação que <strong>não aparecerão no aplicativo de nenhum cobrador de rua</strong> até que você os distribua. Atribua as rotas para que as visitas de cobrança sejam iniciadas.
+                    </p>
+                </div>
+            </div>
+            <a href="<?= Url::to(['/prestanista/atribuicao/index', 'sem_cobrador' => 1]) ?>" class="px-5 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow-lg transition active:scale-95 flex items-center gap-2 whitespace-nowrap shrink-0">
+                <span>🛵</span>
+                <span>Distribuir Agora aos Cobradores</span>
+                <span>→</span>
+            </a>
+        </div>
+    <?php endif; ?>
 
     <!-- Cards de Métricas Principais -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -131,11 +157,23 @@ $this->title = 'Painel Prestanista - Crediário Ambulante';
     </div>
 
     <!-- Seção de Ações Rápidas & Atalhos de Gestão -->
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
         <a href="<?= Url::to(['/prestanista/cartao/index']) ?>" class="p-4 rounded-2xl bg-slate-950 border border-slate-800/90 hover:border-amber-500/50 hover:bg-slate-900/80 transition flex flex-col items-center text-center group">
             <span class="text-3xl mb-2 group-hover:scale-110 transition-transform">📇</span>
             <span class="text-xs font-black text-white">Cartões</span>
             <span class="text-[11px] text-slate-400 mt-0.5">Fichas e parcelas</span>
+        </a>
+
+        <!-- Atalho de Atribuição e Distribuição de Rotas -->
+        <a href="<?= Url::to(['/prestanista/atribuicao/index']) ?>" class="p-4 rounded-2xl bg-slate-950 border <?= ($cartoesSemCobrador > 0) ? 'border-amber-500/60 bg-amber-500/5 ring-1 ring-amber-500/30' : 'border-slate-800/90' ?> hover:border-amber-500 hover:bg-slate-900/80 transition flex flex-col items-center text-center group relative">
+            <?php if ($cartoesSemCobrador > 0): ?>
+                <span class="absolute -top-1.5 -right-1.5 px-2 py-0.5 bg-rose-500 text-white font-black text-[9px] rounded-full shadow">
+                    <?= $cartoesSemCobrador ?> pendente(s)
+                </span>
+            <?php endif; ?>
+            <span class="text-3xl mb-2 group-hover:scale-110 transition-transform">🛵</span>
+            <span class="text-xs font-black text-white">Distribuir Rotas</span>
+            <span class="text-[11px] text-slate-400 mt-0.5">Atribuir a cobradores</span>
         </a>
 
         <a href="<?= Url::to(['/prestanista/equipe/index']) ?>" class="p-4 rounded-2xl bg-slate-950 border border-slate-800/90 hover:border-amber-500/50 hover:bg-slate-900/80 transition flex flex-col items-center text-center group">
@@ -231,22 +269,29 @@ $this->title = 'Painel Prestanista - Crediário Ambulante';
                     <a href="<?= Url::to(['/prestanista/equipe/index']) ?>" class="text-xs text-amber-400 hover:underline font-bold">Gerenciar</a>
                 </div>
 
-                <?php if (empty($cobradores)): ?>
-                    <p class="text-xs text-slate-500 italic py-6 text-center">Nenhum cobrador ou vendedor cadastrado.</p>
+                <?php if (empty($cobradoresResumo)): ?>
+                    <p class="text-xs text-slate-500 italic py-6 text-center">Nenhum cobrador cadastrado.</p>
                 <?php else: ?>
                     <div class="space-y-2.5">
-                        <?php foreach (array_slice($cobradores, 0, 5) as $c): ?>
-                            <div class="p-3 rounded-2xl bg-slate-900/70 border border-slate-800/80 flex items-center justify-between">
-                                <div class="flex items-center gap-2.5">
-                                    <div class="w-8 h-8 rounded-full bg-slate-800 text-amber-400 font-black text-xs flex items-center justify-center border border-slate-700">
+                        <?php foreach (array_slice($cobradoresResumo, 0, 5) as $item): 
+                            $c = $item['model'];
+                            $qtdRota = $item['cartoes_count'];
+                        ?>
+                            <div class="p-3 rounded-2xl bg-slate-900/70 border border-slate-800/80 flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-2.5 min-w-0">
+                                    <div class="w-8 h-8 rounded-full bg-slate-800 text-amber-400 font-black text-xs flex items-center justify-center border border-slate-700 shrink-0">
                                         <?= strtoupper(substr($c->nome ?? 'C', 0, 1)) ?>
                                     </div>
-                                    <div>
-                                        <span class="block text-xs font-bold text-white"><?= Html::encode($c->nome) ?></span>
-                                        <span class="block text-[10px] text-slate-400"><?= Html::encode($c->funcao ?? 'Colaborador de Campo') ?></span>
+                                    <div class="min-w-0">
+                                        <span class="block text-xs font-bold text-white truncate"><?= Html::encode($c->nome) ?></span>
+                                        <span class="block text-[10px] text-slate-400 flex items-center gap-1">
+                                            <span class="text-emerald-400 font-bold"><?= $qtdRota ?></span> cliente(s) na rota
+                                        </span>
                                     </div>
                                 </div>
-                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-xs shadow-emerald-500/50" title="Ativo"></span>
+                                <a href="<?= Url::to(['/prestanista/atribuicao/index', 'cobrador_id' => $c->id]) ?>" class="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-[10px] font-bold transition shrink-0" title="Atribuir ou ver rota deste cobrador">
+                                    🛵 Rota
+                                </a>
                             </div>
                         <?php endforeach; ?>
                     </div>

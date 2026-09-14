@@ -17,6 +17,7 @@ use app\modules\vendas\models\Produto;
 use app\modules\vendas\models\FormaPagamento;
 use app\modules\vendas\models\StatusParcela;
 use app\modules\vendas\models\StatusVenda;
+use app\modules\vendas\models\CarteiraCobranca;
 
 /**
  * Gestão de Cartões de Crediário Prestanista
@@ -25,7 +26,7 @@ class CartaoController extends Controller
 {
     public function actionIndex(
         $q = null,
-        $status = null,
+        $status = 'ABERTO',
         $vendedor_id = null,
         $cobrador_id = null,
         $cidade = null,
@@ -38,36 +39,29 @@ class CartaoController extends Controller
 
         $query = Venda::findPrestanista($usuarioId)
             ->leftJoin('prest_clientes c', 'c.id = v.cliente_id')
-            ->with(['cliente', 'vendedor'])
-            ->orderBy(['v.id' => SORT_DESC]);
+            ->with(['cliente', 'itens.produto', 'parcelas.formaPagamento', 'usuario', 'vendedor'])
+            ->orderBy(['v.data_venda' => SORT_DESC, 'v.id' => SORT_DESC]);
 
         if ($q) {
-            $query->andFilterWhere([
+            $qTrim = trim($q);
+            $query->andWhere([
                 'or',
-                ['ilike', 'c.nome_completo', $q],
-                ['ilike', 'c.cpf', $q],
-                ['ilike', 'c.telefone', $q],
-                ['ilike', 'c.endereco_bairro', $q],
-                ['ilike', 'c.endereco_logradouro', $q],
-                ['cast(v.id as text)' => $q]
+                ['ilike', 'c.nome_completo', $qTrim],
+                ['ilike', 'c.cpf', $qTrim],
+                ['ilike', 'c.telefone', $qTrim],
+                ['ilike', 'c.endereco_logradouro', $qTrim],
+                ['ilike', 'c.endereco_bairro', $qTrim],
+                ['ilike', 'c.endereco_cidade', $qTrim],
+                ['cast(v.id as text)' => $qTrim],
             ]);
         }
 
         if ($status === 'ABERTO') {
-            $query->andWhere(['v.status_venda_codigo' => 'EM_ABERTO']);
+            $query->andWhere(['v.status_venda_codigo' => ['EM_ABERTO', 'PARCIALMENTE_PAGA']]);
         } elseif ($status === 'QUITADO') {
             $query->andWhere(['v.status_venda_codigo' => ['FINALIZADA', 'QUITADA']]);
-        } elseif ($status === 'ATRASADO') {
-            $hoje = date('Y-m-d');
-            $query->andWhere(['v.status_venda_codigo' => 'EM_ABERTO'])
-                ->andWhere([
-                    'exists',
-                    (new \yii\db\Query())
-                        ->from('prest_parcelas pp')
-                        ->where('pp.venda_id = v.id')
-                        ->andWhere(['pp.status_parcela_codigo' => StatusParcela::PENDENTE])
-                        ->andWhere(['<', 'pp.data_vencimento', $hoje])
-                ]);
+        } elseif ($status === 'CANCELADO') {
+            $query->andWhere(['v.status_venda_codigo' => 'CANCELADA']);
         }
 
         if ($vendedor_id) {
@@ -77,21 +71,26 @@ class CartaoController extends Controller
         if ($cobrador_id) {
             $query->andWhere([
                 'or',
-                ['exists', (new \yii\db\Query())
-                    ->from('prest_parcelas p')
-                    ->where('p.venda_id = v.id')
-                    ->andWhere(['p.cobrador_id' => $cobrador_id])
+                [
+                    'exists',
+                    (new \yii\db\Query())
+                        ->from('prest_parcelas p')
+                        ->where('p.venda_id = v.id')
+                        ->andWhere(['p.cobrador_id' => $cobrador_id])
                 ],
-                ['exists', (new \yii\db\Query())
-                    ->from('prest_carteira_cobranca cc')
-                    ->where('cc.cliente_id = v.cliente_id')
-                    ->andWhere(['cc.cobrador_id' => $cobrador_id, 'cc.ativo' => true])
+                [
+                    'exists',
+                    (new \yii\db\Query())
+                        ->from('prest_carteira_cobranca cc')
+                        ->where('cc.cliente_id = v.cliente_id')
+                        ->andWhere(['cc.cobrador_id' => $cobrador_id, 'cc.ativo' => true])
                 ],
-                ['exists', (new \yii\db\Query())
-                    ->from('prest_historico_cobranca hc')
-                    ->innerJoin('prest_parcelas hp', 'hp.id = hc.parcela_id')
-                    ->where('hp.venda_id = v.id')
-                    ->andWhere(['hc.cobrador_id' => $cobrador_id])
+                [
+                    'exists',
+                    (new \yii\db\Query())
+                        ->from('prest_historico_cobranca hc')
+                        ->where('hc.cliente_id = v.cliente_id')
+                        ->andWhere(['hc.cobrador_id' => $cobrador_id])
                 ]
             ]);
         }
@@ -112,24 +111,6 @@ class CartaoController extends Controller
             $query->andWhere(['<=', 'v.data_venda', $data_fim]);
         }
 
-        $countQuery = clone $query;
-        $totalCount = $countQuery->count();
-        $pages = new Pagination(['totalCount' => $totalCount, 'pageSize' => 15]);
-        $cartoes = $query->offset($pages->offset)->limit($pages->limit)->all();
-
-        // Listas para dropdowns de filtros
-        $vendedores = Colaborador::find()
-            ->where(['usuario_id' => $usuarioId, 'ativo' => true])
-            ->andWhere(['or', ['eh_vendedor' => true], ['eh_vendedor' => null]])
-            ->orderBy(['nome_completo' => SORT_ASC])
-            ->all();
-
-        $cobradores = Colaborador::find()
-            ->where(['usuario_id' => $usuarioId, 'ativo' => true])
-            ->andWhere(['or', ['eh_cobrador' => true], ['eh_cobrador' => null]])
-            ->orderBy(['nome_completo' => SORT_ASC])
-            ->all();
-
         $cidades = Cliente::find()
             ->select('endereco_cidade')
             ->where(['usuario_id' => $usuarioId])
@@ -149,10 +130,35 @@ class CartaoController extends Controller
         }
         $bairros = $bairrosQuery->distinct()->orderBy(['endereco_bairro' => SORT_ASC])->column();
 
+        $vendedores = Colaborador::find()
+            ->where(['usuario_id' => $usuarioId, 'ativo' => true])
+            ->andWhere(['or', ['eh_vendedor' => true], ['eh_vendedor' => null]])
+            ->orderBy(['nome_completo' => SORT_ASC])
+            ->all();
+
+        $cobradores = Colaborador::find()
+            ->where(['usuario_id' => $usuarioId, 'ativo' => true])
+            ->andWhere(['or', ['eh_cobrador' => true], ['eh_cobrador' => null]])
+            ->orderBy(['nome_completo' => SORT_ASC])
+            ->all();
+
+        $countQuery = clone $query;
+        $totalCartoes = $countQuery->count();
+
+        $pages = new Pagination([
+            'totalCount' => $totalCartoes,
+            'pageSize' => 12,
+            'defaultPageSize' => 12,
+        ]);
+
+        $cartoes = $query
+            ->offset($pages->offset)
+            ->limit($pages->limit)
+            ->all();
+
         return $this->render('index', [
             'cartoes' => $cartoes,
             'pages' => $pages,
-            'totalCount' => $totalCount,
             'q' => $q,
             'status' => $status,
             'vendedor_id' => $vendedor_id,
@@ -161,10 +167,11 @@ class CartaoController extends Controller
             'bairro' => $bairro,
             'data_inicio' => $data_inicio,
             'data_fim' => $data_fim,
-            'vendedores' => $vendedores,
-            'cobradores' => $cobradores,
             'cidades' => $cidades,
             'bairros' => $bairros,
+            'vendedores' => $vendedores,
+            'cobradores' => $cobradores,
+            'totalCartoes' => $totalCartoes,
         ]);
     }
 
@@ -175,7 +182,7 @@ class CartaoController extends Controller
 
         $cartao = Venda::find()
             ->where(['id' => $id, 'usuario_id' => $usuarioId])
-            ->with(['cliente', 'itens.produto', 'parcelas.formaPagamento'])
+            ->with(['cliente', 'itens.produto', 'parcelas.formaPagamento', 'parcelas.cobrador'])
             ->one();
 
         if (!$cartao) {
@@ -189,10 +196,101 @@ class CartaoController extends Controller
             ->orderBy(['data_acao' => SORT_ASC])
             ->all();
 
+        // Identifica cobrador atual das parcelas pendentes
+        $cobradorAtual = null;
+        if (!empty($cartao->parcelas)) {
+            foreach ($cartao->parcelas as $p) {
+                if ($p->status_parcela_codigo === 'PENDENTE' && $p->cobrador) {
+                    $cobradorAtual = $p->cobrador;
+                    break;
+                }
+            }
+        }
+
+        // Lista de cobradores disponíveis para atribuição
+        $cobradores = Colaborador::find()
+            ->where(['usuario_id' => $usuarioId, 'ativo' => true])
+            ->andWhere(['or', ['eh_cobrador' => true], ['eh_cobrador' => null]])
+            ->orderBy(['nome_completo' => SORT_ASC])
+            ->all();
+
         return $this->render('view', [
             'cartao' => $cartao,
             'historico' => $historico,
+            'cobradores' => $cobradores,
+            'cobradorAtual' => $cobradorAtual,
         ]);
+    }
+
+    /**
+     * Atribui ou altera o cobrador de rua responsável pelas parcelas pendentes deste cartão
+     */
+    public function actionAtribuirCobrador($id)
+    {
+        $usuario = Yii::$app->user->identity;
+        $usuarioId = $usuario ? $usuario->getTenantId() : null;
+
+        $cartao = Venda::find()
+            ->where(['id' => $id, 'usuario_id' => $usuarioId])
+            ->one();
+
+        if (!$cartao) {
+            throw new NotFoundHttpException('Cartão de crediário não encontrado.');
+        }
+
+        if (Yii::$app->request->isPost) {
+            $cobradorId = Yii::$app->request->post('cobrador_id');
+            $cobrador = null;
+            if ($cobradorId) {
+                $cobrador = Colaborador::findOne(['id' => $cobradorId, 'usuario_id' => $usuarioId, 'ativo' => true]);
+            }
+
+            $transaction = Yii::$app->db->beginTransaction();
+            try {
+                // Atualiza todas as parcelas pendentes com o cobrador selecionado
+                Parcela::updateAll(
+                    ['cobrador_id' => $cobrador ? $cobrador->id : null],
+                    [
+                        'venda_id' => $cartao->id,
+                        'status_parcela_codigo' => StatusParcela::PENDENTE,
+                    ]
+                );
+
+                // Atualiza ou cria a carteira de cobrança do cliente
+                $carteira = CarteiraCobranca::findOne(['usuario_id' => $usuarioId, 'cliente_id' => $cartao->cliente_id]);
+                if ($cobrador) {
+                    if ($carteira) {
+                        $carteira->cobrador_id = $cobrador->id;
+                        $carteira->ativo = true;
+                        $carteira->save(false);
+                    } else {
+                        $carteira = new CarteiraCobranca();
+                        $carteira->usuario_id = $usuarioId;
+                        $carteira->cliente_id = $cartao->cliente_id;
+                        $carteira->cobrador_id = $cobrador->id;
+                        $carteira->data_distribuicao = date('Y-m-d H:i:s');
+                        $carteira->ativo = true;
+                        $carteira->total_parcelas = (int)$cartao->numero_parcelas;
+                        $carteira->valor_total = (float)$cartao->valor_total;
+                        $carteira->save(false);
+                    }
+                    Yii::$app->session->setFlash('success', "✓ Cartão atribuído com sucesso ao cobrador {$cobrador->nome_completo}!");
+                } else {
+                    if ($carteira) {
+                        $carteira->cobrador_id = null;
+                        $carteira->save(false);
+                    }
+                    Yii::$app->session->setFlash('info', "Cartão desvinculado de cobrador.");
+                }
+
+                $transaction->commit();
+            } catch (\Exception $e) {
+                $transaction->rollBack();
+                Yii::$app->session->setFlash('error', 'Erro ao atribuir cobrador: ' . $e->getMessage());
+            }
+        }
+
+        return $this->redirect(Yii::$app->request->referrer ?: ['view', 'id' => $id]);
     }
 
     /**

@@ -8,6 +8,7 @@ use app\modules\vendas\models\Venda;
 use app\modules\vendas\models\Parcela;
 use app\modules\vendas\models\HistoricoCobranca;
 use app\modules\vendas\models\Colaborador;
+use app\modules\vendas\models\StatusParcela;
 
 /**
  * Controller principal / Dashboard do Módulo Prestanista
@@ -85,10 +86,32 @@ class DefaultController extends Controller
             ->limit(8)
             ->all();
 
-        // Cobradores Ativos
+        // Cobradores Ativos e Carga Atual em Rota
         $cobradores = Colaborador::find()
             ->where(['usuario_id' => $usuarioId, 'ativo' => true])
+            ->andWhere(['or', ['eh_cobrador' => true], ['eh_cobrador' => null]])
+            ->orderBy(['nome_completo' => SORT_ASC])
             ->all();
+
+        $cobradoresResumo = [];
+        foreach ($cobradores as $cob) {
+            $qtdCartoes = (int)Venda::findPrestanista($usuarioId)
+                ->andWhere(['v.status_venda_codigo' => ['EM_ABERTO', 'PARCIALMENTE_PAGA']])
+                ->andWhere([
+                    'exists',
+                    (new \yii\db\Query())
+                        ->from('prest_parcelas pp')
+                        ->where('pp.venda_id = v.id')
+                        ->andWhere(['pp.cobrador_id' => $cob->id])
+                        ->andWhere(['pp.status_parcela_codigo' => StatusParcela::PENDENTE])
+                ])
+                ->count();
+
+            $cobradoresResumo[] = [
+                'model' => $cob,
+                'cartoes_count' => $qtdCartoes,
+            ];
+        }
 
         return $this->render('index', [
             'totalAReceber' => $totalAReceber,
@@ -103,6 +126,7 @@ class DefaultController extends Controller
             'valorAtrasado' => $valorAtrasado,
             'ultimosPagamentos' => $ultimosPagamentos,
             'cobradores' => $cobradores,
+            'cobradoresResumo' => $cobradoresResumo,
         ]);
     }
 }

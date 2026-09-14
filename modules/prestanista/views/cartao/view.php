@@ -2,6 +2,8 @@
 /** @var yii\web\View $this */
 /** @var app\modules\vendas\models\Venda $cartao */
 /** @var app\modules\vendas\models\HistoricoCobranca[] $historico */
+/** @var app\models\Usuario|null $cobradorAtual */
+/** @var app\models\Usuario[] $cobradores */
 
 use yii\helpers\Html;
 use yii\helpers\Url;
@@ -45,6 +47,11 @@ $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente')
                 <span>👁️</span> Ver Online
             </a>
 
+            <!-- Atribuir / Trocar Cobrador -->
+            <button type="button" onclick="abrirModalAtribuirCobrador()" class="px-3.5 py-2 <?= $cobradorAtual ? 'bg-indigo-900/60 hover:bg-indigo-800/80 text-indigo-200 border-indigo-700' : 'bg-amber-600/90 hover:bg-amber-500 text-slate-950 border-amber-500 animate-pulse' ?> font-bold text-xs rounded-xl border transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Atribuir ou trocar cobrador de rota deste cartão">
+                <span>🛵</span> <span><?= $cobradorAtual ? 'Cobrador: ' . Html::encode(explode(' ', $cobradorAtual->nome_completo ?: $cobradorAtual->nome)[0]) : 'Atribuir Cobrador' ?></span>
+            </button>
+
             <!-- Alterar Frequência -->
             <button type="button" onclick="abrirModalAjustarFrequencia()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
                 <span>🔄</span> Frequência
@@ -66,6 +73,22 @@ $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente')
     <div id="toastCopiado" class="hidden bg-emerald-500 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-lg text-center animate-bounce">
         ✓ Link público do cartão copiado para a área de transferência!
     </div>
+
+    <!-- Alerta quando o cartão não possui cobrador atribuído -->
+    <?php if (!$cobradorAtual): ?>
+        <div class="bg-amber-500/10 border border-amber-500/40 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl">⚠️</span>
+                <div>
+                    <p class="text-xs font-bold text-amber-300 uppercase tracking-wide">Atenção: Cartão sem Cobrador na Rota</p>
+                    <p class="text-[11px] text-slate-300">As parcelas deste cliente não aparecerão no celular de nenhum cobrador até que você vincule um responsável.</p>
+                </div>
+            </div>
+            <button type="button" onclick="abrirModalAtribuirCobrador()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow transition active:scale-95 whitespace-nowrap cursor-pointer">
+                🛵 Atribuir Cobrador Agora
+            </button>
+        </div>
+    <?php endif; ?>
 
     <!-- O CARTÃO FÍSICO DIGITAL (LAYOUT RESPONSIVO PARA TELAS GRANDES E CELULARES) -->
     <div class="bg-amber-50/95 text-slate-900 border-2 sm:border-4 border-slate-900 rounded-2xl sm:rounded-3xl p-3 sm:p-8 shadow-2xl font-serif relative overflow-hidden">
@@ -158,9 +181,19 @@ $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente')
                     <div><span class="font-bold">BAIRRO:</span> <span class="font-sans font-bold"><?= Html::encode($cliente->bairro ?? '—') ?></span></div>
                     <div><span class="font-bold">CIDADE:</span> <span class="font-sans font-bold"><?= Html::encode($cliente->cidade ?? '—') ?></span></div>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2 pt-1 border-t border-slate-300">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2 pt-1 border-t border-slate-300">
                     <div><span class="font-bold">VENDEDOR:</span> <span class="font-sans font-bold"><?= Html::encode($cartao->vendedor->nome ?? 'Ambulante') ?></span></div>
                     <div><span class="font-bold">TEL.:</span> <span class="font-sans font-bold"><?= Html::encode($cliente->telefone ?? '—') ?></span></div>
+                    <div>
+                        <span class="font-bold">COBRADOR:</span> 
+                        <?php if ($cobradorAtual): ?>
+                            <span class="font-sans font-black text-indigo-950"><?= Html::encode($cobradorAtual->nome_completo ?: $cobradorAtual->nome) ?></span>
+                            <button type="button" onclick="abrirModalAtribuirCobrador()" class="text-[10px] text-indigo-700 hover:text-indigo-900 underline font-bold ml-1 cursor-pointer">(trocar)</button>
+                        <?php else: ?>
+                            <span class="font-sans font-black text-rose-700">⚠️ SEM COBRADOR</span>
+                            <button type="button" onclick="abrirModalAtribuirCobrador()" class="text-[10px] bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded border border-rose-300 font-bold ml-1 cursor-pointer hover:bg-rose-200">Atribuir</button>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <?php $freqCartao = $cartao->getFrequenciaPrestanista(); ?>
                 <div class="flex items-center gap-2 sm:gap-4 pt-1.5 text-[10px] sm:text-[11px] font-sans font-black uppercase text-amber-950 flex-wrap justify-between">
@@ -455,7 +488,62 @@ $this->title = 'Cartão #' . $cartao->id . ' - ' . ($cliente->nome ?? 'Cliente')
     </div>
 </div>
 
+<!-- Modal Atribuir / Trocar Cobrador -->
+<div id="modalAtribuirCobrador" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 class="text-sm font-black text-white flex items-center gap-2">
+                <span>🛵</span>
+                <span>Atribuir Cobrador de Rota</span>
+            </h3>
+            <button type="button" onclick="fecharModalAtribuirCobrador()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition cursor-pointer">
+                ✕
+            </button>
+        </div>
+
+        <form method="post" action="<?= Url::to(['/prestanista/cartao/atribuir-cobrador', 'id' => $cartao->id]) ?>" class="space-y-4">
+            <input type="hidden" name="<?= Yii::$app->request->csrfParam ?>" value="<?= Yii::$app->request->csrfToken ?>" />
+
+            <div class="bg-slate-950/70 border border-slate-800 rounded-2xl p-3 text-xs space-y-1">
+                <div class="text-slate-400">Cliente: <span class="text-white font-bold"><?= Html::encode($cliente->nome ?? '—') ?></span></div>
+                <div class="text-slate-400">Localização: <span class="text-slate-300 font-bold"><?= Html::encode(($cliente->bairro ?? 'Sem Bairro') . ' - ' . ($cliente->cidade ?? '')) ?></span></div>
+                <div class="text-slate-400">Cobrador Atual: <span class="font-bold <?= $cobradorAtual ? 'text-indigo-400' : 'text-amber-400' ?>"><?= $cobradorAtual ? Html::encode($cobradorAtual->nome_completo ?: $cobradorAtual->nome) : 'Nenhum cobrador atribuído' ?></span></div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">Selecione o Cobrador Responsável:</label>
+                <select name="cobrador_id" class="w-full h-11 px-3.5 bg-slate-950 border border-slate-700 rounded-xl text-xs sm:text-sm text-white font-bold focus:border-indigo-500 focus:outline-none">
+                    <option value="">-- Remover da Rota (Sem Cobrador) --</option>
+                    <?php if (!empty($cobradores)): ?>
+                        <?php foreach ($cobradores as $c): ?>
+                            <option value="<?= $c->id ?>" <?= ($cobradorAtual && (string)$cobradorAtual->id === (string)$c->id) ? 'selected' : '' ?>>
+                                🛵 <?= Html::encode($c->nome_completo ?: $c->nome) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </select>
+                <p class="text-[11px] text-slate-400 mt-1.5">Todas as parcelas pendentes deste cartão serão vinculadas ao celular deste cobrador para recebimento em campo.</p>
+            </div>
+
+            <div class="pt-2 border-t border-slate-800 flex items-center justify-end gap-2">
+                <button type="button" onclick="fecharModalAtribuirCobrador()" class="px-4 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:text-white text-xs font-bold transition">
+                    Cancelar
+                </button>
+                <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-black text-xs rounded-xl shadow-lg transition active:scale-95 cursor-pointer">
+                    Confirmar Atribuição
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
+    function abrirModalAtribuirCobrador() {
+        document.getElementById('modalAtribuirCobrador').classList.remove('hidden');
+    }
+    function fecharModalAtribuirCobrador() {
+        document.getElementById('modalAtribuirCobrador').classList.add('hidden');
+    }
     function abrirModalAjustarFrequencia() {
         document.getElementById('modalAjustarFrequencia').classList.remove('hidden');
     }

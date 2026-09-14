@@ -49,6 +49,33 @@ $this->title = 'Atribuição de Cobrança aos Cobradores';
         </div>
     </div>
 
+    <!-- Guia Explicativo para o Lojista / Administrador -->
+    <div class="bg-gradient-to-r from-indigo-950/60 via-slate-900 to-slate-900 border border-indigo-500/30 rounded-2xl p-4 sm:p-5 shadow-lg">
+        <div class="flex items-start gap-3">
+            <span class="text-2xl mt-0.5">ℹ️</span>
+            <div class="space-y-2 text-xs w-full">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-black text-white text-sm">Como funciona a Distribuição de Clientes aos Cobradores:</h3>
+                    <span class="text-[10px] font-bold text-indigo-300 bg-indigo-950/80 px-2 py-0.5 rounded border border-indigo-500/30">Instruções para o Lojista</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-slate-300 mt-2">
+                    <div class="bg-slate-950/60 p-3 rounded-xl border border-indigo-500/20 space-y-1">
+                        <p class="font-bold text-indigo-400">1. Vendas Fechadas no Campo</p>
+                        <p class="text-[11px] text-slate-400">Os vendedores fecham os crediários e emitem os cartões físicos. Esses novos cartões começam como <strong class="text-amber-300">Sem Cobrador</strong>.</p>
+                    </div>
+                    <div class="bg-slate-950/60 p-3 rounded-xl border border-indigo-500/20 space-y-1">
+                        <p class="font-bold text-amber-400">2. Você Atribui as Rotas</p>
+                        <p class="text-[11px] text-slate-400">Filtre por bairro/cidade, marque os cartões na tabela abaixo e selecione o cobrador responsável na barra de ação em lote.</p>
+                    </div>
+                    <div class="bg-slate-950/60 p-3 rounded-xl border border-indigo-500/20 space-y-1">
+                        <p class="font-bold text-emerald-400">3. Celular do Cobrador Sincronizado</p>
+                        <p class="text-[11px] text-slate-400">O cobrador acessa o sistema no celular (<code class="text-white">/prestanista/cobrador</code>) e vê <strong>somente</strong> os clientes atribuídos a ele.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Filtros de Busca -->
     <div class="bg-slate-900 border border-slate-800 p-4 sm:p-5 rounded-2xl shadow-xl">
         <form method="get" action="<?= Url::to(['/prestanista/atribuicao/index']) ?>" class="space-y-4">
