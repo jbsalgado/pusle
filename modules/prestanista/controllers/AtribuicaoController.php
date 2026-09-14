@@ -65,7 +65,7 @@ class AtribuicaoController extends Controller
             ->orderBy(['c.endereco_bairro' => SORT_ASC, 'c.endereco_logradouro' => SORT_ASC, 'v.id' => SORT_DESC]);
 
         if ($status === 'ABERTO') {
-            $query->andWhere(['v.status_venda_codigo' => 'EM_ABERTO']);
+            $query->andWhere(['v.status_venda_codigo' => ['EM_ABERTO', 'PARCIALMENTE_PAGA']]);
         }
 
         if ($cidade) {
@@ -150,7 +150,7 @@ class AtribuicaoController extends Controller
 
         $queryVendas = Venda::findPrestanista($usuarioId)
             ->leftJoin('prest_clientes c', 'c.id = v.cliente_id')
-            ->andWhere(['v.status_venda_codigo' => 'EM_ABERTO']);
+            ->andWhere(['v.status_venda_codigo' => ['EM_ABERTO', 'PARCIALMENTE_PAGA']]);
 
         if ($modo === 'bairro' && $bairroAlvo) {
             $queryVendas->andWhere(['ilike', 'c.endereco_bairro', trim($bairroAlvo)]);

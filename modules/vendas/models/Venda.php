@@ -641,21 +641,47 @@ class Venda extends ActiveRecord
             $query->andWhere(['v.usuario_id' => $usuarioId]);
         }
 
+        // Exclui categoricamente pedidos do e-commerce / catálogo online PWA
         $query->andWhere([
-            'and',
+            'or',
+            ['v.observacoes' => null],
+            ['not ilike', 'v.observacoes', '%Pedido PWA%']
+        ]);
+
+        // Considera Prestanista se:
+        // 1. Observações contêm termos de crediário / prestanista / a prazo / fiado / cartão / carnê
+        // 2. OU existe parcela com cobrador atribuído
+        // 3. OU forma de pagamento é do tipo Crediário / Prestanista / Carnê
+        $query->andWhere([
+            'or',
+            ['ilike', 'v.observacoes', '%prestanista%'],
+            ['ilike', 'v.observacoes', '%cartão%'],
+            ['ilike', 'v.observacoes', '%cartao%'],
+            ['ilike', 'v.observacoes', '%crediário%'],
+            ['ilike', 'v.observacoes', '%crediario%'],
+            ['ilike', 'v.observacoes', '%a prazo%'],
+            ['ilike', 'v.observacoes', '%fiado%'],
+            ['ilike', 'v.observacoes', '%carnê%'],
+            ['ilike', 'v.observacoes', '%carne%'],
             [
-                'or',
-                ['is not', 'v.colaborador_vendedor_id', null],
-                ['ilike', 'v.observacoes', '%prestanista%'],
-                ['ilike', 'v.observacoes', '%cartão%'],
-                ['ilike', 'v.observacoes', '%cartao%'],
-                ['ilike', 'v.observacoes', '%crediário%'],
-                ['ilike', 'v.observacoes', '%crediario%'],
+                'exists',
+                (new \yii\db\Query())
+                    ->from('prest_parcelas pp_cob')
+                    ->where('pp_cob.venda_id = v.id')
+                    ->andWhere(['not', ['pp_cob.cobrador_id' => null]])
             ],
             [
-                'or',
-                ['!=', 'v.observacoes', 'Pedido PWA'],
-                ['is not', 'v.colaborador_vendedor_id', null]
+                'exists',
+                (new \yii\db\Query())
+                    ->from('prest_formas_pagamento fp')
+                    ->where('fp.id = v.forma_pagamento_id')
+                    ->andWhere(['or',
+                        ['ilike', 'fp.nome', '%crediario%'],
+                        ['ilike', 'fp.nome', '%crediário%'],
+                        ['ilike', 'fp.nome', '%prestanista%'],
+                        ['ilike', 'fp.nome', '%carnê%'],
+                        ['ilike', 'fp.nome', '%carne%']
+                    ])
             ]
         ]);
 

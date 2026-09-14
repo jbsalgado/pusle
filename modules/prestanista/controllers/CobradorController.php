@@ -71,7 +71,14 @@ class CobradorController extends Controller
         $query = Venda::findPrestanista($usuarioId)
             ->leftJoin('prest_clientes c', 'c.id = v.cliente_id')
             ->with(['cliente', 'itens.produto', 'parcelas.formaPagamento', 'vendedor'])
-            ->where(['v.status_venda_codigo' => ['EM_ABERTO', 'PARCIALMENTE_PAGA']])
+            ->andWhere(['v.status_venda_codigo' => ['EM_ABERTO', 'PARCIALMENTE_PAGA']])
+            ->andWhere([
+                'exists',
+                (new \yii\db\Query())
+                    ->from('prest_parcelas pp_pend')
+                    ->where('pp_pend.venda_id = v.id')
+                    ->andWhere(['pp_pend.status_parcela_codigo' => StatusParcela::PENDENTE])
+            ])
             ->orderBy(['c.endereco_bairro' => SORT_ASC, 'c.endereco_logradouro' => SORT_ASC, 'v.id' => SORT_ASC]);
 
         if ($cobrador_id) {
@@ -81,6 +88,7 @@ class CobradorController extends Controller
                     ->from('prest_parcelas pp')
                     ->where('pp.venda_id = v.id')
                     ->andWhere(['pp.cobrador_id' => $cobrador_id])
+                    ->andWhere(['pp.status_parcela_codigo' => StatusParcela::PENDENTE])
             ]);
         }
 
