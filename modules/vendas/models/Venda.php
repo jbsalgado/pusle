@@ -341,9 +341,21 @@ class Venda extends ActiveRecord
 
             // --- Lógica de Vencimento das Parcelas Subsequentes ---
             // A primeira parcela já tem a data definida acima
-            // As demais vencem +intervalo dias após a anterior
+            // As demais vencem de acordo com o intervalo
             if ($i > 1) {
-                $dataVencimento->modify("+{$intervaloDiasParcelas} days");
+                // Para frequência MENSAL (30 dias), usar "+1 month" para manter
+                // o dia do mês fixo (ex: dia 15 sempre dia 15).
+                // "+30 days" causa "escorregamento": out(31d)+30=14/nov, não 15/nov.
+                // Para frequência QUINZENAL (15 dias), usar "+1 month" também seria
+                // inadequado — mantemos "+15 days".
+                // Para SEMANAL (7), DIÁRIA (1) e outros: usar dias exatos.
+                if ($intervaloDiasParcelas === 30) {
+                    $dataVencimento->modify('+1 month');
+                } elseif ($intervaloDiasParcelas === 15) {
+                    $dataVencimento->modify('+15 days');
+                } else {
+                    $dataVencimento->modify("+{$intervaloDiasParcelas} days");
+                }
             }
 
             $parcela->data_vencimento = $dataVencimento->format('Y-m-d');
