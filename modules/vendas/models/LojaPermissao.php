@@ -168,6 +168,13 @@ class LojaPermissao extends ActiveRecord
                 'icone' => '🍺',
                 'cor' => 'emerald',
             ],
+            'modulo-prestanista' => [
+                'grupo' => 'Ações Rápidas',
+                'label' => 'Vendas Prestanistas',
+                'descricao' => 'Crediário ambulante, cartões e cobranças de rua',
+                'icone' => '📇',
+                'cor' => 'amber',
+            ],
             'display-cozinha' => [
                 'grupo' => 'Ações Rápidas',
                 'label' => 'Display de Cozinha (KDS)',
@@ -408,12 +415,12 @@ class LojaPermissao extends ActiveRecord
                 'icone' => '📲',
                 'cor' => 'green',
             ],
-            'modulo-prestanista' => [
-                'grupo' => 'Módulos Especiais',
-                'label' => 'Vendas Prestanistas (Crediário Ambulante)',
-                'descricao' => 'Gestão de crediário de porta em porta com cartões, equipes de venda e cobrança, rotas e baixas offline',
-                'icone' => '📇',
-                'cor' => 'amber',
+            'whatsapp-bridge-local' => [
+                'grupo' => 'Integrações',
+                'label' => 'WhatsApp Local (Agente)',
+                'descricao' => 'Disparos via Pulse Bridge no IP residencial/computador da loja (Zero Custo)',
+                'icone' => '🖥️',
+                'cor' => 'teal',
             ],
         ];
     }
