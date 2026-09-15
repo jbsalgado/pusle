@@ -248,7 +248,48 @@ class MercadoLivreService extends MarketplaceService
     }
 
     /**
-     * Envia documento fiscal (Chave de Acesso NF-e / XML) para o Mercado Livre
+     * Envia documento fiscal para o envio do Mercado Livre (Mercado Envios Brasil)
+     * Endpoint oficial: POST /shipments/{shipment_id}/invoice_data
+     * 
+     * @param string|int $shipmentId ID do envio no Mercado Envios
+     * @param string $chaveAcesso Chave de 44 dígitos da NF-e
+     * @param string|null $xml Conteúdo XML da NF-e
+     * @return bool
+     */
+    public function postShipmentInvoiceData($shipmentId, string $chaveAcesso, ?string $xml = null): bool
+    {
+        $this->garantirTokenValido();
+
+        $chaveLimpa = preg_replace('/\D/', '', $chaveAcesso);
+        if (strlen($chaveLimpa) !== 44) {
+            Yii::error("[MercadoLivreService] Chave de acesso inválida ({$chaveAcesso}) para o envio {$shipmentId}.", 'marketplace');
+            return false;
+        }
+
+        try {
+            $payload = [
+                'fiscal_key' => $chaveLimpa,
+            ];
+
+            if ($xml) {
+                $payload['xml'] = base64_encode($xml);
+            }
+
+            $this->request('POST', "{$this->apiBaseUrl}/shipments/{$shipmentId}/invoice_data", [
+                'headers' => $this->getAuthHeaders(),
+                'json' => $payload,
+            ]);
+
+            Yii::info("[MercadoLivreService] NF-e vinculada com sucesso ao envio Mercado Envios #{$shipmentId}.", 'marketplace');
+            return true;
+        } catch (\Throwable $e) {
+            $this->handleError($e, "postShipmentInvoiceData ({$shipmentId})");
+            return false;
+        }
+    }
+
+    /**
+     * Envia documento fiscal (Chave de Acesso NF-e / XML) para o pedido do Mercado Livre
      * 
      * @param string $orderId ID do pedido no Mercado Livre
      * @param string $chaveAcesso Chave de 44 dígitos da NF-e
@@ -259,6 +300,24 @@ class MercadoLivreService extends MarketplaceService
     {
         $this->garantirTokenValido();
 
+        // 1. Tenta obter o shipment_id vinculado ao pedido para envio oficial ao Mercado Envios
+        try {
+            $orderData = $this->request('GET', "{$this->apiBaseUrl}/orders/{$orderId}", [
+                'headers' => $this->getAuthHeaders(),
+            ]);
+
+            $shipmentId = $orderData['shipping']['id'] ?? null;
+            if ($shipmentId) {
+                $sucessoEnvio = $this->postShipmentInvoiceData($shipmentId, $chaveAcesso, $xml);
+                if ($sucessoEnvio) {
+                    return true;
+                }
+            }
+        } catch (\Throwable $e) {
+            Yii::warning("[MercadoLivreService] Não foi possível consultar shipment para pedido {$orderId}: " . $e->getMessage(), 'marketplace');
+        }
+
+        // 2. Fallback para endpoint legado /orders/{orderId}/fiscal_documents
         try {
             $payload = [
                 'fiscal_key' => preg_replace('/\D/', '', $chaveAcesso),
@@ -278,6 +337,28 @@ class MercadoLivreService extends MarketplaceService
         } catch (\Throwable $e) {
             $this->handleError($e, "uploadNfe ({$orderId})");
             return false;
+        }
+    }
+
+    /**
+     * Consulta a nota fiscal emitida pelo Faturador Nativo do Mercado Livre (Cenário A)
+     * 
+     * @param string $orderId ID do pedido no Mercado Livre
+     * @return array|null Dados da nota fiscal e link para download do XML
+     */
+    public function fetchNativeInvoice(string $orderId): ?array
+    {
+        $this->garantirTokenValido();
+
+        try {
+            $response = $this->request('GET', "{$this->apiBaseUrl}/orders/{$orderId}/invoices", [
+                'headers' => $this->getAuthHeaders(),
+            ]);
+
+            return is_array($response) ? $response : null;
+        } catch (\Throwable $e) {
+            $this->handleError($e, "fetchNativeInvoice ({$orderId})");
+            return null;
         }
     }
 

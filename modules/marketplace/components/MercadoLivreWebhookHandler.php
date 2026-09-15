@@ -92,8 +92,12 @@ class MercadoLivreWebhookHandler extends BaseWebhookHandler
                 return $this->processMessageEvent($payload);
 
             case 'shipments':
-            case 'payments':
+                return $this->processShipmentEvent($payload);
+
             case 'invoices':
+                return $this->processInvoiceEvent($payload);
+
+            case 'payments':
                 Yii::info("Evento de {$eventType} recebido: " . json_encode($payload), __METHOD__);
                 return [
                     'processed' => true,
@@ -199,6 +203,114 @@ class MercadoLivreWebhookHandler extends BaseWebhookHandler
             'processed' => true,
             'action' => 'logged',
             'resource' => $payload['resource'] ?? null,
+        ];
+    }
+
+    /**
+     * Processa evento de envio (Mercado Envios)
+     * 
+     * @param array $payload Dados do evento
+     * @return array Resultado
+     */
+    protected function processShipmentEvent($payload)
+    {
+        $resource = $payload['resource'] ?? null;
+        if (!$resource) {
+            return ['processed' => false, 'reason' => 'Resource vazio'];
+        }
+
+        $shipmentData = $this->fetchOrderData($resource);
+        if (!$shipmentData) {
+            return ['processed' => false, 'reason' => 'Falha ao buscar dados do envio'];
+        }
+
+        $orderId = (string)($shipmentData['order_id'] ?? '');
+        $statusEnvio = (string)($shipmentData['status'] ?? '');
+        $substatus = (string)($shipmentData['substatus'] ?? '');
+        $trackingNumber = (string)($shipmentData['tracking_number'] ?? '');
+        $carrier = (string)($shipmentData['tracking_method'] ?? 'Mercado Envios');
+
+        if ($orderId) {
+            $pedido = \app\modules\marketplace\models\MarketplacePedido::findOne([
+                'marketplace' => 'MERCADO_LIVRE',
+                'marketplace_pedido_id' => $orderId,
+            ]);
+
+            if ($pedido) {
+                $pedido->status_envio = $statusEnvio;
+                if ($trackingNumber) {
+                    $pedido->codigo_rastreio = $trackingNumber;
+                }
+                if ($carrier) {
+                    $pedido->transportadora = $carrier;
+                }
+                $pedido->save(false);
+
+                Yii::info("[MercadoLivreWebhookHandler] Pedido {$orderId} atualizado com status de envio [{$statusEnvio}]. Rastreio: {$trackingNumber}", __METHOD__);
+            }
+        }
+
+        return [
+            'processed' => true,
+            'action' => 'shipment_updated',
+            'order_id' => $orderId,
+            'status' => $statusEnvio,
+        ];
+    }
+
+    /**
+     * Processa evento de faturamento nativo (Cenário A - Faturador do Mercado Livre)
+     * 
+     * @param array $payload Dados do evento
+     * @return array Resultado
+     */
+    protected function processInvoiceEvent($payload)
+    {
+        $resource = $payload['resource'] ?? null;
+        if (!$resource) {
+            return ['processed' => false, 'reason' => 'Resource vazio'];
+        }
+
+        $invoiceData = $this->fetchOrderData($resource);
+        if (!$invoiceData) {
+            return ['processed' => false, 'reason' => 'Falha ao buscar dados da nota fiscal'];
+        }
+
+        $orderId = (string)($invoiceData['order_id'] ?? ($payload['user_id'] ?? ''));
+        $chaveAcesso = (string)($invoiceData['fiscal_key'] ?? ($invoiceData['key'] ?? ''));
+
+        if ($orderId && $chaveAcesso) {
+            $pedido = \app\modules\marketplace\models\MarketplacePedido::findOne([
+                'marketplace' => 'MERCADO_LIVRE',
+                'marketplace_pedido_id' => $orderId,
+            ]);
+
+            if ($pedido && $pedido->venda_id) {
+                $nota = \app\modules\vendas\models\NotaFiscal::findOne(['venda_id' => $pedido->venda_id]);
+                if (!$nota) {
+                    $nota = new \app\modules\vendas\models\NotaFiscal();
+                    $nota->usuario_id = $pedido->usuario_id;
+                    $nota->venda_id = $pedido->venda_id;
+                    $nota->marketplace = 'MERCADO_LIVRE';
+                    $nota->marketplace_pedido_id = $orderId;
+                    $nota->modelo = '55';
+                    $nota->numero = (int)($invoiceData['number'] ?? 0);
+                    $nota->serie = (int)($invoiceData['series'] ?? 1);
+                }
+
+                $nota->chave_acesso = $chaveAcesso;
+                $nota->status_sefaz = \app\modules\vendas\models\NotaFiscal::STATUS_AUTORIZADA;
+                $nota->xmotivo = 'Autorizada via Faturador Nativo do Mercado Livre (Cenário A)';
+                $nota->save(false);
+
+                Yii::info("[MercadoLivreWebhookHandler] NF-e nativa do ML vinculada à venda {$pedido->venda_id}. Chave: {$chaveAcesso}", __METHOD__);
+            }
+        }
+
+        return [
+            'processed' => true,
+            'action' => 'invoice_registered',
+            'order_id' => $orderId,
         ];
     }
 

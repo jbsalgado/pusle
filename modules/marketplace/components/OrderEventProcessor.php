@@ -300,6 +300,80 @@ class OrderEventProcessor extends Component
         $pedido->venda_id = $venda->id;
         $pedido->importado = true;
         $pedido->save(false);
+
+        // 4. Disparo automático do Pipeline Fiscal (NF-e 55 MEI)
+        $configLoja = \app\modules\vendas\models\Configuracao::findOne(['usuario_id' => $pedido->usuario_id]);
+
+        if ($configLoja && !empty($configLoja->cnpj) && $configLoja->isPulseErp()) {
+            // ═══ CENÁRIO A: Pulse ERP emite a NF-e internamente via NFePHP ═══
+            try {
+                if (Yii::$app->has('queue')) {
+                    Yii::$app->queue->push(new \app\jobs\EmitirNFe55Job([
+                        'vendaId' => $venda->id,
+                        'modelo'  => '55',
+                    ]));
+                    Yii::info(
+                        "[OrderEventProcessor] CENÁRIO A (Pulse ERP): EmitirNFe55Job enfileirado " .
+                        "para venda {$venda->id} (Pedido {$pedido->marketplace_pedido_id})",
+                        'fiscal'
+                    );
+                }
+            } catch (\Throwable $e) {
+                Yii::error(
+                    "[OrderEventProcessor] Falha ao enfileirar emissão fiscal para venda {$venda->id}: " .
+                    $e->getMessage(),
+                    'fiscal'
+                );
+            }
+
+        } elseif ($configLoja && $configLoja->isFaturadorML()) {
+            // ═══ CENÁRIO B: Faturador Nativo do Mercado Livre ═══
+            // O ML emite a NF-e pelo seu próprio sistema e notifica via webhook 'invoices'.
+            // O MercadoLivreWebhookHandler registra a chave automaticamente quando o evento chegar.
+            $nota = new \app\modules\vendas\models\NotaFiscal();
+            $nota->usuario_id          = $pedido->usuario_id;
+            $nota->venda_id            = $venda->id;
+            $nota->marketplace         = $pedido->marketplace;
+            $nota->marketplace_pedido_id = $pedido->marketplace_pedido_id;
+            $nota->status_sefaz        = \app\modules\vendas\models\NotaFiscal::STATUS_PENDENTE;
+            $nota->fonte_emissao       = \app\modules\vendas\models\NotaFiscal::FONTE_MERCADO_LIVRE;
+            $nota->numero              = 0; // será preenchido pelo webhook 'invoices'
+            $nota->save(false);
+
+            Yii::info(
+                "[OrderEventProcessor] CENÁRIO B (ML Nativo): Venda {$venda->id} aguarda NF-e " .
+                "do faturador do Mercado Livre. Webhook 'invoices' registrará a chave.",
+                'fiscal'
+            );
+
+        } elseif ($configLoja && $configLoja->isFaturadorExterno()) {
+            // ═══ CENÁRIO C: Sistema Externo (Omie, Bling, ERP do lojista, etc.) ═══
+            // O Pulse não emite. Cria a nota como PENDENTE e aguarda o callback do ERP externo
+            // via POST /api/fiscal-callback/registrar-nfe com X-Nfe-Token.
+            $nota = new \app\modules\vendas\models\NotaFiscal();
+            $nota->usuario_id          = $pedido->usuario_id;
+            $nota->venda_id            = $venda->id;
+            $nota->marketplace         = $pedido->marketplace;
+            $nota->marketplace_pedido_id = $pedido->marketplace_pedido_id;
+            $nota->status_sefaz        = \app\modules\vendas\models\NotaFiscal::STATUS_PENDENTE;
+            $nota->fonte_emissao       = \app\modules\vendas\models\NotaFiscal::FONTE_SISTEMA_EXTERNO;
+            $nota->numero              = 0; // será preenchido pelo ERP externo via callback
+            $nota->save(false);
+
+            Yii::info(
+                "[OrderEventProcessor] CENÁRIO C (Sistema Externo '{$configLoja->nfe_sistema_externo}'): " .
+                "Venda {$venda->id} aguarda NF-e via callback REST. " .
+                "URL: /api/fiscal-callback/registrar-nfe | Header: X-Nfe-Token",
+                'fiscal'
+            );
+        } else {
+            // Loja sem configuração fiscal (sem CNPJ) — apenas registra
+            Yii::info(
+                "[OrderEventProcessor] Venda {$venda->id} criada sem pipeline fiscal " .
+                "(CNPJ não configurado ou configuração de loja ausente).",
+                'fiscal'
+            );
+        }
     }
 
     /**

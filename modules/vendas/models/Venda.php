@@ -53,6 +53,16 @@ use app\modules\vendas\models\FormaPagamento;
  */
 class Venda extends ActiveRecord
 {
+    /**
+     * @var float|null Atributo virtual para valor do frete (Mercado Envios / Marketplace)
+     */
+    public $valor_frete = 0.0;
+
+    /**
+     * @var float|null Atributo virtual para valor de desconto
+     */
+    public $valor_desconto = 0.0;
+
     const TIPO_PRESTANISTA = 'PRESTANISTA';
     const TIPO_BALCAO = 'BALCAO';
     const TIPO_CATALOGO_PWA = 'CATALOGO_PWA';

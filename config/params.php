@@ -22,13 +22,13 @@ return [
         'amazon' => false,
     ],
 
-    // NFe/NFCe Configuration
+    // NFe/NFCe Configuration (Padrões do Sistema - Certificados e credenciais reais são multitenant via prest_configuracoes)
     'nfe' => [
-        'ambiente' => 'homologacao', // 'producao' ou 'homologacao'
+        'ambiente' => getenv('NFE_AMBIENTE') ?: 'homologacao', // 'producao' ou 'homologacao'
 
         'certificado' => [
-            'path' => __DIR__ . '/certificados/only-code.pfx',
-            'senha' => 'onlycode2026',
+            'path' => getenv('NFE_CERTIFICADO_PATH') ?: '',
+            'senha' => getenv('NFE_CERTIFICADO_SENHA') ?: '',
         ],
 
         'emitente' => [
