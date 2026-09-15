@@ -55,8 +55,12 @@ class HistoricoCobranca extends ActiveRecord
     public function rules()
     {
         return [
-            [['parcela_id', 'cobrador_id', 'cliente_id', 'usuario_id', 'tipo_acao'], 'required'],
-            [['parcela_id', 'cobrador_id', 'cliente_id', 'usuario_id'], 'string'],
+            // cobrador_id NÃO é required: pagamentos pelo dono da loja sem cobrador atribuído são válidos
+            [['parcela_id', 'cliente_id', 'usuario_id', 'tipo_acao'], 'required'],
+            [['parcela_id', 'cliente_id', 'usuario_id'], 'string'],
+            // cobrador_id é opcional (nullable) — deve ser ID válido em prest_colaboradores ou NULL
+            [['cobrador_id'], 'string'],
+            [['cobrador_id'], 'filter', 'filter' => function ($v) { return (empty($v) || $v === '') ? null : $v; }],
             [['valor_recebido'], 'number', 'min' => 0],
             [['observacao'], 'string'],
             [['localizacao_lat', 'localizacao_lng'], 'number'],
@@ -69,7 +73,10 @@ class HistoricoCobranca extends ActiveRecord
                 self::TIPO_NEGOCIACAO
             ]],
             [['parcela_id'], 'exist', 'skipOnError' => true, 'targetClass' => Parcela::class, 'targetAttribute' => ['parcela_id' => 'id']],
-            [['cobrador_id'], 'exist', 'skipOnError' => true, 'targetClass' => Colaborador::class, 'targetAttribute' => ['cobrador_id' => 'id']],
+            // cobrador_id: validação de existência apenas quando preenchido (skipOnEmpty).
+            // Nunca usar usuario_id como fallback — ele não existe em prest_colaboradores.
+            [['cobrador_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true,
+                'targetClass' => Colaborador::class, 'targetAttribute' => ['cobrador_id' => 'id']],
             [['cliente_id'], 'exist', 'skipOnError' => true, 'targetClass' => Cliente::class, 'targetAttribute' => ['cliente_id' => 'id']],
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
         ];

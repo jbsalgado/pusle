@@ -525,7 +525,31 @@ class CartaoController extends Controller
                 $hist->usuario_id = $usuarioId;
                 $hist->parcela_id = $parcela->id;
                 $hist->cliente_id = $cartao->cliente_id;
-                $hist->cobrador_id = $cartao->colaborador_vendedor_id ?: $cartao->usuario_id;
+
+                // Resolve cobrador_id de forma segura — deve ser ID válido em prest_colaboradores ou NULL.
+                // NUNCA usar $cartao->usuario_id como fallback: ele é ID de prest_usuarios e
+                // viola a FK prest_historico_cobranca.cobrador_id → prest_colaboradores(id).
+                $cobradorIdHistorico = null;
+                if (!empty($parcela->cobrador_id)) {
+                    // Prioridade 1: cobrador atribuído diretamente à parcela (rota de cobrança)
+                    $cobradorIdHistorico = $parcela->cobrador_id;
+                } elseif (!empty($cartao->colaborador_vendedor_id)) {
+                    // Prioridade 2: vendedor do cartão (é um Colaborador válido)
+                    $cobradorIdHistorico = $cartao->colaborador_vendedor_id;
+                } else {
+                    // Prioridade 3: usuário logado que seja Colaborador (não dono da loja)
+                    $colaboradorLogado = Colaborador::findOne([
+                        'prest_usuario_login_id' => $usuario->id,
+                        'usuario_id'             => $usuarioId,
+                        'ativo'                  => true,
+                    ]);
+                    if ($colaboradorLogado) {
+                        $cobradorIdHistorico = $colaboradorLogado->id;
+                    }
+                    // Se nenhum dos casos acima, cobrador_id fica NULL (pagamento direto pelo dono da loja)
+                }
+                $hist->cobrador_id = $cobradorIdHistorico;
+
                 $hist->tipo_acao = HistoricoCobranca::TIPO_PAGAMENTO;
                 $hist->valor_recebido = $valorPago;
                 $hist->observacao = "Recebimento da {$parcela->numero_parcela}ª prestação via {$formaPagamento->nome}";
