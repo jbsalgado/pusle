@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pulse ERP - Manual de Integrações Marketplace & Hub Multi-Tenant</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome 6 Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-base: #0a0f1d;
+            --bg-surface: #111827;
+            --bg-surface-elevated: #1e293b;
+            --bg-card: rgba(30, 41, 59, 0.7);
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --border-active: rgba(99, 102, 241, 0.4);
+            
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            
+            --brand-pulse: #6366f1;
+            --brand-pulse-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            
+            /* Marketplaces Brand Colors */
+            --color-meli-bg: #ffe600;
+            --color-meli-text: #2d3277;
+            --color-shopee: #ee4d2d;
+            --color-magalu: #0086ff;
+            --color-temu: #fb7701;
+            --color-ifood: #ea1d2c;
+            --color-mp: #009ee3;
+            
+            --status-success: #10b981;
+            --status-warning: #f59e0b;
+            --status-info: #38bdf8;
+            --status-danger: #ef4444;
+
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 18px;
+            --radius-xl: 24px;
+            
+            --shadow-glow: 0 0 30px rgba(99, 102, 241, 0.2);
+            --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.06) 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+
+        .container {
+            max-width: 1240px;
+            margin: 0 auto;
+            padding: 2.5rem 1.5rem 4rem;
+        }
+
+        /* Header Hero */
+        .hero {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(17, 24, 39, 0.95) 100%);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-xl);
+            padding: 2.5rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-card);
+            backdrop-filter: blur(16px);
+            margin-bottom: 2rem;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50px;
+            right: -50px;
+            width: 250px;
+            height: 250px;
+            background: var(--brand-pulse-gradient);
+            opacity: 0.18;
+            filter: blur(50px);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            color: #818cf8;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 1.25rem;
+        }
+
+        .hero-title {
+            font-size: 2.3rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            line-height: 1.2;
+            margin-bottom: 0.75rem;
+            background: linear-gradient(to right, #ffffff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-subtitle {
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            max-width: 820px;
+            margin-bottom: 1.5rem;
+        }
+
+        .market-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .market-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+        }
+
+        .market-pill:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .market-pill.meli { border-color: rgba(255, 230, 0, 0.3); color: #ffe600; }
+        .market-pill.shopee { border-color: rgba(238, 77, 45, 0.3); color: #ff6b4a; }
+        .market-pill.magalu { border-color: rgba(0, 134, 255, 0.3); color: #38bdf8; }
+        .market-pill.temu { border-color: rgba(251, 119, 1, 0.3); color: #fb923c; }
+        .market-pill.ifood { border-color: rgba(234, 29, 44, 0.3); color: #f87171; }
+        .market-pill.mp { border-color: rgba(0, 158, 227, 0.3); color: #38bdf8; }
+
+        /* Navigation Tabs */
+        .tabs-nav {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            margin-bottom: 2rem;
+            scrollbar-width: thin;
+        }
+
+        .tab-btn {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            padding: 10px 18px;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn:hover {
+            background: rgba(51, 65, 85, 0.8);
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            background: var(--brand-pulse);
+            color: #ffffff;
+            border-color: #818cf8;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Cards and Sections */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 1.75rem;
+            margin-bottom: 1.75rem;
+            backdrop-filter: blur(12px);
+            box-shadow: var(--shadow-card);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.25rem;
+        }
+
+        /* Stat Badge */
+        .status-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .status-tag.active {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-tag.beta {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        /* Flow Diagrams */
+        .diagram-box {
+            background: #0d1322;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            overflow-x: auto;
+            line-height: 1.5;
+            margin: 1rem 0;
+        }
+
+        /* Code Blocks & Copy Snippets */
+        .code-container {
+            position: relative;
+            background: #090d16;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: var(--radius-md);
+            padding: 1.25rem;
+            margin: 1rem 0;
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.75rem;
+            font-weight: 700;
+        }
+
+        pre code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: #e2e8f0;
+            display: block;
+            overflow-x: auto;
+        }
+
+        .copy-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.18);
+            color: #fff;
+        }
+
+        /* Data Tables */
+        .table-responsive {
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            text-align: left;
+        }
+
+        th {
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-muted);
+            font-weight: 600;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-subtle);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+            color: var(--text-primary);
+        }
+
+        /* Roles & Checklists */
+        .role-box {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: var(--radius-md);
+            padding: 1.25rem;
+            border-left: 4px solid var(--brand-pulse);
+            margin-bottom: 1rem;
+        }
+
+        .role-box.admin { border-left-color: #818cf8; }
+        .role-box.tenant { border-left-color: #10b981; }
+
+        .role-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #f8fafc;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 0.75rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .checklist-item input[type="checkbox"] {
+            margin-top: 4px;
+            accent-color: var(--brand-pulse);
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
+
+        .checklist-item.done {
+            text-decoration: line-through;
+            color: var(--text-muted);
+        }
+
+        /* Highlights Alert */
+        .alert-box {
+            padding: 1.25rem;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            margin: 1.25rem 0;
+            font-size: 0.9rem;
+        }
+
+        .alert-box.info {
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: #bae6fd;
+        }
+
+        .alert-box.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: #fde68a;
+        }
+
+        .alert-box.success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #a7f3d0;
+        }
+
+        /* Footer */
+        footer {
+            margin-top: 4rem;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-subtle);
+            padding-top: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .hero { padding: 1.75rem; }
+            .hero-title { font-size: 1.75rem; }
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Header Hero -->
+    <header class="hero">
+        <div class="hero-badge">
+            <i class="fa-solid fa-satellite-dish"></i> Pulse ERP Hub Multi-Tenant
+        </div>
+        <h1 class="hero-title">Guia Operacional & Plano de Integrações de Marketplaces</h1>
+        <p class="hero-subtitle">
+            Manual de homologação, arquitetura técnica e rotinas operacionais para conectar o Pulse ERP aos principais canais de venda online e gateways de pagamento do Brasil.
+        </p>
+
+        <div class="market-pills">
+            <div class="market-pill meli"><i class="fa-solid fa-handshake"></i> Mercado Livre</div>
+            <div class="market-pill shopee"><i class="fa-solid fa-bag-shopping"></i> Shopee</div>
+            <div class="market-pill magalu"><i class="fa-solid fa-store"></i> Magalu</div>
+            <div class="market-pill temu"><i class="fa-solid fa-cube"></i> Temu L2L</div>
+            <div class="market-pill ifood"><i class="fa-solid fa-utensils"></i> iFood</div>
+            <div class="market-pill mp"><i class="fa-solid fa-credit-card"></i> Mercado Pago</div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs-nav" id="mainTabs">
+        <button class="tab-btn active" data-tab="tab-overview"><i class="fa-solid fa-network-wired"></i> Visão Geral & SaaS</button>
+        <button class="tab-btn" data-tab="tab-meli"><i class="fa-solid fa-handshake"></i> Mercado Livre</button>
+        <button class="tab-btn" data-tab="tab-shopee"><i class="fa-solid fa-bag-shopping"></i> Shopee</button>
+        <button class="tab-btn" data-tab="tab-magalu"><i class="fa-solid fa-store"></i> Magazine Luiza</button>
+        <button class="tab-btn" data-tab="tab-temu"><i class="fa-solid fa-cube"></i> Temu Brasil</button>
+        <button class="tab-btn" data-tab="tab-ifood"><i class="fa-solid fa-utensils"></i> iFood</button>
+        <button class="tab-btn" data-tab="tab-mp"><i class="fa-solid fa-credit-card"></i> Mercado Pago</button>
+        <button class="tab-btn" data-tab="tab-roadmap"><i class="fa-solid fa-list-check"></i> Plano & Checklist</button>
+    </nav>
+
+    <!-- TAB 1: OVERVIEW & ARQUITETURA -->
+    <section class="tab-content active" id="tab-overview">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fa-solid fa-sitemap" style="color: var(--brand-pulse);"></i> Arquitetura Multi-Tenant & Hub Central
+                </div>
+                <span class="status-tag active"><i class="fa-solid fa-circle-check"></i> 100% Isolado & Ativo</span>
+            </div>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                O Pulse ERP funciona como o cérebro central unificado. O administrador do SaaS registra a aplicação integradora homologada nos canais, enquanto cada lojista (tenant) conecta sua loja isolada sem ter contato com chaves mestras ou infraestrutura.
+            </p>
+
+            <div class="diagram-box">
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                          PULSE ERP - PLATAFORMA SAAS (ADMIN)                           │
+│  • Cadastro único nos Portais de Desenvolvedor (App Mestre Integrador)                 │
+│  • Gerenciamento das Credenciais Mestres (.env da VPS: Client IDs / Secrets)          │
+│  • Ingestão Unificada de Webhooks com Fast-ACK (&lt;100ms) e Fila Systemd (pulse-queue)   │
+└───────────────────────────┬────────────────────────────────┬───────────────────────────┘
+                            │                                │
+             ┌──────────────┴─────────────┐    ┌─────────────┴──────────────┐
+             │    LOJA 1 (Tenant Alex)    │    │    LOJA 2 (Tenant Moda)    │
+             │ • CNPJ: 11.111.111/0001-11 │    │ • CNPJ: 22.222.222/0001-22 │
+             │ • Mercado Pago Próprio     │    │ • Mercado Pago Próprio     │
+             │ • Vendedor Mercado Livre A │    │ • Vendedor Mercado Livre B │
+             │ • Loja Shopee A            │    │ • Loja Shopee B            │
+             │ • Markup configurado: +16% │    │ • Markup configurado: +12% │
+             └────────────────────────────┘    └────────────────────────────┘
+            </div>
+
+            <div class="grid-3" style="margin-top: 1.5rem;">
+                <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+                    <h4 style="color: #fff; margin-bottom: 0.5rem;"><i class="fa-solid fa-shield-halved" style="color: #38bdf8;"></i> Isolamento Rígido</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">Isolamento pelo <code style="color: #38bdf8;">usuario_id</code> (UUID). Cada loja só acessa seus próprios anúncios, pedidos, estoques e taxas.</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+                    <h4 style="color: #fff; margin-bottom: 0.5rem;"><i class="fa-solid fa-bolt" style="color: #fbbf24;"></i> Webhook Fast-ACK</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">Resposta imediata em menos de 100ms com HTTP 200 para evitar reenvio de notificações e penalidades dos canais.</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+                    <h4 style="color: #fff; margin-bottom: 0.5rem;"><i class="fa-solid fa-money-bill-transfer" style="color: #34d399;"></i> Blindagem Fiscal</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">NF-e emitida no CNPJ do lojista e repasses financeiros caindo direto na conta jurídica de cada cliente.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabela Comparativa de Credenciais -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title"><i class="fa-solid fa-key" style="color: #f59e0b;"></i> Matriz de Responsabilidades & Credenciais</div>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Canal</th>
+                            <th>Tipo de Conexão</th>
+                            <th>Papel do SaaS (Pulse Admin)</th>
+                            <th>Papel do Lojista (Tenant)</th>
+                            <th>Status no Pulse</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong style="color: #ffe600;"><i class="fa-solid fa-handshake"></i> Mercado Livre</strong></td>
+                            <td>OAuth 2.0</td>
+                            <td>Cadastra App Meli, insere Client ID e Secret no .env</td>
+                            <td>Clica em "Conectar Loja" e faz login oficial no ML</td>
+                            <td><span class="status-tag active">100% Ativo</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong style="color: #ff6b4a;"><i class="fa-solid fa-bag-shopping"></i> Shopee</strong></td>
+                            <td>HMAC-SHA256 + OAuth</td>
+                            <td>Partner ID & Partner Key no Shopee Open Platform</td>
+                            <td>Autoriza o Shop ID via link de autenticação oficial</td>
+                            <td><span class="status-tag active">100% Ativo</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong style="color: #38bdf8;"><i class="fa-solid fa-store"></i> Magalu</strong></td>
+                            <td>IntegraCommerce API v1</td>
+                            <td>Cadastra aplicação na LuizaLabs</td>
+                            <td>Insere o Token de Integração do Magalu Seller</td>
+                            <td><span class="status-tag active">100% Ativo</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong style="color: #fb923c;"><i class="fa-solid fa-cube"></i> Temu</strong></td>
+                            <td>L2L Brasil MD5</td>
+                            <td>App Key e App Secret para região Brasil</td>
+                            <td>Gera Token de Vendedor Local no portal da Temu</td>
+                            <td><span class="status-tag active">100% Ativo</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong style="color: #f87171;"><i class="fa-solid fa-utensils"></i> iFood</strong></td>
+                            <td>Merchant API v2</td>
+                            <td>Client ID & Secret no Portal iFood Developer</td>
+                            <td>Informa o Merchant ID da loja e autoriza</td>
+                            <td><span class="status-tag beta">Em Expansão</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong style="color: #38bdf8;"><i class="fa-solid fa-credit-card"></i> Mercado Pago</strong></td>
+                            <td>OAuth 2.0 / Point</td>
+                            <td>MP_APP_ID e MP_CLIENT_SECRET no .env da VPS</td>
+                            <td>Conecta a conta e seleciona a maquininha Point no PDV</td>
+                            <td><span class="status-tag active">100% Ativo</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB 2: MERCADO LIVRE -->
+    <section class="tab-content" id="tab-meli">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title" style="color: #ffe600;">
+                    <i class="fa-solid fa-handshake"></i> Integração com o Mercado Livre (MELI)
+                </div>
+                <span class="status-tag active">Conector Completo</span>
+            </div>
+
+            <div class="grid-2">
+                <div class="role-box admin">
+                    <div class="role-title"><i class="fa-solid fa-user-gear"></i> Passo a Passo para o SaaS Admin (1 única vez)</div>
+                    <ol style="margin-left: 1.25rem; font-size: 0.9rem; color: var(--text-secondary);">
+                        <li style="margin-bottom: 6px;">Acesse o <a href="https://developers.mercadolibre.com.br/devcenter" target="_blank" style="color: #ffe600; text-decoration: none;">Mercado Libre Developers</a> com a conta jurídica da sua plataforma.</li>
+                        <li style="margin-bottom: 6px;">Crie uma aplicação integradora do tipo <strong>"Integrador / ERP"</strong>.</li>
+                        <li style="margin-bottom: 6px;">Habilite os escopos: <code style="color: #38bdf8;">read</code>, <code style="color: #38bdf8;">write</code>, <code style="color: #38bdf8;">offline_access</code>.</li>
+                        <li style="margin-bottom: 6px;">Preencha a <strong>Redirect URI</strong> e a <strong>Webhook URL</strong> abaixo.</li>
+                    </ol>
+                </div>
+
+                <div class="role-box tenant">
+                    <div class="role-title"><i class="fa-solid fa-store"></i> Experiência do Lojista (Tenant)</div>
+                    <ol style="margin-left: 1.25rem; font-size: 0.9rem; color: var(--text-secondary);">
+                        <li style="margin-bottom: 6px;">O lojista acessa o menu <strong>Marketplaces > Mercado Livre</strong> no Pulse.</li>
+                        <li style="margin-bottom: 6px;">Clica no botão <strong>"Conectar Loja do Mercado Livre"</strong>.</li>
+                        <li style="margin-bottom: 6px;">Faz login oficial no Mercado Livre e concede acesso em 1 clique.</li>
+                        <li style="margin-bottom: 6px;">O Pulse armazena o vínculo seguro e inicia a sincronização bidirecional.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <h4 style="margin: 1.5rem 0 0.5rem; color: #fff;"><i class="fa-solid fa-link"></i> URLs de Configuração no Portal de Desenvolvedor Meli</h4>
+            <div class="code-container">
+                <div class="code-header">
+                    <span>Redirect URI (Callback OAuth)</span>
+                    <button class="copy-btn" onclick="copySnippet('meli-redirect')"><i class="fa-regular fa-copy"></i> Copiar</button>
+                </div>
+                <pre><code id="meli-redirect">https://seusite.com.br/marketplace/config/oauth-callback?marketplace=MERCADO_LIVRE</code></pre>
+            </div>
+
+            <div class="code-container">
+                <div class="code-header">
+                    <span>Notifications Callback URL (Webhook Ingestion)</span>
+                    <button class="copy-btn" onclick="copySnippet('meli-webhook')"><i class="fa-regular fa-copy"></i> Copiar</button>
+                </div>
+                <pre><code id="meli-webhook">https://seusite.com.br/marketplace/webhook/receive?marketplace=mercado-livre</code></pre>
+            </div>
+
+            <div class="alert-box info">
+                <i class="fa-solid fa-circle-info" style="font-size: 1.25rem;"></i>
+                <div>
+                    <strong>Tópicos Obrigatórios de Webhook:</strong> Certifique-se de marcar <code style="color: #38bdf8;">orders_v2</code> (pedidos novos/atualizados), <code style="color: #38bdf8;">items</code> (anúncios) e <code style="color: #38bdf8;">shipments</code> (etiquetas e envios do Mercado Envios).
+                </div>
+            </div>
+
+            <h4 style="margin: 1.5rem 0 0.5rem; color: #fff;"><i class="fa-solid fa-truck-ramp-box"></i> Recursos Já Codificados no Conector Meli</h4>
+            <ul style="list-style-type: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; font-size: 0.9rem; color: var(--text-secondary);">
+                <li><i class="fa-solid fa-check" style="color: #10b981;"></i> <strong>Sincronização de Estoque com Variações:</strong> Atualiza no anúncio pai ou variações específicas.</li>
+                <li><i class="fa-solid fa-check" style="color: #10b981;"></i> <strong>Precificação Inteligente:</strong> Aplica o percentual de markup configurado pelo lojista.</li>
+                <li><i class="fa-solid fa-check" style="color: #10b981;"></i> <strong>Transmissão Fiscal (NF-e):</strong> Envio da chave de 44 dígitos e XML Danfe via <code style="color: #38bdf8;">/orders/{id}/fiscal_documents</code>.</li>
+                <li><i class="fa-solid fa-check" style="color: #10b981;"></i> <strong>Etiquetas Mercado Envios:</strong> Emissão do PDF da etiqueta via <code style="color: #38bdf8;">/shipment_labels</code>.</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- TAB 3: SHOPEE -->
+    <section class="tab-content" id="tab-shopee">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title" style="color: #ff6b4a;">
+                    <i class="fa-solid fa-bag-shopping"></i> Integração com a Shopee (Open Platform v2)
+                </div>
+                <span class="status-tag active">Conector Completo</span>
+            </div>
+
+            <div class="grid-2">
+                <div class="role-box admin">
+                    <div class="role-title"><i class="fa-solid fa-user-gear"></i> Papel do SaaS Admin</div>
+                    <ol style="margin-left: 1.25rem; font-size: 0.9rem; color: var(--text-secondary);">
+                        <li style="margin-bottom: 6px;">Homologar a plataforma no <a href="https://open.shopee.com/" target="_blank" style="color: #ff6b4a; text-decoration: none;">Shopee Open Platform</a>.</li>
+                        <li style="margin-bottom: 6px;">Obter o <strong>Partner ID</strong> e a <strong>Partner Key</strong> para a região Brasil.</li>
+                        <li style="margin-bottom: 6px;">Configurar a URL de Push Notification (Webhook) oficial.</li>
+                    </ol>
+                </div>
+
+                <div class="role-box tenant">
+                    <div class="role-title"><i class="fa-solid fa-store"></i> Papel do Lojista</div>
+                    <ol style="margin-left: 1.25rem; font-size: 0.9rem; color: var(--text-secondary);">
+                        <li style="margin-bottom: 6px;">Possuir conta ativa no Shopee Seller Centre com CNPJ cadastrado.</li>
+                        <li style="margin-bottom: 6px;">No Pulse ERP, clicar em <strong>"Conectar Shopee"</strong>.</li>
+                        <li style="margin-bottom: 6px;">Concluir o login da loja e autorizar o aplicativo do Pulse.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <h4 style="margin: 1.5rem 0 0.5rem; color: #fff;"><i class="fa-solid fa-shield-halved"></i> Assinatura Criptográfica HMAC-SHA256</h4>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                A API v2 da Shopee exige que todas as chamadas e webhooks contenham a assinatura criptográfica calculada com timestamp e chaves oficiais:
+            </p>
+
+            <div class="code-container">
+                <div class="code-header">
+                    <span>Shopee Webhook Receiver URL</span>
+                    <button class="copy-btn" onclick="copySnippet('shopee-webhook')"><i class="fa-regular fa-copy"></i> Copiar</button>
+                </div>
+                <pre><code id="shopee-webhook">https://seusite.com.br/marketplace/webhook/receive?marketplace=shopee</code></pre>
+            </div>
+
+            <div class="alert-box success">
+                <i class="fa-solid fa-lock" style="font-size: 1.25rem;"></i>
+                <div>
+                    <strong>Criptografia Implementada no Pulse:</strong> O método <code style="color: #34d399;">ShopeeService::generateSignature()</code> calcula automaticamente o hash HMAC-SHA256 conforme o padrão oficial da Shopee (<code style="color: #34d399;">partnerId + path + timestamp + accessToken + shopId</code>), renovando tokens e validando push notifications.
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB 4: MAGALU -->
+    <section class="tab-content" id="tab-magalu">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title" style="color: #38bdf8;">
+                    <i class="fa-solid fa-store"></i> Integração com o Magazine Luiza (Magalu Marketplace)
+                </div>
+                <span class="status-tag active">Conector Completo</span>
+            </div>
+
+            <div class="grid-2">
+                <div class="role-box admin">
+                    <div class="role-title"><i class="fa-solid fa-user-gear"></i> Visão da Plataforma SaaS</div>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary);">
+                        A integração do Magazine Luiza é suportada pela API da <strong>IntegraCommerce / LuizaLabs</strong>. A plataforma permite tanto o modelo de integradora homologada quanto a autenticação por API Token de cada seller.
+                    </p>
+                </div>
+
+                <div class="role-box tenant">
+                    <div class="role-title"><i class="fa-solid fa-store"></i> Como o Lojista Conecta</div>
+                    <ol style="margin-left: 1.25rem; font-size: 0.9rem; color: var(--text-secondary);">
+                        <li style="margin-bottom: 6px;">Acessar o portal <a href="https://seller.magazineluiza.com.br" target="_blank" style="color: #38bdf8; text-decoration: none;">Magalu Seller</a>.</li>
+                        <li style="margin-bottom: 6px;">Ir em <strong>Configurações da Loja > Integrações / API</strong>.</li>
+                        <li style="margin-bottom: 6px;">Gerar e copiar o <strong>Token de API (Bearer Token)</strong>.</li>
+                        <li style="margin-bottom: 6px;">Colar no campo correspondente no painel do Pulse ERP.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <h4 style="margin: 1.5rem 0 0.5rem; color: #fff;"><i class="fa-solid fa-code"></i> Endpoints Implementados no MagaluService</h4>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Ação</th>
+                            <th>Método & Rota da API</th>
+                            <th>Descrição</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong style="color: #38bdf8;">Atualizar Estoque</strong></td>
+                            <td><code>PUT /v1/products/{sku}/stock</code></td>
+                            <td>Sincroniza o saldo de estoque físico em tempo real com base no SKU do Pulse.</td>
+                        </tr>
+                        <tr>
+                            <td><strong style="color: #38bdf8;">Faturamento / NF-e</strong></td>
+                            <td><code>POST /v1/orders/{order_id}/invoice</code></td>
+                            <td>Envia número, série, chave de 44 dígitos da NF-e e libera o despacho da encomenda.</td>
+                        </tr>
+                        <tr>
+                            <td><strong style="color: #38bdf8;">Listagem de Pedidos</strong></td>
+                            <td><code>GET /v1/orders</code></td>
+                            <td>Importa pedidos aprovados com dados do comprador e itens para gerar a venda no ERP.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB 5: TEMU -->
+    <section class="tab-content" id="tab-temu">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title" style="color: #fb923c;">
+                    <i class="fa-solid fa-cube"></i> Integração com a Temu (Local-to-Local Brasil)
+                </div>
+                <span class="status-tag active">Conector L2L Pronto</span>
+            </div>
+
+            <div class="alert-box info">
+                <i class="fa-solid fa-circle-info" style="font-size: 1.25rem;"></i>
+                <div>
+                    <strong>O que é o programa Temu L2L (Local-to-Local Brasil)?</strong><br>
+                    É a modalidade onde vendedores brasileiros com CNPJ e estoque local no Brasil anunciam e despacham seus produtos para clientes nacionais via correios ou transportadoras locais com entrega expressa.
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="role-box admin">
+                    <div class="role-title"><i class="fa-solid fa-user-gear"></i> Papel do SaaS Admin</div>
+                    <ol style="margin-left: 1.25rem; font-size: 0.9rem; color: var(--text-secondary);">
+                        <li style="margin-bottom: 6px;">Cadastro de parceiro integrador no <a href="https://open-api.temu.com" target="_blank" style="color: #fb923c; text-decoration: none;">Temu Open Platform</a>.</li>
+                        <li style="margin-bottom: 6px;">Obtenção do <strong>App Key</strong> e <strong>App Secret</strong> da região BR.</li>
+                    </ol>
+                </div>
+
+                <div class="role-box tenant">
+                    <div class="role-title"><i class="fa-solid fa-store"></i> Papel do Lojista</div>
+                    <ol style="margin-left: 1.25rem; font-size: 0.9rem; color: var(--text-secondary);">
+                        <li style="margin-bottom: 6px;">Aprovação prévia no portal de sellers locais da Temu Brasil.</li>
+                        <li style="margin-bottom: 6px;">Obter a chave de vendedor local (Seller Token).</li>
+                        <li style="margin-bottom: 6px;">Informar no Pulse ERP e ativar a sincronização.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <h4 style="margin: 1.5rem 0 0.5rem; color: #fff;"><i class="fa-solid fa-arrows-rotate"></i> Métodos Ativos no TemuService.php</h4>
+            <div class="code-container">
+                <div class="code-header">
+                    <span>Assinatura Dinâmica MD5 & Atualização de Estoque Local</span>
+                </div>
+                <pre><code>// Rota: POST /bg/goods/local/inventory/update
+{
+  "sku_id": "SKU-PRODUTO-01",
+  "available_quantity": 45
+}</code></pre>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB 6: IFOOD -->
+    <section class="tab-content" id="tab-ifood">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title" style="color: #f87171;">
+                    <i class="fa-solid fa-utensils"></i> Integração com o iFood (Merchant API v2)
+                </div>
+                <span class="status-tag beta">Fase 2 / Expansão</span>
+            </div>
+
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                Dedicada a comércios de conveniência, adegas, farmácias, mercados e restaurantes. A integração permite receber novos pedidos instantaneamente no módulo de vendas do Pulse, imprimir comandas e controlar status de entrega.
+            </p>
+
+            <div class="grid-2">
+                <div class="role-box admin">
+                    <div class="role-title"><i class="fa-solid fa-user-gear"></i> Configurações do SaaS Admin</div>
+                    <ol style="margin-left: 1.25rem; font-size: 0.9rem; color: var(--text-secondary);">
+                        <li style="margin-bottom: 6px;">Cadastro no <a href="https://developer.ifood.com.br" target="_blank" style="color: #f87171; text-decoration: none;">iFood Developer Portal</a>.</li>
+                        <li style="margin-bottom: 6px;">Obtenção de <strong>Client ID</strong> e <strong>Client Secret</strong>.</li>
+                        <li style="margin-bottom: 6px;">Cadastrar a URL de Webhook no portal iFood Developer.</li>
+                    </ol>
+                </div>
+
+                <div class="role-box tenant">
+                    <div class="role-title"><i class="fa-solid fa-store"></i> Configuração do Lojista</div>
+                    <ol style="margin-left: 1.25rem; font-size: 0.9rem; color: var(--text-secondary);">
+                        <li style="margin-bottom: 6px;">Possuir loja cadastrada no Portal do Parceiro iFood.</li>
+                        <li style="margin-bottom: 6px;">Informar o seu <strong>Merchant ID</strong> no Pulse ERP.</li>
+                        <li style="margin-bottom: 6px;">Autorizar o aplicativo e definir a impressora padrão de pedidos.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <h4 style="margin: 1.5rem 0 0.5rem; color: #fff;"><i class="fa-solid fa-bell"></i> Ciclo de Vida de Pedidos iFood Processados</h4>
+            <div class="diagram-box">
+[NOVO PEDIDO: PLACED] ──► [CONFIRMAÇÃO: CONFIRMED] ──► [DESPACHO: DISPATCHED] ──► [ENTREGUE: CONCLUDED]
+        │                           │                           │
+  Imprime comanda             Baixa estoque físico        Gera venda no caixa
+        ▼                           ▼                           ▼
+  Alerta no Pulse ERP         Reserva de saldo físico     Lança financeiro
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB 7: MERCADO PAGO -->
+    <section class="tab-content" id="tab-mp">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title" style="color: #38bdf8;">
+                    <i class="fa-solid fa-credit-card"></i> Mercado Pago (Gateway & Maquininha Point no PDV)
+                </div>
+                <span class="status-tag active">100% Homologado</span>
+            </div>
+
+            <div class="alert-box success">
+                <i class="fa-solid fa-money-bill-trend-up" style="font-size: 1.25rem;"></i>
+                <div>
+                    <strong>Modelo White-Label & Repasse Direto:</strong> Cada lojista recebe os pagamentos de cartão de crédito, débito e PIX direto na sua conta Mercado Pago. O dinheiro nunca passa pela conta do Pulse ERP, garantindo total transparência e segurança bancária.
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="role-box admin">
+                    <div class="role-title"><i class="fa-solid fa-user-gear"></i> O que o SaaS Admin Configura</div>
+                    <ol style="margin-left: 1.25rem; font-size: 0.9rem; color: var(--text-secondary);">
+                        <li style="margin-bottom: 6px;">Acessar o <a href="https://www.mercadopago.com.br/developers/panel/app" target="_blank" style="color: #38bdf8; text-decoration: none;">Painel de Desenvolvedores Mercado Pago</a>.</li>
+                        <li style="margin-bottom: 6px;">Criar uma aplicação do tipo <strong>"Marketplace / Pagamentos"</strong>.</li>
+                        <li style="margin-bottom: 6px;">Colocar as credenciais no arquivo <code style="color: #38bdf8;">.env</code> da VPS:
+                            <pre style="margin-top: 4px; background: #000; padding: 6px; border-radius: 4px;"><code style="color: #38bdf8;">MP_APP_ID=seu_client_id_aqui
+MP_CLIENT_SECRET=seu_client_secret_aqui</code></pre>
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="role-box tenant">
+                    <div class="role-title"><i class="fa-solid fa-cash-register"></i> Integração com Maquininha no PDV</div>
+                    <ol style="margin-left: 1.25rem; font-size: 0.9rem; color: var(--text-secondary);">
+                        <li style="margin-bottom: 6px;">O lojista adquire ou utiliza sua maquininha física (Point Smart, Pro, Air).</li>
+                        <li style="margin-bottom: 6px;">No Pulse ERP, clica em <strong>"Conectar com Mercado Pago"</strong>.</li>
+                        <li style="margin-bottom: 6px;">Ao finalizar uma venda no PDV, seleciona o terminal Point e o valor é enviado instantaneamente para a maquininha física.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB 8: ROADMAP & CHECKLIST -->
+    <section class="tab-content" id="tab-roadmap">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title"><i class="fa-solid fa-list-check" style="color: var(--brand-pulse);"></i> Checklist Operacional de Implantação</div>
+            </div>
+
+            <div class="grid-2">
+                <div>
+                    <h4 style="color: #fff; margin-bottom: 1rem;"><i class="fa-solid fa-server" style="color: #818cf8;"></i> Servidor & SaaS Admin</h4>
+                    <div class="checklist-item" onclick="toggleCheck(this)">
+                        <input type="checkbox" checked>
+                        <span>Cadastrar Aplicação no Mercado Livre Developers (App ID + Secret)</span>
+                    </div>
+                    <div class="checklist-item" onclick="toggleCheck(this)">
+                        <input type="checkbox" checked>
+                        <span>Cadastrar Aplicação no Shopee Open Platform (Partner ID + Key)</span>
+                    </div>
+                    <div class="checklist-item" onclick="toggleCheck(this)">
+                        <input type="checkbox" checked>
+                        <span>Configurar variáveis mestres de ambiente no arquivo .env da VPS</span>
+                    </div>
+                    <div class="checklist-item" onclick="toggleCheck(this)">
+                        <input type="checkbox" checked>
+                        <span>Verificar status do worker assíncrono Systemd: <code style="color: #38bdf8;">systemctl status pulse-queue.service</code></span>
+                    </div>
+                    <div class="checklist-item" onclick="toggleCheck(this)">
+                        <input type="checkbox" checked>
+                        <span>Configurar crontab de renovação de tokens (a cada 15 min): <code style="color: #38bdf8;">php yii marketplace/refresh-tokens</code></span>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 style="color: #fff; margin-bottom: 1rem;"><i class="fa-solid fa-store" style="color: #34d399;"></i> Onboarding de Cada Lojista (Tenant)</h4>
+                    <div class="checklist-item" onclick="toggleCheck(this)">
+                        <input type="checkbox">
+                        <span>Lojista possui CNPJ ativo e conta de vendedor aprovada no marketplace</span>
+                    </div>
+                    <div class="checklist-item" onclick="toggleCheck(this)">
+                        <input type="checkbox">
+                        <span>Acessar tela de Marketplaces no Pulse e autorizar conexão 1-clique (OAuth)</span>
+                    </div>
+                    <div class="checklist-item" onclick="toggleCheck(this)">
+                        <input type="checkbox">
+                        <span>Definir markup de preço por canal (ex: +16% no ML para cobrir tarifas)</span>
+                    </div>
+                    <div class="checklist-item" onclick="toggleCheck(this)">
+                        <input type="checkbox">
+                        <span>Vincular anúncios existentes ou publicar produtos do Pulse</span>
+                    </div>
+                    <div class="checklist-item" onclick="toggleCheck(this)">
+                        <input type="checkbox">
+                        <span>Testar pedido de homologação e conferir baixa de estoque automático no PDV</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Plano de Melhorias Técnicas -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title"><i class="fa-solid fa-diagram-project" style="color: #38bdf8;"></i> Plano de Ajustes & Melhorias em Andamento</div>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Recurso / Módulo</th>
+                            <th>Ação Técnica</th>
+                            <th>Prioridade</th>
+                            <th>Impacto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>iFood Service</strong></td>
+                            <td>Finalizar polling de contingência e webhook dos eventos de pedidos gastronômicos.</td>
+                            <td><span class="status-tag beta">Alta</span></td>
+                            <td>Permite que bares, mercados e restaurantes utilizem o Pulse integrado ao iFood.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Mapeamento de Atributos</strong></td>
+                            <td>Interface dinâmica de mapeamento de atributos obrigatórios por categoria Meli/Shopee (NCM, Marca).</td>
+                            <td><span class="status-tag beta">Média</span></td>
+                            <td>Reduz rejeição na publicação de novos anúncios do catálogo do Pulse.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Mensageria Integrada</strong></td>
+                            <td>Recepção e resposta a perguntas de pré-venda e pós-venda direto no ERP.</td>
+                            <td><span class="status-tag beta">Média</span></td>
+                            <td>Aumenta agilidade de resposta ao cliente e melhora a reputação do lojista.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p><strong>Pulse ERP & SaaS Multi-Tenant</strong> &bull; Sistema de Gestão Empresarial e Hub de Marketplaces &bull; 2026</p>
+    </footer>
+</div>
+
+<script>
+    // Gerenciador de Abas
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.getAttribute('data-tab');
+
+            tabBtns.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+
+            btn.classList.add('active');
+            const targetEl = document.getElementById(target);
+            if (targetEl) {
+                targetEl.classList.add('active');
+            }
+        });
+    });
+
+    // Copiar Snippet
+    function copySnippet(elementId) {
+        const text = document.getElementById(elementId).innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            alert('URL copiada para a área de transferência!');
+        }).catch(err => {
+            console.error('Erro ao copiar:', err);
+        });
+    }
+
+    // Toggle Checklist
+    function toggleCheck(el) {
+        const checkbox = el.querySelector('input[type="checkbox"]');
+        if (event.target !== checkbox) {
+            checkbox.checked = !checkbox.checked;
+        }
+        if (checkbox.checked) {
+            el.classList.add('done');
+        } else {
+            el.classList.remove('done');
+        }
+    }
+</script>
+
+</body>
+</html>

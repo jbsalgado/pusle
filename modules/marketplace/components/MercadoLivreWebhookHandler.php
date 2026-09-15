@@ -91,6 +91,17 @@ class MercadoLivreWebhookHandler extends BaseWebhookHandler
             case 'messages':
                 return $this->processMessageEvent($payload);
 
+            case 'shipments':
+            case 'payments':
+            case 'invoices':
+                Yii::info("Evento de {$eventType} recebido: " . json_encode($payload), __METHOD__);
+                return [
+                    'processed' => true,
+                    'action' => 'logged',
+                    'event_type' => $eventType,
+                    'resource' => $payload['resource'] ?? null,
+                ];
+
             default:
                 Yii::warning("Tipo de evento não suportado: {$eventType}", __METHOD__);
                 return [

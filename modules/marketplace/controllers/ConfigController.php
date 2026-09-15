@@ -133,13 +133,15 @@ class ConfigController extends Controller
     {
         $model = $this->findModel($id);
         $callbackUrl = Url::to(['/marketplace/config/callback', 'id' => $model->id], true);
+        $cleanCallbackUrl = Url::to(['/marketplace/config/callback'], true);
 
         if ($model->marketplace === MarketplaceConfig::MARKETPLACE_MERCADO_LIVRE) {
             if (empty($model->client_id)) {
                 Yii::$app->session->setFlash('error', 'Preencha o Client ID (App ID) do Mercado Livre antes de autenticar.');
                 return $this->redirect(['update', 'id' => $model->id]);
             }
-            $authUrl = "https://auth.mercadolivre.com.br/authorization?response_type=code&client_id={$model->client_id}&redirect_uri=" . urlencode($callbackUrl);
+            // Passa a URI limpa compatível com a cadastrada no portal e o id via state OAuth2
+            $authUrl = "https://auth.mercadolivre.com.br/authorization?response_type=code&client_id={$model->client_id}&redirect_uri=" . urlencode($cleanCallbackUrl) . "&state={$model->id}";
             return $this->redirect($authUrl);
         }
 
@@ -162,12 +164,17 @@ class ConfigController extends Controller
     /**
      * Callback do OAuth para receber o authorization code
      */
-    public function actionCallback($id)
+    public function actionCallback($id = null)
     {
-        $model = $this->findModel($id);
+        $configId = $id ?: Yii::$app->request->get('state');
+        if (!$configId) {
+            throw new NotFoundHttpException('Parâmetro de identificação da loja não recebido.');
+        }
+
+        $model = $this->findModel($configId);
         $code = Yii::$app->request->get('code');
         $shopId = Yii::$app->request->get('shop_id');
-        $callbackUrl = Url::to(['/marketplace/config/callback', 'id' => $model->id], true);
+        $cleanCallbackUrl = Url::to(['/marketplace/config/callback'], true);
 
         if (!$code) {
             Yii::$app->session->setFlash('error', 'Código de autorização não recebido do marketplace.');
@@ -178,7 +185,7 @@ class ConfigController extends Controller
         if ($model->marketplace === MarketplaceConfig::MARKETPLACE_MERCADO_LIVRE) {
             $service = new MercadoLivreService();
             $service->setConfig($model->attributes);
-            $sucesso = $service->authenticate($code, $callbackUrl);
+            $sucesso = $service->authenticate($code, $cleanCallbackUrl);
         } elseif ($model->marketplace === MarketplaceConfig::MARKETPLACE_SHOPEE) {
             $service = new ShopeeService();
             $service->setConfig($model->attributes);

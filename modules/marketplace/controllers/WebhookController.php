@@ -53,8 +53,9 @@ class WebhookController extends Controller
      * @param string $marketplace Nome do marketplace (mercado-livre, shopee, magalu, temu, etc)
      * @return Response
      */
-    public function actionReceive($marketplace)
+    public function actionReceive($marketplace = 'mercado-livre')
     {
+        $marketplace = $marketplace ?: 'mercado-livre';
         Yii::$app->response->format = Response::FORMAT_JSON;
 
         $rawBody = Yii::$app->request->getRawBody();

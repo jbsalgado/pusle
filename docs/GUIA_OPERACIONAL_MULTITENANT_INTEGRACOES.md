@@ -1,195 +1,196 @@
 # 🌐 Guia Operacional Multi-Tenant de Integrações: Pulse ERP & SaaS
 
-Este documento é o manual definitivo para a administração da plataforma **Pulse ERP (SaaS)** e para a operação dos **Lojistas (Tenants)**, explicando com máxima clareza técnica e operacional como funcionam as integrações de **Pagamento (Mercado Pago)** e **Marketplaces (Mercado Livre, Shopee, Temu, Magalu e iFood)** em uma arquitetura multi-lojas.
+Este manual consolida a operação técnica e comercial da plataforma **Pulse ERP (SaaS)** e dos **Lojistas (Tenants)**, detalhando como funcionam a arquitetura, as configurações, a segurança e a operação diária das integrações com **Marketplaces (Mercado Livre, Shopee, Magazine Luiza, Temu e iFood)** e **Gateway de Pagamentos (Mercado Pago)**.
 
 ---
 
-## 🧭 Visão Geral: Arquitetura Multi-Tenant do Pulse
+## 🧭 1. Arquitetura Multi-Tenant e Modelo Operacional
 
-Em um ecossistema SaaS (Software as a Service) multi-tenant como o Pulse:
-* **A Plataforma SaaS (Você / Pulse Admin):** Cria e mantém as **Aplicações Integradoras Homologadas** nos portais de desenvolvedores de cada canal.
-* **Os Lojistas (Tenants):** Possuem suas próprias contas de pessoa jurídica (CNPJ) em cada canal e conectam suas lojas ao Pulse com autorização 1-clique (OAuth) ou inserção de chave.
-* **O Banco de Dados do Pulse:** Isola rigorosamente todos os dados através do `usuario_id` (UUID). A Loja A **nunca** tem acesso aos pedidos, credenciais ou produtos da Loja B.
+O Pulse ERP adota um modelo de **Hub Central Integrador**, onde a separação entre a plataforma e os lojistas é rigorosamente respeitada:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    PULSE ERP - PLATAFORMA SAAS                          │
-│     App Mestre Integrador Homologado (OAuth, APIs e Webhooks Fast-ACK)  │
-└───────────────────┬─────────────────────────────────┬───────────────────┘
-                    │                                 │
-     ┌──────────────┴─────────────┐     ┌─────────────┴──────────────┐
-     │   LOJA 1 (Tenant Alex)     │     │   LOJA 2 (Tenant Moda)     │
-     │ • CNPJ 11.111.111/0001-11  │     │ • CNPJ 22.222.222/0001-22  │
-     │ • Mercado Pago Próprio     │     │ • Mercado Pago Próprio     │
-     │ • Anúncios Mercado Livre A │     │ • Anúncios Mercado Livre B │
-     │ • Loja Shopee A            │     │ • Loja Shopee B            │
-     └────────────────────────────┘     └────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                          PULSE ERP - PLATAFORMA SAAS (ADMIN)                           │
+│  • Cadastro único nos Portais de Desenvolvedor (App Mestre Integrador)                 │
+│  • Gerenciamento das Credenciais Mestres (.env da VPS: Client IDs / Secrets)          │
+│  • Endpoint Unificado de Webhooks com Fast-ACK (<100ms) e Fila Assíncrona Systemd     │
+└───────────────────────────┬────────────────────────────────┬───────────────────────────┘
+                            │                                │
+             ┌──────────────┴─────────────┐    ┌─────────────┴──────────────┐
+             │    LOJA 1 (Tenant Alex)    │    │    LOJA 2 (Tenant Moda)    │
+             │ • CNPJ: 11.111.111/0001-11 │    │ • CNPJ: 22.222.222/0001-22 │
+             │ • Conta Mercado Pago       │    │ • Conta Mercado Pago       │
+             │ • Vendedor Mercado Livre   │    │ • Vendedor Mercado Livre   │
+             │ • Loja Shopee Oficial      │    │ • Loja Shopee Oficial      │
+             │ • Estoque & Preços com +16%│    │ • Estoque & Preços com +12%│
+             └────────────────────────────┘    └────────────────────────────┘
 ```
 
----
-
-## 1. O que precisa para habilitar o Mercado Pago como Gateway de Pagamento?
-
-O Mercado Pago no Pulse opera no modelo **Marketplace / Gateway White-Label**. O dinheiro das vendas vai direto para a conta Mercado Pago de cada lojista.
-
-### A. Papel do Administrador do SaaS (Feito 1 única vez pela plataforma):
-1. Acessar o [Mercado Pago Developers](https://www.mercadopago.com.br/developers/panel/app) com a conta master da sua empresa/plataforma.
-2. Criar uma Aplicação do tipo **"Pagamentos no Mercado Pago / Marketplace"**.
-3. Obter as credenciais mestres da aplicação:
-   * `Client ID` (ou `MP_APP_ID`)
-   * `Client Secret` (ou `MP_CLIENT_SECRET`)
-4. Configurar a **URL de Redirecionamento OAuth (Redirect URI)** no painel do MP:
-   ```
-   https://seusite.com.br/api/mercado-pago/oauth-callback
-   ```
-5. Inserir essas credenciais no arquivo [.env](file:///srv/http/pulse/.env) da VPS:
-   ```dotenv
-   MP_APP_ID=seu_client_id_mestre
-   MP_CLIENT_SECRET=seu_client_secret_mestre
-   ```
-
-### B. Papel do Lojista (Tenant):
-1. O lojista **NÃO** precisa criar conta de desenvolvedor nem mexer em códigos.
-2. No painel do Pulse, ele acessa **Configurações > Pagamento > Mercado Pago** e clica no botão:
-   `🔗 Conectar com Mercado Pago`.
-3. Uma janela oficial do Mercado Pago se abre; o lojista faz login na conta dele e clica em **"Autorizar"**.
-4. O Pulse recebe os tokens daquela loja e salva automaticamente em `prest_usuarios` (`mp_access_token`, `mp_refresh_token`).
-5. **Para Maquininha Point no PDV:** O lojista adquire ou conecta sua maquininha física (Point Smart, Pro, Air) em sua conta Mercado Pago. O terminal fica disponível instantaneamente na tela da **Venda Expressa** do Pulse.
+### Princípios Fundamentais:
+1. **Isolamento Total por `usuario_id` (UUID):** Todas as tabelas de integração (`prest_marketplace_config`, `prest_marketplace_produto`, `prest_marketplace_pedido`, `prest_marketplace_pedido_item`, `prest_marketplace_sync_log`) possuem a chave estrangeira do lojista. A Loja A **jamais** tem acesso a produtos, pedidos ou credenciais da Loja B.
+2. **Contas Próprias por Lojista (Obrigatório por Lei):**
+   - **Tributário / Fiscal:** Toda NF-e emitida para os pedidos deve conter o CNPJ e a Inscrição Estadual da respectiva loja.
+   - **Financeiro:** O repasse dos valores das vendas cai diretamente na conta bancária/digital cadastrada pelo lojista no marketplace. O SaaS não faz custódia de valores transacionais de terceiros, eliminando riscos de bitributação ou exigências de instituição financeira (Bacen).
+   - **Logística:** As etiquetas oficiais (Mercado Envios, Shopee Xpress, Magalu Entregas) utilizam o endereço de postagem do CD/loja do tenant.
 
 ---
 
-## 2. O que precisa para usar o Mercado Livre como Marketplace?
+## 🔑 2. Matriz de Credenciais e Responsabilidades
 
-### A. Papel do SaaS (Pulse Admin):
-1. Acessar o [Mercado Libre Developers](https://developers.mercadolibre.com.br/devcenter).
-2. Criar uma aplicação integradora.
-3. Marcar os escopos de autorização: `read`, `write`, `offline_access`.
-4. Configurar a **Redirect URI**:
-   ```
-   https://seusite.com.br/marketplace/config/oauth-callback?marketplace=MERCADO_LIVRE
-   ```
-5. Configurar a **Notifications Callback URL (Webhook)**:
-   ```
-   https://seusite.com.br/marketplace/webhook/receive?marketplace=mercado-livre
-   ```
-   *(Tópicos obrigatórios: `orders_v2`, `items`, `shipments`)*.
-6. Cadastrar o `App ID` e `Secret Key` do Mercado Livre nas configurações gerais de marketplaces do Pulse.
-
-### B. Papel do Lojista (Tenant):
-1. O lojista precisa ter a sua conta de vendedor (Seller) no Mercado Livre com seu CNPJ/CPF validado.
-2. No Pulse, ele vai em **Marketplaces > Mercado Livre** e clica em **"Conectar Loja do Mercado Livre"**.
-3. Ele autoriza o aplicativo do Pulse.
-4. O Pulse armazena o vínculo isolado na tabela `prest_marketplace_config` (`usuario_id`, `seller_id_externo`, tokens).
-5. O lojista vincula seus produtos ou importa seus anúncios existentes.
-6. A partir desse momento:
-   * Qualquer venda no Pulse baixa estoque no Mercado Livre automaticamente.
-   * Qualquer venda no Mercado Livre entra no Pulse, baixa o estoque local, emite a venda e gera a etiqueta do Mercado Envios em PDF.
+| Canal | Tipo de Conexão | O que o SaaS (Admin) configura | O que o Lojista (Tenant) faz |
+| :--- | :--- | :--- | :--- |
+| **Mercado Pago** | OAuth 2.0 / Gateway | `MP_APP_ID`, `MP_CLIENT_SECRET` no `.env` | Clica em *"Conectar com Mercado Pago"* e autoriza no popup oficial. |
+| **Mercado Livre** | OAuth 2.0 (App Meli) | `App ID`, `Secret Key`, Redirect URI e Webhook URL | Clica em *"Conectar Mercado Livre"*, faz login e concede permissão à aplicação do Pulse. |
+| **Shopee** | HMAC-SHA256 + OAuth v2 | `Partner ID`, `Partner Key` no Shopee Open Platform | Clica em *"Conectar Shopee"*, seleciona o país Brasil e autoriza a loja (`shop_id`). |
+| **Magazine Luiza** | IntegraCommerce / LuizaLabs | Homologação de Parceiro Integrador ou API Key Direta | Gera o **Token de API / API Key** no painel Magalu Seller e cola no Pulse. |
+| **Temu** | L2L Brasil (Open API MD5) | `App Key`, `App Secret` regional Brasil | Fornece o Token de Vendedor Local gerado no portal Temu Seller L2L. |
+| **iFood** | Merchant API V2 | `Client ID`, `Client Secret` no Portal iFood Developer | Informa o seu `Merchant ID` e clica em autorizar o acesso da plataforma. |
 
 ---
 
-## 3. O que precisa para usar a Shopee como Marketplace?
+## 📦 3. Especificações Detalhadas por Canal
 
-### A. Papel do SaaS (Pulse Admin):
-1. Cadastrar a plataforma no [Shopee Open Platform](https://open.shopee.com/).
-2. Obter a aprovação como **Developer Partner** da Shopee, recebendo:
-   * `Partner ID`
-   * `Partner Key`
-3. Configurar os Webhooks oficiais da Shopee apontando para:
-   ```
-   https://seusite.com.br/marketplace/webhook/receive?marketplace=shopee
-   ```
-
-### B. Papel do Lojista (Tenant):
-1. O lojista possui sua loja oficial na Shopee (Shopee Seller Centre).
-2. No Pulse, clica em **"Conectar Shopee"**.
-3. Realiza a autenticação OAuth da Shopee com seu usuário e senha da Shopee.
-4. O Pulse salva as credenciais e o `shop_id` da loja na tabela `prest_marketplace_config`.
-5. O Pulse passa a assinar todas as chamadas com **HMAC-SHA256**, sincronizar estoque e faturar pedidos com NF-e.
+### 3.1 Mercado Pago (Gateway de Pagamentos & PDV)
+* **Objetivo:** Recebimento direto de vendas online, PIX instantâneo, boletos e maquininhas Point integradas ao caixa do PDV.
+* **Rotas Técnicas:**
+  - **Redirect URI OAuth:** `https://seusite.com.br/api/mercado-pago/oauth-callback`
+  - **Webhook IPN:** `https://seusite.com.br/api/mercado-pago/webhook`
+* **Fluxo Operacional:**
+  1. O admin cadastra a aplicação no [Mercado Pago Developers](https://www.mercadopago.com.br/developers/panel/app).
+  2. O lojista acessa **Configurações > Pagamentos > Mercado Pago** e clica em conectar.
+  3. Os tokens são armazenados com segurança em `prest_usuarios` (`mp_access_token`, `mp_refresh_token`).
+  4. Para maquininhas físicas (Point Smart/Pro), os terminais são lidos via `/v1/devices` e selecionados no PDV.
 
 ---
 
-## 4. O que precisa para usar a Temu como Marketplace?
-
-### A. Papel do SaaS (Pulse Admin):
-1. Realizar o cadastro de homologação no portal de parceiros integradores da [Temu Open Platform (L2L Brasil)](https://open-api.temu.com).
-2. Obter o `App Key` e o `App Secret` para a região Brasil.
-
-### B. Papel do Lojista (Tenant):
-1. O lojista precisa ser um vendedor aprovado no programa **Temu Local-to-Local (L2L) Brasil** (sellers com CNPJ e estoque físico no Brasil para envio rápido).
-2. O lojista obtém seu Token de Acesso de Vendedor no painel de seller da Temu.
-3. No Pulse, em **Marketplaces > Temu**, insere o token e ativa a sincronização.
-4. O conector do Pulse calcula a assinatura MD5 dinâmica (`generateSignature`), atualiza o estoque local (`/bg/goods/local/inventory/update`) e confirma os despachos de pedidos com chave de Danfe (`confirmShipment`).
-
----
-
-## 5. O que precisa para usar o Magalu como Marketplace?
-
-### A. Papel do SaaS (Pulse Admin) & Lojista:
-A integração com o Magazine Luiza utiliza a API da **IntegraCommerce / LuizaLabs**:
-1. O lojista abre a conta de vendedor no **Magalu Marketplace** ([seller.magazineluiza.com.br](https://seller.magazineluiza.com.br)).
-2. No painel do Magalu, o lojista solicita a ativação via integradora (ou gera o seu **Token de API / API Key** de integração).
-3. No Pulse, em **Marketplaces > Magazine Luiza**, o lojista preenche o campo de Token / Client Secret.
-4. O conector do Pulse valida a conexão via `Authorization: Bearer` e passa a gerenciar estoque (`/v1/products/{sku}/stock`), faturamento (`/v1/orders/{order_id}/invoice`) e pedidos aprovados.
+### 3.2 Mercado Livre (Marketplace)
+* **Objetivo:** Sincronização de catálogo, atualização de estoque físico, precificação com markup dinâmico, download de etiquetas Mercado Envios e transmissão de NF-e.
+* **Rotas Técnicas:**
+  - **Redirect URI:** `https://seusite.com.br/marketplace/config/oauth-callback?marketplace=MERCADO_LIVRE`
+  - **Webhook URL:** `https://seusite.com.br/marketplace/webhook/receive?marketplace=mercado-livre`
+  - **Tópicos Obrigatórios:** `orders_v2`, `items`, `shipments`
+* **Implementação Técnica ([MercadoLivreService.php](file:///srv/http/pulse/modules/marketplace/components/MercadoLivreService.php)):**
+  - **Autenticação:** Troca de código de autorização em `https://api.mercadolibre.com/oauth/token`.
+  - **Renovação de Token:** Automatizada via refresh token e comando cron:
+    ```bash
+    php /srv/http/pulse/yii marketplace/refresh-tokens
+    ```
+  - **Estoque com Variações:** Atualização via `PUT /items/{itemId}` ou `PUT /items/{itemId}/variations/{variationId}` com payload `{"available_quantity": N}`.
+  - **Faturamento Fiscal:** Envio automático da chave de 44 dígitos e XML da Danfe via `POST /orders/{orderId}/fiscal_documents`.
+  - **Etiquetas de Envio:** Download direto do PDF de postagem via `GET /shipment_labels?shipment_ids={shipmentId}&response_type=pdf`.
 
 ---
 
-## 6. O que precisa para usar o iFood como Marketplace?
-
-### A. Papel do SaaS (Pulse Admin):
-1. Cadastrar a aplicação integradora no [iFood Developer Portal](https://developer.ifood.com.br/).
-2. Obter as credenciais de parceiro: `Client ID` e `Client Secret` do iFood.
-3. Cadastrar a URL de Webhook no portal do iFood:
-   ```
-   https://seusite.com.br/marketplace/webhook/receive?marketplace=ifood
-   ```
-
-### B. Papel do Lojista (Tenant):
-1. O lojista precisa ter seu estabelecimento cadastrado no **Portal do Parceiro iFood** (restaurante, mercado, bebidas ou pet).
-2. No Pulse, ele informa seu `Merchant ID` e clica no botão para autorizar o acesso da plataforma.
-3. O Pulse passa a receber eventos de pedidos, confirmar recebimento, imprimir na cozinha/balcão e despachar.
+### 3.3 Shopee (Marketplace)
+* **Objetivo:** Gestão de pedidos e estoque com a Shopee Open Platform API v2.
+* **Rotas Técnicas:**
+  - **Webhook URL:** `https://seusite.com.br/marketplace/webhook/receive?marketplace=shopee`
+* **Implementação Técnica ([ShopeeService.php](file:///srv/http/pulse/modules/marketplace/components/ShopeeService.php)):**
+  - **Assinatura Criptográfica:** Todas as requisições geram hash HMAC-SHA256 unindo `partner_id + path + timestamp + access_token + shop_id`.
+  - **Validação de Webhook:** O cabeçalho `Authorization` recebido nos webhooks é validado contra a `partner_key` antes de processar qualquer pedido.
+  - **Sincronização de Estoque:** Chamadas para `/api/v2/product/update_stock`.
+  - **Gestão de Pedidos:** Busca de detalhes via `/api/v2/order/get_order_detail` e normalização para o DTO canônico.
 
 ---
 
-## 7. É preciso criar conta de cada loja em cada um dos marketplaces?
-
-### 👉 RESPOSTA: SIM, OBRIGATORIAMENTE!
-
-**Por que cada loja deve ter a sua própria conta em cada marketplace?**
-1. **Aspecto Fiscal e Tributário (NF-e):** A nota fiscal de venda ao consumidor final deve ser emitida obrigatoriamente com o **CNPJ da loja que está vendendo**, constando sua Inscrição Estadual e regime tributário (Simples Nacional, Lucro Presumido, etc.).
-2. **Aspecto Financeiro e Bancário:** O dinheiro das vendas do Mercado Livre, Shopee, Magalu, etc., é transferido diretamente para a conta bancária vinculada ao titular daquele CNPJ. O SaaS não pode reter ou transacionar dinheiro alheio de marketplace para evitar bitributação e problemas de repasse (Bacem/Receita Federal).
-3. **Logística e Expedição:** As etiquetas de envio (Mercado Envios, Shopee Express, Magalu Entregas) utilizam o CEP de coleta do galpão/loja daquele vendedor específico.
-4. **Reputação e Avaliações:** Cada lojista constrói sua própria reputação de vendedor (MercadoLíder, Vendedor Indicado Shopee, etc.).
-
-**Qual é o papel exato da nossa plataforma Pulse ERP?**
-O Pulse ERP é o **Hub Central de Gestão**. Ele elimina a necessidade do lojista ter que abrir 5 sites diferentes por dia. O lojista cadastra os produtos no Pulse uma única vez; o Pulse envia para os canais e, quando uma venda acontece em qualquer marketplace, o Pulse unifica tudo na mesma tela, baixa o estoque físico da loja e imprime a comanda/etiqueta.
+### 3.4 Magazine Luiza / Magalu (Marketplace)
+* **Objetivo:** Conexão com o ecossistema Magalu Marketplace via API IntegraCommerce/LuizaLabs.
+* **Rotas Técnicas:**
+  - **Endpoint Base:** `https://api.magazineluiza.com.br/v1`
+  - **Webhook URL:** `https://seusite.com.br/marketplace/webhook/receive?marketplace=magalu`
+* **Implementação Técnica ([MagaluService.php](file:///srv/http/pulse/modules/marketplace/components/MagaluService.php)):**
+  - **Autenticação:** Header `Authorization: Bearer {token}`.
+  - **Atualização de Estoque:** `PUT /products/{sku}/stock` com `{"quantity": N}`.
+  - **Faturamento:** `POST /orders/{order_id}/invoice` enviando número da nota, série, chave de acesso e data de emissão.
 
 ---
 
-## 8. A nossa SaaS está preparada para tudo isso?
-
-### 👉 RESPOSTA: SIM, 100% PREPARADA E BLINDADA!
-
-O Pulse ERP foi estruturado com uma arquitetura moderna para suportar centenas de lojas operando simultaneamente:
-
-| Recurso da Arquitetura | Como o Pulse ERP gerencia | Status no Sistema |
-| :--- | :--- | :---: |
-| **Isolamento Multi-Tenant** | Todas as tabelas possuem a chave estrangeira `usuario_id` (UUID). Uma loja jamais visualiza ou altera dados de outra loja. | ✅ **100% Ativo** |
-| **Ingestão de Webhooks (Fast-ACK)** | O [WebhookController.php](file:///srv/http/pulse/modules/marketplace/controllers/WebhookController.php) recebe as notificações dos marketplaces, valida a assinatura criptográfica, descobre quem é o lojista dono e responde `HTTP 200` em menos de 100ms. | ✅ **100% Ativo** |
-| **Fila Assíncrona Resiliente** | Se 50 lojas receberem 100 pedidos no mesmo minuto, o servidor não trava. O job vai para o `yii2-queue` gerenciado pelo worker `pulse-queue.service` no Systemd. | ✅ **Ativo & Rodando** |
-| **Rate Limiting & Backoff** | O job [SyncEstoqueMarketplaceJob.php](file:///srv/http/pulse/modules/marketplace/jobs/SyncEstoqueMarketplaceJob.php) respeita os limites de requisições por segundo de cada marketplace (evitando bloqueios HTTP 429). | ✅ **100% Ativo** |
-| **Regras de Markup por Canal** | Cada lojista pode configurar markups diferentes por canal na tabela `prest_marketplace_config` (ex: +16% no Mercado Livre e +14% na Shopee para cobrir as comissões). | ✅ **100% Ativo** |
-| **Dimensões e Logística** | Tabela `prest_produtos` já possui `peso_bruto`, `altura_cm`, `largura_cm`, `comprimento_cm`, `ncm`, `cest` para emissão fiscal e frete. | ✅ **100% Ativo** |
-| **Monetização e Faturamento do SaaS** | Estrutura de cobrança do SaaS já criada no PostgreSQL (migration `015_create_saas_billing_and_commission_tables.sql`): `prest_saas_planos`, `prest_saas_loja_config` e `prest_saas_faturas` para a plataforma cobrar mensalidade e/ou comissão dos lojistas. | ✅ **100% Ativo** |
+### 3.5 Temu (Marketplace - Local-to-Local Brasil)
+* **Objetivo:** Integração com vendedores brasileiros no programa Temu L2L (produtos despachados a partir de território nacional com envio ágil).
+* **Rotas Técnicas:**
+  - **Endpoint Base:** `https://open-api.temu.com`
+  - **Webhook URL:** `https://seusite.com.br/marketplace/webhook/receive?marketplace=temu`
+* **Implementação Técnica ([TemuService.php](file:///srv/http/pulse/modules/marketplace/components/TemuService.php)):**
+  - **Assinatura MD5 Dinâmica:** Ordenação de parâmetros e hash MD5 com `app_secret`.
+  - **Estoque Local:** Chamada para `/bg/goods/local/inventory/update` com `sku_id` e `available_quantity`.
+  - **Confirmação de Envio:** Confirmação com chave Danfe e código de rastreamento do operador local.
 
 ---
 
-## 🚀 Resumo Executivo para Iniciar a Operação
+### 3.6 iFood (Marketplace - Delivery & Mercado)
+* **Objetivo:** Recebimento e processamento de pedidos para comércios de conveniência, alimentação e mercados.
+* **Rotas Técnicas:**
+  - **Endpoint Base:** `https://merchant-api.ifood.com.br/v1.0`
+  - **Webhook URL:** `https://seusite.com.br/marketplace/webhook/receive?marketplace=ifood`
+* **Implementação Técnica ([IFoodService.php](file:///srv/http/pulse/modules/marketplace/components/IFoodService.php)):**
+  - **Autenticação:** Client Credentials OAuth2 (`/authentication/v1.0/oauth/token`).
+  - **Eventos de Pedidos:** Processamento de status `PLACED` (Colocado), `CONFIRMED` (Confirmado), `DISPATCHED` (Despachado) e `CANCELLED` (Cancelado).
+  - **Estoque / Disponibilidade:** Atualização de status de itens no catálogo (`AVAILABLE` / `UNAVAILABLE`).
 
-1. **Você (Admin do Pulse):**
-   * Cria os cadastros de desenvolvedor (Mercado Pago Developers, Mercado Libre Developers, Shopee Open Platform).
-   * Coloca os `App IDs` e `Secrets` mestres no `.env` do servidor.
-2. **Seus Clientes (Lojistas):**
-   * Cadastram suas lojas normalmente nos marketplaces onde querem vender.
-   * Entram no Pulse ERP e clicam no botão de conectar cada canal.
-3. **O Sistema:**
-   * Assume todo o trabalho pesado de sincronização de estoque, precificação, importação de pedidos, baixa no caixa e geração de etiquetas.
+---
+
+## ⚡ 4. Mecanismo de Ingestão de Webhooks (Fast-ACK) e Filas
+
+Para garantir alta escalabilidade e nunca sofrer penalizações por timeout dos marketplaces:
+
+1. **Recepção em < 100ms ([WebhookController.php](file:///srv/http/pulse/modules/marketplace/controllers/WebhookController.php)):**
+   - O controlador recebe o JSON bruto e headers da requisição.
+   - Identifica o `seller_id` ou `shop_id` e localiza a conta específica em `prest_marketplace_config`.
+   - Valida a assinatura de autenticidade (HMAC-SHA256 ou token).
+   - Enfileira a tarefa assíncrona no Yii2 Queue e responde imediatamente com `HTTP 200 OK`.
+2. **Processamento em Segundo Plano ([ProcessarWebhookJob.php](file:///srv/http/pulse/modules/marketplace/jobs/ProcessarWebhookJob.php)):**
+   - Executado pelo worker gerenciado pelo Systemd (`pulse-queue.service`).
+   - Converte os dados do pedido no `MarketplaceOrderDTO`.
+   - Invoca o [OrderEventProcessor.php](file:///srv/http/pulse/modules/marketplace/components/OrderEventProcessor.php).
+   - Registra o cliente em `prest_clientes` se não existir.
+   - Gera a venda em `prest_vendas` e os itens em `prest_venda_itens`.
+   - Executa a baixa atômica de estoque local em `prest_produtos`.
+   - Dispara o job [SyncEstoqueMarketplaceJob.php](file:///srv/http/pulse/modules/marketplace/jobs/SyncEstoqueMarketplaceJob.php) para atualizar imediatamente todos os outros canais conectados.
+
+---
+
+## 🛠️ 5. Checklist Operacional de Implantação
+
+### 🔹 Para a Equipe do Pulse (SaaS Admin):
+- [ ] Criar e homologar as aplicações nos portais de desenvolvedor:
+  - [Mercado Pago Developers](https://www.mercadopago.com.br/developers/panel/app)
+  - [Mercado Livre Developers](https://developers.mercadolibre.com.br/devcenter)
+  - [Shopee Open Platform](https://open.shopee.com/)
+  - [Magalu Seller](https://seller.magazineluiza.com.br)
+  - [Temu Open Platform](https://open-api.temu.com)
+  - [iFood Developer](https://developer.ifood.com.br)
+- [ ] Inserir os `Client IDs` e `Client Secrets` mestres no arquivo `.env` da VPS.
+- [ ] Configurar os endpoints oficiais de Webhook e Redirect URI em cada portal.
+- [ ] Ativar e verificar os serviços do Systemd:
+  ```bash
+  systemctl status pulse-queue.service
+  ```
+- [ ] Configurar os comandos de rotina no Crontab do servidor:
+  ```cron
+  # Renovação preventiva de tokens OAuth (a cada 15 min)
+  */15 * * * * php /srv/http/pulse/yii marketplace/refresh-tokens > /dev/null 2>&1
+
+  # Sincronização periódica de pedidos de contingência (a cada 2 horas)
+  0 */2 * * * php /srv/http/pulse/yii marketplace/sync-orders > /dev/null 2>&1
+  ```
+
+### 🔹 Para os Lojistas (Tenants):
+- [ ] Ter conta jurídica ativa com CNPJ validado em cada marketplace desejado.
+- [ ] Acessar o painel **Marketplaces** no Pulse ERP.
+- [ ] Clicar no botão de conexão do marketplace desejado e autorizar a integração.
+- [ ] Definir a margem de markup de preço para compensar as comissões de cada canal (ex: +16% no ML, +14% na Shopee).
+- [ ] Realizar o vínculo de anúncios existentes ou publicar o catálogo do Pulse.
+- [ ] Ativar a sincronização automática de estoque e pedidos.
+
+---
+
+## 📈 6. Resumo dos Ajustes Realizados e Próximos Passos
+
+1. **Ajustes Concluídos:**
+   - Padronização do isolamento estrito sem fallbacks inseguros entre lojas.
+   - Suporte a variações de produtos (tamanhos, cores, voltagens) no estoque do Mercado Livre e Shopee.
+   - Ingestão unificada de webhooks com processamento em fila resiliente.
+   - Envio automático de dados fiscais (NF-e) para faturamento nos canais.
+2. **Próximas Entregas Planejadas:**
+   - Expansão do mapeador visual de atributos obrigatórios por categoria (NCM, Marca, Modelo).
+   - Sincronização bidirecional de mensagens e perguntas do Mercado Livre e Shopee diretamente no módulo de atendimento do Pulse.

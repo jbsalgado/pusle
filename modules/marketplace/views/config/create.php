@@ -1,128 +1,48 @@
 <?php
 
 use yii\helpers\Html;
-use yii\widgets\ActiveForm;
-use app\modules\marketplace\models\MarketplaceConfig;
+
+/* @var $this yii\web\View */
+/* @var $model app\modules\marketplace\models\MarketplaceConfig */
 
 $this->title = 'Nova Conexão de Marketplace';
 ?>
 
-<div class="marketplace-config-create">
-    <div class="page-header">
-        <h1><i class="fa fa-plus"></i> <?= Html::encode($this->title) ?></h1>
-    </div>
-
-    <div class="box box-primary">
-        <div class="box-body">
-            <?php $form = ActiveForm::begin(); ?>
-
-            <div class="row">
-                <div class="col-md-4">
-                    <?= $form->field($model, 'marketplace')->dropDownList(
-                        MarketplaceConfig::getMarketplacesDisponiveis(),
-                        ['prompt' => 'Selecione um marketplace...']
-                    ) ?>
+<div class="min-h-screen bg-slate-50/60 py-4 sm:py-8 px-3 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto space-y-4 sm:space-y-6">
+        
+        <!-- Top Navigation / Breadcrumb Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/80">
+            <div>
+                <div class="flex items-center gap-2 text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-1">
+                    <span>Hub de Marketplaces</span>
+                    <span class="text-slate-300">&bull;</span>
+                    <span class="text-slate-500">Configuração Multi-Tenant</span>
                 </div>
-
-                <div class="col-md-4">
-                    <?= $form->field($model, 'apelido_conta')->textInput([
-                        'maxlength' => true,
-                        'placeholder' => 'Ex: Loja Principal, Filial SP, Conta 02'
-                    ]) ?>
-                </div>
-
-                <div class="col-md-4">
-                    <?= $form->field($model, 'seller_id_externo')->textInput([
-                        'maxlength' => true,
-                        'placeholder' => 'ID do Seller / Shop ID (opcional na criação)'
-                    ]) ?>
-                </div>
+                <h1 class="text-xl sm:text-2xl lg:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
+                    <svg class="w-7 h-7 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span><?= Html::encode($this->title) ?></span>
+                </h1>
+                <p class="text-xs sm:text-sm text-slate-500 mt-1">
+                    Conecte a sua loja do Mercado Livre, Shopee, Magalu ou outro canal para unificar pedidos e estoque no Pulse ERP.
+                </p>
             </div>
 
-            <hr>
-            <h4><i class="fa fa-key"></i> Credenciais de API / App</h4>
-
-            <div class="alert alert-info">
-                <i class="fa fa-info-circle"></i>
-                <strong>Importante:</strong> Informe o <b>Client ID / App Key / Partner ID</b> e o <b>Client Secret / Partner Key</b> da sua aplicação criada no portal do marketplace.
+            <div class="flex-shrink-0">
+                <?= Html::a(
+                    '<svg class="w-4 h-4 inline-block mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>Ver Conexões',
+                    ['index'],
+                    ['class' => 'inline-flex items-center justify-center px-4 py-2.5 text-xs sm:text-sm font-semibold rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-sm transition']
+                ) ?>
             </div>
-
-            <div class="row">
-                <div class="col-md-6">
-                    <?= $form->field($model, 'client_id')->textInput([
-                        'maxlength' => true,
-                        'placeholder' => 'App ID / Client ID / Partner ID'
-                    ]) ?>
-                </div>
-
-                <div class="col-md-6">
-                    <?= $form->field($model, 'client_secret')->passwordInput([
-                        'maxlength' => true,
-                        'placeholder' => 'Client Secret / Partner Key'
-                    ]) ?>
-                </div>
-            </div>
-
-            <hr>
-            <h4><i class="fa fa-tag"></i> Regras de Precificação & Margem no Canal</h4>
-
-            <div class="row">
-                <div class="col-md-4">
-                    <?= $form->field($model, 'markup_percentual')->textInput([
-                        'type' => 'number',
-                        'step' => '0.01',
-                        'min' => 0,
-                        'placeholder' => 'Ex: 18.00 (+18%)'
-                    ])->label('Acréscimo Percentual (%)') ?>
-                </div>
-
-                <div class="col-md-4">
-                    <?= $form->field($model, 'markup_valor_fixo')->textInput([
-                        'type' => 'number',
-                        'step' => '0.01',
-                        'min' => 0,
-                        'placeholder' => 'Ex: 5.00 (+R$ 5)'
-                    ])->label('Acréscimo Fixo por Produto (R$)') ?>
-                </div>
-
-                <div class="col-md-4" style="padding-top: 25px;">
-                    <?= $form->field($model, 'arredondar_centavos_99')->checkbox([
-                        'label' => 'Arredondar preço para R$ xx,99'
-                    ]) ?>
-                </div>
-            </div>
-
-            <hr>
-            <h4><i class="fa fa-sync"></i> Configurações de Sincronização</h4>
-
-            <div class="row">
-                <div class="col-md-3">
-                    <?= $form->field($model, 'ativo')->checkbox() ?>
-                </div>
-
-                <div class="col-md-3">
-                    <?= $form->field($model, 'sincronizar_estoque')->checkbox() ?>
-                </div>
-
-                <div class="col-md-3">
-                    <?= $form->field($model, 'sincronizar_pedidos')->checkbox() ?>
-                </div>
-
-                <div class="col-md-3">
-                    <?= $form->field($model, 'sincronizar_produtos')->checkbox() ?>
-                </div>
-            </div>
-
-            <div class="form-group mt-3">
-                <?= Html::submitButton('<i class="fa fa-save"></i> Salvar Conexão', [
-                    'class' => 'btn btn-success'
-                ]) ?>
-                <?= Html::a('<i class="fa fa-times"></i> Cancelar', ['index'], [
-                    'class' => 'btn btn-default'
-                ]) ?>
-            </div>
-
-            <?php ActiveForm::end(); ?>
         </div>
+
+        <!-- Render do Formulário Tailwind Mobile-First -->
+        <?= $this->render('_form', [
+            'model' => $model,
+        ]) ?>
+
     </div>
 </div>
