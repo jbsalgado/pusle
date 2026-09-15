@@ -25,6 +25,8 @@ $badgeCores = [
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
             <div>
                 <div class="flex items-center gap-2 text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-1">
+                    <?= Html::a('Painel Geral', ['/vendas/inicio'], ['class' => 'hover:text-indigo-800 transition']) ?>
+                    <span class="text-slate-300">&bull;</span>
                     <span>Hub de Marketplaces</span>
                     <span class="text-slate-300">&bull;</span>
                     <span class="text-slate-500">Canais Conectados</span>
@@ -40,11 +42,17 @@ $badgeCores = [
                 </p>
             </div>
 
-            <div>
+            <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                <?= Html::a(
+                    '<svg class="w-4 h-4 inline-block mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>Painel Principal',
+                    ['/vendas/inicio'],
+                    ['class' => 'w-full sm:w-auto inline-flex items-center justify-center px-4 py-2.5 text-xs sm:text-sm font-semibold rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-sm transition']
+                ) ?>
+
                 <?= Html::a(
                     '<svg class="w-4 h-4 inline-block mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Nova Conexão',
                     ['create'],
-                    ['class' => 'w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md shadow-indigo-200 transition']
+                    ['class' => 'w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md shadow-indigo-200 transition']
                 ) ?>
             </div>
         </div>
@@ -63,11 +71,18 @@ $badgeCores = [
                         Conecte sua primeira loja do Mercado Livre ou Shopee para começar a sincronizar produtos, estoques e vendas.
                     </p>
                 </div>
-                <?= Html::a(
-                    '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Conectar Meu Primeiro Canal',
-                    ['create'],
-                    ['class' => 'inline-flex items-center px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold rounded-xl shadow transition']
-                ) ?>
+                <div class="flex flex-wrap items-center justify-center gap-2 pt-2">
+                    <?= Html::a(
+                        '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>Voltar ao Painel',
+                        ['/vendas/inicio'],
+                        ['class' => 'inline-flex items-center px-4 py-2.5 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs sm:text-sm font-semibold rounded-xl shadow-sm transition']
+                    ) ?>
+                    <?= Html::a(
+                        '<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Conectar Meu Primeiro Canal',
+                        ['create'],
+                        ['class' => 'inline-flex items-center px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold rounded-xl shadow transition']
+                    ) ?>
+                </div>
             </div>
         <?php else: ?>
             <!-- Grid Responsivo de Canais Conectados -->
