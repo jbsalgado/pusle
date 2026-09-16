@@ -110,6 +110,15 @@ function prepararObjetoPedido(dadosPedido, carrinho) {
         pedido.colaborador_vendedor_id = dadosPedido.colaborador_vendedor_id;
     }
 
+    // Campos de acréscimo / taxa de entrega do frete
+    if (dadosPedido.acrescimo_valor !== undefined && dadosPedido.acrescimo_valor !== null) {
+        pedido.acrescimo_valor = parseFloat(dadosPedido.acrescimo_valor) || 0;
+        pedido.acrescimo_tipo = dadosPedido.acrescimo_tipo || 'FIXO';
+        if (dadosPedido.observacao_acrescimo) {
+            pedido.observacao_acrescimo = dadosPedido.observacao_acrescimo;
+        }
+    }
+
     console.log('[Order] 📦 Pedido preparado:', pedido);
     return pedido;
 }

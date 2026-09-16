@@ -26,7 +26,7 @@ import {
     atualizarBadgeProduto
 } from './cart.js';
 import { carregarCarrinho, limparDadosLocaisPosSinc } from './storage.js';
-import { finalizarPedido } from './order.js?v=20260911_11';
+import { finalizarPedido } from './order.js?v=20260916_v1';
 import { 
     carregarFormasPagamento, 
     calcularParcelas, 
@@ -48,8 +48,13 @@ import { cadastrarCliente } from './customer.js';
 import { mostrarModalPixEstatico } from './pix.js';
 import { inicializarSocial, toggleSelecaoProduto } from './social.js';
 
-// Disponibiliza CONFIG no window para compatibilidade com módulos que não usam import
+// Disponibiliza CONFIG e funções do carrinho no window para compatibilidade geral
 window.CONFIG = CONFIG;
+window.getCarrinho = getCarrinho;
+window.setCarrinho = setCarrinho;
+window.calcularTotalCarrinho = calcularTotalCarrinho;
+window.calcularTotalItens = calcularTotalItens;
+window.calcularTotalPecas = calcularTotalPecas;
 
 // ==========================================================================
 // VARIÁVEIS GLOBAIS
@@ -889,6 +894,15 @@ function renderizarCarrinho() {
     const carrinho = getCarrinho();
     
     if (carrinho.length === 0) {
+        window.opcaoFreteSelecionada = null;
+        window.opcoesFreteDisponiveis = [];
+        const resumoEl = document.getElementById('resumo-valores-carrinho');
+        if (resumoEl) resumoEl.classList.add('hidden');
+        const containerOpcoes = document.getElementById('carrinho-opcoes-frete');
+        if (containerOpcoes) {
+            containerOpcoes.innerHTML = '';
+            containerOpcoes.classList.add('hidden');
+        }
         if (container) container.innerHTML = '<p id="carrinho-vazio-msg" class="text-center text-gray-500 py-8"><svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>Seu carrinho está vazio</p>';
         if (btnFinalizar) btnFinalizar.disabled = true;
         if (totalElement) totalElement.textContent = 'R$ 0,00';
@@ -945,10 +959,33 @@ function renderizarCarrinho() {
         `;
     }).join('');
     
-    // Atualizar total
-    const total = calcularTotalCarrinho();
+    // Atualizar subtotal, frete e total final
+    const subtotal = calcularTotalCarrinho();
+    let taxaEntrega = 0;
+
+    if (window.opcaoFreteSelecionada) {
+        taxaEntrega = window.opcaoFreteSelecionada.tipo === 'RETIRADA' 
+            ? 0.00 
+            : parseFloat(window.opcaoFreteSelecionada.valor || 0);
+
+        const resumoEl = document.getElementById('resumo-valores-carrinho');
+        const subtotalEl = document.getElementById('subtotal-produtos-carrinho');
+        const labelFreteEl = document.getElementById('label-frete-escolhido');
+        const valorFreteEl = document.getElementById('valor-frete-escolhido');
+
+        if (resumoEl) resumoEl.classList.remove('hidden');
+        if (subtotalEl) subtotalEl.textContent = formatarMoeda(subtotal);
+        if (labelFreteEl) labelFreteEl.textContent = `Frete (${window.opcaoFreteSelecionada.servico}):`;
+        if (valorFreteEl) {
+            valorFreteEl.textContent = (window.opcaoFreteSelecionada.gratis || taxaEntrega === 0) 
+                ? 'Grátis' 
+                : formatarMoeda(taxaEntrega);
+        }
+    }
+
+    const totalFinal = subtotal + taxaEntrega;
     if (totalElement) {
-        totalElement.textContent = formatarMoeda(total);
+        totalElement.textContent = formatarMoeda(totalFinal);
     }
     
     // Atualizar contador de itens no footer
@@ -2933,7 +2970,10 @@ window.confirmarPedido = async function() {
             if (isPixEstatico && isVista && !resultado.offline && !resultado.redirecionado) {
                 console.log('[App] 🟢 Venda PIX Estático à vista detectada. Gerando QR Code...');
                 
-                const valorTotal = calcularTotalCarrinho();
+                const taxaEntregaPix = (dadosPedido.acrescimo_valor && !isNaN(dadosPedido.acrescimo_valor)) 
+                    ? parseFloat(dadosPedido.acrescimo_valor) 
+                    : 0;
+                const valorTotal = calcularTotalCarrinho() + taxaEntregaPix;
                 
                 // Gera TxID limpo: Catalogo + DDMMYYYY + HHMM
                 const now = new Date();
@@ -3661,7 +3701,7 @@ window.calcularFreteCarrinho = async function(cepParam = null) {
         if (campoBairroCheckout && !campoBairroCheckout.value && bairro) campoBairroCheckout.value = bairro;
         if (campoEstadoCheckout && !campoEstadoCheckout.value && estado) campoEstadoCheckout.value = estado;
 
-        const subtotal = typeof window.calcularTotalCarrinho === 'function' ? window.calcularTotalCarrinho() : 0;
+        const subtotal = calcularTotalCarrinho();
         const maiorPorte = identificarMaiorPorteCarrinho();
 
         const url = `${CONFIG.URL_API}/api/frete/cotar?usuario_id=${CONFIG.ID_USUARIO_LOJA}&cep=${encodeURIComponent(cep)}&cidade=${encodeURIComponent(cidade)}&estado=${encodeURIComponent(estado)}&bairro=${encodeURIComponent(bairro)}&subtotal=${subtotal}&porte=${maiorPorte}`;
@@ -3747,7 +3787,7 @@ window.selecionarOpcaoFrete = function(opcaoId) {
     renderizarOpcoesFreteCarrinho(window.opcoesFreteDisponiveis);
 
     // Atualiza resumo no carrinho
-    const subtotal = typeof window.calcularTotalCarrinho === 'function' ? window.calcularTotalCarrinho() : 0;
+    const subtotal = calcularTotalCarrinho();
     const taxaEntrega = opcao.tipo === 'RETIRADA' ? 0.00 : parseFloat(opcao.valor || 0);
     const totalFinal = subtotal + taxaEntrega;
 
