@@ -2837,9 +2837,19 @@ window.confirmarPedido = async function() {
             intervalo_dias_parcelas: permiteParcelamento && numeroParcelas > 1 ? parseInt(document.getElementById('intervalo-dias')?.value || 30, 10) : null,
             
             // ✅ MAPEAMENTO DE LOGÍSTICA PARA CAMPOS PADRÃO DO PULSE
-            acrescimo_valor: parseFloat(document.getElementById('taxa-entrega')?.value || 0),
+            acrescimo_valor: (document.querySelector('input[name="tipo_entrega"]:checked')?.value === 'RETIRADA') 
+                ? 0 
+                : parseFloat(document.getElementById('taxa-entrega')?.value || 0),
             acrescimo_tipo: 'FIXO',
-            observacao_acrescimo: `Entrega: ${document.querySelector('input[name="tipo_entrega"]:checked')?.value || 'RETIRADA'}`
+            observacao_acrescimo: (() => {
+                const tipoEntrega = document.querySelector('input[name="tipo_entrega"]:checked')?.value || 'RETIRADA';
+                if (tipoEntrega === 'RETIRADA') return 'Entrega: Retirada na Loja';
+                const servico = window.opcaoFreteSelecionada?.servico || document.getElementById('opcao-frete-servico')?.value;
+                const prazo = window.opcaoFreteSelecionada?.prazo_descricao || document.getElementById('opcao-frete-prazo')?.value;
+                if (servico && prazo) return `Entrega: ${servico} (${prazo})`;
+                if (servico) return `Entrega: ${servico}`;
+                return `Entrega: Receber em Casa`;
+            })()
         };
         
         const carrinho = getCarrinho();
@@ -3567,108 +3577,253 @@ window.adicionarVariacaoDireto = async function(idVariacao, idMestre) {
 
 export { init, carregarProdutos, abrirModal, fecharModal };
 // ==========================================================================
-// LÓGICA DE FRETE CENTRALIZADO
+// LÓGICA DE FRETE CENTRALIZADO (ESTADOS, FAIXAS DE PREÇO E MELHOR ENVIO)
 // ==========================================================================
 
+window.opcaoFreteSelecionada = null;
+window.opcoesFreteDisponiveis = [];
+let cacheViaCep = {};
+
 /**
- * Consulta a API de frete e atualiza o campo de taxa de entrega
+ * Identifica o maior porte presente nos itens do carrinho
+ */
+function identificarMaiorPorteCarrinho() {
+    const itens = typeof getCarrinho === 'function' ? getCarrinho() : [];
+    if (!itens.length) return 'P';
+    
+    const pesos = { 'X': 4, 'G': 3, 'M': 2, 'P': 1 };
+    let maior = 'P';
+    
+    itens.forEach(item => {
+        const porteItem = (item.porte || 'P').toUpperCase();
+        if (pesos[porteItem] > pesos[maior]) {
+            maior = porteItem;
+        }
+    });
+    return maior;
+}
+
+/**
+ * Calcula opções de frete diretamente no Carrinho de Compras
+ */
+window.calcularFreteCarrinho = async function(cepParam = null) {
+    const inputCep = document.getElementById('carrinho-cep-input');
+    const containerOpcoes = document.getElementById('carrinho-opcoes-frete');
+    const statusEl = document.getElementById('carrinho-frete-status');
+    const msgGratis = document.getElementById('carrinho-msg-frete-gratis');
+    const btnCalc = document.getElementById('btn-calcular-frete-carrinho');
+
+    let cep = (cepParam || inputCep?.value || '').replace(/\D/g, '');
+
+    if (cep.length !== 8) {
+        if (statusEl) statusEl.innerHTML = '<span class="text-red-500 font-semibold">Informe um CEP válido (8 dígitos)</span>';
+        return;
+    }
+
+    if (inputCep) {
+        inputCep.value = cep.replace(/^(\d{5})(\d{3})$/, '$1-$2');
+    }
+
+    if (statusEl) statusEl.innerHTML = '<span class="text-blue-600 animate-pulse font-medium">Cotando frete...</span>';
+    if (btnCalc) btnCalc.disabled = true;
+
+    try {
+        // 1. Obter Cidade e Estado via ViaCEP se ainda não tivermos em cache
+        let endereco = cacheViaCep[cep];
+        if (!endereco) {
+            try {
+                const resCep = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                const dadosCep = await resCep.json();
+                if (!dadosCep.erro) {
+                    endereco = {
+                        cidade: dadosCep.localidade || '',
+                        estado: dadosCep.uf || '',
+                        bairro: dadosCep.bairro || ''
+                    };
+                    cacheViaCep[cep] = endereco;
+                }
+            } catch (errCep) {
+                console.warn('[Frete] ⚠️ Erro ao consultar ViaCEP:', errCep);
+            }
+        }
+
+        const cidade = endereco?.cidade || '';
+        const estado = endereco?.estado || '';
+        const bairro = endereco?.bairro || '';
+
+        // Preencher também campos da modal de cadastro/checkout se estiverem vazios
+        const campoCepCheckout = document.getElementById('cadastro-cep');
+        const campoCidadeCheckout = document.getElementById('cadastro-cidade');
+        const campoBairroCheckout = document.getElementById('cadastro-bairro');
+        const campoEstadoCheckout = document.getElementById('cadastro-estado');
+        if (campoCepCheckout && !campoCepCheckout.value) campoCepCheckout.value = inputCep?.value || cep;
+        if (campoCidadeCheckout && !campoCidadeCheckout.value && cidade) campoCidadeCheckout.value = cidade;
+        if (campoBairroCheckout && !campoBairroCheckout.value && bairro) campoBairroCheckout.value = bairro;
+        if (campoEstadoCheckout && !campoEstadoCheckout.value && estado) campoEstadoCheckout.value = estado;
+
+        const subtotal = typeof window.calcularTotalCarrinho === 'function' ? window.calcularTotalCarrinho() : 0;
+        const maiorPorte = identificarMaiorPorteCarrinho();
+
+        const url = `${CONFIG.URL_API}/api/frete/cotar?usuario_id=${CONFIG.ID_USUARIO_LOJA}&cep=${encodeURIComponent(cep)}&cidade=${encodeURIComponent(cidade)}&estado=${encodeURIComponent(estado)}&bairro=${encodeURIComponent(bairro)}&subtotal=${subtotal}&porte=${maiorPorte}`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.success && Array.isArray(data.opcoes) && data.opcoes.length > 0) {
+            window.opcoesFreteDisponiveis = data.opcoes;
+            renderizarOpcoesFreteCarrinho(data.opcoes);
+            
+            if (statusEl) {
+                statusEl.innerHTML = `<span class="text-emerald-600 font-semibold">${cidade ? cidade + ' - ' + estado : 'Calculado'}</span>`;
+            }
+
+            // Seleciona a opção de entrega mais econômica por padrão (ou a que já estava se ainda existir)
+            const opcaoSalva = window.opcaoFreteSelecionada 
+                ? data.opcoes.find(o => o.id === window.opcaoFreteSelecionada.id)
+                : null;
+
+            if (opcaoSalva) {
+                window.selecionarOpcaoFrete(opcaoSalva.id);
+            } else {
+                // Primeira opção de entrega (não retirada, se houver)
+                const primeiraEntrega = data.opcoes.find(o => o.tipo !== 'RETIRADA') || data.opcoes[0];
+                window.selecionarOpcaoFrete(primeiraEntrega.id);
+            }
+        } else {
+            if (statusEl) statusEl.innerHTML = '<span class="text-amber-600">Nenhuma taxa cadastrada</span>';
+            if (containerOpcoes) containerOpcoes.classList.add('hidden');
+        }
+
+    } catch (err) {
+        console.error('[Frete] ❌ Erro ao calcular frete no carrinho:', err);
+        if (statusEl) statusEl.innerHTML = '<span class="text-red-500">Erro na cotação</span>';
+    } finally {
+        if (btnCalc) btnCalc.disabled = false;
+    }
+};
+
+/**
+ * Renderiza as opções de frete retornadas no carrinho
+ */
+function renderizarOpcoesFreteCarrinho(opcoes) {
+    const container = document.getElementById('carrinho-opcoes-frete');
+    if (!container) return;
+
+    container.innerHTML = opcoes.map(opt => {
+        const isSelected = window.opcaoFreteSelecionada?.id === opt.id;
+        const valorFormatado = opt.gratis || opt.valor === 0 ? 'Grátis' : `R$ ${parseFloat(opt.valor).toFixed(2).replace('.', ',')}`;
+        const icone = opt.tipo === 'RETIRADA' ? '🏬' : (opt.tipo === 'MELHOR_ENVIO' ? '📦' : '🚚');
+
+        return `
+            <label class="flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${isSelected ? 'border-brand-500 bg-brand-50/50 shadow-sm ring-1 ring-brand-500' : 'border-gray-200 hover:bg-gray-50 bg-white'}" onclick="window.selecionarOpcaoFrete('${opt.id}')">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <input type="radio" name="opcao_frete_radio" value="${opt.id}" ${isSelected ? 'checked' : ''} class="w-4 h-4 text-brand-600">
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold text-gray-800 truncate">${icone} ${opt.servico}</p>
+                        <p class="text-[11px] text-gray-500">${opt.prazo_descricao || 'Prazo sob consulta'}</p>
+                    </div>
+                </div>
+                <div class="text-right flex-shrink-0 ml-2">
+                    <span class="text-xs font-black ${opt.gratis ? 'text-emerald-600' : 'text-gray-900'}">${valorFormatado}</span>
+                </div>
+            </label>
+        `;
+    }).join('');
+
+    container.classList.remove('hidden');
+}
+
+/**
+ * Seleciona uma opção de frete e atualiza os totais e inputs do checkout
+ */
+window.selecionarOpcaoFrete = function(opcaoId) {
+    const opcao = (window.opcoesFreteDisponiveis || []).find(o => o.id === opcaoId);
+    if (!opcao) return;
+
+    window.opcaoFreteSelecionada = opcao;
+    console.log('[Frete] ✅ Opção selecionada:', opcao);
+
+    // Atualiza marcação visual nos cards do carrinho
+    renderizarOpcoesFreteCarrinho(window.opcoesFreteDisponiveis);
+
+    // Atualiza resumo no carrinho
+    const subtotal = typeof window.calcularTotalCarrinho === 'function' ? window.calcularTotalCarrinho() : 0;
+    const taxaEntrega = opcao.tipo === 'RETIRADA' ? 0.00 : parseFloat(opcao.valor || 0);
+    const totalFinal = subtotal + taxaEntrega;
+
+    const resumoEl = document.getElementById('resumo-valores-carrinho');
+    const subtotalEl = document.getElementById('subtotal-produtos-carrinho');
+    const labelFreteEl = document.getElementById('label-frete-escolhido');
+    const valorFreteEl = document.getElementById('valor-frete-escolhido');
+    const totalEl = document.getElementById('valor-total-carrinho');
+
+    if (resumoEl) resumoEl.classList.remove('hidden');
+    if (subtotalEl) subtotalEl.textContent = `R$ ${subtotal.toFixed(2).replace('.', ',')}`;
+    if (labelFreteEl) labelFreteEl.textContent = `Frete (${opcao.servico}):`;
+    if (valorFreteEl) valorFreteEl.textContent = opcao.gratis || taxaEntrega === 0 ? 'Grátis' : `R$ ${taxaEntrega.toFixed(2).replace('.', ',')}`;
+    if (totalEl) totalEl.textContent = `R$ ${totalFinal.toFixed(2).replace('.', ',')}`;
+
+    // Sincroniza com a modal de checkout
+    const campoTaxaCheckout = document.getElementById('taxa-entrega');
+    const badgeServico = document.getElementById('servico-entrega-badge');
+    const hiddenServico = document.getElementById('opcao-frete-servico');
+    const hiddenPrazo = document.getElementById('opcao-frete-prazo');
+    const infoPrazoCheckout = document.getElementById('info-prazo-entrega-checkout');
+
+    if (campoTaxaCheckout) campoTaxaCheckout.value = taxaEntrega.toFixed(2);
+    if (badgeServico) badgeServico.textContent = opcao.servico;
+    if (hiddenServico) hiddenServico.value = opcao.servico;
+    if (hiddenPrazo) hiddenPrazo.value = opcao.prazo_descricao || '';
+    if (infoPrazoCheckout) {
+        infoPrazoCheckout.textContent = `Prazo estimado: ${opcao.prazo_descricao || 'Não informado'}`;
+        infoPrazoCheckout.classList.remove('hidden');
+    }
+
+    // Sincroniza os radios de tipo de entrega
+    const radioRetirada = document.querySelector('input[name="tipo_entrega"][value="RETIRADA"]');
+    const radioEntrega = document.querySelector('input[name="tipo_entrega"][value="ENTREGA"]');
+    const containerTaxa = document.getElementById('container-taxa-entrega');
+
+    if (opcao.tipo === 'RETIRADA') {
+        if (radioRetirada) radioRetirada.checked = true;
+        if (containerTaxa) containerTaxa.classList.add('hidden');
+    } else {
+        if (radioEntrega) radioEntrega.checked = true;
+        if (containerTaxa) containerTaxa.classList.remove('hidden');
+    }
+
+    // Recalcula totais gerais se houver ouvinte
+    if (typeof window.atualizarTotaisPedido === 'function') {
+        window.atualizarTotaisPedido();
+    }
+};
+
+/**
+ * Consulta a API de frete e atualiza o campo de taxa de entrega (legado e checkout)
  */
 window.atualizarFrete = async function() {
-    console.log('[Frete] 🚚 Calculando frete...');
+    console.log('[Frete] 🚚 Atualizando frete no checkout...');
     
-    // Verifica se é entrega ou retirada
     const tipoEntrega = document.querySelector('input[name="tipo_entrega"]:checked')?.value;
     const campoTaxa = document.getElementById('taxa-entrega');
     
     if (tipoEntrega === 'RETIRADA') {
         if (campoTaxa) {
             campoTaxa.value = '0.00';
-            // Disparar evento change para atualizar totais (se houver listener)
             campoTaxa.dispatchEvent(new Event('change', { bubbles: true }));
         }
         return;
     }
 
-    // Se for ENTREGA, busca os valores dos campos
-    // Pode vir tanto da modal de "Finalizar" quanto da modal de "Cadastro" se estiver aberta
-    const cep = (document.getElementById('cadastro-cep')?.value || '').trim();
-    const bairro = (document.getElementById('cadastro-bairro')?.value || '').trim();
-    const cidade = (document.getElementById('cadastro-cidade')?.value || '').trim();
-
-    // Só busca se tiver pelo menos um dado relevante
-    if (!cep && !bairro && !cidade) {
-        console.log('[Frete] ⚠️ Nenhum dado de endereço para calcular frete.');
+    // Se já temos uma opção escolhida no carrinho e ela não é retirada, mantém
+    if (window.opcaoFreteSelecionada && window.opcaoFreteSelecionada.tipo !== 'RETIRADA') {
+        if (campoTaxa) campoTaxa.value = parseFloat(window.opcaoFreteSelecionada.valor || 0).toFixed(2);
         return;
     }
 
-    // Busca o maior porte presente no carrinho
-    const identificarMaiorPorte = () => {
-        const itens = typeof getCarrinho === 'function' ? getCarrinho() : [];
-        if (!itens.length) return 'P';
-        
-        const pesos = { 'X': 4, 'G': 3, 'M': 2, 'P': 1 };
-        let maior = 'P';
-        
-        itens.forEach(item => {
-            const porteItem = (item.porte || 'P').toUpperCase();
-            if (pesos[porteItem] > pesos[maior]) {
-                maior = porteItem;
-            }
-        });
-        return maior;
-    };
-
-    const maiorPorte = identificarMaiorPorte();
-    console.log(`[Frete] 📦 Maior porte detectado no carrinho: ${maiorPorte}`);
-
-    try {
-        const url = `${CONFIG.URL_API}/api/frete/calcular?usuario_id=${CONFIG.ID_USUARIO_LOJA}&cep=${encodeURIComponent(cep)}&bairro=${encodeURIComponent(bairro)}&cidade=${encodeURIComponent(cidade)}&porte=${maiorPorte}`;
-        
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (data.success) {
-            let valorFrete = parseFloat(data.valor || 0);
-            const msgFrete = document.getElementById('mensagem-frete-gratis');
-            
-            // Lógica de Frete Grátis por Ticket Médio
-            if (data.valor_minimo_frete_gratis) {
-                const subtotal = typeof window.calcularTotalCarrinho === 'function' ? window.calcularTotalCarrinho() : 0;
-                const minParaGratis = parseFloat(data.valor_minimo_frete_gratis);
-                
-                if (subtotal >= minParaGratis) {
-                    console.log(`[Frete] 🎁 Ticket atingido (R$ ${subtotal} >= R$ ${minParaGratis}). Frete Grátis!`);
-                    valorFrete = 0;
-                    if (msgFrete) {
-                        msgFrete.textContent = '✅ Frete Grátis aplicado ao seu pedido!';
-                        msgFrete.className = 'mt-1 text-xs font-semibold text-green-600';
-                        msgFrete.classList.remove('hidden');
-                    }
-                } else {
-                    const falta = minParaGratis - subtotal;
-                    if (msgFrete) {
-                        msgFrete.textContent = `🎁 Compre mais R$ ${falta.toFixed(2).replace('.', ',')} para ganhar Frete Grátis!`;
-                        msgFrete.className = 'mt-1 text-xs font-semibold text-brand-600';
-                        msgFrete.classList.remove('hidden');
-                    }
-                }
-            } else if (msgFrete) {
-                msgFrete.classList.add('hidden');
-            }
-
-            console.log(`[Frete] ✅ Ajustado para: R$ ${valorFrete}`);
-            if (campoTaxa) {
-                campoTaxa.value = valorFrete.toFixed(2);
-                // Forçar recálculo do total do pedido
-                if (typeof window.atualizarTotaisPedido === 'function') {
-                    window.atualizarTotaisPedido();
-                } else {
-                    campoTaxa.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            }
-        }
-    } catch (error) {
-        console.error('[Frete] ❌ Erro ao calcular frete:', error);
+    const cep = (document.getElementById('cadastro-cep')?.value || '').trim();
+    if (cep) {
+        window.calcularFreteCarrinho(cep);
     }
 };
 
@@ -3681,17 +3836,30 @@ function inicializarOuvintesFrete() {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('change', () => window.atualizarFrete());
-            // Para CEP, também dispara após preencher via consulta automática se houver
             el.addEventListener('blur', () => window.atualizarFrete());
         }
     });
 
-    // Também ouve a mudança do tipo de entrega
     const radios = document.querySelectorAll('input[name="tipo_entrega"]');
     radios.forEach(r => {
         r.addEventListener('change', () => window.atualizarFrete());
     });
+
+    // Máscara de CEP no input do carrinho
+    const cepCarrinhoInput = document.getElementById('carrinho-cep-input');
+    if (cepCarrinhoInput) {
+        cepCarrinhoInput.addEventListener('input', (e) => {
+            let v = e.target.value.replace(/\D/g, '');
+            if (v.length > 5) {
+                v = v.substring(0, 5) + '-' + v.substring(5, 8);
+            }
+            e.target.value = v;
+            if (v.replace(/\D/g, '').length === 8) {
+                window.calcularFreteCarrinho(v);
+            }
+        });
+    }
 }
 
-// Chamar inicialização no final ou no init()
-setTimeout(inicializarOuvintesFrete, 1000);
+setTimeout(inicializarOuvintesFrete, 800);
+

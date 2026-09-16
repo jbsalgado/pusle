@@ -361,6 +361,36 @@ $this->params['breadcrumbs'][] = $this->title;
             </div>
         </div>
 
+        <!-- Card: Fretes & Entregas (Melhor Envio e Tabela Interna) -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-4 sm:px-6 py-4 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-white flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                    </svg>
+                    Opções de Frete & Logística
+                </h2>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $model->melhor_envio_ativo && !empty($model->melhor_envio_token) ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700' ?>">
+                    <?= $model->melhor_envio_ativo && !empty($model->melhor_envio_token) ? 'Melhor Envio Conectado' : 'Tabela Interna / Manual' ?>
+                </span>
+            </div>
+            <div class="p-4 sm:p-6 space-y-4">
+                <p class="text-sm text-gray-600">
+                    Gerencie suas taxas de entrega por Estado, faixas de preço ou conecte a API gratuita do <strong>Melhor Envio</strong> para cotações automáticas dos Correios e Jadlog com até 80% de desconto.
+                </p>
+                <div class="flex flex-wrap gap-3 pt-2">
+                    <a href="<?= Url::to(['/vendas/taxa-entrega/integracao']) ?>" 
+                       class="inline-flex items-center px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-sm shadow transition">
+                        ⚙️ Configurar Token do Melhor Envio
+                    </a>
+                    <a href="<?= Url::to(['/vendas/taxa-entrega/index']) ?>" 
+                       class="inline-flex items-center px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-lg text-sm transition">
+                        📋 Ver Regras de Frete da Loja
+                    </a>
+                </div>
+            </div>
+        </div>
+
         <!-- Botão Salvar -->
         <div class="flex flex-col sm:flex-row gap-3 sm:justify-end">
             <?= Html::submitButton('Salvar Configuração', [

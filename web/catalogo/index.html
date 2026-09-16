@@ -768,6 +768,55 @@
           <div
             class="border-t bg-gray-50 p-4 sm:p-5 flex-shrink-0 rounded-b-3xl sm:rounded-b-2xl"
           >
+            <!-- Widget de Cálculo de Frete e Prazo no Carrinho -->
+            <div id="bloco-calculo-frete-carrinho" class="mb-3.5 pb-3 border-b border-gray-200">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-xs font-bold text-gray-700 uppercase tracking-wide flex items-center gap-1.5">
+                  <svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                  </svg>
+                  Calcular Frete e Prazo
+                </span>
+                <span id="carrinho-frete-status" class="text-[11px] text-gray-500 font-medium"></span>
+              </div>
+              <div class="flex gap-2">
+                <input
+                  type="text"
+                  id="carrinho-cep-input"
+                  placeholder="00000-000"
+                  maxlength="9"
+                  class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none font-medium bg-white"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();window.calcularFreteCarrinho();}"
+                />
+                <button
+                  type="button"
+                  id="btn-calcular-frete-carrinho"
+                  onclick="window.calcularFreteCarrinho()"
+                  class="px-4 py-2 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-lg transition active:scale-95 whitespace-nowrap"
+                >
+                  Calcular
+                </button>
+              </div>
+
+              <!-- Lista de Opções de Frete Calculadas -->
+              <div id="carrinho-opcoes-frete" class="mt-2.5 space-y-1.5 hidden max-h-36 overflow-y-auto pr-1"></div>
+
+              <!-- Mensagem de Frete Grátis -->
+              <div id="carrinho-msg-frete-gratis" class="mt-1.5 text-xs font-semibold hidden"></div>
+            </div>
+
+            <!-- Resumo Subtotal + Frete -->
+            <div id="resumo-valores-carrinho" class="space-y-1 mb-3 text-xs hidden">
+              <div class="flex justify-between text-gray-500">
+                <span>Subtotal dos Produtos:</span>
+                <span id="subtotal-produtos-carrinho" class="font-semibold text-gray-700">R$ 0,00</span>
+              </div>
+              <div class="flex justify-between text-gray-500">
+                <span id="label-frete-escolhido">Taxa de Entrega:</span>
+                <span id="valor-frete-escolhido" class="font-bold text-gray-800">R$ 0,00</span>
+              </div>
+            </div>
+
             <div class="flex justify-between items-center mb-4">
               <div>
                 <p class="text-sm text-gray-600">Valor Total</p>
@@ -961,11 +1010,14 @@
             </div>
 
             <div id="container-taxa-entrega" class="hidden">
-              <label
-                for="taxa-entrega"
-                class="block text-sm font-medium text-gray-700 mb-1"
-                >🛵 Taxa de Entrega (R$)</label
-              >
+              <div class="flex items-center justify-between mb-1">
+                <label
+                  for="taxa-entrega"
+                  class="block text-sm font-medium text-gray-700"
+                  >🛵 Taxa de Entrega (R$)</label
+                >
+                <span id="servico-entrega-badge" class="text-xs font-bold text-brand-600"></span>
+              </div>
               <input
                 type="number"
                 id="taxa-entrega"
@@ -976,6 +1028,9 @@
                 readonly
                 class="w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed focus:ring-0 outline-none font-bold"
               />
+              <input type="hidden" id="opcao-frete-servico" name="opcao_frete_servico" value="" />
+              <input type="hidden" id="opcao-frete-prazo" name="opcao_frete_prazo" value="" />
+              <div id="info-prazo-entrega-checkout" class="mt-1 text-xs text-gray-600 hidden"></div>
               <div id="mensagem-frete-gratis" class="mt-1 text-xs font-semibold hidden"></div>
             </div>
 
@@ -1634,7 +1689,7 @@
     <script type="module" src="js/imagePlaceholder.js"></script>
     <script type="module" src="js/utils.js?v=20260916_v6"></script>
     <!-- JavaScript Principal -->
-    <script type="module" src="js/app.js?v=20260916_v6"></script>
+    <script type="module" src="js/app.js?v=20260916_v7"></script>
     <script src="https://sdk.mercadopago.com/js/v2"></script>
     <!-- SDK Mercado Pago -->
 
