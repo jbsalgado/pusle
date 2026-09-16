@@ -977,9 +977,14 @@ function renderizarCarrinho() {
         if (subtotalEl) subtotalEl.textContent = formatarMoeda(subtotal);
         if (labelFreteEl) labelFreteEl.textContent = `Frete (${window.opcaoFreteSelecionada.servico}):`;
         if (valorFreteEl) {
-            valorFreteEl.textContent = (window.opcaoFreteSelecionada.gratis || taxaEntrega === 0) 
-                ? 'Grátis' 
-                : formatarMoeda(taxaEntrega);
+            const opt = window.opcaoFreteSelecionada;
+            if (opt.gratis && opt.valor_original && opt.valor_original > 0) {
+                valorFreteEl.innerHTML = `<span class="line-through text-gray-400 font-normal mr-1.5 text-xs">${formatarMoeda(opt.valor_original)}</span><span class="text-emerald-600 font-bold">Grátis 🎉</span>`;
+            } else if (opt.gratis || taxaEntrega === 0) {
+                valorFreteEl.textContent = 'Grátis';
+            } else {
+                valorFreteEl.textContent = formatarMoeda(taxaEntrega);
+            }
         }
     }
 
@@ -3717,15 +3722,15 @@ window.calcularFreteCarrinho = async function(cepParam = null) {
                 statusEl.innerHTML = `<span class="text-emerald-600 font-semibold">${cidade ? cidade + ' - ' + estado : 'Calculado'}</span>`;
             }
 
-            // Seleciona a opção de entrega mais econômica por padrão (ou a que já estava se ainda existir)
-            const opcaoSalva = window.opcaoFreteSelecionada 
+            // Seleciona a opção de entrega mais adequada (prioriza entrega ao calcular CEP)
+            const opcaoSalva = (window.opcaoFreteSelecionada && window.opcaoFreteSelecionada.tipo !== 'RETIRADA')
                 ? data.opcoes.find(o => o.id === window.opcaoFreteSelecionada.id)
                 : null;
 
             if (opcaoSalva) {
                 window.selecionarOpcaoFrete(opcaoSalva.id);
             } else {
-                // Primeira opção de entrega (não retirada, se houver)
+                // Primeira opção de entrega real (não retirada, se houver)
                 const primeiraEntrega = data.opcoes.find(o => o.tipo !== 'RETIRADA') || data.opcoes[0];
                 window.selecionarOpcaoFrete(primeiraEntrega.id);
             }
@@ -3747,12 +3752,52 @@ window.calcularFreteCarrinho = async function(cepParam = null) {
  */
 function renderizarOpcoesFreteCarrinho(opcoes) {
     const container = document.getElementById('carrinho-opcoes-frete');
+    const msgGratis = document.getElementById('carrinho-msg-frete-gratis');
     if (!container) return;
+
+    // Verificar se alguma opção de entrega tem frete grátis por promoção ou quanto falta
+    const opcaoEntrega = opcoes.find(o => o.tipo !== 'RETIRADA');
+    if (msgGratis) {
+        if (opcaoEntrega?.gratis && (opcaoEntrega?.economia > 0 || opcaoEntrega?.valor_original > 0)) {
+            const economizou = parseFloat(opcaoEntrega.economia || opcaoEntrega.valor_original || 0);
+            msgGratis.className = 'mt-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center gap-2 shadow-xs';
+            msgGratis.innerHTML = `<span>🎉</span><span><strong>Parabéns!</strong> Você ganhou <strong>Frete Grátis</strong> (Economia de <strong>R$ ${economizou.toFixed(2).replace('.', ',')}</strong>)</span>`;
+            msgGratis.classList.remove('hidden');
+        } else if (opcaoEntrega && opcaoEntrega.falta_para_frete_gratis > 0) {
+            const falta = parseFloat(opcaoEntrega.falta_para_frete_gratis);
+            msgGratis.className = 'mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium flex items-center gap-2 shadow-xs';
+            msgGratis.innerHTML = `<span>💡</span><span>Adicione mais <strong>R$ ${falta.toFixed(2).replace('.', ',')}</strong> para ganhar <strong>Frete Grátis</strong>!</span>`;
+            msgGratis.classList.remove('hidden');
+        } else {
+            msgGratis.classList.add('hidden');
+        }
+    }
 
     container.innerHTML = opcoes.map(opt => {
         const isSelected = window.opcaoFreteSelecionada?.id === opt.id;
-        const valorFormatado = opt.gratis || opt.valor === 0 ? 'Grátis' : `R$ ${parseFloat(opt.valor).toFixed(2).replace('.', ',')}`;
         const icone = opt.tipo === 'RETIRADA' ? '🏬' : (opt.tipo === 'MELHOR_ENVIO' ? '📦' : '🚚');
+        const valorOriginal = parseFloat(opt.valor_original || 0);
+
+        let valorHtml = '';
+        if (opt.gratis) {
+            if (valorOriginal > 0) {
+                valorHtml = `
+                    <div class="text-right">
+                        <span class="text-[11px] text-gray-400 line-through mr-1">R$ ${valorOriginal.toFixed(2).replace('.', ',')}</span>
+                        <span class="text-xs font-black text-emerald-600">Grátis</span>
+                        <p class="text-[10px] text-emerald-600 font-bold leading-tight">🎉 Frete Grátis</p>
+                    </div>
+                `;
+            } else {
+                valorHtml = `<span class="text-xs font-black text-emerald-600">Grátis</span>`;
+            }
+        } else {
+            valorHtml = `<span class="text-xs font-black text-gray-900">R$ ${parseFloat(opt.valor).toFixed(2).replace('.', ',')}</span>`;
+        }
+
+        const badgePromo = opt.gratis && valorOriginal > 0 
+            ? `<span class="inline-block mt-1 px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-800 rounded-full">🎉 Economizou R$ ${valorOriginal.toFixed(2).replace('.', ',')}</span>` 
+            : '';
 
         return `
             <label class="flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${isSelected ? 'border-brand-500 bg-brand-50/50 shadow-sm ring-1 ring-brand-500' : 'border-gray-200 hover:bg-gray-50 bg-white'}" onclick="window.selecionarOpcaoFrete('${opt.id}')">
@@ -3761,10 +3806,11 @@ function renderizarOpcoesFreteCarrinho(opcoes) {
                     <div class="min-w-0">
                         <p class="text-xs font-bold text-gray-800 truncate">${icone} ${opt.servico}</p>
                         <p class="text-[11px] text-gray-500">${opt.prazo_descricao || 'Prazo sob consulta'}</p>
+                        ${badgePromo}
                     </div>
                 </div>
                 <div class="text-right flex-shrink-0 ml-2">
-                    <span class="text-xs font-black ${opt.gratis ? 'text-emerald-600' : 'text-gray-900'}">${valorFormatado}</span>
+                    ${valorHtml}
                 </div>
             </label>
         `;
@@ -3800,7 +3846,17 @@ window.selecionarOpcaoFrete = function(opcaoId) {
     if (resumoEl) resumoEl.classList.remove('hidden');
     if (subtotalEl) subtotalEl.textContent = `R$ ${subtotal.toFixed(2).replace('.', ',')}`;
     if (labelFreteEl) labelFreteEl.textContent = `Frete (${opcao.servico}):`;
-    if (valorFreteEl) valorFreteEl.textContent = opcao.gratis || taxaEntrega === 0 ? 'Grátis' : `R$ ${taxaEntrega.toFixed(2).replace('.', ',')}`;
+    
+    if (valorFreteEl) {
+        if (opcao.gratis && opcao.valor_original && opcao.valor_original > 0) {
+            valorFreteEl.innerHTML = `<span class="line-through text-gray-400 font-normal mr-1.5 text-xs">R$ ${parseFloat(opcao.valor_original).toFixed(2).replace('.', ',')}</span><span class="text-emerald-600 font-bold">Grátis 🎉</span>`;
+        } else if (opcao.gratis || taxaEntrega === 0) {
+            valorFreteEl.textContent = 'Grátis';
+        } else {
+            valorFreteEl.textContent = `R$ ${taxaEntrega.toFixed(2).replace('.', ',')}`;
+        }
+    }
+    
     if (totalEl) totalEl.textContent = `R$ ${totalFinal.toFixed(2).replace('.', ',')}`;
 
     // Sincroniza com a modal de checkout

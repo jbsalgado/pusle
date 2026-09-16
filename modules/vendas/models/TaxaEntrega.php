@@ -279,9 +279,23 @@ class TaxaEntrega extends ActiveRecord
             $valorFinal = (float)$regra->valor;
             $isGratis = false;
 
-            if ($regra->valor_minimo_frete_gratis && $subtotal >= (float)$regra->valor_minimo_frete_gratis) {
-                $valorFinal = 0.00;
-                $isGratis = true;
+            $avisoPromocional = null;
+            $motivoGratis = null;
+            $economia = 0.00;
+            $faltaParaGratis = null;
+
+            if ($regra->valor_minimo_frete_gratis) {
+                $minGratis = (float)$regra->valor_minimo_frete_gratis;
+                if ($subtotal >= $minGratis) {
+                    $valorFinal = 0.00;
+                    $isGratis = true;
+                    $economia = (float)$regra->valor;
+                    $motivoGratis = "Frete Grátis por valor de compra (pedidos acima de R$ " . number_format($minGratis, 2, ',', '.') . ")";
+                    $avisoPromocional = "🎉 Frete Grátis por valor de compra • Economizou R$ " . number_format($economia, 2, ',', '.');
+                } else {
+                    $faltaParaGratis = $minGratis - $subtotal;
+                    $avisoPromocional = "Faltam R$ " . number_format($faltaParaGratis, 2, ',', '.') . " para ganhar Frete Grátis!";
+                }
             }
 
             $prazoTexto = $regra->prazo_dias_min == $regra->prazo_dias_max 
@@ -296,6 +310,10 @@ class TaxaEntrega extends ActiveRecord
                 'valor_original' => (float)$regra->valor,
                 'gratis' => $isGratis,
                 'valor_minimo_frete_gratis' => $regra->valor_minimo_frete_gratis ? (float)$regra->valor_minimo_frete_gratis : null,
+                'falta_para_frete_gratis' => $faltaParaGratis,
+                'aviso_promocional' => $avisoPromocional,
+                'motivo_gratis' => $motivoGratis,
+                'economia' => $economia,
                 'prazo_dias_min' => (int)$regra->prazo_dias_min,
                 'prazo_dias_max' => (int)$regra->prazo_dias_max,
                 'prazo_descricao' => $prazoTexto,
