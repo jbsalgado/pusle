@@ -42,7 +42,7 @@
       };
     </script>
     <script>
-      // Persiste o slug e define nome/iniciais da loja de forma síncrona imediata
+      // Persiste o slug e define nome/iniciais/tema da loja de forma síncrona imediata
       (function() {
         var slug = new URLSearchParams(window.location.search).get('loja')
                 || new URLSearchParams(window.location.search).get('slug')
@@ -52,6 +52,39 @@
           var nomeFormatado = slug.split('-').map(function(w) {
             return w.charAt(0).toUpperCase() + w.slice(1);
           }).join(' ');
+
+          // Aplicação imediata de tema em cache
+          try {
+            var rawAparencia = sessionStorage.getItem('loja_aparencia_' + slug);
+            if (rawAparencia) {
+              var ap = JSON.parse(rawAparencia);
+              if (ap && ap.escala_cores) {
+                var root = document.documentElement;
+                var css = ':root {\n';
+                Object.keys(ap.escala_cores).forEach(function(k) {
+                  root.style.setProperty('--brand-' + k, ap.escala_cores[k]);
+                  css += '  --brand-' + k + ': ' + ap.escala_cores[k] + ';\n';
+                });
+                css += '}\n';
+                css += '.bg-brand-500 { background-color: var(--brand-500) !important; }\n';
+                css += '.bg-brand-600 { background-color: var(--brand-600) !important; }\n';
+                css += '.bg-brand-700 { background-color: var(--brand-700) !important; }\n';
+                css += '.text-brand-600 { color: var(--brand-600) !important; }\n';
+                css += '.text-brand-500 { color: var(--brand-500) !important; }\n';
+                css += '.border-brand-500 { border-color: var(--brand-500) !important; }\n';
+                css += '.from-brand-700 { --tw-gradient-from: var(--brand-700) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }\n';
+                css += '.via-brand-600 { --tw-gradient-stops: var(--tw-gradient-from), var(--brand-600), var(--tw-gradient-to) !important; }\n';
+                css += '.to-brand-800 { --tw-gradient-to: var(--brand-800) !important; }\n';
+                css += '.from-brand-600 { --tw-gradient-from: var(--brand-600) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }\n';
+                css += '.to-brand-500 { --tw-gradient-to: var(--brand-500) !important; }\n';
+                var st = document.createElement('style');
+                st.id = 'dynamic-theme-vars-early';
+                st.textContent = css;
+                document.head.appendChild(st);
+              }
+            }
+          } catch(e) {}
+
           document.addEventListener('DOMContentLoaded', function() {
             var btnMeusPedidos = document.getElementById('btn-meus-pedidos');
             if (btnMeusPedidos) {
@@ -1582,9 +1615,9 @@
     <script src="js/idb-keyval.js"></script>
     <!-- Verifique se este caminho está correto -->
     <script type="module" src="js/imagePlaceholder.js"></script>
-    <script type="module" src="js/utils.js?v=20260916_v4"></script>
+    <script type="module" src="js/utils.js?v=20260916_v5"></script>
     <!-- JavaScript Principal -->
-    <script type="module" src="js/app.js?v=20260916_v4"></script>
+    <script type="module" src="js/app.js?v=20260916_v5"></script>
     <script src="https://sdk.mercadopago.com/js/v2"></script>
     <!-- SDK Mercado Pago -->
 

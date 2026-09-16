@@ -690,6 +690,13 @@ function aplicarAparenciaDinamica(aparencia) {
 
     console.log('[App] 🎨 Aplicando tema de cores dinâmico:', aparencia.tema);
 
+    // 1. Aplica diretamente no style inline do root (<html>) para efeito imediato
+    const root = document.documentElement;
+    Object.entries(aparencia.escala_cores).forEach(([peso, hex]) => {
+        root.style.setProperty(`--brand-${peso}`, hex);
+    });
+
+    // 2. Injeta regras no <style id="dynamic-theme-vars"> para garantir suporte pleno a gradientes Tailwind CDN
     let styleEl = document.getElementById('dynamic-theme-vars');
     if (!styleEl) {
         styleEl = document.createElement('style');
@@ -697,13 +704,45 @@ function aplicarAparenciaDinamica(aparencia) {
         document.head.appendChild(styleEl);
     }
 
-    let cssRule = ':root {\\n';
+    let cssRules = ':root {\n';
     Object.entries(aparencia.escala_cores).forEach(([peso, hex]) => {
-        cssRule += `  --brand-${peso}: ${hex};\\n`;
+        cssRules += `  --brand-${peso}: ${hex};\n`;
     });
-    cssRule += '}';
-    styleEl.innerHTML = cssRule;
+    cssRules += '}\n\n';
+
+    cssRules += `
+.bg-brand-500 { background-color: var(--brand-500) !important; }
+.bg-brand-600 { background-color: var(--brand-600) !important; }
+.bg-brand-700 { background-color: var(--brand-700) !important; }
+.text-brand-600 { color: var(--brand-600) !important; }
+.text-brand-500 { color: var(--brand-500) !important; }
+.border-brand-500 { border-color: var(--brand-500) !important; }
+.border-brand-600 { border-color: var(--brand-600) !important; }
+.from-brand-700 { --tw-gradient-from: var(--brand-700) var(--tw-gradient-from-position) !important; --tw-gradient-to: rgba(0,0,0,0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.via-brand-600 { --tw-gradient-to: rgba(0,0,0,0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--brand-600) var(--tw-gradient-via-position), var(--tw-gradient-to) !important; }
+.to-brand-800 { --tw-gradient-to: var(--brand-800) var(--tw-gradient-to-position) !important; }
+.from-brand-600 { --tw-gradient-from: var(--brand-600) var(--tw-gradient-from-position) !important; --tw-gradient-to: rgba(0,0,0,0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.to-brand-500 { --tw-gradient-to: var(--brand-500) var(--tw-gradient-to-position) !important; }
+`;
+
+    styleEl.textContent = cssRules;
+
+    // 3. Atualiza meta tag theme-color no navegador
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme && aparencia.escala_cores['600']) {
+        metaTheme.setAttribute('content', aparencia.escala_cores['600']);
+    }
+
+    // 4. Salva no sessionStorage para renderização imediata sem flash em acessos subsequentes
+    try {
+        const slug = new URLSearchParams(window.location.search).get('loja') || sessionStorage.getItem('loja_slug');
+        if (slug) {
+            sessionStorage.setItem('loja_aparencia_' + slug, JSON.stringify(aparencia));
+        }
+    } catch (e) {}
 }
+
+window.aplicarAparenciaDinamica = aplicarAparenciaDinamica;
 
 // ==========================================================================
 // SERVICE WORKER

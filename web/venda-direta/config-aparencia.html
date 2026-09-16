@@ -6,6 +6,15 @@
     <title>Configurações de Aparência — Pulse</title>
     
     <!-- Tailwind CSS -->
+    <script>
+        (function() {
+            const _origWarn = console.warn;
+            console.warn = function(...args) {
+                if (typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+                _origWarn.apply(console, args);
+            };
+        })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -246,6 +255,7 @@
     <script type="module">
         import { CONFIG, API_ENDPOINTS } from './js/config.js';
         import { fetchWithAuth } from './js/api.js';
+        import { verificarAutenticacao } from './js/auth.js';
 
         // Temas de cores do model LojaConfiguracao
         const TEMAS_DISPONIVEIS = {
@@ -317,6 +327,43 @@
         async function init() {
             renderizarListaTemas();
             setupEventListeners();
+
+            try {
+                // 1. Tenta recuperar sessão autenticada do usuário
+                const usuarioData = await verificarAutenticacao();
+                if (usuarioData) {
+                    const tenantId = usuarioData.colaborador
+                        ? usuarioData.colaborador.usuario_id
+                        : (usuarioData.usuario?.id || usuarioData.id);
+                    if (tenantId) {
+                        CONFIG.ID_USUARIO_LOJA = tenantId;
+                    }
+                }
+            } catch (authErr) {
+                console.warn('[Aparencia] Sessão não autenticada via token/storage:', authErr);
+            }
+
+            // 2. Fallback via parâmetros de URL (?usuario_id=... ou ?loja=...)
+            if (!CONFIG.ID_USUARIO_LOJA) {
+                const params = new URLSearchParams(window.location.search);
+                const idUrl = params.get('usuario_id') || params.get('id');
+                const slugUrl = params.get('loja') || params.get('slug');
+
+                if (idUrl && idUrl !== 'null' && idUrl !== 'undefined') {
+                    CONFIG.ID_USUARIO_LOJA = idUrl;
+                } else if (slugUrl) {
+                    try {
+                        const slugResp = await fetch(`${CONFIG.URL_API}/api/usuario/config-by-slug?slug=${encodeURIComponent(slugUrl)}`);
+                        if (slugResp.ok) {
+                            const lojaInfo = await slugResp.json();
+                            CONFIG.ID_USUARIO_LOJA = lojaInfo.id;
+                        }
+                    } catch (slugErr) {
+                        console.warn('[Aparencia] Falha ao resolver slug da loja:', slugErr);
+                    }
+                }
+            }
+
             await carregarConfiguracaoAtual();
         }
 
@@ -423,8 +470,13 @@
 
         // Busca a configuração salva no backend
         async function carregarConfiguracaoAtual() {
+            if (!CONFIG.ID_USUARIO_LOJA) {
+                console.warn('[Aparencia] ⚠️ Nenhum ID de loja identificado para carregar aparência.');
+                return;
+            }
+
             try {
-                const response = await fetch(`${CONFIG.URL_API}/api/usuario/dados-loja?usuario_id=${CONFIG.ID_USUARIO_LOJA}`);
+                const response = await fetchWithAuth(`${CONFIG.URL_API}/api/usuario/dados-loja?usuario_id=${CONFIG.ID_USUARIO_LOJA}`);
                 if (response.ok) {
                     const data = await response.json();
                     

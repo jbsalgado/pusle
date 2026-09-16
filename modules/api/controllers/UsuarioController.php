@@ -126,6 +126,15 @@ class UsuarioController extends Controller
             $usuarioModel = !empty($usuario['id']) ? Usuario::findOne($usuario['id']) : null;
             $stPix = $usuarioModel ? $usuarioModel->getStatusPixEstatico() : null;
 
+            $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $usuario['id']]);
+            $tempConfig = new \app\modules\vendas\models\LojaConfiguracao();
+            $aparencia = [
+                'tema' => $lojaConfig ? ($lojaConfig->aparencia_tema ?: 'azul') : 'azul',
+                'cor_primaria' => $lojaConfig ? $lojaConfig->aparencia_cor_primaria : null,
+                'cor_secundaria' => $lojaConfig ? $lojaConfig->aparencia_cor_secundaria : null,
+                'escala_cores' => $lojaConfig ? $lojaConfig->getEscalaCores() : $tempConfig->getEscalaCores(),
+            ];
+
             return [
                 'id'                  => $usuario['id'],
                 'nome'                => $usuario['nome_loja'] ?: $usuario['nome'],
@@ -137,6 +146,7 @@ class UsuarioController extends Controller
                 'email'               => $usuario['email'] ?? null,
                 'pix_estatico_bloqueado' => $stPix ? $stPix['bloqueado'] : false,
                 'pix_estatico_info'   => $stPix,
+                'aparencia'           => $aparencia,
             ];
 
         } catch (\Exception $e) {
@@ -298,6 +308,11 @@ class UsuarioController extends Controller
     public function actionDadosLoja($usuario_id = null)
     {
         try {
+            // Sanitiza strings nulas ou vazias vindas da URL (?usuario_id=null ou ?usuario_id=undefined)
+            if ($usuario_id === 'null' || $usuario_id === 'undefined' || (is_string($usuario_id) && trim($usuario_id) === '')) {
+                $usuario_id = null;
+            }
+
             // ✅ IDENTIFICAÇÃO INTELIGENTE DO ID DA LOJA (OWNER)
             $lojaId = $usuario_id;
 
@@ -306,7 +321,7 @@ class UsuarioController extends Controller
             if ($colaboradorLogado) {
                 $lojaId = $colaboradorLogado->usuario_id;
             }
-            // 2. Se não logado mas passou um ID, verifica se esse ID é de um colaborador
+            // 2. Se passou um ID, verifica se esse ID é de um colaborador
             elseif (!empty($lojaId)) {
                 $checkColab = \app\modules\vendas\models\Colaborador::find()
                     ->where(['prest_usuario_login_id' => $lojaId])
@@ -329,6 +344,13 @@ class UsuarioController extends Controller
                     Yii::$app->response->statusCode = 400;
                     return ['erro' => 'Não foi possível identificar o ID da loja'];
                 }
+            }
+
+            // Validação de UUID para evitar erro de cast no banco de dados
+            $isUuid = is_string($lojaId) && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $lojaId);
+            if (!$isUuid) {
+                Yii::$app->response->statusCode = 400;
+                return ['erro' => 'ID da loja informado é inválido'];
             }
 
             // ✅ PRIORIDADE 1: Busca na tabela loja_configuracao (Configuração Centralizada)

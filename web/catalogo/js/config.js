@@ -206,6 +206,9 @@ export async function carregarConfigLoja() {
                 const lojaInfo = await slugResp.json();
                 CONFIG.ID_USUARIO_LOJA = lojaInfo.id;
                 CONFIG.LOJA_INFO = lojaInfo;
+                if (lojaInfo.aparencia && window.aplicarAparenciaDinamica) {
+                    window.aplicarAparenciaDinamica(lojaInfo.aparencia);
+                }
                 console.log('[Config] ✅ ID da loja resolvido:', CONFIG.ID_USUARIO_LOJA, '| Loja:', lojaInfo.nome, '| Catálogo Ativo:', lojaInfo.catalogo_ativo);
             } else {
                 console.error('[Config] ❌ Falha ao resolver slug:', slugResp.status);
