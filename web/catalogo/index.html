@@ -622,6 +622,23 @@
         <!-- Products will be loaded here by app.js -->
       </div>
 
+      <!-- Sentinela de Rolagem Infinita (Infinite Scroll) -->
+      <div
+        id="sentinela-infinite-scroll"
+        class="py-6 my-2 text-center text-sm font-medium text-gray-500 flex flex-col sm:flex-row items-center justify-center gap-2 transition-all hidden"
+      >
+        <div id="infinite-scroll-spinner" class="flex items-center gap-2 text-brand-600 font-semibold">
+          <svg class="animate-spin h-5 w-5 text-brand-600" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span>Carregando mais produtos...</span>
+        </div>
+        <div id="infinite-scroll-fim" class="text-xs text-gray-400 font-normal hidden">
+          ✨ Todos os produtos foram carregados.
+        </div>
+      </div>
+
       <!-- Indicador de Carregamento -->
       <div id="carregando-produtos" class="text-center py-8 text-gray-500">
         <svg
@@ -1615,9 +1632,9 @@
     <script src="js/idb-keyval.js"></script>
     <!-- Verifique se este caminho está correto -->
     <script type="module" src="js/imagePlaceholder.js"></script>
-    <script type="module" src="js/utils.js?v=20260916_v5"></script>
+    <script type="module" src="js/utils.js?v=20260916_v6"></script>
     <!-- JavaScript Principal -->
-    <script type="module" src="js/app.js?v=20260916_v5"></script>
+    <script type="module" src="js/app.js?v=20260916_v6"></script>
     <script src="https://sdk.mercadopago.com/js/v2"></script>
     <!-- SDK Mercado Pago -->
 

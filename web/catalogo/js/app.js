@@ -997,38 +997,49 @@ window.limparCarrinhoCompleto = function() {
 
 // Cache de páginas já carregadas (melhora performance)
 const cacheProdutos = new Map();
+const ITENS_POR_PAGINA = 50;
 let paginaAtual = 1;
 let metadadosPaginacao = null;
+let isCarregandoMais = false;
+let infiniteScrollObserver = null;
 
 /**
- * Carrega uma página específica de produtos (paginação real)
+ * Carrega uma página específica de produtos (paginação real + infinite scroll)
  * @param {number} pagina - Número da página a carregar (padrão: 1)
  * @param {boolean} forcarRecarregar - Se true, ignora cache e recarrega
+ * @param {boolean} anexar - Se true (infinite scroll), concatena os produtos em vez de substituir
  */
-async function carregarProdutos(pagina = 1, forcarRecarregar = false) {
+async function carregarProdutos(pagina = 1, forcarRecarregar = false, anexar = false) {
     try {
         const termoBusca = document.getElementById('busca-produto')?.value?.trim() || '';
         
-        // Verifica cache primeiro (apenas se for ordem padrão e sem busca)
-        if (!forcarRecarregar && !termoBusca && ordemAtual === 'padrao' && cacheProdutos.has(pagina)) {
+        // Verifica cache primeiro (apenas se for ordem padrão, sem busca e sem anexar)
+        if (!forcarRecarregar && !termoBusca && ordemAtual === 'padrao' && !anexar && cacheProdutos.has(pagina)) {
             console.log(`[App] 📦 Usando cache da página ${pagina}`);
             const dadosCache = cacheProdutos.get(pagina);
             produtos = dadosCache.produtos;
             produtosFiltrados = produtos;
             paginaAtual = pagina;
             metadadosPaginacao = dadosCache.metadados;
-            renderizarProdutos(produtosFiltrados);
+            renderizarProdutos(produtosFiltrados, false);
             atualizarIndicadoresCarrinho();
             atualizarControlesPaginacao();
+            configurarSentinelaInfiniteScroll();
             ocultarCarregando();
             return;
         }
         
-        console.log('[App] 📦 Carregando produtos (página', pagina, ', ordem:', ordemAtual, ')...');
-        mostrarCarregando();
+        console.log(`[App] 📦 Carregando produtos (página ${pagina}, itens: ${ITENS_POR_PAGINA}, ordem: ${ordemAtual}, anexar: ${anexar})...`);
+        
+        if (!anexar) {
+            mostrarCarregando();
+        } else {
+            const spinner = document.getElementById('infinite-scroll-spinner');
+            if (spinner) spinner.classList.remove('hidden');
+        }
         
         // Parâmetros de busca e ordenação
-        let url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}&page=${pagina}&per-page=24&expand=variacoes.fotos,fotos,categoria`;
+        let url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}&page=${pagina}&per-page=${ITENS_POR_PAGINA}&expand=variacoes.fotos,fotos,categoria`;
 
         if (ordemAtual && ordemAtual !== 'padrao') {
             url += `&ordem=${encodeURIComponent(ordemAtual)}`;
@@ -1054,7 +1065,7 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false) {
                 totalCount: produtosPagina.length,
                 pageCount: 1,
                 currentPage: pagina,
-                perPage: 24
+                perPage: ITENS_POR_PAGINA
             };
         } else if (data.items && Array.isArray(data.items)) {
             produtosPagina = data.items;
@@ -1062,7 +1073,7 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false) {
                 totalCount: produtosPagina.length,
                 pageCount: 1,
                 currentPage: pagina,
-                perPage: 24
+                perPage: ITENS_POR_PAGINA
             };
         } else if (Array.isArray(data)) {
             produtosPagina = data;
@@ -1079,7 +1090,7 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false) {
                 totalCount: 0,
                 pageCount: 1,
                 currentPage: 1,
-                perPage: 24
+                perPage: ITENS_POR_PAGINA
             };
         }
         
@@ -1091,8 +1102,8 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false) {
             badgeContador.classList.remove('hidden');
         }
 
-        // Salva no cache apenas se não houver pesquisa e for ordem padrão
-        if (!termoBusca && ordemAtual === 'padrao') {
+        // Salva no cache apenas se não houver pesquisa, for ordem padrão e não for anexação
+        if (!termoBusca && ordemAtual === 'padrao' && !anexar) {
             cacheProdutos.set(pagina, {
                 produtos: produtosPagina,
                 metadados: metadados
@@ -1100,23 +1111,36 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false) {
         }
         
         // Atualiza variáveis globais
-        produtos = produtosPagina; // Apenas produtos da página atual
-        produtosFiltrados = produtos;
+        if (anexar) {
+            produtos = produtos.concat(produtosPagina);
+            produtosFiltrados = produtosFiltrados.concat(produtosPagina);
+        } else {
+            produtos = produtosPagina;
+            produtosFiltrados = produtos;
+        }
+        
         paginaAtual = pagina;
         metadadosPaginacao = metadados;
         window.paginacaoMetadados = metadados;
         
-        console.log(`[App] ✅ Página ${pagina} carregada: ${produtosPagina.length} produto(s) de ${metadados.totalCount} total`);
+        console.log(`[App] ✅ Página ${pagina} carregada: +${produtosPagina.length} produto(s) (${produtos.length} visíveis de ${metadados.totalCount} total)`);
         
-        // Renderiza apenas os produtos da página atual aplicando filtros locais
-        aplicarFiltrosLocais();
+        if (anexar) {
+            renderizarProdutos(produtosPagina, true);
+        } else {
+            aplicarFiltrosLocais();
+        }
+        
         atualizarIndicadoresCarrinho();
         atualizarControlesPaginacao();
+        configurarSentinelaInfiniteScroll();
         ocultarCarregando();
         
     } catch (error) {
         console.error('[App] Erro ao carregar produtos:', error);
-        mostrarErro('Erro ao carregar produtos. Verifique sua conexão.');
+        if (!anexar) {
+            mostrarErro('Erro ao carregar produtos. Verifique sua conexão.');
+        }
         ocultarCarregando();
     }
 }
@@ -1149,23 +1173,11 @@ function atualizarControlesPaginacao() {
     const containerPaginacaoRodape = document.getElementById('controles-paginacao-rodape');
     
     if (!containerPaginacao && !containerPaginacaoRodape) {
-        console.warn('[App] ⚠️ Containers de controles de paginação não encontrados');
         return;
     }
     
     const metadados = metadadosPaginacao || window.paginacaoMetadados;
-    
-    // DEBUG: Log dos metadados
-    console.log('[App] 🔍 DEBUG atualizarControlesPaginacao:', {
-        metadadosPaginacao: metadadosPaginacao,
-        windowPaginacaoMetadados: window.paginacaoMetadados,
-        metadados: metadados,
-        pageCount: metadados?.pageCount,
-        totalCount: metadados?.totalCount
-    });
-    
     if (!metadados) {
-        console.warn('[App] ⚠️ Metadados de paginação não disponíveis. Ocultando controles.');
         if (containerPaginacao) containerPaginacao.classList.add('hidden');
         if (containerPaginacaoRodape) containerPaginacaoRodape.classList.add('hidden');
         return;
@@ -1175,78 +1187,99 @@ function atualizarControlesPaginacao() {
     const deveMostrar = metadados.pageCount > 1 || (metadados.totalCount > metadados.perPage);
     
     if (!deveMostrar) {
-        console.log('[App] ℹ️ Apenas 1 página ou menos de perPage produtos. Ocultando controles.');
         if (containerPaginacao) containerPaginacao.classList.add('hidden');
         if (containerPaginacaoRodape) containerPaginacaoRodape.classList.add('hidden');
         return;
     }
     
-    console.log('[App] ✅ Mostrando controles de paginação:', {
-        pageCount: metadados.pageCount,
-        currentPage: metadados.currentPage,
-        totalCount: metadados.totalCount,
-        perPage: metadados.perPage
-    });
-    
-    // Calcula informações de exibição
-    const inicio = (metadados.currentPage - 1) * metadados.perPage + 1;
-    const fim = Math.min(metadados.currentPage * metadados.perPage, metadados.totalCount);
-    const textoInfo = `Mostrando ${inicio}-${fim} de ${metadados.totalCount} produtos`;
-    const textoPagina = `Página ${metadados.currentPage} de ${metadados.pageCount}`;
-    const podeAnterior = metadados.currentPage > 1;
-    const podeProxima = metadados.currentPage < metadados.pageCount;
+    const totalVisivel = produtos.length;
+    const totalCount = metadados.totalCount || totalVisivel;
+    const textoInfo = `Mostrando 1-${Math.min(totalVisivel, totalCount)} de ${totalCount} produtos`;
+    const textoPagina = `Página ${paginaAtual} de ${metadados.pageCount}`;
+    const podeAnterior = paginaAtual > 1;
+    const podeProxima = paginaAtual < metadados.pageCount;
     
     // Atualiza controles do topo
     if (containerPaginacao) {
         containerPaginacao.classList.remove('hidden');
-        
         const infoPaginacao = document.getElementById('info-paginacao');
-        if (infoPaginacao) {
-            infoPaginacao.textContent = textoInfo;
-        }
-        
+        if (infoPaginacao) infoPaginacao.textContent = textoInfo;
         const paginaAtualInfo = document.getElementById('pagina-atual-info');
-        if (paginaAtualInfo) {
-            paginaAtualInfo.textContent = textoPagina;
-        }
-        
+        if (paginaAtualInfo) paginaAtualInfo.textContent = textoPagina;
         const btnAnterior = document.getElementById('btn-pagina-anterior');
         const btnProxima = document.getElementById('btn-pagina-proxima');
-        
-        if (btnAnterior) {
-            btnAnterior.disabled = !podeAnterior;
-        }
-        
-        if (btnProxima) {
-            btnProxima.disabled = !podeProxima;
-        }
+        if (btnAnterior) btnAnterior.disabled = !podeAnterior;
+        if (btnProxima) btnProxima.disabled = !podeProxima;
     }
     
     // Atualiza controles do rodapé
     if (containerPaginacaoRodape) {
         containerPaginacaoRodape.classList.remove('hidden');
-        
         const infoPaginacaoRodape = document.getElementById('info-paginacao-rodape');
-        if (infoPaginacaoRodape) {
-            infoPaginacaoRodape.textContent = textoInfo;
-        }
-        
+        if (infoPaginacaoRodape) infoPaginacaoRodape.textContent = textoInfo;
         const paginaAtualInfoRodape = document.getElementById('pagina-atual-info-rodape');
-        if (paginaAtualInfoRodape) {
-            paginaAtualInfoRodape.textContent = textoPagina;
-        }
-        
+        if (paginaAtualInfoRodape) paginaAtualInfoRodape.textContent = textoPagina;
         const btnAnteriorRodape = document.getElementById('btn-pagina-anterior-rodape');
         const btnProximaRodape = document.getElementById('btn-pagina-proxima-rodape');
-        
-        if (btnAnteriorRodape) {
-            btnAnteriorRodape.disabled = !podeAnterior;
-        }
-        
-        if (btnProximaRodape) {
-            btnProximaRodape.disabled = !podeProxima;
-        }
+        if (btnAnteriorRodape) btnAnteriorRodape.disabled = !podeAnterior;
+        if (btnProximaRodape) btnProximaRodape.disabled = !podeProxima;
     }
+}
+
+/**
+ * Configura observador de rolagem infinita (Infinite Scroll)
+ */
+function configurarSentinelaInfiniteScroll() {
+    const sentinela = document.getElementById('sentinela-infinite-scroll');
+    const spinner = document.getElementById('infinite-scroll-spinner');
+    const msgFim = document.getElementById('infinite-scroll-fim');
+    if (!sentinela) return;
+
+    const metadados = metadadosPaginacao || window.paginacaoMetadados;
+    if (!metadados || metadados.totalCount <= ITENS_POR_PAGINA) {
+        sentinela.classList.add('hidden');
+        return;
+    }
+
+    sentinela.classList.remove('hidden');
+
+    if (paginaAtual >= metadados.pageCount) {
+        // Chegou ao fim de todas as páginas
+        if (spinner) spinner.classList.add('hidden');
+        if (msgFim) msgFim.classList.remove('hidden');
+        if (infiniteScrollObserver) {
+            infiniteScrollObserver.disconnect();
+        }
+        return;
+    }
+
+    // Ainda há mais páginas disponíveis para rolar
+    if (spinner) spinner.classList.remove('hidden');
+    if (msgFim) msgFim.classList.add('hidden');
+
+    if (infiniteScrollObserver) {
+        infiniteScrollObserver.disconnect();
+    }
+
+    infiniteScrollObserver = new IntersectionObserver((entries) => {
+        const entry = entries[0];
+        if (entry && entry.isIntersecting && !isCarregandoMais) {
+            const m = metadadosPaginacao || window.paginacaoMetadados;
+            if (m && paginaAtual < m.pageCount) {
+                console.log(`[App] 📜 Infinite Scroll ativado! Carregando página ${paginaAtual + 1}...`);
+                isCarregandoMais = true;
+                carregarProdutos(paginaAtual + 1, false, true).finally(() => {
+                    isCarregandoMais = false;
+                });
+            }
+        }
+    }, {
+        root: null,
+        rootMargin: '400px', // Dispara antecipadamente 400px antes do rodapé para fluidez máxima
+        threshold: 0.1
+    });
+
+    infiniteScrollObserver.observe(sentinela);
 }
 
 /**
@@ -1265,8 +1298,8 @@ window.navegarPagina = function(direcao) {
         return;
     }
     
-    console.log('[App] Navegando para página:', novaPagina);
-    carregarProdutos(novaPagina);
+    console.log('[App] Navegando manualmente para página:', novaPagina);
+    carregarProdutos(novaPagina, false, false);
     
     // Scroll para o topo do catálogo
     const container = document.getElementById('catalogo-produtos');
@@ -1647,8 +1680,8 @@ function renderizarPreviaGrade(produto) {
     return html;
 }
 
-function renderizarProdutos(listaProdutos) {
-    console.log(`[App] 🎨 Renderizando ${listaProdutos.length} produtos...`, listaProdutos);
+function renderizarProdutos(listaProdutos, anexar = false) {
+    console.log(`[App] 🎨 Renderizando ${listaProdutos.length} produtos (anexar: ${anexar})...`);
     const container = document.getElementById('catalogo-produtos');
     
     if (!container) {
@@ -1656,7 +1689,7 @@ function renderizarProdutos(listaProdutos) {
         return;
     }
     
-    if (listaProdutos.length === 0) {
+    if (!anexar && listaProdutos.length === 0) {
         const termoBusca = document.getElementById('busca-produto')?.value?.trim() || '';
         if (termoBusca) {
             container.innerHTML = `
@@ -1678,7 +1711,7 @@ function renderizarProdutos(listaProdutos) {
         return;
     }
     
-    container.innerHTML = listaProdutos.map(produto => {
+    const htmlCards = listaProdutos.map(produto => {
         const variacoesComEstoque = (produto.variacoes || []).filter(v => parseFloat(v.estoque_atual || 0) > 0);
         const temEstoqueVariacoes = produto.variacoes ? (variacoesComEstoque.length > 0) : (parseFloat(produto.estoque_atual || 0) > 0);
 
@@ -1761,21 +1794,20 @@ function renderizarProdutos(listaProdutos) {
     `;
     }).join('');
     
-    // Adicionar listener de clique nos cards para seleção social
-    // Usamos delegação de evento ou adicionamos a cada card? Vamos adicionar ao container para perfomance
-    // Mas como o renderizarProdutos sobrescreve o HTML, precisamos re-adicionar ou usar onclick inline?
-    // Melhor: Adicionar onclick no div principal do card via JS logo após renderizar
-    
-    container.querySelectorAll('[data-produto-card]').forEach(card => {
+    if (anexar) {
+        container.insertAdjacentHTML('beforeend', htmlCards);
+    } else {
+        container.innerHTML = htmlCards;
+    }
+
+    container.querySelectorAll('[data-produto-card]:not([data-click-bound])').forEach(card => {
+        card.setAttribute('data-click-bound', 'true');
         card.addEventListener('click', (e) => {
-            // Se estiver em modo social (verificado pela classe no body)
             if (document.body.classList.contains('modo-social')) {
                 e.preventDefault();
                 e.stopPropagation();
-                
                 const id = card.getAttribute('data-produto-card');
-                // Encontrar o objeto produto completo
-                const produto = listaProdutos.find(p => String(p.id) === String(id));
+                const produto = produtos.find(p => String(p.id) === String(id));
                 if (produto) {
                     toggleSelecaoProduto(produto);
                 }

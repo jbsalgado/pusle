@@ -152,10 +152,16 @@ class ProdutoController extends BaseController
             $sortConfig = false;
         }
 
+        $pageSize = (int)\Yii::$app->request->get('per-page', 50);
+        if ($pageSize < 1) {
+            $pageSize = 50;
+        }
+
         $dataProvider = new ActiveDataProvider([
             'query' => $query,
             'pagination' => [
-                'pageSize' => \Yii::$app->request->get('per-page', 24),
+                'pageSize' => $pageSize,
+                'pageSizeLimit' => [1, 200],
             ],
             'sort' => $sortConfig,
         ]);
