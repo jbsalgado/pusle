@@ -181,6 +181,7 @@ $config = [
                 'POST api/v1/products/<id:[\w-]+>/generate-card' => 'api/produto/generate-card',
                 'POST api/produto/<id:[\w-]+>/generate-card' => 'api/produto/generate-card',
                 'GET api/produto/marcas' => 'api/produto/marcas',
+                'GET api/produto/destaques' => 'api/produto/destaques',
                 'GET api/produto/<id:[\w-]+>' => 'api/produto/view',
                 // Regras REST específicas para cliente
                 'GET api/cliente/buscar-cpf' => 'api/cliente/buscar-cpf',

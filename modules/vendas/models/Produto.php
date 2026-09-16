@@ -755,7 +755,11 @@ class Produto extends ActiveRecord
      */
     public function getEmPromocao()
     {
-        if (empty($this->preco_promocional)) {
+        if (empty($this->preco_promocional) || (float)$this->preco_promocional <= 0) {
+            return false;
+        }
+
+        if ((float)$this->preco_venda_sugerido > 0 && (float)$this->preco_promocional >= (float)$this->preco_venda_sugerido) {
             return false;
         }
 
@@ -766,8 +770,14 @@ class Produto extends ActiveRecord
         if ($inicio && $fim) {
             return $agora >= $inicio && $agora <= $fim;
         }
+        if ($inicio && !$fim) {
+            return $agora >= $inicio;
+        }
+        if (!$inicio && $fim) {
+            return $agora <= $fim;
+        }
 
-        return false;
+        return true;
     }
 
     /**

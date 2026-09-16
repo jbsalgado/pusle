@@ -122,6 +122,7 @@ const _urlApiBase = CONFIG.URL_API;
 
 export const API_ENDPOINTS = {
     PRODUTO: `${_urlApiBase}/api/produto`,
+    PRODUTO_DESTAQUES: `${_urlApiBase}/api/produto/destaques`,
     CLIENTE: `${_urlApiBase}/api/cliente`,
     CLIENTE_BUSCA_CPF: `${_urlApiBase}/api/cliente/buscar-cpf`,
     COLABORADOR_BUSCA_CPF: `${_urlApiBase}/api/colaborador/buscar-cpf`,

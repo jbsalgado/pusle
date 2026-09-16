@@ -229,3 +229,70 @@ body.modo-social [data-produto-card] {
     font-size: 20px;
   }
 }
+
+/* ==========================================================================
+   ✨ ESTILOS MODERNOS DO NOVO HERO DA LOJA E SLIDESHOW
+   ========================================================================== */
+
+#store-hero-banner {
+  background-size: 200% 200%;
+  animation: heroGradientShift 15s ease infinite alternate;
+}
+
+@keyframes heroGradientShift {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+#hero-logo-wrapper {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+}
+
+/* Slideshow Track Transitions */
+#slideshow-track {
+  will-change: transform;
+  transition: transform 0.45s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.slideshow-dot {
+  outline: none;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slideshow-dot:hover {
+  transform: scale(1.2);
+}
+
+/* Scrollbar invisível para chips de ordenação */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Chips de ordenação */
+.chip-ordem {
+  user-select: none;
+  cursor: pointer;
+}
+
+/* Toast de Adição ao Carrinho */
+#toast-carrinho {
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Animação de pulso e bounce no botão do carrinho */
+.cart-bounce-effect {
+  animation: cartBounce 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes cartBounce {
+  0%, 100% { transform: scale(1); }
+  30% { transform: scale(1.25) rotate(-6deg); }
+  60% { transform: scale(1.15) rotate(6deg); }
+  80% { transform: scale(1.05) rotate(-2deg); }
+}
+

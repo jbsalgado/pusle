@@ -29,33 +29,33 @@ export function produtoEstaNoCarrinho(produtoId) {
 /**
  * Adiciona produto ao carrinho
  */
-export function adicionarAoCarrinho(produto, quantidade) {
+export function adicionarAoCarrinho(produto, quantidade = 1) {
      // ✅ CORREÇÃO: O JSON do produto tem 'id'
     if (!produto || !produto.id || !quantidade || quantidade <= 0) {
         return false;
     }
     
-    // ✅ CORREÇÃO: Buscar por 'id'
+    // ✅ Se já existir, incrementa a quantidade automaticamente sem bloquear
     const itemExistente = carrinho.find(item => item.id === produto.id);
     
     if (itemExistente) {
-        alert('Este item já está no seu carrinho.');
-        return false;
+        itemExistente.quantidade = (parseFloat(itemExistente.quantidade) || 0) + parseFloat(quantidade);
+        salvarCarrinho(carrinho);
+        return { sucesso: true, item: itemExistente, jaExistia: true };
     }
     
-    // ✅ CORREÇÃO: Preservar produto_id (mestre) e variante_id
+    // ✅ Preservar produto_id (mestre) e variante_id
     const itemParaAdicionar = {
         ...produto,
         produto_id: produto.produto_id || produto.id, // ID do mestre para o backend
         variante_id: produto.variante_id || (produto.produto_id && produto.id !== produto.produto_id ? produto.id : null),
-        quantidade: quantidade
+        quantidade: parseFloat(quantidade)
     };
     
     carrinho.push(itemParaAdicionar);
-    
     salvarCarrinho(carrinho);
     
-    return true;
+    return { sucesso: true, item: itemParaAdicionar, jaExistia: false };
 }
 
 /**
@@ -109,9 +109,7 @@ export function diminuirQuantidadeItem(produtoId) {
  */
 export function calcularTotalCarrinho() {
     return carrinho.reduce((total, item) => {
-        // ✅ CORREÇÃO: Usar 'preco_venda_sugerido'
-        const preco = parseFloat(item.preco_venda_sugerido || 0);
-         // ✅ CORREÇÃO: Garantir que é número (suporta decimais)
+        const preco = parseFloat(item.preco_final || (item.em_promocao && item.preco_promocional > 0 ? item.preco_promocional : item.preco_venda_sugerido) || 0);
         const qtd = parseFloat(item.quantidade || 0);
         return total + (preco * qtd);
     }, 0);
