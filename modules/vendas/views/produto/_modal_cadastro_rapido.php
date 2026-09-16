@@ -672,10 +672,10 @@ $topCategorias = array_slice($categorias, 0, 4);
             btn.classList.remove('bg-indigo-600');
             btn.classList.add('bg-slate-700');
             
-            // Se ainda não tiver variações configuradas, cria 'PADRÃO' com sugestão de roupas
+            // Se ainda não tiver variações configuradas, cria 'PADRÃO' com sugestão de roupas zeradas (0)
             if (Object.keys(gradeVariacoes).length === 0) {
                 corGradeAtiva = 'PADRÃO';
-                gradeVariacoes['PADRÃO'] = { 'P': 1, 'M': 1, 'G': 1, 'GG': 1 };
+                gradeVariacoes['PADRÃO'] = { 'P': 0, 'M': 0, 'G': 0, 'GG': 0 };
             }
             renderizarChipsCores();
             renderizarChipsTamanhos();
@@ -830,7 +830,7 @@ $topCategorias = array_slice($categorias, 0, 4);
 
             gradeVariacoes[corNome] = {};
             tamanhosBase.forEach(t => {
-                gradeVariacoes[corNome][t] = 1;
+                gradeVariacoes[corNome][t] = 0;
             });
         }
 
@@ -876,7 +876,7 @@ $topCategorias = array_slice($categorias, 0, 4);
         }
         gradeVariacoes[corGradeAtiva] = {};
         listaTamanhos.forEach(tam => {
-            gradeVariacoes[corGradeAtiva][tam] = 1; // 1 peça de cada por padrão
+            gradeVariacoes[corGradeAtiva][tam] = 0; // 0 peça de cada por padrão
         });
         renderizarChipsCores();
         renderizarChipsTamanhos();
@@ -896,7 +896,7 @@ $topCategorias = array_slice($categorias, 0, 4);
         const partes = val.split(',').map(s => s.trim().toUpperCase()).filter(s => s.length > 0);
         partes.forEach(p => {
             if (!gradeVariacoes[corGradeAtiva][p]) {
-                gradeVariacoes[corGradeAtiva][p] = 1;
+                gradeVariacoes[corGradeAtiva][p] = 0;
             }
         });
 
@@ -935,10 +935,10 @@ $topCategorias = array_slice($categorias, 0, 4);
     function atualizarQtdDigitada(tam, val) {
         if (!gradeVariacoes[corGradeAtiva]) return;
         const num = parseInt(val, 10);
-        if (!isNaN(num) && num > 0) {
+        if (!isNaN(num) && num >= 0) {
             gradeVariacoes[corGradeAtiva][tam] = num;
         } else {
-            gradeVariacoes[corGradeAtiva][tam] = 1;
+            gradeVariacoes[corGradeAtiva][tam] = 0;
         }
         atualizarTotalPecasGrade();
     }
@@ -946,8 +946,8 @@ $topCategorias = array_slice($categorias, 0, 4);
     function finalizarQtdDigitada(tam, input) {
         if (!gradeVariacoes[corGradeAtiva]) return;
         let num = parseInt(input.value, 10);
-        if (isNaN(num) || num < 1) {
-            num = 1;
+        if (isNaN(num) || num < 0) {
+            num = 0;
         }
         gradeVariacoes[corGradeAtiva][tam] = num;
         input.value = num;
@@ -957,8 +957,9 @@ $topCategorias = array_slice($categorias, 0, 4);
 
     function alterarQtdTamanho(tam, delta) {
         if (!gradeVariacoes[corGradeAtiva]) return;
-        const atual = parseInt(gradeVariacoes[corGradeAtiva][tam], 10) || 1;
-        const novaQtd = Math.max(1, atual + delta);
+        const atualVal = parseInt(gradeVariacoes[corGradeAtiva][tam], 10);
+        const atual = isNaN(atualVal) ? 0 : atualVal;
+        const novaQtd = Math.max(0, atual + delta); // Não desce abaixo de zero
         gradeVariacoes[corGradeAtiva][tam] = novaQtd;
 
         const idInput = 'inputQtdTam_' + encodeURIComponent(tam).replace(/[^a-zA-Z0-9]/g, '_');
@@ -1021,10 +1022,10 @@ $topCategorias = array_slice($categorias, 0, 4);
                     <label for="${idInput}" class="text-xs font-bold text-slate-600 cursor-pointer">Qtd de Peças:</label>
                     <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl p-1">
                         <button type="button" onclick="alterarQtdTamanho('${tam}', -1)" title="Diminuir" class="w-8 h-8 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-black text-base flex items-center justify-center active:scale-95 shadow-2xs transition select-none">-</button>
-                        <input type="number" min="1" step="1" inputmode="numeric" pattern="[0-9]*"
+                        <input type="number" min="0" step="1" inputmode="numeric" pattern="[0-9]*"
                                id="${idInput}"
                                data-tam="${tam}"
-                               value="${qtd}"
+                               value="${qtd !== undefined ? qtd : 0}"
                                onfocus="this.select()"
                                onkeydown="if(event.key === 'Enter'){ event.preventDefault(); this.blur(); }"
                                oninput="atualizarQtdDigitada('${tam}', this.value)"
@@ -1183,7 +1184,8 @@ $topCategorias = array_slice($categorias, 0, 4);
         const listaTamanhosEnvio = [];
         Object.keys(gradeVariacoes).forEach(cor => {
             Object.keys(gradeVariacoes[cor]).forEach(tam => {
-                const qtd = parseInt(gradeVariacoes[cor][tam], 10) || 1;
+                const val = parseInt(gradeVariacoes[cor][tam], 10);
+                const qtd = isNaN(val) ? 0 : Math.max(0, val);
                 listaTamanhosEnvio.push({
                     cor: cor,
                     tamanho: tam,

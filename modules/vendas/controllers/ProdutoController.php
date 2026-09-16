@@ -2604,7 +2604,7 @@ class ProdutoController extends Controller
                 foreach ($tamanhosList as $tItem) {
                     $tamNome = mb_strtoupper(trim($tItem['tamanho'] ?? ''), 'UTF-8');
                     $corNome = !empty($tItem['cor']) ? mb_strtoupper(trim($tItem['cor']), 'UTF-8') : 'PADRÃO';
-                    $tamQtd = max(0, (float)($tItem['qtd'] ?? 1));
+                    $tamQtd = isset($tItem['qtd']) ? max(0, (float)$tItem['qtd']) : 0.0;
                     if (!empty($tamNome)) {
                         $var = new ProdutoVariante();
                         $var->produto_id = (string)$produto->id;
