@@ -1485,6 +1485,37 @@ class ProdutoController extends Controller
             'dadosFinanceiros' => $dadosFinanceiros,
         ]);
     }
+    /**
+     * Toggle AJAX — ativa ou desativa um produto no catálogo público.
+     * POST /vendas/produto/toggle-ativo
+     * Retorna JSON: { success, ativo, message }
+     */
+    public function actionToggleAtivo()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        if (!Yii::$app->request->isPost) {
+            return ['success' => false, 'message' => 'Método inválido.'];
+        }
+
+        $id = Yii::$app->request->post('id');
+        $lojaId = $this->getLojaId();
+
+        $model = Produto::findOne(['id' => $id, 'usuario_id' => $lojaId]);
+        if (!$model) {
+            return ['success' => false, 'message' => 'Produto não encontrado.'];
+        }
+
+        $model->ativo = !$model->ativo;
+        if ($model->save(false, ['ativo'])) {
+            $msg = $model->ativo
+                ? "✅ Produto '{$model->nome}' ativado no catálogo."
+                : "🔴 Produto '{$model->nome}' desativado do catálogo.";
+            return ['success' => true, 'ativo' => (bool)$model->ativo, 'message' => $msg];
+        }
+
+        return ['success' => false, 'message' => 'Erro ao salvar. Tente novamente.'];
+    }
 
     public function actionDelete($id)
     {

@@ -243,18 +243,22 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
             <!-- Visualização em Cards -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 <?php foreach ($dataProvider->getModels() as $model): ?>
-                    <div class="relative bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div 
+                        class="relative bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 <?= $model->ativo ? '' : 'opacity-60 ring-2 ring-red-300' ?>"
+                        id="card-produto-<?= $model->id ?>">
 
                             <?php if (!$model->ativo): ?>
-                                <span class="absolute top-2 left-2 px-2 py-1 bg-gray-600 text-white text-xs font-semibold rounded">
-                                    Inativo
-                                </span>
+                                <div class="absolute top-2 left-10 z-20 flex items-center gap-1 bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-md badge-inativo-<?= $model->id ?>">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
+                                    INATIVO
+                                </div>
                             <?php endif; ?>
                             <?php if ($model->estoque_atual == 0): ?>
-                                <span class="absolute top-2 right-2 px-2 py-1 bg-red-600 text-white text-xs font-semibold rounded">
+                                <span class="absolute top-2 right-2 px-2 py-1 bg-red-600 text-white text-xs font-semibold rounded z-10">
                                     Sem Estoque
                                 </span>
                             <?php endif; ?>
+
 <?php
     // Monta array de URLs das fotos do produto
     $gerarUrlFoto = function($arquivoPath) {
@@ -449,6 +453,32 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                                         'data-preco' => number_format($model->preco_venda_sugerido, 2, ',', '.')
                                     ]
                                 ) ?>
+                            </div>
+
+                            <!-- Toggle: Visível no Catálogo -->
+                            <div class="mt-2 px-1 pb-1 flex items-center justify-between border-t border-gray-100 pt-2">
+                                <span class="text-xs text-gray-400 font-medium select-none">Catálogo:</span>
+                                <label class="relative inline-flex items-center cursor-pointer group" title="<?= $model->ativo ? 'Clique para desativar no catálogo' : 'Clique para ativar no catálogo' ?>">
+                                    <input 
+                                        type="checkbox" 
+                                        class="sr-only peer"
+                                        id="toggle-ativo-<?= $model->id ?>"
+                                        data-id="<?= $model->id ?>"
+                                        data-nome="<?= Html::encode($model->nome) ?>"
+                                        <?= $model->ativo ? 'checked' : '' ?>
+                                        onchange="toggleAtivoProduto(this)">
+                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-300
+                                                rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full
+                                                peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px]
+                                                after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4
+                                                after:transition-all peer-checked:bg-emerald-500 transition-colors duration-300 shadow-inner">
+                                    </div>
+                                    <span class="ml-1.5 text-xs font-bold select-none
+                                                 <?= $model->ativo ? 'text-emerald-600' : 'text-red-500' ?>"
+                                          id="toggle-label-<?= $model->id ?>">
+                                        <?= $model->ativo ? 'Ativo' : 'Inativo' ?>
+                                    </span>
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -910,5 +940,137 @@ $hubUrlCompleta = Url::to(['/hub/index', 'slug' => $slugLoja], true);
                 .catch(() => {});
         }, 30000);
     })();
+</script>
+
+<script>
+    // Polling em segundo plano para o contador de pedidos não lidos no Header da tela de produtos
+    (function() {
+        setInterval(function() {
+            if (document.hidden) return;
+            fetch('<?= Url::to(['/vendas/produto/get-inbox']) ?>')
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.success) {
+                        const total = data.total_nao_lidos || 0;
+                        const badge = document.getElementById('badgeInboxNaoLidosHeader');
+                        if (badge) {
+                            if (total > 0) {
+                                badge.textContent = total;
+                                badge.classList.remove('hidden');
+                                badge.style.display = 'inline-flex';
+                            } else {
+                                badge.classList.add('hidden');
+                                badge.style.display = 'none';
+                            }
+                        }
+                    }
+                })
+                .catch(() => {});
+        }, 30000);
+    })();
+
+    // ==========================================================
+    // Toggle Ativo/Inativo do produto no catálogo público
+    // ==========================================================
+    async function toggleAtivoProduto(checkbox) {
+        const id      = checkbox.dataset.id;
+        const nome    = checkbox.dataset.nome;
+        const card    = document.getElementById('card-produto-' + id);
+        const label   = document.getElementById('toggle-label-' + id);
+        const badges  = card ? card.querySelectorAll('[class*="badge-inativo-' + id + '"]') : [];
+
+        checkbox.disabled = true; // Bloqueia duplo-clique
+
+        try {
+            const formData = new FormData();
+            formData.append('id', id);
+            // CSRF do Yii2 disponível globalmente via yii.getCsrfParam() / getCsrfToken()
+            const csrfParam = (typeof yii !== 'undefined' && yii.getCsrfParam)
+                ? yii.getCsrfParam() : '_csrf';
+            const csrfToken = (typeof yii !== 'undefined' && yii.getCsrfToken)
+                ? yii.getCsrfToken()
+                : (document.querySelector('meta[name="csrf-token"]')?.content || '');
+            formData.append(csrfParam, csrfToken);
+
+            const resp = await fetch('<?= Url::to(['/vendas/produto/toggle-ativo']) ?>', {
+                method: 'POST',
+                body: formData,
+            });
+            const data = await resp.json();
+
+            if (data.success) {
+                // Atualiza visual do card instantaneamente
+                if (data.ativo) {
+                    // ATIVAR: remover opacidade e borda vermelha
+                    card?.classList.remove('opacity-60', 'ring-2', 'ring-red-300');
+                    if (label) {
+                        label.textContent = 'Ativo';
+                        label.classList.remove('text-red-500');
+                        label.classList.add('text-emerald-600');
+                    }
+                    // Remove badges INATIVO do card
+                    card?.querySelectorAll('[class*="badge-inativo"]').forEach(el => el.remove());
+                } else {
+                    // DESATIVAR: adicionar opacidade e borda vermelha
+                    card?.classList.add('opacity-60', 'ring-2', 'ring-red-300');
+                    if (label) {
+                        label.textContent = 'Inativo';
+                        label.classList.remove('text-emerald-600');
+                        label.classList.add('text-red-500');
+                    }
+                    // Cria badge INATIVO dinamicamente se não existir
+                    if (card && !card.querySelector('[class*="badge-inativo"]')) {
+                        const badge = document.createElement('div');
+                        badge.className = 'absolute top-2 left-10 z-20 flex items-center gap-1 bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-md badge-inativo-' + id;
+                        badge.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg> INATIVO';
+                        card.querySelector('.relative')?.prepend(badge) || card.prepend(badge);
+                    }
+                }
+                // Toast de confirmação
+                mostrarToastProduto(data.message, data.ativo ? 'success' : 'warning');
+            } else {
+                // Reverte o checkbox em caso de erro
+                checkbox.checked = !checkbox.checked;
+                mostrarToastProduto(data.message || 'Erro ao atualizar produto.', 'error');
+            }
+        } catch (e) {
+            checkbox.checked = !checkbox.checked;
+            mostrarToastProduto('Erro de conexão. Tente novamente.', 'error');
+            console.error('[toggleAtivoProduto]', e);
+        } finally {
+            checkbox.disabled = false;
+        }
+    }
+
+    function mostrarToastProduto(msg, tipo = 'success') {
+        // Remove toast anterior se existir
+        document.getElementById('toast-produto-toggle')?.remove();
+
+        const cores = {
+            success: 'bg-emerald-600',
+            warning: 'bg-amber-500',
+            error:   'bg-red-600',
+        };
+        const icones = {
+            success: '✅',
+            warning: '🔴',
+            error:   '❌',
+        };
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-produto-toggle';
+        toast.className = `fixed bottom-6 right-6 z-[9999] flex items-center gap-3 px-5 py-3 rounded-xl shadow-xl text-white text-sm font-semibold
+                           ${cores[tipo] || cores.success} transition-all duration-300 opacity-0 translate-y-4`;
+        toast.innerHTML = `<span class="text-base">${icones[tipo] || '✅'}</span><span>${msg}</span>`;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.classList.remove('opacity-0', 'translate-y-4');
+        });
+        setTimeout(() => {
+            toast.classList.add('opacity-0', 'translate-y-4');
+            setTimeout(() => toast.remove(), 400);
+        }, 3500);
+    }
 </script>
 
