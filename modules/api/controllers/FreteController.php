@@ -129,9 +129,13 @@ class FreteController extends BaseController
     {
         $opcoes = [];
 
-        // 1. Tentar cotação com Melhor Envio se a loja tiver ativo
+        // 1. Tentar cotação com Melhor Envio se houver token (próprio da loja ou global da plataforma)
+        $tokenGlobal = trim(getenv('MELHOR_ENVIO_GLOBAL_TOKEN') ?: ($_ENV['MELHOR_ENVIO_GLOBAL_TOKEN'] ?? ''));
         $lojaConfig = LojaConfiguracao::findOne(['usuario_id' => $usuarioId]);
-        if ($lojaConfig && $lojaConfig->melhor_envio_ativo && !empty($lojaConfig->melhor_envio_token) && !empty($cep)) {
+        $temToken = ($lojaConfig && !empty($lojaConfig->melhor_envio_token)) || !empty($tokenGlobal);
+        $podeCotar = $lojaConfig && $temToken && !empty($cep) && ($lojaConfig->melhor_envio_ativo || !empty($tokenGlobal));
+
+        if ($podeCotar) {
             try {
                 $opcoesMe = MelhorEnvioService::cotarFrete($lojaConfig, $cep, $subtotal, $porte);
                 if (!empty($opcoesMe)) {

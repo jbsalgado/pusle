@@ -101,7 +101,17 @@ class MelhorEnvioService extends Component
      */
     public static function cotarFrete(LojaConfiguracao $lojaConfig, string $cepDestino, float $subtotal = 0.0, string $porte = 'P'): array
     {
-        if (!$lojaConfig->melhor_envio_ativo || empty($lojaConfig->melhor_envio_token)) {
+        $tokenGlobal = trim(getenv('MELHOR_ENVIO_GLOBAL_TOKEN') ?: ($_ENV['MELHOR_ENVIO_GLOBAL_TOKEN'] ?? ''));
+        $tokenLoja = trim($lojaConfig->melhor_envio_token ?? '');
+        $tokenEfetivo = !empty($tokenLoja) ? $tokenLoja : $tokenGlobal;
+
+        // Se não houver nenhum token configurado (nem individual nem global da plataforma), pula
+        if (empty($tokenEfetivo)) {
+            return [];
+        }
+
+        // Se a loja desativou expressamente e possui token próprio, respeita a desativação
+        if (!empty($tokenLoja) && !$lojaConfig->melhor_envio_ativo) {
             return [];
         }
 
@@ -158,7 +168,7 @@ class MelhorEnvioService extends Component
             CURLOPT_HTTPHEADER => [
                 'Accept: application/json',
                 'Content-Type: application/json',
-                'Authorization: Bearer ' . trim($lojaConfig->melhor_envio_token),
+                'Authorization: Bearer ' . trim($tokenEfetivo),
                 'User-Agent: PulsePlus/2.0 (suporte@oncode.app.br)',
             ],
         ]);
