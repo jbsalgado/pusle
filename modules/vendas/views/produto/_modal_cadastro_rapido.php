@@ -297,6 +297,42 @@ $topCategorias = array_slice($categorias, 0, 4);
                         </div>
                     </div>
 
+                    <!-- FOTOS PARA O MODELO/COR SELECIONADO -->
+                    <div class="bg-white/95 border-2 border-indigo-200/90 rounded-2xl p-3.5 space-y-2.5 shadow-2xs">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                                <label class="block text-xs font-black uppercase text-indigo-950 tracking-wider flex items-center gap-1.5">
+                                    <span class="text-sm">📸</span>
+                                    <span>Fotos para o modelo/cor: <span id="spanNomeCorFotos" class="text-indigo-600 underline font-black">PADRÃO</span></span>
+                                </label>
+                                <p class="text-[11px] text-indigo-700 font-medium">Imagens anexadas aqui serão exibidas quando o cliente escolher este modelo/cor</p>
+                            </div>
+
+                            <div class="flex items-center gap-2 shrink-0">
+                                <!-- Botão Câmera Mobile da Cor -->
+                                <button type="button" onclick="document.getElementById('inputFotoCorCamera').click()" title="Tirar foto desta cor" class="h-9 px-3 bg-white hover:bg-indigo-50 border-2 border-indigo-300 hover:border-indigo-400 text-indigo-900 rounded-xl text-xs font-black shadow-2xs active:scale-95 transition flex items-center gap-1.5">
+                                    <span>📸</span>
+                                    <span>Tirar Foto</span>
+                                </button>
+                                
+                                <!-- Botão Galeria/Upload da Cor -->
+                                <label class="cursor-pointer h-9 px-3.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl text-xs font-black shadow-xs active:scale-95 transition flex items-center gap-1.5">
+                                    <span class="text-sm leading-none">+</span>
+                                    <span>Anexar Fotos</span>
+                                    <input type="file" id="inputFotosCorGaleria" accept="image/*" multiple class="hidden" onchange="adicionarFotosCorAtiva(this)">
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Input oculto para captura com câmera mobile -->
+                        <input type="file" id="inputFotoCorCamera" accept="image/*" capture="environment" class="hidden" onchange="adicionarFotosCorAtiva(this)">
+
+                        <!-- Galeria de Miniaturas das Fotos do Modelo/Cor Ativo -->
+                        <div id="galeriaFotosCorAtiva" class="flex items-center gap-2 overflow-x-auto py-1 min-h-[50px] scrollbar-thin">
+                            <span class="text-xs text-slate-400 italic">Nenhuma foto adicionada para este modelo/cor ainda.</span>
+                        </div>
+                    </div>
+
                     <!-- ETAPA 2: TAMANHOS PARA O MODELO/COR SELECIONADO -->
                     <div class="bg-indigo-100/50 border border-indigo-200/90 rounded-xl p-3 space-y-3">
                         <div class="flex items-center justify-between">
@@ -400,6 +436,7 @@ $topCategorias = array_slice($categorias, 0, 4);
     let arquivosFotosRapidas = [];
     let corGradeAtiva = 'PADRÃO';
     let gradeVariacoes = {}; // Estrutura: { 'PADRÃO': { 'P': 1, 'M': 2 }, 'AZUL': { 'G': 1 } }
+    let fotosPorCor = {}; // Estrutura: { 'PADRÃO': [File, ...], 'AZUL': [File, ...] }
     let tamanhosGradeAtivos = {}; // mantido por compatibilidade
     let streamCameraAoVivo = null;
     let cameraFacingModeAtual = 'environment'; // 'environment' (traseira) ou 'user' (frontal)
@@ -425,11 +462,13 @@ $topCategorias = array_slice($categorias, 0, 4);
         arquivosFotosRapidas = [];
         corGradeAtiva = 'PADRÃO';
         gradeVariacoes = {};
+        fotosPorCor = {};
         tamanhosGradeAtivos = {};
         fecharCameraAoVivo();
         atualizarVisualFotos();
         renderizarChipsCores();
         renderizarChipsTamanhos();
+        renderizarGaleriaFotosCor();
         
         // Reset da grade de tamanhos (fechada por padrão)
         const painelGrade = document.getElementById('painelGradeTamanhos');
@@ -669,11 +708,14 @@ $topCategorias = array_slice($categorias, 0, 4);
         if (labelTexto) labelTexto.textContent = `Cor/Modelo Ativo: ${corGradeAtiva}`;
         const spanNomeCor = document.getElementById('spanNomeCorTamanhos');
         if (spanNomeCor) spanNomeCor.textContent = corGradeAtiva;
+        const spanNomeFotos = document.getElementById('spanNomeCorFotos');
+        if (spanNomeFotos) spanNomeFotos.textContent = corGradeAtiva;
 
         cores.forEach(cor => {
             const isAtiva = cor === corGradeAtiva;
             const tams = gradeVariacoes[cor] || {};
             const totalPecas = Object.values(tams).reduce((acc, v) => acc + (parseInt(v, 10) || 0), 0);
+            const totalFotos = (fotosPorCor[cor] || []).length;
 
             const btnChip = document.createElement('div');
             btnChip.className = isAtiva
@@ -683,6 +725,9 @@ $topCategorias = array_slice($categorias, 0, 4);
             btnChip.onclick = () => alternarCorAtiva(cor);
 
             let htmlChip = `<span>🎨 ${cor}</span>`;
+            if (totalFotos > 0) {
+                htmlChip += `<span class="px-1.5 py-0.2 rounded-full text-[10px] ${isAtiva ? 'bg-indigo-700 text-white ring-1 ring-white/30' : 'bg-indigo-100 text-indigo-800'} font-black" title="${totalFotos} foto(s)">📷${totalFotos}</span>`;
+            }
             if (totalPecas > 0) {
                 htmlChip += `<span class="px-1.5 py-0.2 rounded-full text-[10px] ${isAtiva ? 'bg-indigo-800 text-amber-300' : 'bg-slate-100 text-slate-600'} font-black">${totalPecas}pç</span>`;
             }
@@ -701,6 +746,7 @@ $topCategorias = array_slice($categorias, 0, 4);
         });
 
         atualizarTotalPecasGrade();
+        renderizarGaleriaFotosCor();
     }
 
     function alternarCorAtiva(cor) {
@@ -708,6 +754,61 @@ $topCategorias = array_slice($categorias, 0, 4);
         corGradeAtiva = cor;
         renderizarChipsCores();
         renderizarChipsTamanhos();
+        renderizarGaleriaFotosCor();
+    }
+
+    // ==========================================
+    // FOTOS POR COR / MODELO
+    // ==========================================
+    function adicionarFotosCorAtiva(input) {
+        if (!input.files || input.files.length === 0) return;
+        if (!fotosPorCor[corGradeAtiva]) {
+            fotosPorCor[corGradeAtiva] = [];
+        }
+        Array.from(input.files).forEach(f => {
+            fotosPorCor[corGradeAtiva].push(f);
+        });
+        input.value = '';
+        renderizarGaleriaFotosCor();
+        renderizarChipsCores();
+    }
+
+    function removerFotoCor(idx) {
+        if (fotosPorCor[corGradeAtiva] && fotosPorCor[corGradeAtiva][idx]) {
+            fotosPorCor[corGradeAtiva].splice(idx, 1);
+            renderizarGaleriaFotosCor();
+            renderizarChipsCores();
+        }
+    }
+
+    function renderizarGaleriaFotosCor() {
+        const container = document.getElementById('galeriaFotosCorAtiva');
+        const spanNomeFotos = document.getElementById('spanNomeCorFotos');
+        if (spanNomeFotos) spanNomeFotos.textContent = corGradeAtiva;
+        if (!container) return;
+
+        const files = fotosPorCor[corGradeAtiva] || [];
+        if (files.length === 0) {
+            container.innerHTML = `<span class="text-xs text-slate-400 italic">Nenhuma foto adicionada para ${corGradeAtiva} ainda.</span>`;
+            return;
+        }
+
+        container.innerHTML = '';
+        files.forEach((file, idx) => {
+            const thumb = document.createElement('div');
+            thumb.className = 'relative w-14 h-14 rounded-xl border-2 border-indigo-300 overflow-hidden bg-white shadow-2xs group shrink-0';
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                thumb.innerHTML = `
+                    <img src="${e.target.result}" class="w-full h-full object-cover">
+                    <button type="button" onclick="removerFotoCor(${idx})" title="Remover esta foto" class="absolute top-0.5 right-0.5 w-5 h-5 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center text-[10px] font-black shadow transition active:scale-90">
+                        ✕
+                    </button>
+                `;
+            };
+            reader.readAsDataURL(file);
+            container.appendChild(thumb);
+        });
     }
 
     function adicionarESelecionarCor(corNome) {
@@ -736,6 +837,7 @@ $topCategorias = array_slice($categorias, 0, 4);
         corGradeAtiva = corNome;
         renderizarChipsCores();
         renderizarChipsTamanhos();
+        renderizarGaleriaFotosCor();
     }
 
     function adicionarCorDigitada() {
@@ -753,6 +855,9 @@ $topCategorias = array_slice($categorias, 0, 4);
     function removerCorGrade(cor, e) {
         if (e && e.stopPropagation) e.stopPropagation();
         delete gradeVariacoes[cor];
+        if (fotosPorCor[cor]) {
+            delete fotosPorCor[cor];
+        }
         const coresRestantes = Object.keys(gradeVariacoes);
         if (coresRestantes.length === 0) {
             corGradeAtiva = 'PADRÃO';
@@ -762,6 +867,7 @@ $topCategorias = array_slice($categorias, 0, 4);
         }
         renderizarChipsCores();
         renderizarChipsTamanhos();
+        renderizarGaleriaFotosCor();
     }
 
     function aplicarPresetGrade(listaTamanhos) {
@@ -994,11 +1100,13 @@ $topCategorias = array_slice($categorias, 0, 4);
         arquivosFotosRapidas = [];
         corGradeAtiva = 'PADRÃO';
         gradeVariacoes = {};
+        fotosPorCor = {};
         tamanhosGradeAtivos = {};
         fecharCameraAoVivo();
         atualizarVisualFotos();
         renderizarChipsCores();
         renderizarChipsTamanhos();
+        renderizarGaleriaFotosCor();
         selecionarUnidadeRapida('UN');
 
         const painelGrade = document.getElementById('painelGradeTamanhos');
@@ -1087,9 +1195,17 @@ $topCategorias = array_slice($categorias, 0, 4);
             formData.append('tamanhos_json', JSON.stringify(listaTamanhosEnvio));
         }
 
-        // Anexa fotos
+        // Anexa fotos gerais
         arquivosFotosRapidas.forEach((file) => {
             formData.append('fotos[]', file);
+        });
+
+        // Anexa fotos por modelo/cor (mesmo formato multipart que create-matriz usa)
+        Object.keys(fotosPorCor).forEach(cor => {
+            const files = fotosPorCor[cor] || [];
+            files.forEach(file => {
+                formData.append(`FotosCor[${cor}][]`, file);
+            });
         });
 
         fetch('<?= Url::to(['/vendas/produto/cadastro-rapido']) ?>', {

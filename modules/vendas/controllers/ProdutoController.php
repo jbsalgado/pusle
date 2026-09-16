@@ -1105,7 +1105,7 @@ class ProdutoController extends Controller
                     $filename = uniqid("cor_{$corClean}_") . '.jpg';
                     $filePath = $uploadPath . '/' . $filename;
 
-                    if ($this->optimizeImage($file->tempName, $filePath)) {
+                    if ($this->optimizeImage($file->tempName, $filePath) || $file->saveAs($filePath)) {
                         $foto = new ProdutoFoto();
                         $foto->produto_id = (string)$model->id;
                         $foto->cor = $corUpper;
@@ -2651,6 +2651,24 @@ class ProdutoController extends Controller
                         }
                         $foto->save(false);
                     }
+                }
+            }
+
+            // Processa upload de fotos vinculadas a cada modelo/cor (mesmo formato multipart da Matriz)
+            $this->processUploadFotosPorCor($produto);
+
+            // Se não houver foto geral de capa, mas foi enviada foto para uma cor, define a primeira como principal
+            if (!$urlFotoPrincipal) {
+                $primeiraFoto = ProdutoFoto::find()
+                    ->where(['produto_id' => (string)$produto->id])
+                    ->orderBy(['eh_principal' => SORT_DESC, 'ordem' => SORT_ASC])
+                    ->one();
+                if ($primeiraFoto) {
+                    if (!$primeiraFoto->eh_principal) {
+                        $primeiraFoto->eh_principal = true;
+                        $primeiraFoto->save(false);
+                    }
+                    $urlFotoPrincipal = \yii\helpers\Url::to('@web/' . ltrim($primeiraFoto->arquivo_path, '/'), true);
                 }
             }
 
