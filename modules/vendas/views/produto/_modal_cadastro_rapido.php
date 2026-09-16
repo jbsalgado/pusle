@@ -1004,19 +1004,17 @@ $topCategorias = array_slice($categorias, 0, 4);
             const idInput = 'inputQtdTam_' + encodeURIComponent(tam).replace(/[^a-zA-Z0-9]/g, '_');
 
             const card = document.createElement('div');
-            card.className = 'bg-white border-2 border-indigo-200 hover:border-indigo-400 rounded-2xl p-3 flex flex-col gap-2.5 shadow-xs transition';
+            card.className = 'relative bg-white border-2 border-indigo-200 hover:border-indigo-400 rounded-2xl p-3 flex flex-col gap-2.5 shadow-xs transition overflow-hidden';
             card.innerHTML = `
-                <div class="flex items-center justify-between gap-2 border-b border-indigo-100/80 pb-2">
-                    <div class="flex items-center gap-1.5">
-                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 text-white font-black text-xs sm:text-sm rounded-xl shadow-xs">
-                            <span>🏷️</span>
-                            <span class="tracking-wide">TAMANHO:</span>
-                            <span class="text-amber-300 text-sm sm:text-base font-black ml-0.5 underline decoration-amber-400 decoration-2">${tam}</span>
-                        </span>
-                        <span class="px-2 py-0.5 bg-indigo-50 border border-indigo-200 rounded-lg text-[10px] font-black text-indigo-700">${corGradeAtiva}</span>
-                    </div>
-                    <button type="button" onclick="removerTamanhoGrade('${tam}')" title="Remover tamanho ${tam}" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-600 font-bold text-xs flex items-center justify-center transition active:scale-90">✕</button>
+                <div class="flex items-center gap-1.5 border-b border-indigo-100/80 pb-2 pr-7 flex-wrap">
+                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 text-white font-black text-xs rounded-xl shadow-xs shrink-0">
+                        <span>🏷️</span>
+                        <span class="tracking-wide text-[10px] sm:text-xs">TAM:</span>
+                        <span class="text-amber-300 text-xs sm:text-sm font-black ml-0.5 underline decoration-amber-400 decoration-2">${tam}</span>
+                    </span>
+                    <span class="px-2 py-0.5 bg-indigo-50 border border-indigo-200 rounded-lg text-[10px] font-black text-indigo-700 shrink-0 truncate max-w-[80px] sm:max-w-[100px]">${corGradeAtiva}</span>
                 </div>
+                <button type="button" onclick="removerTamanhoGrade('${tam}')" title="Remover tamanho ${tam}" class="absolute top-2.5 right-2.5 w-6 h-6 rounded-lg bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-600 font-black text-xs flex items-center justify-center transition active:scale-90 shadow-2xs">✕</button>
                 
                 <div class="flex items-center justify-between gap-2 pt-0.5">
                     <label for="${idInput}" class="text-xs font-bold text-slate-600 cursor-pointer">Qtd de Peças:</label>
