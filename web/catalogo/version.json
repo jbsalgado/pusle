@@ -1,7 +1,7 @@
 {
-  "version": "1.4.6",
-  "updated_at": "2026-09-12T03:45:00-03:00",
+  "version": "2.0.0",
+  "updated_at": "2026-09-16T09:30:00-03:00",
   "force_update": true,
-  "changelog": "Carteiras digitais e pagamento por aproximação (Google Pay, Apple Pay e MP 1-Clique) integrados ao checkout."
+  "changelog": "Novo layout profissional: Hero da loja, Slideshow e compra rápida em 1 clique."
 }
 

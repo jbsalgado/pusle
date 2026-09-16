@@ -221,6 +221,17 @@ async function carregarDadosLojaHero() {
         const btnTel = document.getElementById('hero-btn-telefone');
         const txtTel = document.getElementById('hero-texto-telefone');
 
+        // Fallback imediato síncrono da loja resolvida
+        if (CONFIG.LOJA_INFO && CONFIG.LOJA_INFO.nome) {
+            if (heroNome) heroNome.textContent = CONFIG.LOJA_INFO.nome;
+            document.title = `${CONFIG.LOJA_INFO.nome} - Catálogo Online`;
+        }
+
+        if (!CONFIG.ID_USUARIO_LOJA) {
+            console.warn('[App] ⚠️ ID_USUARIO_LOJA não definido ao carregar hero.');
+            return;
+        }
+
         const response = await fetch(`${API_ENDPOINTS.USUARIO_DADOS_LOJA}?usuario_id=${CONFIG.ID_USUARIO_LOJA}`);
         if (!response.ok) {
             console.warn('[App] ⚠️ Erro ao buscar dados da loja. Status:', response.status);
