@@ -9,6 +9,7 @@ use app\modules\vendas\models\ItemCompra;
 <div class="compra-form">
     <?php $form = ActiveForm::begin([
         'id' => 'compra-form',
+        'action' => $model->isNewRecord ? ['create'] : ['update', 'id' => $model->id],
         'options' => [
             'class' => 'space-y-6 p-4 sm:p-6 lg:p-8',
             'novalidate' => true, // Previne que o navegador bloqueie o envio por causa de hidden fields
@@ -558,7 +559,14 @@ use app\modules\vendas\models\ItemCompra;
                 </div>
                 <div class="relative autocomplete-container-categoria">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Categoria *</label>
-                    <input type="text" class="input-search-categoria w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Buscar categoria..." autocomplete="off">
+                    <div class="relative">
+                        <input type="text" class="input-search-categoria w-full pl-3 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Selecione ou busque a categoria..." autocomplete="off">
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                            <svg class="h-4 w-4 fill-current" viewBox="0 0 20 20">
+                                <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                            </svg>
+                        </div>
+                    </div>
                     <input type="hidden" name="ItemCompra[${itemIndex}][categoria_id]" class="input-categoria-id">
                     
                     <div class="autocomplete-results-categoria hidden absolute z-50 w-full bg-white border border-gray-300 rounded-b-lg shadow-lg max-h-60 overflow-y-auto top-[70px]"></div>
@@ -678,9 +686,13 @@ use app\modules\vendas\models\ItemCompra;
                     if (p && p.categoria_id && categorias[p.categoria_id]) {
                         inputIdCat.value = p.categoria_id;
                         inputSearchCat.value = categorias[p.categoria_id];
+                        inputSearchCat.readOnly = true;
+                        inputSearchCat.classList.add('bg-gray-100', 'cursor-not-allowed');
+                    } else {
+                        // Se o produto no banco não tem categoria cadastrada, permite escolher!
+                        inputSearchCat.readOnly = false;
+                        inputSearchCat.classList.remove('bg-gray-100', 'cursor-not-allowed');
                     }
-                    inputSearchCat.readOnly = true;
-                    inputSearchCat.classList.add('bg-gray-100', 'cursor-not-allowed');
                 } else {
                     // Produto novo
                     inputSearchCat.readOnly = false;
@@ -735,27 +747,29 @@ use app\modules\vendas\models\ItemCompra;
             });
 
             // Category Autocomplete Logic
-            inputSearchCat.addEventListener('input', function() {
-                const term = this.value.toLowerCase();
+            function renderCategoryResults(term = '') {
+                if (inputSearchCat.readOnly) return;
+
                 resultsContainerCat.innerHTML = '';
+                const cleanTerm = (term || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-                if (term.length < 1) {
-                    resultsContainerCat.classList.add('hidden');
-                    return;
-                }
-
-                // Filter local categories object
-                const filtered = Object.entries(categorias).filter(([id, nome]) => nome.toLowerCase().includes(term));
+                const entries = Object.entries(categorias);
+                const filtered = entries.filter(([id, nome]) => {
+                    if (!cleanTerm) return true; // Mostra todas se vazio
+                    const cleanNome = (nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    return cleanNome.includes(cleanTerm);
+                });
 
                 if (filtered.length === 0) {
-                    resultsContainerCat.innerHTML = '<div class="p-2 text-gray-500 text-sm">Nenhuma categoria encontrada</div>';
+                    resultsContainerCat.innerHTML = '<div class="p-3 text-gray-500 text-sm italic">Nenhuma categoria encontrada</div>';
                 } else {
                     filtered.forEach(([id, nome]) => {
                         const div = document.createElement('div');
-                        div.className = 'p-2 hover:bg-green-50 cursor-pointer border-b border-gray-100 last:border-0 text-sm';
+                        div.className = 'p-2.5 hover:bg-green-50 hover:text-green-800 cursor-pointer border-b border-gray-100 last:border-0 text-sm flex items-center justify-between transition-colors';
                         div.textContent = nome;
 
-                        div.addEventListener('click', function() {
+                        div.addEventListener('mousedown', function(e) {
+                            e.preventDefault(); // Evita perder foco antes de registrar
                             inputSearchCat.value = nome;
                             inputIdCat.value = id;
                             resultsContainerCat.classList.add('hidden');
@@ -766,18 +780,21 @@ use app\modules\vendas\models\ItemCompra;
                 }
 
                 resultsContainerCat.classList.remove('hidden');
-            });
-
-            inputSearch.addEventListener('focus', function() {
-                if (this.value.length >= 1) {
-                    this.dispatchEvent(new Event('input'));
-                }
-            });
+            }
 
             inputSearchCat.addEventListener('focus', function() {
-                if (this.value.length >= 1) {
-                    this.dispatchEvent(new Event('input'));
+                renderCategoryResults(this.value);
+            });
+
+            inputSearchCat.addEventListener('click', function() {
+                renderCategoryResults(this.value);
+            });
+
+            inputSearchCat.addEventListener('input', function() {
+                if (!this.value.trim()) {
+                    inputIdCat.value = '';
                 }
+                renderCategoryResults(this.value);
             });
 
             inputQuantidade.addEventListener('input', calcularSubtotal);

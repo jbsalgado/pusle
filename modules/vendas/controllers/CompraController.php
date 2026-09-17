@@ -191,7 +191,7 @@ class CompraController extends Controller
                             // Só tenta auto-cadastro se CONTINUAR vazio e houver dados temp
                             if (empty($item->produto_id) && !empty($itemData['nome_produto_temp'])) {
                                 $novoProduto = new Produto();
-                                $novoProduto->usuario_id = Yii::$app->user->id;
+                                $novoProduto->usuario_id = \app\components\TenantHelper::getId();
                                 $novoProduto->nome = $itemData['nome_produto_temp'];
                                 $novoProduto->categoria_id = !empty($itemData['categoria_id']) ? $itemData['categoria_id'] : null;
                                 $novoProduto->codigo_barras = !empty($itemData['codigo_barras']) ? $itemData['codigo_barras'] : null;
@@ -281,10 +281,11 @@ class CompraController extends Controller
             }
         }
 
-        $fornecedores = Fornecedor::getListaDropdownArray(Yii::$app->user->id);
-        $categorias = Categoria::getListaDropdown();
+        $tenantId = \app\components\TenantHelper::getId();
+        $fornecedores = Fornecedor::getListaDropdownArray($tenantId);
+        $categorias = Categoria::getListaDropdown($tenantId);
         $produtos = Produto::find()
-            ->where(['usuario_id' => \app\components\TenantHelper::getId(), 'ativo' => true])
+            ->where(['usuario_id' => $tenantId, 'ativo' => true])
             ->orderBy('nome')
             ->all();
 
@@ -711,6 +712,11 @@ class CompraController extends Controller
      */
     public function actionImportarXml()
     {
+        // Se o formulário de compra/itens for submetido para esta URL, delega para actionCreate
+        if (Yii::$app->request->isPost && (Yii::$app->request->post('Compra') || Yii::$app->request->post('ItemCompra'))) {
+            return $this->actionCreate();
+        }
+
         $uploadModel = new \yii\base\DynamicModel(['file']);
         $uploadModel->addRule('file', 'file', ['extensions' => 'xml', 'checkExtensionByMimeType' => false]);
 
@@ -798,6 +804,31 @@ class CompraController extends Controller
                             ->where(['usuario_id' => \app\components\TenantHelper::getId()])
                             ->andWhere(['like', 'cnpj', $cnpjEmit])
                             ->one();
+                    }
+
+                    // Se ainda não encontrou, cadastra o Fornecedor automaticamente com os dados do XML
+                    if (!$fornecedor && !empty($cnpjEmit) && !empty($fantasiaEmit)) {
+                        $novoFornecedor = new Fornecedor();
+                        $novoFornecedor->usuario_id = \app\components\TenantHelper::getId();
+                        $novoFornecedor->cnpj = $cnpjEmit;
+                        $novoFornecedor->razao_social = $nomeEmit ?: $fantasiaEmit;
+                        $novoFornecedor->nome_fantasia = $fantasiaEmit;
+                        $novoFornecedor->inscricao_estadual = (string)($emit->IE ?? '');
+                        if (isset($emit->enderEmit)) {
+                            $novoFornecedor->endereco = (string)($emit->enderEmit->xLgr ?? '');
+                            $novoFornecedor->numero = (string)($emit->enderEmit->nro ?? '');
+                            $novoFornecedor->complemento = (string)($emit->enderEmit->xCpl ?? '');
+                            $novoFornecedor->bairro = (string)($emit->enderEmit->xBairro ?? '');
+                            $novoFornecedor->cidade = (string)($emit->enderEmit->xMun ?? '');
+                            $novoFornecedor->estado = (string)($emit->enderEmit->UF ?? '');
+                            $novoFornecedor->cep = (string)($emit->enderEmit->CEP ?? '');
+                            $novoFornecedor->telefone = (string)($emit->enderEmit->fone ?? '');
+                        }
+                        $novoFornecedor->ativo = true;
+                        if ($novoFornecedor->save()) {
+                            $fornecedor = $novoFornecedor;
+                            Yii::$app->session->setFlash('success', "Fornecedor cadastrado automaticamente: {$fantasiaEmit}");
+                        }
                     }
 
                     // Busca configuração financeira global para cálculo de preço sugerido
@@ -897,6 +928,7 @@ class CompraController extends Controller
 
                         if ($produtoDb) {
                             $item->produto_id = $produtoDb->id;
+                            $item->categoria_id = $produtoDb->categoria_id;
                         }
 
                         $itens[] = $item;
@@ -905,10 +937,11 @@ class CompraController extends Controller
                     Yii::$app->session->setFlash('info', "Leitura do XML concluída. Verifique os dados abaixo antes de salvar.");
 
                     // Carrega listas para a view
-                    $fornecedores = Fornecedor::getListaDropdownArray(Yii::$app->user->id);
-                    $categorias = Categoria::getListaDropdown();
+                    $tenantId = \app\components\TenantHelper::getId();
+                    $fornecedores = Fornecedor::getListaDropdownArray($tenantId);
+                    $categorias = Categoria::getListaDropdown($tenantId);
                     $produtos = Produto::find()
-                        ->where(['usuario_id' => \app\components\TenantHelper::getId(), 'ativo' => true])
+                        ->where(['usuario_id' => $tenantId, 'ativo' => true])
                         ->orderBy('nome')
                         ->all();
 
