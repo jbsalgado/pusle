@@ -99,6 +99,21 @@ class Produto extends ActiveRecord
             [['categoria_id'], 'filter', 'filter' => function ($value) {
                 return (trim($value) === '') ? null : $value;
             }],
+            [['preco_custo', 'preco_venda_sugerido', 'preco_promocional', 'valor_frete'], 'filter', 'filter' => function ($value) {
+                if ($value === null || $value === '') {
+                    return $value;
+                }
+                if (is_string($value)) {
+                    $val = trim($value);
+                    $val = preg_replace('/[^\d,\.\-]/', '', $val);
+                    if (strpos($val, ',') !== false) {
+                        $val = str_replace('.', '', $val);
+                        $val = str_replace(',', '.', $val);
+                    }
+                    return is_numeric($val) ? (float)$val : $value;
+                }
+                return $value;
+            }],
             [['usuario_id', 'nome', 'preco_custo', 'preco_venda_sugerido', 'categoria_id'], 'required'],
             [['usuario_id', 'categoria_id'], 'string'],
             [['descricao'], 'string'],
@@ -197,6 +212,20 @@ class Produto extends ActiveRecord
      */
     public function beforeValidate()
     {
+        foreach (['preco_custo', 'preco_venda_sugerido', 'preco_promocional', 'valor_frete'] as $attr) {
+            if (is_string($this->$attr) && $this->$attr !== '') {
+                $val = trim($this->$attr);
+                $val = preg_replace('/[^\d,\.\-]/', '', $val);
+                if (strpos($val, ',') !== false) {
+                    $val = str_replace('.', '', $val);
+                    $val = str_replace(',', '.', $val);
+                }
+                if (is_numeric($val)) {
+                    $this->$attr = (float)$val;
+                }
+            }
+        }
+
         if (parent::beforeValidate()) {
             if (empty($this->parent_id) || $this->parent_id === 'null' || $this->parent_id === 'undefined' || trim($this->parent_id) === '0' || trim($this->parent_id) === '') {
                 $this->parent_id = null;

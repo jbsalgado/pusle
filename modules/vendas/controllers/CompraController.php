@@ -171,6 +171,9 @@ class CompraController extends Controller
                             $item->compra_id = $model->id;
                             $item->load(['ItemCompra' => $itemData]);
 
+                            $precoUnitario = ItemCompra::parseDecimal($item->preco_unitario ?? 0);
+                            $item->preco_unitario = $precoUnitario;
+
                             // Se produto_id vier vazio (não selecionado no preview), tenta identificar novamente antes de criar Novo
                             if (empty($item->produto_id)) {
                                 $codigoRef = !empty($itemData['codigo_referencia_temp']) ? trim($itemData['codigo_referencia_temp']) : null;
@@ -197,11 +200,13 @@ class CompraController extends Controller
                                 $novoProduto->codigo_barras = !empty($itemData['codigo_barras']) ? $itemData['codigo_barras'] : null;
                                 $novoProduto->marca = !empty($itemData['marca']) ? $itemData['marca'] : null;
                                 $novoProduto->codigo_referencia = !empty($itemData['codigo_referencia_temp']) ? trim($itemData['codigo_referencia_temp']) : null;
-                                $novoProduto->preco_custo = $item->preco_unitario;
-                                $novoProduto->preco_venda_sugerido = !empty($itemData['preco_venda_sugerido_temp']) ? $itemData['preco_venda_sugerido_temp'] : ($item->preco_unitario * 1.5);
-                                $novoProduto->estoque_minimo = !empty($itemData['estoque_minimo_temp']) ? $itemData['estoque_minimo_temp'] : 0;
-                                $novoProduto->estoque_maximo = !empty($itemData['estoque_maximo_temp']) ? $itemData['estoque_maximo_temp'] : 0;
-                                $novoProduto->ponto_corte = !empty($itemData['ponto_corte_temp']) ? $itemData['ponto_corte_temp'] : 0;
+                                $novoProduto->preco_custo = $precoUnitario;
+                                $novoProduto->preco_venda_sugerido = !empty($itemData['preco_venda_sugerido_temp']) 
+                                    ? ItemCompra::parseDecimal($itemData['preco_venda_sugerido_temp']) 
+                                    : round($precoUnitario * 1.5, 2);
+                                $novoProduto->estoque_minimo = !empty($itemData['estoque_minimo_temp']) ? ItemCompra::parseDecimal($itemData['estoque_minimo_temp']) : 0;
+                                $novoProduto->estoque_maximo = !empty($itemData['estoque_maximo_temp']) ? ItemCompra::parseDecimal($itemData['estoque_maximo_temp']) : null;
+                                $novoProduto->ponto_corte = !empty($itemData['ponto_corte_temp']) ? ItemCompra::parseDecimal($itemData['ponto_corte_temp']) : 0;
                                 $novoProduto->venda_fracionada = !empty($itemData['venda_fracionada_temp']) ? (bool)$itemData['venda_fracionada_temp'] : false;
                                 $novoProduto->unidade_medida = !empty($itemData['unidade_medida_temp']) ? $itemData['unidade_medida_temp'] : 'UN';
                                 $novoProduto->estoque_atual = 0;
@@ -360,20 +365,25 @@ class CompraController extends Controller
                             $item->compra_id = $model->id;
                             $item->load(['ItemCompra' => $itemData]);
 
+                            $precoUnitario = ItemCompra::parseDecimal($item->preco_unitario ?? 0);
+                            $item->preco_unitario = $precoUnitario;
+
                             // NOVO: Auto-cadastro de produto se não existir
                             if (empty($item->produto_id) && !empty($itemData['nome_produto_temp'])) {
                                 $novoProduto = new Produto();
-                                $novoProduto->usuario_id = Yii::$app->user->id;
+                                $novoProduto->usuario_id = \app\components\TenantHelper::getId();
                                 $novoProduto->nome = $itemData['nome_produto_temp'];
                                 $novoProduto->categoria_id = !empty($itemData['categoria_id']) ? $itemData['categoria_id'] : null;
                                 $novoProduto->codigo_barras = !empty($itemData['codigo_barras']) ? $itemData['codigo_barras'] : null;
                                 $novoProduto->marca = !empty($itemData['marca']) ? $itemData['marca'] : null;
-                                $novoProduto->codigo_referencia = !empty($itemData['codigo_referencia_temp']) ? $itemData['codigo_referencia_temp'] : null;
-                                $novoProduto->preco_custo = $item->preco_unitario; // Usa o preço da compra
-                                $novoProduto->preco_venda_sugerido = !empty($itemData['preco_venda_sugerido_temp']) ? $itemData['preco_venda_sugerido_temp'] : ($item->preco_unitario * 1.5);
-                                $novoProduto->estoque_minimo = !empty($itemData['estoque_minimo_temp']) ? $itemData['estoque_minimo_temp'] : 0;
-                                $novoProduto->estoque_maximo = !empty($itemData['estoque_maximo_temp']) ? $itemData['estoque_maximo_temp'] : 0;
-                                $novoProduto->ponto_corte = !empty($itemData['ponto_corte_temp']) ? $itemData['ponto_corte_temp'] : 0;
+                                $novoProduto->codigo_referencia = !empty($itemData['codigo_referencia_temp']) ? trim($itemData['codigo_referencia_temp']) : null;
+                                $novoProduto->preco_custo = $precoUnitario;
+                                $novoProduto->preco_venda_sugerido = !empty($itemData['preco_venda_sugerido_temp']) 
+                                    ? ItemCompra::parseDecimal($itemData['preco_venda_sugerido_temp']) 
+                                    : round($precoUnitario * 1.5, 2);
+                                $novoProduto->estoque_minimo = !empty($itemData['estoque_minimo_temp']) ? ItemCompra::parseDecimal($itemData['estoque_minimo_temp']) : 0;
+                                $novoProduto->estoque_maximo = !empty($itemData['estoque_maximo_temp']) ? ItemCompra::parseDecimal($itemData['estoque_maximo_temp']) : null;
+                                $novoProduto->ponto_corte = !empty($itemData['ponto_corte_temp']) ? ItemCompra::parseDecimal($itemData['ponto_corte_temp']) : 0;
                                 $novoProduto->venda_fracionada = !empty($itemData['venda_fracionada_temp']) ? (bool)$itemData['venda_fracionada_temp'] : false;
                                 $novoProduto->unidade_medida = !empty($itemData['unidade_medida_temp']) ? $itemData['unidade_medida_temp'] : 'UN';
                                 $novoProduto->estoque_atual = 0; // Acrescido ao concluir a nota
