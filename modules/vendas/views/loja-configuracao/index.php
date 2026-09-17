@@ -103,6 +103,51 @@ $this->params['breadcrumbs'][] = $this->title;
             </div>
         </div>
 
+        <!-- Card: Venda Direta / PDV -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-emerald-600 to-teal-600 px-4 sm:px-6 py-4 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-white flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                    Configurações da Venda Direta (PDV)
+                </h2>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $model->venda_avulsa_ativa ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' ?>">
+                    <?= $model->venda_avulsa_ativa ? '● Item Avulso Ativado' : '○ Item Avulso Desativado' ?>
+                </span>
+            </div>
+            <div class="p-4 sm:p-6 space-y-4">
+                <div class="bg-teal-50 border-l-4 border-teal-500 p-4 rounded-r-lg">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-teal-600" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-teal-900">
+                                <strong>Controle de Venda Avulsa:</strong> Por padrão (desativado), a tela de Venda Direta não exibe o botão <strong>(+)</strong> de inclusão de itens rápidos/não cadastrados, garantindo que todas as vendas sejam feitas a partir de produtos com estoque e preços devidamente cadastrados no sistema.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 pt-2">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <?= Html::activeCheckbox($model, 'venda_avulsa_ativa', [
+                            'class' => 'sr-only peer',
+                            'label' => false,
+                            'id' => 'switch-venda-avulsa-ativa'
+                        ]) ?>
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        <span class="ml-3 text-sm font-bold text-gray-900">
+                            Habilitar Opção de Item Avulso (Venda Avulsa) na Venda Direta
+                        </span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
         <!-- Card: Dados Básicos -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-4 sm:px-6 py-4">

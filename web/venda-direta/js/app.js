@@ -61,6 +61,7 @@ async function init() {
         verificarElementosCriticos(ELEMENTOS_CRITICOS);
         popularOpcoesParcelas();
         await carregarConfigLoja();
+        aplicarConfiguracaoVendaAvulsa(CONFIG.VENDA_AVULSA_ATIVA);
         await carregarLogoEmpresa(); // Carrega logo da empresa
         await registrarServiceWorker();
         await carregarCarrinhoInicial();
@@ -1618,7 +1619,31 @@ window.limparTodoOCarrinho = async function() {
 window.abrirCarrinho = function() { renderizarCarrinho(); abrirModal('modal-carrinho'); };
 
 // --- LÓGICA DE ITEM AVULSO ---
+function aplicarConfiguracaoVendaAvulsa(ativo) {
+    const btnAvulso = document.getElementById('btn-item-avulso');
+    const btnCamera = document.getElementById('btn-scan-camera');
+
+    if (ativo) {
+        if (btnAvulso) btnAvulso.classList.remove('hidden');
+        if (btnCamera) {
+            btnCamera.classList.remove('right-2');
+            btnCamera.classList.add('right-10');
+        }
+    } else {
+        if (btnAvulso) btnAvulso.classList.add('hidden');
+        if (btnCamera) {
+            btnCamera.classList.remove('right-10');
+            btnCamera.classList.add('right-2');
+        }
+    }
+}
+window.aplicarConfiguracaoVendaAvulsa = aplicarConfiguracaoVendaAvulsa;
+
 window.abrirModalItemAvulso = function() {
+    if (!CONFIG.VENDA_AVULSA_ATIVA) {
+        window.mostrarToast?.("Venda avulsa desabilitada nas configurações da loja.", "warning");
+        return;
+    }
     document.getElementById('avulso-nome').value = '';
     document.getElementById('avulso-preco').value = '';
     document.getElementById('avulso-qtd').value = '1';
@@ -1626,6 +1651,11 @@ window.abrirModalItemAvulso = function() {
 };
 
 window.confirmarItemAvulso = function() {
+    if (!CONFIG.VENDA_AVULSA_ATIVA) {
+        fecharModal('modal-item-avulso');
+        window.mostrarToast?.("Venda avulsa desabilitada nas configurações da loja.", "warning");
+        return;
+    }
     const nome = document.getElementById('avulso-nome').value.trim();
     const precoRaw = document.getElementById('avulso-preco').value.replace(/\./g, '').replace(',', '.');
     const qtd = parseFloat(document.getElementById('avulso-qtd').value) || 0;

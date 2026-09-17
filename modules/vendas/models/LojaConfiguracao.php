@@ -35,6 +35,7 @@ use yii\db\Expression;
  * @property string $pix_nome
  * @property string $pix_cidade
  * @property bool $catalogo_ativo
+ * @property bool $venda_avulsa_ativa
  * @property string $mensagem_manutencao
  * @property string $created_at
  * @property string $updated_at
@@ -96,9 +97,9 @@ class LojaConfiguracao extends ActiveRecord
             ['email', 'email'],
 
             [['limite_armazenamento_videos_mb', 'limite_armazenamento_cards_mb'], 'integer', 'min' => 5, 'max' => 5000],
-            [['catalogo_ativo', 'melhor_envio_ativo'], 'boolean'],
+            [['catalogo_ativo', 'melhor_envio_ativo', 'venda_avulsa_ativa'], 'boolean'],
             [['catalogo_ativo'], 'default', 'value' => true],
-            [['melhor_envio_ativo'], 'default', 'value' => false],
+            [['venda_avulsa_ativa', 'melhor_envio_ativo'], 'default', 'value' => false],
             [['melhor_envio_ambiente'], 'string', 'max' => 10],
             [['melhor_envio_ambiente'], 'default', 'value' => 'production'],
             [['melhor_envio_ambiente'], 'in', 'range' => ['production', 'sandbox']],
@@ -153,6 +154,7 @@ class LojaConfiguracao extends ActiveRecord
             'aparencia_cor_primaria' => 'Cor Primária Customizada',
             'aparencia_cor_secundaria' => 'Cor Secundária Customizada',
             'catalogo_ativo' => 'Catálogo Online Habilitado',
+            'venda_avulsa_ativa' => 'Permitir Item Avulso (Venda Avulsa) na Venda Direta',
             'mensagem_manutencao' => 'Mensagem de Manutenção / Implantação',
             'created_at' => 'Criado em',
             'updated_at' => 'Atualizado em',

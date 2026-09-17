@@ -74,6 +74,7 @@ class UsuarioController extends Controller
                         u.email, 
                         u.catalogo_path,
                         COALESCE(lc.catalogo_ativo, pc.catalogo_publico, true) AS catalogo_ativo,
+                        COALESCE(lc.venda_avulsa_ativa, false) AS venda_avulsa_ativa,
                         lc.mensagem_manutencao,
                         COALESCE(lc.nome_loja, pc.nome_loja, u.nome) AS nome_loja,
                         COALESCE(lc.logo_path, pc.logo_path) AS logo_path,
@@ -95,6 +96,7 @@ class UsuarioController extends Controller
                         u.email, 
                         u.catalogo_path,
                         COALESCE(lc.catalogo_ativo, pc.catalogo_publico, true) AS catalogo_ativo,
+                        COALESCE(lc.venda_avulsa_ativa, false) AS venda_avulsa_ativa,
                         lc.mensagem_manutencao,
                         COALESCE(lc.nome_loja, pc.nome_loja, u.nome) AS nome_loja,
                         COALESCE(lc.logo_path, pc.logo_path) AS logo_path,
@@ -123,6 +125,13 @@ class UsuarioController extends Controller
                 $catalogoAtivo = true;
             }
 
+            $vendaAvulsaAtiva = $usuario['venda_avulsa_ativa'] ?? false;
+            if ($vendaAvulsaAtiva === 't' || $vendaAvulsaAtiva === '1' || $vendaAvulsaAtiva === 1 || $vendaAvulsaAtiva === true) {
+                $vendaAvulsaAtiva = true;
+            } else {
+                $vendaAvulsaAtiva = false;
+            }
+
             $usuarioModel = !empty($usuario['id']) ? Usuario::findOne($usuario['id']) : null;
             $stPix = $usuarioModel ? $usuarioModel->getStatusPixEstatico() : null;
 
@@ -140,6 +149,7 @@ class UsuarioController extends Controller
                 'nome'                => $usuario['nome_loja'] ?: $usuario['nome'],
                 'catalogo_path'       => $usuario['catalogo_path'],
                 'catalogo_ativo'      => $catalogoAtivo,
+                'venda_avulsa_ativa'  => $vendaAvulsaAtiva,
                 'mensagem_manutencao' => $usuario['mensagem_manutencao'] ?? null,
                 'logo_path'           => $usuario['logo_path'] ?? null,
                 'telefone'            => $usuario['telefone'] ?? null,
@@ -255,6 +265,7 @@ class UsuarioController extends Controller
                     u.catalogo_path,
                     c.imprimir_automatico,
                     COALESCE(lc.catalogo_ativo, c.catalogo_publico, true) AS catalogo_ativo,
+                    COALESCE(lc.venda_avulsa_ativa, false) AS venda_avulsa_ativa,
                     lc.mensagem_manutencao
                 FROM prest_usuarios u
                 LEFT JOIN prest_configuracoes c ON c.usuario_id = u.id
@@ -278,6 +289,13 @@ class UsuarioController extends Controller
                 $catalogoAtivo = true;
             }
 
+            $vendaAvulsaAtiva = $usuario['venda_avulsa_ativa'] ?? false;
+            if ($vendaAvulsaAtiva === 't' || $vendaAvulsaAtiva === '1' || $vendaAvulsaAtiva === 1 || $vendaAvulsaAtiva === true) {
+                $vendaAvulsaAtiva = true;
+            } else {
+                $vendaAvulsaAtiva = false;
+            }
+
             $usuarioModel = Usuario::findOne($lojaId);
             $stPix = $usuarioModel ? $usuarioModel->getStatusPixEstatico() : null;
 
@@ -290,6 +308,7 @@ class UsuarioController extends Controller
                 'catalogo_path' => $usuario['catalogo_path'] ?? 'catalogo',
                 'imprimir_automatico' => (bool)($usuario['imprimir_automatico'] ?? false),
                 'catalogo_ativo' => $catalogoAtivo,
+                'venda_avulsa_ativa' => $vendaAvulsaAtiva,
                 'mensagem_manutencao' => $usuario['mensagem_manutencao'] ?? null,
                 'pix_estatico_bloqueado' => $stPix ? $stPix['bloqueado'] : false,
                 'pix_estatico_info' => $stPix,

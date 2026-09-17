@@ -85,6 +85,7 @@ export const CONFIG = {
     CACHE_NAME: 'venda-direta-cache-v1',
     SYNC_TAG: 'sync-novo-pedido-venda-direta',
     ID_USUARIO_LOJA: null, // ✅ Definido dinamicamente após login (ver app.js → verificarAutenticacao)
+    VENDA_AVULSA_ATIVA: false, // ✅ Controle da opção de venda/item avulso na tela (padrão: false)
 };
 
 // Log da configuração final
@@ -190,12 +191,18 @@ export async function carregarConfigLoja() {
         GATEWAY_CONFIG.asaas_sandbox = config.asaas_sandbox || false;
         GATEWAY_CONFIG.pix_estatico_bloqueado = config.pix_estatico_bloqueado || false;
         GATEWAY_CONFIG.pix_estatico_info = config.pix_estatico_info || null;
+        
+        // ✅ Carrega configuração de Venda Avulsa (padrão: false)
+        CONFIG.VENDA_AVULSA_ATIVA = Boolean(config.venda_avulsa_ativa);
+
         if (typeof window !== 'undefined') {
             window.GATEWAY_CONFIG = GATEWAY_CONFIG;
+            window.CONFIG = CONFIG;
         }
         
         console.log('[Config] Gateway:', GATEWAY_CONFIG.gateway, 
                     GATEWAY_CONFIG.habilitado ? '✅ HABILITADO' : '❌ DESABILITADO');
+        console.log('[Config] Venda Avulsa:', CONFIG.VENDA_AVULSA_ATIVA ? '✅ HABILITADA' : '❌ DESABILITADA');
         
         return GATEWAY_CONFIG;
         
