@@ -404,6 +404,10 @@ class PedidoController extends BaseController
                     if ($precoUnitario <= 0) {
                         $precoUnitario = $variante->getPrecoVendaEfetivo();
                     }
+                } elseif ($produto->emPromocao && (float)$produto->preco_promocional > 0) {
+                    if ($precoUnitario <= 0 || (abs($precoUnitario - (float)$produto->preco_venda_sugerido) < 0.01 && $descontoPercentual == 0 && $descontoValor == 0)) {
+                        $precoUnitario = (float)$produto->preco_promocional;
+                    }
                 }
 
                 // Regra de Estoque Inteligente:

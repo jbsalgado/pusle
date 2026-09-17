@@ -99,16 +99,29 @@ class OrcamentoController extends Controller
         // Carrega itens com produtos
         $itens = [];
         foreach ($model->itens as $item) {
+            $precoUnitario = (float) $item->preco_unitario;
+            $emPromocao = $item->produto ? (bool)$item->produto->emPromocao : false;
+            $precoPromocional = ($item->produto && $item->produto->preco_promocional) ? (float)$item->produto->preco_promocional : null;
+            $precoSugerido = $item->produto ? (float)$item->produto->preco_venda_sugerido : $precoUnitario;
+
+            $precoFinal = $precoUnitario;
+            if ($emPromocao && $precoPromocional > 0) {
+                $precoFinal = min($precoUnitario, $precoPromocional);
+            }
+
             $itens[] = [
                 'id' => $item->produto_id, // ID do produto para o PWA
+                'produto_id' => $item->produto_id,
                 'nome' => $item->produto ? $item->produto->nome : 'Produto',
                 'quantidade' => (float) $item->quantidade,
-                'preco' => (float) $item->preco_unitario, // Adicionado campo padrão preco
-                'preco_venda_sugerido' => (float) $item->preco_unitario, // Para compatibilidade com cart.js
-                'preco_final' => (float) $item->preco_unitario,
+                'preco' => $precoFinal, // Adicionado campo padrão preco
+                'preco_venda_sugerido' => $precoSugerido, // Para compatibilidade com cart.js
+                'preco_final' => $precoFinal,
+                'preco_promocional' => $precoPromocional,
+                'em_promocao' => $emPromocao,
                 'desconto_valor' => (float) ($item->desconto_valor ?? 0),
                 'desconto_percentual' => 0,
-                'subtotal' => (float) $item->subtotal,
+                'subtotal' => (float) ($precoFinal * (float)$item->quantidade),
                 'unidade_medida' => $item->produto ? $item->produto->unidade_medida : 'un',
                 'venda_fracionada' => $item->produto ? (bool)$item->produto->venda_fracionada : false,
                 'fotos' => $item->produto && $item->produto->fotos ? $item->produto->fotos : [],

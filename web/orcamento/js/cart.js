@@ -70,10 +70,17 @@ export function adicionarAoCarrinho(produto, quantidade) {
   // ✅ CORREÇÃO: Adicionar 'produto_id' manualmente para o backend
   // O backend espera 'produto_id', mas o objeto produto tem 'id'.
   // Vamos adicionar os dois para compatibilidade.
+  const precoFinalInicial = (produto.em_promocao && parseFloat(produto.preco_promocional) > 0)
+    ? parseFloat(produto.preco_promocional)
+    : parseFloat(produto.preco_final || produto.preco_venda_sugerido || 0);
+
   const itemParaAdicionar = {
     ...produto,
     produto_id: produto.id, // Garante que o backend receba o que espera
     quantidade: quantidade,
+    preco_final: precoFinalInicial,
+    preco_promocional: produto.preco_promocional ? parseFloat(produto.preco_promocional) : null,
+    em_promocao: !!produto.em_promocao
   };
 
   // ✅ Aplica regras de escala/desconto imediatamente
@@ -291,7 +298,11 @@ export function atualizarIndicadoresCarrinho() {
  */
 export function getPrecoVigente(item, quantidade) {
   const q = parseFloat(quantidade) || 0;
-  if (q <= 0) return parseFloat(item.preco_venda_sugerido || 0);
+  const precoBase = (item.em_promocao && parseFloat(item.preco_promocional) > 0)
+    ? parseFloat(item.preco_promocional)
+    : parseFloat(item.preco_final || item.preco_venda_sugerido || 0);
+
+  if (q <= 0) return precoBase;
 
   // 1. Extrair todas as escalas válidas
   const escalas = [];
@@ -303,9 +314,9 @@ export function getPrecoVigente(item, quantidade) {
     }
   }
 
-  // Se não houver escalas, retorna o preço sugerido (unitário)
+  // Se não houver escalas, retorna o preço base (promocional ou normal)
   if (escalas.length === 0) {
-    return parseFloat(item.preco_venda_sugerido || 0);
+    return precoBase;
   }
 
   // Ordenar escalas por quantidade crescente
@@ -324,22 +335,26 @@ export function getPrecoVigente(item, quantidade) {
     }
   }
 
-  // Se estiver abaixo da primeira faixa, usamos o valor unitário da primeira faixa
+  // Se estiver abaixo da primeira faixa, usamos o menor entre a primeira faixa e o preço base promocional
   if (!faixaAtingida) {
+    if (precoBase > 0 && precoBase < escalas[0].unitario) {
+      return precoBase;
+    }
     faixaAtingida = escalas[0];
     proximaFaixa = escalas[1] || null; // O 0 já é o atingido virtual
   }
 
-  // 3. Calcular preço base (Qtd * Unitário da Faixa)
-  let precoBase = q * faixaAtingida.unitario;
+  // 3. Calcular preço base (Qtd * Unitário da Faixa ou Preço Base se promocional mais vantajoso)
+  const unitarioEfetivo = Math.min(faixaAtingida.unitario, precoBase > 0 ? precoBase : faixaAtingida.unitario);
+  let precoCalculado = q * unitarioEfetivo;
 
   // 4. Aplicar TETO (Lógica 1): Se o preço base ultrapassar o preço total da próxima faixa, usamos o da próxima
-  if (proximaFaixa && precoBase > proximaFaixa.preco) {
-    precoBase = proximaFaixa.preco;
+  if (proximaFaixa && precoCalculado > proximaFaixa.preco) {
+    precoCalculado = proximaFaixa.preco;
   }
 
   // Retornamos um "Unitário Virtual" que resulte no preço base correto quando multiplicado no app.js
-  return precoBase / q;
+  return precoCalculado / q;
 }
 
 /**
@@ -351,8 +366,29 @@ function aplicarRegrasEscala(item) {
   const quantidade = parseFloat(item.quantidade || 0);
   if (quantidade <= 0) return;
 
+  const precoBase = (item.em_promocao && parseFloat(item.preco_promocional) > 0)
+    ? parseFloat(item.preco_promocional)
+    : parseFloat(item.preco_venda_sugerido || 0);
   const precoSugerido = parseFloat(item.preco_venda_sugerido || 0);
   
+  // 1. Verificar se tem escalas
+  let temEscala = false;
+  for (let i = 1; i <= 5; i++) {
+    if (parseFloat(item[`qtd_escala_${i}`] || 0) > 0 && parseFloat(item[`preco_escala_${i}`] || 0) > 0) {
+      temEscala = true;
+      break;
+    }
+  }
+
+  if (!temEscala) {
+    item.preco_final = precoBase;
+    if (item.isFilteredScale) {
+      item.descontoValor = 0;
+      item.isFilteredScale = false;
+    }
+    return;
+  }
+
   // O motor de escala agora retorna o unitário virtual já considerando o teto
   const precoEscala = getPrecoVigente(item, quantidade);
 
@@ -375,7 +411,7 @@ function aplicarRegrasEscala(item) {
     }
     item.isFilteredScale = true; 
   } else {
-    item.preco_final = precoSugerido;
+    item.preco_final = precoBase;
     if (item.isFilteredScale) {
         item.descontoValor = 0;
         item.isFilteredScale = false;

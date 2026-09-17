@@ -3333,9 +3333,13 @@ async function carregarOrcamentoNoCarrinho(id) {
         // 2. Adiciona itens ao carrinho
         if (orcamento.itens && Array.isArray(orcamento.itens)) {
             for (const item of orcamento.itens) {
+                // Tenta cruzar com catálogo da loja para garantir flags completas (promoção, etc)
+                const prodLoja = (typeof produtos !== 'undefined' && Array.isArray(produtos))
+                    ? produtos.find(p => p.id === (item.produto_id || item.id))
+                    : null;
+                const itemFormatado = prodLoja ? { ...prodLoja, ...item } : item;
                 // Adiciona ao carrinho usando a estrutura esperada
-                // item já vem formatado do controller
-                adicionarAoCarrinho(item, item.quantidade);
+                adicionarAoCarrinho(itemFormatado, item.quantidade);
             }
         }
         

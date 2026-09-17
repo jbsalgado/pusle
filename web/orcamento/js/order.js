@@ -86,14 +86,19 @@ function prepararObjetoPedido(dadosPedido, carrinho) {
         forma_pagamento_id: dadosPedido.forma_pagamento_id,
         is_orcamento: true, // ✅ MARCADOR: Identifica que é um orçamento
         is_orçamento_direta: true, // Mantém para compatibilidade de rotas base
-        itens: carrinho.map(item => ({
-            produto_id: item.produto_id || item.id,
-            quantidade: item.quantidade,
-            // ✅ CORREÇÃO: Usar preço promocional se disponível (preco_final), senão usar preco_orçamento_sugerido
-            preco_unitario: item.preco_final || item.preco_orçamento_sugerido,
-            desconto_percentual: item.descontoPercentual || 0,
-            desconto_valor: item.descontoValor || 0
-        })),
+        itens: carrinho.map(item => {
+            const precoUnitario = (item.em_promocao && parseFloat(item.preco_promocional) > 0)
+                ? parseFloat(item.preco_promocional)
+                : (parseFloat(item.preco_final) || parseFloat(item.preco_venda_sugerido) || 0);
+
+            return {
+                produto_id: item.produto_id || item.id,
+                quantidade: item.quantidade,
+                preco_unitario: precoUnitario,
+                desconto_percentual: item.descontoPercentual || 0,
+                desconto_valor: item.descontoValor || 0
+            };
+        }),
         acrescimo_valor: parseFloat(acrescimo.valor) || 0,
         acrescimo_tipo: acrescimo.tipo || null,
         observacao_acrescimo: acrescimo.observacao || null,

@@ -90,16 +90,21 @@ function prepararObjetoPedido(dadosPedido, carrinho) {
         is_venda_direta: true, // ✅ MARCADOR: Identifica que é venda direta (loja física)
         emitir_fiscal: document.getElementById('emitir-fiscal')?.checked || false, // ✅ NOVO: Flag para NFe
         cpf_consumidor: dadosPedido.cpf_consumidor || null, // CPF do consumidor final (opcional)
-        itens: carrinho.map(item => ({
-            produto_id: item.produto_id || item.id,
-            quantidade: item.quantidade,
-            // ✅ CORREÇÃO: Usar preço promocional se disponível (preco_final), senão usar preco_venda_sugerido
-            preco_unitario: item.preco_final || item.preco_venda_sugerido,
-            desconto_percentual: item.descontoPercentual || 0,
-            desconto_valor: item.descontoValor || 0,
-            nome_item_manual: item.nome_item_manual || null,
-            unidade_medida: item.unidade_medida || 'un'
-        })),
+        itens: carrinho.map(item => {
+            const precoUnitario = (item.em_promocao && parseFloat(item.preco_promocional) > 0)
+                ? parseFloat(item.preco_promocional)
+                : (parseFloat(item.preco_final) || parseFloat(item.preco_venda_sugerido) || 0);
+
+            return {
+                produto_id: item.produto_id || item.id,
+                quantidade: item.quantidade,
+                preco_unitario: precoUnitario,
+                desconto_percentual: item.descontoPercentual || 0,
+                desconto_valor: item.descontoValor || 0,
+                nome_item_manual: item.nome_item_manual || null,
+                unidade_medida: item.unidade_medida || 'un'
+            };
+        }),
         // Adiciona dados do acréscimo
         acrescimo_valor: parseFloat(acrescimo.valor) || 0,
         acrescimo_tipo: acrescimo.tipo || null,

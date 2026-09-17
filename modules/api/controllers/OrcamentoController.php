@@ -81,7 +81,16 @@ class OrcamentoController extends Controller
                 $item->orcamento_id = $orcamento->id;
                 $item->produto_id = $produto->id;
                 $item->quantidade = $itemData['quantidade'];
-                $item->preco_unitario = $itemData['preco_unitario'] ?? $produto->preco_venda; // Usa preço enviado ou do cadastro
+                $precoUnitario = isset($itemData['preco_unitario']) ? (float)$itemData['preco_unitario'] : 0;
+                if ($precoUnitario <= 0) {
+                    $precoUnitario = (float)($produto->precoFinal ?: $produto->preco_venda_sugerido);
+                } elseif ($produto->emPromocao && (float)$produto->preco_promocional > 0) {
+                    // Se o produto está em promoção ativa e o preço enviado foi o preço cheio normal, ajusta para o promocional
+                    if (abs($precoUnitario - (float)$produto->preco_venda_sugerido) < 0.01) {
+                        $precoUnitario = (float)$produto->preco_promocional;
+                    }
+                }
+                $item->preco_unitario = $precoUnitario;
                 $item->desconto_valor = $itemData['desconto_valor'] ?? 0;
 
                 // Calcula subtotal
