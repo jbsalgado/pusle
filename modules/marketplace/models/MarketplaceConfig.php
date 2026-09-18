@@ -256,6 +256,70 @@ class MarketplaceConfig extends ActiveRecord
     }
 
     /**
+     * Retorna se este marketplace utiliza fluxo OAuth (Mercado Livre, Shopee)
+     */
+    public function isOAuth(): bool
+    {
+        return in_array($this->marketplace, [self::MARKETPLACE_MERCADO_LIVRE, self::MARKETPLACE_SHOPEE]);
+    }
+
+    /**
+     * Verifica se a conta está de fato conectada com tokens/credenciais válidas
+     */
+    public function isConectado(): bool
+    {
+        if ($this->isOAuth()) {
+            return !empty($this->access_token) && !$this->isTokenExpired();
+        }
+        return !empty($this->client_secret) || !empty($this->access_token);
+    }
+
+    /**
+     * Retorna status estruturado para apresentação visual no dashboard e detalhes
+     */
+    public function getStatusFormatado(): array
+    {
+        if ($this->isOAuth()) {
+            if (empty($this->access_token)) {
+                return [
+                    'label' => 'Desconectado',
+                    'status' => 'disconnected',
+                    'dot_class' => 'bg-rose-500',
+                    'badge_class' => 'bg-rose-50 text-rose-700 border-rose-200',
+                    'descricao' => 'Pendente de conexão OAuth',
+                ];
+            }
+            if ($this->isTokenExpired()) {
+                return [
+                    'label' => 'Token Expirado',
+                    'status' => 'expired',
+                    'dot_class' => 'bg-amber-500',
+                    'badge_class' => 'bg-amber-50 text-amber-700 border-amber-200',
+                    'descricao' => 'Reconexão OAuth necessária',
+                ];
+            }
+        }
+
+        if (!$this->ativo) {
+            return [
+                'label' => 'Pausado',
+                'status' => 'paused',
+                'dot_class' => 'bg-slate-400',
+                'badge_class' => 'bg-slate-100 text-slate-700 border-slate-200',
+                'descricao' => 'Sincronização pausada',
+            ];
+        }
+
+        return [
+            'label' => 'Conectado',
+            'status' => 'connected',
+            'dot_class' => 'bg-emerald-500',
+            'badge_class' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
+            'descricao' => 'Operando e sincronizando',
+        ];
+    }
+
+    /**
      * Busca configuração específica por Marketplace e ID externo do seller
      * @param string $marketplace
      * @param string $sellerIdExterno

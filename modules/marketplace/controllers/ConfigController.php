@@ -57,10 +57,18 @@ class ConfigController extends Controller
     /**
      * Cria nova configuração / conexão
      */
-    public function actionCreate()
+    public function actionCreate($marketplace = null)
     {
         $model = new MarketplaceConfig();
         $model->usuario_id = TenantHelper::getId();
+
+        if ($marketplace) {
+            $mpUpper = strtoupper($marketplace);
+            if ($mpUpper === 'ML') $mpUpper = MarketplaceConfig::MARKETPLACE_MERCADO_LIVRE;
+            if (array_key_exists($mpUpper, MarketplaceConfig::getMarketplacesDisponiveis())) {
+                $model->marketplace = $mpUpper;
+            }
+        }
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
             Yii::$app->session->setFlash('success', 'Configuração de marketplace cadastrada com sucesso!');
@@ -123,15 +131,47 @@ class ConfigController extends Controller
         $status = $model->ativo ? 'ativada' : 'desativada';
         Yii::$app->session->setFlash('success', "Integração {$model->getMarketplaceNome()} ({$model->apelido_conta}) {$status} com sucesso!");
 
-        return $this->redirect(['index']);
+        return $this->redirect(Yii::$app->request->referrer ?: ['index']);
+    }
+
+    /**
+     * Desconecta o marketplace: limpa tokens de autorização e pausa sincronização
+     */
+    public function actionDisconnect($id)
+    {
+        $model = $this->findModel($id);
+        $model->ativo = false;
+        $model->access_token = null;
+        $model->refresh_token = null;
+        $model->token_expira_em = null;
+        $model->save(false);
+
+        Yii::$app->session->setFlash('success', "A conexão com {$model->getMarketplaceNome()} ({$model->apelido_conta}) foi desconectada com sucesso. Os tokens de acesso foram removidos.");
+
+        return $this->redirect(Yii::$app->request->referrer ?: ['/marketplace/dashboard/index']);
     }
 
     /**
      * Inicia fluxo de autorização OAuth
      */
-    public function actionAuth($id)
+    public function actionAuth($id = null, $m = null)
     {
-        $model = $this->findModel($id);
+        if (!$id && $m) {
+            $mpCode = strtoupper($m);
+            if ($mpCode === 'ML') $mpCode = MarketplaceConfig::MARKETPLACE_MERCADO_LIVRE;
+
+            $model = MarketplaceConfig::findOne([
+                'usuario_id' => TenantHelper::getId(),
+                'marketplace' => $mpCode,
+            ]);
+
+            if (!$model) {
+                return $this->redirect(['create', 'marketplace' => $mpCode]);
+            }
+        } else {
+            $model = $this->findModel($id);
+        }
+
         $callbackUrl = Url::to(['/marketplace/config/callback', 'id' => $model->id], true);
         $cleanCallbackUrl = Url::to(['/marketplace/config/callback'], true);
 

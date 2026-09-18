@@ -75,16 +75,24 @@ $this->registerCssFile('https://fonts.googleapis.com/css2?family=Inter:wght@300;
             <div class="glass-section">
                 <div class="section-header">
                     <h3><i class="fa fa-plug"></i> Conexões de Marketplace</h3>
+                    <?= Html::a('Ver Todas <i class="fa fa-arrow-right"></i>', ['config/index'], ['class' => 'view-all']) ?>
                 </div>
                 <div class="section-body">
                     <?php if (empty($configs)): ?>
                         <div class="empty-state">
                             <i class="fa fa-link"></i>
-                            <p>Nenhuma conta conectada.</p>
+                            <p>Nenhuma conta conectada no momento.</p>
+                            <?= Html::a('<i class="fa fa-plus-circle"></i> Conectar Primeiro Canal', ['config/create'], [
+                                'class' => 'btn-premium',
+                                'style' => 'margin-top: 15px; font-size: 0.85rem; padding: 10px 18px; display: inline-flex;'
+                            ]) ?>
                         </div>
                     <?php else: ?>
                         <div class="connection-list">
-                            <?php foreach ($configs as $config): ?>
+                            <?php foreach ($configs as $config): 
+                                $status = $config->getStatusFormatado();
+                                $conectado = $config->isConectado();
+                            ?>
                                 <div class="connection-item">
                                     <div class="connection-logo">
                                         <div class="logo-placeholder <?= strtolower($config->marketplace) ?>">
@@ -92,19 +100,61 @@ $this->registerCssFile('https://fonts.googleapis.com/css2?family=Inter:wght@300;
                                         </div>
                                     </div>
                                     <div class="connection-info">
-                                        <div class="conn-name"><?= Html::encode($config->getMarketplaceNome()) ?></div>
+                                        <div class="conn-name">
+                                            <?= Html::encode($config->getMarketplaceNome()) ?>
+                                            <?php if (!empty($config->apelido_conta)): ?>
+                                                <span class="conn-subname">(<?= Html::encode($config->apelido_conta) ?>)</span>
+                                            <?php endif; ?>
+                                        </div>
                                         <div class="conn-status">
-                                            <span class="status-dot <?= $config->ativo ? 'online' : 'offline' ?>"></span>
-                                            <?= $config->ativo ? 'Operando' : 'Pausado' ?>
+                                            <span class="status-dot <?= $status['dot_class'] === 'bg-emerald-500' ? 'online' : ($status['dot_class'] === 'bg-slate-400' ? 'paused' : 'offline') ?>"></span>
+                                            <span class="status-badge <?= $status['status'] ?>">
+                                                <?= $status['label'] ?>
+                                            </span>
+                                            <?php if (!empty($config->seller_id_externo)): ?>
+                                                <span class="seller-pill" title="Seller ID">ID: <?= Html::encode($config->seller_id_externo) ?></span>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                     <div class="connection-sync">
-                                        <div class="last-sync"><?= $config->ultima_sync ? date('H:i', strtotime($config->ultima_sync)) : '--:--' ?></div>
+                                        <div class="last-sync"><?= $config->ultima_sync ? date('d/m H:i', strtotime($config->ultima_sync)) : '--:--' ?></div>
                                         <div class="sync-label">Última Sync</div>
                                     </div>
                                     <div class="connection-actions">
-                                        <?= Html::a('<i class="fa fa-cog"></i>', ['config/update', 'id' => $config->id], ['class' => 'icon-btn']) ?>
-                                        <?= Html::a('<i class="fa fa-refresh"></i>', ['sync/run', 'id' => $config->id], ['class' => 'icon-btn refresh']) ?>
+                                        <!-- AÇÃO VER -->
+                                        <?= Html::a('<i class="fa fa-eye"></i> <span class="btn-text">Ver</span>', ['config/view', 'id' => $config->id], [
+                                            'class' => 'btn-action btn-view',
+                                            'title' => 'Visualizar detalhes da conexão',
+                                        ]) ?>
+
+                                        <!-- AÇÃO EDITAR -->
+                                        <?= Html::a('<i class="fa fa-pencil"></i> <span class="btn-text">Editar</span>', ['config/update', 'id' => $config->id], [
+                                            'class' => 'btn-action btn-edit',
+                                            'title' => 'Editar credenciais e configurações',
+                                        ]) ?>
+
+                                        <!-- AÇÃO CONECTAR OU DESCONECTAR -->
+                                        <?php if ($conectado): ?>
+                                            <?= Html::a('<i class="fa fa-chain-broken"></i> <span class="btn-text">Desconectar</span>', ['config/disconnect', 'id' => $config->id], [
+                                                'class' => 'btn-action btn-disconnect',
+                                                'title' => 'Desconectar conta e revogar tokens de acesso',
+                                                'data' => [
+                                                    'confirm' => "Tem certeza que deseja desconectar a conta {$config->getMarketplaceNome()}? Os tokens de sincronização serão revogados.",
+                                                    'method' => 'post',
+                                                ],
+                                            ]) ?>
+                                        <?php else: ?>
+                                            <?= Html::a('<i class="fa fa-plug"></i> <span class="btn-text">Conectar</span>', ['config/auth', 'id' => $config->id], [
+                                                'class' => 'btn-action btn-connect',
+                                                'title' => 'Autenticar e conectar loja via OAuth',
+                                            ]) ?>
+                                        <?php endif; ?>
+
+                                        <!-- AÇÃO SINCRONIZAR -->
+                                        <?= Html::a('<i class="fa fa-refresh"></i>', ['sync/run', 'id' => $config->id], [
+                                            'class' => 'icon-btn refresh',
+                                            'title' => 'Sincronizar agora',
+                                        ]) ?>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
@@ -145,13 +195,16 @@ $this->registerCssFile('https://fonts.googleapis.com/css2?family=Inter:wght@300;
                         </div>
                     <?php endif; ?>
 
-                    <!-- Próximos Passos -->
+                    <!-- Próximos Passos / Canais Disponíveis -->
                     <div class="real-integration-notice">
                         <h4><i class="fa fa-rocket"></i> Expanda seu Negócio</h4>
-                        <p>Conecte suas contas reais para sincronização total.</p>
+                        <p>Conecte suas contas para sincronização multicanal de estoque e pedidos.</p>
                         <div class="action-grid">
-                            <?= Html::a('<i class="fa fa-shopping-bag"></i><span>Mercado Livre</span>', ['config/auth', 'm' => 'ML'], ['class' => 'action-card']) ?>
-                            <?= Html::a('<i class="fa fa-shopping-cart"></i><span>Shopee</span>', ['config/auth', 'm' => 'SHOPEE'], ['class' => 'action-card']) ?>
+                            <?= Html::a('<i class="fa fa-shopping-bag"></i><span>Mercado Livre</span>', ['config/auth', 'm' => 'ML'], ['class' => 'action-card', 'title' => 'Conectar Mercado Livre']) ?>
+                            <?= Html::a('<i class="fa fa-shopping-cart"></i><span>Shopee</span>', ['config/auth', 'm' => 'SHOPEE'], ['class' => 'action-card', 'title' => 'Conectar Shopee']) ?>
+                            <?= Html::a('<i class="fa fa-cube"></i><span>Magalu</span>', ['config/create', 'marketplace' => 'MAGAZINE_LUIZA'], ['class' => 'action-card', 'title' => 'Conectar Magazine Luiza']) ?>
+                            <?= Html::a('<i class="fa fa-amazon"></i><span>Amazon</span>', ['config/create', 'marketplace' => 'AMAZON'], ['class' => 'action-card', 'title' => 'Conectar Amazon']) ?>
+                            <?= Html::a('<i class="fa fa-cutlery"></i><span>iFood</span>', ['config/create', 'marketplace' => 'IFOOD'], ['class' => 'action-card', 'title' => 'Conectar iFood']) ?>
                         </div>
                     </div>
                 </div>
@@ -430,12 +483,125 @@ $this->registerCssFile('https://fonts.googleapis.com/css2?family=Inter:wght@300;
 
     .connection-actions {
         display: flex;
-        gap: 8px;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .conn-subname {
+        font-size: 0.8rem;
+        color: #64748b;
+        font-weight: 500;
+        margin-left: 4px;
+    }
+
+    .status-badge {
+        font-size: 0.725rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 9999px;
+        letter-spacing: 0.02em;
+    }
+
+    .status-badge.connected {
+        background: #ecfdf5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+    }
+
+    .status-badge.paused {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+    }
+
+    .status-badge.disconnected, .status-badge.expired {
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+    }
+
+    .seller-pill {
+        font-size: 0.7rem;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        color: #475569;
+        padding: 1px 6px;
+        border-radius: 6px;
+        font-family: monospace;
+    }
+
+    .status-dot.paused {
+        background: #94a3b8;
+    }
+
+    /* Action Buttons (Ver, Editar, Conectar, Desconectar) */
+    .btn-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 11px;
+        border-radius: 8px;
+        font-size: 0.775rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        text-decoration: none !important;
+        border: 1px solid transparent;
+        white-space: nowrap;
+    }
+
+    .btn-action.btn-view {
+        background: #f8fafc;
+        border-color: #e2e8f0;
+        color: #334155;
+    }
+
+    .btn-action.btn-view:hover {
+        background: #4f46e5;
+        color: white;
+        border-color: #4f46e5;
+    }
+
+    .btn-action.btn-edit {
+        background: #f8fafc;
+        border-color: #e2e8f0;
+        color: #334155;
+    }
+
+    .btn-action.btn-edit:hover {
+        background: #0284c7;
+        color: white;
+        border-color: #0284c7;
+    }
+
+    .btn-action.btn-connect {
+        background: #4f46e5;
+        color: white;
+        border-color: #4338ca;
+        box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
+    }
+
+    .btn-action.btn-connect:hover {
+        background: #4338ca;
+        color: white;
+        transform: translateY(-1px);
+    }
+
+    .btn-action.btn-disconnect {
+        background: #fff1f2;
+        color: #e11d48;
+        border-color: #fecdd3;
+    }
+
+    .btn-action.btn-disconnect:hover {
+        background: #e11d48;
+        color: white;
+        border-color: #e11d48;
     }
 
     .icon-btn {
-        width: 36px;
-        height: 36px;
+        width: 32px;
+        height: 32px;
         border-radius: 8px;
         display: flex;
         align-items: center;
@@ -573,30 +739,34 @@ $this->registerCssFile('https://fonts.googleapis.com/css2?family=Inter:wght@300;
     }
 
     .action-grid {
-        display: flex;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
         gap: 10px;
     }
 
     .action-card {
-        flex: 1;
-        padding: 15px;
+        padding: 12px 10px;
         border-radius: 12px;
         border: 1px solid #e2e8f0;
         background: white;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         cursor: pointer;
         transition: all 0.2s;
         font-weight: 600;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
+        text-align: center;
+        text-decoration: none !important;
+        color: #334155;
     }
 
     .action-card:hover:not(.disabled) {
         border-color: var(--primary);
         color: var(--primary);
         transform: translateY(-2px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
 
     .action-card.disabled {
@@ -612,6 +782,25 @@ $this->registerCssFile('https://fonts.googleapis.com/css2?family=Inter:wght@300;
 
         .title-gradient {
             font-size: 2rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .connection-item {
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .connection-actions {
+            width: 100%;
+            justify-content: flex-start;
+            margin-top: 8px;
+            padding-top: 10px;
+            border-top: 1px dashed #e2e8f0;
+        }
+
+        .connection-sync {
+            margin: 0 10px;
         }
     }
 </style>

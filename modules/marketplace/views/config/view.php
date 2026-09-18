@@ -56,6 +56,20 @@ $canalBadge = $badgeCores[$model->marketplace] ?? 'bg-indigo-100 text-indigo-900
                     ]
                 ) ?>
 
+                <?php if ($model->isConectado()): ?>
+                    <?= Html::a(
+                        '<svg class="w-4 h-4 inline-block mr-1 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6"/></svg>Desconectar',
+                        ['disconnect', 'id' => $model->id],
+                        [
+                            'class' => 'inline-flex items-center px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-xl bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 shadow-sm transition',
+                            'data' => [
+                                'confirm' => "Tem certeza que deseja desconectar esta conta? Os tokens de sincronização serão revogados.",
+                                'method' => 'post',
+                            ],
+                        ]
+                    ) ?>
+                <?php endif; ?>
+
                 <?= Html::a(
                     '<svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>Voltar',
                     ['index'],
