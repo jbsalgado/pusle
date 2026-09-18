@@ -3,10 +3,11 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 
-function writeFrame(stream, buffer) {
+function writeFrame(stream, buffer, getDiagnostics) {
     return new Promise((resolve, reject) => {
         if (!stream || stream.destroyed || stream.writableEnded) {
-            return reject(new Error('Stream do FFmpeg não está gravável.'));
+            const extra = typeof getDiagnostics === 'function' ? getDiagnostics() : '';
+            return reject(new Error(`Stream do FFmpeg não está gravável.${extra}`));
         }
         const written = stream.write(buffer);
         if (!written) {
@@ -20,7 +21,11 @@ function writeFrame(stream, buffer) {
             };
             const onDrain = () => { cleanup(); resolve(); };
             const onError = (err) => { cleanup(); reject(err); };
-            const onClose = () => { cleanup(); reject(new Error('Stream do FFmpeg fechada durante a gravação.')); };
+            const onClose = () => {
+                cleanup();
+                const extra = typeof getDiagnostics === 'function' ? getDiagnostics() : '';
+                reject(new Error(`Stream do FFmpeg fechada durante a gravação.${extra}`));
+            };
 
             stream.once('drain', onDrain);
             stream.once('error', onError);
@@ -41,6 +46,18 @@ async function main() {
     const payloadPath = args[0];
     if (!fs.existsSync(payloadPath)) {
         console.error(`Arquivo de payload não encontrado: ${payloadPath}`);
+        process.exit(1);
+    }
+
+    // Validação de sanidade do binário do FFmpeg antes de iniciar processamento pesado
+    try {
+        const { execSync } = require('child_process');
+        execSync('ffmpeg -version', { stdio: 'ignore' });
+    } catch (ffmpegCheckErr) {
+        console.error(JSON.stringify({
+            success: false,
+            error: `O binário do FFmpeg não está operacional no servidor: ${ffmpegCheckErr.message}`
+        }));
         process.exit(1);
     }
 
@@ -285,13 +302,32 @@ async function main() {
 
         const ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
         let ffmpegLogs = '';
+        let ffmpegSpawnError = null;
+
+        ffmpegProcess.on('error', (err) => {
+            ffmpegSpawnError = err;
+        });
 
         ffmpegProcess.stderr.on('data', (data) => {
             ffmpegLogs += data.toString();
         });
 
+        const getFfmpegDiagnostics = () => {
+            if (ffmpegSpawnError) {
+                return ` [Erro de spawn do FFmpeg: ${ffmpegSpawnError.message}]`;
+            }
+            if (ffmpegLogs && ffmpegLogs.trim()) {
+                return ` [Logs do FFmpeg: ${ffmpegLogs.trim().slice(-600)}]`;
+            }
+            return '';
+        };
+
         // Loop de Renderização de Frames com JPEG alta performance e Controle de Drain
         for (let frame = 0; frame < totalFrames; frame++) {
+            if (ffmpegSpawnError) {
+                throw new Error(`FFmpeg falhou ao iniciar: ${ffmpegSpawnError.message}`);
+            }
+
             await page.evaluate((currentFrame, total, fpsVal) => {
                 if (typeof window.seekFrame === 'function') {
                     return window.seekFrame(currentFrame, total, fpsVal);
@@ -306,7 +342,7 @@ async function main() {
             });
 
             // Aguarda o consumo do buffer pelo FFmpeg antes de capturar o próximo frame
-            await writeFrame(ffmpegProcess.stdin, buffer);
+            await writeFrame(ffmpegProcess.stdin, buffer, getFfmpegDiagnostics);
         }
 
         ffmpegProcess.stdin.end();
