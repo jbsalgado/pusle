@@ -10,8 +10,8 @@ class MarketplaceOrderDTO
     /** @var string Nome do marketplace (MERCADO_LIVRE, SHOPEE, MAGAZINE_LUIZA, TEMU, etc.) */
     public string $marketplace;
 
-    /** @var string UUID do tenant/dono da loja */
-    public string $usuarioId;
+    /** @var string|null UUID do tenant/dono da loja */
+    public ?string $usuarioId = null;
 
     /** @var string ID do pedido no marketplace */
     public string $marketplaceOrderId;

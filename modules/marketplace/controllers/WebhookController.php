@@ -152,7 +152,7 @@ class WebhookController extends Controller
                 break;
 
             case MarketplaceConfig::MARKETPLACE_MAGAZINE_LUIZA:
-                $sellerId = $payload['seller_id'] ?? $headers['x-seller-id'] ?? Yii::$app->request->get('seller_id');
+                $sellerId = $payload['seller_id'] ?? $payload['sellerId'] ?? $headers['x-seller-id'] ?? Yii::$app->request->get('seller_id');
                 break;
 
             case MarketplaceConfig::MARKETPLACE_TEMU:
@@ -192,6 +192,13 @@ class WebhookController extends Controller
             $authorization = $headers['authorization'] ?? null;
             if ($authorization) {
                 return $validator->validateShopee($authorization, $rawBody, $config->client_secret);
+            }
+        }
+
+        if ($marketplace === MarketplaceConfig::MARKETPLACE_MAGAZINE_LUIZA) {
+            $secret = $config->client_secret ?: $config->access_token;
+            if (!empty($secret)) {
+                return $validator->validateMagalu($headers, $rawBody, $secret);
             }
         }
 

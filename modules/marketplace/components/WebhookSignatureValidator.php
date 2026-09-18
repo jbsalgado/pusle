@@ -94,6 +94,59 @@ class WebhookSignatureValidator extends Component
     }
 
     /**
+     * Valida assinatura ou token de webhook do Magazine Luiza
+     * 
+     * Suporta:
+     * 1. Token no header X-Auth-Token ou Authorization Bearer
+     * 2. Assinatura HMAC-SHA256 no header X-Signature
+     * 
+     * @param array|string $headersOuToken Headers recebidos ou token string
+     * @param string $rawBody Corpo bruto da requisição
+     * @param string $secretOuToken Client Secret ou Token configurado
+     * @return bool
+     */
+    public function validateMagalu($headersOuToken, $rawBody = '', $secretOuToken = '')
+    {
+        if (is_string($headersOuToken) && empty($rawBody) && !empty($secretOuToken)) {
+            return $this->validateMagazineLuiza($headersOuToken, $secretOuToken);
+        }
+
+        $headers = is_array($headersOuToken) ? $headersOuToken : [];
+
+        // 1. Verificação por HMAC-SHA256 se houver X-Signature
+        $signature = $headers['x-signature'] ?? $headers['X-Signature'] ?? null;
+        if (!empty($signature) && !empty($secretOuToken)) {
+            $calculated = hash_hmac('sha256', $rawBody, $secretOuToken);
+            if (hash_equals($signature, $calculated)) {
+                return true;
+            }
+        }
+
+        // 2. Verificação por Token (X-Auth-Token ou Authorization Bearer)
+        $receivedToken = $headers['x-auth-token'] ?? $headers['X-Auth-Token'] ?? null;
+        if (!$receivedToken && isset($headers['authorization'])) {
+            $auth = $headers['authorization'];
+            if (stripos($auth, 'Bearer ') === 0) {
+                $receivedToken = trim(substr($auth, 7));
+            } else {
+                $receivedToken = trim($auth);
+            }
+        }
+
+        if (!empty($receivedToken) && !empty($secretOuToken)) {
+            return $this->validateMagazineLuiza($receivedToken, $secretOuToken);
+        }
+
+        // Se nenhum método de assinatura foi enviado mas há secret esperado, rejeita
+        if (!empty($secretOuToken)) {
+            Yii::warning('Webhook Magalu sem token ou assinatura válidos no header', __METHOD__);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Valida assinatura SNS da Amazon
      * 
      * @param array $message Mensagem SNS decodificada
@@ -136,9 +189,9 @@ class WebhookSignatureValidator extends Component
 
             case 'MAGAZINE_LUIZA':
             case 'magazine-luiza':
-                $receivedToken = $headers['x-auth-token'] ?? $headers['X-Auth-Token'] ?? null;
-                $expectedToken = $config['access_token'] ?? null;
-                return $this->validateMagazineLuiza($receivedToken, $expectedToken);
+            case 'magalu':
+                $secret = $config['client_secret'] ?? $config['access_token'] ?? null;
+                return $this->validateMagalu($headers, $rawBody, $secret);
 
             case 'AMAZON':
             case 'amazon':

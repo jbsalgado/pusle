@@ -13,7 +13,7 @@ import { carregarCarrinho, limparDadosLocaisPosSinc, carregarFormasPagamentoCach
 import { finalizarPedido } from './order.js';
 import { carregarFormasPagamento } from './payment.js';
 import { validarCPF, maskCPF, maskPhone, maskCEP, formatarMoeda, formatarQuantidade, formatarCPF, verificarElementosCriticos } from './utils.js';
-import { mostrarModalPixEstatico, gerarComprovanteVenda } from './pix.js?v=20260902_v4'; // Importação do módulo de comprovante e pix
+import { mostrarModalPixEstatico, gerarComprovanteVenda } from './pix.js?v=20260918_v1'; // Importação do módulo de comprovante e pix
 import { verificarAutenticacao, getColaboradorData } from './auth.js'; // Importação do módulo de autenticação
 import { buscarClientePorCpf, cadastrarCliente, getClienteAtual, setClienteAtual } from './customer.js'; // Importação do módulo de cliente
 import { inicializarGerenciamentoMaquinetas } from './devices.js'; // Importação do gerenciamento de maquinetas
@@ -2972,7 +2972,7 @@ async function verificarComprovantePosReload() {
         await new Promise(resolve => setTimeout(resolve, 500));
         
         // Importa função de comprovante
-        const { gerarComprovanteVenda } = await import('./pix.js?v=20260902_v4');
+        const { gerarComprovanteVenda } = await import('./pix.js?v=20260918_v1');
         
         // Gera e exibe o comprovante
         await gerarComprovanteVenda(dados.carrinho, {

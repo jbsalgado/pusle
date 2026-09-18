@@ -1434,7 +1434,23 @@ async function gerarComprovanteVenda(carrinho, dadosPedido) {
 function gerarTextoComprovante() {
     if (!window.dadosComprovanteAtual) return '';
     
-    const { carrinho, dadosPedido, dadosEmpresa, valorTotal, dataHora, subtotalGeral, totalDescontos, acrescimoValor, acrescimoTipo, acrescimoObs } = window.dadosComprovanteAtual;
+    const dadosAtual = window.dadosComprovanteAtual || {};
+    const carrinho = dadosAtual.carrinho || [];
+    const dadosPedido = dadosAtual.dadosPedido || {};
+    const dadosEmpresa = dadosAtual.dadosEmpresa || {};
+    const valorTotal = parseFloat(dadosAtual.valorTotal || 0);
+    const dataHora = dadosAtual.dataHora || '';
+    const subtotalGeral = parseFloat(dadosAtual.subtotalGeral || 0);
+    const totalDescontos = parseFloat(dadosAtual.totalDescontos || 0);
+    const subtotalItensLiquido = (dadosAtual.subtotalItensLiquido !== undefined && dadosAtual.subtotalItensLiquido !== null)
+        ? parseFloat(dadosAtual.subtotalItensLiquido)
+        : Math.max(0, subtotalGeral - totalDescontos);
+    const descontoGlobalValor = parseFloat(dadosAtual.descontoGlobalValor || 0);
+    const descontoGlobalTipo = dadosAtual.descontoGlobalTipo || '';
+    const descontoGlobalObs = dadosAtual.descontoGlobalObs || '';
+    const acrescimoValor = parseFloat(dadosAtual.acrescimoValor || 0);
+    const acrescimoTipo = dadosAtual.acrescimoTipo || '';
+    const acrescimoObs = dadosAtual.acrescimoObs || '';
     
     // ✅ CORREÇÃO: Extrai dadosVenda de dadosPedido (igual à função gerarComprovanteVenda)
     const dadosVenda = dadosPedido.venda || dadosPedido;
@@ -1532,19 +1548,21 @@ function gerarTextoComprovante() {
     texto += row("TOTAL DE ITENS", `${totalItensTxt}`) + '\n';
     texto += row("TOTAL DE PECAS", `${totalPecasTxt}`) + '\n';
     if (totalDescontos > 0) {
-        texto += row("SUBTOTAL BRUTO", `R$ ${parseFloat(subtotalGeral).toFixed(2).replace('.', ',')}`) + '\n';
-        texto += row("DESCONTOS ITENS", `-${parseFloat(totalDescontos).toFixed(2).replace('.', ',')}`) + '\n';
+        texto += row("SUBTOTAL BRUTO", `R$ ${subtotalGeral.toFixed(2).replace('.', ',')}`) + '\n';
+        texto += row("DESCONTOS ITENS", `-${totalDescontos.toFixed(2).replace('.', ',')}`) + '\n';
     }
-    const subLiq = (subtotalItensLiquido !== undefined) ? subtotalItensLiquido : Math.max(0, subtotalGeral - totalDescontos);
-    texto += row("SUBTOTAL", `R$ ${parseFloat(subLiq).toFixed(2).replace('.', ',')}`) + '\n';
+    const subLiq = subtotalItensLiquido;
+    texto += row("SUBTOTAL", `R$ ${subLiq.toFixed(2).replace('.', ',')}`) + '\n';
     if (descontoGlobalValor > 0) {
-        texto += row("DESCONTO NESSA VENDA", `-${parseFloat(descontoGlobalValor).toFixed(2).replace('.', ',')}`) + '\n';
+        const tipoDesc = (descontoGlobalTipo === 'porcentagem' || descontoGlobalTipo === '%') ? ' (%)' : '';
+        const labelDesc = `DESCONTO VENDA${tipoDesc}`;
+        texto += row(labelDesc.substring(0, 18), `-${descontoGlobalValor.toFixed(2).replace('.', ',')}`) + '\n';
         if (descontoGlobalObs) texto += center(`(${removerAcentos(descontoGlobalObs).substring(0, largura)})`) + '\n';
     }
     if (acrescimoValor > 0) {
         const tipoAcr = acrescimoTipo ? ` (${acrescimoTipo})` : '';
         const labelAcr = `ACRESCIMO / TAXAS${tipoAcr}`;
-        texto += row(labelAcr.substring(0, 18), `+R$ ${parseFloat(acrescimoValor).toFixed(2).replace('.', ',')}`) + '\n';
+        texto += row(labelAcr.substring(0, 18), `+R$ ${acrescimoValor.toFixed(2).replace('.', ',')}`) + '\n';
         if (acrescimoObs) texto += center(`(${acrescimoObs})`) + '\n';
     }
     

@@ -98,6 +98,9 @@ class ProcessarWebhookJob extends BaseObject implements JobInterface
             case MarketplaceConfig::MARKETPLACE_SHOPEE:
                 return new \app\modules\marketplace\components\ShopeeWebhookHandler($marketplace, $handlerConfig);
 
+            case MarketplaceConfig::MARKETPLACE_MAGAZINE_LUIZA:
+                return new \app\modules\marketplace\components\MagaluWebhookHandler($marketplace, $handlerConfig);
+
             case MarketplaceConfig::MARKETPLACE_IFOOD:
                 return new \app\modules\marketplace\components\IFoodWebhookHandler($marketplace, $handlerConfig);
 

@@ -50,6 +50,24 @@ use app\modules\vendas\models\Venda;
  */
 class MarketplacePedido extends ActiveRecord
 {
+    public const SCENARIO_MANUAL = 'manual';
+
+    /**
+     * Flag indicando se a alteração de rastreio está sendo feita manualmente
+     * @var bool
+     */
+    public bool $isManualTrackingUpdate = false;
+
+    /**
+     * {@inheritdoc}
+     */
+    public function scenarios()
+    {
+        $scenarios = parent::scenarios();
+        $scenarios[self::SCENARIO_MANUAL] = $scenarios[self::SCENARIO_DEFAULT] ?? array_keys($this->attributes);
+        return $scenarios;
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -95,6 +113,7 @@ class MarketplacePedido extends ActiveRecord
             [['valor_frete', 'valor_desconto'], 'default', 'value' => 0],
             [['status', 'status_pagamento', 'status_envio'], 'string', 'max' => 50],
             [['codigo_rastreio'], 'string', 'max' => 100],
+            [['codigo_rastreio'], 'validateCodigoRastreioManual'],
             [['importado'], 'boolean'],
             [['importado'], 'default', 'value' => false],
             [['data_pedido', 'data_envio', 'data_entrega_prevista'], 'safe'],
@@ -102,6 +121,82 @@ class MarketplacePedido extends ActiveRecord
             [['usuario_id'], 'exist', 'skipOnError' => true, 'targetClass' => Usuario::class, 'targetAttribute' => ['usuario_id' => 'id']],
             [['venda_id'], 'exist', 'skipOnError' => true, 'targetClass' => Venda::class, 'targetAttribute' => ['venda_id' => 'id']],
         ];
+    }
+
+    /**
+     * Valida se a inserção ou alteração manual de rastreio é permitida.
+     * No caso de Magalu Entregas, a etiqueta/PLP deve ser gerada pelo marketplace, bloqueando inserção manual arbitrária.
+     */
+    public function validateCodigoRastreioManual($attribute, $params)
+    {
+        if (($this->scenario === self::SCENARIO_MANUAL || $this->isManualTrackingUpdate) && !$this->permiteRastreioManual() && !empty($this->$attribute)) {
+            $this->addError($attribute, 'Pedidos com modalidade Magalu Entregas utilizam PLP oficial. O rastreio é gerado automaticamente pelo marketplace e não permite inserção manual.');
+        }
+    }
+
+    /**
+     * Retorna o nome formatado do marketplace
+     * 
+     * @return string
+     */
+    public function getMarketplaceNome(): string
+    {
+        $nomes = [
+            MarketplaceConfig::MARKETPLACE_MERCADO_LIVRE => 'Mercado Livre',
+            MarketplaceConfig::MARKETPLACE_SHOPEE => 'Shopee',
+            MarketplaceConfig::MARKETPLACE_MAGAZINE_LUIZA => 'Magazine Luiza',
+            MarketplaceConfig::MARKETPLACE_AMAZON => 'Amazon',
+            'SHEIN' => 'Shein',
+            MarketplaceConfig::MARKETPLACE_TEMU => 'Temu',
+            MarketplaceConfig::MARKETPLACE_IFOOD => 'iFood',
+        ];
+
+        return $nomes[$this->marketplace] ?? $this->marketplace;
+    }
+
+    /**
+     * Verifica se o pedido utiliza a modalidade Magalu Entregas (PLP / Etiqueta gerada pelo marketplace)
+     * 
+     * @return bool
+     */
+    public function isMagaluEntregas(): bool
+    {
+        if ($this->marketplace !== MarketplaceConfig::MARKETPLACE_MAGAZINE_LUIZA) {
+            return false;
+        }
+
+        if (stripos((string)$this->transportadora, 'Magalu') !== false) {
+            return true;
+        }
+
+        $dados = is_array($this->dados_completos) 
+            ? $this->dados_completos 
+            : (json_decode((string)$this->dados_completos, true) ?: []);
+
+        $deliveryType = strtoupper(
+            $dados['delivery_type'] 
+            ?? $dados['shipping_type'] 
+            ?? $dados['logistic_type'] 
+            ?? $dados['carrier'] 
+            ?? $dados['shipping']['carrier'] 
+            ?? ''
+        );
+
+        return in_array($deliveryType, ['MAGALU', 'MAGALU_ENTREGAS', 'FULFILLMENT', 'MAGALU_FULFILLMENT', 'PLP'], true);
+    }
+
+    /**
+     * Verifica se o pedido permite edição ou inserção manual de rastreio/transportadora.
+     * Na modalidade Magalu Entregas, o rastreio é gerado exclusivamente via PLP/etiqueta oficial.
+     * 
+     * @return bool
+     */
+    public function permiteRastreioManual(): bool
+    {
+        if ($this->isMagaluEntregas()) {
+            return false;
+        }
+        return true;
     }
 
     /**

@@ -40,70 +40,99 @@ class EstoqueService extends Component
         }
 
         $db = Yii::$app->db;
+        $transaction = $db->getTransaction();
+        $openedLocalTransaction = false;
 
-        // 1. Obter informações de permissão de estoque negativo
-        $produto = Produto::findOne($produtoId);
-        if (!$produto) {
-            throw new \Exception("Produto ID '{$produtoId}' não encontrado para baixa de estoque.");
+        if ($transaction === null || !$transaction->getIsActive()) {
+            $transaction = $db->beginTransaction();
+            $openedLocalTransaction = true;
         }
 
-        $permiteNegativo = $ignorarLimite || (bool)$produto->permite_estoque_negativo;
-
-        // 2. Executar UPDATE atômico com validação no WHERE
-        if ($permiteNegativo) {
-            $sql = "
-                UPDATE prest_produtos
-                SET estoque_atual = estoque_atual - :qtd,
-                    data_atualizacao = NOW()
+        try {
+            // 1. Obter informações com bloqueio pessimista (SELECT ... FOR UPDATE)
+            // Bloqueia a linha no PostgreSQL até o commit/rollback da transação,
+            // garantindo serialização estrita e prevenindo race conditions entre PDV físico e webhooks de marketplaces.
+            $produtoRow = $db->createCommand("
+                SELECT id, nome, estoque_atual, permite_estoque_negativo, eh_kit, usuario_id
+                FROM prest_produtos
                 WHERE id = :id
-                RETURNING estoque_atual;
-            ";
-        } else {
-            $sql = "
-                UPDATE prest_produtos
-                SET estoque_atual = estoque_atual - :qtd,
-                    data_atualizacao = NOW()
-                WHERE id = :id AND estoque_atual >= :qtd
-                RETURNING estoque_atual;
-            ";
-        }
+                FOR UPDATE
+            ", [':id' => $produtoId])->queryOne();
 
-        $novoEstoque = $db->createCommand($sql, [
-            ':qtd' => $quantidade,
-            ':id' => $produtoId,
-        ])->queryScalar();
-
-        // 3. Se nenhum registro foi alterado (afetados = 0 / scalar false), houve tentativa de overselling
-        if ($novoEstoque === false || $novoEstoque === null) {
-            $saldoAtual = (float)($produto->estoque_atual ?? 0);
-            throw new EstoqueInsuficienteException(
-                "Estoque insuficiente para '{$produto->nome}'. Saldo atual: {$saldoAtual}, solicitado: {$quantidade}."
-            );
-        }
-
-        $novoEstoque = (float)$novoEstoque;
-
-        Yii::info(sprintf(
-            "[EstoqueService] Baixa realizada no produto %s (%s). Qtd: -%s, Saldo novo: %s. Motivo: %s",
-            $produto->id,
-            $produto->nome,
-            $quantidade,
-            $novoEstoque,
-            $motivo ?? 'Não informado'
-        ), 'estoque');
-
-        // 4. Se o produto pertencer a um kit ou tiver variações, processa em cascata
-        if ($produto->eh_kit && !empty($produto->kitItens)) {
-            foreach ($produto->kitItens as $kitItem) {
-                $qtdComponente = $kitItem->quantidade * $quantidade;
-                self::baixarEstoque($kitItem->produto_componente_id, $qtdComponente, "Componente do Kit: {$produto->nome}", $permiteNegativo);
+            if (!$produtoRow) {
+                throw new \Exception("Produto ID '{$produtoId}' não encontrado para baixa de estoque.");
             }
+
+            $permiteNegativo = $ignorarLimite || (bool)$produtoRow['permite_estoque_negativo'];
+
+            // 2. Executar UPDATE atômico com validação no WHERE
+            if ($permiteNegativo) {
+                $sql = "
+                    UPDATE prest_produtos
+                    SET estoque_atual = estoque_atual - :qtd,
+                        data_atualizacao = NOW()
+                    WHERE id = :id
+                    RETURNING estoque_atual;
+                ";
+            } else {
+                $sql = "
+                    UPDATE prest_produtos
+                    SET estoque_atual = estoque_atual - :qtd,
+                        data_atualizacao = NOW()
+                    WHERE id = :id AND estoque_atual >= :qtd
+                    RETURNING estoque_atual;
+                ";
+            }
+
+            $novoEstoque = $db->createCommand($sql, [
+                ':qtd' => $quantidade,
+                ':id' => $produtoId,
+            ])->queryScalar();
+
+            // 3. Se nenhum registro foi alterado (afetados = 0 / scalar false), houve tentativa de overselling
+            if ($novoEstoque === false || $novoEstoque === null) {
+                $saldoAtual = (float)($produtoRow['estoque_atual'] ?? 0);
+                throw new EstoqueInsuficienteException(
+                    "Estoque insuficiente para '{$produtoRow['nome']}'. Saldo atual: {$saldoAtual}, solicitado: {$quantidade}."
+                );
+            }
+
+            $novoEstoque = (float)$novoEstoque;
+
+            Yii::info(sprintf(
+                "[EstoqueService] Baixa realizada no produto %s (%s). Qtd: -%s, Saldo novo: %s. Motivo: %s",
+                $produtoRow['id'],
+                $produtoRow['nome'],
+                $quantidade,
+                $novoEstoque,
+                $motivo ?? 'Não informado'
+            ), 'estoque');
+
+            // 4. Se o produto pertencer a um kit, processa em cascata
+            if (!empty($produtoRow['eh_kit'])) {
+                $produto = Produto::findOne($produtoId);
+                if ($produto && !empty($produto->kitItens)) {
+                    foreach ($produto->kitItens as $kitItem) {
+                        $qtdComponente = $kitItem->quantidade * $quantidade;
+                        self::baixarEstoque($kitItem->produto_componente_id, $qtdComponente, "Componente do Kit: {$produtoRow['nome']}", $permiteNegativo);
+                    }
+                }
+            }
+
+            if ($openedLocalTransaction) {
+                $transaction->commit();
+            }
+
+            // 5. Dispara evento assíncrono para atualizar marketplaces
+            self::enfileirarSincronizacaoMarketplaces($produtoRow['usuario_id'], $produtoRow['id'], $novoEstoque);
+
+            return $novoEstoque;
+        } catch (\Throwable $e) {
+            if ($openedLocalTransaction && $transaction && $transaction->getIsActive()) {
+                $transaction->rollBack();
+            }
+            throw $e;
         }
-
-        // 5. Dispara evento assíncrono para atualizar marketplaces
-        self::enfileirarSincronizacaoMarketplaces($produto->usuario_id, $produto->id, $novoEstoque);
-
-        return $novoEstoque;
     }
 
     /**
