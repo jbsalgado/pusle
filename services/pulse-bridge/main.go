@@ -37,6 +37,62 @@ type PingResponse struct {
 	Message    string `json:"message"`
 }
 
+func isFlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
+}
+
+func carregarConfigArquivo() (string, string) {
+	dirs := []string{"."}
+	if exePath, err := os.Executable(); err == nil {
+		dirs = append([]string{filepath.Dir(exePath)}, dirs...)
+	}
+
+	for _, dir := range dirs {
+		confPath := filepath.Join(dir, "pulse-bridge.conf")
+		if data, err := os.ReadFile(confPath); err == nil {
+			var sURL, sSec string
+			lines := strings.Split(string(data), "\n")
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") || line == "" {
+					continue
+				}
+				parts := strings.SplitN(line, "=", 2)
+				if len(parts) == 2 {
+					key := strings.ToLower(strings.TrimSpace(parts[0]))
+					val := strings.TrimSpace(parts[1])
+					val = strings.Trim(val, `"'`)
+					if key == "server" || key == "server_url" || key == "url" {
+						sURL = val
+					} else if key == "secret" || key == "token" {
+						sSec = val
+					}
+				}
+			}
+			if sURL != "" {
+				fmt.Printf("[Config] Configuração lida com sucesso de: %s\n", confPath)
+				return sURL, sSec
+			}
+		}
+
+		serverTxtPath := filepath.Join(dir, "server.txt")
+		if data, err := os.ReadFile(serverTxtPath); err == nil {
+			val := strings.TrimSpace(string(data))
+			if val != "" && (strings.HasPrefix(val, "http://") || strings.HasPrefix(val, "https://")) {
+				fmt.Printf("[Config] URL do servidor lida de: %s (%s)\n", serverTxtPath, val)
+				return val, ""
+			}
+		}
+	}
+	return "", ""
+}
+
 func main() {
 	serverFlag := flag.String("server", getEnv("PULSE_SERVER", "https://catalogos.oncode.app.br"), "URL do servidor Pulse SaaS")
 	secretFlag := flag.String("secret", getEnv("PULSE_BRIDGE_SECRET", "pulse_bridge_sec_7a8f9c2d1e0b5"), "Secret token de autenticacao da Bridge")
@@ -49,8 +105,17 @@ func main() {
 	ytdlpPath := *ytdlpFlag
 	tempDir := *tempDirFlag
 
+	// Sobrescreve com arquivo de configuração se a flag não foi fornecida explicitamente
+	fileServer, fileSecret := carregarConfigArquivo()
+	if !isFlagPassed("server") && fileServer != "" {
+		serverURL = strings.TrimRight(fileServer, "/")
+	}
+	if !isFlagPassed("secret") && fileSecret != "" {
+		secret = fileSecret
+	}
+
 	fmt.Println("==========================================================")
-	fmt.Println("   PULSE AUDIO BRIDGE - Go Residential Worker v1.0")
+	fmt.Println("   PULSE AUDIO BRIDGE - Go Residential Worker v1.1")
 	fmt.Println("==========================================================")
 	fmt.Printf("[Config] Servidor VPS: %s\n", serverURL)
 	fmt.Printf("[Config] Diretorio Temporario: %s\n", tempDir)

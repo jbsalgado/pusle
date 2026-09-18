@@ -2000,46 +2000,132 @@ function atualizarBarraCota(stats) {
 let locucaoAtivaGlobal = null; // { texto, voz, audioUrl, audioPath, modoAudio, duracao }
 let locucaoTempGerada = null;
 
+let bridgePollInterval = null;
+
+function toggleBridgeHelp() {
+    const box = document.getElementById('bridge-help-box');
+    if (box) {
+        const isHidden = (box.style.display === 'none' || box.style.display === '');
+        box.style.display = isHidden ? 'block' : 'none';
+        box.dataset.manualOpen = isHidden ? '1' : '0';
+    }
+}
+
+function checarStatusBridgeStudio() {
+    const dot = document.getElementById('bridge-status-dot');
+    const txt = document.getElementById('bridge-status-text');
+    const container = document.getElementById('bridge-status-container');
+    const btnHelp = document.getElementById('btn-toggle-bridge-help');
+    const helpBox = document.getElementById('bridge-help-box');
+    if (!dot || !txt) return;
+
+    fetch('<?= Url::to(['/api/bridge/status']) ?>')
+        .then(r => r.json())
+        .then(data => {
+            if (data.online) {
+                dot.style.background = '#10b981';
+                dot.style.boxShadow = '0 0 10px #10b981';
+                txt.style.color = '#34d399';
+                txt.innerHTML = '<strong>🟢 Motor Residencial Conectado</strong> (Downloads do YouTube 100% liberados)';
+                if (container) {
+                    container.style.borderColor = '#059669';
+                    container.style.background = '#062e24';
+                }
+                if (btnHelp) {
+                    btnHelp.style.display = 'inline-block';
+                    btnHelp.innerText = '⚙️ Configuração';
+                }
+                if (helpBox && helpBox.dataset.manualOpen !== '1') {
+                    helpBox.style.display = 'none';
+                }
+            } else {
+                dot.style.background = '#f59e0b';
+                dot.style.boxShadow = 'none';
+                txt.style.color = '#fbbf24';
+                txt.innerHTML = '<strong>⚠️ Pulse Bridge Desconectado</strong> (Downloads diretos podem ser bloqueados pelo YouTube)';
+                if (container) {
+                    container.style.borderColor = '#d97706';
+                    container.style.background = '#1e140a';
+                }
+                if (btnHelp) {
+                    btnHelp.style.display = 'inline-block';
+                    btnHelp.innerText = '⚡ Conectar Agora';
+                }
+                if (helpBox && helpBox.dataset.manualOpen !== '0') {
+                    helpBox.style.display = 'block';
+                }
+            }
+        })
+        .catch(() => {
+            dot.style.background = '#f59e0b';
+            txt.innerText = '☁️ Motor Nuvem VPS';
+        });
+}
+
 function abrirModalStudioYoutube() {
     document.getElementById('modalStudioYoutube').style.display = 'flex';
     const input = document.getElementById('txt-youtube-url');
     if (input) setTimeout(() => input.focus(), 150);
 
-    // Consulta status da Bridge Go residencial
-    const dot = document.getElementById('bridge-status-dot');
-    const txt = document.getElementById('bridge-status-text');
-    if (dot && txt) {
-        dot.style.background = '#94a3b8';
-        dot.style.boxShadow = 'none';
-        txt.style.color = '#cbd5e1';
-        txt.innerText = 'Verificando motor...';
-
-        fetch('<?= Url::to(['/api/bridge/status']) ?>')
-            .then(r => r.json())
-            .then(data => {
-                if (data.online) {
-                    dot.style.background = '#10b981';
-                    dot.style.boxShadow = '0 0 8px #10b981';
-                    txt.style.color = '#34d399';
-                    txt.innerText = '🟢 Motor Residencial Ativo (Pulse Bridge Go)';
-                } else {
-                    dot.style.background = '#f59e0b';
-                    dot.style.boxShadow = 'none';
-                    txt.style.color = '#fbbf24';
-                    txt.innerText = '☁️ Motor Nuvem VPS (Bridge offline)';
-                }
-            })
-            .catch(() => {
-                dot.style.background = '#f59e0b';
-                txt.innerText = '☁️ Motor Nuvem VPS';
-            });
-    }
+    checarStatusBridgeStudio();
+    if (bridgePollInterval) clearInterval(bridgePollInterval);
+    bridgePollInterval = setInterval(checarStatusBridgeStudio, 3000);
 }
 
 function fecharModalStudioYoutube() {
     document.getElementById('modalStudioYoutube').style.display = 'none';
     const msg = document.getElementById('youtube-studio-msg');
     if (msg) msg.style.display = 'none';
+    if (bridgePollInterval) {
+        clearInterval(bridgePollInterval);
+        bridgePollInterval = null;
+    }
+}
+
+function baixarArquivoBridge(nome, conteudo) {
+    const blob = new Blob([conteudo], { type: 'text/plain;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = nome;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+}
+
+function baixarConfigBridge() {
+    const serverUrl = window.location.origin;
+    const content = `# Configuracao automatica do Pulse Bridge\nserver=${serverUrl}\nsecret=pulse_bridge_sec_7a8f9c2d1e0b5\n`;
+    baixarArquivoBridge('pulse-bridge.conf', content);
+}
+
+function baixarBatBridge() {
+    const serverUrl = window.location.origin;
+    const content = `@echo off\r\ntitle Pulse Audio Bridge - ${serverUrl}\r\necho ==========================================================\r\necho Conectando Pulse Bridge em: ${serverUrl}\r\necho ==========================================================\r\npulse-bridge-windows.exe -server=${serverUrl}\r\npause\r\n`;
+    baixarArquivoBridge('iniciar-bridge.bat', content);
+}
+
+function baixarShBridge() {
+    const serverUrl = window.location.origin;
+    const content = `#!/bin/bash\necho "=========================================================="\necho "Conectando Pulse Bridge em: ${serverUrl}"\necho "=========================================================="\nchmod +x pulse-bridge-linux 2>/dev/null || chmod +x pulse-bridge 2>/dev/null\n./pulse-bridge-linux -server=${serverUrl} || ./pulse-bridge -server=${serverUrl}\n`;
+    baixarArquivoBridge('iniciar-bridge.sh', content);
+}
+
+function copiarComandoBridge(tipo) {
+    const serverUrl = window.location.origin;
+    let cmd = '';
+    if (tipo === 'win') {
+        cmd = `pulse-bridge-windows.exe -server=${serverUrl}`;
+    } else {
+        cmd = `./pulse-bridge-linux -server=${serverUrl}`;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(cmd).then(() => {
+            alert('Comando copiado para a área de transferência:\n\n' + cmd);
+        });
+    } else {
+        prompt('Copie o comando abaixo:', cmd);
+    }
 }
 
 function importarYoutubeStudio() {
@@ -2951,18 +3037,58 @@ function monitorarProgressoVideoDisparo(disparoId) {
 
         <div style="padding:20px;">
             <!-- Badge de Status do Motor de Download (Bridge vs VPS) -->
-            <div id="bridge-status-container" style="margin-bottom:14px; padding:10px 14px; border-radius:10px; background:#0f172a; border:1px solid #334155; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span id="bridge-status-dot" style="width:9px; height:9px; border-radius:50%; background:#94a3b8; display:inline-block;"></span>
-                    <span id="bridge-status-text" style="font-size:0.82rem; font-weight:600; color:#cbd5e1;">Verificando motor...</span>
+            <div id="bridge-status-container" style="margin-bottom:14px; padding:10px 14px; border-radius:10px; background:#0f172a; border:1px solid #334155; transition: all 0.3s ease;">
+                <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span id="bridge-status-dot" style="width:10px; height:10px; border-radius:50%; background:#94a3b8; display:inline-block; transition: all 0.3s;"></span>
+                        <span id="bridge-status-text" style="font-size:0.82rem; font-weight:600; color:#cbd5e1;">Verificando motor de download...</span>
+                    </div>
+                    <button type="button" id="btn-toggle-bridge-help" onclick="toggleBridgeHelp()" class="btn btn-xs btn-outline-info" style="font-size:0.72rem; padding:2px 8px; border-radius:6px; color:#38bdf8; border-color:#0284c7; display:none;">
+                        ⚙️ Como Conectar
+                    </button>
                 </div>
-                <div style="display:flex; gap:6px;">
-                    <a href="/downloads/bridge/pulse-bridge-windows.exe" download class="btn btn-xs btn-outline-secondary" style="font-size:0.72rem; padding:2px 8px; border-radius:6px; color:#94a3b8; border-color:#475569;" title="Baixar executável do Pulse Bridge para Windows">
-                        🪟 Windows (.exe)
-                    </a>
-                    <a href="/downloads/bridge/pulse-bridge-linux" download class="btn btn-xs btn-outline-secondary" style="font-size:0.72rem; padding:2px 8px; border-radius:6px; color:#94a3b8; border-color:#475569;" title="Baixar binário do Pulse Bridge para Linux">
-                        🐧 Linux
-                    </a>
+
+                <!-- Painel expansível de Conexão da Bridge para esta loja -->
+                <div id="bridge-help-box" style="display:none; margin-top:12px; padding-top:12px; border-top:1px dashed #334155;">
+                    <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:8px;">
+                        O YouTube bloqueia downloads de datacenters. O <strong>Pulse Bridge</strong> roda no seu computador e faz o download pelo seu IP residencial conectado a este catálogo (<strong><?= Yii::$app->request->hostInfo ?></strong>).
+                    </div>
+                    
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <div style="font-size:0.75rem; font-weight:600; color:#cbd5e1;">1. Baixe o executável:</div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <a href="/downloads/bridge/pulse-bridge-windows.exe" download class="btn btn-xs btn-outline-secondary" style="font-size:0.72rem; padding:3px 10px; border-radius:6px; color:#cbd5e1; border-color:#475569; background:#1e293b;" title="Baixar executável do Pulse Bridge para Windows">
+                                🪟 Bridge Windows (.exe)
+                            </a>
+                            <a href="/downloads/bridge/pulse-bridge-linux" download class="btn btn-xs btn-outline-secondary" style="font-size:0.72rem; padding:3px 10px; border-radius:6px; color:#cbd5e1; border-color:#475569; background:#1e293b;" title="Baixar binário do Pulse Bridge para Linux">
+                                🐧 Bridge Linux
+                            </a>
+                        </div>
+
+                        <div style="font-size:0.75rem; font-weight:600; color:#cbd5e1; margin-top:4px;">2. Conectar nesta loja em 1 clique (salve na mesma pasta do executável):</div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <button type="button" onclick="baixarBatBridge()" class="btn btn-xs btn-primary" style="font-size:0.72rem; padding:3px 10px; border-radius:6px; background:#2563eb; border:none;" title="Baixar inicializador automático para Windows">
+                                ⚡ Baixar iniciar-bridge.bat
+                            </button>
+                            <button type="button" onclick="baixarShBridge()" class="btn btn-xs btn-primary" style="font-size:0.72rem; padding:3px 10px; border-radius:6px; background:#2563eb; border:none;" title="Baixar inicializador automático para Linux">
+                                ⚡ Baixar iniciar-bridge.sh
+                            </button>
+                            <button type="button" onclick="baixarConfigBridge()" class="btn btn-xs btn-secondary" style="font-size:0.72rem; padding:3px 10px; border-radius:6px; background:#475569; border:none;" title="Baixar arquivo de configuração pulse-bridge.conf">
+                                📄 Baixar pulse-bridge.conf
+                            </button>
+                        </div>
+
+                        <div style="font-size:0.75rem; font-weight:600; color:#cbd5e1; margin-top:4px;">Ou execute direto no seu terminal:</div>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <code id="cmd-bridge-code" style="background:#020617; border:1px solid #1e293b; padding:4px 8px; border-radius:6px; font-size:0.72rem; color:#38bdf8; flex:1; overflow-x:auto; white-space:nowrap;">./pulse-bridge-linux -server=<?= Yii::$app->request->hostInfo ?></code>
+                            <button type="button" onclick="copiarComandoBridge('linux')" class="btn btn-xs btn-outline-light" style="font-size:0.7rem; padding:3px 8px; border-radius:6px;" title="Copiar comando Linux">
+                                📋 Linux
+                            </button>
+                            <button type="button" onclick="copiarComandoBridge('win')" class="btn btn-xs btn-outline-light" style="font-size:0.7rem; padding:3px 8px; border-radius:6px;" title="Copiar comando Windows">
+                                📋 Win
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
