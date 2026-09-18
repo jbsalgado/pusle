@@ -55,6 +55,7 @@ class LojaController extends Controller
                     'toggle-modulo' => ['POST'],
                     'toggle-admin'  => ['POST'],
                     'atualizar-pix-estatico' => ['POST'],
+                    'atualizar-taxa-split' => ['POST'],
                 ],
             ],
         ];
@@ -310,6 +311,54 @@ class LojaController extends Controller
         }
 
         return ['success' => false, 'message' => 'Erro ao atualizar configuração de PIX Estático.'];
+    }
+
+    /**
+     * Atualiza a taxa de comissão / split do Mercado Pago para a loja.
+     */
+    public function actionAtualizarTaxaSplit()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        $request = Yii::$app->request;
+        $usuarioId = $request->post('usuario_id');
+        $taxa = $request->post('taxa'); // pode ser null, 'padrao', '0' (isento), ou float (ex: 0.5, 1.0, 1.5)
+
+        if (!$usuarioId) {
+            return ['success' => false, 'message' => 'Lojista não informado.'];
+        }
+
+        $loja = $this->findLoja($usuarioId);
+
+        if ($taxa === null || $taxa === '' || $taxa === 'padrao') {
+            $loja->taxa_comissao = null;
+        } else {
+            $numTaxa = (float)str_replace(',', '.', (string)$taxa);
+            if ($numTaxa < 0 || $numTaxa > 100) {
+                return ['success' => false, 'message' => 'A taxa deve estar entre 0% e 100%.'];
+            }
+            $loja->taxa_comissao = round($numTaxa, 2);
+        }
+
+        $loja->data_atualizacao = date('Y-m-d H:i:s');
+
+        if ($loja->save(false, ['taxa_comissao', 'data_atualizacao'])) {
+            $pctEfetivo = $loja->getTaxaComissaoEfetivaPercentual();
+            $fmt = $loja->getTaxaComissaoFormatada();
+            $isPadrao = ($loja->taxa_comissao === null);
+
+            return [
+                'success' => true,
+                'message' => $isPadrao 
+                    ? "Taxa de split restaurada para o padrão da plataforma ({$fmt})." 
+                    : "Taxa de split atualizada para {$fmt} para a loja \"{$loja->nome}\".",
+                'taxa_efetiva_pct' => $pctEfetivo,
+                'taxa_formatada' => $fmt,
+                'eh_padrao' => $isPadrao,
+            ];
+        }
+
+        return ['success' => false, 'message' => 'Erro ao salvar a taxa de split.'];
     }
 
     // ─────────────────────────────────────────────────────────────────────────

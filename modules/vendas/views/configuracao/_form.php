@@ -65,9 +65,10 @@ use yii\helpers\Url;
             <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            Pagamentos Mercado Pago (Split 0,5%)
+            <?php $taxaComissaoFormatada = $usuarioAtual ? $usuarioAtual->getTaxaComissaoFormatada() : '0,5%'; ?>
+            Pagamentos Mercado Pago (Split <?= Html::encode($taxaComissaoFormatada) ?>)
         </h2>
-        <p class="text-sm text-gray-600 mb-4">Conecte sua conta Mercado Pago para ativar PIX com split automático (nossa taxa 0,5% já calculada na application_fee).</p>
+        <p class="text-sm text-gray-600 mb-4">Conecte sua conta Mercado Pago para ativar PIX, Cartão e Catálogo com split automático (nossa taxa de <strong><?= Html::encode($taxaComissaoFormatada) ?></strong> já calculada diretamente na application_fee do gateway).</p>
 
         <div class="flex flex-col sm:flex-row sm:items-center gap-3">
             <button
@@ -85,6 +86,9 @@ use yii\helpers\Url;
             <?php $mpConectado = $usuarioAtual && ($usuarioAtual->mp_access_token || $usuarioAtual->mercadopago_access_token); ?>
             <span class="inline-flex items-center px-3 py-1 rounded-full text-sm <?= $mpConectado ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' ?>">
                 <?= $mpConectado ? 'Conta conectada' : 'Conta não conectada' ?>
+            </span>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 border border-sky-200">
+                Taxa de Repasse: <?= Html::encode($taxaComissaoFormatada) ?>
             </span>
         </div>
         <p class="text-xs text-gray-500 mt-2">Usamos os dados da loja logada para associar o token OAuth ao tenant correto.</p>

@@ -86,6 +86,8 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
             [['catalogo_path'], 'default', 'value' => null, 'when' => function ($model) {
                 return !(bool)$model->eh_dono_loja;
             }],
+            [['taxa_comissao'], 'number', 'min' => 0, 'max' => 100],
+            [['taxa_comissao'], 'default', 'value' => null],
             // Campos de endereço
             [['endereco'], 'string', 'max' => 255],
             [['bairro', 'cidade'], 'string', 'max' => 100],
@@ -140,6 +142,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
             'mp_user_id' => 'MP OAuth - User ID',
             'mp_token_expiration' => 'MP OAuth - Expiração do Token',
             'mercadopago_sandbox' => 'Mercado Pago - Modo Sandbox',
+            'taxa_comissao' => 'Taxa de Comissão / Split (%)',
             'asaas_api_key' => 'Asaas - API Key',
             'asaas_sandbox' => 'Asaas - Modo Sandbox',
             'pix_estatico_liberado_admin' => 'PIX Estático Liberado pelo Admin',
@@ -148,6 +151,42 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
             'gateway_pagamento' => 'Gateway de Pagamento',
             'catalogo_path' => 'Caminho do Catálogo',
         ];
+    }
+
+    /**
+     * Retorna a taxa de comissão efetiva em porcentagem (ex: 0.5 para 0.5%, 1.5 para 1.5%).
+     * Se a loja tiver taxa customizada, usa ela; caso contrário, busca a taxa padrão da plataforma.
+     */
+    public function getTaxaComissaoEfetivaPercentual(): float
+    {
+        if ($this->taxa_comissao !== null && $this->taxa_comissao !== '') {
+            $taxa = (float)$this->taxa_comissao;
+            // Se foi salvo em fração decimal menor que 0.1 (ex: 0.005), normaliza para percentual (0.5)
+            return ($taxa > 0 && $taxa < 0.1) ? round($taxa * 100, 2) : round($taxa, 2);
+        }
+
+        $defaultDecimal = Yii::$app->params['pulse_platform_fee_percent'] ?? 0.005;
+        return round((float)$defaultDecimal * 100, 2);
+    }
+
+    /**
+     * Retorna a taxa de comissão em fração decimal pronta para multiplicação direta (ex: 0.005 para 0.5%).
+     */
+    public function getTaxaComissaoEfetivaDecimal(): float
+    {
+        return round($this->getTaxaComissaoEfetivaPercentual() / 100, 4);
+    }
+
+    /**
+     * Retorna a taxa de comissão formatada para exibição em telas (ex: "0,5%", "1,5%", "Isento (0%)").
+     */
+    public function getTaxaComissaoFormatada(): string
+    {
+        $pct = $this->getTaxaComissaoEfetivaPercentual();
+        if ($pct <= 0) {
+            return 'Isento (0%)';
+        }
+        return number_format($pct, ($pct == (int)$pct ? 0 : 1), ',', '.') . '%';
     }
 
     // ===================================================================

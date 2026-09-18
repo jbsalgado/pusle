@@ -456,6 +456,83 @@ foreach ($modulosDisponiveis as $chave => $m) {
                 </div>
             </div>
 
+            <!-- CARD EXCLUSIVO: GESTÃO DA TAXA DE SPLIT (MERCADO PAGO) -->
+            <?php 
+                $taxaSplitAtual = $loja->taxa_comissao;
+                $taxaSplitEfetivaPct = $loja->getTaxaComissaoEfetivaPercentual();
+                $taxaSplitFormatada = $loja->getTaxaComissaoFormatada();
+                $ehTaxaPadrao = ($taxaSplitAtual === null);
+            ?>
+            <div class="pix-control-card" style="margin-top: 16px; border-color: rgba(99,102,241,0.35); background: linear-gradient(135deg, rgba(30,27,75,0.7) 0%, rgba(17,24,39,0.9) 100%);">
+                <div class="pix-header">
+                    <div class="pix-title">
+                        <span style="font-size: 20px;">💸</span>
+                        <span>Taxa de Split da Plataforma (Mercado Pago)</span>
+                        <span style="font-size: 11px; font-weight: 700; background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3); padding: 3px 10px; border-radius: 50px;">
+                            Application Fee &amp; Marketplace Fee
+                        </span>
+                    </div>
+                    <div>
+                        <span id="badge-status-split" style="font-size: 11px; font-weight: 800; padding: 5px 12px; border-radius: 50px; <?= $ehTaxaPadrao ? 'background: rgba(6,182,212,0.15); color: #22d3ee; border: 1px solid rgba(6,182,212,0.3);' : ($taxaSplitEfetivaPct <= 0 ? 'background: rgba(255,209,102,0.15); color: var(--yellow); border: 1px solid rgba(255,209,102,0.3);' : 'background: rgba(99,102,241,0.2); color: #818cf8; border: 1px solid rgba(99,102,241,0.4);') ?>">
+                            <?= $ehTaxaPadrao ? "PADRÃO: {$taxaSplitFormatada}" : ($taxaSplitEfetivaPct <= 0 ? 'ISENTO (0%)' : "CUSTOMIZADO: {$taxaSplitFormatada}") ?>
+                        </span>
+                    </div>
+                </div>
+
+                <p class="pix-desc">
+                    Define a porcentagem retida automaticamente pela plataforma Pulse em cada venda aprovada via <strong>Mercado Pago</strong> (PIX Transparente, Catálogo PWA, Cartão Online e Point). O valor é liquidado no momento da aprovação e registrado no Caixa e no extrato financeiro da loja.
+                </p>
+
+                <div class="pix-grid">
+                    <!-- Coluna 1: Seleção de Taxa e Presets -->
+                    <div style="background: rgba(0,0,0,0.25); padding: 18px; border-radius: 12px; border: 1px solid var(--border);">
+                        <div style="margin-bottom: 12px;">
+                            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">
+                                Presets de Taxa da Plataforma:
+                            </label>
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                <button type="button" class="pix-preset-btn <?= ($ehTaxaPadrao || (float)$taxaSplitAtual === 0.5) ? 'active' : '' ?>" id="btn-split-05" onclick="selecionarTaxaSplitPreset(0.5, true)">0,5% (Padrão)</button>
+                                <button type="button" class="pix-preset-btn <?= (!$ehTaxaPadrao && (float)$taxaSplitAtual === 1.0) ? 'active' : '' ?>" id="btn-split-10" onclick="selecionarTaxaSplitPreset(1.0, false)">1,0%</button>
+                                <button type="button" class="pix-preset-btn <?= (!$ehTaxaPadrao && (float)$taxaSplitAtual === 1.5) ? 'active' : '' ?>" id="btn-split-15" onclick="selecionarTaxaSplitPreset(1.5, false)">1,5%</button>
+                                <button type="button" class="pix-preset-btn <?= (!$ehTaxaPadrao && (float)$taxaSplitAtual === 2.0) ? 'active' : '' ?>" id="btn-split-20" onclick="selecionarTaxaSplitPreset(2.0, false)">2,0%</button>
+                                <button type="button" class="pix-preset-btn <?= (!$ehTaxaPadrao && (float)$taxaSplitAtual === 0.0) ? 'active' : '' ?>" id="btn-split-00" onclick="selecionarTaxaSplitPreset(0.0, false)">0% (Isento)</button>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 10px; margin-top: 14px;">
+                            <span style="font-size: 12px; color: var(--text-muted);">Ou taxa customizada (%):</span>
+                            <input type="number" id="input-taxa-split-custom" step="0.01" min="0" max="100" value="<?= !$ehTaxaPadrao ? $taxaSplitEfetivaPct : '' ?>" placeholder="Ex: 0.75" oninput="atualizarSimulacaoSplitCustom()" style="width: 110px; padding: 6px 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; color: #fff; font-size: 12px; font-weight: 700;">
+                            <button type="button" class="btn-voltar" style="padding: 6px 10px; font-size: 11px; background: rgba(255,255,255,0.08); color: var(--text-muted);" onclick="restaurarTaxaSplitPadrao()">
+                                Restaurar Padrão
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Coluna 2: Simulador e Ação de Salvar -->
+                    <div style="background: rgba(0,0,0,0.25); padding: 18px; border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; justify-content: space-between;">
+                        <div>
+                            <span style="font-size: 12px; font-weight: 700; color: #fff; display: block; margin-bottom: 8px;">Simulador de Repasse (Venda de R$ 100,00)</span>
+                            <div style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+                                    <span style="color: var(--text-muted);">Retenção Plataforma (SaaS):</span>
+                                    <strong id="sim-taxa-plataforma" style="color: #a5b4fc;">R$ <?= number_format(100 * ($taxaSplitEfetivaPct / 100), 2, ',', '.') ?> (<?= number_format($taxaSplitEfetivaPct, 1, ',', '.') ?>%)</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                                    <span style="color: var(--text-muted);">Líquido para o Lojista:</span>
+                                    <strong id="sim-liquido-lojista" style="color: var(--green);">R$ <?= number_format(100 - (100 * ($taxaSplitEfetivaPct / 100)), 2, ',', '.') ?></strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end; margin-top: 14px;">
+                            <button type="button" class="btn-voltar" style="padding: 8px 18px; font-size: 12px; background: var(--green); color: #0D0E1F; border: none; font-weight: 800;" onclick="salvarTaxaSplit()">
+                                💾 Salvar Taxa de Split
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Módulos divididos por Categorias -->
             <?php foreach ($grupos as $nomeGrupo => $modulos): ?>
                 <div class="grupo-titulo">
@@ -682,6 +759,103 @@ async function adicionarCotaRapida(qtd) {
         }
     } catch (e) {
         showToast(false, 'Erro ao adicionar cota.');
+    }
+}
+
+// ==========================================
+// GESTÃO DA TAXA DE SPLIT VIA AJAX
+// ==========================================
+let splitModoPadrao = <?= $ehTaxaPadrao ? 'true' : 'false' ?>;
+
+function selecionarTaxaSplitPreset(pct, ehPadrao = false) {
+    splitModoPadrao = ehPadrao;
+    document.querySelectorAll('[id^="btn-split-"]').forEach(b => b.classList.remove('active'));
+    
+    const input = document.getElementById('input-taxa-split-custom');
+    if (ehPadrao) {
+        input.value = '';
+        const btn05 = document.getElementById('btn-split-05');
+        if (btn05) btn05.classList.add('active');
+    } else {
+        input.value = pct;
+        const btnId = 'btn-split-' + String(pct).replace('.', '');
+        const btn = document.getElementById(btnId);
+        if (btn) btn.classList.add('active');
+    }
+    
+    atualizarSimulacaoSplit(pct, ehPadrao);
+}
+
+function atualizarSimulacaoSplitCustom() {
+    splitModoPadrao = false;
+    document.querySelectorAll('[id^="btn-split-"]').forEach(b => b.classList.remove('active'));
+    const val = parseFloat(document.getElementById('input-taxa-split-custom').value) || 0;
+    atualizarSimulacaoSplit(val, false);
+}
+
+function restaurarTaxaSplitPadrao() {
+    selecionarTaxaSplitPreset(0.5, true);
+}
+
+function atualizarSimulacaoSplit(pct, ehPadrao) {
+    const taxaPlat = 100 * (pct / 100);
+    const liquido = Math.max(0, 100 - taxaPlat);
+    
+    document.getElementById('sim-taxa-plataforma').textContent = `R$ ${taxaPlat.toFixed(2).replace('.', ',')} (${pct.toFixed(1).replace('.', ',')}%)`;
+    document.getElementById('sim-liquido-lojista').textContent = `R$ ${liquido.toFixed(2).replace('.', ',')}`;
+    
+    const badge = document.getElementById('badge-status-split');
+    if (ehPadrao) {
+        badge.textContent = `PADRÃO: ${pct.toFixed(1).replace('.', ',')}%`;
+        badge.style.background = 'rgba(6,182,212,0.15)';
+        badge.style.color = '#22d3ee';
+        badge.style.border = '1px solid rgba(6,182,212,0.3)';
+    } else if (pct <= 0) {
+        badge.textContent = 'ISENTO (0%)';
+        badge.style.background = 'rgba(255,209,102,0.15)';
+        badge.style.color = 'var(--yellow)';
+        badge.style.border = '1px solid rgba(255,209,102,0.3)';
+    } else {
+        badge.textContent = `CUSTOMIZADO: ${pct.toFixed(1).replace('.', ',')}%`;
+        badge.style.background = 'rgba(99,102,241,0.2)';
+        badge.style.color = '#818cf8';
+        badge.style.border = '1px solid rgba(99,102,241,0.4)';
+    }
+}
+
+async function salvarTaxaSplit() {
+    let taxaParaSalvar = null;
+    if (splitModoPadrao) {
+        taxaParaSalvar = 'padrao';
+    } else {
+        const inputVal = document.getElementById('input-taxa-split-custom').value.trim();
+        taxaParaSalvar = inputVal !== '' ? inputVal : 'padrao';
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('usuario_id', usuarioLojaId);
+        formData.append('taxa', taxaParaSalvar);
+
+        const res = await fetch('<?= Url::to(['/admin/loja/atualizar-taxa-split']) ?>', {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>',
+            },
+            body: formData
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            showToast(true, data.message);
+            splitModoPadrao = data.eh_padrao;
+            atualizarSimulacaoSplit(data.taxa_efetiva_pct, data.eh_padrao);
+        } else {
+            showToast(false, data.message || 'Erro ao salvar taxa de split.');
+        }
+    } catch (e) {
+        showToast(false, 'Erro de comunicação ao salvar taxa de split.');
     }
 }
 </script>

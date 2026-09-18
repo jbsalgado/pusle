@@ -3026,7 +3026,8 @@ class MercadoPagoController extends Controller
                 gateway_pagamento,
                 mercadopago_public_key,
                 mercadopago_sandbox,
-                catalogo_path
+                catalogo_path,
+                taxa_comissao
             FROM prest_usuarios
             WHERE id = :id::uuid
             LIMIT 1
@@ -3060,7 +3061,8 @@ class MercadoPagoController extends Controller
                 gateway_pagamento,
                 mercadopago_public_key,
                 mercadopago_sandbox,
-                catalogo_path
+                catalogo_path,
+                taxa_comissao
             FROM prest_usuarios
             WHERE mp_user_id = :mp_user_id
             LIMIT 1
@@ -3095,8 +3097,14 @@ class MercadoPagoController extends Controller
             MercadoPagoConfig::setRuntimeEnviroment(MercadoPagoConfig::SERVER);
         }
 
-        // Armazena a taxa de comissão do usuário para uso no cálculo da fee
-        $this->taxaComissao = isset($usuario['taxa_comissao']) ? (float)$usuario['taxa_comissao'] : (Yii::$app->params['pulse_platform_fee_percent'] ?? 0.005);
+        // Armazena a taxa de comissão do usuário para uso no cálculo da fee (convertida para fração decimal)
+        if (isset($usuario['taxa_comissao']) && $usuario['taxa_comissao'] !== null && $usuario['taxa_comissao'] !== '') {
+            $taxaRaw = (float)$usuario['taxa_comissao'];
+            // Se estiver em formato percentual (ex: 0.50 para 0.5% ou 1.50 para 1.5%), converte para decimal
+            $this->taxaComissao = ($taxaRaw > 0 && $taxaRaw < 0.1) ? $taxaRaw : round($taxaRaw / 100, 4);
+        } else {
+            $this->taxaComissao = (float)(Yii::$app->params['pulse_platform_fee_percent'] ?? 0.005);
+        }
 
         Yii::info([
             'message' => 'SDK Mercado Pago Inicializado',
@@ -3359,12 +3367,16 @@ class MercadoPagoController extends Controller
     private function calcularApplicationFee(float $valor): float
     {
         if ($valor <= 0) {
-            return 0;
+            return 0.0;
         }
 
-        // Se o lojista tiver uma taxa de comissão específica no banco, usa ela.
+        // Se o lojista tiver uma taxa de comissão específica, usa ela.
         // Caso contrário, usa a taxa padrão da plataforma definida no config/params.php.
-        $percent = $this->taxaComissao ?? (Yii::$app->params['pulse_platform_fee_percent'] ?? 0.005);
+        $percent = $this->taxaComissao !== null ? (float)$this->taxaComissao : (float)(Yii::$app->params['pulse_platform_fee_percent'] ?? 0.005);
+
+        if ($percent <= 0) {
+            return 0.0;
+        }
 
         $fee = round($valor * $percent, 2);
         return min($fee, $valor);
