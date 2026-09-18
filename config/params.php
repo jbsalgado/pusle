@@ -7,7 +7,7 @@ return [
 
     // SaaS Pulse Configuration
     'pulse_asaas_wallet_id' => null, // ID da Carteira Asaas dos proprietários do PULSE
-    'pulse_platform_fee_percent' => 0.005, // Taxa do PULSE (padrão 0.5%)
+    'pulse_platform_fee_percent' => (float)($_ENV['PULSE_PLATFORM_FEE_PERCENT'] ?? getenv('PULSE_PLATFORM_FEE_PERCENT') ?: 0.0099), // Taxa do PULSE (padrão 0.99% com suporte a até 2 casas decimais)
 
     // Telegram Alerts Configuration
     'telegram_bot_token' => '', // TODO: Inserir token do Bot (ex: 123456:ABC-DEF)

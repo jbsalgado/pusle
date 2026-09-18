@@ -139,7 +139,7 @@ try {
             if ($result['marketplace_fee'] > 0) {
                 echo "✅ Lógica de Split aplicada corretamente!\n";
             } else {
-                echo "⚠️ Marketplace Fee é zero (verifique calculo, 0.5% de 100 deveria ser 0.50)\n";
+                echo "⚠️ Marketplace Fee é zero (verifique calculo, 0.99% de 100 deveria ser 0.99)\n";
             }
         } else {
             echo "❌ ERRO: Marketplace Fee não retornado na resposta!\n";

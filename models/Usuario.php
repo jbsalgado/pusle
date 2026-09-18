@@ -154,23 +154,23 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
     }
 
     /**
-     * Retorna a taxa de comissão efetiva em porcentagem (ex: 0.5 para 0.5%, 1.5 para 1.5%).
+     * Retorna a taxa de comissão efetiva em porcentagem (ex: 0.99 para 0.99%, 0.5 para 0.5%, 1.5 para 1.5%).
      * Se a loja tiver taxa customizada, usa ela; caso contrário, busca a taxa padrão da plataforma.
      */
     public function getTaxaComissaoEfetivaPercentual(): float
     {
         if ($this->taxa_comissao !== null && $this->taxa_comissao !== '') {
             $taxa = (float)$this->taxa_comissao;
-            // Se foi salvo em fração decimal menor que 0.1 (ex: 0.005), normaliza para percentual (0.5)
+            // Se foi salvo em fração decimal menor que 0.1 (ex: 0.0099 ou 0.005), normaliza para percentual (0.99 ou 0.5)
             return ($taxa > 0 && $taxa < 0.1) ? round($taxa * 100, 2) : round($taxa, 2);
         }
 
-        $defaultDecimal = Yii::$app->params['pulse_platform_fee_percent'] ?? 0.005;
+        $defaultDecimal = Yii::$app->params['pulse_platform_fee_percent'] ?? 0.0099;
         return round((float)$defaultDecimal * 100, 2);
     }
 
     /**
-     * Retorna a taxa de comissão em fração decimal pronta para multiplicação direta (ex: 0.005 para 0.5%).
+     * Retorna a taxa de comissão em fração decimal pronta para multiplicação direta (ex: 0.0099 para 0.99%).
      */
     public function getTaxaComissaoEfetivaDecimal(): float
     {
@@ -178,7 +178,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
     }
 
     /**
-     * Retorna a taxa de comissão formatada para exibição em telas (ex: "0,5%", "1,5%", "Isento (0%)").
+     * Retorna a taxa de comissão formatada para exibição em telas com suporte a até 2 casas decimais (ex: "0,99%", "0,5%", "1,5%", "Isento (0%)").
      */
     public function getTaxaComissaoFormatada(): string
     {
@@ -186,7 +186,9 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
         if ($pct <= 0) {
             return 'Isento (0%)';
         }
-        return number_format($pct, ($pct == (int)$pct ? 0 : 1), ',', '.') . '%';
+        // Suporta até 2 casas decimais (ex: 1%, 0,5%, 0,99%)
+        $casas = ($pct == (int)$pct) ? 0 : ((round($pct, 1) == $pct) ? 1 : 2);
+        return number_format($pct, $casas, ',', '.') . '%';
     }
 
     // ===================================================================

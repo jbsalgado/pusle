@@ -491,7 +491,8 @@ foreach ($modulosDisponiveis as $chave => $m) {
                                 Presets de Taxa da Plataforma:
                             </label>
                             <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                                <button type="button" class="pix-preset-btn <?= ($ehTaxaPadrao || (float)$taxaSplitAtual === 0.5) ? 'active' : '' ?>" id="btn-split-05" onclick="selecionarTaxaSplitPreset(0.5, true)">0,5% (Padrão)</button>
+                                <button type="button" class="pix-preset-btn <?= ($ehTaxaPadrao || (float)$taxaSplitAtual === 0.99) ? 'active' : '' ?>" id="btn-split-099" onclick="selecionarTaxaSplitPreset(0.99, true)">0,99% (Padrão)</button>
+                                <button type="button" class="pix-preset-btn <?= (!$ehTaxaPadrao && (float)$taxaSplitAtual === 0.5) ? 'active' : '' ?>" id="btn-split-05" onclick="selecionarTaxaSplitPreset(0.5, false)">0,5%</button>
                                 <button type="button" class="pix-preset-btn <?= (!$ehTaxaPadrao && (float)$taxaSplitAtual === 1.0) ? 'active' : '' ?>" id="btn-split-10" onclick="selecionarTaxaSplitPreset(1.0, false)">1,0%</button>
                                 <button type="button" class="pix-preset-btn <?= (!$ehTaxaPadrao && (float)$taxaSplitAtual === 1.5) ? 'active' : '' ?>" id="btn-split-15" onclick="selecionarTaxaSplitPreset(1.5, false)">1,5%</button>
                                 <button type="button" class="pix-preset-btn <?= (!$ehTaxaPadrao && (float)$taxaSplitAtual === 2.0) ? 'active' : '' ?>" id="btn-split-20" onclick="selecionarTaxaSplitPreset(2.0, false)">2,0%</button>
@@ -515,7 +516,8 @@ foreach ($modulosDisponiveis as $chave => $m) {
                             <div style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 12px; border: 1px solid rgba(255,255,255,0.05);">
                                 <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
                                     <span style="color: var(--text-muted);">Retenção Plataforma (SaaS):</span>
-                                    <strong id="sim-taxa-plataforma" style="color: #a5b4fc;">R$ <?= number_format(100 * ($taxaSplitEfetivaPct / 100), 2, ',', '.') ?> (<?= number_format($taxaSplitEfetivaPct, 1, ',', '.') ?>%)</strong>
+                                    <?php $casasTaxaSim = ($taxaSplitEfetivaPct == (int)$taxaSplitEfetivaPct) ? 0 : ((round($taxaSplitEfetivaPct, 1) == $taxaSplitEfetivaPct) ? 1 : 2); ?>
+                                    <strong id="sim-taxa-plataforma" style="color: #a5b4fc;">R$ <?= number_format(100 * ($taxaSplitEfetivaPct / 100), 2, ',', '.') ?> (<?= number_format($taxaSplitEfetivaPct, $casasTaxaSim, ',', '.') ?>%)</strong>
                                 </div>
                                 <div style="display: flex; justify-content: space-between; font-size: 12px;">
                                     <span style="color: var(--text-muted);">Líquido para o Lojista:</span>
@@ -774,8 +776,8 @@ function selecionarTaxaSplitPreset(pct, ehPadrao = false) {
     const input = document.getElementById('input-taxa-split-custom');
     if (ehPadrao) {
         input.value = '';
-        const btn05 = document.getElementById('btn-split-05');
-        if (btn05) btn05.classList.add('active');
+        const btn099 = document.getElementById('btn-split-099');
+        if (btn099) btn099.classList.add('active');
     } else {
         input.value = pct;
         const btnId = 'btn-split-' + String(pct).replace('.', '');
@@ -794,19 +796,23 @@ function atualizarSimulacaoSplitCustom() {
 }
 
 function restaurarTaxaSplitPadrao() {
-    selecionarTaxaSplitPreset(0.5, true);
+    selecionarTaxaSplitPreset(0.99, true);
 }
 
 function atualizarSimulacaoSplit(pct, ehPadrao) {
     const taxaPlat = 100 * (pct / 100);
     const liquido = Math.max(0, 100 - taxaPlat);
     
-    document.getElementById('sim-taxa-plataforma').textContent = `R$ ${taxaPlat.toFixed(2).replace('.', ',')} (${pct.toFixed(1).replace('.', ',')}%)`;
+    // Suporta até 2 casas decimais (ex: 1%, 0,5%, 0,99%)
+    const casas = (pct % 1 === 0) ? 0 : (Math.round(pct * 10) === pct * 10 ? 1 : 2);
+    const pctFmt = pct.toFixed(casas).replace('.', ',');
+
+    document.getElementById('sim-taxa-plataforma').textContent = `R$ ${taxaPlat.toFixed(2).replace('.', ',')} (${pctFmt}%)`;
     document.getElementById('sim-liquido-lojista').textContent = `R$ ${liquido.toFixed(2).replace('.', ',')}`;
     
     const badge = document.getElementById('badge-status-split');
     if (ehPadrao) {
-        badge.textContent = `PADRÃO: ${pct.toFixed(1).replace('.', ',')}%`;
+        badge.textContent = `PADRÃO: ${pctFmt}%`;
         badge.style.background = 'rgba(6,182,212,0.15)';
         badge.style.color = '#22d3ee';
         badge.style.border = '1px solid rgba(6,182,212,0.3)';
@@ -816,7 +822,7 @@ function atualizarSimulacaoSplit(pct, ehPadrao) {
         badge.style.color = 'var(--yellow)';
         badge.style.border = '1px solid rgba(255,209,102,0.3)';
     } else {
-        badge.textContent = `CUSTOMIZADO: ${pct.toFixed(1).replace('.', ',')}%`;
+        badge.textContent = `CUSTOMIZADO: ${pctFmt}%`;
         badge.style.background = 'rgba(99,102,241,0.2)';
         badge.style.color = '#818cf8';
         badge.style.border = '1px solid rgba(99,102,241,0.4)';

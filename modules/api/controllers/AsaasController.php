@@ -111,7 +111,7 @@ class AsaasController extends BaseController
             $pulseWalletId = Yii::$app->params['pulse_asaas_wallet_id'] ?? null;
 
             if ($pulseWalletId) {
-                $percentualPlatform = (Yii::$app->params['pulse_platform_fee_percent'] ?? 0.005) * 100;
+                $percentualPlatform = (Yii::$app->params['pulse_platform_fee_percent'] ?? 0.0099) * 100;
                 $splits[] = [
                     'walletId' => $pulseWalletId,
                     'percentualValue' => $percentualPlatform
@@ -1601,7 +1601,7 @@ class AsaasController extends BaseController
      */
     private function calcularPlatformFee(float $valorTotal): float
     {
-        $percent = Yii::$app->params['pulse_platform_fee_percent'] ?? 0.005;
+        $percent = Yii::$app->params['pulse_platform_fee_percent'] ?? 0.0099;
         $fee = round($valorTotal * $percent, 2);
         return min($fee, $valorTotal);
     }

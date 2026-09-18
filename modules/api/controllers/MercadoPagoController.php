@@ -154,7 +154,7 @@ class MercadoPagoController extends Controller
     /**
      * ========================================================================
      * ENDPOINT: POST /api/mercado-pago/pix-split
-     * Cria um pagamento PIX com split (application_fee 0,5%).
+     * Cria um pagamento PIX com split (application_fee padrão 0,99%).
      * ========================================================================
      */
     public function actionCriarPagamentoPixSplit()
@@ -3103,7 +3103,7 @@ class MercadoPagoController extends Controller
             // Se estiver em formato percentual (ex: 0.50 para 0.5% ou 1.50 para 1.5%), converte para decimal
             $this->taxaComissao = ($taxaRaw > 0 && $taxaRaw < 0.1) ? $taxaRaw : round($taxaRaw / 100, 4);
         } else {
-            $this->taxaComissao = (float)(Yii::$app->params['pulse_platform_fee_percent'] ?? 0.005);
+            $this->taxaComissao = (float)(Yii::$app->params['pulse_platform_fee_percent'] ?? 0.0099);
         }
 
         Yii::info([
@@ -3372,7 +3372,7 @@ class MercadoPagoController extends Controller
 
         // Se o lojista tiver uma taxa de comissão específica, usa ela.
         // Caso contrário, usa a taxa padrão da plataforma definida no config/params.php.
-        $percent = $this->taxaComissao !== null ? (float)$this->taxaComissao : (float)(Yii::$app->params['pulse_platform_fee_percent'] ?? 0.005);
+        $percent = $this->taxaComissao !== null ? (float)$this->taxaComissao : (float)(Yii::$app->params['pulse_platform_fee_percent'] ?? 0.0099);
 
         if ($percent <= 0) {
             return 0.0;
