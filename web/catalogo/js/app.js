@@ -1457,9 +1457,16 @@ window.trocarFoto = function(btn, direcao, event) {
 
     // Atualiza imagem
     const novaFoto = fotos[currentIndex];
-    const arquivoPath = novaFoto.arquivo_path.replace(/^\//, '');
-    const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
-    img.src = `${baseUrl}/${arquivoPath}`;
+    if (novaFoto) {
+        const rawPath = typeof novaFoto === 'string' ? novaFoto : (novaFoto.arquivo_path || novaFoto.url || '');
+        if (rawPath.startsWith('http') || rawPath.startsWith('data:')) {
+            img.src = rawPath;
+        } else if (rawPath) {
+            const arquivoPath = rawPath.replace(/^\//, '');
+            const baseUrl = (CONFIG && CONFIG.URL_BASE_WEB ? CONFIG.URL_BASE_WEB : '').replace(/\/$/, '');
+            img.src = `${baseUrl}/${arquivoPath}`;
+        }
+    }
 
     // Atualiza dots
     dots.forEach((dot, idx) => {
@@ -1497,20 +1504,32 @@ function renderizarEspacoFoto(produto) {
     let urlImagemPadrao = 'https://dummyimage.com/300x200/cccccc/ffffff.png&text=Sem+Imagem';
     
     if (fotos.length > 0 && fotos[0].arquivo_path) {
-        const arquivoPath = fotos[0].arquivo_path.replace(/^\//, '');
-        const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
-        urlImagemPadrao = `${baseUrl}/${arquivoPath}`;
+        const rawPath = fotos[0].arquivo_path;
+        if (rawPath.startsWith('http') || rawPath.startsWith('data:')) {
+            urlImagemPadrao = rawPath;
+        } else {
+            const arquivoPath = rawPath.replace(/^\//, '');
+            const baseUrl = (CONFIG && CONFIG.URL_BASE_WEB ? CONFIG.URL_BASE_WEB : '').replace(/\/$/, '');
+            urlImagemPadrao = `${baseUrl}/${arquivoPath}`;
+        }
+    } else if (produto.imagem_destaque) {
+        urlImagemPadrao = produto.imagem_destaque;
     }
 
+    const nomeEscapado = (produto.nome || 'Produto').replace(/"/g, '&quot;');
+
     if (fotos.length <= 1) {
-        const urlParaModal = urlImagemPadrao.replace(/'/g, "\\'");
-        const fotosJson = JSON.stringify(fotos).replace(/'/g, "&apos;");
+        const fotosParaGaleria = (fotos && fotos.length > 0)
+            ? fotos
+            : [{ arquivo_path: urlImagemPadrao }];
+        const fotosAttr = JSON.stringify(fotosParaGaleria).replace(/'/g, "&apos;");
         return `
-            <div class="w-full h-48 bg-gray-50 flex items-center justify-center overflow-hidden p-2 cursor-zoom-in" 
-                 onclick="abrirGaleria(0, '${fotosJson}')">
+            <div class="w-full h-48 bg-gray-50 flex items-center justify-center overflow-hidden p-2 cursor-zoom-in group" 
+                 data-fotos='${fotosAttr}'
+                 onclick="abrirGaleria(0, this.getAttribute('data-fotos'))">
                 <img src="${urlImagemPadrao}" 
-                     alt="${produto.nome}"
-                     class="w-full h-full object-contain"
+                     alt="${nomeEscapado}"
+                     class="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
                      onerror="this.src='https://dummyimage.com/300x200/cccccc/ffffff.png&text=Erro'">
             </div>
         `;
@@ -1521,15 +1540,17 @@ function renderizarEspacoFoto(produto) {
         <div class="slideshow-dot w-1.5 h-1.5 rounded-full transition-all duration-300 ${idx === 0 ? 'bg-white scale-125' : 'bg-white/50 shadow-sm'}"></div>
     `).join('');
 
+    const fotosAttrMulti = JSON.stringify(fotos).replace(/'/g, "&apos;");
+
     return `
         <div class="slideshow-container relative w-full h-48 bg-gray-50 group overflow-hidden cursor-zoom-in" 
-             data-fotos='${JSON.stringify(fotos)}' 
+             data-fotos='${fotosAttrMulti}' 
              data-current-index="0"
              onclick="abrirGaleria(parseInt(this.getAttribute('data-current-index')), this.getAttribute('data-fotos'))">
             
             <!-- Imagem Principal -->
             <img src="${urlImagemPadrao}" 
-                 alt="${produto.nome}"
+                 alt="${nomeEscapado}"
                  class="slideshow-img w-full h-full object-contain p-2 transition-opacity duration-300"
                  onerror="this.src='https://dummyimage.com/300x200/cccccc/ffffff.png&text=Erro'">
 
@@ -3162,11 +3183,27 @@ function atualizarGaleria() {
     const contador = document.getElementById('contador-galeria');
     const foto = galeriaAtual.fotos[galeriaAtual.index];
     
-    if (foto && foto.arquivo_path) {
-        const arquivoPath = foto.arquivo_path.replace(/^\//, '');
-        const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
-        img.src = `${baseUrl}/${arquivoPath}`;
-        contador.textContent = `${galeriaAtual.index + 1} / ${galeriaAtual.fotos.length}`;
+    if (foto) {
+        let src = '';
+        const rawPath = typeof foto === 'string' 
+            ? foto 
+            : (foto.arquivo_path || foto.url || foto.imagem || '');
+            
+        if (rawPath.startsWith('http') || rawPath.startsWith('data:')) {
+            src = rawPath;
+        } else if (rawPath) {
+            const arquivoPath = rawPath.replace(/^\//, '');
+            const baseUrl = (CONFIG && CONFIG.URL_BASE_WEB ? CONFIG.URL_BASE_WEB : '').replace(/\/$/, '');
+            src = `${baseUrl}/${arquivoPath}`;
+        }
+        
+        if (src && img) {
+            img.src = src;
+        }
+        
+        if (contador) {
+            contador.textContent = `${galeriaAtual.index + 1} / ${galeriaAtual.fotos.length}`;
+        }
         
         // Controle de visibilidade das setas
         const btnPrev = document.getElementById('modal-prev');

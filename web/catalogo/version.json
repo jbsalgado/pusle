@@ -1,7 +1,7 @@
 {
-  "version": "2.0.0",
-  "updated_at": "2026-09-16T09:30:00-03:00",
+  "version": "2.0.1",
+  "updated_at": "2026-09-18T00:38:00-03:00",
   "force_update": true,
-  "changelog": "Novo layout profissional: Hero da loja, Slideshow e compra rápida em 1 clique."
+  "changelog": "Correção no zoom e lightbox de fotos em produtos com imagem única."
 }
 
