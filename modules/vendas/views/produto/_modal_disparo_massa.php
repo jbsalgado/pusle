@@ -150,6 +150,147 @@ use yii\helpers\Url;
                     </div>
                 </div>
 
+                <!-- 1.1 Cenários e Modelos com Inteligência Artificial (Livre / Gratuita) -->
+                <div class="border-b border-gray-100 pb-5">
+                    <div class="bg-gradient-to-r from-purple-900/5 via-indigo-900/5 to-purple-900/10 border border-purple-200/80 rounded-2xl p-4 transition-all">
+                        <div class="flex items-center justify-between cursor-pointer" onclick="alternarSecaoIa()">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center text-sm shadow-sm">
+                                    ✨
+                                </div>
+                                <div>
+                                    <div class="text-xs font-black text-purple-950 flex items-center gap-2">
+                                        <span>Fundo e Modelos com Inteligência Artificial</span>
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-2xs">IA Livre</span>
+                                    </div>
+                                    <p class="text-[11px] text-purple-700/80 font-medium">Crie cenários de estúdio, vitrines ou modelos humanos calçando/vestindo o produto.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span id="badgeIaAtiva" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">Fundo IA Ativo</span>
+                                <button type="button" id="btnToggleSecaoIa" class="text-purple-600 hover:text-purple-900 text-xs font-bold flex items-center gap-1 p-1">
+                                    <span id="textoToggleIa">Expandir</span>
+                                    <svg id="iconeSetaIa" class="w-4 h-4 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Conteúdo da Seção de IA (Colapsável) -->
+                        <div id="conteudoSecaoIa" class="hidden mt-4 pt-4 border-t border-purple-200/60 space-y-4">
+                            
+                            <!-- Presets Rápidos de 1 Clique -->
+                            <div>
+                                <label class="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2">
+                                    Escolha um Estilo Comercial Pronto ou Digite seu Prompt:
+                                </label>
+                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="gridPresetsIa">
+                                    <button type="button" onclick="selecionarPresetIa('estudio_minimalista', 'Clean luxury commercial product podium, minimalist white marble, soft studio lighting')" class="preset-ia-btn p-2.5 rounded-xl border border-purple-200 bg-white hover:bg-purple-50 hover:border-purple-400 text-left transition flex flex-col gap-1 shadow-2xs">
+                                        <span class="text-base">🛍️</span>
+                                        <span class="text-xs font-bold text-gray-900 leading-tight">Estúdio Mármore</span>
+                                        <span class="text-[10px] text-gray-500">Minimalista & Ouro</span>
+                                    </button>
+                                    <button type="button" onclick="selecionarPresetIa('black_friday', 'Dark dramatic stage, intense volumetric neon red and gold lighting, sleek retail display')" class="preset-ia-btn p-2.5 rounded-xl border border-purple-200 bg-white hover:bg-purple-50 hover:border-purple-400 text-left transition flex flex-col gap-1 shadow-2xs">
+                                        <span class="text-base">⚡</span>
+                                        <span class="text-xs font-bold text-gray-900 leading-tight">Black Friday</span>
+                                        <span class="text-[10px] text-gray-500">Neon Vermelho & Ouro</span>
+                                    </button>
+                                    <button type="button" onclick="selecionarPresetIa('natal_festas', 'Festive elegant Christmas luxury atmosphere, warm bokeh fairy lights, gold glitter')" class="preset-ia-btn p-2.5 rounded-xl border border-purple-200 bg-white hover:bg-purple-50 hover:border-purple-400 text-left transition flex flex-col gap-1 shadow-2xs">
+                                        <span class="text-base">🎄</span>
+                                        <span class="text-xs font-bold text-gray-900 leading-tight">Natal & Festas</span>
+                                        <span class="text-[10px] text-gray-500">Luzes & Bokeh Dourado</span>
+                                    </button>
+                                    <button type="button" onclick="selecionarPresetIa('verao_tropical', 'Sunlit beachside terrace, clean sand, gentle blue sky bokeh, fresh summer retail atmosphere')" class="preset-ia-btn p-2.5 rounded-xl border border-purple-200 bg-white hover:bg-purple-50 hover:border-purple-400 text-left transition flex flex-col gap-1 shadow-2xs">
+                                        <span class="text-base">🌴</span>
+                                        <span class="text-xs font-bold text-gray-900 leading-tight">Verão & Praia</span>
+                                        <span class="text-[10px] text-gray-500">Terraço Ensolarado</span>
+                                    </button>
+                                    <button type="button" onclick="selecionarPresetIa('streetwear_urbano', 'Urban concrete texture, dramatic dual-tone cyan and magenta neon lights, sneaker boutique')" class="preset-ia-btn p-2.5 rounded-xl border border-purple-200 bg-white hover:bg-purple-50 hover:border-purple-400 text-left transition flex flex-col gap-1 shadow-2xs">
+                                        <span class="text-base">👟</span>
+                                        <span class="text-xs font-bold text-gray-900 leading-tight">Streetwear Urbano</span>
+                                        <span class="text-[10px] text-gray-500">Concreto & Neon Cyan</span>
+                                    </button>
+                                    <button type="button" onclick="selecionarPresetIa('luxo_premium', 'Glossy dark obsidian pedestal, soft black silk drapery, floating gold dust particles')" class="preset-ia-btn p-2.5 rounded-xl border border-purple-200 bg-white hover:bg-purple-50 hover:border-purple-400 text-left transition flex flex-col gap-1 shadow-2xs">
+                                        <span class="text-base">💎</span>
+                                        <span class="text-xs font-bold text-gray-900 leading-tight">Luxo & Jóias</span>
+                                        <span class="text-[10px] text-gray-500">Obsidiana & Seda Negra</span>
+                                    </button>
+                                    <button type="button" onclick="selecionarPresetIa('modelo_urbano_calcado', 'Crie um modelo humano usando o produto e coloque a imagem como miniatura no rodapé')" class="preset-ia-btn p-2.5 rounded-xl border border-purple-200 bg-white hover:bg-purple-50 hover:border-purple-400 text-left transition flex flex-col gap-1 shadow-2xs">
+                                        <span class="text-base">🧍‍♀️</span>
+                                        <span class="text-xs font-bold text-gray-900 leading-tight">Modelo Calçando</span>
+                                        <span class="text-[10px] text-gray-500">Rua Urbana + Miniatura</span>
+                                    </button>
+                                    <button type="button" onclick="selecionarPresetIa('modelo_esportivo', 'Modelo esportivo correndo em parque urbano usando o calçado, iluminação dinâmica')" class="preset-ia-btn p-2.5 rounded-xl border border-purple-200 bg-white hover:bg-purple-50 hover:border-purple-400 text-left transition flex flex-col gap-1 shadow-2xs">
+                                        <span class="text-base">🏃‍♂️</span>
+                                        <span class="text-xs font-bold text-gray-900 leading-tight">Modelo Treino</span>
+                                        <span class="text-[10px] text-gray-500">Esporte & Movimento</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Campo de Prompt Customizável -->
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="block text-xs font-bold text-gray-700">
+                                        Prompt de Instrução para a IA:
+                                    </label>
+                                    <button type="button" onclick="montarAutoPromptProdutos()" class="text-[11px] text-purple-700 hover:text-purple-900 font-bold flex items-center gap-1 hover:underline">
+                                        <span>✨</span> Auto-Preencher dos Produtos do Lote
+                                    </button>
+                                </div>
+                                <textarea id="campoPromptIa" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-purple-600 focus:border-purple-600 text-gray-800" placeholder="Ex: Crie um modelo humano usando o tênis e coloque a imagem como miniatura no rodapé"></textarea>
+                                <input type="hidden" id="presetIaEscolhido" value="estudio_minimalista">
+                            </div>
+
+                            <!-- Ações: Botão Gerar e Status -->
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="text-[11px] text-gray-500 flex items-center gap-1.5">
+                                    <span>⚡</span>
+                                    <span>Gera em ~3 a 5 segundos sem travar a tela.</span>
+                                </div>
+                                <button type="button" id="btnDispararGeracaoIa" onclick="executarGeracaoIa()" class="px-4 py-2 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center gap-2">
+                                    <span id="iconeBtnIa">✨</span>
+                                    <span id="textoBtnIa">Gerar Imagem com IA</span>
+                                </button>
+                            </div>
+
+                            <!-- Caixa de Preview do Fundo Gerado (Inicialmente oculta) -->
+                            <div id="previewFundoIaContainer" class="hidden bg-white border-2 border-emerald-300 rounded-2xl p-3 space-y-3 shadow-sm">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                                        <span class="text-xs font-bold text-emerald-900">Fundo com IA Gerado & Aplicado com Sucesso!</span>
+                                    </div>
+                                    <button type="button" onclick="removerFundoIa()" class="text-xs font-bold text-red-600 hover:text-red-800 hover:underline flex items-center gap-1">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        <span>Remover Fundo IA</span>
+                                    </button>
+                                </div>
+                                
+                                <div class="flex items-center gap-4">
+                                    <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden border border-gray-200 shadow-inner bg-gray-100 flex-shrink-0 relative group">
+                                        <img id="imgPreviewIa" src="" alt="Fundo IA" class="w-full h-full object-cover">
+                                        <a id="linkDownloadPreviewIa" href="" target="_blank" class="absolute inset-0 bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-[10px] font-bold">
+                                            🔍 Ver Completo
+                                        </a>
+                                    </div>
+                                    <div class="flex-1 space-y-1.5 text-xs">
+                                        <div class="font-bold text-gray-900" id="tituloPresetPreviewIa">Estúdio Minimalista</div>
+                                        <p class="text-[11px] text-gray-500 line-clamp-2" id="textoPromptPreviewIa"></p>
+                                        <div class="flex items-center gap-2 pt-1">
+                                            <button type="button" onclick="executarGeracaoIa(true)" class="px-2.5 py-1 text-[11px] font-bold bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg border border-gray-300 transition flex items-center gap-1">
+                                                <span>🔄</span> Gerar Outra Variação
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <input type="hidden" id="disparo_imagem_fundo_ia" value="">
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Enquadramento & Rotação da Foto do Produto -->
                 <div class="border-b border-gray-100 pb-5">
                     <div class="flex items-center justify-between mb-3">
@@ -607,6 +748,138 @@ Garanta o seu antes que acabe o estoque!</textarea>
     let whatsappConectadoCache = false;
     let ultimoDisparoIdAtivo = null;
     let modoOperacaoAtual = 'automatico';
+    let secaoIaAberta = false;
+    let seedIaAtual = null;
+
+    function alternarSecaoIa() {
+        secaoIaAberta = !secaoIaAberta;
+        const conteudo = document.getElementById('conteudoSecaoIa');
+        const icone = document.getElementById('iconeSetaIa');
+        const texto = document.getElementById('textoToggleIa');
+
+        if (secaoIaAberta) {
+            conteudo.classList.remove('hidden');
+            icone.classList.add('rotate-180');
+            texto.textContent = 'Recolher';
+        } else {
+            conteudo.classList.add('hidden');
+            icone.classList.remove('rotate-180');
+            texto.textContent = 'Expandir';
+        }
+    }
+
+    function selecionarPresetIa(preset, promptSugerido) {
+        document.getElementById('presetIaEscolhido').value = preset;
+        const campoPrompt = document.getElementById('campoPromptIa');
+        if (campoPrompt) {
+            campoPrompt.value = promptSugerido;
+            campoPrompt.focus();
+        }
+
+        document.querySelectorAll('.preset-ia-btn').forEach(btn => {
+            btn.classList.remove('border-purple-600', 'bg-purple-100/70', 'ring-2', 'ring-purple-500');
+            btn.classList.add('border-purple-200', 'bg-white');
+        });
+
+        if (window.event && window.event.currentTarget) {
+            window.event.currentTarget.classList.remove('border-purple-200', 'bg-white');
+            window.event.currentTarget.classList.add('border-purple-600', 'bg-purple-100/70', 'ring-2', 'ring-purple-500');
+        }
+    }
+
+    function montarAutoPromptProdutos() {
+        const campoPrompt = document.getElementById('campoPromptIa');
+        const preset = document.getElementById('presetIaEscolhido').value;
+
+        if (preset === 'modelo_urbano_calcado' || preset === 'modelo_esportivo' || preset === 'modelo_moda_estudio') {
+            campoPrompt.value = 'Crie um modelo humano usando o produto selecionado no catálogo em um cenário moderno e elegante, com iluminação comercial suave e coloque a imagem do produto como miniatura no rodapé';
+        } else {
+            campoPrompt.value = 'Cenário comercial de estúdio moderno com iluminação profissional suave para valorizar o produto, foco nítido e fundo limpo sem distrações';
+        }
+        campoPrompt.focus();
+    }
+
+    async function executarGeracaoIa(novaVariacao = false) {
+        const btn = document.getElementById('btnDispararGeracaoIa');
+        const icone = document.getElementById('iconeBtnIa');
+        const texto = document.getElementById('textoBtnIa');
+        const preset = document.getElementById('presetIaEscolhido').value;
+        const prompt = document.getElementById('campoPromptIa').value.trim();
+        const formatoEscolhidoEl = document.querySelector('input[name="disparo_formato"]:checked');
+        const formato = formatoEscolhidoEl ? formatoEscolhidoEl.value : 'feed';
+        const produtoId = produtosSelecionadosDisparo && produtosSelecionadosDisparo.length > 0 ? produtosSelecionadosDisparo[0] : null;
+
+        if (novaVariacao) {
+            seedIaAtual = Math.floor(Math.random() * 900000) + 100000;
+        }
+
+        btn.disabled = true;
+        icone.innerHTML = '⏳';
+        texto.textContent = 'Renderizando com IA... (~3-5s)';
+
+        try {
+            const resp = await fetch('<?= Url::to(['/vendas/disparo/gerar-fundo-ia']) ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    preset: preset,
+                    prompt: prompt,
+                    formato: formato,
+                    produto_id: produtoId,
+                    seed: seedIaAtual,
+                    '<?= Yii::$app->request->csrfParam ?>': '<?= Yii::$app->request->csrfToken ?>'
+                })
+            });
+
+            const data = await resp.json();
+
+            if (data.success && data.caminho_relativo) {
+                document.getElementById('disparo_imagem_fundo_ia').value = data.caminho_relativo;
+                document.getElementById('imgPreviewIa').src = data.url;
+                document.getElementById('linkDownloadPreviewIa').href = data.url;
+                document.getElementById('textoPromptPreviewIa').textContent = prompt || 'Estilo selecionado';
+                
+                document.getElementById('previewFundoIaContainer').classList.remove('hidden');
+                document.getElementById('badgeIaAtiva').classList.remove('hidden');
+
+                const mapTitulos = {
+                    'estudio_minimalista': 'Estúdio Minimalista & Mármore',
+                    'black_friday': 'Black Friday & Liquidação Neon',
+                    'natal_festas': 'Natal & Festas de Fim de Ano',
+                    'verao_tropical': 'Verão & Tropical',
+                    'streetwear_urbano': 'Streetwear Urbano & Calçados',
+                    'luxo_premium': 'Luxo & Cosméticos / Jóias',
+                    'modelo_urbano_calcado': 'Modelo Calçando o Produto',
+                    'modelo_esportivo': 'Modelo em Treino / Ação Esportiva',
+                    'modelo_moda_estudio': 'Modelo Editorial de Moda'
+                };
+                document.getElementById('tituloPresetPreviewIa').textContent = mapTitulos[preset] || 'Cenário Personalizado';
+            } else {
+                alert('Aviso da IA: ' + (data.message || 'Não foi possível gerar a imagem no momento.'));
+            }
+        } catch (err) {
+            console.error('Erro ao gerar com IA:', err);
+            alert('Falha na comunicação com o servidor de IA. Verifique sua conexão e tente novamente.');
+        } finally {
+            btn.disabled = false;
+            icone.innerHTML = '✨';
+            texto.textContent = 'Gerar Imagem com IA';
+        }
+    }
+
+    function removerFundoIa() {
+        document.getElementById('disparo_imagem_fundo_ia').value = '';
+        document.getElementById('previewFundoIaContainer').classList.add('hidden');
+        document.getElementById('badgeIaAtiva').classList.add('hidden');
+        document.querySelectorAll('.preset-ia-btn').forEach(btn => {
+            btn.classList.remove('border-purple-600', 'bg-purple-100/70', 'ring-2', 'ring-purple-500');
+            btn.classList.add('border-purple-200', 'bg-white');
+        });
+    }
 
     function aplicarGatilhoPromocional(texto) {
         const input = document.getElementById('disparo_mensagem_card');
@@ -854,6 +1127,7 @@ Garanta o seu antes que acabe o estoque!</textarea>
             apenas_com_estoque: apenasEstoque,
             mensagem_card: (document.getElementById('disparo_mensagem_card') ? document.getElementById('disparo_mensagem_card').value.trim() : ''),
             mensagem_texto: document.getElementById('disparo_mensagem_texto').value,
+            imagem_fundo: (document.getElementById('disparo_imagem_fundo_ia') ? document.getElementById('disparo_imagem_fundo_ia').value : null),
             '<?= Yii::$app->request->csrfParam ?>': '<?= Yii::$app->request->csrfToken ?>'
         };
 
@@ -1004,6 +1278,7 @@ Garanta o seu antes que acabe o estoque!</textarea>
             apenas_com_estoque: apenasEstoque,
             mensagem_card: (document.getElementById('disparo_mensagem_card') ? document.getElementById('disparo_mensagem_card').value.trim() : ''),
             mensagem_texto: document.getElementById('disparo_mensagem_texto').value,
+            imagem_fundo: (document.getElementById('disparo_imagem_fundo_ia') ? document.getElementById('disparo_imagem_fundo_ia').value : null),
             '<?= Yii::$app->request->csrfParam ?>': '<?= Yii::$app->request->csrfToken ?>'
         };
 

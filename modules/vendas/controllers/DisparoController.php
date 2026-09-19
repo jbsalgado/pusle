@@ -14,6 +14,7 @@ use app\modules\vendas\models\DisparoMassa;
 use app\modules\vendas\models\DisparoItem;
 use app\modules\vendas\services\DisparoMassaService;
 use app\modules\vendas\services\CardGeneratorService;
+use app\modules\vendas\services\AiImageGeneratorService;
 use app\modules\vendas\services\MediaStorageService;
 use app\modules\vendas\models\ProdutoVariante;
 use app\modules\vendas\models\ProdutoCard;
@@ -362,6 +363,7 @@ class DisparoController extends Controller
             'enquadramentoFoto' => $rawBody['enquadramento_foto'] ?? ($rawBody['enquadramentoFoto'] ?? $request->post('enquadramento_foto', 'auto')),
             'rotacaoFoto' => $rawBody['rotacao_foto'] ?? ($rawBody['rotacaoFoto'] ?? $request->post('rotacao_foto', 'auto')),
             'mensagemCard' => trim($rawBody['mensagem_card'] ?? ($rawBody['mensagemCard'] ?? $request->post('mensagem_card', ''))),
+            'imagemFundo' => $rawBody['imagem_fundo'] ?? ($rawBody['imagemFundo'] ?? $request->post('imagem_fundo', null)),
         ];
 
         $modoMatriz = $rawBody['modo_matriz'] ?? $request->post('modo_matriz', 'por_cor');
@@ -665,6 +667,7 @@ class DisparoController extends Controller
             'enquadramentoFoto' => $rawBody['enquadramento_foto'] ?? ($rawBody['enquadramentoFoto'] ?? $request->post('enquadramento_foto', 'auto')),
             'rotacaoFoto' => $rawBody['rotacao_foto'] ?? ($rawBody['rotacaoFoto'] ?? $request->post('rotacao_foto', 'auto')),
             'mensagemCard' => trim($rawBody['mensagem_card'] ?? ($rawBody['mensagemCard'] ?? $request->post('mensagem_card', ''))),
+            'imagemFundo' => $rawBody['imagem_fundo'] ?? ($rawBody['imagemFundo'] ?? $request->post('imagem_fundo', null)),
         ];
 
         if (empty($produtosIds)) {
@@ -916,6 +919,11 @@ class DisparoController extends Controller
             $opts['mensagemCard'] = trim($rawBody['mensagem_card']);
         } elseif (isset($rawBody['mensagemCard']) && !isset($opts['mensagemCard'])) {
             $opts['mensagemCard'] = trim($rawBody['mensagemCard']);
+        }
+        if (isset($rawBody['imagem_fundo']) && !isset($opts['imagemFundo'])) {
+            $opts['imagemFundo'] = $rawBody['imagem_fundo'];
+        } elseif (isset($rawBody['imagemFundo']) && !isset($opts['imagemFundo'])) {
+            $opts['imagemFundo'] = $rawBody['imagemFundo'];
         }
         if (!empty($cor)) {
             $opts['corMatriz'] = $cor;
@@ -1234,6 +1242,78 @@ class DisparoController extends Controller
                 : "{$excluidos} card(s) excluído(s) com sucesso!",
             'excluidos' => $excluidos,
             'stats' => $stats
+        ];
+    }
+
+    /**
+     * Endpoint AJAX para gerar uma imagem de fundo ou modelo humano via Inteligência Artificial.
+     */
+    public function actionGerarFundoIa()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        if (Yii::$app->user->isGuest) {
+            return ['success' => false, 'message' => 'Sessão expirada. Faça login novamente.'];
+        }
+
+        $request = Yii::$app->request;
+        $rawBody = json_decode($request->getRawBody(), true) ?: [];
+
+        $preset = $rawBody['preset'] ?? $request->post('preset', 'estudio_minimalista');
+        $promptLivre = $rawBody['prompt'] ?? $request->post('prompt', '');
+        $formato = $rawBody['formato'] ?? $request->post('formato', 'feed');
+        $produtoId = $rawBody['produto_id'] ?? $request->post('produto_id');
+        $seed = $rawBody['seed'] ?? $request->post('seed');
+        $lojaId = $this->getLojaId();
+
+        $produto = null;
+        $imagemReferenciaUrl = null;
+
+        if ($produtoId) {
+            $produto = Produto::findOne($produtoId);
+            if ($produto && $produto->fotoPrincipal && !empty($produto->fotoPrincipal->arquivo_path)) {
+                $caminhoFoto = ltrim($produto->fotoPrincipal->arquivo_path, '/');
+                $imagemReferenciaUrl = Url::to('@web/' . $caminhoFoto, true);
+            }
+        }
+
+        // Libera lock de sessão imediatamente para não travar navegação do usuário durante chamada de IA
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
+        try {
+            $aiService = new AiImageGeneratorService();
+            $promptFinal = $aiService->construirPrompt($preset, $promptLivre, $produto);
+
+            $opcoes = [
+                'lojaId' => $lojaId,
+                'preset' => $preset,
+                'seed' => $seed,
+                'imagemReferenciaUrl' => $imagemReferenciaUrl,
+            ];
+
+            $resultado = $aiService->gerarImagem($promptFinal, $formato, $opcoes);
+
+            return $resultado;
+        } catch (\Throwable $t) {
+            Yii::error("Erro na actionGerarFundoIa: " . $t->getMessage(), __METHOD__);
+            return [
+                'success' => false,
+                'message' => 'Ocorreu um erro ao processar a geração com IA: ' . $t->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Retorna a lista de presets comerciais de IA disponíveis.
+     */
+    public function actionPresetsIa()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        return [
+            'success' => true,
+            'presets' => AiImageGeneratorService::getPresetsDisponiveis(),
         ];
     }
 }

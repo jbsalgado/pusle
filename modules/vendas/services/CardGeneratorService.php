@@ -33,7 +33,7 @@ class CardGeneratorService
         $template = $options['template'] ?? 'modern_dark';
         $corTema = $options['corTema'] ?? 'dark';
         $fundoEstilo = $options['fundoEstilo'] ?? 'gradient';
-        $imagemFundoInput = $options['imagemFundo'] ?? null;
+        $imagemFundoInput = $options['imagemFundo'] ?? ($options['imagem_fundo'] ?? null);
         $imagemFundoBase64 = null;
 
         if ($imagemFundoInput) {
