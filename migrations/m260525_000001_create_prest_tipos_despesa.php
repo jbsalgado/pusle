@@ -50,19 +50,45 @@ class m260525_000001_create_prest_tipos_despesa extends Migration
         // -------------------------------------------------------
         // 2. Adicionar tipo_despesa_id em prest_contas_pagar
         // -------------------------------------------------------
-        $this->addColumn('prest_contas_pagar', 'tipo_despesa_id', 'UUID DEFAULT NULL');
-
-        $this->addForeignKey(
-            'fk_contas_pagar_tipo_despesa',
-            'prest_contas_pagar',
-            'tipo_despesa_id',
-            'prest_tipos_despesa',
-            'id',
-            'SET NULL',
-            'CASCADE'
-        );
-
-        $this->createIndex('idx_prest_contas_pagar_tipo_id', 'prest_contas_pagar', 'tipo_despesa_id');
+        if ($this->db->schema->getTableSchema('prest_contas_pagar') === null) {
+            $this->execute("
+                CREATE TABLE IF NOT EXISTS prest_contas_pagar (
+                    id uuid NOT NULL DEFAULT gen_random_uuid(),
+                    usuario_id uuid NOT NULL REFERENCES prest_usuarios(id) ON DELETE CASCADE,
+                    fornecedor_id uuid REFERENCES prest_fornecedores(id) ON DELETE SET NULL,
+                    compra_id uuid REFERENCES prest_compras(id) ON DELETE SET NULL,
+                    descricao varchar(255) NOT NULL,
+                    valor numeric(10,2) NOT NULL,
+                    data_vencimento date NOT NULL,
+                    data_pagamento date,
+                    status varchar(20) NOT NULL DEFAULT 'PENDENTE',
+                    forma_pagamento_id uuid REFERENCES prest_formas_pagamento(id) ON DELETE SET NULL,
+                    observacoes text,
+                    data_criacao timestamptz NOT NULL DEFAULT now(),
+                    data_atualizacao timestamptz NOT NULL DEFAULT now(),
+                    arquivo_comprovante varchar(255),
+                    tipo_despesa_id uuid REFERENCES prest_tipos_despesa(id) ON DELETE SET NULL,
+                    PRIMARY KEY (id)
+                )
+            ");
+            $this->execute("CREATE INDEX IF NOT EXISTS idx_prest_contas_pagar_usuario_id ON prest_contas_pagar(usuario_id)");
+            $this->execute("CREATE INDEX IF NOT EXISTS idx_prest_contas_pagar_tipo_id ON prest_contas_pagar(tipo_despesa_id)");
+        } else {
+            $tableContasPagar = $this->db->schema->getTableSchema('prest_contas_pagar');
+            if (!isset($tableContasPagar->columns['tipo_despesa_id'])) {
+                $this->addColumn('prest_contas_pagar', 'tipo_despesa_id', 'UUID DEFAULT NULL');
+                $this->addForeignKey(
+                    'fk_contas_pagar_tipo_despesa',
+                    'prest_contas_pagar',
+                    'tipo_despesa_id',
+                    'prest_tipos_despesa',
+                    'id',
+                    'SET NULL',
+                    'CASCADE'
+                );
+                $this->createIndex('idx_prest_contas_pagar_tipo_id', 'prest_contas_pagar', 'tipo_despesa_id');
+            }
+        }
     }
 
     public function safeDown()
