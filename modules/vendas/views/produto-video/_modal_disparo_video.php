@@ -25,18 +25,32 @@ use yii\helpers\Url;
         <!-- Body / Content -->
         <div class="p-6 space-y-6 overflow-y-auto flex-1">
 
-            <!-- Banner de Status do WhatsApp -->
-            <div id="bannerStatusWhatsappVideo" class="bg-slate-800/70 border border-slate-700 p-3.5 rounded-2xl flex items-center justify-between">
+            <!-- Banner de Status do WhatsApp (Pulse Agent & Evolution API) -->
+            <div id="bannerStatusWhatsappVideo" class="bg-slate-800/70 border border-slate-700 p-3.5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div class="flex items-center gap-3">
-                    <span id="indicadorDotWhatsappVideo" class="w-3.5 h-3.5 rounded-full bg-slate-500 animate-pulse inline-block"></span>
+                    <span id="indicadorDotWhatsappVideo" class="w-3.5 h-3.5 rounded-full bg-slate-500 animate-pulse inline-block flex-shrink-0"></span>
                     <div>
-                        <div class="text-xs font-bold text-slate-200" id="textoStatusWhatsappVideo">Verificando conexão da Evolution API...</div>
-                        <div class="text-[11px] text-slate-400" id="subtextoStatusWhatsappVideo">Consultando a instância da sua loja.</div>
+                        <div class="text-xs font-bold text-slate-200" id="textoStatusWhatsappVideo">Verificando conexão do WhatsApp...</div>
+                        <div class="text-[11px] text-slate-400" id="subtextoStatusWhatsappVideo">Consultando status do Pulse Agent Local e Evolution API.</div>
                     </div>
                 </div>
-                <a href="<?= Url::to(['/evolution/default/index']) ?>" target="_blank" id="btnConectarWhatsappVideo" class="hidden text-xs font-bold px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition shadow-sm">
-                    Conectar WhatsApp
-                </a>
+                <div id="containerBotoesWhatsappVideo" class="flex items-center flex-wrap gap-2 w-full sm:w-auto justify-end">
+                    <!-- Opção 1: WhatsApp Local (Pulse Agent) -->
+                    <a href="<?= Url::to(['/vendas/bridge-whatsapp/index']) ?>" target="_blank" id="btnConectarAgentVideo" class="hidden text-xs font-bold px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white rounded-xl transition shadow-sm flex items-center gap-1.5" title="Conectar via Pulse Agent (Agente Desktop instalado no computador da loja)">
+                        <span>💻</span>
+                        <span>WhatsApp Local (Agent)</span>
+                    </a>
+                    <!-- Opção 2: Evolution API (Nuvem) -->
+                    <a href="<?= Url::to(['/evolution/config/index']) ?>" target="_blank" id="btnConectarEvolutionVideo" class="hidden text-xs font-bold px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition shadow-sm flex items-center gap-1.5" title="Conectar via Evolution API (Instância em Nuvem)">
+                        <span>☁️</span>
+                        <span>Evolution API</span>
+                    </a>
+                    <!-- Botão Gerenciar Conexão Ativa -->
+                    <a href="<?= Url::to(['/evolution/config/index']) ?>" target="_blank" id="btnGerenciarWhatsappVideo" class="hidden text-xs font-bold px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition shadow-sm flex items-center gap-1.5">
+                        <span>⚙️</span>
+                        <span id="textoBtnGerenciarWhatsappVideo">Gerenciar Conexão</span>
+                    </a>
+                </div>
             </div>
 
             <!-- Formulário Configurações de Disparo de Vídeos -->

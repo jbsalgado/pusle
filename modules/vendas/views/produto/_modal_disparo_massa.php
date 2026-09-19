@@ -43,18 +43,32 @@ use yii\helpers\Url;
                 </button>
             </div>
 
-            <!-- Banner de Status do WhatsApp -->
-            <div id="bannerStatusWhatsapp" class="bg-gray-50 border border-gray-200 p-3 rounded-2xl flex items-center justify-between">
+            <!-- Banner de Status do WhatsApp (Pulse Agent & Evolution API) -->
+            <div id="bannerStatusWhatsapp" class="bg-gray-50 border border-gray-200 p-3 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div class="flex items-center gap-3">
-                    <span id="indicadorDotWhatsapp" class="w-3.5 h-3.5 rounded-full bg-gray-400 animate-pulse inline-block"></span>
+                    <span id="indicadorDotWhatsapp" class="w-3.5 h-3.5 rounded-full bg-gray-400 animate-pulse inline-block flex-shrink-0"></span>
                     <div>
-                        <div class="text-xs font-bold text-gray-800" id="textoStatusWhatsapp">Verificando conexão da Evolution API...</div>
-                        <div class="text-[11px] text-gray-500" id="subtextoStatusWhatsapp">Consultando a instância da sua loja.</div>
+                        <div class="text-xs font-bold text-gray-800" id="textoStatusWhatsapp">Verificando conexão do WhatsApp...</div>
+                        <div class="text-[11px] text-gray-500" id="subtextoStatusWhatsapp">Consultando Pulse Agent Local e Evolution API da loja.</div>
                     </div>
                 </div>
-                <a href="<?= Url::to(['/evolution/default/index']) ?>" target="_blank" id="btnConectarWhatsapp" class="hidden text-xs font-bold px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-xl transition shadow-sm">
-                    Conectar WhatsApp
-                </a>
+                <div id="containerBotoesWhatsapp" class="flex items-center flex-wrap gap-2 w-full sm:w-auto justify-end">
+                    <!-- Opção 1: WhatsApp Local (Pulse Agent) -->
+                    <a href="<?= Url::to(['/vendas/bridge-whatsapp/index']) ?>" target="_blank" id="btnConectarAgentLocal" class="hidden text-xs font-bold px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white rounded-xl transition shadow-sm flex items-center gap-1.5" title="Conectar via Pulse Agent (Agente Desktop instalado no computador da loja)">
+                        <span>💻</span>
+                        <span>WhatsApp Local (Agent)</span>
+                    </a>
+                    <!-- Opção 2: Evolution API (Nuvem) -->
+                    <a href="<?= Url::to(['/evolution/config/index']) ?>" target="_blank" id="btnConectarEvolutionApi" class="hidden text-xs font-bold px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition shadow-sm flex items-center gap-1.5" title="Conectar via Evolution API (Instância em Nuvem)">
+                        <span>☁️</span>
+                        <span>Evolution API</span>
+                    </a>
+                    <!-- Botão Gerenciar Conexão Ativa -->
+                    <a href="<?= Url::to(['/evolution/config/index']) ?>" target="_blank" id="btnGerenciarWhatsapp" class="hidden text-xs font-bold px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded-xl transition shadow-sm flex items-center gap-1.5">
+                        <span>⚙️</span>
+                        <span id="textoBtnGerenciarWhatsapp">Gerenciar Conexão</span>
+                    </a>
+                </div>
             </div>
 
             <!-- Banner de Consumo de Armazenamento de Cards (50 MB) (Exibido no Modo Download / Envio Manual) -->
@@ -982,34 +996,58 @@ Garanta o seu antes que acabe o estoque!</textarea>
         const dot = document.getElementById('indicadorDotWhatsapp');
         const texto = document.getElementById('textoStatusWhatsapp');
         const subtexto = document.getElementById('subtextoStatusWhatsapp');
-        const btnConectar = document.getElementById('btnConectarWhatsapp');
+        const btnAgent = document.getElementById('btnConectarAgentLocal');
+        const btnEvolution = document.getElementById('btnConectarEvolutionApi');
+        const btnGerenciar = document.getElementById('btnGerenciarWhatsapp');
+        const textoBtnGerenciar = document.getElementById('textoBtnGerenciarWhatsapp');
 
-        dot.className = 'w-3.5 h-3.5 rounded-full bg-gray-400 animate-pulse inline-block';
-        texto.textContent = 'Verificando conexão da Evolution API...';
-        subtexto.textContent = 'Consultando status da instância da loja.';
-        btnConectar.classList.add('hidden');
+        dot.className = 'w-3.5 h-3.5 rounded-full bg-gray-400 animate-pulse inline-block flex-shrink-0';
+        texto.textContent = 'Verificando conexão do WhatsApp...';
+        subtexto.textContent = 'Consultando status do Pulse Agent Local e Evolution API.';
+        if (btnAgent) btnAgent.classList.add('hidden');
+        if (btnEvolution) btnEvolution.classList.add('hidden');
+        if (btnGerenciar) btnGerenciar.classList.add('hidden');
 
         fetch('<?= Url::to(['/vendas/disparo/status-whatsapp']) ?>')
         .then(r => r.json())
         .then(data => {
             if (data.success && data.connected) {
                 whatsappConectadoCache = true;
-                dot.className = 'w-3.5 h-3.5 rounded-full bg-green-500 inline-block shadow';
-                texto.textContent = '🟢 WhatsApp Conectado via Evolution API';
-                subtexto.textContent = 'Instância: ' + (data.instance_name || 'Ativa') + ' (Pronto para disparos no Status e Mensagens)';
+                dot.className = 'w-3.5 h-3.5 rounded-full bg-emerald-500 inline-block shadow ring-2 ring-emerald-300 flex-shrink-0';
+                
+                if (data.provider === 'pulse_agent') {
+                    texto.textContent = '🟢 Conectado via WhatsApp Local (Pulse Agent)';
+                    subtexto.textContent = 'Chip Conectado: ' + (data.telefone ? '+' + data.telefone : 'Ativo') + ' • Pronto para envios em massa e Status';
+                    if (btnGerenciar) {
+                        btnGerenciar.href = '<?= Url::to(['/vendas/bridge-whatsapp/index']) ?>';
+                        if (textoBtnGerenciar) textoBtnGerenciar.textContent = 'Gerenciar Agent';
+                        btnGerenciar.classList.remove('hidden');
+                    }
+                } else {
+                    texto.textContent = '🟢 Conectado via Evolution API';
+                    subtexto.textContent = 'Instância: ' + (data.instance_name || 'Ativa') + ' • Pronto para disparos no Status e Mensagens';
+                    if (btnGerenciar) {
+                        btnGerenciar.href = '<?= Url::to(['/evolution/config/index']) ?>';
+                        if (textoBtnGerenciar) textoBtnGerenciar.textContent = 'Gerenciar Evolution';
+                        btnGerenciar.classList.remove('hidden');
+                    }
+                }
             } else {
                 whatsappConectadoCache = false;
-                dot.className = 'w-3.5 h-3.5 rounded-full bg-red-500 inline-block shadow';
+                dot.className = 'w-3.5 h-3.5 rounded-full bg-red-500 inline-block shadow flex-shrink-0';
                 texto.textContent = '🔴 WhatsApp Desconectado';
-                subtexto.textContent = 'Conecte sua instância da Evolution API antes de disparar via WhatsApp.';
-                btnConectar.classList.remove('hidden');
+                subtexto.textContent = 'Conecte seu WhatsApp via Agent Local (grátis) ou Evolution API (nuvem):';
+                if (btnAgent) btnAgent.classList.remove('hidden');
+                if (btnEvolution) btnEvolution.classList.remove('hidden');
             }
         })
         .catch(err => {
             whatsappConectadoCache = false;
-            dot.className = 'w-3.5 h-3.5 rounded-full bg-yellow-500 inline-block';
-            texto.textContent = '⚠️ Falha ao verificar Evolution API';
-            subtexto.textContent = 'Não foi possível consultar o status da conexão.';
+            dot.className = 'w-3.5 h-3.5 rounded-full bg-yellow-500 inline-block flex-shrink-0';
+            texto.textContent = '⚠️ Falha ao verificar status do WhatsApp';
+            subtexto.textContent = 'Não foi possível consultar o servidor. Você ainda pode tentar conectar:';
+            if (btnAgent) btnAgent.classList.remove('hidden');
+            if (btnEvolution) btnEvolution.classList.remove('hidden');
         });
     }
 
@@ -1100,7 +1138,7 @@ Garanta o seu antes que acabe o estoque!</textarea>
         }
 
         if ((statusChecked || whatsappChecked) && !whatsappConectadoCache) {
-            if (!confirm('⚠️ Atenção: A instância do WhatsApp da sua loja na Evolution API parece estar DESCONECTADA. Deseja continuar mesmo assim?')) {
+            if (!confirm('⚠️ Atenção: O WhatsApp da sua loja (Pulse Agent ou Evolution API) parece estar DESCONECTADO. Deseja continuar mesmo assim?')) {
                 return;
             }
         }

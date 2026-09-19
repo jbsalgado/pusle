@@ -2726,34 +2726,57 @@ function verificarStatusWhatsappVideo() {
     const dot = document.getElementById('indicadorDotWhatsappVideo');
     const texto = document.getElementById('textoStatusWhatsappVideo');
     const subtexto = document.getElementById('subtextoStatusWhatsappVideo');
-    const btnConectar = document.getElementById('btnConectarWhatsappVideo');
+    const btnAgent = document.getElementById('btnConectarAgentVideo');
+    const btnEvolution = document.getElementById('btnConectarEvolutionVideo');
+    const btnGerenciar = document.getElementById('btnGerenciarWhatsappVideo');
+    const textoBtnGerenciar = document.getElementById('textoBtnGerenciarWhatsappVideo');
 
-    dot.className = 'w-3.5 h-3.5 rounded-full bg-slate-500 animate-pulse inline-block';
-    texto.textContent = 'Verificando Evolution API...';
-    subtexto.textContent = 'Consultando status da instância da loja.';
-    btnConectar.classList.add('hidden');
+    dot.className = 'w-3.5 h-3.5 rounded-full bg-slate-500 animate-pulse inline-block flex-shrink-0';
+    texto.textContent = 'Verificando conexão do WhatsApp...';
+    subtexto.textContent = 'Consultando status do Pulse Agent Local e Evolution API.';
+    if (btnAgent) btnAgent.classList.add('hidden');
+    if (btnEvolution) btnEvolution.classList.add('hidden');
+    if (btnGerenciar) btnGerenciar.classList.add('hidden');
 
     fetch('<?= Url::to(['/vendas/disparo/status-whatsapp']) ?>')
     .then(r => r.json())
     .then(data => {
         if (data.success && data.connected) {
             whatsappVideoConectadoCache = true;
-            dot.className = 'w-3.5 h-3.5 rounded-full bg-emerald-500 inline-block shadow';
-            texto.textContent = '🟢 WhatsApp Conectado via Evolution API';
-            subtexto.textContent = 'Instância: ' + (data.instance_name || 'Ativa') + ' (Pronto para disparos no Status e Mensagens)';
+            dot.className = 'w-3.5 h-3.5 rounded-full bg-emerald-500 inline-block shadow ring-2 ring-emerald-300 flex-shrink-0';
+            if (data.provider === 'pulse_agent') {
+                texto.textContent = '🟢 Conectado via WhatsApp Local (Pulse Agent)';
+                subtexto.textContent = 'Chip Conectado: ' + (data.telefone ? '+' + data.telefone : 'Ativo') + ' • Pronto para envio de Vídeos e Status';
+                if (btnGerenciar) {
+                    btnGerenciar.href = '<?= Url::to(['/vendas/bridge-whatsapp/index']) ?>';
+                    if (textoBtnGerenciar) textoBtnGerenciar.textContent = 'Gerenciar Agent';
+                    btnGerenciar.classList.remove('hidden');
+                }
+            } else {
+                texto.textContent = '🟢 Conectado via Evolution API';
+                subtexto.textContent = 'Instância: ' + (data.instance_name || 'Ativa') + ' • Pronto para disparos no Status e Mensagens';
+                if (btnGerenciar) {
+                    btnGerenciar.href = '<?= Url::to(['/evolution/config/index']) ?>';
+                    if (textoBtnGerenciar) textoBtnGerenciar.textContent = 'Gerenciar Evolution';
+                    btnGerenciar.classList.remove('hidden');
+                }
+            }
         } else {
             whatsappVideoConectadoCache = false;
-            dot.className = 'w-3.5 h-3.5 rounded-full bg-red-500 inline-block shadow';
+            dot.className = 'w-3.5 h-3.5 rounded-full bg-red-500 inline-block shadow flex-shrink-0';
             texto.textContent = '🔴 WhatsApp Desconectado';
-            subtexto.textContent = 'Conecte sua instância da Evolution API antes de disparar via WhatsApp.';
-            btnConectar.classList.remove('hidden');
+            subtexto.textContent = 'Conecte seu WhatsApp via Agent Local (grátis) ou Evolution API (nuvem):';
+            if (btnAgent) btnAgent.classList.remove('hidden');
+            if (btnEvolution) btnEvolution.classList.remove('hidden');
         }
     })
     .catch(err => {
         whatsappVideoConectadoCache = false;
-        dot.className = 'w-3.5 h-3.5 rounded-full bg-amber-500 inline-block';
-        texto.textContent = '⚠️ Falha ao verificar Evolution API';
+        dot.className = 'w-3.5 h-3.5 rounded-full bg-amber-500 inline-block flex-shrink-0';
+        texto.textContent = '⚠️ Falha ao verificar status do WhatsApp';
         subtexto.textContent = 'Não foi possível consultar o status da conexão.';
+        if (btnAgent) btnAgent.classList.remove('hidden');
+        if (btnEvolution) btnEvolution.classList.remove('hidden');
     });
 }
 
