@@ -167,6 +167,7 @@ class BridgeWhatsappController extends Controller
         $token = $loja->token_agente;
 
         $content = "@echo off\r\n";
+        $content .= "cd /d \"%~dp0\"\r\n";
         $content .= "title Pulse Agent WhatsApp - Conexao Local da Loja\r\n";
         $content .= "cls\r\n";
         $content .= "echo =======================================================\r\n";
@@ -176,12 +177,13 @@ class BridgeWhatsappController extends Controller
         $content .= "echo.\r\n";
         $content .= "if not exist \"pulse-agent.exe\" (\r\n";
         $content .= "    echo [1/2] Baixando executavel do agente pulse-agent.exe...\r\n";
-        $content .= "    curl -fsSL \"{$serverUrl}/downloads/bridge/pulse-agent.exe\" -o pulse-agent.exe\r\n";
+        $content .= "    curl -# -fSL \"{$serverUrl}/downloads/bridge/pulse-agent.exe\" -o pulse-agent.exe\r\n";
         $content .= ")\r\n";
         $content .= "echo [2/2] Iniciando Pulse Agent no seu computador...\r\n";
         $content .= "echo Conectando a VPS: {$serverUrl}\r\n";
         $content .= "echo.\r\n";
         $content .= "pulse-agent.exe --token=\"{$token}\" --server=\"{$serverUrl}\"\r\n";
+        $content .= "echo.\r\n";
         $content .= "pause\r\n";
 
         return Yii::$app->response->sendContentAsFile($content, 'iniciar_whatsapp.bat', [
@@ -201,14 +203,32 @@ class BridgeWhatsappController extends Controller
         $token = $loja->token_agente;
 
         $content = "#!/bin/bash\n";
+        $content .= "# Navega automaticamente para a pasta onde o script esta salvo\n";
+        $content .= "cd \"\$(dirname \"\$0\")\" 2>/dev/null || true\n\n";
+        $content .= "# Se for executado via clique duplo fora de um terminal interativo, abre o terminal do sistema\n";
+        $content .= "if [ ! -t 0 ] || [ ! -t 1 ]; then\n";
+        $content .= "    for term in konsole gnome-terminal xfce4-terminal kitty alacritty foot tilix terminator urxvt xterm x-terminal-emulator; do\n";
+        $content .= "        if command -v \"\$term\" >/dev/null 2>&1; then\n";
+        $content .= "            case \"\$term\" in\n";
+        $content .= "                gnome-terminal|xfce4-terminal|tilix|terminator)\n";
+        $content .= "                    exec \"\$term\" -- bash \"\$0\" \"\$@\"\n";
+        $content .= "                    ;;\n";
+        $content .= "                *)\n";
+        $content .= "                    exec \"\$term\" -e bash \"\$0\" \"\$@\"\n";
+        $content .= "                    ;;\n";
+        $content .= "            esac\n";
+        $content .= "        fi\n";
+        $content .= "    done\n";
+        $content .= "fi\n\n";
+        $content .= "trap 'echo \"\"; read -p \"Pressione Enter para fechar...\"' EXIT\n\n";
         $content .= "echo '======================================================='\n";
         $content .= "echo '  PULSE AGENT WHATSAPP - CONEXAO LOCAL DA LOJA'\n";
-        $content .= "echo '  Zero Custo Meta API - IP Residencial Antiban'\n";
+        $content .= "echo '  Zero Custo Meta API - IP Residencial Antiban (Linux)'\n";
         $content .= "echo '======================================================='\n";
         $content .= "echo ''\n";
         $content .= "if [ ! -f \"pulse-agent-linux\" ]; then\n";
         $content .= "    echo '[1/2] Baixando executavel do agente pulse-agent-linux...'\n";
-        $content .= "    curl -fsSL \"{$serverUrl}/downloads/bridge/pulse-agent-linux\" -o pulse-agent-linux\n";
+        $content .= "    curl -# -fSL \"{$serverUrl}/downloads/bridge/pulse-agent-linux\" -o pulse-agent-linux\n";
         $content .= "    chmod +x pulse-agent-linux\n";
         $content .= "fi\n";
         $content .= "echo '[2/2] Iniciando Pulse Agent no seu computador...'\n";

@@ -359,50 +359,105 @@ $token = $loja->token_agente;
             </div>
         </div>
 
-        <div class="space-y-6 text-xs">
-            <!-- Passo Recomendado: 1 Clique -->
-            <div class="p-4 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/30 rounded-2xl">
+        <!-- Abas de Seleção de Sistema Operacional -->
+        <div class="flex items-center gap-2 p-1.5 bg-slate-950/80 rounded-2xl border border-slate-800 mb-6">
+            <button type="button" id="tab-instalacao-linux" onclick="selecionarAbaInstalacao('linux')" class="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-sm">
+                <span class="text-base">🐧</span>
+                <span>Linux (Arch, Ubuntu, Debian, Fedora)</span>
+            </button>
+            <button type="button" id="tab-instalacao-windows" onclick="selecionarAbaInstalacao('windows')" class="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 bg-slate-800 text-slate-400 border border-slate-700 hover:text-white">
+                <span class="text-base">🪟</span>
+                <span>Windows (10 / 11 / Server)</span>
+            </button>
+        </div>
+
+        <!-- Conteúdo ABA LINUX -->
+        <div id="conteudo-instalacao-linux" class="space-y-6 text-xs">
+            <!-- 1. Recomendado no Linux: 1 Comando Direto no Terminal -->
+            <div class="p-4 bg-gradient-to-r from-emerald-500/15 to-cyan-500/10 border border-emerald-500/40 rounded-2xl">
+                <div class="flex items-center justify-between gap-2 mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center font-black text-[10px]">★</span>
+                        <h4 class="text-sm font-black text-emerald-400">Método Mais Fácil no Linux: 1 Comando no Terminal</h4>
+                    </div>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Recomendado</span>
+                </div>
+                <p class="text-slate-300 text-xs mb-3">
+                    No Linux (Arch, Ubuntu, Fedora, etc.), abra seu terminal na pasta de sua escolha e cole o comando abaixo. Ele baixa o agente, concede permissão de execução (<code class="bg-slate-800 px-1 py-0.5 rounded text-cyan-300">chmod +x</code>) e conecta automaticamente com seu token:
+                </p>
+
+                <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800/80 font-mono text-cyan-300 text-[11px] mb-3 relative group break-all">
+                    <span id="codigo-comando-linux">curl -# -fSL "<?= $serverUrl ?>/downloads/bridge/pulse-agent-linux" -o pulse-agent-linux && chmod +x pulse-agent-linux && ./pulse-agent-linux --token="<?= Html::encode($token) ?>" --server="<?= Html::encode($serverUrl) ?>"</span>
+                </div>
+
+                <button type="button" id="btn-copiar-cmd-linux" onclick="copiarComandoLinux()" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition shadow-lg shadow-emerald-950/40 text-xs">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    <span>Copiar Comando Completo para o Terminal</span>
+                </button>
+            </div>
+
+            <!-- 2. Opção Script .sh -->
+            <div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-3">
+                <div class="flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-[10px]">2</span>
+                    <h4 class="text-sm font-bold text-slate-200">Ou Baixe o Script Inicializador (.sh):</h4>
+                </div>
+                <p class="text-slate-400 text-xs">
+                    Caso prefira salvar o script na máquina, baixe o arquivo abaixo. O script possui auto-detecção de terminal (<code class="text-slate-300">konsole</code>, <code class="text-slate-300">gnome-terminal</code>, <code class="text-slate-300">kitty</code>, <code class="text-slate-300">alacritty</code>, etc.):
+                </p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <a href="<?= Url::to(['/vendas/bridge-whatsapp/baixar-sh']) ?>" class="flex items-center justify-center gap-2 p-3 bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 hover:border-cyan-500 rounded-xl font-bold transition shadow">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.003 0C5.373 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+                        <span>Baixar iniciar_whatsapp.sh</span>
+                    </a>
+                    <a href="/downloads/bridge/pulse-agent-linux" download class="flex items-center justify-center gap-2 p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 rounded-xl font-bold transition shadow">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        <span>Executável pulse-agent-linux</span>
+                    </a>
+                </div>
+                <p class="text-[11px] text-slate-500 italic">
+                    Dica no terminal para o arquivo baixado: <code class="text-cyan-400 font-mono">chmod +x iniciar_whatsapp.sh && ./iniciar_whatsapp.sh</code>
+                </p>
+            </div>
+        </div>
+
+        <!-- Conteúdo ABA WINDOWS -->
+        <div id="conteudo-instalacao-windows" class="hidden space-y-6 text-xs">
+            <!-- 1. Recomendado no Windows: 1 Clique (.bat) -->
+            <div class="p-4 bg-gradient-to-r from-emerald-500/15 to-teal-500/10 border border-emerald-500/30 rounded-2xl">
                 <div class="flex items-center gap-2 mb-2">
                     <span class="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center font-black text-[10px]">★</span>
-                    <h4 class="text-sm font-black text-emerald-400">Opção Mais Fácil: Inicializador de 1 Clique</h4>
+                    <h4 class="text-sm font-black text-emerald-400">Opção Mais Fácil: Inicializador de 1 Clique (.bat)</h4>
                 </div>
                 <p class="text-slate-300 text-xs mb-3">
                     Baixe o arquivo abaixo para a pasta da sua preferência e dê <b>dois cliques</b> para iniciar. Ele baixa o agente e conecta automaticamente com seu token!
                 </p>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <a href="<?= Url::to(['/vendas/bridge-whatsapp/baixar-bat']) ?>" class="flex items-center justify-center gap-2 p-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl transition shadow-lg shadow-emerald-950/40">
+                    <a href="<?= Url::to(['/vendas/bridge-whatsapp/baixar-bat']) ?>" class="flex items-center justify-center gap-2 p-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition shadow-lg shadow-emerald-950/40">
                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.949-1.801"/></svg>
                         <span>Baixar iniciar_whatsapp.bat (Windows)</span>
                     </a>
-                    <a href="<?= Url::to(['/vendas/bridge-whatsapp/baixar-sh']) ?>" class="flex items-center justify-center gap-2 p-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold rounded-2xl transition shadow">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.003 0C5.373 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
-                        <span>Baixar iniciar_whatsapp.sh (Linux)</span>
-                    </a>
-                </div>
-            </div>
-
-            <!-- Passo 1: Download Manual -->
-            <div>
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-[10px]">1</span>
-                    <h4 class="text-sm font-bold text-slate-200">Ou Baixe Apenas o Executável Diretamente:</h4>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <a href="/downloads/bridge/pulse-agent.exe" download class="flex items-center justify-center gap-2 p-3 bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 hover:border-cyan-500 rounded-2xl font-bold transition shadow">
+                    <a href="/downloads/bridge/pulse-agent.exe" download class="flex items-center justify-center gap-2 p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 rounded-xl font-bold transition shadow">
                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.949-1.801"/></svg>
                         <span>Executável pulse-agent.exe</span>
                     </a>
-                    <a href="/downloads/bridge/pulse-agent-linux" download class="flex items-center justify-center gap-2 p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 rounded-2xl font-bold transition shadow">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.003 0C5.373 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
-                        <span>Executável pulse-agent-linux</span>
-                    </a>
                 </div>
             </div>
 
-            <!-- Passo 2: Token -->
+            <!-- 2. Manual Windows -->
+            <div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-2">
+                <h4 class="text-sm font-bold text-slate-200">Ou execute via Prompt de Comando / PowerShell:</h4>
+                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-emerald-400 text-[11px] select-all">
+                    .\pulse-agent.exe --token="<?= Html::encode($token) ?>" --server="<?= Html::encode($serverUrl) ?>"
+                </div>
+            </div>
+        </div>
+
+        <!-- Token e Informações Gerais -->
+        <div class="space-y-4 pt-4 border-t border-slate-800/80 text-xs">
             <div>
                 <div class="flex items-center gap-2 mb-2">
-                    <span class="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-[10px]">2</span>
+                    <span class="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-[10px]">🔑</span>
                     <h4 class="text-sm font-bold text-slate-200">Token de Autenticação Exclusivo da sua Loja:</h4>
                 </div>
                 <div class="flex items-center gap-2 bg-slate-950 p-2 pl-3 rounded-2xl border border-slate-800">
@@ -411,20 +466,6 @@ $token = $loja->token_agente;
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                         <span>Copiar</span>
                     </button>
-                </div>
-            </div>
-
-            <!-- Passo 3: Execução Manual -->
-            <div>
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-[10px]">3</span>
-                    <h4 class="text-sm font-bold text-slate-200">Ou execute manualmente pelo Prompt / Terminal:</h4>
-                </div>
-                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 font-mono text-emerald-400 space-y-2 overflow-x-auto text-[11px]">
-                    <div class="text-slate-500"># No Windows (Prompt de Comando ou PowerShell):</div>
-                    <div class="select-all">.\pulse-agent.exe --token="<?= Html::encode($token) ?>" --server="<?= Html::encode($serverUrl) ?>"</div>
-                    <div class="text-slate-500 pt-2"># No Linux:</div>
-                    <div class="select-all">chmod +x pulse-agent-linux && ./pulse-agent-linux --token="<?= Html::encode($token) ?>" --server="<?= Html::encode($serverUrl) ?>"</div>
                 </div>
             </div>
 
@@ -464,6 +505,8 @@ function fecharModalQr() {
 }
 
 function abrirModalInstalacao() {
+    const isLinux = /Linux/i.test(navigator.userAgent) && !/Android/i.test(navigator.userAgent);
+    selecionarAbaInstalacao(isLinux ? 'linux' : 'windows');
     const modal = document.getElementById('modalInstalacao');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
@@ -473,6 +516,44 @@ function fecharModalInstalacao() {
     const modal = document.getElementById('modalInstalacao');
     modal.classList.remove('flex');
     modal.classList.add('hidden');
+}
+
+function selecionarAbaInstalacao(so) {
+    const tabLinux = document.getElementById('tab-instalacao-linux');
+    const tabWin = document.getElementById('tab-instalacao-windows');
+    const conteudoLinux = document.getElementById('conteudo-instalacao-linux');
+    const conteudoWin = document.getElementById('conteudo-instalacao-windows');
+    
+    if (!tabLinux || !tabWin) return;
+
+    if (so === 'linux') {
+        tabLinux.className = 'flex-1 py-2.5 px-4 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-sm';
+        tabWin.className = 'flex-1 py-2.5 px-4 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 bg-slate-800 text-slate-400 border border-slate-700 hover:text-white';
+        conteudoLinux.classList.remove('hidden');
+        conteudoWin.classList.add('hidden');
+    } else {
+        tabWin.className = 'flex-1 py-2.5 px-4 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-sm';
+        tabLinux.className = 'flex-1 py-2.5 px-4 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 bg-slate-800 text-slate-400 border border-slate-700 hover:text-white';
+        conteudoWin.classList.remove('hidden');
+        conteudoLinux.classList.add('hidden');
+    }
+}
+
+function copiarComandoLinux() {
+    const el = document.getElementById('codigo-comando-linux');
+    if (!el) return;
+    const cmd = el.innerText;
+    navigator.clipboard.writeText(cmd.trim()).then(() => {
+        const btn = document.getElementById('btn-copiar-cmd-linux');
+        if (!btn) return;
+        const originalHtml = btn.innerHTML;
+        btn.className = 'w-full flex items-center justify-center gap-2 py-3 px-4 bg-emerald-500 text-slate-950 font-black rounded-xl transition shadow-lg text-xs';
+        btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg><span>Comando Copiado! Cole no seu Terminal</span>';
+        setTimeout(() => {
+            btn.className = 'w-full flex items-center justify-center gap-2 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition shadow-lg shadow-emerald-950/40 text-xs';
+            btn.innerHTML = originalHtml;
+        }, 3000);
+    });
 }
 
 function atualizarStatus() {
@@ -552,9 +633,9 @@ function atualizarStatus() {
 }
 
 function conectarWhatsapp() {
-    // Se o agente estiver offline, avisa e abre o modal com o download de 1 clique
+    // Se o agente estiver offline, avisa e abre o modal com as instruções de inicialização
     if (!ultimoAgenteOnline) {
-        alert('⚠️ O Pulse Agent está desligado no computador da sua loja!\n\nPara conectar o WhatsApp, você precisa abrir o aplicativo no seu PC primeiro.\n\nBaixe o arquivo de 1 clique e dê dois cliques nele para iniciar.');
+        alert('⚠️ O Pulse Agent ainda não está ativo no computador da sua loja!\n\nPara parear o WhatsApp via QR Code, inicie o Pulse Agent no seu computador (Linux ou Windows).\n\nConsulte o passo a passo que acabamos de abrir na tela.');
         abrirModalInstalacao();
         return;
     }
