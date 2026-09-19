@@ -17,15 +17,18 @@ use yii\helpers\Url;
 $nomeLoja = $lojaConfig ? ($lojaConfig->nome_fantasia ?: $lojaConfig->nome_loja) : ($usuario->nome ?? 'Loja Pulse');
 $slugLoja = $usuario->catalogo_path ?: ($usuario->username ?: $usuario->id);
 
-$this->title = ($mesa ? "Mesa {$mesa->numero_mesa} — " : "") . $nomeLoja;
+$isMesaAtiva = ($mesa !== null || $comanda !== null);
+$defaultTab = $isMesaAtiva ? 'comanda' : 'feed';
+
+$this->title = ($mesa ? "Mesa {$mesa->numero_mesa} — " : "") . $nomeLoja . " — Canal de Atendimento";
 $isIdentificado = ($cliente !== null);
-$defaultTab = $mesa ? 'comanda' : 'feed';
 ?>
 
 <script>
 window.hubApp = function() {
     return {
         tab: '<?= $defaultTab ?>',
+        isMesaAtiva: <?= $isMesaAtiva ? 'true' : 'false' ?>,
         showIdModal: <?= !$isIdentificado ? 'true' : 'false' ?>,
         nome: (function() {
             try { return localStorage.getItem('cliente_hub_nome') || localStorage.getItem('cliente_encarte_nome') || ''; } catch(e) { return ''; }
@@ -43,13 +46,46 @@ window.hubApp = function() {
         textoMensagem: '',
         enviandoMsg: false,
         mensagensChat: [],
+        mensagensServidor: [],
         showEmojiPicker: false,
         fotoFile: null,
         fotoPreview: null,
-        emojisList: ['👍', '❤️', '😊', '🔥', '👏', '🎉', '📦', '🍽️', '💬', '✅', '🛵', '📍', '⏳', '🙏', '🧾', '💳', '📸', '😋', '⭐', '🤝'],
+        emojisList: ['👍', '❤️', '😊', '🔥', '👏', '🎉', '📦', '🛍️', '💬', '✅', '🛵', '📍', '⏳', '🙏', '🧾', '💳', '📸', '⭐', '🤝', '👋'],
         
         init() {
             window._hubInstance = this;
+
+            // Se o cliente já informou WhatsApp anteriormente e ainda não foi validado nesta sessão, tenta auto-identificar de forma silenciosa
+            if (!this.isIdentificado && this.telefone && this.telefone.replace(/\D/g, '').length >= 10) {
+                this.identificarCliente(true);
+            }
+
+            // Sincronização periódica de novas mensagens a cada 6 segundos
+            this.iniciarPollingMensagens();
+        },
+
+        iniciarPollingMensagens() {
+            setInterval(() => {
+                if (document.hidden) return;
+                this.buscarMensagensServidor();
+            }, 6000);
+        },
+
+        buscarMensagensServidor() {
+            if (!this.clienteId && !this.telefone) return;
+            const params = new URLSearchParams({
+                'usuario_id': <?= json_encode($usuario->id) ?>,
+                'cliente_id': this.clienteId || '',
+                'mesa_id': <?= json_encode($mesa ? (string)$mesa->id : '') ?>
+            });
+            fetch('<?= Url::to(['/hub/mensagens']) ?>?' + params.toString())
+                .then(r => r.json())
+                .then(d => {
+                    if (d && d.success && Array.isArray(d.mensagens)) {
+                        this.mensagensServidor = d.mensagens;
+                    }
+                })
+                .catch(() => {});
         },
 
         get primeiroNome() {
@@ -76,10 +112,10 @@ window.hubApp = function() {
             this.telefone = v;
         },
         
-        identificarCliente() {
+        identificarCliente(silencioso = false) {
             const rawPhone = this.telefone ? this.telefone.replace(/\D/g, '') : '';
             if (rawPhone.length < 10) {
-                alert('Por favor, informe seu WhatsApp com DDD para continuar.');
+                if (!silencioso) alert('Por favor, informe seu WhatsApp com DDD para continuar.');
                 return;
             }
             this.loadingId = true;
@@ -124,14 +160,21 @@ window.hubApp = function() {
                             window.history.replaceState({}, '', '?token=' + data.token);
                         } catch(e) {}
                     }
-                } else {
+                    // Foca no input do chat
+                    setTimeout(() => {
+                        const inputMsg = document.getElementById('inputTextoChat');
+                        if (inputMsg) inputMsg.focus();
+                    }, 300);
+                } else if (!silencioso) {
                     alert((data && data.message) ? data.message : 'Erro ao identificar cliente.');
                 }
             })
             .catch(err => {
                 this.loadingId = false;
-                console.error('Erro ao identificar:', err);
-                alert('Não foi possível identificar: ' + (err.message || 'Erro de comunicação com o servidor.'));
+                if (!silencioso) {
+                    console.error('Erro ao identificar:', err);
+                    alert('Não foi possível identificar: ' + (err.message || 'Erro de comunicação com o servidor.'));
+                }
             });
         },
         
@@ -189,6 +232,8 @@ window.hubApp = function() {
         
         adicionarEmoji(emoji) {
             this.textoMensagem += emoji;
+            const el = document.getElementById('inputTextoChat');
+            if (el) el.focus();
         },
 
         selecionarFoto(e) {
@@ -275,12 +320,17 @@ window.hubApp = function() {
     };
 };
 
+function registerHubAlpine() {
+    if (window.Alpine) {
+        window.Alpine.data('hubApp', window.hubApp);
+    }
+}
 if (typeof document !== 'undefined') {
-    document.addEventListener('alpine:init', function() {
-        if (typeof Alpine !== 'undefined' && window.hubApp) {
-            Alpine.data('hubApp', window.hubApp);
-        }
-    });
+    if (window.Alpine) {
+        registerHubAlpine();
+    } else {
+        document.addEventListener('alpine:init', registerHubAlpine);
+    }
 }
 </script>
 
@@ -290,7 +340,7 @@ if (typeof document !== 'undefined') {
     <header class="bg-white border-b border-gray-100 sticky top-0 z-30 px-4 py-3 shadow-xs">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-700 font-bold text-base shadow-inner">
+                <div class="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-700 font-extrabold text-base shadow-inner">
                     <?= strtoupper(substr($nomeLoja, 0, 2)) ?>
                 </div>
                 <div>
@@ -312,10 +362,10 @@ if (typeof document !== 'undefined') {
                     </span>
                 <?php else: ?>
                     <template x-if="isIdentificado">
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-100 text-emerald-800" x-text="'Olá, ' + primeiroNome"></span>
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200" x-text="'Olá, ' + primeiroNome"></span>
                     </template>
                     <template x-if="!isIdentificado">
-                        <button type="button" @click="showIdModal = true" class="text-xs text-emerald-600 font-bold underline cursor-pointer">Identificar</button>
+                        <button type="button" @click="showIdModal = true" class="text-xs text-emerald-600 font-bold underline cursor-pointer hover:text-emerald-700">Identificar</button>
                     </template>
                 <?php endif; ?>
             </div>
@@ -325,150 +375,149 @@ if (typeof document !== 'undefined') {
     <!-- BANNER DE BOAS-VINDAS / NOTIFICAÇÃO PUSH -->
     <div class="bg-gradient-to-r from-emerald-600 to-teal-700 text-white px-4 py-3 shadow-sm flex items-center justify-between">
         <div>
-            <p class="text-xs font-bold m-0 flex items-center gap-1">
-                <span>⚡</span> Canal Direto & Comanda Digital
+            <p class="text-xs font-bold m-0 flex items-center gap-1.5">
+                <span>⚡</span> <?= $isMesaAtiva ? 'Canal Direto & Comanda Digital' : 'Canal Oficial de Atendimento' ?>
             </p>
             <p class="text-[11px] text-emerald-100 m-0 mt-0.5">
-                Receba novidades, vídeos e ofertas exclusivas no seu celular.
+                <?= $isMesaAtiva ? 'Faça pedidos na mesa e acompanhe sua conta em tempo real.' : 'Fale conosco, envie dúvidas, pedidos e receba ofertas exclusivas.' ?>
             </p>
         </div>
-        <button type="button" onclick="Notification.requestPermission()" class="text-[11px] bg-white text-emerald-800 font-bold px-2.5 py-1.5 rounded-lg shadow-sm hover:bg-emerald-50 transition-colors whitespace-nowrap">
+        <button type="button" onclick="Notification.requestPermission()" class="text-[11px] bg-white text-emerald-800 font-bold px-2.5 py-1.5 rounded-lg shadow-sm hover:bg-emerald-50 transition-colors whitespace-nowrap cursor-pointer">
             🔔 Ativar Avisos
         </button>
     </div>
 
     <!-- CONTEÚDO PRINCIPAL (ABAS) -->
 
-    <!-- ABA 1: COMANDA & CONTA DA MESA -->
+    <?php if ($isMesaAtiva): ?>
+    <!-- ABA 1: COMANDA & CONTA DA MESA (Somente exibida para mesas ativas / food service) -->
     <section x-show="tab === 'comanda'" class="p-4 space-y-4 flex-1">
-        <?php if ($mesa || $comanda): ?>
-            <?php
-            $reciboConta = null;
-            if (!empty($inboxMessages)) {
-                foreach ($inboxMessages as $m) {
-                    if ($m->tipo === 'conta') {
-                        $reciboConta = $m;
-                        break;
-                    }
+        <?php
+        $reciboConta = null;
+        if (!empty($inboxMessages)) {
+            foreach ($inboxMessages as $m) {
+                if ($m->tipo === 'conta') {
+                    $reciboConta = $m;
+                    break;
                 }
             }
-            $isComandaFechada = ($comanda && $comanda->status === 'fechada');
-            ?>
+        }
+        $isComandaFechada = ($comanda && $comanda->status === 'fechada');
+        ?>
 
-            <?php if ($isComandaFechada): ?>
-                <!-- Banner de Alerta: Conta Fechada -->
-                <div class="bg-amber-50 rounded-2xl p-4 border border-amber-200 shadow-xs flex items-center justify-between">
-                    <div class="flex items-center space-x-3">
-                        <span class="text-2xl">🔒</span>
-                        <div>
-                            <h4 class="text-xs font-bold text-amber-900 m-0">Conta Encerrada & Paga</h4>
-                            <p class="text-[11px] text-amber-700 m-0 mt-0.5">Esta mesa foi finalizada pelo caixa do estabelecimento.</p>
-                        </div>
-                    </div>
-                    <span class="px-2.5 py-1 bg-amber-600 text-white font-extrabold text-[10px] rounded-full uppercase">Fechada</span>
-                </div>
-            <?php endif; ?>
-
-            <?php if ($reciboConta): ?>
-                <!-- Card de Comprovante / Recibo Digital -->
-                <div class="bg-gradient-to-br from-emerald-950 via-slate-900 to-gray-900 text-white rounded-2xl p-4 sm:p-5 shadow-xl border border-emerald-800/50 space-y-3">
-                    <div class="flex items-center justify-between border-b border-gray-700/80 pb-2.5">
-                        <h3 class="text-xs font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5 m-0">
-                            <span>🧾</span> Recibo de Fechamento Digital
-                        </h3>
-                        <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold rounded-full border border-emerald-500/30">Oficial</span>
-                    </div>
-                    <div class="text-xs font-mono bg-slate-950/80 p-3.5 rounded-xl border border-slate-800 text-emerald-100 whitespace-pre-wrap leading-relaxed shadow-inner overflow-x-auto">
-                        <?= Html::encode($reciboConta->conteudo_texto) ?>
-                    </div>
-                </div>
-            <?php endif; ?>
-
-            <!-- Resumo da Conta -->
-            <div class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <div class="flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
+        <?php if ($isComandaFechada): ?>
+            <!-- Banner de Alerta: Conta Fechada -->
+            <div class="bg-amber-50 rounded-2xl p-4 border border-amber-200 shadow-xs flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <span class="text-2xl">🔒</span>
                     <div>
-                        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Status da Comanda</span>
-                        <h2 class="text-base font-bold text-gray-900 m-0">
-                            <?= $comanda ? Html::encode($comanda->numero_comanda) : 'Mesa ' . Html::encode($mesa->numero_mesa) ?>
-                        </h2>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Acumulado</span>
-                        <p class="text-xl font-extrabold text-emerald-600 m-0">
-                            R$ <?= number_format($totalComanda, 2, ',', '.') ?>
-                        </p>
+                        <h4 class="text-xs font-bold text-amber-900 m-0">Conta Encerrada & Paga</h4>
+                        <p class="text-[11px] text-amber-700 m-0 mt-0.5">Esta mesa foi finalizada pelo caixa do estabelecimento.</p>
                     </div>
                 </div>
-
-                <!-- Ações Rápidas da Mesa -->
-                <?php if (!$isComandaFechada): ?>
-                    <div class="grid grid-cols-2 gap-2.5 pt-1">
-                        <button type="button" @click="chamarGarcom('Atendimento na Mesa')" class="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 font-bold text-xs hover:bg-amber-100 transition-colors">
-                            <span>👋</span> Chamar Garçom
-                        </button>
-                        <button type="button" @click="pedirConta()" class="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 shadow-sm transition-colors">
-                            <span>💳</span> Pedir Conta / PIX
-                        </button>
-                    </div>
-                <?php else: ?>
-                    <p class="text-center text-xs text-gray-500 font-medium py-1 m-0">
-                        Obrigado pela preferência e volte sempre! 😊🚀
-                    </p>
-                <?php endif; ?>
-            </div>
-
-            <!-- Lista de Itens Pedidos -->
-            <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-                <h3 class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">Itens Pedidos</h3>
-                <?php if (empty($comandaItens)): ?>
-                    <p class="text-center text-xs text-gray-400 py-6 m-0">
-                        Nenhum pedido lançado nesta comanda ainda.<br>
-                        Veja nosso cardápio na aba abaixo para fazer seu pedido!
-                    </p>
-                <?php else: ?>
-                    <div class="divide-y divide-gray-100">
-                        <?php foreach ($comandaItens as $item): ?>
-                            <?php $prod = $item->produto ?? null; ?>
-                            <div class="py-2.5 flex items-center justify-between">
-                                <div>
-                                    <p class="text-xs font-bold text-gray-800 m-0">
-                                        <?= (int)$item->quantidade ?>x <?= Html::encode($prod ? $prod->nome : 'Item') ?>
-                                    </p>
-                                    <span class="inline-block mt-0.5 text-[10px] px-2 py-0.5 rounded-full font-medium <?= $item->status_preparo === 'pronto' ? 'bg-green-100 text-green-800' : ($item->status_preparo === 'preparando' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600') ?>">
-                                        <?= ucfirst(Html::encode($item->status_preparo ?? 'Pendente')) ?>
-                                    </span>
-                                </div>
-                                <div class="text-right">
-                                    <p class="text-xs font-bold text-gray-900 m-0">
-                                        R$ <?= number_format((float)$item->valor_unitario * (float)$item->quantidade, 2, ',', '.') ?>
-                                    </p>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            </div>
-        <?php else: ?>
-            <div class="bg-white rounded-2xl p-6 text-center border border-gray-100 shadow-sm">
-                <span class="text-4xl">🧾</span>
-                <h3 class="text-sm font-bold text-gray-800 mt-2 mb-1">Você não está em uma mesa ativa</h3>
-                <p class="text-xs text-gray-500 m-0">Se você estiver no restaurante, aponte a câmera para o QR Code da sua mesa para abrir sua comanda.</p>
+                <span class="px-2.5 py-1 bg-amber-600 text-white font-extrabold text-[10px] rounded-full uppercase">Fechada</span>
             </div>
         <?php endif; ?>
-    </section>
 
-    <!-- ABA 2: CANAL DIRETO, FEED & CHAT DE ATENDIMENTO -->
-    <section x-show="tab === 'feed'" class="p-4 space-y-4 flex-1" style="display: none;">
+        <?php if ($reciboConta): ?>
+            <!-- Card de Comprovante / Recibo Digital -->
+            <div class="bg-gradient-to-br from-emerald-950 via-slate-900 to-gray-900 text-white rounded-2xl p-4 sm:p-5 shadow-xl border border-emerald-800/50 space-y-3">
+                <div class="flex items-center justify-between border-b border-gray-700/80 pb-2.5">
+                    <h3 class="text-xs font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5 m-0">
+                        <span>🧾</span> Recibo de Fechamento Digital
+                    </h3>
+                    <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold rounded-full border border-emerald-500/30">Oficial</span>
+                </div>
+                <div class="text-xs font-mono bg-slate-950/80 p-3.5 rounded-xl border border-slate-800 text-emerald-100 whitespace-pre-wrap leading-relaxed shadow-inner overflow-x-auto">
+                    <?= Html::encode($reciboConta->conteudo_texto) ?>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Resumo da Conta -->
+        <div class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+            <div class="flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
+                <div>
+                    <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Status da Comanda</span>
+                    <h2 class="text-base font-bold text-gray-900 m-0">
+                        <?= $comanda ? Html::encode($comanda->numero_comanda) : 'Mesa ' . Html::encode($mesa->numero_mesa) ?>
+                    </h2>
+                </div>
+                <div class="text-right">
+                    <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Acumulado</span>
+                    <p class="text-xl font-extrabold text-emerald-600 m-0">
+                        R$ <?= number_format($totalComanda, 2, ',', '.') ?>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Ações Rápidas da Mesa -->
+            <?php if (!$isComandaFechada): ?>
+                <div class="grid grid-cols-2 gap-2.5 pt-1">
+                    <button type="button" @click="chamarGarcom('Atendimento na Mesa')" class="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 font-bold text-xs hover:bg-amber-100 transition-colors">
+                        <span>👋</span> Chamar Garçom
+                    </button>
+                    <button type="button" @click="pedirConta()" class="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 shadow-sm transition-colors">
+                        <span>💳</span> Pedir Conta / PIX
+                    </button>
+                </div>
+            <?php else: ?>
+                <p class="text-center text-xs text-gray-500 font-medium py-1 m-0">
+                    Obrigado pela preferência e volte sempre! 😊🚀
+                </p>
+            <?php endif; ?>
+        </div>
+
+        <!-- Lista de Itens Pedidos -->
+        <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+            <h3 class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">Itens Pedidos</h3>
+            <?php if (empty($comandaItens)): ?>
+                <p class="text-center text-xs text-gray-400 py-6 m-0">
+                    Nenhum pedido lançado nesta comanda ainda.<br>
+                    Veja nosso cardápio na aba abaixo para fazer seu pedido!
+                </p>
+            <?php else: ?>
+                <div class="divide-y divide-gray-100">
+                    <?php foreach ($comandaItens as $item): ?>
+                        <?php $prod = $item->produto ?? null; ?>
+                        <div class="py-2.5 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-bold text-gray-800 m-0">
+                                    <?= (int)$item->quantidade ?>x <?= Html::encode($prod ? $prod->nome : 'Item') ?>
+                                </p>
+                                <span class="inline-block mt-0.5 text-[10px] px-2 py-0.5 rounded-full font-medium <?= $item->status_preparo === 'pronto' ? 'bg-green-100 text-green-800' : ($item->status_preparo === 'preparando' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600') ?>">
+                                    <?= ucfirst(Html::encode($item->status_preparo ?? 'Pendente')) ?>
+                                </span>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xs font-bold text-gray-900 m-0">
+                                    R$ <?= number_format((float)$item->valor_unitario * (float)$item->quantidade, 2, ',', '.') ?>
+                                </p>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+    </section>
+    <?php endif; ?>
+
+    <!-- ABA 2: CANAL DIRETO, FEED & CHAT DE ATENDIMENTO (Universal para Qualquer Ramo) -->
+    <section x-show="tab === 'feed'" class="p-4 space-y-4 flex-1" <?= $isMesaAtiva ? 'style="display: none;"' : '' ?>>
         
         <!-- Caixa de Envio de Mensagem / Chat Interativo do Cliente (Texto + Emojis + Fotos) -->
-        <div class="bg-white p-3.5 rounded-2xl border border-gray-200/80 shadow-xs space-y-2.5">
+        <div class="bg-white p-4 rounded-2xl border border-gray-200/90 shadow-sm space-y-3">
             <div class="flex items-center justify-between">
                 <span class="text-xs font-bold text-gray-800 flex items-center gap-1.5">
                     <span>💬</span> Enviar Mensagem para o Atendimento
                 </span>
                 <template x-if="isIdentificado">
-                    <span class="text-[10px] text-emerald-700 font-bold bg-emerald-100/80 px-2 py-0.5 rounded-full" x-text="primeiroNome"></span>
+                    <span class="text-[10px] text-emerald-700 font-bold bg-emerald-100/90 px-2 py-0.5 rounded-full" x-text="'👤 ' + primeiroNome"></span>
+                </template>
+                <template x-if="!isIdentificado">
+                    <button type="button" @click="showIdModal = true" class="text-[10px] text-emerald-600 font-bold underline hover:text-emerald-700 cursor-pointer">
+                        Identificar-se
+                    </button>
                 </template>
             </div>
 
@@ -503,16 +552,17 @@ if (typeof document !== 'undefined') {
 
                 <!-- Input de Texto -->
                 <input type="text" 
+                       id="inputTextoChat"
                        x-model="textoMensagem" 
                        @keydown.enter.prevent="enviarMensagemChat()"
                        placeholder="Digite sua dúvida, pedido ou recado..." 
-                       class="flex-1 bg-gray-50 border border-gray-300 rounded-xl px-3 py-2.5 text-xs text-gray-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition">
+                       class="flex-1 bg-gray-50 border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs text-gray-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition">
 
                 <!-- Botão Enviar -->
                 <button type="button" 
                         @click="enviarMensagemChat()" 
                         :disabled="enviandoMsg || (!textoMensagem.trim() && !fotoFile)"
-                        class="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1 cursor-pointer">
+                        class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
                     <template x-if="enviandoMsg">
                         <span class="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></span>
                     </template>
@@ -522,16 +572,16 @@ if (typeof document !== 'undefined') {
             </div>
         </div>
 
-        <!-- Mensagens Enviadas Recentemente no Chat (Reativo) -->
-        <template x-for="item in mensagensChat" :key="item.id">
-            <article class="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-3.5 shadow-xs animate-in fade-in slide-in-from-top-2 duration-200">
+        <!-- Mensagens Enviadas na Sessão Atual (Reativo Instantâneo) -->
+        <template x-for="item in mensagensChat" :key="'local-' + item.id">
+            <article class="bg-emerald-50 border border-emerald-200/90 rounded-2xl p-3.5 shadow-xs animate-in fade-in slide-in-from-top-2 duration-200">
                 <div class="flex items-center justify-between mb-1">
                     <span class="text-[11px] font-bold text-emerald-900 flex items-center gap-1">
                         <span>👤</span> <span x-text="item.remetente || 'Você'"></span>
                     </span>
                     <span class="text-[10px] text-emerald-700 font-medium bg-emerald-200/60 px-1.5 py-0.5 rounded" x-text="item.created_at"></span>
                 </div>
-                <p class="text-xs text-emerald-950 font-medium m-0 leading-relaxed" x-text="item.conteudo_texto"></p>
+                <p class="text-xs text-emerald-950 font-medium m-0 leading-relaxed whitespace-pre-wrap" x-text="item.conteudo_texto"></p>
                 
                 <template x-if="item.midia_url">
                     <div class="mt-2">
@@ -540,8 +590,31 @@ if (typeof document !== 'undefined') {
                 </template>
 
                 <div class="mt-2 pt-1.5 border-t border-emerald-200/50 flex items-center justify-between text-[10px] text-emerald-700">
-                    <span>Enviado para a Central da Loja</span>
+                    <span>Enviado para a Loja</span>
                     <span class="font-bold">✓ Entregue</span>
+                </div>
+            </article>
+        </template>
+
+        <!-- Mensagens Atualizadas do Servidor (Sincronizadas via Polling) -->
+        <template x-for="item in mensagensServidor" :key="'srv-' + item.id">
+            <article :class="item.is_cliente ? 'bg-emerald-50 border-emerald-200/90 text-emerald-950' : 'bg-white border-teal-200/90 text-slate-800'" class="border rounded-2xl p-3.5 shadow-xs space-y-1.5 animate-in fade-in duration-200">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold flex items-center gap-1.5" :class="item.is_cliente ? 'text-emerald-900' : 'text-teal-900'">
+                        <span x-text="item.is_cliente ? '👤' : '🏪'"></span>
+                        <span x-text="item.titulo || (item.is_cliente ? 'Você' : 'Atendimento da Loja')"></span>
+                    </span>
+                    <span class="text-[10px] font-medium px-1.5 py-0.5 rounded" :class="item.is_cliente ? 'bg-emerald-200/60 text-emerald-700' : 'bg-teal-50 text-teal-700 border border-teal-100'" x-text="item.created_at"></span>
+                </div>
+                <p class="text-xs font-medium m-0 leading-relaxed whitespace-pre-wrap" x-text="item.conteudo_texto"></p>
+                <template x-if="item.midia_url">
+                    <div class="mt-2">
+                        <img :src="item.midia_url" alt="Foto anexada" class="rounded-xl max-h-48 w-auto object-cover border border-gray-200 shadow-xs cursor-pointer" @click="window.open(item.midia_url, '_blank')">
+                    </div>
+                </template>
+                <div class="mt-2 pt-1 border-t flex items-center justify-between text-[10px]" :class="item.is_cliente ? 'border-emerald-200/50 text-emerald-700' : 'border-teal-100 text-teal-600'">
+                    <span x-text="item.is_cliente ? 'Mensagem Direta' : 'Equipe de Atendimento'"></span>
+                    <span class="font-bold" x-text="item.is_cliente ? '✓ Entregue' : '✓ Resposta Oficial'"></span>
                 </div>
             </article>
         </template>
@@ -551,126 +624,129 @@ if (typeof document !== 'undefined') {
             <span class="text-[10px] text-gray-400">Linha do Tempo</span>
         </div>
 
-        <?php if (empty($inboxMessages) && empty($cardsDestaque)): ?>
-            <div class="bg-white rounded-2xl p-6 text-center border border-gray-100 shadow-sm" x-show="mensagensChat.length === 0">
-                <span class="text-4xl">🎬</span>
-                <h3 class="text-sm font-bold text-gray-800 mt-2 mb-1">Canal de Comunicação Ativo</h3>
-                <p class="text-xs text-gray-500 m-0">Envie uma mensagem acima ou acompanhe novidades da loja aqui.</p>
-            </div>
-        <?php else: ?>
+        <!-- Timeline Inicial de Mensagens e Avisos (Carregados pelo PHP se ainda não sobrescritos por polling) -->
+        <div x-show="mensagensServidor.length === 0" class="space-y-4">
+            <?php if (empty($inboxMessages) && empty($cardsDestaque)): ?>
+                <div class="bg-white rounded-2xl p-6 text-center border border-gray-100 shadow-sm" x-show="mensagensChat.length === 0">
+                    <span class="text-4xl">👋</span>
+                    <h3 class="text-sm font-bold text-gray-800 mt-2 mb-1">Canal Oficial de Atendimento</h3>
+                    <p class="text-xs text-gray-500 m-0">Envie uma mensagem acima para falar diretamente com nossa equipe ou solicitar produtos.</p>
+                </div>
+            <?php else: ?>
 
-            <!-- Mensagens e Vídeos da Inbox -->
-            <?php foreach ($inboxMessages as $msg): ?>
-                <?php 
-                $isCliente = (isset($msg->acoes_json['origem']) && $msg->acoes_json['origem'] === 'cliente');
-                ?>
-                <?php if ($isCliente): ?>
-                    <article class="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-3.5 shadow-xs">
-                        <div class="flex items-center justify-between mb-1">
-                            <span class="text-[11px] font-bold text-emerald-900 flex items-center gap-1">
-                                <span>👤</span> <?= Html::encode($msg->acoes_json['remetente'] ?? 'Você') ?>
-                            </span>
-                            <span class="text-[10px] text-emerald-700 font-medium bg-emerald-200/60 px-1.5 py-0.5 rounded"><?= Yii::$app->formatter->asRelativeTime($msg->created_at) ?></span>
-                        </div>
-                        <p class="text-xs text-emerald-950 font-medium m-0 leading-relaxed"><?= nl2br(Html::encode($msg->conteudo_texto)) ?></p>
-                        
-                        <?php if (!empty($msg->midia_url)): ?>
-                            <div class="mt-2">
-                                <img src="<?= Html::encode($msg->midia_url) ?>" alt="Foto anexada" class="rounded-xl max-h-48 w-auto object-cover border border-emerald-200 shadow-xs cursor-pointer" onclick="window.open(this.src, '_blank')">
-                            </div>
-                        <?php endif; ?>
-
-                        <div class="mt-2 pt-1.5 border-t border-emerald-200/50 flex items-center justify-between text-[10px] text-emerald-700">
-                            <span>Mensagem Direta</span>
-                            <span class="font-bold">✓ Entregue</span>
-                        </div>
-                    </article>
-                <?php else: ?>
+                <!-- Mensagens e Vídeos da Inbox -->
+                <?php foreach ($inboxMessages as $msg): ?>
                     <?php 
-                    $isRespostaLoja = (isset($msg->acoes_json['origem']) && $msg->acoes_json['origem'] === 'loja');
+                    $isCliente = (isset($msg->acoes_json['origem']) && $msg->acoes_json['origem'] === 'cliente');
                     ?>
-                    <?php if ($isRespostaLoja): ?>
-                        <!-- Balão de Conversa Fluida da Loja -->
-                        <article class="bg-white border border-teal-200/80 rounded-2xl p-3.5 shadow-xs space-y-1.5">
-                            <div class="flex items-center justify-between">
-                                <span class="text-[11px] font-bold text-teal-900 flex items-center gap-1.5">
-                                    <span class="w-2 h-2 rounded-full bg-teal-500"></span>
-                                    <span><?= Html::encode($msg->acoes_json['autor'] ?? $nomeLoja) ?></span>
+                    <?php if ($isCliente): ?>
+                        <article class="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-3.5 shadow-xs">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[11px] font-bold text-emerald-900 flex items-center gap-1">
+                                    <span>👤</span> <?= Html::encode($msg->acoes_json['remetente'] ?? 'Você') ?>
                                 </span>
-                                <span class="text-[10px] text-teal-700 font-medium bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded">
-                                    <?= Yii::$app->formatter->asRelativeTime($msg->created_at) ?>
-                                </span>
+                                <span class="text-[10px] text-emerald-700 font-medium bg-emerald-200/60 px-1.5 py-0.5 rounded"><?= Yii::$app->formatter->asRelativeTime($msg->created_at) ?></span>
                             </div>
-                            <p class="text-xs text-slate-800 font-medium m-0 leading-relaxed"><?= nl2br(Html::encode($msg->conteudo_texto)) ?></p>
+                            <p class="text-xs text-emerald-950 font-medium m-0 leading-relaxed"><?= nl2br(Html::encode($msg->conteudo_texto)) ?></p>
+                            
                             <?php if (!empty($msg->midia_url)): ?>
                                 <div class="mt-2">
-                                    <img src="<?= Html::encode($msg->midia_url) ?>" alt="Foto anexada" class="rounded-xl max-h-48 w-auto object-cover border border-teal-200 shadow-xs cursor-pointer" onclick="window.open(this.src, '_blank')">
+                                    <img src="<?= Html::encode($msg->midia_url) ?>" alt="Foto anexada" class="rounded-xl max-h-48 w-auto object-cover border border-emerald-200 shadow-xs cursor-pointer" onclick="window.open(this.src, '_blank')">
                                 </div>
                             <?php endif; ?>
-                            <div class="mt-2 pt-1 border-t border-teal-100 flex items-center justify-between text-[10px] text-teal-600">
-                                <span>Atendimento</span>
-                                <span class="font-bold">✓ Respondido</span>
+
+                            <div class="mt-2 pt-1.5 border-t border-emerald-200/50 flex items-center justify-between text-[10px] text-emerald-700">
+                                <span>Mensagem Direta</span>
+                                <span class="font-bold">✓ Entregue</span>
                             </div>
                         </article>
                     <?php else: ?>
-                        <!-- Publicações Gerais da Loja -->
-                        <article class="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-                            <?php if (!empty($msg->midia_url)): ?>
-                                <?php if ($msg->tipo === 'video' || str_ends_with(strtolower($msg->midia_url), '.mp4')): ?>
-                                    <video src="<?= Html::encode($msg->midia_url) ?>" controls class="w-full h-48 object-cover bg-black"></video>
-                                <?php else: ?>
-                                    <img src="<?= Html::encode($msg->midia_url) ?>" alt="" class="w-full h-48 object-cover cursor-pointer" onclick="window.open(this.src, '_blank')">
-                                <?php endif; ?>
-                            <?php endif; ?>
-
-                            <div class="p-4">
-                                <?php if (!empty($msg->titulo)): ?>
-                                    <h3 class="text-sm font-bold text-gray-900 mb-1"><?= Html::encode($msg->titulo) ?></h3>
-                                <?php endif; ?>
-                                <p class="text-xs text-gray-600 m-0 leading-relaxed"><?= nl2br(Html::encode($msg->conteudo_texto)) ?></p>
-                                
-                                <div class="mt-3 flex items-center justify-between text-[10px] text-gray-400 pt-2 border-t border-gray-50">
-                                    <span><?= Yii::$app->formatter->asRelativeTime($msg->created_at) ?></span>
-                                    <span class="text-emerald-600 font-semibold">&bull; <?= Html::encode($msg->acoes_json['autor'] ?? $nomeLoja) ?></span>
+                        <?php 
+                        $isRespostaLoja = (isset($msg->acoes_json['origem']) && $msg->acoes_json['origem'] === 'loja');
+                        ?>
+                        <?php if ($isRespostaLoja): ?>
+                            <!-- Balão de Resposta da Loja -->
+                            <article class="bg-white border border-teal-200/80 rounded-2xl p-3.5 shadow-xs space-y-1.5">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[11px] font-bold text-teal-900 flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-teal-500"></span>
+                                        <span><?= Html::encode($msg->acoes_json['autor'] ?? $nomeLoja) ?></span>
+                                    </span>
+                                    <span class="text-[10px] text-teal-700 font-medium bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded">
+                                        <?= Yii::$app->formatter->asRelativeTime($msg->created_at) ?>
+                                    </span>
                                 </div>
-                            </div>
+                                <p class="text-xs text-slate-800 font-medium m-0 leading-relaxed"><?= nl2br(Html::encode($msg->conteudo_texto)) ?></p>
+                                <?php if (!empty($msg->midia_url)): ?>
+                                    <div class="mt-2">
+                                        <img src="<?= Html::encode($msg->midia_url) ?>" alt="Foto anexada" class="rounded-xl max-h-48 w-auto object-cover border border-teal-200 shadow-xs cursor-pointer" onclick="window.open(this.src, '_blank')">
+                                    </div>
+                                <?php endif; ?>
+                                <div class="mt-2 pt-1 border-t border-teal-100 flex items-center justify-between text-[10px] text-teal-600">
+                                    <span>Atendimento</span>
+                                    <span class="font-bold">✓ Respondido</span>
+                                </div>
+                            </article>
+                        <?php else: ?>
+                            <!-- Publicações Gerais da Loja (Comunicados / Vídeos) -->
+                            <article class="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+                                <?php if (!empty($msg->midia_url)): ?>
+                                    <?php if ($msg->tipo === 'video' || str_ends_with(strtolower($msg->midia_url), '.mp4')): ?>
+                                        <video src="<?= Html::encode($msg->midia_url) ?>" controls class="w-full h-48 object-cover bg-black"></video>
+                                    <?php else: ?>
+                                        <img src="<?= Html::encode($msg->midia_url) ?>" alt="" class="w-full h-48 object-cover cursor-pointer" onclick="window.open(this.src, '_blank')">
+                                    <?php endif; ?>
+                                <?php endif; ?>
+
+                                <div class="p-4">
+                                    <?php if (!empty($msg->titulo)): ?>
+                                        <h3 class="text-sm font-bold text-gray-900 mb-1"><?= Html::encode($msg->titulo) ?></h3>
+                                    <?php endif; ?>
+                                    <p class="text-xs text-gray-600 m-0 leading-relaxed"><?= nl2br(Html::encode($msg->conteudo_texto)) ?></p>
+                                    
+                                    <div class="mt-3 flex items-center justify-between text-[10px] text-gray-400 pt-2 border-t border-gray-50">
+                                        <span><?= Yii::$app->formatter->asRelativeTime($msg->created_at) ?></span>
+                                        <span class="text-emerald-600 font-semibold">&bull; <?= Html::encode($msg->acoes_json['autor'] ?? $nomeLoja) ?></span>
+                                    </div>
+                                </div>
+                            </article>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+
+                <!-- Cards Promocionais -->
+                <?php foreach ($cardsDestaque as $card): ?>
+                    <?php 
+                    $imgUrl = null;
+                    if (!empty($card->card_path)) {
+                        $caminhoFisico = Yii::getAlias('@app/web/' . ltrim($card->card_path, '/'));
+                        if (file_exists($caminhoFisico)) {
+                            $imgUrl = Url::to('@web/' . ltrim($card->card_path, '/'));
+                        }
+                    } elseif (!empty($card->card_url) && !str_starts_with($card->card_url, 'http://localhost/uploads/')) {
+                        $imgUrl = $card->card_url;
+                    }
+                    ?>
+                    <?php if ($imgUrl): ?>
+                        <article class="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+                            <img src="<?= Html::encode($imgUrl) ?>" alt="Oferta" class="w-full h-auto object-cover">
+                            <?php if (!empty($card->produto)): ?>
+                                <div class="p-3 flex items-center justify-between">
+                                    <div>
+                                        <h4 class="text-xs font-bold text-gray-900 m-0"><?= Html::encode($card->produto->nome) ?></h4>
+                                        <p class="text-xs font-extrabold text-emerald-600 m-0 mt-0.5">R$ <?= number_format((float)$card->produto->preco_venda, 2, ',', '.') ?></p>
+                                    </div>
+                                    <a href="<?= Url::to(['/catalogo/index', 'slug' => $slugLoja]) ?>" class="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-xs">
+                                        Pedir
+                                    </a>
+                                </div>
+                            <?php endif; ?>
                         </article>
                     <?php endif; ?>
-                <?php endif; ?>
-            <?php endforeach; ?>
+                <?php endforeach; ?>
 
-            <!-- Cards Promocionais -->
-            <?php foreach ($cardsDestaque as $card): ?>
-                <?php 
-                $imgUrl = null;
-                if (!empty($card->card_path)) {
-                    $caminhoFisico = Yii::getAlias('@app/web/' . ltrim($card->card_path, '/'));
-                    if (file_exists($caminhoFisico)) {
-                        $imgUrl = Url::to('@web/' . ltrim($card->card_path, '/'));
-                    }
-                } elseif (!empty($card->card_url) && !str_starts_with($card->card_url, 'http://localhost/uploads/')) {
-                    $imgUrl = $card->card_url;
-                }
-                ?>
-                <?php if ($imgUrl): ?>
-                    <article class="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-                        <img src="<?= Html::encode($imgUrl) ?>" alt="Oferta" class="w-full h-auto object-cover">
-                        <?php if (!empty($card->produto)): ?>
-                            <div class="p-3 flex items-center justify-between">
-                                <div>
-                                    <h4 class="text-xs font-bold text-gray-900 m-0"><?= Html::encode($card->produto->nome) ?></h4>
-                                    <p class="text-xs font-extrabold text-emerald-600 m-0 mt-0.5">R$ <?= number_format((float)$card->produto->preco_venda, 2, ',', '.') ?></p>
-                                </div>
-                                <a href="<?= Url::to(['/catalogo/index', 'slug' => $slugLoja]) ?>" class="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-xs">
-                                    Pedir
-                                </a>
-                            </div>
-                        <?php endif; ?>
-                    </article>
-                <?php endif; ?>
-            <?php endforeach; ?>
-
-        <?php endif; ?>
+            <?php endif; ?>
+        </div>
     </section>
 
     <!-- ABA 3: CARDÁPIO / CATÁLOGO ONLINE & PEDIDOS -->
@@ -682,13 +758,14 @@ if (typeof document !== 'undefined') {
             </a>
         </div>
 
-        <div class="bg-white rounded-2xl p-5 text-center border border-gray-100 shadow-sm">
+        <div class="bg-white rounded-2xl p-5 text-center border border-gray-100 shadow-sm space-y-3">
             <span class="text-4xl">🛍️</span>
-            <h3 class="text-sm font-bold text-gray-800 mt-2 mb-1">Acesse nosso Catálogo Digital</h3>
-            <p class="text-xs text-gray-500 mb-4">Veja todos os produtos com preços, fotos e monte sua sacola online.</p>
+            <h3 class="text-sm font-bold text-gray-800 m-0">Acesse nosso Catálogo Digital</h3>
+            <p class="text-xs text-gray-500 m-0">Consulte todos os produtos, preços e ofertas atualizadas para fazer seus pedidos.</p>
             
-            <a href="<?= Url::to(['/catalogo/index', 'slug' => $slugLoja]) ?>" class="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-sm hover:bg-emerald-700 transition-colors w-full">
-                Abrir Catálogo Digital
+            <a href="<?= Url::to(['/catalogo/index', 'slug' => $slugLoja]) ?>" class="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-sm hover:bg-emerald-700 transition-colors w-full gap-2">
+                <span>Abrir Catálogo Digital</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
             </a>
         </div>
     </section>
@@ -712,19 +789,19 @@ if (typeof document !== 'undefined') {
                         class="text-gray-400 hover:text-gray-600 text-2xl font-light leading-none p-1 cursor-pointer transition">&times;</button>
             </div>
 
-            <p class="text-xs text-gray-500 mb-4">
-                Informe seu nome e WhatsApp para abrir sua comanda digital, enviar mensagens e receber ofertas exclusivas.
+            <p class="text-xs text-gray-500 mb-4 leading-relaxed">
+                Informe seu nome e WhatsApp para falar com nosso atendimento direto, fazer pedidos e receber ofertas exclusivas.
             </p>
 
             <form @submit.prevent="identificarCliente()" class="space-y-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 mb-1">Seu Nome</label>
-                    <input type="text" x-model="nome" placeholder="Ex: Lucas Silva" class="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm font-medium outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 bg-gray-50 transition">
+                    <input type="text" x-model="nome" placeholder="Ex: Lucas Silva" class="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm font-medium outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 bg-gray-50 transition text-gray-900">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 mb-1">Seu WhatsApp (com DDD) *</label>
-                    <input type="tel" x-model="telefone" @input="mascaraWhatsapp($event)" required placeholder="Ex: (81) 98888-7777" class="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm font-bold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 bg-gray-50 transition">
+                    <input type="tel" x-model="telefone" @input="mascaraWhatsapp($event)" required placeholder="Ex: (81) 98888-7777" class="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm font-bold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 bg-gray-50 transition text-gray-900">
                 </div>
 
                 <div class="pt-2">
@@ -732,7 +809,7 @@ if (typeof document !== 'undefined') {
                         <template x-if="loadingId">
                             <span class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
                         </template>
-                        <span>Acessar Atendimento / Hub</span>
+                        <span>Acessar Atendimento Oficial</span>
                     </button>
                 </div>
             </form>
@@ -740,8 +817,8 @@ if (typeof document !== 'undefined') {
     </div>
 
     <!-- BOTTOM TAB BAR NAVEGAÇÃO -->
-    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-gray-200 px-6 py-2 flex items-center justify-around z-40 shadow-lg">
-        <?php if ($mesa || $comanda): ?>
+    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-gray-200 px-6 py-2.5 flex items-center justify-around z-40 shadow-lg">
+        <?php if ($isMesaAtiva): ?>
             <button type="button" @click="tab = 'comanda'" :class="tab === 'comanda' ? 'text-emerald-600 font-bold' : 'text-gray-400 font-medium'" class="flex flex-col items-center gap-1 text-[11px] transition-colors cursor-pointer">
                 <span class="text-xl">🧾</span>
                 <span>Comanda</span>
@@ -750,7 +827,7 @@ if (typeof document !== 'undefined') {
 
         <button type="button" @click="tab = 'feed'" :class="tab === 'feed' ? 'text-emerald-600 font-bold' : 'text-gray-400 font-medium'" class="flex flex-col items-center gap-1 text-[11px] transition-colors cursor-pointer">
             <span class="text-xl">💬</span>
-            <span>Canal &amp; Mensagens</span>
+            <span>Atendimento &amp; Chat</span>
         </button>
 
         <button type="button" @click="tab = 'cardapio'" :class="tab === 'cardapio' ? 'text-emerald-600 font-bold' : 'text-gray-400 font-medium'" class="flex flex-col items-center gap-1 text-[11px] transition-colors cursor-pointer">

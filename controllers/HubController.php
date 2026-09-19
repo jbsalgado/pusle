@@ -24,6 +24,11 @@ use app\modules\vendas\models\ProdutoCard;
 class HubController extends Controller
 {
     /**
+     * Layout dedicado para o Direct Hub (Mobile-First com Tailwind e Alpine.js)
+     */
+    public $layout = 'hub_layout';
+
+    /**
      * Desabilita validação CSRF para as requisições públicas de AJAX do Hub
      */
     public function beforeAction($action)
