@@ -150,7 +150,9 @@ use yii\helpers\Url;
                     </div>
                 </div>
 
-                <!-- 1.1 Cenários e Modelos com Inteligência Artificial (Livre / Gratuita) -->
+                <!-- 1.1 Cenários e Modelos com Inteligência Artificial (Oculto Temporariamente) -->
+                <input type="hidden" id="disparo_imagem_fundo_ia" value="">
+                <?php if (false): // MODO IA OCULTO TEMPORARIAMENTE ATÉ DEFINIÇÃO DE MODELO SAAS ?>
                 <div class="border-b border-gray-100 pb-5">
                     <div class="bg-gradient-to-r from-purple-900/5 via-indigo-900/5 to-purple-900/10 border border-purple-200/80 rounded-2xl p-4 transition-all">
                         <div class="flex items-center justify-between cursor-pointer" onclick="alternarSecaoIa()">
@@ -283,13 +285,12 @@ use yii\helpers\Url;
                                         </div>
                                     </div>
                                 </div>
-                                
-                                <input type="hidden" id="disparo_imagem_fundo_ia" value="">
                             </div>
 
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
 
                 <!-- Enquadramento & Rotação da Foto do Produto -->
                 <div class="border-b border-gray-100 pb-5">
