@@ -11,6 +11,30 @@ use yii\widgets\ActiveForm;
 /** @var app\modules\vendas\models\ProdutoFoto[] $fotos */
 
 $isUpdate = !$model->isNewRecord;
+
+// Variáveis de Oferta / Promoção
+$temPromocao = (float)$model->preco_promocional > 0;
+$emPromocao = $model->emPromocao;
+
+$dataInicioVal = '';
+if (!empty($model->data_inicio_promocao)) {
+    try {
+        $dt = new \DateTime($model->data_inicio_promocao);
+        $dataInicioVal = $dt->format('Y-m-d\TH:i');
+    } catch (\Exception $e) {
+        $dataInicioVal = '';
+    }
+}
+
+$dataFimVal = '';
+if (!empty($model->data_fim_promocao)) {
+    try {
+        $dt = new \DateTime($model->data_fim_promocao);
+        $dataFimVal = $dt->format('Y-m-d\TH:i');
+    } catch (\Exception $e) {
+        $dataFimVal = '';
+    }
+}
 ?>
 
 <div class="max-w-4xl mx-auto">
@@ -98,6 +122,155 @@ $isUpdate = !$model->isNewRecord;
                             'class' => 'w-full pl-9 pr-3 py-2 text-sm font-bold text-gray-700 bg-gray-50 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition',
                             'id' => 'input-preco-custo'
                         ]) ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================================= -->
+            <!-- SEÇÃO: OFERTA & PREÇO PROMOCIONAL (PRODUTIVIDADE 1 CLIQUE) -->
+            <!-- ========================================================= -->
+            <div class="pt-1">
+                <div class="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-orange-500/10 border-2 <?= $temPromocao ? 'border-rose-400 shadow-sm' : 'border-dashed border-gray-300' ?> rounded-2xl p-3.5 sm:p-4 transition-all duration-200" id="card-oferta-promocao">
+                    
+                    <!-- Cabeçalho do Bloco com Status e Toggle -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-rose-600 text-white flex items-center justify-center text-sm font-black shadow-xs shrink-0">
+                                🔥
+                            </span>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-xs sm:text-sm font-extrabold text-gray-900 tracking-tight">Oferta & Preço Promocional</h3>
+                                    <span id="badge-status-promocao" class="px-2 py-0.5 rounded-full text-[10px] font-bold <?= $emPromocao ? 'bg-emerald-500 text-white shadow-xs animate-pulse' : ($temPromocao ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-gray-100 text-gray-500') ?>">
+                                        <?= $emPromocao ? '🔥 Promoção Ativa' : ($temPromocao ? '📅 Agendada / Expirada' : 'Sem Promoção') ?>
+                                    </span>
+                                </div>
+                                <p class="text-[11px] text-gray-500">Destaque este produto com selo de desconto no catálogo, PDV e redes sociais</p>
+                            </div>
+                        </div>
+
+                        <!-- Botão Alternador / Toggle Rápido -->
+                        <div class="flex items-center gap-2 self-end sm:self-center">
+                            <button type="button" id="btn-toggle-promocao" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-xs <?= $temPromocao ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300' ?>">
+                                <span id="icone-toggle-promocao"><?= $temPromocao ? '✓' : '⚡' ?></span>
+                                <span id="label-toggle-promocao"><?= $temPromocao ? 'Promoção Habilitada' : 'Ativar Promoção' ?></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Conteúdo Expansível de Promoção -->
+                    <div id="gaveta-campos-promocao" class="<?= $temPromocao ? '' : 'hidden' ?> mt-3.5 pt-3.5 border-t border-amber-200/60 space-y-3.5">
+                        
+                        <!-- 1. Atalhos Rápidos de % de Desconto (1 clique) -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="text-[11px] font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1">
+                                    <span>🎯 1. Escolha a Porcentagem de Desconto:</span>
+                                </label>
+                                <span class="text-[10px] text-gray-500 font-medium">Calcula o preço promocional automaticamente</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+                                <button type="button" class="btn-promo-pct px-2.5 py-1 text-xs font-black rounded-lg border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 shadow-2xs hover:scale-105 active:scale-95 transition" data-pct="5">-5%</button>
+                                <button type="button" class="btn-promo-pct px-2.5 py-1 text-xs font-black rounded-lg border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 shadow-2xs hover:scale-105 active:scale-95 transition" data-pct="10">-10%</button>
+                                <button type="button" class="btn-promo-pct px-2.5 py-1 text-xs font-black rounded-lg border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 shadow-2xs hover:scale-105 active:scale-95 transition" data-pct="15">-15%</button>
+                                <button type="button" class="btn-promo-pct px-2.5 py-1 text-xs font-black rounded-lg border border-rose-200 bg-rose-100 hover:bg-rose-200 text-rose-800 shadow-2xs hover:scale-105 active:scale-95 transition ring-1 ring-rose-300" data-pct="20">-20% (Popular)</button>
+                                <button type="button" class="btn-promo-pct px-2.5 py-1 text-xs font-black rounded-lg border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 shadow-2xs hover:scale-105 active:scale-95 transition" data-pct="30">-30%</button>
+                                <button type="button" class="btn-promo-pct px-2.5 py-1 text-xs font-black rounded-lg border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 shadow-2xs hover:scale-105 active:scale-95 transition" data-pct="50">-50% (Metade)</button>
+                            </div>
+                        </div>
+
+                        <!-- 2. Campos: Preço Promocional e Período (Grid) -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <!-- Preço Promocional -->
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">Preço Promocional (R$)</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-2.5 text-rose-500 font-bold text-xs">R$</span>
+                                    <input type="number" step="0.01" min="0" 
+                                           name="Produto[preco_promocional]" 
+                                           id="input-preco-promocional" 
+                                           value="<?= ($model->preco_promocional !== null && (float)$model->preco_promocional > 0) ? number_format((float)$model->preco_promocional, 2, '.', '') : '' ?>"
+                                           placeholder="0.00"
+                                           class="w-full pl-9 pr-3 py-2 text-sm font-extrabold text-rose-600 bg-white border border-rose-300 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none transition">
+                                </div>
+                                <span class="text-[10px] text-gray-400 block mt-0.5">Deve ser menor que o preço normal</span>
+                            </div>
+
+                            <!-- Data Início -->
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">Data Início</label>
+                                <input type="datetime-local" 
+                                       name="Produto[data_inicio_promocao]" 
+                                       id="input-data-inicio-promocao" 
+                                       value="<?= $dataInicioVal ?>"
+                                       class="w-full px-3 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                                <span class="text-[10px] text-gray-400 block mt-0.5">Momento em que o preço entra no ar</span>
+                            </div>
+
+                            <!-- Data Fim -->
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">Data Término</label>
+                                <input type="datetime-local" 
+                                       name="Produto[data_fim_promocao]" 
+                                       id="input-data-fim-promocao" 
+                                       value="<?= $dataFimVal ?>"
+                                       class="w-full px-3 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                                <span class="text-[10px] text-gray-400 block mt-0.5">Após a data, volta ao preço normal</span>
+                            </div>
+                        </div>
+
+                        <!-- 3. Atalhos Rápidos de Validade (1 clique) -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="text-[11px] font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1">
+                                    <span>📅 2. Validade Rápida (1 clique preenche as datas):</span>
+                                </label>
+                            </div>
+                            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+                                <button type="button" class="btn-promo-date px-2.5 py-1 text-xs font-bold rounded-lg border border-amber-200 bg-white hover:bg-amber-50 text-amber-900 shadow-2xs hover:scale-105 active:scale-95 transition" data-period="today">⚡ Só Hoje</button>
+                                <button type="button" class="btn-promo-date px-2.5 py-1 text-xs font-bold rounded-lg border border-amber-200 bg-white hover:bg-amber-50 text-amber-900 shadow-2xs hover:scale-105 active:scale-95 transition" data-period="weekend">📅 Fim de Semana</button>
+                                <button type="button" class="btn-promo-date px-2.5 py-1 text-xs font-bold rounded-lg border border-amber-200 bg-amber-100 hover:bg-amber-200 text-amber-950 shadow-2xs hover:scale-105 active:scale-95 transition ring-1 ring-amber-300" data-period="7d">⏱️ 7 Dias</button>
+                                <button type="button" class="btn-promo-date px-2.5 py-1 text-xs font-bold rounded-lg border border-amber-200 bg-white hover:bg-amber-50 text-amber-900 shadow-2xs hover:scale-105 active:scale-95 transition" data-period="15d">🗓️ 15 Dias</button>
+                                <button type="button" class="btn-promo-date px-2.5 py-1 text-xs font-bold rounded-lg border border-amber-200 bg-white hover:bg-amber-50 text-amber-900 shadow-2xs hover:scale-105 active:scale-95 transition" data-period="30d">🗓️ 30 Dias</button>
+                                <button type="button" class="btn-promo-date px-2.5 py-1 text-xs font-bold rounded-lg border border-amber-200 bg-white hover:bg-amber-50 text-amber-900 shadow-2xs hover:scale-105 active:scale-95 transition" data-period="month_end">🎯 Fim do Mês</button>
+                            </div>
+                        </div>
+
+                        <!-- 4. Live Preview / Resumo de Impacto -->
+                        <div id="painel-preview-promocao" class="bg-white/90 border border-amber-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                            <div class="flex items-center gap-3">
+                                <div class="text-left">
+                                    <span class="text-[10px] uppercase font-bold text-gray-400 block tracking-wider">Preço de Venda</span>
+                                    <span id="preview-preco-de" class="text-xs text-gray-500 line-through font-semibold">R$ 0,00</span>
+                                </div>
+                                <span class="text-gray-300 font-black">➔</span>
+                                <div class="text-left">
+                                    <span class="text-[10px] uppercase font-bold text-rose-600 block tracking-wider">Na Promoção</span>
+                                    <span id="preview-preco-por" class="text-base sm:text-lg font-black text-rose-600">R$ 0,00</span>
+                                </div>
+                                <span id="preview-badge-desconto" class="px-2 py-0.5 rounded-md text-xs font-black bg-rose-600 text-white shadow-2xs">
+                                    0% OFF
+                                </span>
+                            </div>
+
+                            <div class="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                                <div class="text-right">
+                                    <span class="text-[10px] text-gray-500 block">Economia p/ o cliente:</span>
+                                    <span id="preview-economia" class="text-xs font-bold text-emerald-600">R$ 0,00</span>
+                                </div>
+
+                                <button type="button" id="btn-remover-promocao" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition border border-rose-200/60" title="Desativar e limpar dados de promoção">
+                                    <span>Remover Oferta</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Alerta Informativo de Custo -->
+                        <div id="alerta-prejuizo-matriz" class="hidden bg-amber-50 border border-amber-300 rounded-xl p-2.5 text-xs text-amber-800 flex items-center gap-2">
+                            <span class="text-base">⚠️</span>
+                            <span>Atenção: O preço promocional está menor que o preço de custo (<strong id="texto-alerta-custo">R$ 0,00</strong>).</span>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -915,6 +1088,255 @@ document.addEventListener('DOMContentLoaded', function() {
             selecionarCor(initialColors[0]);
         }
     <?php endif; ?>
+
+    // =========================================================================
+    // 11. GESTÃO ÁGIL DE OFERTA & PREÇO PROMOCIONAL (1 CLIQUE)
+    // =========================================================================
+    const btnTogglePromo = document.getElementById('btn-toggle-promocao');
+    const gavetaCamposPromo = document.getElementById('gaveta-campos-promocao');
+    const cardOfertaPromo = document.getElementById('card-oferta-promocao');
+    const iconeTogglePromo = document.getElementById('icone-toggle-promocao');
+    const labelTogglePromo = document.getElementById('label-toggle-promocao');
+    const badgeStatusPromo = document.getElementById('badge-status-promocao');
+    const inputPrecoPromo = document.getElementById('input-preco-promocional');
+    const inputDataInicioPromo = document.getElementById('input-data-inicio-promocao');
+    const inputDataFimPromo = document.getElementById('input-data-fim-promocao');
+    const previewPrecoDe = document.getElementById('preview-preco-de');
+    const previewPrecoPor = document.getElementById('preview-preco-por');
+    const previewBadgeDesconto = document.getElementById('preview-badge-desconto');
+    const previewEconomia = document.getElementById('preview-economia');
+    const btnRemoverPromo = document.getElementById('btn-remover-promocao');
+    const alertaPrejuizoMatriz = document.getElementById('alerta-prejuizo-matriz');
+    const textoAlertaCusto = document.getElementById('texto-alerta-custo');
+    const inputPrecoCusto = document.getElementById('input-preco-custo');
+
+    function formatarMoeda(val) {
+        return 'R$ ' + (val || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function formatarDateTimeLocal(d) {
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function calcularValidadePreset(tipo) {
+        const agora = new Date();
+        const inicio = formatarDateTimeLocal(agora);
+        let fimDate = new Date();
+
+        switch (tipo) {
+            case 'today':
+                fimDate.setHours(23, 59, 0, 0);
+                break;
+            case 'weekend':
+                const diaSemana = agora.getDay();
+                const diasAteDomingo = (diaSemana === 0) ? 0 : (7 - diaSemana);
+                fimDate.setDate(agora.getDate() + diasAteDomingo);
+                fimDate.setHours(23, 59, 0, 0);
+                break;
+            case '7d':
+                fimDate.setDate(agora.getDate() + 7);
+                fimDate.setHours(23, 59, 0, 0);
+                break;
+            case '15d':
+                fimDate.setDate(agora.getDate() + 15);
+                fimDate.setHours(23, 59, 0, 0);
+                break;
+            case '30d':
+                fimDate.setDate(agora.getDate() + 30);
+                fimDate.setHours(23, 59, 0, 0);
+                break;
+            case 'month_end':
+                fimDate = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 0, 0);
+                break;
+        }
+
+        return { inicio, fim: formatarDateTimeLocal(fimDate) };
+    }
+
+    function atualizarPreviewPromocao() {
+        const precoNormal = parseFloat(inputPrecoPrincipal?.value.replace(',', '.')) || 0;
+        const precoPromo = parseFloat(inputPrecoPromo?.value.replace(',', '.')) || 0;
+        const precoCusto = parseFloat(inputPrecoCusto?.value.replace(',', '.')) || 0;
+
+        if (previewPrecoDe) {
+            previewPrecoDe.textContent = formatarMoeda(precoNormal);
+        }
+
+        if (precoPromo > 0 && precoNormal > 0) {
+            if (previewPrecoPor) previewPrecoPor.textContent = formatarMoeda(precoPromo);
+            const descontoPct = Math.max(0, ((precoNormal - precoPromo) / precoNormal) * 100);
+            const economia = Math.max(0, precoNormal - precoPromo);
+
+            if (previewBadgeDesconto) previewBadgeDesconto.textContent = `${descontoPct.toFixed(0)}% OFF`;
+            if (previewEconomia) previewEconomia.textContent = formatarMoeda(economia);
+
+            const agoraStr = formatarDateTimeLocal(new Date());
+            const dtIni = inputDataInicioPromo?.value;
+            const dtFim = inputDataFimPromo?.value;
+
+            if (precoPromo >= precoNormal) {
+                if (badgeStatusPromo) {
+                    badgeStatusPromo.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300';
+                    badgeStatusPromo.textContent = '⚠️ Inválida (Maior que normal)';
+                }
+            } else if (dtIni && dtFim) {
+                if (agoraStr < dtIni) {
+                    if (badgeStatusPromo) {
+                        badgeStatusPromo.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300';
+                        badgeStatusPromo.textContent = '📅 Agendada';
+                    }
+                } else if (agoraStr >= dtIni && agoraStr <= dtFim) {
+                    if (badgeStatusPromo) {
+                        badgeStatusPromo.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-white shadow-xs animate-pulse';
+                        badgeStatusPromo.textContent = `🔥 Promoção Ativa (-${descontoPct.toFixed(0)}%)`;
+                    }
+                } else {
+                    if (badgeStatusPromo) {
+                        badgeStatusPromo.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300';
+                        badgeStatusPromo.textContent = '⚠️ Expirada';
+                    }
+                }
+            } else {
+                if (badgeStatusPromo) {
+                    badgeStatusPromo.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-white shadow-xs';
+                    badgeStatusPromo.textContent = `🔥 Promoção Pronta (-${descontoPct.toFixed(0)}%)`;
+                }
+            }
+
+            if (precoCusto > 0 && precoPromo < precoCusto) {
+                if (alertaPrejuizoMatriz) alertaPrejuizoMatriz.classList.remove('hidden');
+                if (textoAlertaCusto) textoAlertaCusto.textContent = formatarMoeda(precoCusto);
+            } else {
+                if (alertaPrejuizoMatriz) alertaPrejuizoMatriz.classList.add('hidden');
+            }
+        } else {
+            if (previewPrecoPor) previewPrecoPor.textContent = 'R$ 0,00';
+            if (previewBadgeDesconto) previewBadgeDesconto.textContent = '0% OFF';
+            if (previewEconomia) previewEconomia.textContent = 'R$ 0,00';
+            if (alertaPrejuizoMatriz) alertaPrejuizoMatriz.classList.add('hidden');
+
+            if (badgeStatusPromo) {
+                badgeStatusPromo.className = 'px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-500';
+                badgeStatusPromo.textContent = 'Sem Promoção';
+            }
+        }
+    }
+
+    if (btnTogglePromo) {
+        btnTogglePromo.addEventListener('click', function() {
+            const estaOculto = gavetaCamposPromo.classList.contains('hidden');
+            if (estaOculto) {
+                gavetaCamposPromo.classList.remove('hidden');
+                cardOfertaPromo.classList.remove('border-dashed', 'border-gray-300');
+                cardOfertaPromo.classList.add('border-rose-400', 'shadow-sm');
+
+                btnTogglePromo.className = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-xs bg-rose-600 hover:bg-rose-700 text-white';
+                iconeTogglePromo.textContent = '✓';
+                labelTogglePromo.textContent = 'Promoção Habilitada';
+
+                const precoNormal = parseFloat(inputPrecoPrincipal?.value.replace(',', '.')) || 0;
+                if ((!inputPrecoPromo.value || parseFloat(inputPrecoPromo.value) <= 0) && precoNormal > 0) {
+                    inputPrecoPromo.value = (precoNormal * 0.80).toFixed(2);
+                }
+
+                if (!inputDataInicioPromo.value || !inputDataFimPromo.value) {
+                    const preset = calcularValidadePreset('30d');
+                    inputDataInicioPromo.value = preset.inicio;
+                    inputDataFimPromo.value = preset.fim;
+                }
+
+                atualizarPreviewPromocao();
+                inputPrecoPromo.focus();
+            } else {
+                desativarPromocao();
+            }
+        });
+    }
+
+    document.querySelectorAll('.btn-promo-pct').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const pct = parseFloat(this.getAttribute('data-pct')) || 0;
+            const precoNormal = parseFloat(inputPrecoPrincipal?.value.replace(',', '.')) || 0;
+
+            if (precoNormal <= 0) {
+                alert('Por favor, informe primeiro o Preço de Venda do produto acima.');
+                inputPrecoPrincipal?.focus();
+                return;
+            }
+
+            inputPrecoPromo.value = (precoNormal * (1 - pct / 100)).toFixed(2);
+
+            if (!inputDataInicioPromo.value || !inputDataFimPromo.value) {
+                const preset = calcularValidadePreset('30d');
+                inputDataInicioPromo.value = preset.inicio;
+                inputDataFimPromo.value = preset.fim;
+            }
+
+            document.querySelectorAll('.btn-promo-pct').forEach(b => {
+                b.classList.remove('bg-rose-100', 'text-rose-800', 'ring-1', 'ring-rose-300');
+                b.classList.add('bg-white', 'text-rose-700');
+            });
+            this.classList.remove('bg-white', 'text-rose-700');
+            this.classList.add('bg-rose-100', 'text-rose-800', 'ring-1', 'ring-rose-300');
+
+            atualizarPreviewPromocao();
+        });
+    });
+
+    document.querySelectorAll('.btn-promo-date').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const periodo = this.getAttribute('data-period');
+            const datas = calcularValidadePreset(periodo);
+
+            inputDataInicioPromo.value = datas.inicio;
+            inputDataFimPromo.value = datas.fim;
+
+            document.querySelectorAll('.btn-promo-date').forEach(b => {
+                b.classList.remove('bg-amber-100', 'text-amber-950', 'ring-1', 'ring-amber-300');
+                b.classList.add('bg-white', 'text-amber-900');
+            });
+            this.classList.remove('bg-white', 'text-amber-900');
+            this.classList.add('bg-amber-100', 'text-amber-950', 'ring-1', 'ring-amber-300');
+
+            atualizarPreviewPromocao();
+        });
+    });
+
+    if (inputPrecoPromo) {
+        inputPrecoPromo.addEventListener('input', atualizarPreviewPromocao);
+    }
+    if (inputDataInicioPromo) {
+        inputDataInicioPromo.addEventListener('change', atualizarPreviewPromocao);
+    }
+    if (inputDataFimPromo) {
+        inputDataFimPromo.addEventListener('change', atualizarPreviewPromocao);
+    }
+    if (inputPrecoPrincipal) {
+        inputPrecoPrincipal.addEventListener('input', atualizarPreviewPromocao);
+    }
+
+    function desativarPromocao() {
+        if (inputPrecoPromo) inputPrecoPromo.value = '';
+        if (inputDataInicioPromo) inputDataInicioPromo.value = '';
+        if (inputDataFimPromo) inputDataFimPromo.value = '';
+
+        gavetaCamposPromo.classList.add('hidden');
+        cardOfertaPromo.classList.add('border-dashed', 'border-gray-300');
+        cardOfertaPromo.classList.remove('border-rose-400', 'shadow-sm');
+
+        btnTogglePromo.className = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-xs bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300';
+        iconeTogglePromo.textContent = '⚡';
+        labelTogglePromo.textContent = 'Ativar Promoção';
+
+        atualizarPreviewPromocao();
+    }
+
+    if (btnRemoverPromo) {
+        btnRemoverPromo.addEventListener('click', desativarPromocao);
+    }
+
+    atualizarPreviewPromocao();
 
 });
 </script>

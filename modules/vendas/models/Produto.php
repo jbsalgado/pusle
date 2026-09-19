@@ -145,6 +145,7 @@ class Produto extends ActiveRecord
             [['unidade_medida'], 'string', 'max' => 10],
             [['unidade_medida'], 'default', 'value' => 'UN'],
             [['data_inicio_promocao', 'data_fim_promocao'], 'safe'],
+            [['data_inicio_promocao', 'data_fim_promocao', 'preco_promocional'], 'default', 'value' => null],
             [['estoque_atual', 'estoque_minimo', 'estoque_maximo', 'ponto_corte'], 'safe'], 
             
             // ✅ NOVOS CAMPOS: Grade e Kits
@@ -223,6 +224,20 @@ class Produto extends ActiveRecord
                 if (is_numeric($val)) {
                     $this->$attr = (float)$val;
                 }
+            }
+        }
+
+        // Tratamento dos campos de promoção (evita string vazia em colunas numeric/timestamp do PostgreSQL)
+        if (empty($this->preco_promocional) || trim((string)$this->preco_promocional) === '' || (float)$this->preco_promocional <= 0) {
+            $this->preco_promocional = null;
+            $this->data_inicio_promocao = null;
+            $this->data_fim_promocao = null;
+        } else {
+            if (empty($this->data_inicio_promocao) || trim((string)$this->data_inicio_promocao) === '') {
+                $this->data_inicio_promocao = null;
+            }
+            if (empty($this->data_fim_promocao) || trim((string)$this->data_fim_promocao) === '') {
+                $this->data_fim_promocao = null;
             }
         }
 
