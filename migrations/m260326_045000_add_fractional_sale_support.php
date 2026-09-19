@@ -45,7 +45,41 @@ class m260326_045000_add_fractional_sale_support extends Migration
         // 3. Ajustes na tabela prest_itens_compra
         $tableItensCompra = $this->db->schema->getTableSchema('prest_itens_compra');
         if (isset($tableItensCompra->columns['quantidade'])) {
+            $hasView = (bool) $this->db->createCommand("SELECT 1 FROM pg_views WHERE viewname = 'vw_historico_compras_produto'")->queryScalar();
+            if ($hasView) {
+                $this->execute("DROP VIEW IF EXISTS public.vw_historico_compras_produto CASCADE;");
+            }
             $this->alterColumn('prest_itens_compra', 'quantidade', $this->decimal(12, 3)->notNull());
+            if ($hasView) {
+                $sqlView = "CREATE OR REPLACE VIEW public.vw_historico_compras_produto AS
+                SELECT 
+                    ic.produto_id,
+                    p.nome AS nome_produto,
+                    ic.compra_id,
+                    c.data_compra,
+                    c.fornecedor_id,
+                    f.nome_fantasia AS nome_fornecedor,
+                    ic.preco_unitario,
+                    ic.quantidade,
+                    ic.valor_total_item,
+                    c.numero_nota_fiscal,
+                    c.status_compra,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY ic.produto_id, c.fornecedor_id 
+                        ORDER BY c.data_compra DESC
+                    ) AS ordem_compra_fornecedor,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY ic.produto_id 
+                        ORDER BY c.data_compra DESC
+                    ) AS ordem_compra_geral
+                FROM public.prest_itens_compra ic
+                INNER JOIN public.prest_compras c ON ic.compra_id = c.id
+                INNER JOIN public.prest_produtos p ON ic.produto_id = p.id
+                INNER JOIN public.prest_fornecedores f ON c.fornecedor_id = f.id
+                WHERE c.status_compra != 'CANCELADA'
+                ORDER BY ic.produto_id, c.data_compra DESC;";
+                $this->execute($sqlView);
+            }
         }
     }
 
