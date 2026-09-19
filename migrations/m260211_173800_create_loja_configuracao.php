@@ -51,25 +51,29 @@ class m260211_173800_create_loja_configuracao extends Migration
                 CONSTRAINT fk_loja_config_usuario FOREIGN KEY (usuario_id) 
                     REFERENCES prest_usuarios(id) ON DELETE CASCADE,
                 CONSTRAINT uq_loja_config_usuario UNIQUE(usuario_id)
-            );
+            )
+        ");
             
-            -- Índice para busca rápida por usuario_id
+        $this->execute("
             CREATE INDEX IF NOT EXISTS idx_loja_config_usuario 
-                ON loja_configuracao(usuario_id);
+                ON loja_configuracao(usuario_id)
+        ");
             
-            -- Trigger para atualizar updated_at automaticamente
+        $this->execute("
             CREATE OR REPLACE FUNCTION update_loja_configuracao_updated_at()
             RETURNS TRIGGER AS $$
             BEGIN
                 NEW.updated_at = CURRENT_TIMESTAMP;
                 RETURN NEW;
             END;
-            $$ LANGUAGE plpgsql;
+            $$ LANGUAGE plpgsql
+        ");
             
+        $this->execute("
             CREATE TRIGGER trigger_loja_configuracao_updated_at
                 BEFORE UPDATE ON loja_configuracao
                 FOR EACH ROW
-                EXECUTE FUNCTION update_loja_configuracao_updated_at();
+                EXECUTE FUNCTION update_loja_configuracao_updated_at()
         ");
 
         echo "✅ Tabela loja_configuracao criada com sucesso!\n";
@@ -77,11 +81,9 @@ class m260211_173800_create_loja_configuracao extends Migration
 
     public function safeDown()
     {
-        $this->execute("
-            DROP TRIGGER IF EXISTS trigger_loja_configuracao_updated_at ON loja_configuracao;
-            DROP FUNCTION IF EXISTS update_loja_configuracao_updated_at();
-            DROP TABLE IF EXISTS loja_configuracao CASCADE;
-        ");
+        $this->execute("DROP TRIGGER IF EXISTS trigger_loja_configuracao_updated_at ON loja_configuracao;");
+        $this->execute("DROP FUNCTION IF EXISTS update_loja_configuracao_updated_at();");
+        $this->execute("DROP TABLE IF EXISTS loja_configuracao CASCADE;");
 
         echo "✅ Tabela loja_configuracao removida!\n";
     }
