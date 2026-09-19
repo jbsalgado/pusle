@@ -69,6 +69,12 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                 <span>Gerar Encarte Digital</span>
             </button>
 
+            <!-- 4. Gerar Referências em Lote -->
+            <button type="button" onclick="abrirModalGerarReferencias()" class="inline-flex items-center justify-center px-3.5 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-700 hover:from-cyan-700 hover:to-blue-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-cyan-400/30 cursor-pointer whitespace-nowrap" title="Gerar e atualizar códigos de referências automáticos">
+                <span class="text-cyan-200 text-base">🏷️</span>
+                <span>Gerar Referências em Lote</span>
+            </button>
+
             <!-- 4. Gestão de Encartes -->
             <?= Html::a(
                 '<svg class="w-4 h-4 inline-block text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg><span>Gestão de Encartes</span>',
@@ -146,7 +152,7 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
             <form id="filtro-produtos-form" method="get" class="space-y-4">
                 <input type="hidden" name="promocao" id="filter-promocao-hidden" value="<?= Html::encode(Yii::$app->request->get('promocao', '')) ?>">
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
 
                     <!-- Busca -->
                     <div class="lg:col-span-2">
@@ -163,6 +169,24 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                                 </svg>
                             </button>
                         </div>
+                    </div>
+
+                    <!-- Filtro por Referência -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2 flex items-center justify-between">
+                            <span>Referência</span>
+                            <?php if (Yii::$app->request->get('referencia')): ?>
+                                <span class="text-[10px] text-cyan-600 font-bold uppercase">Ativo</span>
+                            <?php endif; ?>
+                        </label>
+                        <input type="text" name="referencia" id="filtro-referencia-index"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase font-mono text-sm"
+                            placeholder="Ex: ELET-0001"
+                            value="<?= Html::encode(Yii::$app->request->get('referencia', '')) ?>">
+                        <label class="inline-flex items-center text-[11px] text-gray-500 mt-1 cursor-pointer select-none hover:text-blue-600 transition">
+                            <input type="checkbox" name="sem_referencia" value="1" <?= (Yii::$app->request->get('sem_referencia') === '1') ? 'checked' : '' ?> class="rounded text-blue-600 focus:ring-blue-500 mr-1" onchange="this.form.submit()">
+                            <span>Apenas sem ref.</span>
+                        </label>
                     </div>
 
                     <!-- Categoria -->
@@ -1008,6 +1032,7 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
 
 <?= $this->render('_modal_disparo_massa') ?>
 <?= $this->render('_modal_gerar_encarte') ?>
+<?= $this->render('_modal_gerar_referencias') ?>
 <?= $this->render('_modal_cadastro_rapido', ['lojaId' => Yii::$app->user->id]) ?>
 <?= $this->render('_modal_enriquecimento_web', ['lojaId' => Yii::$app->user->id]) ?>
 <?php

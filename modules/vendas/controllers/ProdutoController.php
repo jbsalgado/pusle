@@ -172,6 +172,22 @@ class ProdutoController extends Controller
             $query->andWhere(['ativo' => $ativo]);
         }
 
+        $referencia = Yii::$app->request->get('referencia');
+        if ($referencia && trim($referencia) !== '') {
+            $query->andWhere(new \yii\db\Expression(
+                "unaccent(codigo_referencia) ILIKE unaccent(:ref)",
+                [':ref' => '%' . trim($referencia) . '%']
+            ));
+        }
+
+        $semReferencia = Yii::$app->request->get('sem_referencia');
+        if ($semReferencia === '1') {
+            $query->andWhere(['or',
+                ['codigo_referencia' => null],
+                [new \yii\db\Expression("trim(codigo_referencia) = ''")]
+            ]);
+        }
+
         $promocao = Yii::$app->request->get('promocao');
         if ($promocao === '1') {
             $agora = date('Y-m-d H:i:s');
@@ -1418,6 +1434,60 @@ class ProdutoController extends Controller
             'disponivel' => !$existe,
             'message' => $existe ? 'Este código de referência já está em uso. Escolha outro.' : 'Código disponível.'
         ];
+    }
+
+    /**
+     * Retorna estatísticas de referências dos produtos da loja (para o modal)
+     */
+    public function actionStatsReferencias()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        if (!$this->isAdministrador()) {
+            return ['success' => false, 'message' => 'Você não tem permissão para acessar esta funcionalidade.'];
+        }
+
+        $lojaId = $this->getLojaId();
+        $total = (int)Produto::find()->where(['usuario_id' => $lojaId])->count();
+        $semRef = (int)Produto::find()
+            ->where(['usuario_id' => $lojaId])
+            ->andWhere(['or',
+                ['codigo_referencia' => null],
+                [new \yii\db\Expression("trim(codigo_referencia) = ''")]
+            ])
+            ->count();
+        $comRef = max(0, $total - $semRef);
+
+        return [
+            'success' => true,
+            'total' => $total,
+            'com_referencia' => $comRef,
+            'sem_referencia' => $semRef,
+        ];
+    }
+
+    /**
+     * Executa a geração e atualização de referências em lote
+     */
+    public function actionGerarReferenciasLote()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        if (!$this->isAdministrador()) {
+            return ['success' => false, 'message' => 'Você não tem permissão para executar esta ação.'];
+        }
+
+        $lojaId = $this->getLojaId();
+        $modo = Yii::$app->request->post('modo', 'apenas_sem_referencia');
+        $prefixo = Yii::$app->request->post('prefixo_sem_categoria', 'GER');
+        $ids = Yii::$app->request->post('ids', []);
+
+        if (is_string($ids)) {
+            $ids = json_decode($ids, true) ?: [];
+        }
+
+        $resultado = Produto::gerarReferenciasEmLote($lojaId, $modo, $ids, $prefixo);
+        return $resultado;
     }
 
     public function actionUpdate($id)

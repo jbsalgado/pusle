@@ -987,29 +987,28 @@ class Produto extends ActiveRecord
     }
 
     /**
-     * Gera código de referência único baseado na categoria
-     * Formato: SIGLA_CATEGORIA-0000 (ex: ELET-0000, ROUP-0001, até 9999)
+     * Gera código de referência único baseado na categoria (ou fallback)
+     * Formato: SIGLA_CATEGORIA-0000 (ex: ELET-0001, ROUP-0001, GER-0001)
      * 
-     * @param string $categoriaId ID da categoria
+     * @param string|null $categoriaId ID da categoria
      * @param string $usuarioId ID do usuário
+     * @param string $prefixoFallback Prefixo caso não haja categoria (padrão: GER)
      * @return string Código de referência gerado
      */
-    public static function gerarCodigoReferencia($categoriaId, $usuarioId)
+    public static function gerarCodigoReferencia($categoriaId, $usuarioId, $prefixoFallback = 'GER')
     {
-        // Busca a categoria
-        $categoria = Categoria::findOne($categoriaId);
+        $sigla = strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', $prefixoFallback ?: 'GER')) ?: 'GER';
 
-        if (!$categoria || $categoria->usuario_id !== $usuarioId) {
-            return '';
+        if ($categoriaId) {
+            $categoria = Categoria::findOne($categoriaId);
+            if ($categoria && $categoria->usuario_id === $usuarioId) {
+                $sigla = self::gerarSiglaCategoria($categoria->nome);
+            }
         }
 
-        // Gera sigla da categoria (primeiras letras, maiúsculas, sem espaços)
-        $nome = $categoria->nome;
-        $sigla = self::gerarSiglaCategoria($nome);
-
-        // Busca o último código da categoria para gerar o próximo sequencial
+        // Busca o último código da sigla para gerar o próximo sequencial nesta loja
         $ultimoCodigo = self::find()
-            ->where(['usuario_id' => $usuarioId, 'categoria_id' => $categoriaId])
+            ->where(['usuario_id' => $usuarioId])
             ->andWhere(['like', 'codigo_referencia', $sigla . '-%', false])
             ->orderBy(['codigo_referencia' => SORT_DESC])
             ->select('codigo_referencia')
@@ -1024,27 +1023,11 @@ class Produto extends ActiveRecord
             }
         }
 
-        // Verifica se excedeu o limite de 9999
-        if ($sequencial > 9999) {
-            // Se excedeu, tenta encontrar um número disponível ou retorna vazio
-            $sequencial = 0;
-            for ($i = 0; $i <= 9999; $i++) {
-                $codigoTeste = $sigla . '-' . str_pad($i, 4, '0', STR_PAD_LEFT);
-                if (!self::find()
-                    ->where(['usuario_id' => $usuarioId, 'codigo_referencia' => $codigoTeste])
-                    ->exists()) {
-                    $sequencial = $i;
-                    break;
-                }
-            }
-
-            // Se não encontrou nenhum disponível, retorna vazio
-            if ($sequencial > 9999) {
-                return '';
-            }
+        if ($sequencial === 0) {
+            $sequencial = 1;
         }
 
-        // Formata o código: SIGLA-0000 (4 dígitos, de 0000 a 9999)
+        // Formata o código: SIGLA-0000 (4 dígitos)
         $codigo = $sigla . '-' . str_pad($sequencial, 4, '0', STR_PAD_LEFT);
 
         // Verifica se o código já existe (garantia de unicidade)
@@ -1057,28 +1040,136 @@ class Produto extends ActiveRecord
             ->exists() && $tentativas < $maxTentativas && $sequencial <= 9999
         ) {
             $sequencial++;
-            if ($sequencial > 9999) {
-                // Se excedeu, tenta encontrar um número disponível
-                $encontrado = false;
-                for ($i = 0; $i <= 9999; $i++) {
-                    $codigoTeste = $sigla . '-' . str_pad($i, 4, '0', STR_PAD_LEFT);
-                    if (!self::find()
-                        ->where(['usuario_id' => $usuarioId, 'codigo_referencia' => $codigoTeste])
-                        ->exists()) {
-                        $sequencial = $i;
-                        $encontrado = true;
-                        break;
-                    }
-                }
-                if (!$encontrado) {
-                    return ''; // Não há mais códigos disponíveis
-                }
-            }
             $codigo = $sigla . '-' . str_pad($sequencial, 4, '0', STR_PAD_LEFT);
             $tentativas++;
         }
 
         return $codigo;
+    }
+
+    /**
+     * Gera e atualiza referências de produtos em lote
+     * 
+     * @param string $usuarioId ID da loja
+     * @param string $modo 'apenas_sem_referencia' | 'todos' | 'selecionados'
+     * @param array $idsSelecionados IDs de produtos selecionados
+     * @param string $prefixoSemCategoria Prefixo para itens sem categoria (ex: GER)
+     * @return array Resultado com totais e status
+     */
+    public static function gerarReferenciasEmLote($usuarioId, $modo = 'apenas_sem_referencia', $idsSelecionados = [], $prefixoSemCategoria = 'GER')
+    {
+        $prefixoSemCategoria = strtoupper(trim(preg_replace('/[^a-zA-Z0-9]/', '', $prefixoSemCategoria ?: 'GER'))) ?: 'GER';
+
+        $query = self::find()->where(['usuario_id' => $usuarioId]);
+
+        if ($modo === 'selecionados') {
+            if (empty($idsSelecionados)) {
+                return ['success' => false, 'message' => 'Nenhum produto selecionado para atualização.'];
+            }
+            $query->andWhere(['id' => $idsSelecionados]);
+        } elseif ($modo === 'apenas_sem_referencia') {
+            $query->andWhere(['or',
+                ['codigo_referencia' => null],
+                [new \yii\db\Expression("trim(codigo_referencia) = ''")]
+            ]);
+        }
+
+        $produtos = $query->with('categoria')->orderBy(['categoria_id' => SORT_ASC, 'nome' => SORT_ASC])->all();
+
+        if (empty($produtos)) {
+            return [
+                'success' => true,
+                'total_encontrados' => 0,
+                'total_atualizados' => 0,
+                'message' => 'Nenhum produto necessita de atualização com os critérios informados.'
+            ];
+        }
+
+        // Cache de siglas de categorias
+        $cacheSiglas = [];
+        $categorias = Categoria::find()->where(['usuario_id' => $usuarioId])->all();
+        foreach ($categorias as $cat) {
+            $cacheSiglas[$cat->id] = self::gerarSiglaCategoria($cat->nome);
+        }
+
+        // Cache dos maiores sequenciais em uso por sigla
+        $sequenciaisPorSigla = [];
+        $referenciasExistentes = self::find()
+            ->where(['usuario_id' => $usuarioId])
+            ->andWhere(['not', ['codigo_referencia' => null]])
+            ->andWhere([new \yii\db\Expression("trim(codigo_referencia) != ''")])
+            ->select(['codigo_referencia', 'id'])
+            ->asArray()
+            ->all();
+
+        $refsUsadas = [];
+        foreach ($referenciasExistentes as $refItem) {
+            $ref = $refItem['codigo_referencia'];
+            $refsUsadas[$ref] = $refItem['id'];
+            if (preg_match('/^([A-Z0-9]+)-(\d+)$/', $ref, $m)) {
+                $s = $m[1];
+                $num = (int)$m[2];
+                if (!isset($sequenciaisPorSigla[$s]) || $num > $sequenciaisPorSigla[$s]) {
+                    $sequenciaisPorSigla[$s] = $num;
+                }
+            }
+        }
+
+        // Se o modo for 'todos', reinicia os sequenciais para padronizar tudo
+        if ($modo === 'todos') {
+            $sequenciaisPorSigla = [];
+            $refsUsadas = [];
+        }
+
+        $totalAtualizados = 0;
+        $erros = [];
+
+        $transaction = \Yii::$app->db->beginTransaction();
+        try {
+            foreach ($produtos as $produto) {
+                // Determina a sigla
+                $sigla = $prefixoSemCategoria;
+                if ($produto->categoria_id && isset($cacheSiglas[$produto->categoria_id])) {
+                    $sigla = $cacheSiglas[$produto->categoria_id];
+                }
+
+                if (!isset($sequenciaisPorSigla[$sigla])) {
+                    $sequenciaisPorSigla[$sigla] = 0;
+                }
+
+                // Incrementa sequencial até encontrar um código livre
+                do {
+                    $sequenciaisPorSigla[$sigla]++;
+                    $novoCodigo = $sigla . '-' . str_pad($sequenciaisPorSigla[$sigla], 4, '0', STR_PAD_LEFT);
+                } while (isset($refsUsadas[$novoCodigo]) && $refsUsadas[$novoCodigo] !== $produto->id);
+
+                // Marca como usado
+                $refsUsadas[$novoCodigo] = $produto->id;
+
+                $produto->codigo_referencia = $novoCodigo;
+                if ($produto->save(false, ['codigo_referencia', 'data_atualizacao'])) {
+                    $totalAtualizados++;
+                } else {
+                    $erros[] = "Erro ao atualizar produto ID {$produto->id} ({$produto->nome}).";
+                }
+            }
+
+            $transaction->commit();
+        } catch (\Throwable $e) {
+            $transaction->rollBack();
+            return [
+                'success' => false,
+                'message' => 'Erro ao processar atualização em lote: ' . $e->getMessage()
+            ];
+        }
+
+        return [
+            'success' => true,
+            'total_encontrados' => count($produtos),
+            'total_atualizados' => $totalAtualizados,
+            'erros' => $erros,
+            'message' => "Sucesso! {$totalAtualizados} produto(s) tiveram suas referências geradas e atualizadas."
+        ];
     }
 
     /**
