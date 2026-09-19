@@ -535,8 +535,8 @@ use yii\widgets\ActiveForm;
                         'template' => '{input}',
                         'value'    => 1,
                     ])->label(false) ?>
-                    <span>Concordo com os <a href="#" target="_blank">Termos de Uso</a> e a
-                        <a href="#" target="_blank">Política de Privacidade</a></span>
+                    <span>Concordo com os <a href="<?= Url::to(['/site/termos-de-uso']) ?>" target="_blank">Termos de Uso</a> e a
+                        <a href="<?= Url::to(['/site/politica-privacidade']) ?>" target="_blank">Política de Privacidade</a></span>
                 </label>
 
                 <div class="btn-row">

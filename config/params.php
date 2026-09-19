@@ -6,6 +6,7 @@ return [
     'senderName' => 'Example.com mailer',
 
     // SaaS Pulse Configuration
+    'domain' => $_ENV['APP_URL'] ?? getenv('APP_URL') ?: 'https://catalogos.oncode.app.br',
     'pulse_asaas_wallet_id' => null, // ID da Carteira Asaas dos proprietários do PULSE
     'pulse_platform_fee_percent' => (float)($_ENV['PULSE_PLATFORM_FEE_PERCENT'] ?? getenv('PULSE_PLATFORM_FEE_PERCENT') ?: 0.0099), // Taxa do PULSE (padrão 0.99% com suporte a até 2 casas decimais)
 
@@ -108,6 +109,13 @@ return [
     'meta_app_secret' => $_ENV['META_APP_SECRET'] ?? getenv('META_APP_SECRET') ?: '',
     'meta_api_version' => 'v19.0',
     'meta_token_encryption_key' => $_ENV['META_TOKEN_ENCRYPTION_KEY'] ?? getenv('META_TOKEN_ENCRYPTION_KEY') ?: 'pulse-meta-social-token-secret-key-2026',
+
+    // -------------------------------------------------------------------------
+    // Integração TikTok Content Posting API (v2)
+    // -------------------------------------------------------------------------
+    'tiktok_client_key' => $_ENV['TIKTOK_CLIENT_KEY'] ?? getenv('TIKTOK_CLIENT_KEY') ?: '',
+    'tiktok_client_secret' => $_ENV['TIKTOK_CLIENT_SECRET'] ?? getenv('TIKTOK_CLIENT_SECRET') ?: '',
+    'tiktok_redirect_uri' => $_ENV['TIKTOK_REDIRECT_URI'] ?? getenv('TIKTOK_REDIRECT_URI') ?: 'https://catalogos.oncode.app.br/social-integration/tiktok-callback',
 
     // -------------------------------------------------------------------------
     // Pulse Audio Bridge (Go Worker para download de áudios do YouTube)

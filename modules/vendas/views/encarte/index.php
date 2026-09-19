@@ -316,15 +316,17 @@ $this->params['breadcrumbs'][] = $this->title;
             .then(r => r.json())
             .then(data => {
                 selectConta.innerHTML = '';
-                if (data.accounts && data.accounts.length > 0) {
-                    data.accounts.forEach(acc => {
+                const list = data.data || data.accounts || [];
+                if (list.length > 0) {
+                    list.forEach(acc => {
                         const opt = document.createElement('option');
                         opt.value = acc.id;
-                        opt.textContent = (acc.page_name || 'Conta Meta') + ' (' + acc.status + ')';
+                        const providerBadge = acc.provider === 'TIKTOK' ? '🎵 TikTok' : '📸 Meta (FB/IG)';
+                        opt.textContent = `${providerBadge}: ${acc.page_name || 'Conta Social'} (${acc.status})`;
                         selectConta.appendChild(opt);
                     });
                 } else {
-                    selectConta.innerHTML = '<option value="">Nenhuma conta Meta conectada ainda</option>';
+                    selectConta.innerHTML = '<option value="">Nenhuma conta conectada ainda (Acesse o Painel Social)</option>';
                 }
             })
             .catch(err => {

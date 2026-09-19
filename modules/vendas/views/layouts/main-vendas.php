@@ -80,6 +80,7 @@ use yii\helpers\Html;
                     <?= Html::a('Produtos', ['/vendas/produto/index'], ['class' => 'text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md font-medium']) ?>
                     <?= Html::a('Categorias', ['/vendas/categoria/index'], ['class' => 'text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md font-medium']) ?>
                     <?= Html::a('📑 Encartes', ['/vendas/encarte/index'], ['class' => 'text-red-600 hover:text-red-700 font-bold px-3 py-2 rounded-md bg-red-50 hover:bg-red-100 transition flex items-center gap-1.5']) ?>
+                    <?= Html::a('📢 Marketing Social', ['/social-integration/index'], ['class' => 'text-purple-600 hover:text-purple-700 font-bold px-3 py-2 rounded-md bg-purple-50 hover:bg-purple-100 transition flex items-center gap-1.5']) ?>
                     <?= Html::a('Financeiro', ['/vendas/dashboard-financeiro/index'], ['class' => 'text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md font-medium']) ?>
                     <?= Html::a('Fiscal', ['/vendas/cupom-fiscal/index'], ['class' => 'text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md font-medium']) ?>
 
@@ -110,6 +111,7 @@ use yii\helpers\Html;
                 <?= Html::a('Produtos', ['/vendas/produto/index'], ['class' => 'block px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100']) ?>
                 <?= Html::a('Categorias', ['/vendas/categoria/index'], ['class' => 'block px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100']) ?>
                 <?= Html::a('📑 Encartes', ['/vendas/encarte/index'], ['class' => 'block px-3 py-2 rounded-md text-red-600 font-bold bg-red-50 hover:bg-red-100']) ?>
+                <?= Html::a('📢 Marketing Social', ['/social-integration/index'], ['class' => 'block px-3 py-2 rounded-md text-purple-600 font-bold bg-purple-50 hover:bg-purple-100']) ?>
 
                 <?php if (!Yii::$app->user->isGuest): ?>
                     <span class="block px-3 py-2 text-gray-600">Olá, <?= Html::encode(Yii::$app->user->identity->username) ?></span>

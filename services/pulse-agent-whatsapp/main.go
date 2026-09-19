@@ -46,8 +46,26 @@ var (
 func main() {
 	flag.Parse()
 
+	// Tenta ler config.json no diretório de execução se o token não foi passado via flag
 	if *flagToken == "" {
-		fmt.Println("❌ ERRO: O parâmetro --token é obrigatório.")
+		if cfgData, err := os.ReadFile("config.json"); err == nil {
+			var cfg struct {
+				Token  string `json:"token"`
+				Server string `json:"server"`
+			}
+			if err := json.Unmarshal(cfgData, &cfg); err == nil {
+				if cfg.Token != "" {
+					*flagToken = cfg.Token
+				}
+				if cfg.Server != "" {
+					*flagServer = cfg.Server
+				}
+			}
+		}
+	}
+
+	if *flagToken == "" {
+		fmt.Println("❌ ERRO: O parâmetro --token é obrigatório (ou crie um config.json na pasta).")
 		fmt.Println("Exemplo: pulse-agent --server=https://catalogos.oncode.app.br --token=pba_sua_chave_aqui")
 		os.Exit(1)
 	}
@@ -100,9 +118,11 @@ func main() {
 		fmt.Println("📲 Sessão prévia encontrada. Conectando ao WhatsApp...")
 		if err := client.Connect(); err != nil {
 			fmt.Printf("⚠️ Erro ao conectar: %v\n", err)
+			_ = notificarStatusVPS("disconnected", "", "")
 		}
 	} else {
 		fmt.Println("ℹ️ Nenhuma sessão pareada. Aguardando comando de QR Code pelo painel web...")
+		_ = notificarStatusVPS("disconnected", "", "")
 	}
 
 	// 3. Inicia goroutine de Long-Polling para receber tarefas da VPS
@@ -135,6 +155,10 @@ func eventHandler(rawEvt interface{}) {
 
 	case *events.LoggedOut:
 		fmt.Println("🔴 WhatsApp DESCONECTADO (Sessão encerrada no celular).")
+		_ = notificarStatusVPS("disconnected", "", "")
+
+	case *events.Disconnected:
+		fmt.Println("⚠️ WhatsApp desconectado temporariamente.")
 		_ = notificarStatusVPS("disconnected", "", "")
 
 	case *events.Message:

@@ -46,3 +46,5 @@ build/
 local.properties
 captures/
 .externalNativeBuild/
+/data/
+/pulse-agent-linux

@@ -1042,6 +1042,9 @@ input[type="radio"]:checked + .color-pill-card {
                 </div>
 
                 <div id="action-buttons-box" class="action-buttons">
+                    <button type="button" onclick="abrirModalPublicarSocialVideoAtual()" class="btn-action-custom border-0 shadow" style="cursor: pointer; background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #06b6d4 100%); color: #fff; font-weight: 800;" title="Publicar no Instagram Reels, Facebook e TikTok">
+                        <span>🚀 Publicar nas Redes Sociais</span>
+                    </button>
                     <a id="btn-download-video" href="#" download class="btn-action-custom btn-action-download">
                         <span>⬇️ Baixar MP4</span>
                     </a>
@@ -1093,6 +1096,9 @@ input[type="radio"]:checked + .color-pill-card {
                                 <?php if ($vid->status === 'concluido' && $vid->video_url): ?>
                                     <button type="button" class="btn btn-sm btn-outline-info btn-play-history" data-url="<?= Html::encode($vid->getUrlCompleta()) ?>" data-formato="<?= Html::encode($vid->formato ?? 'stories') ?>" style="border-radius: 8px;" title="Assistir Prévia">
                                         ▶
+                                    </button>
+                                    <button type="button" class="btn btn-sm" onclick="abrirModalPublicarSocialVideoUnico('<?= $vid->id ?>', '<?= Html::encode($vid->getUrlCompleta()) ?>', '<?= $vid->produto_id ?>')" style="border-radius: 8px; background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%); border: none; font-weight: 700; color: #fff;" title="Publicar no Instagram Reels, Facebook ou TikTok">
+                                        🚀 Publicar
                                     </button>
                                     <button type="button" class="btn btn-sm btn-success" onclick="abrirDisparoVideoUnico('<?= $vid->id ?>', '<?= Html::encode($vid->getUrlCompleta()) ?>')" style="border-radius: 8px; background: #25d366; border: none; font-weight: 700; color: #fff;" title="Disparar no WhatsApp / Status">
                                         📱 Enviar
@@ -3234,3 +3240,234 @@ function monitorarProgressoVideoDisparo(disparoId) {
     </div>
 </div>
 
+<!-- Modal Publicar Vídeo nas Redes Sociais (Instagram, Facebook & TikTok) -->
+<div id="modalPublicarSocialVideoStudio" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,0.85); backdrop-filter:blur(10px); align-items:center; justify-content:center; padding:16px;">
+    <div style="background:#0f172a; border:1px solid #334155; color:#fff; border-radius:24px; width:100%; max-width:650px; max-height:92vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 25px 50px rgba(0,0,0,0.7);">
+        
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #06b6d4 100%); padding:20px 24px; display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div style="background:rgba(255,255,255,0.2); width:44px; height:44px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:22px;">
+                    🚀
+                </div>
+                <div>
+                    <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#fff; letter-spacing:-0.02em;">Publicar Vídeo nas Redes Sociais</h3>
+                    <p style="margin:0; font-size:0.75rem; color:rgba(255,255,255,0.85); font-weight:500;">Instagram Reels, Facebook e TikTok</p>
+                </div>
+            </div>
+            <button type="button" onclick="fecharModalPublicarSocialVideoStudio()" style="background:rgba(255,255,255,0.15); border:none; color:#fff; border-radius:10px; width:34px; height:34px; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                ✕
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div style="padding:24px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:18px;">
+            
+            <!-- 1. Seleção de Contas Conectadas -->
+            <div>
+                <label style="display:block; font-size:0.8rem; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-bottom:8px;">
+                    1. Selecione a Conta de Destino
+                </label>
+                <select id="socialVideoContaSelect" style="width:100%; background:#1e293b; border:1px solid #475569; border-radius:12px; color:#fff; padding:12px 14px; font-size:0.9rem;">
+                    <option value="">Carregando contas conectadas...</option>
+                </select>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+                    <small style="color:#64748b; font-size:0.75rem;">Para adicionar novas páginas ou TikTok, acesse a Central Social.</small>
+                    <a href="<?= Url::to(['/social-integration/index']) ?>" target="_blank" style="color:#38bdf8; font-size:0.75rem; font-weight:700; text-decoration:none;">⚙️ Gerenciar Contas</a>
+                </div>
+            </div>
+
+            <!-- 2. Canais e Plataformas -->
+            <div>
+                <label style="display:block; font-size:0.8rem; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-bottom:8px;">
+                    2. Plataforma de Publicação
+                </label>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px;">
+                    <label style="background:#1e293b; border:2px solid #334155; border-radius:14px; padding:12px; display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem; font-weight:700; transition:all 0.2s;" id="lbl-plat-reels">
+                        <input type="radio" name="social_video_platform" value="INSTAGRAM" checked style="accent-color:#ec4899;">
+                        <span>📸 Instagram Reels</span>
+                    </label>
+                    <label style="background:#1e293b; border:2px solid #334155; border-radius:14px; padding:12px; display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem; font-weight:700; transition:all 0.2s;" id="lbl-plat-fb">
+                        <input type="radio" name="social_video_platform" value="FACEBOOK" style="accent-color:#3b82f6;">
+                        <span>📘 Facebook Reels</span>
+                    </label>
+                    <label style="background:#1e293b; border:2px solid #334155; border-radius:14px; padding:12px; display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem; font-weight:700; transition:all 0.2s;" id="lbl-plat-tt">
+                        <input type="radio" name="social_video_platform" value="TIKTOK" style="accent-color:#06b6d4;">
+                        <span>🎵 TikTok Vídeo</span>
+                    </label>
+                    <label style="background:#1e293b; border:2px solid #334155; border-radius:14px; padding:12px; display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem; font-weight:700; transition:all 0.2s;" id="lbl-plat-all">
+                        <input type="radio" name="social_video_platform" value="ALL" style="accent-color:#a855f7;">
+                        <span>🌐 Todas as Redes</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 3. Legenda & Copywriting Inteligente -->
+            <div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <label style="font-size:0.8rem; font-weight:700; color:#94a3b8; text-transform:uppercase; margin:0;">
+                        3. Legenda da Publicação
+                    </label>
+                    <button type="button" onclick="gerarCopywritingSocialVideo()" class="btn btn-xs" style="background:rgba(168,85,247,0.2); border:1px solid rgba(168,85,247,0.4); color:#c084fc; font-weight:700; border-radius:8px; padding:4px 10px; cursor:pointer;">
+                        ✨ Gerar Copywriting Automática
+                    </button>
+                </div>
+                <textarea id="socialVideoLegenda" rows="5" placeholder="Digite ou gere a legenda do vídeo com hashtags e link..." style="width:100%; background:#1e293b; border:1px solid #475569; border-radius:12px; color:#fff; padding:12px; font-size:0.85rem; line-height:1.5; resize:vertical;"></textarea>
+                <small style="color:#64748b; font-size:0.75rem; display:block; margin-top:4px;">
+                    💡 O sistema insere automaticamente o link rastreável com sua identificação de afiliado ou loja.
+                </small>
+            </div>
+
+            <!-- 4. Resumo da Mídia -->
+            <div style="background:#1e293b; border:1px solid #334155; border-radius:14px; padding:12px; display:flex; align-items:center; gap:12px;">
+                <div style="font-size:24px;">🎬</div>
+                <div style="flex:1; overflow:hidden;">
+                    <div style="font-size:0.8rem; font-weight:700; color:#f8fafc;" id="socialVideoTituloResumo">Vídeo Promocional 9:16</div>
+                    <div style="font-size:0.72rem; color:#94a3b8; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;" id="socialVideoUrlResumo">...</div>
+                </div>
+                <span class="badge" style="background:#0284c7; color:#fff;">9:16 Vertical</span>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div style="padding:16px 24px; background:#0b1120; border-top:1px solid #334155; display:flex; justify-content:flex-end; gap:12px; align-items:center;">
+            <button type="button" onclick="fecharModalPublicarSocialVideoStudio()" class="btn btn-sm btn-outline-secondary" style="border-radius:10px; padding:8px 18px; color:#94a3b8; border-color:#475569;">
+                Cancelar
+            </button>
+            <button type="button" id="btnDispararPublicacaoSocialVideo" onclick="enviarPublicacaoSocialVideoStudio()" class="btn btn-sm" style="border-radius:10px; padding:8px 24px; font-weight:800; background:linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #06b6d4 100%); color:#fff; border:none; box-shadow:0 4px 15px rgba(236,72,153,0.3); cursor:pointer;">
+                🚀 Publicar Agora
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    let videoSocialAtual = { id: '', url: '', produtoId: '' };
+
+    function abrirModalPublicarSocialVideoAtual() {
+        if (!videoRecemGeradoUrl) {
+            alert('Por favor, gere ou selecione um vídeo primeiro.');
+            return;
+        }
+        const produtoId = document.getElementById('produto-video-id-hidden')?.value || '';
+        abrirModalPublicarSocialVideo(videoRecemGeradoId || '', videoRecemGeradoUrl, produtoId);
+    }
+
+    function abrirModalPublicarSocialVideoUnico(id, url, produtoId) {
+        abrirModalPublicarSocialVideo(id, url, produtoId);
+    }
+
+    function abrirModalPublicarSocialVideo(id, url, produtoId) {
+        videoSocialAtual = { id, url, produtoId };
+
+        const modal = document.getElementById('modalPublicarSocialVideoStudio');
+        modal.style.display = 'flex';
+
+        document.getElementById('socialVideoUrlResumo').textContent = url;
+        document.getElementById('socialVideoUrlResumo').title = url;
+
+        // Pré-carrega copywriting se houver produto
+        if (produtoId) {
+            gerarCopywritingSocialVideo();
+        } else {
+            document.getElementById('socialVideoLegenda').value = "🔥 Confira essa novidade imperdível! Garanta já o seu enquanto durarem os estoques.\n\n#ofertas #novidades #reels #tiktok #compras";
+        }
+
+        // Carrega contas
+        const select = document.getElementById('socialVideoContaSelect');
+        select.innerHTML = '<option value="">Carregando contas conectadas...</option>';
+
+        fetch('<?= Url::to(['/social-integration/accounts']) ?>')
+            .then(r => r.json())
+            .then(data => {
+                select.innerHTML = '';
+                const list = data.data || data.accounts || [];
+                if (list.length > 0) {
+                    list.forEach(acc => {
+                        const opt = document.createElement('option');
+                        opt.value = acc.id;
+                        const icon = acc.provider === 'TIKTOK' ? '🎵 TikTok' : '📸 Meta (IG/FB)';
+                        opt.textContent = `${icon}: ${acc.page_name} (${acc.status})`;
+                        select.appendChild(opt);
+                    });
+                } else {
+                    select.innerHTML = '<option value="">Nenhuma conta conectada (Conecte na Central Social)</option>';
+                }
+            })
+            .catch(() => {
+                select.innerHTML = '<option value="">Erro ao carregar contas</option>';
+            });
+    }
+
+    function fecharModalPublicarSocialVideoStudio() {
+        document.getElementById('modalPublicarSocialVideoStudio').style.display = 'none';
+    }
+
+    async function gerarCopywritingSocialVideo() {
+        const prodId = videoSocialAtual.produtoId || document.getElementById('produto-video-id-hidden')?.value;
+        const txtArea = document.getElementById('socialVideoLegenda');
+        txtArea.value = "Gerando texto de alta conversão...";
+
+        try {
+            const formData = new FormData();
+            formData.append('produto_id', prodId);
+
+            const resp = await fetch('<?= Url::to(['/social-integration/generate-caption']) ?>', {
+                method: 'POST',
+                body: formData
+            });
+            const res = await resp.json();
+            if (res.success && res.caption) {
+                txtArea.value = res.caption;
+            } else {
+                txtArea.value = "🔥 Oferta Especial! Garanta já o seu no link da bio.\n\n#ofertas #promocao #novidades";
+            }
+        } catch (e) {
+            txtArea.value = "🔥 Oferta Especial! Garanta já o seu no link da bio.\n\n#ofertas #promocao #novidades";
+        }
+    }
+
+    async function enviarPublicacaoSocialVideoStudio() {
+        const platform = document.querySelector('input[name="social_video_platform"]:checked')?.value || 'INSTAGRAM';
+        const contaId = document.getElementById('socialVideoContaSelect').value;
+        const caption = document.getElementById('socialVideoLegenda').value;
+        const btn = document.getElementById('btnDispararPublicacaoSocialVideo');
+
+        if (platform !== 'ALL' && !contaId) {
+            alert('Por favor, selecione uma conta conectada.');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Enfileirando...';
+
+        try {
+            const resp = await fetch('<?= Url::to(['/social-integration/publish']) ?>', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    social_account_id: contaId || null,
+                    platform: platform,
+                    media_type: 'REELS',
+                    media_url: videoSocialAtual.url,
+                    caption: caption
+                })
+            });
+
+            const res = await resp.json();
+            if (resp.ok && res.success) {
+                alert('🎉 ' + (res.message || 'Vídeo enviado com sucesso para a fila de publicação!'));
+                fecharModalPublicarSocialVideoStudio();
+            } else {
+                alert('Erro ao publicar: ' + (res.error || res.message || 'Falha no processamento.'));
+            }
+        } catch (e) {
+            alert('Erro de conexão: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '🚀 Publicar Agora';
+        }
+    }
+</script>

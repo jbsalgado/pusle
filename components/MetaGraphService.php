@@ -155,11 +155,19 @@ class MetaGraphService extends Component
         }
 
         $upperMediaType = strtoupper($mediaType);
-        if ($upperMediaType === 'REELS' || $upperMediaType === 'VIDEO') {
+        if ($upperMediaType === 'STORIES') {
+            $params['media_type'] = 'STORIES';
+            $isVideo = preg_match('/\.(mp4|mov|webm)$/i', parse_url($mediaUrl, PHP_URL_PATH) ?? '');
+            if ($isVideo) {
+                $params['video_url'] = \app\helpers\SocialMediaHelper::ensureAbsoluteUrl($mediaUrl);
+            } else {
+                $params['image_url'] = \app\helpers\SocialMediaHelper::ensureJpegForSocial($mediaUrl);
+            }
+        } elseif ($upperMediaType === 'REELS' || $upperMediaType === 'VIDEO') {
             $params['media_type'] = 'REELS';
-            $params['video_url'] = $mediaUrl;
+            $params['video_url'] = \app\helpers\SocialMediaHelper::ensureAbsoluteUrl($mediaUrl);
         } else {
-            $params['image_url'] = $mediaUrl;
+            $params['image_url'] = \app\helpers\SocialMediaHelper::ensureJpegForSocial($mediaUrl);
         }
 
         $response = $this->_httpClient->post("{$igAccountId}/media", $params)->send();
@@ -239,7 +247,7 @@ class MetaGraphService extends Component
         if ($upperMediaType === 'REELS' || $upperMediaType === 'VIDEO') {
             // Endpoint de Vídeos da Página no Facebook
             $params = [
-                'file_url' => $mediaUrl,
+                'file_url' => \app\helpers\SocialMediaHelper::ensureAbsoluteUrl($mediaUrl),
                 'access_token' => $pageAccessToken,
             ];
             if (!empty($caption)) {
@@ -251,7 +259,7 @@ class MetaGraphService extends Component
         } else {
             // Endpoint de Fotos da Página no Facebook
             $params = [
-                'url' => $mediaUrl,
+                'url' => \app\helpers\SocialMediaHelper::ensureJpegForSocial($mediaUrl),
                 'access_token' => $pageAccessToken,
             ];
             if (!empty($caption)) {

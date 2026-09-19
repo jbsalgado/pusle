@@ -22,10 +22,12 @@ use yii\helpers\Json;
  * @property string|null $published_media_id
  * @property string $status
  * @property array|string|null $error_payload
+ * @property string|null $colaborador_id
  * @property string $created_at
  * @property string $updated_at
  *
  * @property Usuario $tenant
+ * @property \app\modules\vendas\models\Colaborador|null $colaborador
  * @property SocialAccount $socialAccount
  */
 class SocialPost extends ActiveRecord
@@ -33,10 +35,14 @@ class SocialPost extends ActiveRecord
     const PLATFORM_INSTAGRAM = 'INSTAGRAM';
     const PLATFORM_FACEBOOK = 'FACEBOOK';
     const PLATFORM_BOTH = 'BOTH';
+    const PLATFORM_TIKTOK = 'TIKTOK';
+    const PLATFORM_ALL = 'ALL';
 
     const MEDIA_TYPE_IMAGE = 'IMAGE';
     const MEDIA_TYPE_REELS = 'REELS';
     const MEDIA_TYPE_VIDEO = 'VIDEO';
+    const MEDIA_TYPE_STORIES = 'STORIES';
+    const MEDIA_TYPE_CAROUSEL = 'CAROUSEL';
 
     const STATUS_PENDING = 'PENDING';
     const STATUS_PROCESSING = 'PROCESSING';
@@ -73,12 +79,24 @@ class SocialPost extends ActiveRecord
             [['tenant_id', 'social_account_id', 'media_type', 'media_url'], 'required'],
             [['caption', 'media_url'], 'string'],
             [['media_url'], 'url', 'defaultScheme' => 'https'],
-            [['created_at', 'updated_at', 'error_payload'], 'safe'],
+            [['created_at', 'updated_at', 'error_payload', 'colaborador_id'], 'safe'],
             [['platform'], 'string', 'max' => 20],
             [['platform'], 'default', 'value' => self::PLATFORM_INSTAGRAM],
-            [['platform'], 'in', 'range' => [self::PLATFORM_INSTAGRAM, self::PLATFORM_FACEBOOK, self::PLATFORM_BOTH]],
+            [['platform'], 'in', 'range' => [
+                self::PLATFORM_INSTAGRAM,
+                self::PLATFORM_FACEBOOK,
+                self::PLATFORM_BOTH,
+                self::PLATFORM_TIKTOK,
+                self::PLATFORM_ALL,
+            ]],
             [['media_type'], 'string', 'max' => 20],
-            [['media_type'], 'in', 'range' => [self::MEDIA_TYPE_IMAGE, self::MEDIA_TYPE_REELS, self::MEDIA_TYPE_VIDEO]],
+            [['media_type'], 'in', 'range' => [
+                self::MEDIA_TYPE_IMAGE,
+                self::MEDIA_TYPE_REELS,
+                self::MEDIA_TYPE_VIDEO,
+                self::MEDIA_TYPE_STORIES,
+                self::MEDIA_TYPE_CAROUSEL,
+            ]],
             [['status'], 'string', 'max' => 50],
             [['status'], 'default', 'value' => self::STATUS_PENDING],
             [['status'], 'in', 'range' => [self::STATUS_PENDING, self::STATUS_PROCESSING, self::STATUS_PUBLISHED, self::STATUS_FAILED]],
@@ -105,13 +123,14 @@ class SocialPost extends ActiveRecord
             'published_media_id' => 'ID da Mídia Publicada',
             'status' => 'Status',
             'error_payload' => 'Payload de Erro',
+            'colaborador_id' => 'Afiliado / Colaborador ID',
             'created_at' => 'Criado em',
             'updated_at' => 'Atualizado em',
         ];
     }
 
     /**
-     * Atualiza status para PROCESSING e registra o Container ID da Meta.
+     * Atualiza status para PROCESSING e registra o Container ID da Meta ou Publish ID do TikTok.
      *
      * @param string $creationId
      * @return bool
@@ -182,6 +201,14 @@ class SocialPost extends ActiveRecord
     public function getTenant()
     {
         return $this->hasOne(Usuario::class, ['id' => 'tenant_id']);
+    }
+
+    /**
+     * @return \yii\db\ActiveQuery
+     */
+    public function getColaborador()
+    {
+        return $this->hasOne(\app\modules\vendas\models\Colaborador::class, ['id' => 'colaborador_id']);
     }
 
     /**

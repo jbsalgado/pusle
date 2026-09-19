@@ -63,13 +63,16 @@ $config = [
             'class' => 'yii\web\UrlManager',
             'scriptUrl' => '/index.php',
             'baseUrl' => '',
-            'hostInfo' => 'https://alex-bird.oncode.app.br',
+            'hostInfo' => $_ENV['APP_URL'] ?? getenv('APP_URL') ?: 'https://catalogos.oncode.app.br',
             'enablePrettyUrl' => true,
             'showScriptName' => false,
         ],
         'db' => $db,
         'metaGraphService' => [
             'class' => 'app\components\MetaGraphService',
+        ],
+        'tikTokService' => [
+            'class' => 'app\components\TikTokService',
         ],
         'mailer' => [
 

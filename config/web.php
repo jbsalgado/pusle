@@ -144,6 +144,9 @@ $config = [
         'metaGraphService' => [
             'class' => 'app\components\MetaGraphService',
         ],
+        'tikTokService' => [
+            'class' => 'app\components\TikTokService',
+        ],
         'urlManager' => [
             'enablePrettyUrl' => true, // Habilitado para suportar rotas REST
             // Detecta automaticamente se deve mostrar index.php baseado na URL atual
@@ -168,12 +171,21 @@ $config = [
                 // Webhooks Universais de Marketplaces (Mercado Livre, Shopee, Magalu, Temu, iFood)
                 'POST marketplace/webhook/<marketplace:[\w-]+>' => 'marketplace/webhook/receive',
                 'GET,POST marketplace/webhook/receive' => 'marketplace/webhook/receive',
-                // Regras da Integração Meta Social (Instagram / Facebook)
+                // Regras da Integração Social (Instagram, Facebook & TikTok)
+                'GET social-integration' => 'social-integration/index',
+                'GET social-integration/index' => 'social-integration/index',
+                'GET social-integration/tiktok-auth' => 'social-integration/tiktok-auth',
+                'GET social-integration/tiktok-callback' => 'social-integration/tiktok-callback',
                 'POST social-integration/connect' => 'social-integration/connect',
+                'POST social-integration/disconnect' => 'social-integration/disconnect',
                 'GET social-integration/accounts' => 'social-integration/accounts',
                 'POST social-integration/publish' => 'social-integration/publish',
                 'GET social-integration/posts' => 'social-integration/posts',
                 'GET social-integration/status' => 'social-integration/status',
+                // Regras Institucionais & Compliance Meta / LGPD
+                'GET politica-privacidade' => 'site/politica-privacidade',
+                'GET termos-de-uso' => 'site/termos-de-uso',
+                'GET,POST exclusao-dados' => 'site/exclusao-dados',
                 // Regras REST específicas para pedido - POST vai para create
                 'POST api/pedido' => 'api/pedido/create',
                 'GET api/pedido' => 'api/pedido/index',

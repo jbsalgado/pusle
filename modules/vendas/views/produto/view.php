@@ -724,6 +724,9 @@ $this->params['breadcrumbs'][] = $this->title;
 
                     <div class="flex items-center gap-2">
                         <span id="lbl-cards-selecionados" class="text-xs font-bold text-gray-500 hidden">0 selecionados</span>
+                        <button id="btn-publicar-social-cards-selecionados" onclick="abrirModalPublicarSocialCardsSelecionados()" type="button" class="hidden py-1 px-3 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-bold text-xs rounded-lg transition flex items-center gap-1 shadow">
+                            📢 Publicar Redes (<span id="count-social">0</span>)
+                        </button>
                         <button id="btn-disparar-selecionados-cards" onclick="abrirDisparoCardsExistentesSelecionados()" type="button" class="hidden py-1 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition flex items-center gap-1 shadow">
                             📱 Enviar Selecionados (<span id="count-disparo">0</span>)
                         </button>
@@ -762,6 +765,9 @@ $this->params['breadcrumbs'][] = $this->title;
                                         <?= date('d/m/Y H:i', strtotime($c->data_criacao)) ?>
                                     </div>
                                     <div class="flex items-center gap-1">
+                                        <button onclick="abrirModalPublicarSocialCardUnico('<?= $c->id ?>', '<?= Html::encode($urlCard) ?>', '<?= $c->formato ?>')" type="button" class="p-1.5 text-xs text-pink-600 hover:bg-pink-50 rounded-lg font-bold transition" title="Publicar no Instagram, Facebook e TikTok">
+                                            📢
+                                        </button>
                                         <button onclick="abrirDisparoCardUnico('<?= $c->id ?>', '<?= Html::encode($urlCard) ?>')" type="button" class="p-1.5 text-xs text-emerald-600 hover:bg-emerald-50 rounded-lg font-bold transition" title="Enviar este Card via WhatsApp">
                                             📱
                                         </button>
@@ -1014,14 +1020,17 @@ $this->params['breadcrumbs'][] = $this->title;
                     <img id="imgPreviewCard" src="" alt="Preview do Card" class="max-h-[460px] object-contain rounded-lg shadow-2xl">
                 </div>
 
-                <div class="flex gap-3 pt-2">
-                    <a id="btnBaixarCard" href="#" download class="flex-1 text-center py-4 px-4 bg-purple-700 hover:bg-purple-800 text-white font-extrabold rounded-xl transition shadow-lg flex items-center justify-center gap-2 text-base">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                    <a id="btnBaixarCard" href="#" download class="text-center py-3.5 px-3 bg-purple-700 hover:bg-purple-800 text-white font-extrabold rounded-xl transition shadow-lg flex items-center justify-center gap-2 text-sm">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                         Baixar PNG
                     </a>
-                    <button id="btnDispararCardGerado" onclick="abrirDisparoCardGeradoAtual()" type="button" class="flex-1 text-center py-4 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold rounded-xl transition shadow-lg flex items-center justify-center gap-2 text-base">
+                    <button id="btnDispararCardGerado" onclick="abrirDisparoCardGeradoAtual()" type="button" class="text-center py-3.5 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold rounded-xl transition shadow-lg flex items-center justify-center gap-2 text-sm">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-                        Enviar via WhatsApp
+                        WhatsApp
+                    </button>
+                    <button id="btnPublicarSocialCardGerado" onclick="abrirModalPublicarSocialCardGeradoAtual()" type="button" class="text-center py-3.5 px-3 bg-gradient-to-r from-pink-600 via-purple-600 to-cyan-500 hover:from-pink-700 hover:to-cyan-600 text-white font-extrabold rounded-xl transition shadow-lg flex items-center justify-center gap-2 text-sm">
+                        <span>📢</span> Publicar nas Redes
                     </button>
                 </div>
             </div>
@@ -1333,6 +1342,7 @@ Garanta o seu antes que acabe o estoque!</textarea>
             if (data.success) {
                 cardRecemGeradoId = data.card_id;
                 cardRecemGeradoUrl = data.card_url;
+                cardRecemGeradoFormato = data.formato || formato;
                 document.getElementById('secaoResultadoCard').classList.remove('hidden');
                 document.getElementById('imgPreviewCard').src = data.card_url;
                 const btnBaixar = document.getElementById('btnBaixarCard');
@@ -1405,6 +1415,8 @@ Garanta o seu antes que acabe o estoque!</textarea>
         const btnDisparar = document.getElementById('btn-disparar-selecionados-cards');
         const countSpan = document.getElementById('count-selecionados');
         const countDisparoSpan = document.getElementById('count-disparo');
+        const countSocialSpan = document.getElementById('count-social');
+        const btnSocial = document.getElementById('btn-publicar-social-cards-selecionados');
 
         if (qtdMarcados > 0) {
             if (lblSelecionados) {
@@ -1417,16 +1429,23 @@ Garanta o seu antes que acabe o estoque!</textarea>
             if (btnDisparar) {
                 btnDisparar.classList.remove('hidden');
             }
+            if (btnSocial) {
+                btnSocial.classList.remove('hidden');
+            }
             if (countSpan) {
                 countSpan.innerText = qtdMarcados;
             }
             if (countDisparoSpan) {
                 countDisparoSpan.innerText = qtdMarcados;
             }
+            if (countSocialSpan) {
+                countSocialSpan.innerText = qtdMarcados;
+            }
         } else {
             if (lblSelecionados) lblSelecionados.classList.add('hidden');
             if (btnExcluir) btnExcluir.classList.add('hidden');
             if (btnDisparar) btnDisparar.classList.add('hidden');
+            if (btnSocial) btnSocial.classList.add('hidden');
         }
     }
 
@@ -1575,6 +1594,9 @@ Garanta o seu antes que acabe o estoque!</textarea>
                         <div class="flex items-center justify-between gap-2">
                             <div class="text-[10px] text-gray-500 font-medium">${c.data_criacao}</div>
                             <div class="flex items-center gap-1">
+                                <button onclick="abrirModalPublicarSocialCardUnico('${c.id}', '${escapeHtml(c.url)}', '${c.formato}')" type="button" class="p-1.5 text-xs text-pink-600 hover:bg-pink-50 rounded-lg font-bold transition" title="Publicar no Instagram, Facebook e TikTok">
+                                    📢
+                                </button>
                                 <button onclick="abrirDisparoCardUnico('${c.id}', '${escapeHtml(c.url)}')" type="button" class="p-1.5 text-xs text-emerald-600 hover:bg-emerald-50 rounded-lg font-bold transition" title="Enviar este Card via WhatsApp">
                                     📱
                                 </button>
@@ -1705,6 +1727,9 @@ Garanta o seu antes que acabe o estoque!</textarea>
             <div class="p-2.5 bg-white border-t border-gray-100 flex items-center justify-between gap-2">
                 <div class="text-[10px] text-gray-500 font-medium">${dataAtual}</div>
                 <div class="flex items-center gap-1">
+                    <button onclick="abrirModalPublicarSocialCardUnico('${cardId}', '${cardUrl}', '${formato}')" type="button" class="p-1.5 text-xs text-pink-600 hover:bg-pink-50 rounded-lg font-bold transition" title="Publicar no Instagram, Facebook e TikTok">
+                        📢
+                    </button>
                     <button onclick="abrirDisparoCardUnico('${cardId}', '${cardUrl}')" type="button" class="p-1.5 text-xs text-emerald-600 hover:bg-emerald-50 rounded-lg font-bold transition" title="Enviar este Card via WhatsApp">
                         📱
                     </button>
@@ -1809,6 +1834,7 @@ Garanta o seu antes que acabe o estoque!</textarea>
     let cardsSelecionadosParaDisparo = [];
     let cardRecemGeradoId = null;
     let cardRecemGeradoUrl = null;
+    let cardRecemGeradoFormato = null;
     let listaClientesCardCache = [];
     let whatsappCardConectadoCache = false;
     let intervalMonitoramentoCard = null;
@@ -2533,5 +2559,377 @@ Garanta o seu antes que acabe o estoque!</textarea>
         setTimeout(() => {
             toast.classList.add('translate-y-10', 'opacity-0');
         }, 3000);
+    }
+</script>
+
+<!-- ========================================================================= -->
+<!-- MODAL DE PUBLICAÇÃO SOCIAL DE CARDS (INSTAGRAM, FACEBOOK E TIKTOK)        -->
+<!-- ========================================================================= -->
+<div id="modalPublicarSocialCard" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,0.85); backdrop-filter:blur(10px); align-items:center; justify-content:center; padding:16px;">
+    <div style="background:#0f172a; border:1px solid #334155; color:#fff; border-radius:24px; width:100%; max-width:680px; max-height:92vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 25px 50px rgba(0,0,0,0.7);">
+        
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #06b6d4 100%); padding:20px 24px; display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div style="background:rgba(255,255,255,0.2); width:44px; height:44px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:22px;">
+                    📢
+                </div>
+                <div>
+                    <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#fff; letter-spacing:-0.02em;">Publicar Card nas Redes Sociais</h3>
+                    <p style="margin:0; font-size:0.75rem; color:rgba(255,255,255,0.85); font-weight:500;">Instagram (Feed & Stories), Facebook e TikTok</p>
+                </div>
+            </div>
+            <button type="button" onclick="fecharModalPublicarSocialCard()" style="background:rgba(255,255,255,0.15); border:none; color:#fff; border-radius:10px; width:34px; height:34px; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                ✕
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div style="padding:24px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:18px;">
+            
+            <!-- 1. Seleção de Contas Conectadas -->
+            <div>
+                <label style="display:block; font-size:0.8rem; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-bottom:8px;">
+                    1. Conta Social de Destino
+                </label>
+                <select id="socialCardContaSelect" style="width:100%; background:#1e293b; border:1px solid #475569; border-radius:12px; color:#fff; padding:12px 14px; font-size:0.9rem;">
+                    <option value="">Carregando contas conectadas...</option>
+                </select>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+                    <small style="color:#64748b; font-size:0.75rem;">Para vincular novas contas da Meta ou TikTok, acesse a Central.</small>
+                    <a href="<?= Url::to(['/social-integration/index']) ?>" target="_blank" style="color:#38bdf8; font-size:0.75rem; font-weight:700; text-decoration:none;">⚙️ Gerenciar Contas</a>
+                </div>
+            </div>
+
+            <!-- 2. Plataformas e Formatos -->
+            <div>
+                <label style="display:block; font-size:0.8rem; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-bottom:8px;">
+                    2. Plataforma de Publicação
+                </label>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px;">
+                    <label style="background:#1e293b; border:2px solid #334155; border-radius:14px; padding:12px; display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem; font-weight:700; transition:all 0.2s;">
+                        <input type="radio" name="social_card_platform" value="INSTAGRAM" checked style="accent-color:#ec4899;">
+                        <span>📸 Instagram</span>
+                    </label>
+                    <label style="background:#1e293b; border:2px solid #334155; border-radius:14px; padding:12px; display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem; font-weight:700; transition:all 0.2s;">
+                        <input type="radio" name="social_card_platform" value="FACEBOOK" style="accent-color:#3b82f6;">
+                        <span>📘 Facebook</span>
+                    </label>
+                    <label style="background:#1e293b; border:2px solid #334155; border-radius:14px; padding:12px; display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem; font-weight:700; transition:all 0.2s;">
+                        <input type="radio" name="social_card_platform" value="TIKTOK" style="accent-color:#06b6d4;">
+                        <span>🎵 TikTok Fotos</span>
+                    </label>
+                    <label style="background:#1e293b; border:2px solid #334155; border-radius:14px; padding:12px; display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem; font-weight:700; transition:all 0.2s;">
+                        <input type="radio" name="social_card_platform" value="ALL" style="accent-color:#a855f7;">
+                        <span>🌐 Todas as Redes</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 3. Formato do Post no Instagram -->
+            <div id="containerFormatoInstagram">
+                <label style="display:block; font-size:0.8rem; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-bottom:8px;">
+                    3. Destino no Instagram
+                </label>
+                <div style="display:flex; gap:12px;">
+                    <label style="background:#1e293b; border:1px solid #475569; border-radius:10px; padding:8px 14px; display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.85rem;">
+                        <input type="radio" name="social_card_dest_insta" value="IMAGE" checked style="accent-color:#ec4899;">
+                        <span>🖼️ Feed (Post 1:1)</span>
+                    </label>
+                    <label style="background:#1e293b; border:1px solid #475569; border-radius:10px; padding:8px 14px; display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.85rem;">
+                        <input type="radio" name="social_card_dest_insta" value="STORIES" style="accent-color:#ec4899;">
+                        <span>📱 Stories (Vertical 9:16)</span>
+                    </label>
+                    <label style="background:#1e293b; border:1px solid #475569; border-radius:10px; padding:8px 14px; display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.85rem;">
+                        <input type="radio" name="social_card_dest_insta" value="CAROUSEL" style="accent-color:#ec4899;">
+                        <span>📑 Carrossel (Múltiplos)</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 4. Preview dos Cards -->
+            <div>
+                <label style="display:block; font-size:0.8rem; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-bottom:8px;">
+                    4. Cards Selecionados (<span id="socialCardQtdTotal">0</span>)
+                </label>
+                <div id="socialCardPreviewContainer" style="display:flex; gap:10px; overflow-x:auto; padding-bottom:8px;">
+                    <!-- Previews gerados via JS -->
+                </div>
+            </div>
+
+            <!-- 5. Legenda & Copywriting Inteligente -->
+            <div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <label style="font-size:0.8rem; font-weight:700; color:#94a3b8; text-transform:uppercase; margin:0;">
+                        5. Legenda da Publicação
+                    </label>
+                    <button type="button" onclick="gerarCopywritingSocialCard()" class="btn btn-xs" style="background:rgba(168,85,247,0.2); border:1px solid rgba(168,85,247,0.4); color:#c084fc; font-weight:700; border-radius:8px; padding:4px 10px; cursor:pointer;">
+                        ✨ Gerar Copywriting Automática
+                    </button>
+                </div>
+                <textarea id="socialCardLegenda" rows="4" placeholder="Digite ou gere a legenda do post com hashtags e link..." style="width:100%; background:#1e293b; border:1px solid #475569; border-radius:12px; color:#fff; padding:12px; font-size:0.85rem; line-height:1.5; resize:vertical;"></textarea>
+                <small style="color:#64748b; font-size:0.75rem; display:block; margin-top:4px;">
+                    💡 O sistema insere automaticamente o link comissionado do produto com o identificador do afiliado ou loja.
+                </small>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div style="padding:16px 24px; background:#0b1120; border-top:1px solid #334155; display:flex; justify-content:flex-end; gap:12px; align-items:center;">
+            <button type="button" onclick="fecharModalPublicarSocialCard()" class="btn btn-sm btn-outline-secondary" style="border-radius:10px; padding:8px 18px; color:#94a3b8; border-color:#475569; background:transparent;">
+                Cancelar
+            </button>
+            <button type="button" id="btnDispararPublicacaoSocialCard" onclick="enviarPublicacaoSocialCard()" style="border-radius:10px; padding:8px 24px; font-weight:800; background:linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #06b6d4 100%); color:#fff; border:none; box-shadow:0 4px 15px rgba(236,72,153,0.3); cursor:pointer;">
+                🚀 Publicar Agora
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    let cardsParaPublicacaoSocial = [];
+
+    function abrirModalPublicarSocialCardGeradoAtual() {
+        if (!cardRecemGeradoUrl) {
+            alert('Por favor, gere ou selecione um card primeiro.');
+            return;
+        }
+        abrirModalPublicarSocialCards([{
+            id: cardRecemGeradoId || '',
+            url: cardRecemGeradoUrl,
+            formato: cardRecemGeradoFormato || 'feed'
+        }]);
+    }
+
+    function abrirModalPublicarSocialCardUnico(id, url, formato) {
+        abrirModalPublicarSocialCards([{
+            id: id,
+            url: url,
+            formato: formato || 'feed'
+        }]);
+    }
+
+    function abrirModalPublicarSocialCardsSelecionados() {
+        const checkboxes = document.querySelectorAll('.chk-card-item:checked');
+        if (checkboxes.length === 0) {
+            alert('Selecione pelo menos um card no histórico para publicar.');
+            return;
+        }
+
+        const cards = [];
+        checkboxes.forEach(chk => {
+            const itemDiv = document.getElementById('card-item-' + chk.value);
+            const img = itemDiv ? itemDiv.querySelector('img') : null;
+            const formato = itemDiv && itemDiv.innerText.includes('Stories') ? 'stories' : 'feed';
+            if (img && img.src) {
+                cards.push({
+                    id: chk.value,
+                    url: img.src,
+                    formato: formato
+                });
+            }
+        });
+
+        if (cards.length === 0) {
+            alert('Nenhum card válido selecionado.');
+            return;
+        }
+
+        abrirModalPublicarSocialCards(cards);
+    }
+
+    function abrirModalPublicarSocialCards(cards) {
+        cardsParaPublicacaoSocial = cards;
+
+        const modal = document.getElementById('modalPublicarSocialCard');
+        if (!modal) return;
+        modal.style.display = 'flex';
+
+        // Atualiza contagem e previews
+        document.getElementById('socialCardQtdTotal').textContent = cards.length;
+        const previewContainer = document.getElementById('socialCardPreviewContainer');
+        previewContainer.innerHTML = '';
+
+        cards.forEach((c, idx) => {
+            const isStories = c.formato === 'stories';
+            const thumb = document.createElement('div');
+            thumb.style.cssText = 'position:relative; width:80px; height:' + (isStories ? '120px' : '80px') + '; border-radius:10px; overflow:hidden; border:2px solid #475569; flex-shrink:0; background:#000;';
+            thumb.innerHTML = `
+                <img src="${c.url}" style="width:100%; height:100%; object-fit:contain;">
+                <span style="position:absolute; bottom:2px; left:2px; font-size:8px; font-weight:800; background:rgba(0,0,0,0.7); color:#fff; padding:1px 4px; border-radius:4px;">
+                    ${isStories ? '9:16' : '1:1'}
+                </span>
+            `;
+            previewContainer.appendChild(thumb);
+        });
+
+        // Configuração inteligente de formato padrão para o Instagram
+        const radioDestInsta = document.getElementsByName('social_card_dest_insta');
+        if (cards.length > 1) {
+            for (let r of radioDestInsta) {
+                if (r.value === 'CAROUSEL') r.checked = true;
+            }
+        } else if (cards[0]?.formato === 'stories') {
+            for (let r of radioDestInsta) {
+                if (r.value === 'STORIES') r.checked = true;
+            }
+        } else {
+            for (let r of radioDestInsta) {
+                if (r.value === 'IMAGE') r.checked = true;
+            }
+        }
+
+        // Carrega as contas conectadas se ainda não carregadas
+        carregarContasSociaisParaCards();
+
+        // Gera legenda padrão se vazia
+        const txtLegenda = document.getElementById('socialCardLegenda');
+        if (!txtLegenda.value.trim()) {
+            gerarCopywritingSocialCard();
+        }
+    }
+
+    function fecharModalPublicarSocialCard() {
+        const modal = document.getElementById('modalPublicarSocialCard');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function carregarContasSociaisParaCards() {
+        const select = document.getElementById('socialCardContaSelect');
+        if (!select) return;
+
+        fetch('<?= Url::to(['/social-integration/accounts']) ?>', {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(res => {
+            select.innerHTML = '';
+
+            if (!res.success || !res.accounts || res.accounts.length === 0) {
+                select.innerHTML = '<option value="">⚠️ Nenhuma conta conectada. Conecte na Central Social.</option>';
+                return;
+            }
+
+            let optTodas = document.createElement('option');
+            optTodas.value = '';
+            optTodas.textContent = '🌟 Todas as contas ativas conectadas';
+            select.appendChild(optTodas);
+
+            res.accounts.forEach(acc => {
+                const opt = document.createElement('option');
+                opt.value = acc.id;
+                const prov = acc.provider === 'TIKTOK' ? '🎵 TikTok' : (acc.instagram_business_id ? '📸 Instagram / Facebook' : '📘 Facebook Page');
+                opt.textContent = `${prov} - ${acc.page_name}`;
+                select.appendChild(opt);
+            });
+        })
+        .catch(err => {
+            console.error('Erro ao carregar contas sociais:', err);
+            select.innerHTML = '<option value="">Erro ao carregar contas.</option>';
+        });
+    }
+
+    function gerarCopywritingSocialCard() {
+        const txtLegenda = document.getElementById('socialCardLegenda');
+        if (!txtLegenda) return;
+
+        txtLegenda.placeholder = 'Gerando copywriting inteligente com IA e links...';
+
+        const produtoId = '<?= $model->id ?>';
+        const formData = new FormData();
+        formData.append('produto_id', produtoId);
+        formData.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->csrfToken ?>');
+
+        fetch('<?= Url::to(['/social-integration/generate-caption']) ?>', {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success && res.caption) {
+                txtLegenda.value = res.caption;
+            }
+        })
+        .catch(err => {
+            console.error('Erro ao gerar legenda:', err);
+        });
+    }
+
+    function enviarPublicacaoSocialCard() {
+        if (!cardsParaPublicacaoSocial || cardsParaPublicacaoSocial.length === 0) {
+            alert('Nenhum card selecionado para publicação.');
+            return;
+        }
+
+        const contaSelect = document.getElementById('socialCardContaSelect');
+        const contaId = contaSelect ? contaSelect.value : '';
+
+        const platRadios = document.getElementsByName('social_card_platform');
+        let plataforma = 'INSTAGRAM';
+        for (let r of platRadios) {
+            if (r.checked) plataforma = r.value;
+        }
+
+        const instaDestRadios = document.getElementsByName('social_card_dest_insta');
+        let destInsta = 'IMAGE';
+        for (let r of instaDestRadios) {
+            if (r.checked) destInsta = r.value;
+        }
+
+        const legenda = document.getElementById('socialCardLegenda')?.value || '';
+
+        // Determina media_type e media_url
+        let mediaType = 'IMAGE';
+        let mediaUrl = cardsParaPublicacaoSocial[0].url;
+
+        if (cardsParaPublicacaoSocial.length > 1) {
+            mediaType = 'CAROUSEL';
+            mediaUrl = cardsParaPublicacaoSocial.map(c => c.url).join(',');
+        } else if (destInsta === 'STORIES') {
+            mediaType = 'STORIES';
+        }
+
+        const btn = document.getElementById('btnDispararPublicacaoSocialCard');
+        const btnTextoOriginal = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Enviando para as redes...';
+
+        const payload = {
+            social_account_id: contaId || null,
+            platform: plataforma,
+            media_type: mediaType,
+            media_url: mediaUrl,
+            caption: legenda
+        };
+
+        fetch('<?= Url::to(['/social-integration/publish']) ?>', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(res => {
+            btn.disabled = false;
+            btn.innerHTML = btnTextoOriginal;
+
+            if (res.success) {
+                fecharModalPublicarSocialCard();
+                alert('🚀 ' + (res.message || 'Publicação enviada com sucesso para a fila de processamento!'));
+            } else {
+                alert('⚠️ Falha ao publicar: ' + (res.error || res.message || 'Erro desconhecido.'));
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = btnTextoOriginal;
+            alert('Erro de rede ao enviar publicação: ' + err.message);
+        });
     }
 </script>

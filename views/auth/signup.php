@@ -169,7 +169,7 @@ $this->title = 'Cadastro';
             <?= $form->field($model, 'termos_aceitos')->checkbox([
                 'template' => '<div style="display: flex; align-items: start; gap: 10px;">{input} {label}</div>{error}',
                 'labelOptions' => ['style' => 'margin: 0; color: #666; font-size: 13px; line-height: 1.5;'],
-                'label' => 'Li e aceito os <a href="#" style="color: #667eea;">Termos de Uso</a> e a <a href="#" style="color: #667eea;">Política de Privacidade</a>',
+                'label' => 'Li e aceito os <a href="' . Url::to(['/site/termos-de-uso']) . '" target="_blank" style="color: #667eea; text-decoration: underline;">Termos de Uso</a> e a <a href="' . Url::to(['/site/politica-privacidade']) . '" target="_blank" style="color: #667eea; text-decoration: underline;">Política de Privacidade</a>',
             ]) ?>
         </div>
 

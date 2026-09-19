@@ -822,7 +822,7 @@ class DisparoMassaService
             if (Yii::$app->has('request') && Yii::$app->get('request') instanceof \yii\web\Request && !empty(Yii::$app->request->hostInfo)) {
                 $resUrl = \yii\helpers\Url::to('@web/' . $caminho, true);
             } else {
-                $baseUrl = Yii::$app->params['domain'] ?? 'https://alex-bird.oncode.app.br';
+                $baseUrl = Yii::$app->params['domain'] ?? 'https://catalogos.oncode.app.br';
                 $resUrl = rtrim($baseUrl, '/') . '/' . $caminho;
             }
         }
@@ -857,7 +857,7 @@ class DisparoMassaService
      */
     private function substituirVariaveis(?string $texto, Produto $produto, ?Cliente $cliente = null, bool $incluirOptout = false): string
     {
-        $baseUrl = Yii::$app->params['domain'] ?? 'https://alex-bird.oncode.app.br';
+        $baseUrl = Yii::$app->params['domain'] ?? 'https://catalogos.oncode.app.br';
         if (Yii::$app->has('request') && method_exists(Yii::$app->request, 'getHostInfo') && Yii::$app->request->getHostInfo()) {
             $baseUrl = Yii::$app->request->getHostInfo();
         }

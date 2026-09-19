@@ -101,15 +101,93 @@ class PublishSocialMediaJob extends BaseObject implements RetryableJobInterface
             $metaService = new MetaGraphService();
         }
 
+        /** @var \app\components\TikTokService $tikTokService */
+        $tikTokService = Yii::$app->get('tikTokService', false);
+        if (!$tikTokService) {
+            $tikTokService = new \app\components\TikTokService();
+        }
+
         try {
             $publishedIds = [];
 
-            // -----------------------------------------------------------------
-            // 1. FLUXO INSTAGRAM BUSINESS
-            // -----------------------------------------------------------------
-            if (($post->platform === SocialPost::PLATFORM_INSTAGRAM || $post->platform === SocialPost::PLATFORM_BOTH) && !empty($account->instagram_business_account_id)) {
+            // =================================================================
+            // FLUXO 1. TIKTOK CONTENT POSTING API
+            // =================================================================
+            if ($account->provider === SocialAccount::PROVIDER_TIKTOK || $post->platform === SocialPost::PLATFORM_TIKTOK) {
+                Yii::info("Iniciando fluxo de publicação no TikTok para SocialPost ID: {$this->postId}", __METHOD__);
+
+                // Checagem de expiração e auto-renovação de Access Token via Refresh Token
+                if ($account->isTokenExpired() && !$account->isRefreshTokenExpired()) {
+                    $refreshToken = $account->getDecryptedRefreshToken();
+                    if (!empty($refreshToken)) {
+                        try {
+                            $tokenData = $tikTokService->refreshAccessToken($refreshToken);
+                            $accessToken = $tokenData['access_token'];
+                            $account->setEncryptedAccessToken($accessToken);
+                            $account->token_expires_at = date('Y-m-d H:i:s', time() + (int)($tokenData['expires_in'] ?? 86400));
+                            if (!empty($tokenData['refresh_token'])) {
+                                $account->setEncryptedRefreshToken($tokenData['refresh_token']);
+                                $account->tiktok_refresh_expires_at = date('Y-m-d H:i:s', time() + (int)($tokenData['refresh_expires_in'] ?? 31536000));
+                            }
+                            $account->status = SocialAccount::STATUS_ACTIVE;
+                            $account->save(false);
+                            Yii::info("Access Token do TikTok renovado com sucesso para a conta {$account->id}", __METHOD__);
+                        } catch (\Throwable $tokenEx) {
+                            Yii::error("Falha ao renovar token do TikTok: " . $tokenEx->getMessage(), __METHOD__);
+                        }
+                    }
+                }
+
+                $isMediaVideo = in_array($post->media_type, [SocialPost::MEDIA_TYPE_REELS, SocialPost::MEDIA_TYPE_VIDEO]);
+                if ($isMediaVideo) {
+                    $videoUrl = \app\helpers\SocialMediaHelper::ensureAbsoluteUrl($post->media_url);
+                    $publishId = $tikTokService->publishVideo($accessToken, $videoUrl, $post->caption ?: '');
+                } else {
+                    $photoUrl = \app\helpers\SocialMediaHelper::ensureJpegForSocial($post->media_url);
+                    $publishId = $tikTokService->publishPhotoPost(
+                        $accessToken,
+                        [$photoUrl],
+                        mb_substr($post->caption ?: 'Oferta Especial', 0, 100),
+                        $post->caption ?: ''
+                    );
+                }
+
+                $post->markAsProcessing($publishId);
+
+                // Polling de checagem de processamento no TikTok
+                $checks = 0;
+                $isFinished = false;
+                while ($checks < $this->maxContainerChecks) {
+                    sleep($this->checkIntervalSeconds);
+                    $statusData = $tikTokService->checkPublishStatus($accessToken, $publishId);
+                    $status = strtoupper($statusData['status'] ?? '');
+
+                    Yii::info("Checagem de Publicação TikTok ({$publishId}): Tentativa {$checks}/{$this->maxContainerChecks} -> Status: {$status}", __METHOD__);
+
+                    if ($status === 'SUCCESS' || $status === 'PUBLISH_COMPLETE') {
+                        $isFinished = true;
+                        break;
+                    }
+
+                    if ($status === 'FAILED') {
+                        $failReason = $statusData['fail_reason'] ?? 'Falha no processamento pelo TikTok.';
+                        throw new \Exception("TikTok rejeitou a publicação: {$failReason}");
+                    }
+
+                    $checks++;
+                }
+
+                $publishedIds[] = "TIKTOK:" . $publishId;
+            }
+
+            // =================================================================
+            // FLUXO 2. INSTAGRAM BUSINESS (Feed, Reels & Stories)
+            // =================================================================
+            if ($account->provider !== SocialAccount::PROVIDER_TIKTOK && 
+                ($post->platform === SocialPost::PLATFORM_INSTAGRAM || $post->platform === SocialPost::PLATFORM_BOTH || $post->platform === SocialPost::PLATFORM_ALL) && 
+                !empty($account->instagram_business_account_id)) {
                 
-                // Passo 1.1: Criar Container de Mídia
+                // Passo 2.1: Criar Container de Mídia
                 $creationId = $metaService->createInstagramMediaContainer(
                     $account->instagram_business_account_id,
                     $accessToken,
@@ -120,7 +198,7 @@ class PublishSocialMediaJob extends BaseObject implements RetryableJobInterface
 
                 $post->markAsProcessing($creationId);
 
-                // Passo 1.2: Polling de Status (Obrigatório para Vídeos/Reels)
+                // Passo 2.2: Polling de Status (Obrigatório para Vídeos/Reels)
                 if ($post->media_type === SocialPost::MEDIA_TYPE_REELS || $post->media_type === SocialPost::MEDIA_TYPE_VIDEO) {
                     $isFinished = false;
                     $checks = 0;
@@ -150,7 +228,7 @@ class PublishSocialMediaJob extends BaseObject implements RetryableJobInterface
                     }
                 }
 
-                // Passo 1.3: Disparo da Publicação Final
+                // Passo 2.3: Disparo da Publicação Final
                 $igPublishedId = $metaService->publishInstagramContainer(
                     $account->instagram_business_account_id,
                     $creationId,
@@ -160,10 +238,12 @@ class PublishSocialMediaJob extends BaseObject implements RetryableJobInterface
                 $publishedIds[] = "IG:" . $igPublishedId;
             }
 
-            // -----------------------------------------------------------------
-            // 2. FLUXO FACEBOOK PAGE
-            // -----------------------------------------------------------------
-            if (($post->platform === SocialPost::PLATFORM_FACEBOOK || $post->platform === SocialPost::PLATFORM_BOTH) && !empty($account->facebook_page_id)) {
+            // =================================================================
+            // FLUXO 3. FACEBOOK PAGE
+            // =================================================================
+            if ($account->provider !== SocialAccount::PROVIDER_TIKTOK && 
+                ($post->platform === SocialPost::PLATFORM_FACEBOOK || $post->platform === SocialPost::PLATFORM_BOTH || $post->platform === SocialPost::PLATFORM_ALL) && 
+                !empty($account->facebook_page_id)) {
                 
                 $fbPublishedId = $metaService->publishToFacebookPage(
                     $account->facebook_page_id,
@@ -177,7 +257,7 @@ class PublishSocialMediaJob extends BaseObject implements RetryableJobInterface
             }
 
             if (empty($publishedIds)) {
-                throw new Exception("Nenhum destino válido (Instagram ID ou Facebook Page ID) configurado para a publicação.");
+                throw new Exception("Nenhum canal social de destino válido (Instagram, Facebook ou TikTok) foi executado com sucesso.");
             }
 
             // -----------------------------------------------------------------
