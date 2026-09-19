@@ -11,11 +11,19 @@ class m251210_000010_add_mp_oauth_and_saas_financial_logs extends Migration
     public function safeUp()
     {
         // === Campos OAuth no tenant (prest_usuarios) ===
-        $this->addColumn('{{%prest_usuarios}}', 'mp_access_token', $this->text()->null());
-        $this->addColumn('{{%prest_usuarios}}', 'mp_refresh_token', $this->text()->null());
-        $this->addColumn('{{%prest_usuarios}}', 'mp_public_key', $this->string(255)->null());
-        $this->addColumn('{{%prest_usuarios}}', 'mp_user_id', $this->string(50)->null());
-        $this->addColumn('{{%prest_usuarios}}', 'mp_token_expiration', $this->dateTime()->null());
+        $table = $this->db->schema->getTableSchema('{{%prest_usuarios}}');
+        $columns = [
+            'mp_access_token' => $this->text()->null(),
+            'mp_refresh_token' => $this->text()->null(),
+            'mp_public_key' => $this->string(255)->null(),
+            'mp_user_id' => $this->string(50)->null(),
+            'mp_token_expiration' => $this->dateTime()->null(),
+        ];
+        foreach ($columns as $col => $type) {
+            if (!isset($table->columns[$col])) {
+                $this->addColumn('{{%prest_usuarios}}', $col, $type);
+            }
+        }
 
         // Comentários para documentação no banco
         $this->execute("COMMENT ON COLUMN {{%prest_usuarios}}.mp_access_token IS 'Access token do vendedor obtido via OAuth do Mercado Pago';");
@@ -38,10 +46,10 @@ class m251210_000010_add_mp_oauth_and_saas_financial_logs extends Migration
             );
         ");
 
-        $this->createIndex('idx_saas_fin_logs_tenant', '{{%saas_financial_logs}}', 'tenant_id');
-        $this->createIndex('idx_saas_fin_logs_order', '{{%saas_financial_logs}}', 'order_id');
-        $this->createIndex('idx_saas_fin_logs_payment', '{{%saas_financial_logs}}', 'mp_payment_id');
-        $this->createIndex('uq_saas_fin_logs_payment', '{{%saas_financial_logs}}', ['tenant_id', 'order_id', 'mp_payment_id'], true);
+        $this->execute("CREATE INDEX IF NOT EXISTS idx_saas_fin_logs_tenant ON {{%saas_financial_logs}} (tenant_id);");
+        $this->execute("CREATE INDEX IF NOT EXISTS idx_saas_fin_logs_order ON {{%saas_financial_logs}} (order_id);");
+        $this->execute("CREATE INDEX IF NOT EXISTS idx_saas_fin_logs_payment ON {{%saas_financial_logs}} (mp_payment_id);");
+        $this->execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_saas_fin_logs_payment ON {{%saas_financial_logs}} (tenant_id, order_id, mp_payment_id);");
 
         $this->execute("COMMENT ON TABLE {{%saas_financial_logs}} IS 'Auditoria financeira das comissões da plataforma (split Mercado Pago).';");
         $this->execute("COMMENT ON COLUMN {{%saas_financial_logs}}.platform_fee IS 'Valor da comissão da plataforma retida na transação.';");
