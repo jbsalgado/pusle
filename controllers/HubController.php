@@ -78,24 +78,25 @@ class HubController extends Controller
             }
         }
 
-        // 2. Identificação via Slug / ID / Username da Loja
-        if ($usuario === null && !empty($slug)) {
+        // 2. Identificação via Slug / ID / Username da Loja (ou fallback de token se não foi cliente)
+        $termoLoja = !empty($slug) ? $slug : (!empty($token) ? $token : null);
+        if ($usuario === null && !empty($termoLoja)) {
             // 2.1 Busca por UUID direto se formato for válido
-            if ($this->isValidUuid($slug)) {
-                $usuario = Usuario::findOne($slug);
+            if ($this->isValidUuid($termoLoja)) {
+                $usuario = Usuario::findOne($termoLoja);
             }
 
             // 2.2 Busca por username, catalogo_path ou nome
             if ($usuario === null) {
                 $usuario = Usuario::find()
-                    ->where(['or', ['username' => $slug], ['catalogo_path' => $slug], ['nome' => $slug]])
+                    ->where(['or', ['username' => $termoLoja], ['catalogo_path' => $termoLoja], ['nome' => $termoLoja]])
                     ->one();
             }
 
             // 2.3 Busca em LojaConfiguracao por nome_loja ou nome_fantasia
             if ($usuario === null) {
                 $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::find()
-                    ->where(['or', ['nome_loja' => $slug], ['nome_fantasia' => $slug]])
+                    ->where(['or', ['nome_loja' => $termoLoja], ['nome_fantasia' => $termoLoja]])
                     ->one();
                 if ($lojaConfig !== null && !empty($lojaConfig->usuario_id)) {
                     $usuario = Usuario::findOne($lojaConfig->usuario_id);

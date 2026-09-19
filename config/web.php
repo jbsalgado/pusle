@@ -157,6 +157,7 @@ $config = [
                 // Regras para Direct Hub do Cliente & Comanda Digital
                 'hub/<action:(identificar|chamar-garcom|pedir-conta|save-push|enviar-mensagem|mensagens|upload-midia)>' => 'hub/<action>',
                 'GET hub/<token:[a-f0-9]{32}>' => 'hub/index',
+                'GET hub/<slug:[\w-]+>' => 'hub/index',
                 'GET hub/<token:[\w-]+>' => 'hub/index',
                 'GET m/<slug:[\w-]+>' => 'hub/index',
                 'GET comanda/<comanda:[\w-]+>' => 'hub/index',
