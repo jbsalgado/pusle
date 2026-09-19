@@ -172,6 +172,24 @@ class ProdutoController extends Controller
             $query->andWhere(['ativo' => $ativo]);
         }
 
+        $promocao = Yii::$app->request->get('promocao');
+        if ($promocao === '1') {
+            $agora = date('Y-m-d H:i:s');
+            $query->andWhere(['and',
+                ['>', 'preco_promocional', 0],
+                ['not', ['preco_promocional' => null]],
+                'preco_promocional < preco_venda_sugerido',
+                ['or',
+                    ['data_inicio_promocao' => null],
+                    ['<=', 'data_inicio_promocao', $agora]
+                ],
+                ['or',
+                    ['data_fim_promocao' => null],
+                    ['>=', 'data_fim_promocao', $agora]
+                ]
+            ]);
+        }
+
         $dataProvider = new ActiveDataProvider([
             'query' => $query,
             'pagination' => [

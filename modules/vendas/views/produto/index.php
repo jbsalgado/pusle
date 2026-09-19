@@ -23,8 +23,8 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                 <p class="text-sm text-gray-500 mt-1">Gerencie seu catálogo de produtos e estoque</p>
             </div>
             
-            <!-- Filtro Rápido (Toggle) -->
-            <div class="bg-white px-4 py-2 rounded-xl shadow-xs border border-gray-200 flex items-center gap-3 self-stretch sm:self-auto justify-between sm:justify-start">
+            <!-- Filtro Rápido (Toggles) -->
+            <div class="bg-white px-4 py-2 rounded-xl shadow-xs border border-gray-200 flex flex-wrap items-center gap-3 self-stretch sm:self-auto justify-between sm:justify-start">
                 <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Filtro Rápido:</span>
                 <label class="relative inline-flex items-center cursor-pointer group">
                     <input type="checkbox" id="quick-toggle-ativo" class="sr-only peer" 
@@ -33,6 +33,17 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                     <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                     <span class="ml-2 text-sm font-semibold text-gray-700 group-hover:text-blue-600 transition-colors">
                         Ativos
+                    </span>
+                </label>
+                <div class="h-4 w-px bg-gray-200 hidden sm:block"></div>
+                <label class="relative inline-flex items-center cursor-pointer group" title="Filtrar apenas produtos com promoção ativa">
+                    <input type="checkbox" id="quick-toggle-promocao" class="sr-only peer" 
+                        <?= (Yii::$app->request->get('promocao') === '1') ? 'checked' : '' ?>
+                        onchange="syncPromoAndSubmit(this.checked)">
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-rose-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-500"></div>
+                    <span class="ml-2 text-sm font-semibold text-gray-700 group-hover:text-rose-600 transition-colors flex items-center gap-1">
+                        <span>🔥</span>
+                        <span>Promoções</span>
                     </span>
                 </label>
             </div>
@@ -133,6 +144,7 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
         <!-- Filtros e Busca -->
         <div class="bg-white rounded-lg shadow-md mb-6 p-6">
             <form id="filtro-produtos-form" method="get" class="space-y-4">
+                <input type="hidden" name="promocao" id="filter-promocao-hidden" value="<?= Html::encode(Yii::$app->request->get('promocao', '')) ?>">
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
 
@@ -243,21 +255,17 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
             <!-- Visualização em Cards -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 <?php foreach ($dataProvider->getModels() as $model): ?>
+                    <?php
+                        $emPromocao = (bool)$model->emPromocao;
+                        $descontoPromo = $emPromocao ? (float)$model->descontoPromocional : 0;
+                        $precoNormal = (float)$model->preco_venda_sugerido;
+                        $precoPromo = (float)$model->preco_promocional;
+                        $precoFinal = $emPromocao ? $precoPromo : $precoNormal;
+                        $economia = max(0, $precoNormal - $precoPromo);
+                    ?>
                     <div 
                         class="relative bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 <?= $model->ativo ? '' : 'opacity-60 ring-2 ring-red-300' ?>"
                         id="card-produto-<?= $model->id ?>">
-
-                            <?php if (!$model->ativo): ?>
-                                <div class="absolute top-2 left-10 z-20 flex items-center gap-1 bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-md badge-inativo-<?= $model->id ?>">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
-                                    INATIVO
-                                </div>
-                            <?php endif; ?>
-                            <?php if ($model->estoque_atual == 0): ?>
-                                <span class="absolute top-2 right-2 px-2 py-1 bg-red-600 text-white text-xs font-semibold rounded z-10">
-                                    Sem Estoque
-                                </span>
-                            <?php endif; ?>
 
 <?php
     // Monta array de URLs das fotos do produto
@@ -321,16 +329,41 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
     ];
 ?>
 <div class="relative h-48 bg-gray-100 overflow-hidden group flex items-center justify-center p-2" x-data="<?= Html::encode(json_encode($carouselConfig)) ?>">
-    <div class="absolute top-2 left-2 z-10 bg-white/90 backdrop-blur-sm p-1 rounded-lg shadow border border-gray-200">
-        <input type="checkbox" name="produto_massa_chk" value="<?= $model->id ?>" data-nome="<?= Html::encode($model->nome) ?>" class="w-5 h-5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer block">
+    <!-- Badges Canto Superior Esquerdo -->
+    <div class="absolute top-2 left-2 z-20 flex items-center gap-1.5">
+        <div class="bg-white/90 backdrop-blur-sm p-1 rounded-lg shadow border border-gray-200">
+            <input type="checkbox" name="produto_massa_chk" value="<?= $model->id ?>" data-nome="<?= Html::encode($model->nome) ?>" class="w-5 h-5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer block">
+        </div>
+        <?php if (!$model->ativo): ?>
+            <div class="flex items-center gap-1 bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-md badge-inativo-<?= $model->id ?>">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
+                INATIVO
+            </div>
+        <?php endif; ?>
     </div>
 
-    <?php if (count($photos) > 1): ?>
-        <div class="absolute top-2 right-2 z-10 bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow pointer-events-none">
-            <svg class="w-3 h-3 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-            <span x-text="(index + 1) + '/<?= count($photos) ?>'"><?= '1/' . count($photos) ?></span>
-        </div>
-    <?php endif; ?>
+    <!-- Badges Canto Superior Direito -->
+    <div class="absolute top-2 right-2 z-20 flex flex-col items-end gap-1 pointer-events-none">
+        <?php if ($emPromocao): ?>
+            <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-gradient-to-r from-rose-600 via-pink-600 to-red-600 text-white shadow-lg border border-white/40 tracking-wider shadow-rose-500/30 animate-pulse">
+                <span>🔥</span>
+                <span>-<?= round($descontoPromo) ?>% OFF</span>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($model->estoque_atual == 0): ?>
+            <span class="px-2 py-0.5 bg-red-600 text-white text-[10px] font-bold rounded-md shadow">
+                Sem Estoque
+            </span>
+        <?php endif; ?>
+
+        <?php if (count($photos) > 1): ?>
+            <div class="bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
+                <svg class="w-3 h-3 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <span x-text="(index + 1) + '/<?= count($photos) ?>'"><?= '1/' . count($photos) ?></span>
+            </div>
+        <?php endif; ?>
+    </div>
 
     <img :src="photos[index]" 
          src="<?= Html::encode($fotoInicial) ?>" 
@@ -395,13 +428,56 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                                 </span>
                             <?php endif; ?>
 
-                            <div class="space-y-2 mb-4">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-sm text-gray-600">Preço:</span>
-                                    <span class="text-lg font-bold text-green-600">
-                                        R$ <?= Yii::$app->formatter->asDecimal($model->preco_venda_sugerido, 2) ?>
-                                    </span>
+                            <!-- Preços e Descontos -->
+                            <?php if ($emPromocao): ?>
+                                <div class="bg-gradient-to-br from-rose-50 via-pink-50/50 to-orange-50/40 rounded-xl p-3 border border-rose-200/80 mb-3 space-y-1.5 shadow-2xs">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-[11px] font-extrabold uppercase tracking-wider text-rose-600 flex items-center gap-1">
+                                            <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                                            Em Promoção
+                                        </span>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-black bg-rose-600 text-white shadow-2xs">
+                                            -<?= round($descontoPromo) ?>% OFF
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="flex items-baseline justify-between gap-2">
+                                        <div>
+                                            <span class="text-xs text-gray-400 line-through mr-1 font-medium">
+                                                De R$ <?= Yii::$app->formatter->asDecimal($precoNormal, 2) ?>
+                                            </span>
+                                            <span class="text-xs font-bold text-rose-500">Por</span>
+                                        </div>
+                                        <div class="text-xl font-black text-rose-600 tracking-tight">
+                                            R$ <?= Yii::$app->formatter->asDecimal($precoPromo, 2) ?>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center justify-between text-[11px] pt-1.5 border-t border-rose-200/60 text-rose-700">
+                                        <span class="font-medium">Economia:</span>
+                                        <span class="font-bold text-emerald-600">
+                                            R$ <?= Yii::$app->formatter->asDecimal($economia, 2) ?>
+                                        </span>
+                                    </div>
+
+                                    <?php if (!empty($model->data_fim_promocao)): ?>
+                                        <div class="text-[10px] text-gray-500 flex items-center justify-between pt-0.5">
+                                            <span>⏳ Válido até:</span>
+                                            <strong class="text-gray-700"><?= Yii::$app->formatter->asDatetime($model->data_fim_promocao, 'php:d/m/Y H:i') ?></strong>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
+                            <?php endif; ?>
+
+                            <div class="space-y-2 mb-4">
+                                <?php if (!$emPromocao): ?>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-gray-600">Preço:</span>
+                                        <span class="text-lg font-bold text-green-600">
+                                            R$ <?= Yii::$app->formatter->asDecimal($precoNormal, 2) ?>
+                                        </span>
+                                    </div>
+                                <?php endif; ?>
                                 <div class="flex justify-between items-center">
                                     <span class="text-sm text-gray-600">Estoque:</span>
                                     <span class="font-semibold <?= $model->estoque_atual > 0 ? 'text-green-600' : 'text-red-600' ?>">
@@ -450,7 +526,7 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                                         'onclick' => "imprimirEtiqueta(this.dataset.nome, this.dataset.codigo, this.dataset.preco)",
                                         'data-nome' => $model->nome,
                                         'data-codigo' => $model->codigo_barras ?: $model->codigo_referencia ?: '',
-                                        'data-preco' => number_format($model->preco_venda_sugerido, 2, ',', '.')
+                                        'data-preco' => number_format($precoFinal, 2, ',', '.')
                                     ]
                                 ) ?>
                             </div>
@@ -558,7 +634,14 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                                                 </div>
                                             <?php endif; ?>
                                             <div>
-                                                <div class="text-sm font-medium text-gray-900"><?= Html::encode($model->nome) ?></div>
+                                                <div class="text-sm font-medium text-gray-900 flex items-center gap-1.5">
+                                                    <span><?= Html::encode($model->nome) ?></span>
+                                                    <?php if ($model->emPromocao): ?>
+                                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white shadow-2xs">
+                                                            🔥 -<?= round($model->descontoPromocional) ?>%
+                                                        </span>
+                                                    <?php endif; ?>
+                                                </div>
                                                 <?php if ($model->marca): ?>
                                                     <div class="text-[10px] text-gray-500 font-medium">Marca: <?= Html::encode($model->marca) ?></div>
                                                 <?php endif; ?>
@@ -583,9 +666,23 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                                         <?= Html::encode($model->marca ?: '-') ?>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right">
-                                        <span class="text-sm font-semibold text-green-600">
-                                            R$ <?= Yii::$app->formatter->asDecimal($model->preco_venda_sugerido, 2) ?>
-                                        </span>
+                                        <?php if ($model->emPromocao): ?>
+                                            <div class="flex flex-col items-end">
+                                                <span class="text-xs text-gray-400 line-through font-medium">
+                                                    De R$ <?= Yii::$app->formatter->asDecimal($model->preco_venda_sugerido, 2) ?>
+                                                </span>
+                                                <span class="text-sm font-black text-rose-600">
+                                                    R$ <?= Yii::$app->formatter->asDecimal($model->preco_promocional, 2) ?>
+                                                </span>
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-700 border border-rose-200 mt-0.5">
+                                                    -<?= round($model->descontoPromocional) ?>% OFF
+                                                </span>
+                                            </div>
+                                        <?php else: ?>
+                                            <span class="text-sm font-semibold text-green-600">
+                                                R$ <?= Yii::$app->formatter->asDecimal($model->preco_venda_sugerido, 2) ?>
+                                            </span>
+                                        <?php endif; ?>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-center hidden lg:table-cell">
                                         <span class="px-2 py-1 text-xs font-semibold rounded-full <?= $model->estoque_atual > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' ?>">
@@ -610,7 +707,7 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                                                     onclick="imprimirEtiqueta(this.dataset.nome, this.dataset.codigo, this.dataset.preco)"
                                                     data-nome="<?= Html::encode($model->nome) ?>"
                                                     data-codigo="<?= Html::encode($model->codigo_barras ?: $model->codigo_referencia ?: "") ?>"
-                                                    data-preco="<?= number_format($model->preco_venda_sugerido, 2, ",", ".") ?>"
+                                                    data-preco="<?= number_format($model->getPrecoFinal(), 2, ",", ".") ?>"
                                                     class="text-slate-600 hover:text-slate-900" 
                                                     title="Imprimir Etiqueta">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
@@ -832,6 +929,15 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
         const form = document.getElementById('filtro-produtos-form');
         if (dropdown && form) {
             dropdown.value = isEnabled ? '1' : '0';
+            form.submit();
+        }
+    };
+
+    window.syncPromoAndSubmit = function(isEnabled) {
+        const input = document.getElementById('filter-promocao-hidden');
+        const form = document.getElementById('filtro-produtos-form');
+        if (input && form) {
+            input.value = isEnabled ? '1' : '';
             form.submit();
         }
     };
