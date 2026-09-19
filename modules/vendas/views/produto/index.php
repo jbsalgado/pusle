@@ -11,7 +11,7 @@ $viewMode = Yii::$app->request->get('view', 'cards');
 // ✅ Carrega biblioteca para leitura de código de barras via webcam
 echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>';
 ?>
-<?php $this->registerJsFile('https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js', ['position' => \yii\web\View::POS_HEAD]); ?>
+<?php $this->registerJsFile('https://cdn.jsdelivr.net/npm/alpinejs@3.12.0/dist/cdn.min.js', ['position' => \yii\web\View::POS_HEAD, 'defer' => true]); ?>
 
 <div class="min-h-screen bg-gray-50 py-6 px-4 sm:px-6 lg:px-8">
 

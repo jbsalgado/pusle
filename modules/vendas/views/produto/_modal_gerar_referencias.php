@@ -167,7 +167,10 @@ window.abrirModalGerarReferencias = function() {
 
     // Carrega estatísticas atualizadas via AJAX
     fetch('<?= Url::to(['/vendas/produto/stats-referencias']) ?>')
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+        })
         .then(data => {
             if (data.success) {
                 document.getElementById('statTotalProdutos').innerText = data.total;
@@ -177,6 +180,9 @@ window.abrirModalGerarReferencias = function() {
         })
         .catch(err => {
             console.error('Erro ao buscar stats de referências:', err);
+            document.getElementById('statTotalProdutos').innerText = '-';
+            document.getElementById('statComReferencia').innerText = '-';
+            document.getElementById('statSemReferencia').innerText = '-';
         });
 };
 
@@ -260,20 +266,29 @@ window.executarGeracaoReferencias = function() {
         method: 'POST',
         body: formData
     })
-    .then(res => res.json())
+    .then(async res => {
+        let data = null;
+        try {
+            data = await res.json();
+        } catch(e) {}
+        if (!res.ok) {
+            throw new Error((data && data.message) ? data.message : ('Falha no servidor (HTTP ' + res.status + ')'));
+        }
+        return data;
+    })
     .then(data => {
-        if (data.success) {
+        if (data && data.success) {
             alert('✅ ' + data.message);
             window.location.reload();
         } else {
-            alert('❌ Erro: ' + (data.message || 'Falha ao gerar referências.'));
+            alert('❌ Erro: ' + ((data && data.message) ? data.message : 'Falha ao gerar referências.'));
             if (form) form.classList.remove('hidden');
             if (loading) loading.classList.add('hidden');
             if (footer) footer.classList.remove('hidden');
         }
     })
     .catch(err => {
-        alert('❌ Erro de comunicação com o servidor: ' + err.message);
+        alert('❌ Erro: ' + err.message);
         if (form) form.classList.remove('hidden');
         if (loading) loading.classList.add('hidden');
         if (footer) footer.classList.remove('hidden');

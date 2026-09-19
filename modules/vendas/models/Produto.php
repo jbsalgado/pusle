@@ -1068,10 +1068,7 @@ class Produto extends ActiveRecord
             }
             $query->andWhere(['id' => $idsSelecionados]);
         } elseif ($modo === 'apenas_sem_referencia') {
-            $query->andWhere(['or',
-                ['codigo_referencia' => null],
-                [new \yii\db\Expression("trim(codigo_referencia) = ''")]
-            ]);
+            $query->andWhere("codigo_referencia IS NULL OR TRIM(codigo_referencia) = ''");
         }
 
         $produtos = $query->with('categoria')->orderBy(['categoria_id' => SORT_ASC, 'nome' => SORT_ASC])->all();
@@ -1096,8 +1093,7 @@ class Produto extends ActiveRecord
         $sequenciaisPorSigla = [];
         $referenciasExistentes = self::find()
             ->where(['usuario_id' => $usuarioId])
-            ->andWhere(['not', ['codigo_referencia' => null]])
-            ->andWhere([new \yii\db\Expression("trim(codigo_referencia) != ''")])
+            ->andWhere("codigo_referencia IS NOT NULL AND TRIM(codigo_referencia) != ''")
             ->select(['codigo_referencia', 'id'])
             ->asArray()
             ->all();

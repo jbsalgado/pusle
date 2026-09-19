@@ -182,10 +182,7 @@ class ProdutoController extends Controller
 
         $semReferencia = Yii::$app->request->get('sem_referencia');
         if ($semReferencia === '1') {
-            $query->andWhere(['or',
-                ['codigo_referencia' => null],
-                [new \yii\db\Expression("trim(codigo_referencia) = ''")]
-            ]);
+            $query->andWhere("codigo_referencia IS NULL OR TRIM(codigo_referencia) = ''");
         }
 
         $promocao = Yii::$app->request->get('promocao');
@@ -1451,10 +1448,7 @@ class ProdutoController extends Controller
         $total = (int)Produto::find()->where(['usuario_id' => $lojaId])->count();
         $semRef = (int)Produto::find()
             ->where(['usuario_id' => $lojaId])
-            ->andWhere(['or',
-                ['codigo_referencia' => null],
-                [new \yii\db\Expression("trim(codigo_referencia) = ''")]
-            ])
+            ->andWhere("codigo_referencia IS NULL OR TRIM(codigo_referencia) = ''")
             ->count();
         $comRef = max(0, $total - $semRef);
 
