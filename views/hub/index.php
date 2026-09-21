@@ -16,6 +16,7 @@ use yii\helpers\Url;
 
 $nomeLoja = $lojaConfig ? ($lojaConfig->nome_fantasia ?: $lojaConfig->nome_loja) : ($usuario->nome ?? 'Loja Pulse');
 $slugLoja = $usuario->catalogo_path ?: ($usuario->username ?: $usuario->id);
+$catalogoUrl = Url::to('@web/catalogo/?slug=' . urlencode($slugLoja));
 
 $isMesaAtiva = ($mesa !== null || $comanda !== null);
 $defaultTab = $isMesaAtiva ? 'comanda' : 'feed';
@@ -754,7 +755,7 @@ if (typeof document !== 'undefined') {
     <section x-show="tab === 'cardapio'" class="p-4 space-y-3 flex-1" style="display: none;">
         <div class="flex items-center justify-between mb-2">
             <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider m-0">Catálogo & Produtos</h2>
-            <a href="<?= Url::to(['/catalogo/index', 'slug' => $slugLoja]) ?>" target="_blank" class="text-xs text-emerald-600 font-bold underline">
+            <a href="<?= Html::encode($catalogoUrl) ?>" target="_blank" class="text-xs text-emerald-600 font-bold underline">
                 Ver Catálogo Completo &rarr;
             </a>
         </div>
@@ -764,7 +765,7 @@ if (typeof document !== 'undefined') {
             <h3 class="text-sm font-bold text-gray-800 m-0">Acesse nosso Catálogo Digital</h3>
             <p class="text-xs text-gray-500 m-0">Consulte todos os produtos, preços e ofertas atualizadas para fazer seus pedidos.</p>
             
-            <a href="<?= Url::to(['/catalogo/index', 'slug' => $slugLoja]) ?>" class="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-sm hover:bg-emerald-700 transition-colors w-full gap-2">
+            <a href="<?= Html::encode($catalogoUrl) ?>" class="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-sm hover:bg-emerald-700 transition-colors w-full gap-2">
                 <span>Abrir Catálogo Digital</span>
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
             </a>
@@ -792,7 +793,7 @@ if (typeof document !== 'undefined') {
                                 <h4 class="text-xs font-bold text-gray-900 m-0"><?= Html::encode($card->produto->nome) ?></h4>
                                 <p class="text-xs font-extrabold text-emerald-600 m-0 mt-0.5">R$ <?= number_format((float)$card->produto->preco_venda, 2, ',', '.') ?></p>
                             </div>
-                            <a href="<?= Url::to(['/catalogo/index', 'slug' => $slugLoja]) ?>" class="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-xs">
+                            <a href="<?= Html::encode($catalogoUrl) ?>" class="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-xs">
                                 Pedir
                             </a>
                         </div>

@@ -51,6 +51,20 @@ class SiteController extends Controller
     }
 
     /**
+     * Redireciona requisições legadas ou diretas para o Catálogo Digital SPA
+     */
+    public function actionCatalogoRedirect($slug = null, $loja = null)
+    {
+        $params = Yii::$app->request->get();
+        if (empty($params) && !empty($_SERVER['QUERY_STRING'])) {
+            parse_str($_SERVER['QUERY_STRING'], $params);
+        }
+        $queryString = http_build_query($params);
+        $url = Yii::$app->request->baseUrl . '/catalogo/' . ($queryString ? '?' . $queryString : '');
+        return $this->redirect($url, 301);
+    }
+
+    /**
      * Página pública de Política de Privacidade (LGPD e Meta Platform Compliance)
      */
     public function actionPoliticaPrivacidade()

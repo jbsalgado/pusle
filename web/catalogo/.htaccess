@@ -1,6 +1,9 @@
 # Habilita rewrite para permitir arquivos estáticos e rotas dinâmicas (ex: feed-meta.xml)
 RewriteEngine On
 
+# Permite acesso direto ao index sem extensão .html (ex: /catalogo/index?slug=...)
+RewriteRule ^index/?$ index.html [L,QSA]
+
 # Permite acesso direto aos arquivos estáticos que realmente existem
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d

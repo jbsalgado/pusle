@@ -171,6 +171,8 @@ $config = [
                 'GET,HEAD catalogo/meta-feed' => 'catalogo-feed/meta-xml',
                 'GET,HEAD catalogo/feed-meta.xml' => 'catalogo-feed/meta-xml',
                 'GET,HEAD catalogo/feed-meta' => 'catalogo-feed/meta-xml',
+                // Redirecionamento resiliente de legado para Catálogo Digital SPA
+                'GET,HEAD catalogo/index' => 'site/catalogo-redirect',
                 // Webhooks Universais de Marketplaces (Mercado Livre, Shopee, Magalu, Temu, iFood)
                 'POST marketplace/webhook/<marketplace:[\w-]+>' => 'marketplace/webhook/receive',
                 'GET,POST marketplace/webhook/receive' => 'marketplace/webhook/receive',
