@@ -42,6 +42,8 @@ use yii\helpers\Html;
         body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
         /* Suavização de scroll em smartphones */
         html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="h-full text-gray-900 antialiased flex flex-col font-sans selection:bg-emerald-500 selection:text-white">

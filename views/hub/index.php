@@ -22,6 +22,29 @@ $defaultTab = $isMesaAtiva ? 'comanda' : 'feed';
 
 $this->title = ($mesa ? "Mesa {$mesa->numero_mesa} — " : "") . $nomeLoja . " — Canal de Atendimento";
 $isIdentificado = ($cliente !== null);
+
+$initialMessages = [];
+foreach ($inboxMessages as $m) {
+    $isCliente = (isset($m->acoes_json['origem']) && $m->acoes_json['origem'] === 'cliente');
+    $setorNome = $m->setor ? $m->setor->nome : ($m->acoes_json['setor_nome'] ?? null);
+    $setorIcone = $m->setor ? $m->setor->icone : '💬';
+    $autor = $m->acoes_json['atendente_nome'] ?? $m->acoes_json['autor'] ?? ($isCliente ? 'Você' : $nomeLoja);
+
+    $initialMessages[] = [
+        'id'             => $m->id,
+        'tipo'           => $m->tipo,
+        'titulo'         => $m->titulo,
+        'autor'          => $autor,
+        'conteudo_texto' => $m->conteudo_texto,
+        'midia_url'      => $m->midia_url,
+        'acoes_json'     => $m->acoes_json,
+        'setor_nome'     => $setorNome,
+        'setor_icone'    => $setorIcone,
+        'hora'           => date('H:i', strtotime($m->created_at)),
+        'created_at'     => Yii::$app->formatter->asRelativeTime($m->created_at),
+        'is_cliente'     => $isCliente,
+    ];
+}
 ?>
 
 <script>
@@ -45,8 +68,8 @@ window.hubApp = function() {
         solicitandoConta: false,
         textoMensagem: '',
         enviandoMsg: false,
-        mensagensChat: [],
-        mensagensServidor: [],
+        mensagensChat: <?= json_encode($initialMessages, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>,
+        modalImagemZoom: null,
         showEmojiPicker: false,
         fotoFile: null,
         fotoPreview: null,
@@ -64,6 +87,30 @@ window.hubApp = function() {
 
             // Sincronização periódica de novas mensagens a cada 6 segundos
             this.iniciarPollingMensagens();
+
+            this.$nextTick(() => {
+                this.rolarParaFimChat(true);
+            });
+        },
+
+        rolarParaFimChat(imediato = false) {
+            this.$nextTick(() => {
+                const container = document.getElementById('chatMessagesContainer');
+                if (container) {
+                    if (imediato) {
+                        container.scrollTop = container.scrollHeight;
+                    } else {
+                        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+                    }
+                }
+            });
+        },
+
+        mudarAba(aba) {
+            this.tab = aba;
+            if (aba === 'feed') {
+                this.rolarParaFimChat(true);
+            }
         },
 
         iniciarPollingMensagens() {
@@ -84,7 +131,15 @@ window.hubApp = function() {
                 .then(r => r.json())
                 .then(d => {
                     if (d && d.success && Array.isArray(d.mensagens)) {
-                        this.mensagensServidor = d.mensagens;
+                        const container = document.getElementById('chatMessagesContainer');
+                        const estavaNoFim = container ? (container.scrollHeight - container.scrollTop - container.clientHeight < 120) : true;
+                        const qtdAnterior = this.mensagensChat.length;
+
+                        this.mensagensChat = d.mensagens;
+
+                        if (d.mensagens.length > qtdAnterior || estavaNoFim) {
+                            this.rolarParaFimChat();
+                        }
                     }
                 })
                 .catch(() => {});
@@ -304,7 +359,8 @@ window.hubApp = function() {
                     this.textoMensagem = '';
                     this.removerFoto();
                     this.showEmojiPicker = false;
-                    this.mensagensChat.unshift(d.item);
+                    this.mensagensChat.push(d.item);
+                    this.rolarParaFimChat();
                     if (d.cliente) {
                         this.isIdentificado = true;
                         this.clienteId = d.cliente.id;
@@ -505,51 +561,116 @@ if (typeof document !== 'undefined') {
     </section>
     <?php endif; ?>
 
-    <!-- ABA 2: CANAL DIRETO, FEED & CHAT DE ATENDIMENTO (Universal para Qualquer Ramo) -->
-    <section x-show="tab === 'feed'" class="p-4 space-y-4 flex-1" <?= $isMesaAtiva ? 'style="display: none;"' : '' ?>>
+    <!-- ABA 2: CANAL DIRETO & CHAT DE ATENDIMENTO ESTILO WHATSAPP -->
+    <section x-show="tab === 'feed'" class="flex-1 flex flex-col min-h-[calc(100vh-140px)]" <?= $isMesaAtiva ? 'style="display: none;"' : '' ?>>
         
-        <!-- Caixa de Envio de Mensagem / Chat Interativo do Cliente (Texto + Emojis + Fotos) -->
-        <div class="bg-white p-4 rounded-2xl border border-gray-200/90 shadow-sm space-y-3">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                    <span>💬</span> Enviar Mensagem para o Atendimento
-                </span>
+        <!-- HEADER INTERNO DO CHAT WHATSAPP -->
+        <div class="bg-[#008069] text-white px-4 py-2.5 flex items-center justify-between shadow-xs select-none shrink-0">
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-full bg-white/20 border border-white/30 flex items-center justify-center text-white font-extrabold text-sm shadow-inner">
+                    <?= strtoupper(substr($nomeLoja, 0, 2)) ?>
+                </div>
+                <div>
+                    <h2 class="text-xs sm:text-sm font-bold leading-tight m-0 text-white truncate max-w-[170px]">
+                        <?= Html::encode($nomeLoja) ?>
+                    </h2>
+                    <p class="text-[10px] text-emerald-100 m-0 flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"></span>
+                        <span>Canal Oficial &bull; Online</span>
+                    </p>
+                </div>
+            </div>
+            <div>
                 <template x-if="isIdentificado">
-                    <span class="text-[10px] text-emerald-700 font-bold bg-emerald-100/90 px-2 py-0.5 rounded-full" x-text="'👤 ' + primeiroNome"></span>
+                    <span class="text-[10px] font-bold bg-white/15 text-emerald-100 border border-white/20 px-2 py-0.5 rounded-full" x-text="'Olá, ' + primeiroNome"></span>
                 </template>
                 <template x-if="!isIdentificado">
-                    <button type="button" @click="showIdModal = true" class="text-[10px] text-emerald-600 font-bold underline hover:text-emerald-700 cursor-pointer">
+                    <button type="button" @click="showIdModal = true" class="text-[10px] font-bold bg-white text-[#008069] px-2 py-0.5 rounded-full shadow-xs hover:bg-emerald-50 cursor-pointer">
                         Identificar-se
                     </button>
                 </template>
             </div>
+        </div>
 
-            <!-- Preview de Imagem Anexada -->
-            <template x-if="fotoPreview">
-                <div class="relative inline-block border-2 border-emerald-500 rounded-xl overflow-hidden bg-gray-100 shadow-xs">
-                    <img :src="fotoPreview" alt="Foto anexada" class="h-20 w-20 object-cover">
-                    <button type="button" @click="removerFoto()" class="absolute top-1 right-1 bg-black/70 hover:bg-black text-white rounded-full p-1 text-[10px] leading-none transition cursor-pointer" title="Remover Foto">
-                        &times;
-                    </button>
+        <!-- ÁREA DE MENSAGENS COM FUNDO WHATSAPP CANVAS -->
+        <div id="chatMessagesContainer" 
+             class="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2.5 min-h-[380px] max-h-[calc(100vh-250px)]" 
+             style="background-color: #efeae2; background-image: radial-gradient(#d1d7db 0.75px, transparent 0.75px); background-size: 16px 16px;">
+
+            <!-- Aviso de Criptografia / Canal Direto Seguro -->
+            <div class="flex justify-center my-2 select-none">
+                <div class="bg-[#ffeecd] text-amber-900 border border-amber-200/60 rounded-xl px-3 py-1.5 text-[10px] text-center max-w-[90%] shadow-2xs leading-tight">
+                    🔒 <strong>Canal Seguro de Atendimento Direto</strong><br>
+                    Suas mensagens e pedidos são recebidos em tempo real pela nossa equipe.
+                </div>
+            </div>
+
+            <!-- Estado Vazio (Sem mensagens) -->
+            <template x-if="mensagensChat.length === 0">
+                <div class="text-center py-12 text-slate-400 space-y-2">
+                    <span class="text-3xl block">💬</span>
+                    <p class="text-xs font-bold text-slate-600">Nenhuma mensagem ainda</p>
+                    <p class="text-[11px] text-slate-500 max-w-xs mx-auto">
+                        Envie uma mensagem abaixo para falar com nosso setor de atendimento ou tirar suas dúvidas!
+                    </p>
                 </div>
             </template>
 
-            <!-- Seletor Rápido de Emojis -->
-            <div x-show="showEmojiPicker" x-cloak class="p-2 bg-gray-50 border border-gray-200 rounded-xl flex items-center gap-1.5 overflow-x-auto scrollbar-thin">
-                <template x-for="em in emojisList" :key="em">
-                    <button type="button" @click="adicionarEmoji(em)" class="text-base p-1 hover:bg-white rounded-lg transition hover:scale-125 cursor-pointer flex-shrink-0" x-text="em"></button>
-                </template>
-            </div>
+            <!-- Loop Cronológico de Mensagens (ASC: do mais antigo para o mais recente) -->
+            <template x-for="item in mensagensChat" :key="item.id">
+                <div class="flex flex-col" :class="item.is_cliente ? 'items-end' : 'items-start'">
+                    <div :class="item.is_cliente ? 'bg-[#d9fdd3] text-slate-900 ml-auto rounded-2xl rounded-tr-xs' : 'bg-white text-slate-900 mr-auto rounded-2xl rounded-tl-xs'" 
+                         class="px-3 py-2 shadow-xs border border-black/5 space-y-1 relative max-w-[85%] sm:max-w-[75%] animate-in fade-in duration-150">
+                        
+                        <!-- Identificação do Remetente (se for da Loja/Atendente) -->
+                        <template x-if="!item.is_cliente">
+                            <div class="flex items-center gap-1.5 text-[11px] font-bold text-[#008069] select-none">
+                                <span x-text="item.autor || '<?= Html::encode($nomeLoja) ?>'"></span>
+                                <template x-if="item.setor_nome">
+                                    <span class="text-[9px] font-extrabold bg-black/5 text-slate-600 px-1.5 py-0.2 rounded-md" x-text="(item.setor_icone || '💬') + ' ' + item.setor_nome"></span>
+                                </template>
+                            </div>
+                        </template>
 
-            <!-- Seletor de Setor / Departamento (Estilo Chips) -->
+                        <!-- Foto / Imagem Anexada -->
+                        <template x-if="item.midia_url">
+                            <div class="pt-0.5">
+                                <img :src="item.midia_url" 
+                                     alt="Foto anexada" 
+                                     @click="modalImagemZoom = item.midia_url" 
+                                     class="rounded-xl max-h-60 w-auto object-contain border border-black/10 cursor-pointer shadow-xs hover:opacity-95 transition">
+                            </div>
+                        </template>
+
+                        <!-- Texto da Mensagem -->
+                        <template x-if="item.conteudo_texto">
+                            <p class="text-xs sm:text-[13px] leading-relaxed break-words whitespace-pre-wrap m-0 font-normal select-text" x-text="item.conteudo_texto"></p>
+                        </template>
+
+                        <!-- Horário e Confirmação de Entrega Estilo WhatsApp -->
+                        <div class="flex items-center justify-end gap-1 text-[10px] text-slate-400 select-none pt-0.5">
+                            <span x-text="item.hora || item.created_at"></span>
+                            <template x-if="item.is_cliente">
+                                <span class="text-[#53bdeb] font-black" title="Mensagem entregue">✓✓</span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- BARRA FIXA DE DIGITAÇÃO E SELEÇÃO DE SETORES (ESTILO WHATSAPP) -->
+        <div class="bg-[#f0f2f5] border-t border-slate-300 shrink-0">
+            
+            <!-- Seletor de Setores (Horizontal sem barras de rolagem cinzas) -->
             <template x-if="setoresLoja && setoresLoja.length > 0">
-                <div class="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar select-none">
-                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">Falar com:</span>
+                <div class="px-3 py-1.5 bg-[#eae6df] border-b border-slate-200/80 flex items-center gap-1.5 overflow-x-auto no-scrollbar select-none">
+                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider whitespace-nowrap">Falar com:</span>
                     <template x-for="st in setoresLoja" :key="st.id">
                         <button type="button" 
                                 @click="setorSelecionado = st.id" 
-                                :class="setorSelecionado === st.id ? 'bg-emerald-600 text-white shadow-xs' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" 
-                                class="px-2.5 py-1 rounded-full text-[11px] font-bold transition flex items-center gap-1 whitespace-nowrap cursor-pointer">
+                                :class="setorSelecionado === st.id ? 'bg-[#008069] text-white shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'" 
+                                class="px-2.5 py-1 rounded-full text-xs font-bold transition flex items-center gap-1 whitespace-nowrap cursor-pointer">
                             <span x-text="st.icone"></span>
                             <span x-text="st.nome"></span>
                         </button>
@@ -557,215 +678,76 @@ if (typeof document !== 'undefined') {
                 </div>
             </template>
 
-            <div class="flex items-center gap-1.5">
-                <!-- Botão de Emoji -->
-                <button type="button" @click="showEmojiPicker = !showEmojiPicker" :class="showEmojiPicker ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-200'" class="p-2.5 border rounded-xl text-xs font-bold transition flex items-center justify-center cursor-pointer" title="Inserir Emoji">
-                    <span>😀</span>
-                </button>
+            <!-- Barra de Preview de Foto Selecionada -->
+            <template x-if="fotoPreview">
+                <div class="px-3 py-2 bg-slate-100 border-b border-slate-200 flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <img :src="fotoPreview" alt="Preview" class="w-12 h-12 object-cover rounded-xl border border-slate-300 shadow-xs">
+                        <div>
+                            <span class="text-xs font-bold text-slate-800 block">Foto selecionada</span>
+                            <span class="text-[10px] text-slate-500">Clique em enviar para transmitir</span>
+                        </div>
+                    </div>
+                    <button type="button" @click="removerFoto()" class="text-red-600 hover:text-red-800 text-xs font-bold px-2 py-1 bg-red-50 hover:bg-red-100 rounded-lg cursor-pointer">
+                        Remover
+                    </button>
+                </div>
+            </template>
 
-                <!-- Botão de Anexo de Foto / Câmera -->
-                <input type="file" x-ref="inputFoto" @change="selecionarFoto($event)" accept="image/*" class="hidden">
-                <button type="button" @click="$refs.inputFoto.click()" class="p-2.5 bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-600 rounded-xl text-xs font-bold transition flex items-center justify-center cursor-pointer" title="Anexar Foto">
-                    <span>📷</span>
-                </button>
+            <!-- Seletor de Emojis Rápido -->
+            <div x-show="showEmojiPicker" x-cloak class="p-2 bg-white border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                <template x-for="em in emojisList" :key="em">
+                    <button type="button" @click="adicionarEmoji(em)" class="text-base p-1 hover:bg-slate-100 rounded-lg transition hover:scale-125 cursor-pointer flex-shrink-0" x-text="em"></button>
+                </template>
+            </div>
 
-                <!-- Input de Texto -->
-                <input type="text" 
-                       id="inputTextoChat"
-                       x-model="textoMensagem" 
-                       @keydown.enter.prevent="enviarMensagemChat()"
-                       placeholder="Digite sua dúvida, pedido ou recado..." 
-                       class="flex-1 bg-gray-50 border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs text-gray-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition">
-
-                <!-- Botão Enviar -->
+            <!-- Linha de Entrada de Mensagem (Emoji + Câmera + Input + Botão Redondo) -->
+            <div class="p-2 sm:p-2.5 flex items-center gap-2">
+                <!-- Botão Emoji -->
                 <button type="button" 
+                        @click="showEmojiPicker = !showEmojiPicker" 
+                        :class="showEmojiPicker ? 'text-[#008069] bg-emerald-100' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200'" 
+                        class="w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer text-base" 
+                        title="Emojis">
+                    😀
+                </button>
+
+                <!-- Input Oculto de Foto -->
+                <input type="file" x-ref="inputFoto" @change="selecionarFoto($event)" accept="image/*" class="hidden">
+
+                <!-- Botão Anexar Foto / Câmera -->
+                <button type="button" 
+                        @click="$refs.inputFoto.click()" 
+                        class="w-9 h-9 rounded-full hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center transition cursor-pointer" 
+                        title="Anexar Imagem">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                </button>
+
+                <!-- Input de Mensagem de Texto -->
+                <input type="text" 
+                       id="inputTextoChat" 
+                       x-model="textoMensagem" 
+                       @keydown.enter.prevent="enviarMensagemChat()" 
+                       placeholder="Mensagem..." 
+                       class="flex-1 bg-white border border-slate-300 rounded-2xl px-4 py-2 text-xs sm:text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[#008069] focus:ring-1 focus:ring-[#008069] transition">
+
+                <!-- Botão Enviar Mensagem (Redondo Verde WhatsApp) -->
+                <button type="button" 
+                        id="btnEnviarMensagemChatCliente" 
                         @click="enviarMensagemChat()" 
-                        :disabled="enviandoMsg || (!textoMensagem.trim() && !fotoFile)"
-                        class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                        :disabled="enviandoMsg || (!textoMensagem.trim() && !fotoFile)" 
+                        class="w-10 h-10 rounded-full bg-[#008069] hover:bg-[#006e5a] disabled:opacity-40 text-white flex items-center justify-center transition shadow-md cursor-pointer shrink-0" 
+                        title="Enviar">
                     <template x-if="enviandoMsg">
-                        <span class="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></span>
+                        <span class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
                     </template>
-                    <span>Enviar</span>
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                    <template x-if="!enviandoMsg">
+                        <svg class="w-5 h-5 translate-x-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                    </template>
                 </button>
             </div>
         </div>
 
-        <!-- Mensagens Enviadas na Sessão Atual (Reativo Instantâneo) -->
-        <template x-for="item in mensagensChat" :key="'local-' + item.id">
-            <article class="bg-emerald-50 border border-emerald-200/90 rounded-2xl p-3.5 shadow-xs animate-in fade-in slide-in-from-top-2 duration-200">
-                <div class="flex items-center justify-between mb-1">
-                    <span class="text-[11px] font-bold text-emerald-900 flex items-center gap-1">
-                        <span>👤</span> <span x-text="item.remetente || 'Você'"></span>
-                    </span>
-                    <span class="text-[10px] text-emerald-700 font-medium bg-emerald-200/60 px-1.5 py-0.5 rounded" x-text="item.created_at"></span>
-                </div>
-                <p class="text-xs text-emerald-950 font-medium m-0 leading-relaxed whitespace-pre-wrap" x-text="item.conteudo_texto"></p>
-                
-                <template x-if="item.midia_url">
-                    <div class="mt-2">
-                        <img :src="item.midia_url" alt="Foto anexada" class="rounded-xl max-h-48 w-auto object-cover border border-emerald-200 shadow-xs cursor-pointer" @click="window.open(item.midia_url, '_blank')">
-                    </div>
-                </template>
-
-                <div class="mt-2 pt-1.5 border-t border-emerald-200/50 flex items-center justify-between text-[10px] text-emerald-700">
-                    <span>Enviado para a Loja</span>
-                    <span class="font-bold">✓ Entregue</span>
-                </div>
-            </article>
-        </template>
-
-        <!-- Mensagens Atualizadas do Servidor (Sincronizadas via Polling) -->
-        <template x-for="item in mensagensServidor" :key="'srv-' + item.id">
-            <article :class="item.is_cliente ? 'bg-emerald-50 border-emerald-200/90 text-emerald-950' : 'bg-white border-teal-200/90 text-slate-800'" class="border rounded-2xl p-3.5 shadow-xs space-y-1.5 animate-in fade-in duration-200">
-                <div class="flex items-center justify-between">
-                    <span class="text-[11px] font-bold flex items-center gap-1.5" :class="item.is_cliente ? 'text-emerald-900' : 'text-teal-900'">
-                        <span x-text="item.is_cliente ? '👤' : '🏪'"></span>
-                        <span x-text="item.titulo || (item.is_cliente ? 'Você' : 'Atendimento da Loja')"></span>
-                    </span>
-                    <span class="text-[10px] font-medium px-1.5 py-0.5 rounded" :class="item.is_cliente ? 'bg-emerald-200/60 text-emerald-700' : 'bg-teal-50 text-teal-700 border border-teal-100'" x-text="item.created_at"></span>
-                </div>
-                <p class="text-xs font-medium m-0 leading-relaxed whitespace-pre-wrap" x-text="item.conteudo_texto"></p>
-                <template x-if="item.midia_url">
-                    <div class="mt-2">
-                        <img :src="item.midia_url" alt="Foto anexada" class="rounded-xl max-h-48 w-auto object-cover border border-gray-200 shadow-xs cursor-pointer" @click="window.open(item.midia_url, '_blank')">
-                    </div>
-                </template>
-                <div class="mt-2 pt-1 border-t flex items-center justify-between text-[10px]" :class="item.is_cliente ? 'border-emerald-200/50 text-emerald-700' : 'border-teal-100 text-teal-600'">
-                    <span x-text="item.is_cliente ? 'Mensagem Direta' : 'Equipe de Atendimento'"></span>
-                    <span class="font-bold" x-text="item.is_cliente ? '✓ Entregue' : '✓ Resposta Oficial'"></span>
-                </div>
-            </article>
-        </template>
-
-        <div class="flex items-center justify-between pt-1">
-            <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider m-0">Novidades & Atendimento</h2>
-            <span class="text-[10px] text-gray-400">Linha do Tempo</span>
-        </div>
-
-        <!-- Timeline Inicial de Mensagens e Avisos (Carregados pelo PHP se ainda não sobrescritos por polling) -->
-        <div x-show="mensagensServidor.length === 0" class="space-y-4">
-            <?php if (empty($inboxMessages) && empty($cardsDestaque)): ?>
-                <div class="bg-white rounded-2xl p-6 text-center border border-gray-100 shadow-sm" x-show="mensagensChat.length === 0">
-                    <span class="text-4xl">👋</span>
-                    <h3 class="text-sm font-bold text-gray-800 mt-2 mb-1">Canal Oficial de Atendimento</h3>
-                    <p class="text-xs text-gray-500 m-0">Envie uma mensagem acima para falar diretamente com nossa equipe ou solicitar produtos.</p>
-                </div>
-            <?php else: ?>
-
-                <!-- Mensagens e Vídeos da Inbox -->
-                <?php foreach ($inboxMessages as $msg): ?>
-                    <?php 
-                    $isCliente = (isset($msg->acoes_json['origem']) && $msg->acoes_json['origem'] === 'cliente');
-                    ?>
-                    <?php if ($isCliente): ?>
-                        <article class="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-3.5 shadow-xs">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-[11px] font-bold text-emerald-900 flex items-center gap-1">
-                                    <span>👤</span> <?= Html::encode($msg->acoes_json['remetente'] ?? 'Você') ?>
-                                </span>
-                                <span class="text-[10px] text-emerald-700 font-medium bg-emerald-200/60 px-1.5 py-0.5 rounded"><?= Yii::$app->formatter->asRelativeTime($msg->created_at) ?></span>
-                            </div>
-                            <p class="text-xs text-emerald-950 font-medium m-0 leading-relaxed"><?= nl2br(Html::encode($msg->conteudo_texto)) ?></p>
-                            
-                            <?php if (!empty($msg->midia_url)): ?>
-                                <div class="mt-2">
-                                    <img src="<?= Html::encode($msg->midia_url) ?>" alt="Foto anexada" class="rounded-xl max-h-48 w-auto object-cover border border-emerald-200 shadow-xs cursor-pointer" onclick="window.open(this.src, '_blank')">
-                                </div>
-                            <?php endif; ?>
-
-                            <div class="mt-2 pt-1.5 border-t border-emerald-200/50 flex items-center justify-between text-[10px] text-emerald-700">
-                                <span>Mensagem Direta</span>
-                                <span class="font-bold">✓ Entregue</span>
-                            </div>
-                        </article>
-                    <?php else: ?>
-                        <?php 
-                        $isRespostaLoja = (isset($msg->acoes_json['origem']) && $msg->acoes_json['origem'] === 'loja');
-                        ?>
-                        <?php if ($isRespostaLoja): ?>
-                            <!-- Balão de Resposta da Loja -->
-                            <article class="bg-white border border-teal-200/80 rounded-2xl p-3.5 shadow-xs space-y-1.5">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-[11px] font-bold text-teal-900 flex items-center gap-1.5">
-                                        <span class="w-2 h-2 rounded-full bg-teal-500"></span>
-                                        <span><?= Html::encode($msg->acoes_json['autor'] ?? $nomeLoja) ?></span>
-                                    </span>
-                                    <span class="text-[10px] text-teal-700 font-medium bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded">
-                                        <?= Yii::$app->formatter->asRelativeTime($msg->created_at) ?>
-                                    </span>
-                                </div>
-                                <p class="text-xs text-slate-800 font-medium m-0 leading-relaxed"><?= nl2br(Html::encode($msg->conteudo_texto)) ?></p>
-                                <?php if (!empty($msg->midia_url)): ?>
-                                    <div class="mt-2">
-                                        <img src="<?= Html::encode($msg->midia_url) ?>" alt="Foto anexada" class="rounded-xl max-h-48 w-auto object-cover border border-teal-200 shadow-xs cursor-pointer" onclick="window.open(this.src, '_blank')">
-                                    </div>
-                                <?php endif; ?>
-                                <div class="mt-2 pt-1 border-t border-teal-100 flex items-center justify-between text-[10px] text-teal-600">
-                                    <span>Atendimento</span>
-                                    <span class="font-bold">✓ Respondido</span>
-                                </div>
-                            </article>
-                        <?php else: ?>
-                            <!-- Publicações Gerais da Loja (Comunicados / Vídeos) -->
-                            <article class="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-                                <?php if (!empty($msg->midia_url)): ?>
-                                    <?php if ($msg->tipo === 'video' || str_ends_with(strtolower($msg->midia_url), '.mp4')): ?>
-                                        <video src="<?= Html::encode($msg->midia_url) ?>" controls class="w-full h-48 object-cover bg-black"></video>
-                                    <?php else: ?>
-                                        <img src="<?= Html::encode($msg->midia_url) ?>" alt="" class="w-full h-48 object-cover cursor-pointer" onclick="window.open(this.src, '_blank')">
-                                    <?php endif; ?>
-                                <?php endif; ?>
-
-                                <div class="p-4">
-                                    <?php if (!empty($msg->titulo)): ?>
-                                        <h3 class="text-sm font-bold text-gray-900 mb-1"><?= Html::encode($msg->titulo) ?></h3>
-                                    <?php endif; ?>
-                                    <p class="text-xs text-gray-600 m-0 leading-relaxed"><?= nl2br(Html::encode($msg->conteudo_texto)) ?></p>
-                                    
-                                    <div class="mt-3 flex items-center justify-between text-[10px] text-gray-400 pt-2 border-t border-gray-50">
-                                        <span><?= Yii::$app->formatter->asRelativeTime($msg->created_at) ?></span>
-                                        <span class="text-emerald-600 font-semibold">&bull; <?= Html::encode($msg->acoes_json['autor'] ?? $nomeLoja) ?></span>
-                                    </div>
-                                </div>
-                            </article>
-                        <?php endif; ?>
-                    <?php endif; ?>
-                <?php endforeach; ?>
-
-                <!-- Cards Promocionais -->
-                <?php foreach ($cardsDestaque as $card): ?>
-                    <?php 
-                    $imgUrl = null;
-                    if (!empty($card->card_path)) {
-                        $caminhoFisico = Yii::getAlias('@app/web/' . ltrim($card->card_path, '/'));
-                        if (file_exists($caminhoFisico)) {
-                            $imgUrl = Url::to('@web/' . ltrim($card->card_path, '/'));
-                        }
-                    } elseif (!empty($card->card_url) && !str_starts_with($card->card_url, 'http://localhost/uploads/')) {
-                        $imgUrl = $card->card_url;
-                    }
-                    ?>
-                    <?php if ($imgUrl): ?>
-                        <article class="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-                            <img src="<?= Html::encode($imgUrl) ?>" alt="Oferta" class="w-full h-auto object-cover">
-                            <?php if (!empty($card->produto)): ?>
-                                <div class="p-3 flex items-center justify-between">
-                                    <div>
-                                        <h4 class="text-xs font-bold text-gray-900 m-0"><?= Html::encode($card->produto->nome) ?></h4>
-                                        <p class="text-xs font-extrabold text-emerald-600 m-0 mt-0.5">R$ <?= number_format((float)$card->produto->preco_venda, 2, ',', '.') ?></p>
-                                    </div>
-                                    <a href="<?= Url::to(['/catalogo/index', 'slug' => $slugLoja]) ?>" class="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-xs">
-                                        Pedir
-                                    </a>
-                                </div>
-                            <?php endif; ?>
-                        </article>
-                    <?php endif; ?>
-                <?php endforeach; ?>
-
-            <?php endif; ?>
-        </div>
     </section>
 
     <!-- ABA 3: CARDÁPIO / CATÁLOGO ONLINE & PEDIDOS -->
@@ -787,7 +769,51 @@ if (typeof document !== 'undefined') {
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
             </a>
         </div>
+
+        <!-- Cards Promocionais (se houver) -->
+        <?php foreach ($cardsDestaque as $card): ?>
+            <?php 
+            $imgUrl = null;
+            if (!empty($card->card_path)) {
+                $caminhoFisico = Yii::getAlias('@app/web/' . ltrim($card->card_path, '/'));
+                if (file_exists($caminhoFisico)) {
+                    $imgUrl = Url::to('@web/' . ltrim($card->card_path, '/'));
+                }
+            } elseif (!empty($card->card_url) && !str_starts_with($card->card_url, 'http://localhost/uploads/')) {
+                $imgUrl = $card->card_url;
+            }
+            ?>
+            <?php if ($imgUrl): ?>
+                <article class="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+                    <img src="<?= Html::encode($imgUrl) ?>" alt="Oferta" class="w-full h-auto object-cover">
+                    <?php if (!empty($card->produto)): ?>
+                        <div class="p-3 flex items-center justify-between">
+                            <div>
+                                <h4 class="text-xs font-bold text-gray-900 m-0"><?= Html::encode($card->produto->nome) ?></h4>
+                                <p class="text-xs font-extrabold text-emerald-600 m-0 mt-0.5">R$ <?= number_format((float)$card->produto->preco_venda, 2, ',', '.') ?></p>
+                            </div>
+                            <a href="<?= Url::to(['/catalogo/index', 'slug' => $slugLoja]) ?>" class="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-xs">
+                                Pedir
+                            </a>
+                        </div>
+                    <?php endif; ?>
+                </article>
+            <?php endif; ?>
+        <?php endforeach; ?>
     </section>
+
+    <!-- MODAL DE ZOOM DE IMAGEM -->
+    <div x-show="modalImagemZoom" 
+         x-cloak 
+         class="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4" 
+         @click="modalImagemZoom = null">
+        <div class="relative max-w-2xl max-h-[90vh] flex flex-col items-center">
+            <button type="button" 
+                    @click="modalImagemZoom = null" 
+                    class="absolute -top-10 right-0 text-white text-3xl font-light hover:text-gray-300 cursor-pointer">&times;</button>
+            <img :src="modalImagemZoom" class="max-h-[85vh] max-w-full rounded-2xl object-contain shadow-2xl" @click.stop>
+        </div>
+    </div>
 
     <!-- MODAL DE IDENTIFICAÇÃO RÁPIDA (NOME + WHATSAPP) -->
     <div id="modal-bem-vindo" 
@@ -838,18 +864,18 @@ if (typeof document !== 'undefined') {
     <!-- BOTTOM TAB BAR NAVEGAÇÃO -->
     <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-gray-200 px-6 py-2.5 flex items-center justify-around z-40 shadow-lg">
         <?php if ($isMesaAtiva): ?>
-            <button type="button" @click="tab = 'comanda'" :class="tab === 'comanda' ? 'text-emerald-600 font-bold' : 'text-gray-400 font-medium'" class="flex flex-col items-center gap-1 text-[11px] transition-colors cursor-pointer">
+            <button type="button" @click="mudarAba('comanda')" :class="tab === 'comanda' ? 'text-emerald-600 font-bold' : 'text-gray-400 font-medium'" class="flex flex-col items-center gap-1 text-[11px] transition-colors cursor-pointer">
                 <span class="text-xl">🧾</span>
                 <span>Comanda</span>
             </button>
         <?php endif; ?>
 
-        <button type="button" @click="tab = 'feed'" :class="tab === 'feed' ? 'text-emerald-600 font-bold' : 'text-gray-400 font-medium'" class="flex flex-col items-center gap-1 text-[11px] transition-colors cursor-pointer">
+        <button type="button" @click="mudarAba('feed')" :class="tab === 'feed' ? 'text-emerald-600 font-bold' : 'text-gray-400 font-medium'" class="flex flex-col items-center gap-1 text-[11px] transition-colors cursor-pointer">
             <span class="text-xl">💬</span>
             <span>Atendimento &amp; Chat</span>
         </button>
 
-        <button type="button" @click="tab = 'cardapio'" :class="tab === 'cardapio' ? 'text-emerald-600 font-bold' : 'text-gray-400 font-medium'" class="flex flex-col items-center gap-1 text-[11px] transition-colors cursor-pointer">
+        <button type="button" @click="mudarAba('cardapio')" :class="tab === 'cardapio' ? 'text-emerald-600 font-bold' : 'text-gray-400 font-medium'" class="flex flex-col items-center gap-1 text-[11px] transition-colors cursor-pointer">
             <span class="text-xl">🛍️</span>
             <span>Catálogo &amp; Ofertas</span>
         </button>

@@ -184,8 +184,9 @@ class HubController extends Controller
 
         $inboxMessages = $inboxQuery
             ->orderBy(['created_at' => SORT_DESC])
-            ->limit(30)
+            ->limit(50)
             ->all();
+        $inboxMessages = array_reverse($inboxMessages);
 
         // 6. Itens da comanda aberta (se houver)
         $comandaItens = [];
@@ -495,6 +496,10 @@ class HubController extends Controller
             $setorId
         );
 
+        $setorObj = !empty($setorId) ? \app\modules\vendas\models\CanalSetor::findOne($setorId) : null;
+        $setorNome = $setorObj ? $setorObj->nome : null;
+        $setorIcone = $setorObj ? $setorObj->icone : '💬';
+
         if ($inbox) {
             return [
                 'success' => true,
@@ -503,10 +508,15 @@ class HubController extends Controller
                     'id'             => $inbox->id,
                     'tipo'           => $inbox->tipo,
                     'titulo'         => $inbox->titulo,
+                    'autor'          => 'Você',
                     'conteudo_texto' => $inbox->conteudo_texto,
                     'midia_url'      => $inbox->midia_url,
+                    'setor_nome'     => $setorNome,
+                    'setor_icone'    => $setorIcone,
+                    'hora'           => date('H:i'),
                     'created_at'     => 'Agora',
                     'remetente'      => $nomeRemetente,
+                    'is_cliente'     => true,
                     'origem'         => 'cliente'
                 ],
                 'cliente' => $cliente ? [
@@ -554,19 +564,29 @@ class HubController extends Controller
             ]);
         }
 
-        $mensagens = $query->orderBy(['created_at' => SORT_DESC])->limit(30)->all();
+        $mensagens = $query->orderBy(['created_at' => SORT_DESC])->limit(50)->all();
+        $mensagens = array_reverse($mensagens);
 
         $dados = [];
         foreach ($mensagens as $m) {
+            $isCliente = (isset($m->acoes_json['origem']) && $m->acoes_json['origem'] === 'cliente');
+            $setorNome = $m->setor ? $m->setor->nome : ($m->acoes_json['setor_nome'] ?? null);
+            $setorIcone = $m->setor ? $m->setor->icone : '💬';
+            $autor = $m->acoes_json['atendente_nome'] ?? $m->acoes_json['autor'] ?? ($isCliente ? 'Você' : 'Atendimento');
+
             $dados[] = [
                 'id'             => $m->id,
                 'tipo'           => $m->tipo,
                 'titulo'         => $m->titulo,
+                'autor'          => $autor,
                 'conteudo_texto' => $m->conteudo_texto,
                 'midia_url'      => $m->midia_url,
                 'acoes_json'     => $m->acoes_json,
+                'setor_nome'     => $setorNome,
+                'setor_icone'    => $setorIcone,
+                'hora'           => date('H:i', strtotime($m->created_at)),
                 'created_at'     => Yii::$app->formatter->asRelativeTime($m->created_at),
-                'is_cliente'     => (isset($m->acoes_json['origem']) && $m->acoes_json['origem'] === 'cliente')
+                'is_cliente'     => $isCliente,
             ];
         }
 
