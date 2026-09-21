@@ -87,12 +87,12 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocketServer({ noServer: true });
 
 server.on('upgrade', (request, socket, head) => {
-    const parsedUrl = url.parse(request.url, true);
+    const parsedUrl = new URL(request.url, 'http://localhost');
     const pathname = parsedUrl.pathname;
 
     // Aceita conexões em / ou /ws ou /ws/
     if (pathname === '/' || pathname === '/ws' || pathname === '/ws/') {
-        const lojaId = String(parsedUrl.query.loja_id || '');
+        const lojaId = String(parsedUrl.searchParams.get('loja_id') || '');
         if (!lojaId) {
             socket.write('HTTP/1.1 400 Bad Request\r\n\r\nLoja ID obrigatorio');
             socket.destroy();
