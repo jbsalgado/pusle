@@ -210,6 +210,13 @@ class HubController extends Controller
 
         $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $usuario->id]);
 
+        // Carrega setores ativos do Canal de Comunicação Interno da Loja
+        \app\modules\vendas\models\CanalSetor::criarSetoresPadrao($usuario->id);
+        $setores = \app\modules\vendas\models\CanalSetor::find()
+            ->where(['usuario_id' => $usuario->id, 'ativo' => true])
+            ->orderBy(['nome' => SORT_ASC])
+            ->all();
+
         return $this->render('index', [
             'usuario'       => $usuario,
             'cliente'       => $cliente,
@@ -220,6 +227,7 @@ class HubController extends Controller
             'inboxMessages' => $inboxMessages,
             'cardsDestaque' => $cardsDestaque,
             'lojaConfig'    => $lojaConfig,
+            'setores'       => $setores,
         ]);
     }
 
@@ -460,6 +468,14 @@ class HubController extends Controller
         $nomeRemetente = $cliente ? $cliente->nome_completo : ($nome ?: ($mesa ? "Mesa {$mesa->numero_mesa}" : 'Cliente'));
         $origem = $mesa ? "Mesa {$mesa->numero_mesa}" : "Direct Hub (Web)";
 
+        $setorId = !empty($post['setor_id']) ? $post['setor_id'] : null;
+        if (empty($setorId)) {
+            $primeiroSetor = \app\modules\vendas\models\CanalSetor::findOne(['usuario_id' => $usuarioId, 'ativo' => true]);
+            if ($primeiroSetor) {
+                $setorId = $primeiroSetor->id;
+            }
+        }
+
         $inbox = ClienteInbox::postar(
             $usuarioId,
             $clienteId,
@@ -471,9 +487,12 @@ class HubController extends Controller
                 'origem'    => 'cliente',
                 'remetente' => $nomeRemetente,
                 'telefone'  => $cliente ? $cliente->telefone : $telefone,
-                'mesa_id'   => $mesaId
+                'mesa_id'   => $mesaId,
+                'setor_id'  => $setorId,
             ],
-            $mesaId
+            $mesaId,
+            null,
+            $setorId
         );
 
         if ($inbox) {

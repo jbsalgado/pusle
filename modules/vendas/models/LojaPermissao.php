@@ -64,7 +64,7 @@ class LojaPermissao extends ActiveRecord
      * @param string|null $usuarioId
      * @return bool
      */
-    public static function temPermissao($moduloChave, $usuarioId = null)
+    public static function temPermissao($moduloChave, $usuarioId = null, $padraoSeAusente = null)
     {
         if (!$usuarioId && Yii::$app->user && !Yii::$app->user->isGuest) {
             $identity = Yii::$app->user->identity;
@@ -79,7 +79,13 @@ class LojaPermissao extends ActiveRecord
             return (bool)$permissoes[$moduloChave];
         }
 
-        return true;
+        // Se o módulo define um valor 'padrao' na lista de módulos disponíveis
+        $todosModulos = static::getTodosModulosDisponiveis();
+        if (isset($todosModulos[$moduloChave]['padrao'])) {
+            return (bool)$todosModulos[$moduloChave]['padrao'];
+        }
+
+        return $padraoSeAusente !== null ? $padraoSeAusente : true;
     }
 
     /**
@@ -181,6 +187,14 @@ class LojaPermissao extends ActiveRecord
                 'descricao' => 'Monitor e alarme visual de preparo de pedidos (Food Service)',
                 'icone' => '🍳',
                 'cor' => 'amber',
+            ],
+            'canal-comunicacao-interno' => [
+                'grupo' => 'Ações Rápidas',
+                'label' => 'Canal de Comunicação Interno (Chat Setores)',
+                'descricao' => 'Chat estilo WhatsApp interno com grupos e isolamento por setor (Vendas, Cobrança, etc.)',
+                'icone' => '💬',
+                'cor' => 'emerald',
+                'padrao' => false, // Liberado somente após ativação pelo Administrador do SaaS!
             ],
 
             // Cards de Gerenciamento

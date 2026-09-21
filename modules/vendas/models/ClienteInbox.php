@@ -16,6 +16,7 @@ use yii\db\Expression;
  * @property string|null $cliente_id
  * @property string|null $mesa_id
  * @property string|null $comanda_id
+ * @property string|null $setor_id
  * @property string $tipo
  * @property string|null $titulo
  * @property string|null $conteudo_texto
@@ -27,6 +28,7 @@ use yii\db\Expression;
  * @property Clientes|null $cliente
  * @property Mesa|null $mesa
  * @property Comanda|null $comanda
+ * @property CanalSetor|null $setor
  */
 class ClienteInbox extends ActiveRecord
 {
@@ -52,7 +54,7 @@ class ClienteInbox extends ActiveRecord
     {
         return [
             [['usuario_id'], 'required'],
-            [['usuario_id', 'cliente_id', 'mesa_id', 'comanda_id'], 'string'],
+            [['usuario_id', 'cliente_id', 'mesa_id', 'comanda_id', 'setor_id'], 'string'],
             [['tipo'], 'string', 'max' => 30],
             [['tipo'], 'default', 'value' => self::TIPO_TEXTO],
             [['titulo'], 'string', 'max' => 255],
@@ -75,6 +77,7 @@ class ClienteInbox extends ActiveRecord
             'cliente_id'     => 'Cliente',
             'mesa_id'        => 'Mesa',
             'comanda_id'     => 'Comanda',
+            'setor_id'       => 'Setor / Grupo',
             'tipo'           => 'Tipo de Mensagem',
             'titulo'         => 'Título',
             'conteudo_texto' => 'Conteúdo',
@@ -102,6 +105,14 @@ class ClienteInbox extends ActiveRecord
     }
 
     /**
+     * Relacionamento com o Setor do Canal Interno
+     */
+    public function getSetor()
+    {
+        return $this->hasOne(CanalSetor::class, ['id' => 'setor_id']);
+    }
+
+    /**
      * Helper para postar uma mensagem rápida ou notificação na timeline do cliente
      */
     public static function postar(
@@ -113,11 +124,13 @@ class ClienteInbox extends ActiveRecord
         ?string $midiaUrl = null,
         ?array $acoes = null,
         ?string $mesaId = null,
-        ?string $comandaId = null
+        ?string $comandaId = null,
+        ?string $setorId = null
     ): ?self {
         $msg = new self();
         $msg->usuario_id     = $usuarioId;
         $msg->cliente_id     = $clienteId;
+        $msg->setor_id       = $setorId;
         $msg->tipo           = $tipo;
         $msg->titulo         = $titulo;
         $msg->conteudo_texto = $texto;

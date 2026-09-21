@@ -51,6 +51,8 @@ window.hubApp = function() {
         fotoFile: null,
         fotoPreview: null,
         emojisList: ['👍', '❤️', '😊', '🔥', '👏', '🎉', '📦', '🛍️', '💬', '✅', '🛵', '📍', '⏳', '🙏', '🧾', '💳', '📸', '⭐', '🤝', '👋'],
+        setorSelecionado: <?= json_encode(!empty($setores) ? $setores[0]->id : '') ?>,
+        setoresLoja: <?= json_encode(array_map(function($s) { return ['id' => $s->id, 'nome' => $s->nome, 'icone' => $s->icone ?: '💬']; }, $setores ?? [])) ?>,
         
         init() {
             window._hubInstance = this;
@@ -291,7 +293,8 @@ window.hubApp = function() {
                     'nome': this.nome,
                     'telefone': this.telefone,
                     'mensagem': txt,
-                    'midia_url': midiaUrl
+                    'midia_url': midiaUrl,
+                    'setor_id': this.setorSelecionado || ''
                 })
             })
             .then(r => r.json())
@@ -537,6 +540,22 @@ if (typeof document !== 'undefined') {
                     <button type="button" @click="adicionarEmoji(em)" class="text-base p-1 hover:bg-white rounded-lg transition hover:scale-125 cursor-pointer flex-shrink-0" x-text="em"></button>
                 </template>
             </div>
+
+            <!-- Seletor de Setor / Departamento (Estilo Chips) -->
+            <template x-if="setoresLoja && setoresLoja.length > 0">
+                <div class="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar select-none">
+                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">Falar com:</span>
+                    <template x-for="st in setoresLoja" :key="st.id">
+                        <button type="button" 
+                                @click="setorSelecionado = st.id" 
+                                :class="setorSelecionado === st.id ? 'bg-emerald-600 text-white shadow-xs' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" 
+                                class="px-2.5 py-1 rounded-full text-[11px] font-bold transition flex items-center gap-1 whitespace-nowrap cursor-pointer">
+                            <span x-text="st.icone"></span>
+                            <span x-text="st.nome"></span>
+                        </button>
+                    </template>
+                </div>
+            </template>
 
             <div class="flex items-center gap-1.5">
                 <!-- Botão de Emoji -->

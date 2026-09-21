@@ -115,20 +115,7 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
                 ['class' => 'inline-flex items-center justify-center px-3.5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-green-400/30 whitespace-nowrap']
             ) ?>
 
-            <!-- 9. Canal Próprio (Direct Hub) -->
-            <button type="button" onclick="abrirModalCanalInterno()" class="inline-flex items-center justify-center px-3.5 py-2.5 bg-gradient-to-r from-teal-600 via-emerald-600 to-green-600 hover:from-teal-700 hover:to-green-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-emerald-400/30 cursor-pointer relative group whitespace-nowrap">
-                <span class="text-teal-200 text-base">🌐</span>
-                <span>Canal Próprio (Direct Hub)</span>
-                <?php if (!empty($inboxNaoLidosCount) && $inboxNaoLidosCount > 0): ?>
-                    <span id="badgeInboxNaoLidosHeader" class="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full border border-white shadow-xs animate-pulse">
-                        <?= $inboxNaoLidosCount ?>
-                    </span>
-                <?php else: ?>
-                    <span id="badgeInboxNaoLidosHeader" class="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full border border-white shadow-xs hidden">
-                        0
-                    </span>
-                <?php endif; ?>
-            </button>
+
 
             <!-- 10. Buscar Mídias & Popular Web -->
             <button type="button" onclick="abrirModalEnriquecimentoWeb()" class="inline-flex items-center justify-center px-3.5 py-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-1.5 sm:gap-2 border border-blue-400/30 cursor-pointer whitespace-nowrap">
@@ -1035,70 +1022,6 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
 <?= $this->render('_modal_gerar_referencias') ?>
 <?= $this->render('_modal_cadastro_rapido', ['lojaId' => Yii::$app->user->id]) ?>
 <?= $this->render('_modal_enriquecimento_web', ['lojaId' => Yii::$app->user->id]) ?>
-<?php
-$slugLoja = $usuarioLoja ? $usuarioLoja->slug : 'loja';
-$hubUrlCompleta = Url::to(['/hub/index', 'slug' => $slugLoja], true);
-?>
-<?= $this->render('_modal_canal_interno', [
-    'usuarioLoja' => $usuarioLoja ?? null,
-    'lojaConfig' => $lojaConfig ?? null,
-    'hubUrlCompleta' => $hubUrlCompleta,
-]) ?>
-
-<script>
-    // Polling em segundo plano para o contador de pedidos não lidos no Header da tela de produtos
-    (function() {
-        setInterval(function() {
-            if (document.hidden) return;
-            fetch('<?= Url::to(['/vendas/produto/get-inbox']) ?>')
-                .then(r => r.json())
-                .then(data => {
-                    if (data && data.success) {
-                        const total = data.total_nao_lidos || 0;
-                        const badge = document.getElementById('badgeInboxNaoLidosHeader');
-                        if (badge) {
-                            if (total > 0) {
-                                badge.textContent = total;
-                                badge.classList.remove('hidden');
-                                badge.style.display = 'inline-flex';
-                            } else {
-                                badge.classList.add('hidden');
-                                badge.style.display = 'none';
-                            }
-                        }
-                    }
-                })
-                .catch(() => {});
-        }, 30000);
-    })();
-</script>
-
-<script>
-    // Polling em segundo plano para o contador de pedidos não lidos no Header da tela de produtos
-    (function() {
-        setInterval(function() {
-            if (document.hidden) return;
-            fetch('<?= Url::to(['/vendas/produto/get-inbox']) ?>')
-                .then(r => r.json())
-                .then(data => {
-                    if (data && data.success) {
-                        const total = data.total_nao_lidos || 0;
-                        const badge = document.getElementById('badgeInboxNaoLidosHeader');
-                        if (badge) {
-                            if (total > 0) {
-                                badge.textContent = total;
-                                badge.classList.remove('hidden');
-                                badge.style.display = 'inline-flex';
-                            } else {
-                                badge.classList.add('hidden');
-                                badge.style.display = 'none';
-                            }
-                        }
-                    }
-                })
-                .catch(() => {});
-        }, 30000);
-    })();
 
     // ==========================================================
     // Toggle Ativo/Inativo do produto no catálogo público

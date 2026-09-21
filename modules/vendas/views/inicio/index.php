@@ -133,6 +133,21 @@ $cards = [
         'card_bg' => 'bg-gradient-to-br from-amber-500 via-orange-600 to-amber-700 text-white',
     ],
     [
+        'key' => 'canal-comunicacao-interno',
+        'grupo' => 'Ações Rápidas',
+        'order' => 1.22,
+        'label' => 'Canal de Comunicação Interno',
+        'description' => 'Chat estilo WhatsApp por setores com clientes e equipe',
+        'color' => 'teal',
+        'type' => 'button',
+        'onclick' => 'abrirModalCanalInterno()',
+        'badge' => 'Direct Hub & Setores',
+        'badge_bg' => 'bg-emerald-300 text-gray-950 font-black',
+        'icon_emoji' => '💬',
+        'card_bg' => 'bg-gradient-to-br from-teal-600 via-emerald-600 to-teal-800 text-white shadow-md',
+        'visible' => \app\modules\vendas\models\LojaPermissao::temPermissao('canal-comunicacao-interno', \app\components\TenantHelper::getId()),
+    ],
+    [
         'key' => 'gestao-mesas-comandas',
         'grupo' => 'Ações Rápidas',
         'order' => 1.25,
@@ -1003,3 +1018,62 @@ $gruposOrdenados = [
 </script>
 
 <?= $this->render('@app/modules/vendas/views/produto/_modal_cadastro_rapido', ['lojaId' => \app\components\TenantHelper::getId()]) ?>
+
+<?php
+$lojaIdAtualCanal = \app\components\TenantHelper::getId();
+$moduloCanalLiberado = \app\modules\vendas\models\LojaPermissao::temPermissao('canal-comunicacao-interno', $lojaIdAtualCanal);
+if ($moduloCanalLiberado):
+    $usuarioLojaAtualCanal = \app\models\Usuario::findOne($lojaIdAtualCanal);
+    $lojaConfigAtualCanal = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $lojaIdAtualCanal]);
+    $usuarioLogadoAtualCanal = Yii::$app->user->identity;
+    $setoresPermitidosAtualCanal = \app\modules\vendas\models\CanalSetor::getSetoresPermitidosParaUsuario($lojaIdAtualCanal, $usuarioLogadoAtualCanal);
+    $ehDonoAtualCanal = ($usuarioLogadoAtualCanal && ($usuarioLogadoAtualCanal->eh_dono_loja || $usuarioLogadoAtualCanal->id === $lojaIdAtualCanal || \app\components\TenantHelper::isAdmin()));
+    $colaboradoresAtualCanal = $ehDonoAtualCanal ? \app\modules\vendas\models\Colaborador::find()->where(['usuario_id' => $lojaIdAtualCanal, 'ativo' => true])->orderBy(['nome' => SORT_ASC])->all() : [];
+    $slugLojaAtualCanal = $usuarioLojaAtualCanal ? ($usuarioLojaAtualCanal->slug ?: $usuarioLojaAtualCanal->id) : '';
+    $hubUrlAtualCanal = \yii\helpers\Url::to(['/hub/index', 'slug' => $slugLojaAtualCanal], true);
+?>
+    <?= $this->render('@app/modules/vendas/views/canal-comunicacao/_modal_chat_whatsapp', [
+        'usuarioLoja' => $usuarioLojaAtualCanal,
+        'lojaConfig' => $lojaConfigAtualCanal,
+        'setoresPermitidos' => $setoresPermitidosAtualCanal,
+        'ehDono' => $ehDonoAtualCanal,
+        'colaboradores' => $colaboradoresAtualCanal,
+        'hubUrlCompleta' => $hubUrlAtualCanal,
+    ]) ?>
+
+    <!-- Script de verificação de mensagens não lidas no início -->
+    <script>
+        (function() {
+            function verificarNaoLidosCanalInicio() {
+                fetch('<?= \yii\helpers\Url::to(['/vendas/canal-comunicacao/get-nao-lidos-count']) ?>')
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data && data.success) {
+                            const card = document.querySelector('[onclick="abrirModalCanalInterno()"]');
+                            if (card) {
+                                let badge = card.querySelector('.badge-nao-lidos-canal');
+                                if (!badge) {
+                                    badge = document.createElement('span');
+                                    badge.className = 'badge-nao-lidos-canal ml-2 bg-red-600 text-white font-black text-[10px] px-2 py-0.5 rounded-full shadow animate-pulse';
+                                    const titleEl = card.querySelector('h3') || card;
+                                    titleEl.appendChild(badge);
+                                }
+                                if (data.total_nao_lidos > 0) {
+                                    badge.textContent = data.total_nao_lidos + ' nova(s)';
+                                    badge.style.display = 'inline-block';
+                                } else {
+                                    badge.style.display = 'none';
+                                }
+                            }
+                        }
+                    })
+                    .catch(() => {});
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+                verificarNaoLidosCanalInicio();
+                setInterval(verificarNaoLidosCanalInicio, 12000);
+            });
+        })();
+    </script>
+<?php endif; ?>
