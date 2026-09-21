@@ -94,6 +94,8 @@ class Colaborador extends ActiveRecord
             [['cpf'], 'match', 'pattern' => '/^[0-9]{11}$/', 'skipOnEmpty' => true],
             // Validação: CPF único por loja (usuario_id) - apenas se CPF estiver preenchido
             [['cpf'], 'validateCpfUnico', 'skipOnEmpty' => true],
+            // Validação: mesmo login não pode ser vinculado duas vezes à mesma loja
+            [['prest_usuario_login_id'], 'validateLoginUnicoPorLoja', 'skipOnEmpty' => true],
             [['telefone'], 'string', 'max' => 20],
             [['email'], 'string', 'max' => 100],
             [['email'], 'email'],
@@ -167,6 +169,33 @@ class Colaborador extends ActiveRecord
 
         if ($query->exists()) {
             $this->addError($attribute, 'Este CPF já está cadastrado para esta loja.');
+        }
+    }
+
+    /**
+     * Validação customizada: o mesmo login (prest_usuario_login_id) não pode ser
+     * vinculado duas vezes à mesma loja (usuario_id).
+     * Permite que o usuário seja colaborador em lojas diferentes.
+     */
+    public function validateLoginUnicoPorLoja($attribute, $params)
+    {
+        if (empty($this->prest_usuario_login_id) || empty($this->usuario_id)) {
+            return;
+        }
+
+        $query = self::find()
+            ->where([
+                'prest_usuario_login_id' => $this->prest_usuario_login_id,
+                'usuario_id'             => $this->usuario_id,
+            ]);
+
+        // Ao editar, exclui o próprio registro
+        if (!$this->isNewRecord) {
+            $query->andWhere(['!=', 'id', $this->id]);
+        }
+
+        if ($query->exists()) {
+            $this->addError($attribute, 'Este usuário já está vinculado como colaborador desta loja.');
         }
     }
 

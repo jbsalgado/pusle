@@ -170,15 +170,10 @@ class UsuarioController extends Controller
         // Confirma automaticamente
         $model->confirmed_at = date('Y-m-d H:i:s');
 
-        if ($model->load(Yii::$app->request->post())) {
-            // Define senha se fornecida
-            $senha = Yii::$app->request->post('Usuario')['senha'] ?? null;
-            if (!empty($senha)) {
-                $model->setPassword($senha);
-            } else {
-                $model->addError('senha', 'A senha é obrigatória para novos usuários.');
-            }
+        // Apenas SaaS Admin pode definir dono de loja
+        $podeDefinirDono = TenantHelper::isAdmin();
 
+        if ($model->load(Yii::$app->request->post())) {
             // Sanitiza CPF e Telefone
             if (!empty($model->cpf)) {
                 $model->cpf = preg_replace('/[^0-9]/', '', $model->cpf);
@@ -186,56 +181,111 @@ class UsuarioController extends Controller
             if (!empty($model->telefone)) {
                 $model->telefone = preg_replace('/[^0-9]/', '', $model->telefone);
             }
-            
-            // Gera username se não fornecido
-            if (empty($model->username)) {
-                $model->username = !empty($model->email) ? $model->email : $model->cpf;
+
+            $tenantId = TenantHelper::getId();
+
+            // -------------------------------------------------------
+            // Detecção de CPF existente: reusa usuário sem criar duplicata
+            // -------------------------------------------------------
+            $usuarioExistente = null;
+            if (!empty($model->cpf)) {
+                $usuarioExistente = Usuario::findOne(['cpf' => $model->cpf]);
             }
-            
-            // Apenas super admins do sistema podem definir eh_dono_loja = true
-            if (TenantHelper::isAdmin()) {
-                $ehDono = Yii::$app->request->post('Usuario')['eh_dono_loja'] ?? false;
-                $model->eh_dono_loja = (bool)$ehDono;
-            } else {
-                $model->eh_dono_loja = false;
-            }
-            
-            if (!$model->hasErrors()) {
-                $transaction = Yii::$app->db->beginTransaction();
-                try {
-                    if ($model->save()) {
-                        $tenantId = TenantHelper::getId();
-                        if (!empty($tenantId)) {
-                            $colaborador = new Colaborador();
-                            $colaborador->id = (string) Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
-                            $colaborador->usuario_id = $tenantId;
-                            $colaborador->prest_usuario_login_id = $model->id;
-                            $colaborador->nome_completo = $model->nome;
-                            $colaborador->email = $model->email;
-                            $colaborador->telefone = $model->telefone;
-                            $colaborador->cpf = $model->cpf;
-                            $colaborador->ativo = true;
-                            $colaborador->eh_vendedor = true;
-                            $colaborador->eh_cobrador = false;
-                            $colaborador->eh_administrador = false;
-                            $colaborador->save(false);
-                        }
+
+            if ($usuarioExistente !== null) {
+                // CPF já existe — verifica se já é colaborador desta loja
+                $vinculoExistente = Colaborador::find()
+                    ->where(['prest_usuario_login_id' => $usuarioExistente->id])
+                    ->andWhere(['usuario_id' => $tenantId])
+                    ->exists();
+
+                if ($vinculoExistente) {
+                    Yii::$app->session->setFlash('error', 'Este CPF já está vinculado como colaborador desta loja.');
+                } else {
+                    // Reutiliza o usuário existente e cria apenas o vínculo
+                    $transaction = Yii::$app->db->beginTransaction();
+                    try {
+                        $colaborador = new Colaborador();
+                        $colaborador->id = (string) Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
+                        $colaborador->usuario_id = $tenantId;
+                        $colaborador->prest_usuario_login_id = $usuarioExistente->id;
+                        $colaborador->nome_completo = !empty($model->nome) ? $model->nome : $usuarioExistente->nome;
+                        $colaborador->email = !empty($model->email) ? $model->email : $usuarioExistente->email;
+                        $colaborador->telefone = !empty($model->telefone) ? $model->telefone : $usuarioExistente->telefone;
+                        $colaborador->cpf = $usuarioExistente->cpf;
+                        $colaborador->ativo = true;
+                        $colaborador->eh_vendedor = true;
+                        $colaborador->eh_cobrador = false;
+                        $colaborador->eh_administrador = false;
+                        $colaborador->save(false);
                         $transaction->commit();
-                        Yii::$app->session->setFlash('success', 'Usuário criado com sucesso!');
-                        return $this->redirect(['view', 'id' => $model->id]);
-                    } else {
+                        Yii::$app->session->setFlash('success', 'Usuário já existia no sistema. Vínculo criado com sucesso para esta loja!');
+                        return $this->redirect(['view', 'id' => $usuarioExistente->id]);
+                    } catch (\Exception $e) {
                         $transaction->rollBack();
-                        Yii::$app->session->setFlash('error', 'Erro ao salvar usuário: verifique os campos do formulário.');
+                        Yii::$app->session->setFlash('error', 'Erro ao criar vínculo: ' . $e->getMessage());
                     }
-                } catch (\Exception $e) {
-                    $transaction->rollBack();
-                    Yii::$app->session->setFlash('error', 'Erro ao salvar usuário: ' . $e->getMessage());
+                }
+            } else {
+                // CPF novo — exige e valida senha
+                $senha = Yii::$app->request->post('Usuario')['senha'] ?? null;
+                if (!empty($senha)) {
+                    $model->setPassword($senha);
+                } else {
+                    $model->addError('senha', 'A senha é obrigatória para novos usuários.');
+                }
+
+                // Gera username se não fornecido
+                if (empty($model->username)) {
+                    $model->username = !empty($model->email) ? $model->email : $model->cpf;
+                }
+
+                // Apenas super admins do sistema podem definir eh_dono_loja = true
+                if ($podeDefinirDono) {
+                    $ehDono = Yii::$app->request->post('Usuario')['eh_dono_loja'] ?? false;
+                    $model->eh_dono_loja = (bool)$ehDono;
+                } else {
+                    $model->eh_dono_loja = false;
+                }
+
+                if (!$model->hasErrors()) {
+                    // CPF novo — cria usuário normalmente
+                    $transaction = Yii::$app->db->beginTransaction();
+                    try {
+                        if ($model->save()) {
+                            if (!empty($tenantId)) {
+                                $colaborador = new Colaborador();
+                                $colaborador->id = (string) Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
+                                $colaborador->usuario_id = $tenantId;
+                                $colaborador->prest_usuario_login_id = $model->id;
+                                $colaborador->nome_completo = $model->nome;
+                                $colaborador->email = $model->email;
+                                $colaborador->telefone = $model->telefone;
+                                $colaborador->cpf = $model->cpf;
+                                $colaborador->ativo = true;
+                                $colaborador->eh_vendedor = true;
+                                $colaborador->eh_cobrador = false;
+                                $colaborador->eh_administrador = false;
+                                $colaborador->save(false);
+                            }
+                            $transaction->commit();
+                            Yii::$app->session->setFlash('success', 'Usuário criado com sucesso!');
+                            return $this->redirect(['view', 'id' => $model->id]);
+                        } else {
+                            $transaction->rollBack();
+                            Yii::$app->session->setFlash('error', 'Erro ao salvar usuário: verifique os campos do formulário.');
+                        }
+                    } catch (\Exception $e) {
+                        $transaction->rollBack();
+                        Yii::$app->session->setFlash('error', 'Erro ao salvar usuário: ' . $e->getMessage());
+                    }
                 }
             }
         }
 
         return $this->render('create', [
-            'model' => $model,
+            'model'          => $model,
+            'podeDefinirDono' => $podeDefinirDono,
         ]);
     }
 
@@ -247,13 +297,13 @@ class UsuarioController extends Controller
         $usuario = new Usuario();
         $colaborador = new Colaborador();
         
-        // Gera UUID para usuário (string, não Expression, para não falhar em rules de string)
+        // Gera UUID para usuário
         $usuario->id = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
         $usuario->generateAuthKey();
         $usuario->eh_dono_loja = false; // Sempre será colaborador
         $usuario->confirmed_at = date('Y-m-d H:i:s');
         
-        // Gera UUID para colaborador (string)
+        // Gera UUID para colaborador
         $colaborador->id = Yii::$app->db->createCommand("SELECT gen_random_uuid()")->queryScalar();
         
         // Obtém o tenant ID da loja
@@ -265,105 +315,145 @@ class UsuarioController extends Controller
         
         // Define usuario_id do colaborador como o dono da loja (tenant_id)
         $colaborador->usuario_id = $tenantId;
-        $colaborador->ativo = true; // Por padrão, ativo
-        $colaborador->eh_vendedor = false; // Será definido no formulário
-        $colaborador->eh_cobrador = false; // Será definido no formulário
-        $colaborador->eh_administrador = false; // Por padrão, não é admin
+        $colaborador->ativo = true;
+        $colaborador->eh_vendedor = false;
+        $colaborador->eh_cobrador = false;
+        $colaborador->eh_administrador = false;
 
         if ($usuario->load(Yii::$app->request->post()) && $colaborador->load(Yii::$app->request->post())) {
             // Valida confirmação de senha
             $senha = Yii::$app->request->post('Usuario')['senha'] ?? null;
             $senhaConfirmacao = Yii::$app->request->post('Usuario')['senha_confirmacao'] ?? null;
             
-            if (empty($senha)) {
-                $usuario->addError('senha', 'A senha é obrigatória para novos usuários.');
-            } elseif ($senha !== $senhaConfirmacao) {
-                $usuario->addError('senha', 'As senhas não coincidem.');
-            } else {
-                // Define senha ANTES de validar (para passar validação de hash_senha required)
-                $usuario->setPassword($senha);
-            }
-            
-            // Limpa CPF e telefone (remove formatação)
+            // Sanitiza CPF e telefone
             if (!empty($usuario->cpf)) {
                 $usuario->cpf = preg_replace('/[^0-9]/', '', $usuario->cpf);
             }
             if (!empty($usuario->telefone)) {
                 $usuario->telefone = preg_replace('/[^0-9]/', '', $usuario->telefone);
             }
-            
+
             // Gera username se não fornecido
             if (empty($usuario->username)) {
                 $usuario->username = !empty($usuario->email) ? $usuario->email : $usuario->cpf;
             }
-            
-            // Sincroniza dados do colaborador com o usuário (sempre)
-            $colaborador->nome_completo = !empty($usuario->nome) ? $usuario->nome : 'Colaborador';
-            $colaborador->cpf = !empty($usuario->cpf) ? $usuario->cpf : null;
-            $colaborador->telefone = !empty($usuario->telefone) ? $usuario->telefone : null;
-            $colaborador->email = !empty($usuario->email) ? $usuario->email : null;
-            
-            // Valida se pelo menos um papel foi marcado
-            if (!$colaborador->eh_vendedor && !$colaborador->eh_cobrador) {
-                $colaborador->addError('eh_vendedor', 'O colaborador deve ser vendedor e/ou cobrador.');
+
+            // -------------------------------------------------------
+            // Detecção de CPF existente: reusa usuário sem criar duplicata
+            // -------------------------------------------------------
+            $usuarioExistente = null;
+            if (!empty($usuario->cpf)) {
+                $usuarioExistente = Usuario::findOne(['cpf' => $usuario->cpf]);
             }
-            
-            // Valida usuário primeiro (hash_senha já foi definido se senha foi fornecida)
-            $usuarioValido = $usuario->validate();
-            
-            if ($usuarioValido && !empty($senha) && $senha === $senhaConfirmacao) {
-                // Inicia transação
-                $transaction = Yii::$app->db->beginTransaction();
-                try {
-                    // Salva usuário primeiro
-                    if (!$usuario->save(false)) {
-                        throw new \Exception('Erro ao salvar usuário: ' . json_encode($usuario->errors));
+
+            if ($usuarioExistente !== null) {
+                // CPF já existe no sistema — verifica se já é colaborador desta loja
+                $vinculoExistente = Colaborador::find()
+                    ->where(['prest_usuario_login_id' => $usuarioExistente->id])
+                    ->andWhere(['usuario_id' => $tenantId])
+                    ->exists();
+
+                if ($vinculoExistente) {
+                    Yii::$app->session->setFlash('error', 'Este CPF já está vinculado como colaborador desta loja.');
+                } else {
+                    // Reutiliza o usuário existente e cria apenas o vínculo de colaborador
+                    $transaction = Yii::$app->db->beginTransaction();
+                    try {
+                        $colaborador->usuario_id = $tenantId;
+                        $colaborador->prest_usuario_login_id = $usuarioExistente->id;
+                        $colaborador->nome_completo = !empty($usuario->nome) ? $usuario->nome : $usuarioExistente->nome;
+                        $colaborador->cpf = $usuarioExistente->cpf;
+                        $colaborador->telefone = !empty($usuario->telefone) ? $usuario->telefone : $usuarioExistente->telefone;
+                        $colaborador->email = !empty($usuario->email) ? $usuario->email : $usuarioExistente->email;
+
+                        if (!$colaborador->eh_vendedor && !$colaborador->eh_cobrador) {
+                            $colaborador->addError('eh_vendedor', 'O colaborador deve ser vendedor e/ou cobrador.');
+                            Yii::$app->session->setFlash('error', 'Há erros no formulário. Verifique os campos destacados.');
+                        } elseif ($colaborador->validate()) {
+                            if ($colaborador->save(false)) {
+                                $transaction->commit();
+                                Yii::$app->session->setFlash('success', 'Usuário já existia no sistema. Vínculo criado com sucesso para esta loja!');
+                                return $this->redirect(['view', 'id' => $usuarioExistente->id]);
+                            } else {
+                                $transaction->rollBack();
+                                Yii::$app->session->setFlash('error', 'Erro ao criar vínculo do colaborador.');
+                            }
+                        } else {
+                            $transaction->rollBack();
+                            Yii::$app->session->setFlash('error', 'Erro na validação do colaborador: ' . json_encode($colaborador->errors));
+                        }
+                    } catch (\Exception $e) {
+                        $transaction->rollBack();
+                        Yii::$app->session->setFlash('error', 'Erro ao criar vínculo: ' . $e->getMessage());
                     }
-                    
-                    // Define o ID do dono da loja no colaborador
-                    $colaborador->usuario_id = $tenantId; // Loja do dono (identifica a loja)
-                    $colaborador->prest_usuario_login_id = $usuario->id; // Login próprio do colaborador
-                    
-                    // Valida colaborador (agora que o usuário foi salvo, a FK existe)
-                    $colaboradorValido = $colaborador->validate();
-                    
-                    if (!$colaboradorValido) {
-                        throw new \Exception('Erro na validação do colaborador: ' . json_encode($colaborador->errors));
-                    }
-                    
-                    // Salva colaborador
-                    if (!$colaborador->save(false)) {
-                        throw new \Exception('Erro ao salvar colaborador: ' . json_encode($colaborador->errors));
-                    }
-                    
-                    $transaction->commit();
-                    
-                    Yii::$app->session->setFlash('success', 'Usuário e colaborador criados com sucesso!');
-                    return $this->redirect(['view', 'id' => $usuario->id]);
-                    
-                } catch (\Exception $e) {
-                    $transaction->rollBack();
-                    Yii::$app->session->setFlash('error', 'Erro ao criar usuário e colaborador: ' . $e->getMessage());
-                    Yii::error('Erro ao criar usuário completo: ' . $e->getMessage(), __METHOD__);
-                    Yii::error('Erros do usuário: ' . json_encode($usuario->errors), __METHOD__);
-                    Yii::error('Erros do colaborador: ' . json_encode($colaborador->errors), __METHOD__);
                 }
             } else {
-                // Adiciona erros do colaborador ao usuário para exibir no formulário
-                foreach ($colaborador->errors as $attribute => $errors) {
-                    foreach ($errors as $error) {
-                        $usuario->addError('colaborador_' . $attribute, $error);
-                    }
+                // CPF novo — valida senha e cria usuário + colaborador normalmente
+                if (empty($senha)) {
+                    $usuario->addError('senha', 'A senha é obrigatória para novos usuários.');
+                } elseif ($senha !== $senhaConfirmacao) {
+                    $usuario->addError('senha', 'As senhas não coincidem.');
+                } else {
+                    $usuario->setPassword($senha);
                 }
-                Yii::$app->session->setFlash('error', 'Há erros no formulário. Verifique os campos destacados.');
-            }
-            if (!$usuarioValido) {
-                Yii::$app->session->setFlash('error', 'Há erros no formulário. Verifique os campos destacados.');
+
+                // Sincroniza dados do colaborador com o usuário
+                $colaborador->nome_completo = !empty($usuario->nome) ? $usuario->nome : 'Colaborador';
+                $colaborador->cpf = !empty($usuario->cpf) ? $usuario->cpf : null;
+                $colaborador->telefone = !empty($usuario->telefone) ? $usuario->telefone : null;
+                $colaborador->email = !empty($usuario->email) ? $usuario->email : null;
+
+                // Valida papel
+                if (!$colaborador->eh_vendedor && !$colaborador->eh_cobrador) {
+                    $colaborador->addError('eh_vendedor', 'O colaborador deve ser vendedor e/ou cobrador.');
+                }
+
+                $usuarioValido = $usuario->validate();
+
+                if ($usuarioValido && !empty($senha) && $senha === $senhaConfirmacao) {
+                    $transaction = Yii::$app->db->beginTransaction();
+                    try {
+                        if (!$usuario->save(false)) {
+                            throw new \Exception('Erro ao salvar usuário: ' . json_encode($usuario->errors));
+                        }
+
+                        $colaborador->usuario_id = $tenantId;
+                        $colaborador->prest_usuario_login_id = $usuario->id;
+
+                        $colaboradorValido = $colaborador->validate();
+                        if (!$colaboradorValido) {
+                            throw new \Exception('Erro na validação do colaborador: ' . json_encode($colaborador->errors));
+                        }
+
+                        if (!$colaborador->save(false)) {
+                            throw new \Exception('Erro ao salvar colaborador: ' . json_encode($colaborador->errors));
+                        }
+
+                        $transaction->commit();
+                        Yii::$app->session->setFlash('success', 'Usuário e colaborador criados com sucesso!');
+                        return $this->redirect(['view', 'id' => $usuario->id]);
+
+                    } catch (\Exception $e) {
+                        $transaction->rollBack();
+                        Yii::$app->session->setFlash('error', 'Erro ao criar usuário e colaborador: ' . $e->getMessage());
+                        Yii::error('Erro ao criar usuário completo: ' . $e->getMessage(), __METHOD__);
+                    }
+                } else {
+                    foreach ($colaborador->errors as $attribute => $errors) {
+                        foreach ($errors as $error) {
+                            $usuario->addError('colaborador_' . $attribute, $error);
+                        }
+                    }
+                    Yii::$app->session->setFlash('error', 'Há erros no formulário. Verifique os campos destacados.');
+                }
+                if (!$usuarioValido) {
+                    Yii::$app->session->setFlash('error', 'Há erros no formulário. Verifique os campos destacados.');
+                }
             }
         }
 
         return $this->render('create-completo', [
-            'usuario' => $usuario,
+            'usuario'     => $usuario,
             'colaborador' => $colaborador,
         ]);
     }

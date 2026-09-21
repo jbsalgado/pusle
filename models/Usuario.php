@@ -92,7 +92,12 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
             [['endereco'], 'string', 'max' => 255],
             [['bairro', 'cidade'], 'string', 'max' => 100],
             [['estado'], 'string', 'max' => 2],
-            [['cpf'], 'unique'],
+            // CPF único apenas para donos de loja (signup SaaS).
+            // Colaboradores compartilham o mesmo prest_usuarios entre lojas —
+            // a unicidade por loja é garantida por Colaborador::validateCpfUnico().
+            [['cpf'], 'unique', 'when' => function ($model) {
+                return (bool)$model->eh_dono_loja;
+            }],
             [['id'], 'unique'],
         ];
     }
@@ -371,7 +376,24 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
             return $this->id;
         }
 
-        // Tenta buscar o colaborador usando o ID deste usuário
+        // Se houver loja ativa na sessão (para colaboradores vinculados a mais de uma loja)
+        if (Yii::$app->has('session') && Yii::$app->session->has('loja_ativa_id')) {
+            $lojaAtivaId = Yii::$app->session->get('loja_ativa_id');
+            if (!empty($lojaAtivaId)) {
+                $vinculo = \app\modules\vendas\models\Colaborador::find()
+                    ->where([
+                        'prest_usuario_login_id' => $this->id,
+                        'usuario_id'             => $lojaAtivaId,
+                        'ativo'                  => true,
+                    ])
+                    ->one();
+                if ($vinculo) {
+                    return $lojaAtivaId;
+                }
+            }
+        }
+
+        // Tenta buscar o colaborador ativo usando o ID deste usuário
         $colaborador = \app\modules\vendas\models\Colaborador::find()
             ->where(['prest_usuario_login_id' => $this->id])
             ->andWhere(['ativo' => true])
