@@ -55,6 +55,8 @@ class CanalComunicacaoController extends Controller
                     'salvar-setor' => ['POST'],
                     'excluir-setor' => ['POST'],
                     'vincular-colaboradores' => ['POST'],
+                    'encerrar-atendimento' => ['POST'],
+                    'limpar-conversa' => ['POST'],
                 ],
             ],
         ];
@@ -228,8 +230,8 @@ class CanalComunicacaoController extends Controller
             ]);
         }
 
-        // Busca mensagens recentes para agrupar em conversas (estilo WhatsApp)
-        $mensagens = $query->orderBy(['created_at' => SORT_DESC])->limit(200)->all();
+        // Busca mensagens recentes com Eager Loading (elimina N+1 queries) para agrupar em conversas
+        $mensagens = $query->with(['cliente', 'mesa', 'setor'])->orderBy(['created_at' => SORT_DESC])->limit(100)->all();
 
         // Mapa de setores para enriquecer retorno
         $setoresMap = [];
@@ -373,12 +375,29 @@ class CanalComunicacaoController extends Controller
             $query->andWhere(['or', ['setor_id' => $setorIds], ['setor_id' => null]]);
         }
 
-        $mensagens = $query->orderBy(['created_at' => SORT_ASC])->limit(300)->all();
+        // Suporte a Polling Diferencial Leve (desde último timestamp)
+        $sinceTs = Yii::$app->request->get('since_ts');
+        if (!empty($sinceTs) && is_numeric($sinceTs) && (int)$sinceTs > 0) {
+            $checkQuery = clone $query;
+            $hasNovas = $checkQuery->andWhere(['>', 'created_at', date('Y-m-d H:i:s', (int)$sinceTs)])->exists();
+            if (!$hasNovas) {
+                return [
+                    'success' => true,
+                    'changed' => false,
+                    'mensagens' => [],
+                    'total' => 0,
+                    'last_ts' => (int)$sinceTs,
+                ];
+            }
+        }
+
+        $mensagens = $query->with(['setor'])->orderBy(['created_at' => SORT_ASC])->limit(150)->all();
 
         // Marca como lidas as mensagens recebidas do cliente nesta conversa
         $idsParaMarcar = [];
         $itensFormatados = [];
 
+        $lastTs = 0;
         foreach ($mensagens as $m) {
             $acoes = is_array($m->acoes_json) ? $m->acoes_json : (json_decode($m->acoes_json, true) ?: []);
             $origem = $acoes['origem'] ?? 'cliente';
@@ -386,6 +405,11 @@ class CanalComunicacaoController extends Controller
 
             if (!$isLoja && !$m->lido) {
                 $idsParaMarcar[] = $m->id;
+            }
+
+            $createdTs = strtotime($m->created_at);
+            if ($createdTs > $lastTs) {
+                $lastTs = $createdTs;
             }
 
             $itensFormatados[] = [
@@ -400,9 +424,9 @@ class CanalComunicacaoController extends Controller
                 'midia_url' => $m->midia_url,
                 'acoes' => $acoes,
                 'lido' => (bool)$m->lido,
-                'hora' => date('H:i', strtotime($m->created_at)),
-                'data' => date('d/m/Y', strtotime($m->created_at)),
-                'created_at_ts' => strtotime($m->created_at),
+                'hora' => date('H:i', $createdTs),
+                'data' => date('d/m/Y', $createdTs),
+                'created_at_ts' => $createdTs,
             ];
         }
 
@@ -414,6 +438,7 @@ class CanalComunicacaoController extends Controller
             'success' => true,
             'mensagens' => $itensFormatados,
             'total' => count($itensFormatados),
+            'last_ts' => $lastTs,
         ];
     }
 
@@ -821,6 +846,116 @@ class CanalComunicacaoController extends Controller
         return [
             'success' => true,
             'message' => 'Setor removido com sucesso.',
+        ];
+    }
+
+    /**
+     * Encerra o atendimento da conversa atual
+     */
+    public function actionEncerrarAtendimento()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $lojaId = $this->getLojaId();
+        $nomeAtendente = $this->getNomeAtendente();
+
+        $request = Yii::$app->request;
+        $post = json_decode($request->getRawBody(), true) ?: $request->post();
+
+        $clienteId = !empty($post['cliente_id']) ? $post['cliente_id'] : null;
+        $mesaId = !empty($post['mesa_id']) ? $post['mesa_id'] : null;
+        $conversaId = !empty($post['conversa_id']) ? $post['conversa_id'] : null;
+        $setorId = !empty($post['setor_id']) ? $post['setor_id'] : null;
+
+        if (!empty($conversaId)) {
+            if (strpos($conversaId, 'cli_') === 0) {
+                $clienteId = substr($conversaId, 4);
+            } elseif (strpos($conversaId, 'mesa_') === 0) {
+                $mesaId = substr($conversaId, 5);
+            }
+        }
+
+        if (empty($clienteId) && empty($mesaId) && empty($conversaId)) {
+            return ['success' => false, 'message' => 'Conversa não informada.'];
+        }
+
+        // 1. Marca todas as mensagens pendentes como lidas
+        $cond = ['usuario_id' => $lojaId];
+        if (!empty($clienteId)) {
+            $cond['cliente_id'] = $clienteId;
+        } elseif (!empty($mesaId)) {
+            $cond['mesa_id'] = $mesaId;
+        }
+        ClienteInbox::updateAll(['lido' => true], $cond);
+
+        // 2. Insere mensagem de encerramento do chamado
+        $msg = new ClienteInbox();
+        $msg->usuario_id = $lojaId;
+        $msg->cliente_id = $clienteId;
+        $msg->mesa_id = $mesaId;
+        $msg->setor_id = $setorId;
+        $msg->tipo = ClienteInbox::TIPO_CHAMADO;
+        $msg->titulo = "Atendimento Concluído";
+        $msg->conteudo_texto = "✅ Atendimento encerrado por {$nomeAtendente}. Agradecemos o contato! Se precisar de algo mais, basta enviar uma nova mensagem por aqui.";
+        $msg->acoes_json = [
+            'origem' => 'loja',
+            'status' => 'encerrado',
+            'atendente_nome' => $nomeAtendente,
+            'encerrado_em' => date('d/m/Y H:i'),
+        ];
+        $msg->lido = true;
+        $msg->created_at = new \yii\db\Expression('NOW()');
+        $msg->save(false);
+
+        return [
+            'success' => true,
+            'message' => 'Atendimento encerrado com sucesso.',
+        ];
+    }
+
+    /**
+     * Limpa as mensagens de uma conversa selecionada
+     */
+    public function actionLimparConversa()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $lojaId = $this->getLojaId();
+        $request = Yii::$app->request;
+        $post = json_decode($request->getRawBody(), true) ?: $request->post();
+
+        $clienteId = !empty($post['cliente_id']) ? $post['cliente_id'] : null;
+        $mesaId = !empty($post['mesa_id']) ? $post['mesa_id'] : null;
+        $conversaId = !empty($post['conversa_id']) ? $post['conversa_id'] : null;
+
+        $msgId = null;
+        if (!empty($conversaId)) {
+            if (strpos($conversaId, 'cli_') === 0) {
+                $clienteId = substr($conversaId, 4);
+            } elseif (strpos($conversaId, 'mesa_') === 0) {
+                $mesaId = substr($conversaId, 5);
+            } elseif (strpos($conversaId, 'msg_') === 0) {
+                $msgId = substr($conversaId, 4);
+            }
+        }
+
+        if (empty($clienteId) && empty($mesaId) && empty($msgId)) {
+            return ['success' => false, 'message' => 'Identificador da conversa não especificado.'];
+        }
+
+        $cond = ['usuario_id' => $lojaId];
+        if (!empty($clienteId)) {
+            $cond['cliente_id'] = $clienteId;
+        } elseif (!empty($mesaId)) {
+            $cond['mesa_id'] = $mesaId;
+        } elseif (!empty($msgId)) {
+            $cond['id'] = $msgId;
+        }
+
+        $deletadas = ClienteInbox::deleteAll($cond);
+
+        return [
+            'success' => true,
+            'message' => "Histórico da conversa limpo ({$deletadas} mensagens removidas).",
+            'deletadas' => $deletadas
         ];
     }
 }

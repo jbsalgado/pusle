@@ -26,7 +26,7 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
 ?>
 
 <!-- Modal Central do Canal de Comunicação Interno (Estilo WhatsApp Multi-Setor) -->
-<div id="modalChatWhatsApp" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 transition-all duration-300">
+<div id="modalChatWhatsApp" class="fixed inset-0 z-50 hidden bg-slate-950/85 flex items-center justify-center p-2 sm:p-4">
     <div class="relative w-full max-w-6xl h-[94vh] bg-[#f0f2f5] rounded-3xl shadow-2xl overflow-hidden border border-slate-700/50 flex flex-col">
         
         <!-- HEADER WHATSAPP STYLE -->
@@ -213,6 +213,24 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
                                     <?php endforeach; ?>
                                 </select>
                             </div>
+
+                            <!-- Botão Encerrar Atendimento -->
+                            <button type="button" 
+                                    onclick="encerrarAtendimentoAtivo()" 
+                                    class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-lg transition flex items-center gap-1 cursor-pointer" 
+                                    title="Concluir e encerrar este atendimento">
+                                <span>✅</span>
+                                <span class="hidden sm:inline">Encerrar</span>
+                            </button>
+
+                            <!-- Botão Limpar Conversa -->
+                            <button type="button" 
+                                    onclick="limparConversaAtiva()" 
+                                    class="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold rounded-lg transition flex items-center gap-1 cursor-pointer" 
+                                    title="Apagar histórico desta conversa">
+                                <span>🗑️</span>
+                                <span class="hidden sm:inline">Limpar</span>
+                            </button>
                         </div>
                     </div>
 
@@ -251,7 +269,7 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
                                       rows="1" 
                                       onkeydown="aoPressionarTeclaChat(event)" 
                                       placeholder="Digite uma mensagem..." 
-                                      class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-2xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[#008069] focus:ring-1 focus:ring-[#008069] resize-none max-h-28 transition"></textarea>
+                                      class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-2xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[#008069] focus:ring-1 focus:ring-[#008069] resize-none max-h-28"></textarea>
                         </div>
 
                         <!-- Botão Enviar Mensagem -->
@@ -394,12 +412,14 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
 (function() {
     // Variáveis de Estado
     window._chatConversas = [];
+    window._chatConversasHash = '';
     window._chatConversaAtiva = null;
     window._chatSetorFiltro = 'todos';
     window._chatTermoBusca = '';
     window._chatPollingTimer = null;
     window._chatFotoUrlPendente = null;
     window._chatColaboradoresStore = [];
+    window._chatLastMsgTs = 0;
 
     // URLs de Endpoints
     const URL_CONVERSAS = '<?= Url::to(['/vendas/canal-comunicacao/get-conversas']) ?>';
@@ -410,6 +430,8 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
     const URL_LISTAR_SETORES = '<?= Url::to(['/vendas/canal-comunicacao/listar-setores']) ?>';
     const URL_SALVAR_SETOR = '<?= Url::to(['/vendas/canal-comunicacao/salvar-setor']) ?>';
     const URL_EXCLUIR_SETOR = '<?= Url::to(['/vendas/canal-comunicacao/excluir-setor']) ?>';
+    const URL_ENCERRAR = '<?= Url::to(['/vendas/canal-comunicacao/encerrar-atendimento']) ?>';
+    const URL_LIMPAR = '<?= Url::to(['/vendas/canal-comunicacao/limpar-conversa']) ?>';
 
     // Utilitário Toast
     window.exibirToastChat = function(msg, tipo = 'sucesso') {
@@ -508,9 +530,13 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    window._chatConversas = data.conversas || [];
+                    const novoHash = JSON.stringify((data.conversas || []).map(c => [c.conversa_id, c.ultimo_envio_formatado, c.nao_lidos_count, c.ultima_mensagem]));
+                    if (window._chatConversasHash !== novoHash || !isPolling) {
+                        window._chatConversasHash = novoHash;
+                        window._chatConversas = data.conversas || [];
+                        renderizarListaConversas();
+                    }
                     atualizarBadgesHeader(data.total_nao_lidos);
-                    renderizarListaConversas();
 
                     // Se há conversa ativa aberta, recarrega mensagens em background
                     if (window._chatConversaAtiva && isPolling) {
@@ -619,6 +645,7 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
         if (!conversa) return;
 
         window._chatConversaAtiva = conversa;
+        window._chatLastMsgTs = 0; // Reset para carga completa da conversa aberta
 
         // No mobile, oculta a lista e mostra o chat
         const colLista = document.getElementById('colunaListaConversas');
@@ -674,14 +701,25 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
             `;
         }
 
-        const url = URL_MENSAGENS + '?conversa_id=' + encodeURIComponent(conversa.conversa_id) +
+        let url = URL_MENSAGENS + '?conversa_id=' + encodeURIComponent(conversa.conversa_id) +
                     (conversa.cliente_id ? '&cliente_id=' + encodeURIComponent(conversa.cliente_id) : '') +
                     (conversa.mesa_id ? '&mesa_id=' + encodeURIComponent(conversa.mesa_id) : '');
+
+        if (isPolling && window._chatLastMsgTs > 0) {
+            url += '&since_ts=' + encodeURIComponent(window._chatLastMsgTs);
+        }
 
         fetch(url)
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
+                    if (data.changed === false) {
+                        // Nenhuma mensagem nova: não toca no DOM, digitação permanece 100% fluida
+                        return;
+                    }
+                    if (data.last_ts) {
+                        window._chatLastMsgTs = data.last_ts;
+                    }
                     renderizarMensagens(data.mensagens || [], isPolling);
                     // Zera contador de não lidos localmente
                     conversa.nao_lidos_count = 0;
@@ -830,7 +868,8 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
             if (data.success) {
                 if (input) input.value = '';
                 cancelarEnvioFoto();
-                // Recarrega conversa imediatamente
+                // Reset ts para buscar mensagens atualizadas com a nova mensagem enviada
+                window._chatLastMsgTs = 0;
                 carregarMensagensConversa(window._chatConversaAtiva);
                 carregarConversasChat();
             } else {
@@ -899,15 +938,110 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
         exibirToastChat('Setor alterado para esta conversa.', 'sucesso');
     };
 
-    // Polling contínuo
+    // Encerrar Atendimento
+    window.encerrarAtendimentoAtivo = function() {
+        if (!window._chatConversaAtiva) {
+            exibirToastChat('Selecione uma conversa primeiro.', 'aviso');
+            return;
+        }
+
+        if (!confirm('Deseja realmente encerrar este atendimento? Todas as mensagens serão marcadas como lidas e uma notificação de encerramento será registrada.')) {
+            return;
+        }
+
+        const payload = {
+            conversa_id: window._chatConversaAtiva.conversa_id,
+            cliente_id: window._chatConversaAtiva.cliente_id || null,
+            mesa_id: window._chatConversaAtiva.mesa_id || null
+        };
+
+        fetch(URL_ENCERRAR, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                exibirToastChat(data.message || 'Atendimento encerrado com sucesso!', 'sucesso');
+                window._chatLastMsgTs = 0;
+                carregarMensagensConversa(window._chatConversaAtiva);
+                carregarConversasChat();
+            } else {
+                exibirToastChat(data.message || 'Erro ao encerrar atendimento.', 'erro');
+            }
+        })
+        .catch(err => {
+            console.error('Erro ao encerrar atendimento:', err);
+            exibirToastChat('Erro ao conectar com o servidor.', 'erro');
+        });
+    };
+
+    // Limpar Conversa
+    window.limparConversaAtiva = function() {
+        if (!window._chatConversaAtiva) {
+            exibirToastChat('Selecione uma conversa primeiro.', 'aviso');
+            return;
+        }
+
+        if (!confirm('ATENÇÃO: Deseja apagar todas as mensagens desta conversa? Esta ação não pode ser desfeita.')) {
+            return;
+        }
+
+        const payload = {
+            conversa_id: window._chatConversaAtiva.conversa_id,
+            cliente_id: window._chatConversaAtiva.cliente_id || null,
+            mesa_id: window._chatConversaAtiva.mesa_id || null
+        };
+
+        fetch(URL_LIMPAR, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                exibirToastChat(data.message || 'Conversa limpa com sucesso!', 'sucesso');
+                window._chatLastMsgTs = 0;
+                const container = document.getElementById('containerMensagensChat');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="text-center py-12 text-slate-400 space-y-2">
+                            <span class="text-2xl block">💬</span>
+                            <p class="text-xs font-bold text-slate-600">Nenhuma mensagem nesta conversa ainda</p>
+                            <p class="text-[11px] text-slate-400">Histórico de mensagens foi apagado.</p>
+                        </div>
+                    `;
+                }
+                window._chatConversasHash = '';
+                carregarConversasChat();
+            } else {
+                exibirToastChat(data.message || 'Erro ao limpar conversa.', 'erro');
+            }
+        })
+        .catch(err => {
+            console.error('Erro ao limpar conversa:', err);
+            exibirToastChat('Erro ao conectar com o servidor.', 'erro');
+        });
+    };
+
+    // Polling contínuo com detecção de visibilidade da página
     function iniciarPollingChat() {
         pararPollingChat();
         window._chatPollingTimer = setInterval(() => {
+            if (document.hidden) return; // Pausa polling se a aba estiver em segundo plano
             const modal = document.getElementById('modalChatWhatsApp');
             if (modal && !modal.classList.contains('hidden')) {
                 carregarConversasChat(true);
             }
-        }, 5000);
+        }, 8000);
     }
 
     function pararPollingChat() {
@@ -916,6 +1050,15 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
             window._chatPollingTimer = null;
         }
     }
+
+    // Retoma polling imediato ao voltar para a aba
+    document.addEventListener('visibilitychange', () => {
+        const modal = document.getElementById('modalChatWhatsApp');
+        if (!modal || modal.classList.contains('hidden')) return;
+        if (!document.hidden) {
+            carregarConversasChat(true);
+        }
+    });
 
     // =========================================================================
     // GERENCIADOR DE SETORES (APENAS DONO DA LOJA)
