@@ -175,7 +175,7 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
                 </div>
 
                 <!-- CONVERSA SELECIONADA (HEADER, MENSAGENS E INPUT) -->
-                <div id="painelConversaAberta" class="flex-1 flex flex-col h-full hidden">
+                <div id="painelConversaAberta" class="flex-1 flex flex-col h-full hidden relative">
                     
                     <!-- HEADER DA CONVERSA ATIVA -->
                     <div class="px-4 py-2.5 bg-[#f0f2f5] border-b border-slate-300 flex items-center justify-between shrink-0 shadow-xs">
@@ -253,10 +253,63 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
                         </button>
                     </div>
 
+                    <!-- PAINEL FLUTUANTE DE EMOJIS ESTILO WHATSAPP -->
+                    <div id="painelEmojiPickerChat" class="hidden absolute bottom-16 left-3 sm:left-4 z-40 w-72 sm:w-88 bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden select-none">
+                        <!-- Topo: Busca e Fechar -->
+                        <div class="p-2.5 bg-slate-50 border-b border-slate-200 space-y-2">
+                            <div class="flex items-center gap-2">
+                                <div class="relative flex-1">
+                                    <input type="text" 
+                                           id="inputBuscaEmojiChat" 
+                                           oninput="aoBuscarEmojiChat(this.value)" 
+                                           placeholder="Pesquisar emoji..." 
+                                           class="w-full pl-7 pr-3 py-1 bg-white border border-slate-300 rounded-xl text-xs text-slate-700 outline-none focus:border-[#008069]">
+                                    <span class="absolute left-2 top-1 text-xs text-slate-400">🔍</span>
+                                </div>
+                                <button type="button" 
+                                        onclick="fecharEmojiPickerChat()" 
+                                        class="text-slate-400 hover:text-slate-600 p-1 text-sm font-bold cursor-pointer" 
+                                        title="Fechar">
+                                    ✕
+                                </button>
+                            </div>
+
+                            <!-- Barra de Categorias -->
+                            <div class="flex items-center justify-between text-base px-0.5">
+                                <button type="button" onclick="selecionarCategoriaEmoji('recentes')" id="tabEmoji_recentes" class="tab-emoji-btn p-1.5 rounded-xl hover:bg-slate-200 text-slate-600 transition cursor-pointer" title="Recentes / Populares">🕒</button>
+                                <button type="button" onclick="selecionarCategoriaEmoji('rostos')" id="tabEmoji_rostos" class="tab-emoji-btn p-1.5 rounded-xl hover:bg-slate-200 text-slate-600 transition cursor-pointer bg-emerald-100 text-[#008069]" title="Carinhas e Emoções">😃</button>
+                                <button type="button" onclick="selecionarCategoriaEmoji('gestos')" id="tabEmoji_gestos" class="tab-emoji-btn p-1.5 rounded-xl hover:bg-slate-200 text-slate-600 transition cursor-pointer" title="Mãos e Gestos">👍</button>
+                                <button type="button" onclick="selecionarCategoriaEmoji('coracoes')" id="tabEmoji_coracoes" class="tab-emoji-btn p-1.5 rounded-xl hover:bg-slate-200 text-slate-600 transition cursor-pointer" title="Corações e Símbolos">❤️</button>
+                                <button type="button" onclick="selecionarCategoriaEmoji('comida')" id="tabEmoji_comida" class="tab-emoji-btn p-1.5 rounded-xl hover:bg-slate-200 text-slate-600 transition cursor-pointer" title="Comidas e Bebidas">🍕</button>
+                                <button type="button" onclick="selecionarCategoriaEmoji('comercio')" id="tabEmoji_comercio" class="tab-emoji-btn p-1.5 rounded-xl hover:bg-slate-200 text-slate-600 transition cursor-pointer" title="Vendas e Objetos">💼</button>
+                            </div>
+                        </div>
+
+                        <!-- Título da Categoria Ativa -->
+                        <div class="px-3 py-1 bg-slate-100/70 border-b border-slate-200/60 flex items-center justify-between">
+                            <span id="tituloCategoriaEmoji" class="text-[10px] font-black uppercase tracking-wider text-slate-500">Carinhas e Emoções</span>
+                            <span id="contagemEmojis" class="text-[10px] text-slate-400 font-semibold"></span>
+                        </div>
+
+                        <!-- Grade de Emojis -->
+                        <div id="gridEmojisChat" class="p-2 grid grid-cols-8 gap-1 max-h-52 overflow-y-auto">
+                            <!-- Emojis renderizados via JS -->
+                        </div>
+                    </div>
+
                     <!-- FOOTER: BARRA DE DIGITAÇÃO WHATSAPP -->
                     <div class="p-2.5 bg-[#f0f2f5] border-t border-slate-300 flex items-center gap-2 shrink-0">
                         <!-- Input invisível de Upload de Foto -->
                         <input type="file" id="inputUploadMidiaChat" accept="image/*" class="hidden" onchange="aoSelecionarFotoChat(this)">
+
+                        <!-- Botão Inserir Emojis -->
+                        <button type="button" 
+                                id="btnEmojiChat" 
+                                onclick="toggleEmojiPickerChat()" 
+                                class="w-9 h-9 rounded-full hover:bg-slate-200 text-slate-600 flex items-center justify-center transition cursor-pointer text-xl select-none shrink-0" 
+                                title="Inserir Emoji">
+                            😊
+                        </button>
 
                         <!-- Botão Anexar Foto -->
                         <button type="button" onclick="document.getElementById('inputUploadMidiaChat').click()" class="w-9 h-9 rounded-full hover:bg-slate-200 text-slate-600 flex items-center justify-center transition cursor-pointer" title="Anexar Imagem/Foto">
@@ -469,6 +522,7 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
         if (!modal) return;
         modal.classList.add('hidden');
         pararPollingChat();
+        fecharEmojiPickerChat();
     };
 
     // Alternar painel de link do hub
@@ -646,6 +700,7 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
 
         window._chatConversaAtiva = conversa;
         window._chatLastMsgTs = 0; // Reset para carga completa da conversa aberta
+        fecharEmojiPickerChat();
 
         // No mobile, oculta a lista e mostra o chat
         const colLista = document.getElementById('colunaListaConversas');
@@ -685,6 +740,7 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
             colChat.classList.add('hidden', 'md:flex');
         }
         window._chatConversaAtiva = null;
+        fecharEmojiPickerChat();
     };
 
     // Carrega mensagens da conversa
@@ -868,6 +924,7 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
             if (data.success) {
                 if (input) input.value = '';
                 cancelarEnvioFoto();
+                fecharEmojiPickerChat();
                 // Reset ts para buscar mensagens atualizadas com a nova mensagem enviada
                 window._chatLastMsgTs = 0;
                 carregarMensagensConversa(window._chatConversaAtiva);
@@ -1265,6 +1322,466 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
         });
     };
     <?php endif; ?>
+
+    // =========================================================================
+    // SELETOR E GERENCIADOR DE EMOJIS (ESTILO WHATSAPP)
+    // =========================================================================
+    const EMOJIS_DB = {
+        rostos: [
+            { e: '😀', t: 'sorriso dentes alegre feliz' },
+            { e: '😃', t: 'sorriso grande alegre' },
+            { e: '😄', t: 'sorridente olhos felizes' },
+            { e: '😁', t: 'sorriso largo' },
+            { e: '😆', t: 'risada gargalhada' },
+            { e: '😅', t: 'suor riso alivio' },
+            { e: '😂', t: 'chorando de rir risada lagrimas' },
+            { e: '🤣', t: 'rolando de rir gargalhada' },
+            { e: '😊', t: 'sorriso simpatico bochechas' },
+            { e: '😇', t: 'anjo inocente' },
+            { e: '🙂', t: 'sorriso leve' },
+            { e: '🙃', t: 'cabeca para baixo ironia' },
+            { e: '😉', t: 'piscadinha flerte' },
+            { e: '😌', t: 'aliviado tranquilo paz' },
+            { e: '😍', t: 'olhos coracao apaixonado amor' },
+            { e: '🥰', t: 'carinho amor apaixonado' },
+            { e: '😘', t: 'beijo coracao amor carinho' },
+            { e: '😗', t: 'beijinho' },
+            { e: '😙', t: 'beijo sorriso' },
+            { e: '😚', t: 'beijo bochechas' },
+            { e: '😋', t: 'delicia gostoso comida fome' },
+            { e: '😛', t: 'lingua' },
+            { e: '😜', t: 'lingua piscadinha brincadeira' },
+            { e: '🤪', t: 'louco biruta doido' },
+            { e: '😝', t: 'lingua olhos fechados' },
+            { e: '🤑', t: 'dinheiro cifrao rico venda' },
+            { e: '🤗', t: 'abraco carinho' },
+            { e: '🤭', t: 'mao na boca risinho' },
+            { e: '🤫', t: 'silencio segredo' },
+            { e: '🤔', t: 'pensando duvida reflexao' },
+            { e: '🤐', t: 'boca fechada ziper segredo' },
+            { e: '🤨', t: 'sobrancelha desconfiado duvida' },
+            { e: '😐', t: 'neutro sem expressao' },
+            { e: '😑', t: 'inexpressivo serio' },
+            { e: '😶', t: 'sem boca mudo' },
+            { e: '😏', t: 'sorriso maroto sarcasmo' },
+            { e: '😒', t: 'descontente desanimo' },
+            { e: '🙄', t: 'olhos revirados saco cheio' },
+            { e: '😬', t: 'careta desconforto tenso' },
+            { e: '🤥', t: 'mentira pinocchio nariz' },
+            { e: '😌', t: 'calmo sereno' },
+            { e: '😔', t: 'triste cabisbaixo pensativo' },
+            { e: '😪', t: 'sonolento cansado sono' },
+            { e: '🤤', t: 'babando delicia vontade' },
+            { e: '😴', t: 'dormindo sono' },
+            { e: '😷', t: 'mascara saude gripe' },
+            { e: '🤒', t: 'doente febre termometro' },
+            { e: '🤕', t: 'machucado curativo faixa' },
+            { e: '🤢', t: 'enjoado nojo vomito' },
+            { e: '🤮', t: 'vomitando doente' },
+            { e: '🤧', t: 'espirro lenco gripe' },
+            { e: '🥵', t: 'calor quente vermelho' },
+            { e: '🥶', t: 'frio gelado congelando' },
+            { e: '🥴', t: 'tonto embriagado desorientado' },
+            { e: '😵', t: 'tonto atordoado zonzo' },
+            { e: '🤯', t: 'mente explodindo impressionado choque' },
+            { e: '🤠', t: 'cowboy chapeu sertanejo' },
+            { e: '🥳', t: 'festa comemoracao aniversario confete' },
+            { e: '😎', t: 'oculos escuros legal top estilo' },
+            { e: '🤓', t: 'nerd oculos inteligente' },
+            { e: '🧐', t: 'monoculo observador atento' },
+            { e: '😕', t: 'confuso incerto' },
+            { e: '😟', t: 'preocupado apreensivo' },
+            { e: '🙁', t: 'levemente triste' },
+            { e: '😮', t: 'boca aberta surpreso' },
+            { e: '😯', t: 'surpreso surpresa' },
+            { e: '😲', t: 'chocado espanto' },
+            { e: '😳', t: 'envergonhado corado timido' },
+            { e: '🥺', t: 'olhos pidoes por favor suplica' },
+            { e: '😦', t: 'boca aberta aflito' },
+            { e: '😧', t: 'angustiado sofrendo' },
+            { e: '😨', t: 'assustado medo' },
+            { e: '😰', t: 'ansioso suor medo nervoso' },
+            { e: '😥', t: 'triste alivio ufa' },
+            { e: '😢', t: 'chorando lagrima triste' },
+            { e: '😭', t: 'choro desespero chorando muito' },
+            { e: '😱', t: 'grito medo panico' },
+            { e: '😖', t: 'desesperado chateado' },
+            { e: '😣', t: 'perseverante dor' },
+            { e: '😞', t: 'decepcionado desapontado' },
+            { e: '😓', t: 'suor frio cansaco' },
+            { e: '😩', t: 'exausto cansaco' },
+            { e: '😫', t: 'cansado fadigado' },
+            { e: '🥱', t: 'bocejo sono tedio' },
+            { e: '😤', t: 'triunfo bufando bravo' },
+            { e: '😡', t: 'bravo irritado raiva vermelho' },
+            { e: '😠', t: 'zangado raiva' },
+            { e: '🤬', t: 'xingamento palavrao furioso' },
+            { e: '😈', t: 'diabinho sorriso travessura' },
+            { e: '👿', t: 'diabo bravo malvado' },
+            { e: '💀', t: 'caveira esqueleto morto morri' },
+            { e: '💩', t: 'coco fezes cocô' },
+            { e: '🤡', t: 'palhaco circo bobeira' },
+            { e: '👻', t: 'fantasma halloween' },
+            { e: '👽', t: 'alien et alienigena' },
+            { e: '🤖', t: 'robo bot tecnologia' }
+        ],
+        gestos: [
+            { e: '👍', t: 'positivo joinha sim concordo ok legal top' },
+            { e: '👎', t: 'negativo desaprovo nao discordo ruim' },
+            { e: '👌', t: 'perfeito ok tudo certo excelente' },
+            { e: '✌️', t: 'paz amor vitoria dois' },
+            { e: '🤞', t: 'figas dedos cruzados sorte torcida' },
+            { e: '🤟', t: 'te amo libras rock' },
+            { e: '🤘', t: 'rock metal maneiro' },
+            { e: '🤙', t: 'shaka hangloose liga pra mim suave' },
+            { e: '👈', t: 'apontando esquerda' },
+            { e: '👉', t: 'apontando direita olha veja aqui' },
+            { e: '👆', t: 'apontando cima acima veja' },
+            { e: '👇', t: 'apontando baixo abaixo clique aqui' },
+            { e: '☝️', t: 'um dedo indicador atencao' },
+            { e: '✋', t: 'pare mao aberta cinco calma' },
+            { e: '🤚', t: 'costas da mao pare' },
+            { e: '🖐️', t: 'cinco dedos espalmados' },
+            { e: '🖖', t: 'saudacao vulcana vida longa' },
+            { e: '👋', t: 'tchau ola aceno oi adeus' },
+            { e: '🤝', t: 'aperto de maos acordo fechado parceria negocio' },
+            { e: '🙏', t: 'oracao amem gratidao obrigado por favor' },
+            { e: '👏', t: 'palmas parabens aplausos aprovado' },
+            { e: '🙌', t: 'maos para o alto celebracao amem gloria' },
+            { e: '👐', t: 'maos abertas acolhimento' },
+            { e: '🤲', t: 'palmas juntas suplica' },
+            { e: '💪', t: 'forca musculo treino foco forte' },
+            { e: '👊', t: 'soco murro toque de mao parceria' },
+            { e: '✊', t: 'punho fechado forca resistencia' },
+            { e: '🤛', t: 'punho esquerda toque' },
+            { e: '🤜', t: 'punho direita toque' },
+            { e: '✍️', t: 'escrevendo caneta assinatura contrato' },
+            { e: '🤳', t: 'selfie foto celular' },
+            { e: '👀', t: 'olhos olhando atento vigilante' },
+            { e: '👁️', t: 'olho visao' },
+            { e: '👂', t: 'ouvido ouvindo escuta' },
+            { e: '👃', t: 'nariz cheiro' },
+            { e: '🧠', t: 'cerebro inteligente pensar' },
+            { e: '🗣️', t: 'falando voz comunicacao' },
+            { e: '👤', t: 'pessoa usuario perfil cliente' },
+            { e: '👥', t: 'pessoas usuarios grupo equipe' },
+            { e: '💃', t: 'dancando mulher festa alegria' },
+            { e: '🕺', t: 'dancando homem balada' }
+        ],
+        coracoes: [
+            { e: '❤️', t: 'coracao vermelho amor carinho paixao' },
+            { e: '🧡', t: 'coracao laranja energia amizade' },
+            { e: '💛', t: 'coracao amarelo luz alegria ouro' },
+            { e: '💚', t: 'coracao verde esperanca saude' },
+            { e: '💙', t: 'coracao azul confianca lealdade' },
+            { e: '💜', t: 'coracao roxo violeta afeto' },
+            { e: '🖤', t: 'coracao preto estilo elegancia luto' },
+            { e: '🤍', t: 'coracao branco paz pureza' },
+            { e: '🤎', t: 'coracao marrom chocolate' },
+            { e: '💔', t: 'coracao partido desilusao tristeza' },
+            { e: '❣️', t: 'coracao exclamacao atencao amor' },
+            { e: '💕', t: 'dois coracoes amor flerte' },
+            { e: '💞', t: 'coracoes girando paixao' },
+            { e: '💓', t: 'coracao batendo pulsando' },
+            { e: '💗', t: 'coracao crescendo emocao' },
+            { e: '💖', t: 'coracao brilhando brilho carinho' },
+            { e: '💘', t: 'coracao com flecha cupido paixao' },
+            { e: '💝', t: 'coracao presente laco fita' },
+            { e: '✨', t: 'brilho estrelas novidade novo' },
+            { e: '⭐', t: 'estrela destaque avaliacao nota' },
+            { e: '🌟', t: 'estrela brilhante top ouro' },
+            { e: '💫', t: 'vertigem estrela cadente' },
+            { e: '🔥', t: 'fogo chama quente sucesso promocao oferta' },
+            { e: '💥', t: 'explosao choque impacto' },
+            { e: '💯', t: 'cem nota 100 perfeito cem por cento' },
+            { e: '✅', t: 'check verde confirmado correto sucesso ok sim' },
+            { e: '✔️', t: 'check marca feito' },
+            { e: '❌', t: 'x vermelho cancelado errado nao erro' },
+            { e: '⚠️', t: 'aviso alerta perigo atencao cuidado' },
+            { e: '🚨', t: 'sirene policia emergencia urgente alarme' },
+            { e: '🔔', t: 'sino notificacao aviso alerta lembrete' },
+            { e: '📢', t: 'megafone anuncio novidade comunicacao aviso' },
+            { e: '📣', t: 'alto-falante comunicado aviso novidade' },
+            { e: '💬', t: 'balao mensagem chat conversa direct' },
+            { e: '💭', t: 'balao pensamento pensando' },
+            { e: '🎯', t: 'alvo objetivo meta acertou' },
+            { e: '🎉', t: 'festa confete comemoracao parabens sucesso' },
+            { e: '🎊', t: 'confete celebracao carnaval' },
+            { e: '🏆', t: 'trofeu campeao vitoria primeiro lugar' },
+            { e: '🥇', t: 'medalha ouro primeiro' },
+            { e: '🥈', t: 'medalha prata segundo' },
+            { e: '🥉', t: 'medalha bronze terceiro' }
+        ],
+        comida: [
+            { e: '🍕', t: 'pizza lanche comida queijo fatia' },
+            { e: '🍔', t: 'hamburguer burger lanche carne fastfood' },
+            { e: '🍟', t: 'batata frita lanche' },
+            { e: '🌭', t: 'cachorro quente hotdog lanche' },
+            { e: '🥪', t: 'sanduiche lanche natural' },
+            { e: '🌮', t: 'taco comida mexicana' },
+            { e: '🌯', t: 'burrito comida' },
+            { e: '🥗', t: 'salada comida saudavel fitness verde' },
+            { e: '🥩', t: 'carne bife churrasco alcatra' },
+            { e: '🍗', t: 'frango coxa assado comida' },
+            { e: '🍖', t: 'carne no osso costela' },
+            { e: '🍣', t: 'sushi comida japonesa peixe salmao' },
+            { e: '🍱', t: 'bento comida japonesa prato' },
+            { e: '🥟', t: 'guioza pastel salgado' },
+            { e: '🍜', t: 'lamen macarrao sopa miojo' },
+            { e: '🍲', t: 'sopa caldo panela' },
+            { e: '🍝', t: 'espaguete massa macarrao italiano' },
+            { e: '🍞', t: 'pao padaria cafe fatiado' },
+            { e: '🥐', t: 'croissant padaria cafe massa folhada' },
+            { e: '🥖', t: 'baguete pao frances' },
+            { e: '🧀', t: 'queijo laticinio' },
+            { e: '🥚', t: 'ovo caipira frito' },
+            { e: '🍳', t: 'frigideira ovo frito cafe' },
+            { e: '🥞', t: 'panquecas cafe da manha doce' },
+            { e: '🧇', t: 'waffle doce' },
+            { e: '🎂', t: 'bolo aniversario festa comemoracao parabens' },
+            { e: '🍰', t: 'fatia de bolo torta doce' },
+            { e: '🧁', t: 'cupcake bolinho doce' },
+            { e: '🍫', t: 'chocolate doce bombom barra' },
+            { e: '🍬', t: 'bala doce' },
+            { e: '🍭', t: 'pirulito doce confeito' },
+            { e: '🍩', t: 'donut rosquinha doce' },
+            { e: '🍪', t: 'cookie biscoito bolacha doce' },
+            { e: '🍦', t: 'sorvete casquinha sobremesa gelado' },
+            { e: '🍧', t: 'raspadinha gelo' },
+            { e: '🍨', t: 'taca de sorvete sobremesa' },
+            { e: '☕', t: 'cafe cafezinho xicara quente pausa' },
+            { e: '🧃', t: 'suco caixinha bebida refresco' },
+            { e: '🥤', t: 'copo com canudo refrigerante suco' },
+            { e: '🍺', t: 'cerveja chopp caneco bar happyhour' },
+            { e: '🍻', t: 'cervejas brinde chopp festa bar' },
+            { e: '🥂', t: 'brinde champanhe tacas comemoracao festa' },
+            { e: '🍷', t: 'vinho taca tinto bar jantar' },
+            { e: '🍾', t: 'champanhe espumante garrafa estouro festa' },
+            { e: '🍹', t: 'drink coquetel praia verao bebida' },
+            { e: '🧊', t: 'gelo cubo gelado frio' }
+        ],
+        comercio: [
+            { e: '💰', t: 'saco de dinheiro grana valor preco pagamento' },
+            { e: '💵', t: 'nota de dolar dinheiro cedula nota valor' },
+            { e: '💳', t: 'cartao de credito debito pagamento maquininha parcelado' },
+            { e: '🪙', t: 'moeda troco centavos dinheiro' },
+            { e: '💸', t: 'dinheiro voando gasto promocao desconto' },
+            { e: '🛍️', t: 'sacolas de compras shopping loja pedido' },
+            { e: '🛒', t: 'carrinho de compras mercado pedido itens' },
+            { e: '🏷️', t: 'etiqueta de preco desconto oferta promocao' },
+            { e: '📦', t: 'caixa encomenda pacote envio entrega correios' },
+            { e: '🚚', t: 'caminhao entrega frete envio transportadora' },
+            { e: '🛵', t: 'moto motoboy entrega delivery rapido motinha' },
+            { e: '🎁', t: 'presente brinde mimo surpresa pacote' },
+            { e: '🧾', t: 'recibo cupom fiscal nota comprovante fatura' },
+            { e: '📱', t: 'celular smartphone zap whatsapp contato telefone' },
+            { e: '💻', t: 'notebook computador pc tela online' },
+            { e: '📞', t: 'telefone ligacao chamada contato' },
+            { e: '✉️', t: 'carta email envelope mensagem correspondencia' },
+            { e: '📧', t: 'email eletronico correio contato' },
+            { e: '📍', t: 'pin localizacao mapa endereco onde fica' },
+            { e: '📌', t: 'alfinete fixado importante lembrete aviso' },
+            { e: '🕒', t: 'relogio horas tempo horario expediente funcionamento' },
+            { e: '📅', t: 'calendario data agendamento dia mes ano' },
+            { e: '📆', t: 'calendario folhinha prazo agendamento' },
+            { e: '📊', t: 'grafico barras relatorio estatistica vendas' },
+            { e: '📈', t: 'grafico subindo crescimento lucro alta aumento' },
+            { e: '📉', t: 'grafico descendo queda baixa reducao' },
+            { e: '🔒', t: 'cadeado fechado seguranca protegido' },
+            { e: '🔓', t: 'cadeado aberto liberado desbloqueado' },
+            { e: '🔑', t: 'chave acesso entrada segredo liberado' },
+            { e: '🚀', t: 'foguete lancamento rapido decolou agilidade sucesso' },
+            { e: '💎', t: 'diamante joia precioso valioso qualidade top vip' },
+            { e: '👑', t: 'coroa rei rainha premium lider melhor' },
+            { e: '⭐', t: 'estrela avaliacao cliente feedback top' },
+            { e: '💼', t: 'maleta trabalho negocio empresa vendas' }
+        ]
+    };
+
+    window._chatEmojiCatAtiva = 'rostos';
+
+    window.toggleEmojiPickerChat = function() {
+        const p = document.getElementById('painelEmojiPickerChat');
+        if (!p) return;
+        if (p.classList.contains('hidden')) {
+            abrirEmojiPickerChat();
+        } else {
+            fecharEmojiPickerChat();
+        }
+    };
+
+    window.abrirEmojiPickerChat = function() {
+        const p = document.getElementById('painelEmojiPickerChat');
+        if (!p) return;
+        p.classList.remove('hidden');
+        renderizarGridEmojis(window._chatEmojiCatAtiva);
+    };
+
+    window.fecharEmojiPickerChat = function() {
+        const p = document.getElementById('painelEmojiPickerChat');
+        if (p) p.classList.add('hidden');
+        const inpBusca = document.getElementById('inputBuscaEmojiChat');
+        if (inpBusca) inpBusca.value = '';
+    };
+
+    window.selecionarCategoriaEmoji = function(cat) {
+        window._chatEmojiCatAtiva = cat;
+        
+        document.querySelectorAll('.tab-emoji-btn').forEach(btn => {
+            btn.classList.remove('bg-emerald-100', 'text-[#008069]');
+        });
+        const btnAtivo = document.getElementById('tabEmoji_' + cat);
+        if (btnAtivo) {
+            btnAtivo.classList.add('bg-emerald-100', 'text-[#008069]');
+        }
+
+        const inpBusca = document.getElementById('inputBuscaEmojiChat');
+        if (inpBusca) inpBusca.value = '';
+
+        const titulos = {
+            recentes: 'Mais Usados / Recentes',
+            rostos: 'Carinhas e Emoções',
+            gestos: 'Mãos e Gestos',
+            coracoes: 'Corações e Símbolos',
+            comida: 'Comidas e Bebidas',
+            comercio: 'Vendas e Objetos'
+        };
+        const elTitulo = document.getElementById('tituloCategoriaEmoji');
+        if (elTitulo) elTitulo.textContent = titulos[cat] || 'Emojis';
+
+        renderizarGridEmojis(cat);
+    };
+
+    window.aoBuscarEmojiChat = function(termo) {
+        termo = (termo || '').trim().toLowerCase();
+        const elTitulo = document.getElementById('tituloCategoriaEmoji');
+
+        if (!termo) {
+            selecionarCategoriaEmoji(window._chatEmojiCatAtiva);
+            return;
+        }
+
+        if (elTitulo) elTitulo.textContent = `Resultados para "${termo}"`;
+
+        let resultados = [];
+        const visto = new Set();
+        Object.keys(EMOJIS_DB).forEach(k => {
+            EMOJIS_DB[k].forEach(item => {
+                if (!visto.has(item.e) && (item.t.includes(termo) || item.e.includes(termo))) {
+                    visto.add(item.e);
+                    resultados.push(item);
+                }
+            });
+        });
+
+        renderizarListaItensEmoji(resultados);
+    };
+
+    function renderizarGridEmojis(cat) {
+        let itens = [];
+        if (cat === 'recentes') {
+            itens = obterEmojisRecentes();
+        } else {
+            itens = EMOJIS_DB[cat] || [];
+        }
+        renderizarListaItensEmoji(itens);
+    }
+
+    function renderizarListaItensEmoji(lista) {
+        const grid = document.getElementById('gridEmojisChat');
+        const cont = document.getElementById('contagemEmojis');
+        if (!grid) return;
+
+        if (cont) {
+            cont.textContent = lista.length > 0 ? `${lista.length} emojis` : '';
+        }
+
+        if (lista.length === 0) {
+            grid.innerHTML = '<div class="col-span-8 py-8 text-center text-xs text-slate-400 font-medium">Nenhum emoji encontrado</div>';
+            return;
+        }
+
+        let html = '';
+        lista.forEach(item => {
+            const emojiChar = typeof item === 'string' ? item : item.e;
+            const tooltip = typeof item === 'string' ? item : (item.t ? item.t.split(' ')[0] : item.e);
+            html += `
+                <button type="button" 
+                        onclick="inserirEmojiChat('${emojiChar}')" 
+                        class="h-8 w-8 text-xl flex items-center justify-center rounded-xl hover:bg-slate-100 hover:scale-125 transition-transform duration-100 cursor-pointer select-none" 
+                        title="${tooltip}">
+                    ${emojiChar}
+                </button>
+            `;
+        });
+
+        grid.innerHTML = html;
+    }
+
+    window.inserirEmojiChat = function(emoji) {
+        const textarea = document.getElementById('inputTextoMensagemChat');
+        if (!textarea) return;
+
+        const start = textarea.selectionStart || 0;
+        const end = textarea.selectionEnd || 0;
+        const valorAtual = textarea.value;
+
+        textarea.value = valorAtual.substring(0, start) + emoji + valorAtual.substring(end);
+        
+        const novoPos = start + emoji.length;
+        textarea.selectionStart = novoPos;
+        textarea.selectionEnd = novoPos;
+        textarea.focus();
+
+        salvarEmojiRecente(emoji);
+    };
+
+    const CHAT_EMOJI_STORAGE_KEY = 'pulse_chat_recent_emojis';
+    function obterEmojisRecentes() {
+        try {
+            const salvos = localStorage.getItem(CHAT_EMOJI_STORAGE_KEY);
+            if (salvos) {
+                const arr = JSON.parse(salvos);
+                if (Array.isArray(arr) && arr.length > 0) {
+                    return arr.map(e => ({ e: e, t: 'recente' }));
+                }
+            }
+        } catch (err) {}
+        return [
+            { e: '😀', t: 'recente' }, { e: '😂', t: 'recente' }, { e: '😍', t: 'recente' }, { e: '🥰', t: 'recente' },
+            { e: '👍', t: 'recente' }, { e: '👏', t: 'recente' }, { e: '🙏', t: 'recente' }, { e: '🤝', t: 'recente' },
+            { e: '❤️', t: 'recente' }, { e: '🔥', t: 'recente' }, { e: '✨', t: 'recente' }, { e: '✅', t: 'recente' },
+            { e: '💰', t: 'recente' }, { e: '📦', t: 'recente' }, { e: '🚀', t: 'recente' }, { e: '🎉', t: 'recente' }
+        ];
+    }
+
+    function salvarEmojiRecente(emoji) {
+        try {
+            let atuais = [];
+            const salvos = localStorage.getItem(CHAT_EMOJI_STORAGE_KEY);
+            if (salvos) {
+                atuais = JSON.parse(salvos) || [];
+            }
+            atuais = [emoji, ...atuais.filter(x => x !== emoji)].slice(0, 32);
+            localStorage.setItem(CHAT_EMOJI_STORAGE_KEY, JSON.stringify(atuais));
+        } catch (err) {}
+    }
+
+    document.addEventListener('click', function(e) {
+        const picker = document.getElementById('painelEmojiPickerChat');
+        const btnEmoji = document.getElementById('btnEmojiChat');
+        if (!picker || picker.classList.contains('hidden')) return;
+
+        if (!picker.contains(e.target) && (!btnEmoji || !btnEmoji.contains(e.target))) {
+            fecharEmojiPickerChat();
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            fecharEmojiPickerChat();
+        }
+    });
 
     // Helper anti-XSS
     function escapeHtml(text) {
