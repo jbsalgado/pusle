@@ -121,8 +121,8 @@ class CanalComunicacaoController extends Controller
     protected function getNomeAtendente(): string
     {
         $colaborador = Colaborador::getColaboradorLogado();
-        if ($colaborador && !empty($colaborador->nome)) {
-            return $colaborador->nome;
+        if ($colaborador && !empty($colaborador->nome_completo)) {
+            return $colaborador->nome_completo;
         }
         $usuario = Yii::$app->user->identity;
         return $usuario ? ($usuario->nome ?: 'Atendente') : 'Atendente';
@@ -148,7 +148,7 @@ class CanalComunicacaoController extends Controller
         if ($ehDono) {
             $colaboradores = Colaborador::find()
                 ->where(['usuario_id' => $lojaId, 'ativo' => true])
-                ->orderBy(['nome' => SORT_ASC])
+                ->orderBy(['nome_completo' => SORT_ASC])
                 ->all();
         }
 
@@ -652,7 +652,7 @@ class CanalComunicacaoController extends Controller
 
         $colaboradores = Colaborador::find()
             ->where(['usuario_id' => $lojaId, 'ativo' => true])
-            ->orderBy(['nome' => SORT_ASC])
+            ->orderBy(['nome_completo' => SORT_ASC])
             ->all();
 
         $dadosSetores = [];
@@ -679,7 +679,7 @@ class CanalComunicacaoController extends Controller
         foreach ($colaboradores as $c) {
             $dadosColaboradores[] = [
                 'id' => $c->id,
-                'nome' => $c->nome,
+                'nome' => $c->nome_completo,
                 'funcao' => $c->eh_administrador ? 'Administrador' : ($c->eh_vendedor ? 'Vendedor' : ($c->eh_cobrador ? 'Cobrador' : 'Colaborador')),
             ];
         }

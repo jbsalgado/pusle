@@ -1028,7 +1028,7 @@ if ($moduloCanalLiberado):
     $usuarioLogadoAtualCanal = Yii::$app->user->identity;
     $setoresPermitidosAtualCanal = \app\modules\vendas\models\CanalSetor::getSetoresPermitidosParaUsuario($lojaIdAtualCanal, $usuarioLogadoAtualCanal);
     $ehDonoAtualCanal = ($usuarioLogadoAtualCanal && ($usuarioLogadoAtualCanal->eh_dono_loja || $usuarioLogadoAtualCanal->id === $lojaIdAtualCanal || \app\components\TenantHelper::isAdmin()));
-    $colaboradoresAtualCanal = $ehDonoAtualCanal ? \app\modules\vendas\models\Colaborador::find()->where(['usuario_id' => $lojaIdAtualCanal, 'ativo' => true])->orderBy(['nome' => SORT_ASC])->all() : [];
+    $colaboradoresAtualCanal = $ehDonoAtualCanal ? \app\modules\vendas\models\Colaborador::find()->where(['usuario_id' => $lojaIdAtualCanal, 'ativo' => true])->orderBy(['nome_completo' => SORT_ASC])->all() : [];
     $slugLojaAtualCanal = $usuarioLojaAtualCanal ? ($usuarioLojaAtualCanal->slug ?: $usuarioLojaAtualCanal->id) : '';
     $hubUrlAtualCanal = \yii\helpers\Url::to(['/hub/index', 'slug' => $slugLojaAtualCanal], true);
 ?>
