@@ -45,8 +45,8 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
                         </span>
                     </div>
                     <p class="text-xs text-emerald-100/90 flex items-center gap-1.5 mt-0.5">
-                        <span class="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></span>
-                        <span>Atendimento por Setores • Isolado por Loja</span>
+                        <span id="chatWsStatusIndicator" class="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" title="Conectando ao canal em tempo real..."></span>
+                        <span id="chatWsStatusText">Atendimento por Setores • Isolado por Loja</span>
                     </p>
                 </div>
             </div>
@@ -473,6 +473,11 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
     window._chatFotoUrlPendente = null;
     window._chatColaboradoresStore = [];
     window._chatLastMsgTs = 0;
+    window._chatWs = null;
+    window._chatWsConectado = false;
+    window._chatWsReconnectTimer = null;
+
+    const CHAT_LOJA_ID = '<?= $lojaId ?>';
 
     // URLs de Endpoints
     const URL_CONVERSAS = '<?= Url::to(['/vendas/canal-comunicacao/get-conversas']) ?>';
@@ -514,6 +519,7 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
         if (!modal) return;
         modal.classList.remove('hidden');
         carregarConversasChat();
+        conectarWebSocketChat();
         iniciarPollingChat();
     };
 
@@ -827,7 +833,7 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
             const tailRadius = isDireita ? 'rounded-2xl rounded-tr-xs' : 'rounded-2xl rounded-tl-xs';
 
             html += `
-                <div class="flex flex-col ${isDireita ? 'items-end' : 'items-start'} max-w-[85%] sm:max-w-[70%]">
+                <div id="msg_chat_${m.id}" class="flex flex-col ${isDireita ? 'items-end' : 'items-start'} max-w-[85%] sm:max-w-[70%]">
                     <div class="${bubbleBg} ${tailRadius} px-3 py-2 shadow-xs border border-black/5 space-y-1 relative">
                         
                         <!-- Identificação do Atendente / Setor -->
@@ -1089,16 +1095,207 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
         });
     };
 
-    // Polling contínuo com detecção de visibilidade da página
+    // =========================================================================
+    // WEBSOCKET: CONEXÃO EM TEMPO REAL E SINCRONIZAÇÃO HÍBRIDA
+    // =========================================================================
+    function conectarWebSocketChat() {
+        if (window._chatWs && (window._chatWs.readyState === WebSocket.OPEN || window._chatWs.readyState === WebSocket.CONNECTING)) {
+            return;
+        }
+
+        try {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsHost = window.location.host;
+            const wsUrl = `${wsProtocol}//${wsHost}/ws/?loja_id=${encodeURIComponent(CHAT_LOJA_ID)}`;
+
+            window._chatWs = new WebSocket(wsUrl);
+
+            window._chatWs.onopen = function() {
+                window._chatWsConectado = true;
+                atualizarIndicadorWsStatus(true);
+                iniciarPollingChat();
+                carregarConversasChat(true);
+            };
+
+            window._chatWs.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    processarEventoWebSocket(data);
+                } catch (e) {
+                    console.error('Erro ao processar evento WebSocket:', e);
+                }
+            };
+
+            window._chatWs.onerror = function() {
+                window._chatWsConectado = false;
+                atualizarIndicadorWsStatus(false);
+            };
+
+            window._chatWs.onclose = function() {
+                window._chatWsConectado = false;
+                atualizarIndicadorWsStatus(false);
+                iniciarPollingChat();
+                // Tenta reconectar a cada 5 segundos
+                if (window._chatWsReconnectTimer) clearTimeout(window._chatWsReconnectTimer);
+                window._chatWsReconnectTimer = setTimeout(() => {
+                    conectarWebSocketChat();
+                }, 5000);
+            };
+        } catch (e) {
+            console.error('Falha ao inicializar WebSocket:', e);
+            window._chatWsConectado = false;
+            atualizarIndicadorWsStatus(false);
+        }
+    }
+
+    function atualizarIndicadorWsStatus(conectado) {
+        const ind = document.getElementById('chatWsStatusIndicator');
+        const txt = document.getElementById('chatWsStatusText');
+        if (ind) {
+            if (conectado) {
+                ind.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+                ind.title = 'Conectado em tempo real via WebSocket';
+            } else {
+                ind.className = 'w-2 h-2 rounded-full bg-amber-400';
+                ind.title = 'Modo sincronizado (fallback HTTP ativo)';
+            }
+        }
+        if (txt) {
+            txt.textContent = conectado 
+                ? 'Tempo Real Ativo • Isolado por Loja' 
+                : 'Atendimento por Setores • Isolado por Loja';
+        }
+    }
+
+    function processarEventoWebSocket(data) {
+        if (!data || !data.type) return;
+
+        if (data.type === 'atendimento_encerrado') {
+            if (window._chatConversaAtiva && window._chatConversaAtiva.conversa_id === data.conversa_id) {
+                window._chatLastMsgTs = 0;
+                carregarMensagensConversa(window._chatConversaAtiva, true);
+            }
+            carregarConversasChat(true);
+            return;
+        }
+
+        if (data.type === 'conversa_limpa') {
+            if (window._chatConversaAtiva && window._chatConversaAtiva.conversa_id === data.conversa_id) {
+                window._chatLastMsgTs = 0;
+                const container = document.getElementById('containerMensagensChat');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="text-center py-12 text-slate-400 space-y-2">
+                            <span class="text-2xl block">💬</span>
+                            <p class="text-xs font-bold text-slate-600">Nenhuma mensagem nesta conversa ainda</p>
+                            <p class="text-[11px] text-slate-400">Histórico de mensagens foi apagado.</p>
+                        </div>
+                    `;
+                }
+            }
+            carregarConversasChat(true);
+            return;
+        }
+
+        if (data.type === 'nova_mensagem') {
+            const item = data.item;
+            const conversaId = data.conversa_id;
+
+            if (window._chatConversaAtiva && window._chatConversaAtiva.conversa_id === conversaId) {
+                anexarMensagemEmTempoReal(item);
+            }
+
+            atualizarConversaNaLista(conversaId, item);
+        }
+    }
+
+    function anexarMensagemEmTempoReal(item) {
+        if (!item || !item.id) return;
+        const container = document.getElementById('containerMensagensChat');
+        if (!container) return;
+
+        // Evita duplicidade se a mensagem já estiver no DOM
+        if (document.getElementById('msg_chat_' + item.id)) {
+            return;
+        }
+
+        // Limpa estado vazio ou indicador de carregamento
+        if (container.querySelector('.animate-spin') || container.querySelector('span.text-2xl')) {
+            container.innerHTML = '';
+        }
+
+        const isDireita = (item.lado === 'direita');
+        const bubbleBg = isDireita ? 'bg-[#d9fdd3] text-slate-900 ml-auto' : 'bg-white text-slate-900 mr-auto';
+        const tailRadius = isDireita ? 'rounded-2xl rounded-tr-xs' : 'rounded-2xl rounded-tl-xs';
+
+        const wrapper = document.createElement('div');
+        wrapper.id = 'msg_chat_' + item.id;
+        wrapper.className = `flex flex-col ${isDireita ? 'items-end' : 'items-start'} max-w-[85%] sm:max-w-[70%]`;
+
+        wrapper.innerHTML = `
+            <div class="${bubbleBg} ${tailRadius} px-3 py-2 shadow-xs border border-black/5 space-y-1 relative">
+                <div class="flex items-center gap-1.5 text-[11px] font-bold ${isDireita ? 'text-[#008069]' : 'text-teal-800'} select-none">
+                    <span>${escapeHtml(item.autor)}</span>
+                    ${item.setor_nome ? `
+                        <span class="text-[9px] font-extrabold bg-black/5 px-1.5 py-0.2 rounded-md">
+                            ${escapeHtml(item.setor_icone || '')} ${escapeHtml(item.setor_nome)}
+                        </span>
+                    ` : ''}
+                </div>
+
+                ${item.midia_url ? `
+                    <div class="pt-1">
+                        <a href="${escapeHtml(item.midia_url)}" target="_blank" class="block">
+                            <img src="${escapeHtml(item.midia_url)}" alt="Mídia" class="max-h-60 rounded-xl object-contain shadow-xs hover:opacity-95 transition">
+                        </a>
+                    </div>
+                ` : ''}
+
+                ${item.texto ? `
+                    <p class="text-xs sm:text-[13px] leading-relaxed break-words whitespace-pre-wrap">
+                        ${escapeHtml(item.texto)}
+                    </p>
+                ` : ''}
+
+                <div class="flex items-center justify-end gap-1 text-[10px] text-slate-400 select-none pt-0.5">
+                    <span>${item.hora || ''}</span>
+                    ${isDireita ? `
+                        <span class="text-[#53bdeb]" title="Enviado e Entregue">✓✓</span>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+
+        container.appendChild(wrapper);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function atualizarConversaNaLista(conversaId, item) {
+        const conv = window._chatConversas.find(c => c.conversa_id === conversaId);
+        if (conv) {
+            conv.ultima_mensagem = item.texto || (item.midia_url ? '📷 Foto enviada' : '');
+            conv.ultimo_envio_formatado = item.hora || 'Agora';
+            if (!window._chatConversaAtiva || window._chatConversaAtiva.conversa_id !== conversaId) {
+                conv.nao_lidos_count = (conv.nao_lidos_count || 0) + 1;
+            }
+            renderizarListaConversas();
+        } else {
+            carregarConversasChat(true);
+        }
+    }
+
+    // Polling inteligente: quando WebSocket está ativo, atua como heartbeat leve (30s);
+    // Caso contrário, opera no fallback de 8s.
     function iniciarPollingChat() {
         pararPollingChat();
+        const intervalo = window._chatWsConectado ? 30000 : 8000;
         window._chatPollingTimer = setInterval(() => {
-            if (document.hidden) return; // Pausa polling se a aba estiver em segundo plano
+            if (document.hidden) return;
             const modal = document.getElementById('modalChatWhatsApp');
             if (modal && !modal.classList.contains('hidden')) {
                 carregarConversasChat(true);
             }
-        }, 8000);
+        }, intervalo);
     }
 
     function pararPollingChat() {
@@ -1794,6 +1991,11 @@ if (empty($hubUrlCompleta) && $usuarioLoja) {
             "'": '&#039;'
         };
         return String(text).replace(/[&<>"']/g, m => map[m]);
+    }
+
+    // Inicia conexão WebSocket em background para receber alertas em tempo real
+    if (typeof window !== 'undefined') {
+        conectarWebSocketChat();
     }
 
 })();

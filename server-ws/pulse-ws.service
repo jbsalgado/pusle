@@ -1,0 +1,17 @@
+[Unit]
+Description=Pulse WebSocket Broker (Realtime Chat)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/srv/http/alex-birds/pulse-plus/server-ws
+ExecStart=/usr/bin/node /srv/http/alex-birds/pulse-plus/server-ws/server.js
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+Environment=PORT=3001
+Environment=PULSE_WS_SECRET=pulse_internal_ws_secret_key_2026
+
+[Install]
+WantedBy=multi-user.target

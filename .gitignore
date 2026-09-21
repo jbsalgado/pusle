@@ -1,5 +1,6 @@
 /vendor/
-/node_modules/
+node_modules/
+**/node_modules/
 /runtime/
 /web/assets/
 /tests/_output/

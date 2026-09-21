@@ -518,21 +518,32 @@ class CanalComunicacaoController extends Controller
                 );
             }
 
+            $itemFormatado = [
+                'id' => $resposta->id,
+                'lado' => 'direita',
+                'autor' => $rotuloAutor,
+                'setor_nome' => $setor ? $setor->nome : null,
+                'setor_icone' => $setor ? $setor->icone : '💬',
+                'texto' => $resposta->conteudo_texto,
+                'midia_url' => $resposta->midia_url,
+                'hora' => date('H:i'),
+                'data' => date('d/m/Y'),
+                'lido' => true,
+            ];
+
+            // Notifica WebSocket Broker em tempo real
+            \app\components\WebSocketNotifier::notificarLoja($lojaId, 'nova_mensagem', [
+                'conversa_id' => $clienteId ? 'cli_' . $clienteId : ($mesaId ? 'mesa_' . $mesaId : 'msg_' . $resposta->id),
+                'cliente_id' => $clienteId,
+                'mesa_id' => $mesaId,
+                'origem' => 'loja',
+                'item' => $itemFormatado,
+            ]);
+
             return [
                 'success' => true,
                 'message' => 'Mensagem enviada com sucesso!',
-                'item' => [
-                    'id' => $resposta->id,
-                    'lado' => 'direita',
-                    'autor' => $rotuloAutor,
-                    'setor_nome' => $setor ? $setor->nome : null,
-                    'setor_icone' => $setor ? $setor->icone : '💬',
-                    'texto' => $resposta->conteudo_texto,
-                    'midia_url' => $resposta->midia_url,
-                    'hora' => date('H:i'),
-                    'data' => date('d/m/Y'),
-                    'lido' => true,
-                ],
+                'item' => $itemFormatado,
             ];
         }
 
@@ -906,6 +917,13 @@ class CanalComunicacaoController extends Controller
         $msg->created_at = new \yii\db\Expression('NOW()');
         $msg->save(false);
 
+        // Notifica WebSocket Broker em tempo real
+        \app\components\WebSocketNotifier::notificarLoja($lojaId, 'atendimento_encerrado', [
+            'conversa_id' => $conversaId ?: ($clienteId ? 'cli_' . $clienteId : 'mesa_' . $mesaId),
+            'cliente_id' => $clienteId,
+            'mesa_id' => $mesaId,
+        ]);
+
         return [
             'success' => true,
             'message' => 'Atendimento encerrado com sucesso.',
@@ -951,6 +969,13 @@ class CanalComunicacaoController extends Controller
         }
 
         $deletadas = ClienteInbox::deleteAll($cond);
+
+        // Notifica WebSocket Broker em tempo real
+        \app\components\WebSocketNotifier::notificarLoja($lojaId, 'conversa_limpa', [
+            'conversa_id' => $conversaId,
+            'cliente_id' => $clienteId,
+            'mesa_id' => $mesaId,
+        ]);
 
         return [
             'success' => true,

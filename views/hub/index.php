@@ -78,6 +78,11 @@ window.hubApp = function() {
         setorSelecionado: <?= json_encode(!empty($setores) ? $setores[0]->id : '') ?>,
         setoresLoja: <?= json_encode(array_map(function($s) { return ['id' => $s->id, 'nome' => $s->nome, 'icone' => $s->icone ?: '💬']; }, $setores ?? [])) ?>,
         
+        ws: null,
+        wsConectado: false,
+        wsReconnectTimer: null,
+        pollingTimer: null,
+        
         init() {
             window._hubInstance = this;
 
@@ -86,12 +91,83 @@ window.hubApp = function() {
                 this.identificarCliente(true);
             }
 
-            // Sincronização periódica de novas mensagens a cada 6 segundos
+            // Inicia conexão WebSocket em tempo real
+            this.iniciarWebSocketHub();
+
+            // Sincronização periódica de novas mensagens com intervalo adaptativo
             this.iniciarPollingMensagens();
 
             this.$nextTick(() => {
                 this.rolarParaFimChat(true);
             });
+        },
+
+        iniciarWebSocketHub() {
+            if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+                return;
+            }
+
+            try {
+                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsHost = window.location.host;
+                const lojaId = <?= json_encode((string)$usuario->id) ?>;
+                const clienteParam = this.clienteId ? ('&cliente_id=' + encodeURIComponent(this.clienteId)) : '';
+                const wsUrl = `${wsProtocol}//${wsHost}/ws/?loja_id=${encodeURIComponent(lojaId)}${clienteParam}`;
+
+                this.ws = new WebSocket(wsUrl);
+
+                this.ws.onopen = () => {
+                    this.wsConectado = true;
+                    this.iniciarPollingMensagens();
+                };
+
+                this.ws.onmessage = (event) => {
+                    try {
+                        const d = JSON.parse(event.data);
+                        if (!d || !d.type) return;
+
+                        const conversaIdEsperada = 'cliente_' + this.clienteId;
+
+                        if (d.type === 'conversa_limpa' && d.conversa_id === conversaIdEsperada) {
+                            this.mensagensChat = [];
+                            return;
+                        }
+
+                        if (d.type === 'nova_mensagem' && d.conversa_id === conversaIdEsperada && d.item) {
+                            const msgItem = Object.assign({}, d.item);
+                            // Ajusta a perspectiva da bolha para a visão do cliente
+                            if (msgItem.origem === 'atendente') {
+                                msgItem.lado = 'esquerda';
+                            } else if (msgItem.origem === 'cliente') {
+                                msgItem.lado = 'direita';
+                            }
+
+                            const jaExiste = this.mensagensChat.some(m => String(m.id) === String(msgItem.id));
+                            if (!jaExiste) {
+                                this.mensagensChat.push(msgItem);
+                                this.rolarParaFimChat();
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Erro WS Hub:', e);
+                    }
+                };
+
+                this.ws.onerror = () => {
+                    this.wsConectado = false;
+                };
+
+                this.ws.onclose = () => {
+                    this.wsConectado = false;
+                    this.iniciarPollingMensagens();
+                    if (this.wsReconnectTimer) clearTimeout(this.wsReconnectTimer);
+                    this.wsReconnectTimer = setTimeout(() => {
+                        this.iniciarWebSocketHub();
+                    }, 5000);
+                };
+            } catch (e) {
+                this.wsConectado = false;
+            }
         },
 
         rolarParaFimChat(imediato = false) {
@@ -115,10 +191,12 @@ window.hubApp = function() {
         },
 
         iniciarPollingMensagens() {
-            setInterval(() => {
+            if (this.pollingTimer) clearInterval(this.pollingTimer);
+            const intervalo = this.wsConectado ? 30000 : 6000;
+            this.pollingTimer = setInterval(() => {
                 if (document.hidden) return;
                 this.buscarMensagensServidor();
-            }, 6000);
+            }, intervalo);
         },
 
         buscarMensagensServidor() {
@@ -213,6 +291,12 @@ window.hubApp = function() {
                     this.clienteId = data.cliente ? data.cliente.id : '';
                     this.clienteNome = data.cliente ? data.cliente.nome : '';
                     this.fecharModal();
+                    if (this.ws) {
+                        try { this.ws.close(); } catch(e) {}
+                        this.ws = null;
+                    }
+                    this.iniciarWebSocketHub();
+                    this.buscarMensagensServidor();
                     if (data.token) {
                         try {
                             window.history.replaceState({}, '', '?token=' + data.token);
@@ -576,8 +660,8 @@ if (typeof document !== 'undefined') {
                         <?= Html::encode($nomeLoja) ?>
                     </h2>
                     <p class="text-[10px] text-emerald-100 m-0 flex items-center gap-1">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"></span>
-                        <span>Canal Oficial &bull; Online</span>
+                        <span class="w-1.5 h-1.5 rounded-full" :class="wsConectado ? 'bg-emerald-300 animate-pulse' : 'bg-amber-300'"></span>
+                        <span x-text="wsConectado ? 'Canal Oficial • Tempo Real' : 'Canal Oficial • Online'"></span>
                     </p>
                 </div>
             </div>

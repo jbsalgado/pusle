@@ -54,6 +54,20 @@ for d in {dirs_str}; do
             php yii cache/flush-all --interactive=0 2>&1 || true
             rm -rf runtime/cache/* 2>/dev/null || true
         fi
+
+        if [ -d "$d/server-ws" ] && [ "$d" = "/srv/http/alex-birds/pulse-plus" ]; then
+            echo "[WebSocket] Configurando daemon WebSocket server-ws..."
+            cd "$d/server-ws" || true
+            npm install --production 2>&1 || true
+            if [ -f "pulse-ws.service" ]; then
+                cp -f pulse-ws.service /etc/systemd/system/pulse-ws.service
+                systemctl daemon-reload
+                systemctl enable pulse-ws 2>/dev/null || true
+                systemctl restart pulse-ws
+                echo "[WebSocket] Status do servico: $(systemctl is-active pulse-ws)"
+            fi
+            cd "$d" || true
+        fi
         
         echo "✓ Versão atual do repositório:"
         git log -1 --format="%h - %an: %s (%ci)"

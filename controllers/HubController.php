@@ -501,24 +501,46 @@ class HubController extends Controller
         $setorIcone = $setorObj ? $setorObj->icone : '💬';
 
         if ($inbox) {
+            $itemFormatado = [
+                'id'             => $inbox->id,
+                'tipo'           => $inbox->tipo,
+                'titulo'         => $inbox->titulo,
+                'autor'          => 'Você',
+                'conteudo_texto' => $inbox->conteudo_texto,
+                'midia_url'      => $inbox->midia_url,
+                'setor_nome'     => $setorNome,
+                'setor_icone'    => $setorIcone,
+                'hora'           => date('H:i'),
+                'created_at'     => 'Agora',
+                'remetente'      => $nomeRemetente,
+                'is_cliente'     => true,
+                'origem'         => 'cliente'
+            ];
+
+            // Notifica WebSocket Broker em tempo real
+            \app\components\WebSocketNotifier::notificarLoja($usuarioId, 'nova_mensagem', [
+                'conversa_id' => $clienteId ? 'cli_' . $clienteId : ($mesaId ? 'mesa_' . $mesaId : 'msg_' . $inbox->id),
+                'cliente_id'  => $clienteId,
+                'mesa_id'     => $mesaId,
+                'origem'      => 'cliente',
+                'item'        => [
+                    'id'          => $inbox->id,
+                    'lado'        => 'esquerda',
+                    'autor'       => $nomeRemetente,
+                    'setor_nome'  => $setorNome,
+                    'setor_icone' => $setorIcone,
+                    'texto'       => $inbox->conteudo_texto,
+                    'midia_url'   => $inbox->midia_url,
+                    'hora'        => date('H:i'),
+                    'data'        => date('d/m/Y'),
+                    'lido'        => false,
+                ],
+            ]);
+
             return [
                 'success' => true,
                 'message' => 'Mensagem enviada com sucesso! Nossa equipe foi notificada.',
-                'item'    => [
-                    'id'             => $inbox->id,
-                    'tipo'           => $inbox->tipo,
-                    'titulo'         => $inbox->titulo,
-                    'autor'          => 'Você',
-                    'conteudo_texto' => $inbox->conteudo_texto,
-                    'midia_url'      => $inbox->midia_url,
-                    'setor_nome'     => $setorNome,
-                    'setor_icone'    => $setorIcone,
-                    'hora'           => date('H:i'),
-                    'created_at'     => 'Agora',
-                    'remetente'      => $nomeRemetente,
-                    'is_cliente'     => true,
-                    'origem'         => 'cliente'
-                ],
+                'item'    => $itemFormatado,
                 'cliente' => $cliente ? [
                     'id'    => $cliente->id,
                     'nome'  => $cliente->nome_completo,
