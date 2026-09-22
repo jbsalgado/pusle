@@ -2,6 +2,7 @@
 
 use yii\helpers\Html;
 use yii\helpers\Url;
+use app\modules\vendas\models\FormaPagamento;
 
 $this->title = '⚡ Venda Expressa (Encarte & Catálogo)';
 $this->params['breadcrumbs'][] = ['label' => 'Vendas', 'url' => ['/vendas/venda/index']];
@@ -232,6 +233,14 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                                 $isBoleto = (mb_stripos($nomeExibicao, 'boleto') !== false || mb_stripos($nomeExibicao, 'fiado') !== false || $fp->tipo === 'BOLETO');
                                 $isPix = (mb_stripos($nomeExibicao, 'pix') !== false || $fp->tipo === 'PIX' || $fp->tipo === 'PIX_ESTATICO');
                                 $isMercadoPago = (mb_stripos($fp->nome, 'mercado') !== false || $fp->tipo === 'MERCADOPAGO' || $fp->tipo === 'MP_POINT');
+                                $isCartaoManual = ($fp->tipo === 'CARTAO' || $fp->tipo === 'CARTAO_CREDITO' || $fp->tipo === 'CARTAO_DEBITO' || mb_stripos($nomeExibicao, 'cartão') !== false || mb_stripos($nomeExibicao, 'cartao') !== false);
+                                
+                                // Quando a loja tem Mercado Pago integrado:
+                                // 1. Oculta cartões manuais avulsos (cartão deve ser pago via Mercado Pago)
+                                if ($temMercadoPago && $isCartaoManual) {
+                                    continue;
+                                }
+
                                 $mpDesativado = ($isMercadoPago && !$temMercadoPago);
                                 $isAtivoInicial = ($fpPadrao && $fp->id === $fpPadrao->id);
                             ?>
@@ -245,28 +254,10 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                                     </button>
 
                                 <?php elseif ($isPix && $temMercadoPago): ?>
-                                    <?php 
-                                        $pixEstaticoLiberado = ($statusPixEstatico && !$statusPixEstatico['bloqueado']);
-                                        $textoCotaPix = $statusPixEstatico ? ($statusPixEstatico['ilimitado'] ? '(Sem Taxa)' : '(' . $statusPixEstatico['restantes'] . ' rest.)') : '(Sem Taxa)';
-                                        $titleCotaPix = $statusPixEstatico ? ($statusPixEstatico['ilimitado'] ? 'Pagamento direto na chave Pix da loja (Cota Ilimitada liberada pelo Admin)' : 'Pagamento direto na chave Pix da loja (' . $statusPixEstatico['realizadas'] . ' de ' . $statusPixEstatico['limite'] . ' vendas utilizadas)') : 'Pagamento direto na chave Pix da loja';
-                                    ?>
-                                    <!-- 1. PIX Estático (Chave da Loja - Apenas se liberado pelo SaaS Admin) -->
-                                    <button type="button" onclick="selecionarFormaPagamento('<?= $fp->id ?>', this)" 
-                                             id="btnPixLojaEstatico"
-                                             class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 <?= $pixEstaticoLiberado ? '' : 'hidden' ?> <?= ($isAtivoInicial && $pixEstaticoLiberado) ? 'bg-amber-400 text-slate-900 border-amber-300 shadow-md' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700' ?>" 
-                                             data-id="<?= $fp->id ?>"
-                                             data-tipo="PIX_ESTATICO"
-                                             data-nome="PIX (Chave da Loja)"
-                                             title="<?= Html::encode($titleCotaPix) ?>">
-                                        <div class="text-center leading-tight">
-                                            <span class="block">📱 PIX Loja</span>
-                                            <span id="labelCotaPixLoja" class="text-[9px] text-emerald-400 font-bold block"><?= Html::encode($textoCotaPix) ?></span>
-                                        </div>
-                                    </button>
-                                    <!-- 2. PIX Dinâmico (Mercado Pago com Split e Baixa Automática) -->
+                                    <!-- 2. PIX Dinâmico Mercado Pago (O PIX Estático fica oculto quando a loja tem MP integrado) -->
                                     <button type="button" onclick="selecionarFormaPagamento('<?= $fp->id ?>', this)" 
                                              id="btnPixMercadoPago"
-                                             class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 <?= ($isAtivoInicial && !$pixEstaticoLiberado) ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md' : ($isAtivoInicial ? 'bg-amber-400 text-slate-900 border-amber-300 shadow-md' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700') ?>" 
+                                             class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 <?= $isAtivoInicial ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700' ?>" 
                                              data-id="<?= $fp->id ?>"
                                              data-tipo="PIX_MERCADOPAGO"
                                              data-nome="PIX Mercado Pago"
@@ -281,17 +272,17 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                                     <?php if ($mpDesativado): ?>
                                         <button type="button" onclick="alert('O Mercado Pago não está conectado nas configurações da sua loja.')" 
                                                  class="p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1 bg-slate-900/40 text-slate-500 border-slate-800 opacity-60 cursor-not-allowed">
-                                            <span>💳 Mercado Pago <span class="text-[9px] text-rose-400 font-extrabold">(Requer MP)</span></span>
+                                            <span>💳 Cartão / MP <span class="text-[9px] text-rose-400 font-extrabold">(Requer MP)</span></span>
                                         </button>
                                     <?php else: ?>
                                         <button type="button" onclick="selecionarFormaPagamento('<?= $fp->id ?>', this)" 
                                                  class="btn-forma-pagamento p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 <?= $isAtivoInicial ? 'bg-amber-400 text-slate-900 border-amber-300 shadow-md' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700' ?>" 
                                                  data-id="<?= $fp->id ?>"
                                                  data-tipo="<?= $fp->tipo ?>"
-                                                 data-nome="Mercado Pago"
-                                                 title="Cobrança no Mercado Pago (Point Maquininha ou Cartão Online)">
+                                                 data-nome="Cartão / Mercado Pago"
+                                                 title="Cobrança no Cartão via Mercado Pago (Point Maquininha ou Cartão Online)">
                                             <div class="text-center leading-tight">
-                                                <span class="block">💳 Mercado Pago</span>
+                                                <span class="block">💳 Cartão / MP</span>
                                                 <span class="text-[9px] text-cyan-300 font-bold block">(Point/Online)</span>
                                             </div>
                                         </button>
@@ -1429,8 +1420,19 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
     // MÚLTIPLAS FORMAS DE PAGAMENTO (PIX + Dinheiro + Cartão, etc.)
     // ============================================================
     const formasPagamentoDisponiveis = [
-        <?php foreach ($formasPagamento as $fp): ?>
-        { id: <?= json_encode($fp->id) ?>, nome: <?= json_encode($fp->nome) ?>, tipo: <?= json_encode($fp->tipo) ?> },
+        <?php foreach ($formasPagamento as $fp): 
+            $isCartaoMan = ($fp->tipo === 'CARTAO' || $fp->tipo === 'CARTAO_CREDITO' || $fp->tipo === 'CARTAO_DEBITO' || mb_stripos($fp->nome, 'cartão') !== false || mb_stripos($fp->nome, 'cartao') !== false);
+            if ($temMercadoPago && $isCartaoMan) continue;
+            if ($temMercadoPago && $fp->tipo === FormaPagamento::TIPO_PIX_ESTATICO) continue;
+            $nomeFp = $fp->nome;
+            if ($temMercadoPago && ($fp->tipo === FormaPagamento::TIPO_PIX || mb_stripos($nomeFp, 'pix') !== false)) {
+                $nomeFp = 'PIX Mercado Pago';
+            }
+            if ($temMercadoPago && ($fp->tipo === FormaPagamento::TIPO_MERCADOPAGO || mb_stripos($nomeFp, 'mercado') !== false)) {
+                $nomeFp = 'Cartão / Mercado Pago';
+            }
+        ?>
+        { id: <?= json_encode($fp->id) ?>, nome: <?= json_encode($nomeFp) ?>, tipo: <?= json_encode($fp->tipo) ?> },
         <?php endforeach; ?>
     ];
 
@@ -1767,8 +1769,9 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             return;
         }
 
-        // 4. Mercado Pago (Point Maquininha ou Cartão Online)
-        const ehMercadoPago = (formaPagamentoSelecionadaTipo === 'MERCADOPAGO' || formaPagamentoSelecionadaTipo === 'MP_POINT' || (formaPagamentoSelecionadaNome || '').toLowerCase().includes('mercado'));
+        // 4. Mercado Pago / Cartão (Point Maquininha ou Cartão Online)
+        const ehCartao = (['CARTAO', 'CARTAO_CREDITO', 'CARTAO_DEBITO'].includes(formaPagamentoSelecionadaTipo) || (formaPagamentoSelecionadaNome || '').toLowerCase().includes('cartão') || (formaPagamentoSelecionadaNome || '').toLowerCase().includes('cartao'));
+        const ehMercadoPago = (formaPagamentoSelecionadaTipo === 'MERCADOPAGO' || formaPagamentoSelecionadaTipo === 'MP_POINT' || (formaPagamentoSelecionadaNome || '').toLowerCase().includes('mercado') || (ehCartao && temMercadoPagoConfig));
         if (ehMercadoPago) {
             if (temMercadoPagoConfig) {
                 abrirModalMercadoPagoPDV('point');
@@ -1779,7 +1782,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             }
         }
 
-        // 5. Demais formas (Dinheiro, Cartão Balcão, etc.)
+        // 5. Demais formas (Dinheiro, Boleto/Fiado, etc.)
         efetivarVendaExpressa();
     }
 
