@@ -246,15 +246,44 @@ class VendaExpressaController extends Controller
 
         $usuarioLoja = Usuario::findOne($lojaId);
 
+        $tipoPagamentoParam = strtoupper(trim((string)$request->post('tipo_pagamento', '')));
+        $statusInicialParam = strtoupper(trim((string)$request->post('status_inicial', '')));
+        $isPreVendaGateway = ($statusInicialParam === 'EM_ABERTO' || $statusInicialParam === StatusVenda::EM_ABERTO);
+
         // Identifica se a forma de pagamento selecionada é PIX Estático (chave da loja sem gateway)
         $usouPixEstatico = false;
-        if ($formaPagamento && ($formaPagamento->tipo === FormaPagamento::TIPO_PIX_ESTATICO || ($formaPagamento->tipo === FormaPagamento::TIPO_PIX && $usuarioLoja && $usuarioLoja->temMercadoPagoConfigurado()))) {
+
+        // 1. Se explicitamente informado pelo frontend:
+        if (in_array($tipoPagamentoParam, ['PIX_MERCADOPAGO', 'MERCADOPAGO', 'MP_POINT'])) {
+            // Pagamentos via Gateway Mercado Pago NUNCA são PIX Estático
+            $usouPixEstatico = false;
+        } elseif ($tipoPagamentoParam === 'PIX_ESTATICO') {
             $usouPixEstatico = true;
+        } elseif ($isPreVendaGateway) {
+            // Pré-vendas no PDV (status EM_ABERTO) são criadas exclusivamente para cobrança em gateway (MP Pix, Point, Cartão)
+            $usouPixEstatico = false;
+        } else {
+            // Fallback para finalização direta no balcão sem passar por gateway:
+            if ($formaPagamento && $formaPagamento->tipo === FormaPagamento::TIPO_PIX_ESTATICO) {
+                $usouPixEstatico = true;
+            } elseif ($formaPagamento && $formaPagamento->tipo === FormaPagamento::TIPO_PIX && $usuarioLoja && $usuarioLoja->temMercadoPagoConfigurado()) {
+                // Se o lojista tem Mercado Pago e finalizou direto com forma 'PIX' sem informar 'PIX_MERCADOPAGO'
+                $usouPixEstatico = true;
+            }
         }
+
         if ($usaMultiplos) {
             foreach ($pagamentosMultiplos as $pm) {
-                $fpSub = FormaPagamento::findOne($pm['forma_pagamento_id']);
-                if ($fpSub && ($fpSub->tipo === FormaPagamento::TIPO_PIX_ESTATICO || ($fpSub->tipo === FormaPagamento::TIPO_PIX && $usuarioLoja && $usuarioLoja->temMercadoPagoConfigurado()))) {
+                $tipoSub = strtoupper(trim((string)($pm['tipo_pagamento'] ?? '')));
+                if ($tipoSub === 'PIX_ESTATICO') {
+                    $usouPixEstatico = true;
+                    break;
+                }
+                if (in_array($tipoSub, ['PIX_MERCADOPAGO', 'MERCADOPAGO', 'MP_POINT'])) {
+                    continue;
+                }
+                $fpSub = FormaPagamento::findOne($pm['forma_pagamento_id'] ?? null);
+                if ($fpSub && $fpSub->tipo === FormaPagamento::TIPO_PIX_ESTATICO) {
                     $usouPixEstatico = true;
                     break;
                 }

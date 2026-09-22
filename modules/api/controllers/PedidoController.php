@@ -303,16 +303,37 @@ class PedidoController extends BaseController
 
         // Validação de PIX Estático para lojas com Mercado Pago conectado
         $usouPixEstatico = false;
-        if ($formaPagamentoId) {
+        $tipoPagamentoParam = strtoupper(trim((string)($data['tipo_pagamento'] ?? '')));
+        $gatewayParam = strtolower(trim((string)($data['gateway'] ?? '')));
+
+        if (in_array($tipoPagamentoParam, ['PIX_MERCADOPAGO', 'MERCADOPAGO', 'MP_POINT']) || $gatewayParam === 'mercadopago') {
+            $usouPixEstatico = false;
+        } elseif ($tipoPagamentoParam === 'PIX_ESTATICO') {
+            $usouPixEstatico = true;
+        } elseif ($formaPagamentoId) {
             $fpCheck = \app\modules\vendas\models\FormaPagamento::findOne($formaPagamentoId);
-            if ($fpCheck && ($fpCheck->tipo === \app\modules\vendas\models\FormaPagamento::TIPO_PIX_ESTATICO || ($fpCheck->tipo === \app\modules\vendas\models\FormaPagamento::TIPO_PIX && $usuarioLoja && $usuarioLoja->temMercadoPagoConfigurado()))) {
+            if ($fpCheck && $fpCheck->tipo === \app\modules\vendas\models\FormaPagamento::TIPO_PIX_ESTATICO) {
                 $usouPixEstatico = true;
+            } elseif ($fpCheck && $fpCheck->tipo === \app\modules\vendas\models\FormaPagamento::TIPO_PIX && $usuarioLoja && $usuarioLoja->temMercadoPagoConfigurado()) {
+                if ($usuarioLoja->getGatewayAtivo() === 'mercadopago') {
+                    $usouPixEstatico = false;
+                } else {
+                    $usouPixEstatico = true;
+                }
             }
         }
         if (!empty($pagamentosMultiplos)) {
             foreach ($pagamentosMultiplos as $pm) {
+                $tipoSub = strtoupper(trim((string)($pm['tipo_pagamento'] ?? '')));
+                if ($tipoSub === 'PIX_ESTATICO') {
+                    $usouPixEstatico = true;
+                    break;
+                }
+                if (in_array($tipoSub, ['PIX_MERCADOPAGO', 'MERCADOPAGO', 'MP_POINT'])) {
+                    continue;
+                }
                 $fpSub = \app\modules\vendas\models\FormaPagamento::findOne($pm['forma_pagamento_id'] ?? null);
-                if ($fpSub && ($fpSub->tipo === \app\modules\vendas\models\FormaPagamento::TIPO_PIX_ESTATICO || ($fpSub->tipo === \app\modules\vendas\models\FormaPagamento::TIPO_PIX && $usuarioLoja && $usuarioLoja->temMercadoPagoConfigurado()))) {
+                if ($fpSub && $fpSub->tipo === \app\modules\vendas\models\FormaPagamento::TIPO_PIX_ESTATICO) {
                     $usouPixEstatico = true;
                     break;
                 }

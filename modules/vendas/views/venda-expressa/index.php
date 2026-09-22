@@ -800,8 +800,8 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
 
     let itensVendaMap = {};
     let formaPagamentoSelecionadaId = '<?= $fpPadrao ? $fpPadrao->id : (count($formasPagamento) > 0 ? $formasPagamento[0]->id : "") ?>';
-    let formaPagamentoSelecionadaNome = '<?= $fpPadrao ? Html::encode($fpPadrao->nome) : (count($formasPagamento) > 0 ? Html::encode($formasPagamento[0]->nome) : "") ?>';
-    let formaPagamentoSelecionadaTipo = '<?= $fpPadrao ? Html::encode($fpPadrao->tipo) : "" ?>';
+    let formaPagamentoSelecionadaNome = '<?= ($fpPadrao && $fpPadrao->tipo === FormaPagamento::TIPO_PIX && $temMercadoPago && (!$statusPixEstatico || $statusPixEstatico['bloqueado'])) ? "PIX Mercado Pago" : ($fpPadrao ? Html::encode($fpPadrao->nome) : (count($formasPagamento) > 0 ? Html::encode($formasPagamento[0]->nome) : "")) ?>';
+    let formaPagamentoSelecionadaTipo = '<?= ($fpPadrao && $fpPadrao->tipo === FormaPagamento::TIPO_PIX && $temMercadoPago && (!$statusPixEstatico || $statusPixEstatico['bloqueado'])) ? "PIX_MERCADOPAGO" : ($fpPadrao ? Html::encode($fpPadrao->tipo) : "") ?>';
     const temMercadoPagoConfig = <?= json_encode((bool)($temMercadoPago ?? false)) ?>;
     let statusPixEstaticoConfig = <?= json_encode($statusPixEstatico ?? null) ?>;
     const lojaIdAtual = <?= json_encode((string)($lojaId ?? '')) ?>;
@@ -2043,7 +2043,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
 
             // Garante pré-venda salva para vincular o split e a baixa automática
             if (!mpVendaIdAtual) {
-                await criarPreVendaPdv('EM_ABERTO');
+                await criarPreVendaPdv('EM_ABERTO', 'MERCADOPAGO');
             }
 
             const loadingEl = document.getElementById('mpWalletLoading');
@@ -2169,7 +2169,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         }
     }
 
-    async function criarPreVendaPdv(statusInicial = 'EM_ABERTO') {
+    async function criarPreVendaPdv(statusInicial = 'EM_ABERTO', tipoPagamentoOverride = null) {
         const lista = Object.values(itensVendaMap);
         if (lista.length === 0) {
             throw new Error('Adicione pelo menos um produto antes de efetivar.');
@@ -2189,6 +2189,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         const payload = {
             itens: payloadItens,
             forma_pagamento_id: formaPagamentoSelecionadaId,
+            tipo_pagamento: tipoPagamentoOverride || formaPagamentoSelecionadaTipo || 'PIX_MERCADOPAGO',
             a_prazo: false,
             status_inicial: statusInicial,
             observacoes: document.getElementById('inputObservacoes')?.value || '',
@@ -2303,7 +2304,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
 
         try {
             if (!mpVendaIdAtual) {
-                await criarPreVendaPdv('EM_ABERTO');
+                await criarPreVendaPdv('EM_ABERTO', 'MP_POINT');
             }
 
             const resp = await fetch(`${baseUrlApp}/index.php/api/mercado-pago/criar-pagamento-point`, {
@@ -2428,7 +2429,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
 
         try {
             if (!mpVendaIdAtual) {
-                await criarPreVendaPdv('EM_ABERTO');
+                await criarPreVendaPdv('EM_ABERTO', 'PIX_MERCADOPAGO');
             }
 
             const resp = await fetch(`${baseUrlApp}/index.php/api/mercado-pago/criar-pagamento-pix-split`, {
@@ -2575,7 +2576,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
 
         try {
             if (!mpVendaIdAtual) {
-                await criarPreVendaPdv('EM_ABERTO');
+                await criarPreVendaPdv('EM_ABERTO', 'MERCADOPAGO');
             }
 
             const emailCliente = document.getElementById('clienteWhatsapp')?.value ? `${document.getElementById('clienteWhatsapp').value.replace(/\D/g, '')}@pdv.com` : 'cliente@loja.com';
@@ -2739,6 +2740,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         const payload = {
             itens: payloadItens,
             forma_pagamento_id: usarMultiplos && pagamentosMultiplosArray.length > 0 ? pagamentosMultiplosArray[0].forma_pagamento_id : formaPagamentoSelecionadaId,
+            tipo_pagamento: formaPagamentoSelecionadaTipo,
             a_prazo: ehFiado,
             data_vencimento: dataVencInput,
             observacoes: document.getElementById('inputObservacoes').value,
