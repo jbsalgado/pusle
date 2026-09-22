@@ -9,14 +9,15 @@ use app\modules\vendas\helpers\ChatMediaHelper;
 class ChatCleanupController extends Controller
 {
     /**
-     * Limpa fotos de chat com mais de 24 horas.
-     * Uso: php yii chat-cleanup/limpar
+     * Limpa fotos e mídias antigas do chat com mais de X horas (padrão: 720h = 30 dias).
+     * Uso: php yii chat-cleanup/limpar [horas]
      */
-    public function actionLimpar($horas = 24)
+    public function actionLimpar($horas = 720)
     {
-        $this->stdout("Iniciando limpeza de fotos do chat com mais de {$horas} horas...\n");
+        $dias = round($horas / 24, 1);
+        $this->stdout("Iniciando limpeza de fotos e mídias do chat com mais de {$horas} horas (~{$dias} dias)...\n");
         $removidos = ChatMediaHelper::limparMidiasAntigas($horas);
-        $this->stdout("Limpeza concluída! {$removidos} arquivo(s) temporário(s) removido(s).\n");
+        $this->stdout("Limpeza concluída! {$removidos} arquivo(s) de mídia removido(s) do disco.\n");
 
         return ExitCode::OK;
     }

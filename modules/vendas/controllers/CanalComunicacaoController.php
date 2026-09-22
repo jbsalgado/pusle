@@ -19,6 +19,7 @@ use app\modules\vendas\models\Clientes;
 use app\modules\vendas\models\Colaborador;
 use app\modules\vendas\models\LojaConfiguracao;
 use app\modules\vendas\models\LojaPermissao;
+use app\modules\vendas\helpers\ChatMediaHelper;
 
 /**
  * CanalComunicacaoController
@@ -551,7 +552,7 @@ class CanalComunicacaoController extends Controller
     }
 
     /**
-     * Upload de imagens e fotos para o chat
+     * Upload de imagens e fotos para o chat com compressão automática e conversão para WebP
      */
     public function actionUploadMidia()
     {
@@ -562,30 +563,7 @@ class CanalComunicacaoController extends Controller
             return ['success' => false, 'message' => 'Nenhum arquivo enviado.'];
         }
 
-        $allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-        $ext = strtolower($foto->extension);
-        if (!in_array($ext, $allowed)) {
-            return ['success' => false, 'message' => 'Formato inválido. Use JPG, PNG ou WebP.'];
-        }
-
-        $uploadDir = Yii::getAlias('@app/web/uploads/chat');
-        if (!is_dir($uploadDir)) {
-            @mkdir($uploadDir, 0777, true);
-        }
-
-        $filename = 'chat_' . date('Ymd_His') . '_' . substr(md5(uniqid(rand(), true)), 0, 8) . '.' . $ext;
-        $destPath = $uploadDir . DIRECTORY_SEPARATOR . $filename;
-
-        if ($foto->saveAs($destPath)) {
-            $url = \yii\helpers\Url::to('@web/uploads/chat/' . $filename, true);
-            return [
-                'success' => true,
-                'url' => $url,
-                'path' => '/uploads/chat/' . $filename,
-            ];
-        }
-
-        return ['success' => false, 'message' => 'Falha ao salvar a imagem no servidor.'];
+        return ChatMediaHelper::salvarEComprimirUpload($foto);
     }
 
     /**
@@ -968,6 +946,9 @@ class CanalComunicacaoController extends Controller
             $cond['id'] = $msgId;
         }
 
+        // Remove os arquivos físicos de mídia do disco antes de apagar do banco
+        $midiasInfo = ChatMediaHelper::excluirMidiasPorCondicao($cond);
+
         $deletadas = ClienteInbox::deleteAll($cond);
 
         // Notifica WebSocket Broker em tempo real
@@ -979,8 +960,10 @@ class CanalComunicacaoController extends Controller
 
         return [
             'success' => true,
-            'message' => "Histórico da conversa limpo ({$deletadas} mensagens removidas).",
-            'deletadas' => $deletadas
+            'message' => "Histórico da conversa limpo ({$deletadas} mensagens e {$midiasInfo['arquivos_removidos']} mídias removidas).",
+            'deletadas' => $deletadas,
+            'midias_removidas' => $midiasInfo['arquivos_removidos'],
+            'espaco_liberado_kb' => $midiasInfo['espaco_liberado_kb']
         ];
     }
 }

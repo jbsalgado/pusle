@@ -15,6 +15,7 @@ use app\modules\vendas\models\Categoria;
 use app\models\Usuario;
 use app\modules\vendas\models\ClienteInbox;
 use app\modules\evolution\services\EvolutionService;
+use app\modules\vendas\helpers\ChatMediaHelper;
 
 class CardapioController extends Controller
 {
@@ -487,12 +488,14 @@ class CardapioController extends Controller
             return ['success' => false, 'message' => 'Mesa não encontrada.'];
         }
 
-        // Remove todas as mensagens do chat daquela mesa
-        ClienteInbox::deleteAll([
+        // Remove todas as mídias físicas do disco e as mensagens do chat daquela mesa
+        $condMesa = [
             'mesa_id' => $mesa->id,
             'usuario_id' => $mesa->usuario_id,
             'tipo' => ['chat_cliente', 'chat_garcom', 'chamado', 'conta', 'card']
-        ]);
+        ];
+        ChatMediaHelper::excluirMidiasPorCondicao($condMesa);
+        ClienteInbox::deleteAll($condMesa);
 
         return [
             'success' => true,

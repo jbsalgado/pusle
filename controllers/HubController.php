@@ -14,6 +14,7 @@ use app\modules\vendas\models\Comanda;
 use app\modules\vendas\models\ComandaItem;
 use app\modules\vendas\models\Produtos;
 use app\modules\vendas\models\ProdutoCard;
+use app\modules\vendas\helpers\ChatMediaHelper;
 
 /**
  * HubController — Direct Hub do Cliente & Comanda Digital (Multi-Tenant)
@@ -393,41 +394,18 @@ class HubController extends Controller
     }
 
     /**
-     * Upload de mídia (fotos, comprovantes) do chat do cliente
+     * Upload de mídia (fotos, comprovantes) do chat do cliente com compressão automática WebP
      */
     public function actionUploadMidia(): array
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
 
-        $foto = \yii\web\UploadedFile::getInstanceByName('foto');
+        $foto = \yii\web\UploadedFile::getInstanceByName('foto') ?: \yii\web\UploadedFile::getInstanceByName('midia');
         if (!$foto) {
             return ['success' => false, 'message' => 'Nenhum arquivo enviado.'];
         }
 
-        $allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-        $ext = strtolower($foto->extension);
-        if (!in_array($ext, $allowed)) {
-            return ['success' => false, 'message' => 'Formato de imagem inválido. Use JPG, PNG ou WebP.'];
-        }
-
-        $uploadDir = Yii::getAlias('@app/web/uploads/chat');
-        if (!is_dir($uploadDir)) {
-            @mkdir($uploadDir, 0777, true);
-        }
-
-        $filename = 'chat_' . date('Ymd_His') . '_' . substr(md5(uniqid(rand(), true)), 0, 8) . '.' . $ext;
-        $destPath = $uploadDir . DIRECTORY_SEPARATOR . $filename;
-
-        if ($foto->saveAs($destPath)) {
-            $url = Url::to('@web/uploads/chat/' . $filename, true);
-            return [
-                'success' => true,
-                'url'     => $url,
-                'path'    => '/uploads/chat/' . $filename
-            ];
-        }
-
-        return ['success' => false, 'message' => 'Falha ao salvar a imagem no servidor.'];
+        return ChatMediaHelper::salvarEComprimirUpload($foto);
     }
 
     /**
