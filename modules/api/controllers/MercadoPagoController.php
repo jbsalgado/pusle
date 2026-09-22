@@ -384,12 +384,34 @@ class MercadoPagoController extends Controller
             if (!empty($request['cliente']) && is_array($request['cliente'])) {
                 $payer = $this->montarDadosPagador($request['cliente'], true);
             }
-            if (empty($payer['email'])) {
-                $payer['email'] = !empty($usuario['email']) ? $usuario['email'] : 'comprador@oncode.app.br';
+
+            // Fallback: se os dados vieram do formulário do balcão (card_holder, doc_number, email)
+            $cardHolderNome = trim($request['card_holder'] ?? ($request['cardholder_name'] ?? ($request['nome'] ?? '')));
+            if (empty($payer['first_name']) && !empty($cardHolderNome)) {
+                $partesNome = explode(' ', $cardHolderNome, 2);
+                $payer['first_name'] = $partesNome[0];
+                $payer['last_name']  = !empty($partesNome[1]) ? $partesNome[1] : 'Cliente';
             }
             if (empty($payer['first_name'])) {
                 $payer['first_name'] = 'Cliente';
                 $payer['last_name']  = 'Pulse';
+            }
+
+            $cpfTitular = preg_replace('/\D/', '', $request['doc_number'] ?? ($request['payer_cpf'] ?? ($request['cpf'] ?? '')));
+            if (empty($payer['identification']) && (strlen($cpfTitular) === 11 || strlen($cpfTitular) === 14)) {
+                $payer['identification'] = [
+                    'type'   => strlen($cpfTitular) === 14 ? 'CNPJ' : 'CPF',
+                    'number' => $cpfTitular,
+                ];
+            }
+
+            if (empty($payer['email'])) {
+                $reqEmail = trim($request['email'] ?? '');
+                if (!empty($reqEmail) && filter_var($reqEmail, FILTER_VALIDATE_EMAIL) && strpos($reqEmail, 'cliente@pdv.com') === false) {
+                    $payer['email'] = $reqEmail;
+                } else {
+                    $payer['email'] = !empty($usuario['email']) ? $usuario['email'] : 'comprador@oncode.app.br';
+                }
             }
 
             // --- Application fee (split) ---
@@ -509,9 +531,23 @@ class MercadoPagoController extends Controller
                 $ultimosDigitos = (string)$payment['card']['last_four_digits'];
             }
 
+            // Valida se $orderId é uma venda existente antes de vincular FK
+            $vendaIdParaGravar = null;
+            if (!empty($orderId) && $this->validarUUID($orderId)) {
+                $vendaExiste = false;
+                try {
+                    $vendaExiste = (bool)Yii::$app->db->createCommand("SELECT 1 FROM prest_vendas WHERE id = :id", [':id' => $orderId])->queryScalar();
+                } catch (\Throwable $e) {
+                    $vendaExiste = false;
+                }
+                if ($vendaExiste) {
+                    $vendaIdParaGravar = $orderId;
+                }
+            }
+
             PrestGatewayTransacao::registrar([
                 'tenant_id'              => $tenantId,
-                'venda_id'               => $orderId,
+                'venda_id'               => $vendaIdParaGravar,
                 'gateway'                => PrestGatewayTransacao::GATEWAY_MERCADOPAGO,
                 'transacao_id'           => (string)$paymentId,
                 'tipo_pagamento'         => $isDebito ? PrestGatewayTransacao::TIPO_DEBIT_CARD : PrestGatewayTransacao::TIPO_CREDIT_CARD,
@@ -529,9 +565,11 @@ class MercadoPagoController extends Controller
 
             // --- Retorno por status ---
             if ($status === 'approved') {
-                // Baixa estoque, gera parcelas e registra caixa
-                $this->registrarLogFinanceiro($tenantId, $orderId, $paymentId, $amount, $applicationFee, 'approved');
-                $this->liberarPedido($tenantId, $orderId, $amount, $paymentId, $applicationFee);
+                // Baixa estoque, gera parcelas e registra caixa apenas se a venda existir
+                if ($vendaIdParaGravar) {
+                    $this->registrarLogFinanceiro($tenantId, $orderId, $paymentId, $amount, $applicationFee, 'approved');
+                    $this->liberarPedido($tenantId, $orderId, $amount, $paymentId, $applicationFee);
+                }
 
                 return [
                     'sucesso'        => true,
@@ -585,14 +623,15 @@ class MercadoPagoController extends Controller
                     'status_detail' => $statusDetail,
                     'payment_id'    => $paymentId,
                     'order_id'      => $orderId,
-                    'mensagem'      => 'Pagamento em análise. Você será notificado quando for aprovado.',
+                    'tipo_cartao'   => $tipoCartao,
+                    'mensagem'      => 'Pagamento em análise pelo Mercado Pago. Aguarde alguns instantes enquanto o banco processa.',
                 ];
             }
 
             // rejected / cancelled
             if ($isDebito) {
                 $mensagensRecusa = [
-                    'cc_rejected_bad_filled_card_number'   => 'Este cartão não autorizou cobrança no débito online nesta operadora. Por favor, selecione "Cartão de Crédito" (à vista) ou pague via PIX.',
+                    'cc_rejected_bad_filled_card_number'   => 'Este cartão não autorizou cobrança no débito online nesta operadora. Por favor, passe na modalidade "Cartão de Crédito" (à vista), utilize a Maquininha Point ou finalize via PIX.',
                     'cc_rejected_bad_filled_security_code' => 'Código de segurança (CVV) incorreto.',
                     'cc_rejected_bad_filled_date'          => 'Data de validade incorreta.',
                     'cc_rejected_bad_filled_other'         => 'Dados do cartão incorretos. Por favor, revise as informações.',
@@ -600,9 +639,9 @@ class MercadoPagoController extends Controller
                     'cc_rejected_call_for_authorize'       => 'Transação não autorizada. Verifique se as compras no débito online estão habilitadas no aplicativo do seu banco.',
                     'cc_rejected_card_disabled'            => 'Cartão de débito bloqueado ou desativado. Entre em contato com seu banco.',
                     'cc_rejected_duplicated_payment'       => 'Pagamento duplicado detectado para esta compra.',
-                    'cc_rejected_high_risk'                => 'Pagamento de débito não autorizado pela análise de segurança. Recomendamos concluir via PIX.',
+                    'cc_rejected_high_risk'                => 'Pagamento de débito não autorizado pela análise de segurança. No Brasil, cartões de débito em balcão necessitam de maquininha física (Point) com senha, aproximação pelo celular ou confirmação no app do banco. Tente na função Crédito à vista ou pague via PIX.',
                     'cc_rejected_max_attempts'             => 'Limite de tentativas excedido para este cartão de débito. Tente pagar via PIX.',
-                    'cc_rejected_card_type_not_allowed'    => 'Este cartão não autorizou débito via e-commerce. Recomendamos concluir via PIX ou Cartão de Crédito à vista.',
+                    'cc_rejected_card_type_not_allowed'    => 'Este cartão não autorizou débito via e-commerce digitado. Recomendamos passar na modalidade "Cartão de Crédito" à vista, maquininha Point ou concluir via PIX.',
                     'cc_rejected_blacklist'                => 'Cartão de débito não autorizado pela instituição bancária.',
                 ];
             } else {
@@ -615,7 +654,7 @@ class MercadoPagoController extends Controller
                     'cc_rejected_call_for_authorize'       => 'Autorização pendente. Entre em contato com a administradora do seu cartão para autorizar a compra.',
                     'cc_rejected_card_disabled'            => 'Cartão bloqueado ou desativado. Entre em contato com seu banco.',
                     'cc_rejected_duplicated_payment'       => 'Pagamento duplicado detectado para esta compra.',
-                    'cc_rejected_high_risk'                => 'Pagamento recusado pela análise de segurança. Recomendamos pagar via PIX ou utilizar outro cartão.',
+                    'cc_rejected_high_risk'                => 'Pagamento recusado pela análise de segurança da operadora. Verifique se o CPF e nome conferem com o titular do cartão ou conclua via PIX.',
                     'cc_rejected_max_attempts'             => 'Limite de tentativas excedido para este cartão. Tente pagar via PIX.',
                     'cc_rejected_card_type_not_allowed'    => 'Tipo de cartão não aceito. Verifique se o cartão é de crédito ou débito válido.',
                     'cc_rejected_blacklist'                => 'Cartão não autorizado pela instituição bancária.',
@@ -1620,6 +1659,62 @@ class MercadoPagoController extends Controller
                 'status' => $status,
                 'status_detail' => $data['status_detail'] ?? null,
                 'date_approved' => $data['date_approved'] ?? null
+            ];
+        } catch (\Exception $ex) {
+            return $this->errorResponse('Erro ao consultar status do pagamento: ' . $ex->getMessage());
+        }
+    }
+
+    /**
+     * ENDPOINT: GET|POST /api/mercado-pago/consultar-status-pagamento
+     * Consulta o status atual de qualquer pagamento no Mercado Pago (Cartão, Pix, Point)
+     */
+    public function actionConsultarStatusPagamento()
+    {
+        $requestData = $this->getRequestData();
+        $paymentId = Yii::$app->request->get('payment_id') ?: ($requestData['payment_id'] ?? null);
+        $tenantId = $this->resolverTenantId($requestData);
+
+        if (!$paymentId || !$tenantId) {
+            return $this->errorResponse('payment_id e tenant_id são obrigatórios');
+        }
+
+        $usuario = $this->buscarUsuarioPorId($tenantId);
+        if (!$usuario) return $this->errorResponse('Loja não encontrada', 404);
+
+        $accessToken = $this->obterTokenVendedor($usuario);
+        if (!$accessToken) return $this->errorResponse('Token do lojista não encontrado', 422);
+
+        try {
+            $client = new Client();
+            $resp = $client->get("https://api.mercadopago.com/v1/payments/{$paymentId}", [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $accessToken
+                ]
+            ]);
+            $data = json_decode($resp->getBody()->getContents(), true);
+            $status = $data['status'] ?? 'pending';
+            $statusDetail = $data['status_detail'] ?? null;
+            $externalRef = $data['external_reference'] ?? null;
+            $amount = (float)($data['transaction_amount'] ?? 0);
+
+            // Se aprovado e external_reference for uma venda válida, garante a liberação
+            if ($status === 'approved' && $externalRef && $this->validarUUID($externalRef)) {
+                $vendaExiste = (bool)Yii::$app->db->createCommand("SELECT 1 FROM prest_vendas WHERE id = :id", [':id' => $externalRef])->queryScalar();
+                if ($vendaExiste) {
+                    $platformFee = $this->calcularApplicationFee($amount);
+                    $this->registrarLogFinanceiro($tenantId, $externalRef, $paymentId, $amount, $platformFee, 'approved');
+                    $this->liberarPedido($tenantId, $externalRef, $amount, $paymentId, $platformFee);
+                }
+            }
+
+            return [
+                'sucesso'        => ($status === 'approved'),
+                'status'         => $status,
+                'status_detail'  => $statusDetail,
+                'payment_id'     => $paymentId,
+                'order_id'       => $externalRef,
+                'date_approved'  => $data['date_approved'] ?? null
             ];
         } catch (\Exception $ex) {
             return $this->errorResponse('Erro ao consultar status do pagamento: ' . $ex->getMessage());
@@ -3313,8 +3408,15 @@ class MercadoPagoController extends Controller
         try {
             $client = new \GuzzleHttp\Client();
             $cardNum = preg_replace('/\D/', '', $cardData['card_number'] ?? '');
-            $holder = trim($cardData['cardholder_name'] ?? ($cardData['nome'] ?? 'TITULAR'));
-            $docNum = preg_replace('/\D/', '', $cardData['payer_cpf'] ?? ($cardData['cliente']['cpf'] ?? '00000000000'));
+            
+            // Suporta múltiplas variações de titular enviadas pelo frontend
+            $holder = trim($cardData['card_holder'] ?? ($cardData['cardholder_name'] ?? ($cardData['nome'] ?? ($cardData['titular'] ?? ''))));
+            if (empty($holder)) {
+                $holder = 'TITULAR';
+            }
+
+            // Suporta múltiplas variações de CPF/CNPJ enviadas pelo frontend
+            $docNum = preg_replace('/\D/', '', $cardData['doc_number'] ?? ($cardData['payer_cpf'] ?? ($cardData['cpf'] ?? ($cardData['cliente']['cpf'] ?? ($cardData['cliente']['cpf_cnpj'] ?? ($cardData['cpf_consumidor'] ?? ''))))));
             if (strlen($docNum) !== 11 && strlen($docNum) !== 14) {
                 $docNum = '00000000000';
             }
@@ -3322,7 +3424,7 @@ class MercadoPagoController extends Controller
             $body = [
                 'card_number' => $cardNum,
                 'cardholder' => [
-                    'name' => $holder ?: 'TITULAR',
+                    'name' => $holder,
                     'identification' => [
                         'type' => strlen($docNum) === 14 ? 'CNPJ' : 'CPF',
                         'number' => $docNum,

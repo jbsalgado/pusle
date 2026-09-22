@@ -552,7 +552,7 @@ async function processarMercadoPagoCartaoOnline(dadosPedido, carrinho, cliente) 
             throw new Error('Falha ao registrar pedido antes de cobrar cartão: ' + (respPedido.erro || 'Erro desconhecido'));
         }
 
-        const pedidoId = respPedido.dados?.id || respPedido.dados?.venda?.id || respPedido.dados?.venda_id;
+        const pedidoId = respPedido.dados?.data?.id || respPedido.dados?.id || respPedido.dados?.venda?.id || respPedido.dados?.venda_id;
         const valorTotal = carrinho.reduce((t, i) => t + ((i.preco_final || i.preco_venda_sugerido) * i.quantidade), 0);
 
         // 2. Exibir modal do Cartão transparente
@@ -569,6 +569,11 @@ function mostrarModalCartaoMercadoPago(pedidoId, valorTotal, dadosPedido, carrin
     return new Promise((resolve) => {
         const modalExistente = document.getElementById('modal-cartao-mercadopago');
         if (modalExistente) modalExistente.remove();
+
+        const nomeForma = (dadosPedido?.forma_pagamento_nome || '').toLowerCase();
+        const tipoForma = dadosPedido?.tipo_pagamento_selecionado || '';
+        const isInicialDebito = tipoForma === 'CARTAO_DEBITO_MP' || tipoForma === 'CARTAO_DEBITO' || nomeForma.includes('débito') || nomeForma.includes('debito');
+        let modalTipoCartao = isInicialDebito ? 'debit_card' : 'credit_card';
 
         const modal = document.createElement('div');
         modal.id = 'modal-cartao-mercadopago';
@@ -588,9 +593,23 @@ function mostrarModalCartaoMercadoPago(pedidoId, valorTotal, dadosPedido, carrin
                     </button>
                 </div>
 
+                <!-- Seletor de Modalidade: Crédito vs Débito -->
+                <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
+                    <button type="button" id="tab-cartao-credito" class="flex-1 py-2 px-3 rounded-lg text-xs font-black transition flex items-center justify-center gap-1.5 ${modalTipoCartao === 'credit_card' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}">
+                        <span>💳 Crédito</span>
+                    </button>
+                    <button type="button" id="tab-cartao-debito" class="flex-1 py-2 px-3 rounded-lg text-xs font-black transition flex items-center justify-center gap-1.5 ${modalTipoCartao === 'debit_card' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}">
+                        <span>💳 Débito</span>
+                    </button>
+                </div>
+
                 <div class="bg-gray-50 border border-gray-200 p-3 rounded-xl text-center">
                     <span class="text-xs text-gray-500 uppercase font-bold">Total a Cobrar</span>
                     <div class="text-2xl font-black text-gray-900">R$ ${valorTotal.toFixed(2).replace('.', ',')}</div>
+                </div>
+
+                <div id="aviso-debito-info" class="${modalTipoCartao === 'debit_card' ? '' : 'hidden'} bg-sky-50 border border-sky-200 text-sky-800 p-2.5 rounded-xl text-[11px] leading-relaxed text-left">
+                    ℹ️ <strong>Cartão de Débito (1x à vista):</strong> No Brasil, compras digitadas no débito online podem requerer autenticação no app do banco (3DS). Para débito com chip e senha no balcão, utilize a <strong>Maquininha Point</strong> ou <strong>Aproximação</strong>.
                 </div>
 
                 <form id="form-cartao-mp-direta" class="space-y-3 text-left">
@@ -620,7 +639,7 @@ function mostrarModalCartaoMercadoPago(pedidoId, valorTotal, dadosPedido, carrin
                             <label class="block text-[11px] font-bold text-gray-700 uppercase mb-1">CPF do Titular</label>
                             <input type="text" id="mp-direta-cartao-cpf" maxlength="14" placeholder="000.000.000-00" value="${cliente?.cpf_cnpj || ''}" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-sm font-mono font-bold text-gray-900 focus:outline-none focus:border-brand-500" required>
                         </div>
-                        <div>
+                        <div id="container-parcelas-mp-cartao" class="${modalTipoCartao === 'debit_card' ? 'hidden' : ''}">
                             <label class="block text-[11px] font-bold text-gray-700 uppercase mb-1">Parcelas</label>
                             <select id="mp-direta-cartao-parcelas" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-sm font-bold text-gray-900 focus:outline-none focus:border-brand-500">
                                 <option value="1">1x à vista</option>
@@ -633,18 +652,53 @@ function mostrarModalCartaoMercadoPago(pedidoId, valorTotal, dadosPedido, carrin
                                 <option value="12">12x</option>
                             </select>
                         </div>
+                        <div id="container-debito-fixo" class="${modalTipoCartao === 'debit_card' ? '' : 'hidden'}">
+                            <label class="block text-[11px] font-bold text-gray-700 uppercase mb-1">Modalidade</label>
+                            <div class="bg-gray-100 border border-gray-300 rounded-xl px-3 py-2 text-xs font-bold text-gray-700">1x à vista (Débito)</div>
+                        </div>
                     </div>
 
                     <div id="mp-direta-cartao-feedback" class="hidden p-2.5 rounded-xl text-xs font-bold text-center"></div>
 
                     <button type="submit" id="btn-cobrar-cartao-mp-direta" class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-black text-sm rounded-xl shadow-lg transition flex items-center justify-center gap-2">
-                        <span>💳 Cobrar Cartão via Mercado Pago</span>
+                        <span>${modalTipoCartao === 'debit_card' ? '💳 Cobrar Débito via Mercado Pago' : '💳 Cobrar Crédito via Mercado Pago'}</span>
                     </button>
                 </form>
             </div>
         `;
 
         document.body.appendChild(modal);
+
+        // Controlar Abas Crédito x Débito
+        const tabCredito = modal.querySelector('#tab-cartao-credito');
+        const tabDebito = modal.querySelector('#tab-cartao-debito');
+        const avisoDebito = modal.querySelector('#aviso-debito-info');
+        const containerParcelas = modal.querySelector('#container-parcelas-mp-cartao');
+        const containerDebitoFixo = modal.querySelector('#container-debito-fixo');
+        const selectParcelas = modal.querySelector('#mp-direta-cartao-parcelas');
+        const btnCobrar = modal.querySelector('#btn-cobrar-cartao-mp-direta');
+
+        const atualizarAbas = (tipo) => {
+            modalTipoCartao = tipo;
+            if (tipo === 'debit_card') {
+                tabDebito.className = 'flex-1 py-2 px-3 rounded-lg text-xs font-black transition flex items-center justify-center gap-1.5 bg-white text-gray-900 shadow-sm';
+                tabCredito.className = 'flex-1 py-2 px-3 rounded-lg text-xs font-black transition flex items-center justify-center gap-1.5 text-gray-500 hover:text-gray-900';
+                if (avisoDebito) avisoDebito.classList.remove('hidden');
+                if (containerParcelas) containerParcelas.classList.add('hidden');
+                if (containerDebitoFixo) containerDebitoFixo.classList.remove('hidden');
+                if (selectParcelas) selectParcelas.value = '1';
+                if (btnCobrar) btnCobrar.innerHTML = '<span>💳 Cobrar Débito via Mercado Pago</span>';
+            } else {
+                tabCredito.className = 'flex-1 py-2 px-3 rounded-lg text-xs font-black transition flex items-center justify-center gap-1.5 bg-white text-gray-900 shadow-sm';
+                tabDebito.className = 'flex-1 py-2 px-3 rounded-lg text-xs font-black transition flex items-center justify-center gap-1.5 text-gray-500 hover:text-gray-900';
+                if (avisoDebito) avisoDebito.classList.add('hidden');
+                if (containerParcelas) containerParcelas.classList.remove('hidden');
+                if (containerDebitoFixo) containerDebitoFixo.classList.add('hidden');
+                if (btnCobrar) btnCobrar.innerHTML = '<span>💳 Cobrar Crédito via Mercado Pago</span>';
+            }
+        };
+        tabCredito.onclick = () => atualizarAbas('credit_card');
+        tabDebito.onclick = () => atualizarAbas('debit_card');
 
         // Masks
         const inputNum = modal.querySelector('#mp-direta-cartao-numero');
@@ -690,7 +744,7 @@ function mostrarModalCartaoMercadoPago(pedidoId, valorTotal, dadosPedido, carrin
             const cvv = modal.querySelector('#mp-direta-cartao-cvv').value.trim();
             const nome = modal.querySelector('#mp-direta-cartao-nome').value.trim();
             const cpf = inputCpf.value.replace(/\D/g, '');
-            const parcelas = parseInt(modal.querySelector('#mp-direta-cartao-parcelas').value, 10);
+            const parcelas = modalTipoCartao === 'debit_card' ? 1 : parseInt(modal.querySelector('#mp-direta-cartao-parcelas').value, 10);
 
             if (val.length !== 2) {
                 alert('Validade deve estar no formato MM/AA');
@@ -719,12 +773,16 @@ function mostrarModalCartaoMercadoPago(pedidoId, valorTotal, dadosPedido, carrin
                         order_id: pedidoId,
                         amount: valorTotal,
                         installments: parcelas,
+                        tipo_cartao: modalTipoCartao,
+                        payment_type_id: modalTipoCartao,
                         card_number: numCartao,
                         card_holder: nome,
+                        cardholder_name: nome,
                         expiration_month: mes,
                         expiration_year: ano,
                         security_code: cvv,
                         doc_number: cpf,
+                        payer_cpf: cpf,
                         email: cliente?.email || 'cliente@pdv.com'
                     })
                 });
@@ -734,6 +792,45 @@ function mostrarModalCartaoMercadoPago(pedidoId, valorTotal, dadosPedido, carrin
                     console.log('[MP Cartão 3DS] 🔐 Autenticação bancária 3DS necessária:', data.three_ds_url);
                     exibirDesafio3DsVendaDireta(modal, data.three_ds_url, data.payment_id, pedidoId, dadosPedido, carrinho, resolve);
                     return;
+                }
+
+                // Tratamento resiliente de pagamentos em análise (polling rápido de 10-15s)
+                if (data.status === 'in_process' || data.status === 'pending') {
+                    feedback.className = 'p-2.5 rounded-xl text-xs font-bold text-center bg-amber-50 text-amber-800 border border-amber-200';
+                    feedback.innerHTML = '<span class="inline-block animate-spin mr-1">⏳</span> Pagamento em análise pela operadora. Verificando aprovação...';
+
+                    let pollingTentativas = 0;
+                    const maxPolling = 6;
+                    let pollingAprovado = false;
+
+                    while (pollingTentativas < maxPolling && !pollingAprovado) {
+                        await new Promise(r => setTimeout(r, 2500));
+                        pollingTentativas++;
+
+                        try {
+                            const checkUrl = `${API_ENDPOINTS.MERCADOPAGO_CONSULTAR_STATUS_PAGAMENTO}?payment_id=${encodeURIComponent(data.payment_id)}&tenant_id=${encodeURIComponent(tenantId)}`;
+                            const checkResp = await fetchWithAuth(checkUrl);
+                            if (checkResp.ok) {
+                                const checkData = await checkResp.json();
+                                if (checkData.sucesso && checkData.status === 'approved') {
+                                    pollingAprovado = true;
+                                    data.status = 'approved';
+                                    data.sucesso = true;
+                                    break;
+                                } else if (checkData.status === 'rejected') {
+                                    throw new Error(checkData.mensagem || 'Cartão não autorizado pela instituição bancária.');
+                                }
+                            }
+                        } catch (pollErr) {
+                            if (pollErr.message && pollErr.message.includes('não autorizado')) {
+                                throw pollErr;
+                            }
+                        }
+                    }
+
+                    if (!pollingAprovado && data.status !== 'approved') {
+                        throw new Error(data.mensagem || 'Pagamento ainda em análise pela operadora bancária. Se não aprovar em instantes, tente na modalidade Crédito à vista ou finalize via PIX.');
+                    }
                 }
 
                 if (!resp.ok || !data.sucesso) {
@@ -766,7 +863,7 @@ function mostrarModalCartaoMercadoPago(pedidoId, valorTotal, dadosPedido, carrin
                 feedback.textContent = '❌ ' + err.message;
                 alert('Falha ao processar cartão: ' + err.message);
                 btn.disabled = false;
-                btn.textContent = '💳 Cobrar Cartão via Mercado Pago';
+                btn.textContent = modalTipoCartao === 'debit_card' ? '💳 Cobrar Débito via Mercado Pago' : '💳 Cobrar Crédito via Mercado Pago';
             }
         };
     });

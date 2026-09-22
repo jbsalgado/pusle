@@ -1706,14 +1706,16 @@ function popularFormasPagamento(formas, usandoCache = false) {
         selectAtual.disabled = false;
         const temMpConfigurado = Boolean(window.GATEWAY_CONFIG?.tem_mercado_pago || (window.GATEWAY_CONFIG?.habilitado && window.GATEWAY_CONFIG?.gateway === 'mercadopago'));
         let pixJaAdicionadoMp = false;
-        let cartaoJaAdicionadoMp = false;
+        let cartaoCreditoJaAdicionadoMp = false;
+        let cartaoDebitoJaAdicionadoMp = false;
         let walletJaAdicionadoMp = false;
 
         formas.forEach(forma => {
             const nomeLower = (forma.nome || '').toLowerCase();
             const tipo = forma.tipo || '';
             const isPix = tipo === 'PIX' || tipo === 'PIX_ESTATICO' || nomeLower.includes('pix');
-            const isCartaoManual = tipo === 'CARTAO' || tipo === 'CARTAO_CREDITO' || tipo === 'CARTAO_DEBITO' || nomeLower.includes('cartão') || nomeLower.includes('cartao');
+            const isDebito = tipo === 'CARTAO_DEBITO' || nomeLower.includes('débito') || nomeLower.includes('debito');
+            const isCartaoManual = tipo === 'CARTAO' || tipo === 'CARTAO_CREDITO' || isDebito || nomeLower.includes('cartão') || nomeLower.includes('cartao');
             
             if (isPix && temMpConfigurado) {
                 // 1. PIX Dinâmico Mercado Pago (Baixa Automática) - Oculta PIX Estático quando a loja tem MP integrado
@@ -1724,18 +1726,27 @@ function popularFormasPagamento(formas, usandoCache = false) {
                     pixJaAdicionadoMp = true;
                 }
             } else if (isCartaoManual && temMpConfigurado) {
-                // 2. Se a loja tem MP integrado, os pagamentos por cartão vão via Mercado Pago
-                if (!cartaoJaAdicionadoMp) {
-                    const optCartao = new Option('💳 Cartão / Mercado Pago (Point / Online)', forma.id);
-                    optCartao.setAttribute('data-tipo', 'MERCADOPAGO');
-                    selectAtual.options[selectAtual.options.length] = optCartao;
-                    cartaoJaAdicionadoMp = true;
+                // 2. Se a loja tem MP integrado, diferencia Crédito e Débito via Mercado Pago
+                if (isDebito) {
+                    if (!cartaoDebitoJaAdicionadoMp) {
+                        const optDebito = new Option('💳 Cartão de Débito (Mercado Pago)', forma.id);
+                        optDebito.setAttribute('data-tipo', 'CARTAO_DEBITO_MP');
+                        selectAtual.options[selectAtual.options.length] = optDebito;
+                        cartaoDebitoJaAdicionadoMp = true;
+                    }
+                } else {
+                    if (!cartaoCreditoJaAdicionadoMp) {
+                        const optCredito = new Option('💳 Cartão de Crédito (Mercado Pago)', forma.id);
+                        optCredito.setAttribute('data-tipo', 'MERCADOPAGO');
+                        selectAtual.options[selectAtual.options.length] = optCredito;
+                        cartaoCreditoJaAdicionadoMp = true;
+                    }
                 }
             } else {
                 let nomeExibicao = forma.nome;
                 if (tipo === 'MERCADOPAGO') {
-                    nomeExibicao = '💳 Cartão / Mercado Pago (Point / Online)';
-                    cartaoJaAdicionadoMp = true;
+                    nomeExibicao = '💳 Cartão de Crédito (Mercado Pago)';
+                    cartaoCreditoJaAdicionadoMp = true;
                 } else if (tipo === 'MP_POINT') {
                     nomeExibicao = '📟 Mercado Pago Point (Maquininha)';
                 }

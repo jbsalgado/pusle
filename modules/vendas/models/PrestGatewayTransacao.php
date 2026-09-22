@@ -135,7 +135,14 @@ class PrestGatewayTransacao extends ActiveRecord
                 $model->tenant_id = $dados['tenant_id'];
             }
             if (!empty($dados['venda_id'])) {
-                $model->venda_id = $dados['venda_id'];
+                // Fail-safe: valida se a venda existe na tabela prest_vendas antes de vincular FK
+                $vendaExiste = false;
+                try {
+                    $vendaExiste = (bool)Yii::$app->db->createCommand("SELECT 1 FROM prest_vendas WHERE id = :vid", [':vid' => $dados['venda_id']])->queryScalar();
+                } catch (\Throwable $e) {
+                    $vendaExiste = false;
+                }
+                $model->venda_id = $vendaExiste ? $dados['venda_id'] : null;
             }
             if (isset($dados['tipo_pagamento'])) {
                 $model->tipo_pagamento = $dados['tipo_pagamento'];

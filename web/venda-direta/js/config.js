@@ -127,6 +127,7 @@ export const API_ENDPOINTS = {
     MERCADOPAGO_CRIAR_PIX_SPLIT: `${CONFIG.URL_API}/api/mercado-pago/criar-pagamento-pix-split`,
     MERCADOPAGO_CONSULTAR_STATUS_PIX: `${CONFIG.URL_API}/api/mercado-pago/consultar-status-pix`,
     MERCADOPAGO_PAGAR_CARTAO: `${CONFIG.URL_API}/api/mercado-pago/pagar-cartao`,
+    MERCADOPAGO_CONSULTAR_STATUS_PAGAMENTO: `${CONFIG.URL_API}/api/mercado-pago/consultar-status-pagamento`,
     
     // Asaas
     ASAAS_CRIAR_COBRANCA: `${CONFIG.URL_API}/api/asaas/criar-cobranca`,
