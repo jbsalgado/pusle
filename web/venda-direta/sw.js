@@ -84,8 +84,8 @@ const ID_USUARIO_LOJA = getLojaId();
 const API_PRODUTO_URL = `${URL_API}/api/produto?usuario_id=${ID_USUARIO_LOJA}`;
 const API_PEDIDO_URL = `${URL_API}/api/pedido`;
 
-// 🔥 ATUALIZAÇÃO: Versão v18 - Correção de comprovante e impressão térmica
-const CACHE_NAME = 'venda-direta-cache-v18'; 
+// 🔥 ATUALIZAÇÃO: Versão v19 - Correção de tenant_id no Pix MP e integração de gateway
+const CACHE_NAME = 'venda-direta-cache-v19'; 
 
 const APP_SHELL_FILES = [
     `${URL_BASE_WEB}/venda-direta/index.html`,

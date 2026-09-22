@@ -187,6 +187,8 @@ export async function carregarConfigLoja() {
         
         GATEWAY_CONFIG.habilitado = config.api_de_pagamento || false;
         GATEWAY_CONFIG.gateway = config.gateway_pagamento || 'nenhum';
+        GATEWAY_CONFIG.tem_mercado_pago = Boolean(config.tem_mercado_pago || (config.gateway_pagamento === 'mercadopago' && config.api_de_pagamento));
+        GATEWAY_CONFIG.gateway_ativo = config.gateway_ativo || config.gateway_pagamento || 'nenhum';
         GATEWAY_CONFIG.mercadopago_public_key = config.mercadopago_public_key;
         GATEWAY_CONFIG.asaas_sandbox = config.asaas_sandbox || false;
         GATEWAY_CONFIG.pix_estatico_bloqueado = config.pix_estatico_bloqueado || false;

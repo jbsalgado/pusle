@@ -160,9 +160,9 @@ class MercadoPagoController extends Controller
     public function actionCriarPagamentoPixSplit()
     {
         try {
-            $request = Yii::$app->request->post();
+            $request = $this->getRequestData();
 
-            $tenantId = $request['tenant_id'] ?? null;
+            $tenantId = $this->resolverTenantId($request);
             $orderId = $request['order_id'] ?? null;
             $amount = isset($request['amount']) ? (float)$request['amount'] : null;
 
@@ -325,10 +325,10 @@ class MercadoPagoController extends Controller
     public function actionPagarCartao()
     {
         try {
-            $request = Yii::$app->request->post();
+            $request = $this->getRequestData();
 
             // --- Validações ---
-            $tenantId    = $request['tenant_id']    ?? null;
+            $tenantId    = $this->resolverTenantId($request);
             $orderId     = $request['order_id']     ?? null;
             $cardToken   = $request['token']        ?? null;
             $installments = isset($request['installments']) ? (int)$request['installments'] : 1;
@@ -1415,8 +1415,8 @@ class MercadoPagoController extends Controller
      */
     public function actionCriarPagamentoPoint()
     {
-        $request = Yii::$app->request->post();
-        $tenantId = $request['tenant_id'] ?? null;
+        $request = $this->getRequestData();
+        $tenantId = $this->resolverTenantId($request);
         $deviceId = $request['device_id'] ?? null;
         $orderId = $request['order_id'] ?? null;
         $amount = (float)($request['amount'] ?? 0);
@@ -3567,6 +3567,43 @@ class MercadoPagoController extends Controller
     private function validarUUID($uuid)
     {
         return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $uuid);
+    }
+
+    /**
+     * Obtém dados da requisição (POST, raw JSON body ou GET) de forma resiliente.
+     */
+    protected function getRequestData()
+    {
+        $data = Yii::$app->request->post();
+        if (empty($data) || !is_array($data) || !isset($data['tenant_id'])) {
+            $raw = Yii::$app->request->getRawBody();
+            if (!empty($raw)) {
+                $decoded = json_decode($raw, true);
+                if (is_array($decoded) && !empty($decoded)) {
+                    $data = array_merge(is_array($data) ? $data : [], $decoded);
+                }
+            }
+        }
+        if (empty($data)) {
+            $data = Yii::$app->request->get();
+        }
+        return is_array($data) ? $data : [];
+    }
+
+    /**
+     * Resolve o tenant_id a partir do payload, query string ou usuário autenticado.
+     */
+    protected function resolverTenantId($request)
+    {
+        $tenantId = $request['tenant_id'] ?? Yii::$app->request->get('tenant_id') ?? null;
+        if ((!$tenantId || !$this->validarUUID($tenantId)) && !Yii::$app->user->isGuest) {
+            $user = Yii::$app->user->identity;
+            if ($user) {
+                $colab = \app\modules\vendas\models\Colaborador::find()->where(['prest_usuario_login_id' => $user->id])->one();
+                $tenantId = $colab ? $colab->usuario_id : $user->id;
+            }
+        }
+        return $tenantId;
     }
 
     /**

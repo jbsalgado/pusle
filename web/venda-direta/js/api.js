@@ -18,6 +18,11 @@ export async function fetchWithAuth(url, options = {}) {
         'Accept': 'application/json',
         ...options.headers
     };
+
+    // Se o body for string e não for FormData nem tiver Content-Type explícito, define application/json
+    if (options.body && typeof options.body === 'string' && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+    }
     
     // Adiciona o token se disponível
     if (token) {

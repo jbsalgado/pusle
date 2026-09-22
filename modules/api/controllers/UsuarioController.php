@@ -312,6 +312,8 @@ class UsuarioController extends Controller
                 'mensagem_manutencao' => $usuario['mensagem_manutencao'] ?? null,
                 'pix_estatico_bloqueado' => $stPix ? $stPix['bloqueado'] : false,
                 'pix_estatico_info' => $stPix,
+                'tem_mercado_pago' => $usuarioModel ? (bool)$usuarioModel->temMercadoPagoConfigurado() : false,
+                'gateway_ativo' => $usuarioModel ? $usuarioModel->getGatewayAtivo() : 'nenhum',
             ];
         } catch (\Exception $e) {
             Yii::$app->response->statusCode = 500;

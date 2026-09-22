@@ -1704,37 +1704,38 @@ function popularFormasPagamento(formas, usandoCache = false) {
     
     if (formas && formas.length > 0) {
         selectAtual.disabled = false;
-        const temMpConfigurado = window.GATEWAY_CONFIG?.habilitado && window.GATEWAY_CONFIG?.gateway === 'mercadopago';
+        const temMpConfigurado = Boolean(window.GATEWAY_CONFIG?.tem_mercado_pago || (window.GATEWAY_CONFIG?.habilitado && window.GATEWAY_CONFIG?.gateway === 'mercadopago'));
         let pixJaAdicionadoMp = false;
+        let cartaoJaAdicionadoMp = false;
         let walletJaAdicionadoMp = false;
 
         formas.forEach(forma => {
             const nomeLower = (forma.nome || '').toLowerCase();
             const tipo = forma.tipo || '';
             const isPix = tipo === 'PIX' || tipo === 'PIX_ESTATICO' || nomeLower.includes('pix');
+            const isCartaoManual = tipo === 'CARTAO' || tipo === 'CARTAO_CREDITO' || tipo === 'CARTAO_DEBITO' || nomeLower.includes('cartão') || nomeLower.includes('cartao');
             
             if (isPix && temMpConfigurado) {
-                // 1. PIX Estático da Loja (Apenas se liberado pelo SaaS Admin)
-                if (!window.GATEWAY_CONFIG?.pix_estatico_bloqueado) {
-                    const textoCota = (window.GATEWAY_CONFIG?.pix_estatico_info?.restantes !== null && window.GATEWAY_CONFIG?.pix_estatico_info?.restantes !== undefined)
-                        ? `(${window.GATEWAY_CONFIG.pix_estatico_info.restantes} rest.)`
-                        : '(Sem Taxa)';
-                    const optEstatico = new Option(`📱 PIX Loja ${textoCota}`, forma.id);
-                    optEstatico.setAttribute('data-tipo', 'PIX_ESTATICO');
-                    selectAtual.options[selectAtual.options.length] = optEstatico;
-                }
-
-                // 2. PIX Dinâmico Mercado Pago (Baixa Automática)
+                // 1. PIX Dinâmico Mercado Pago (Baixa Automática) - Oculta PIX Estático quando a loja tem MP integrado
                 if (!pixJaAdicionadoMp) {
                     const optMp = new Option('⚡ PIX Mercado Pago (Baixa Auto)', forma.id);
                     optMp.setAttribute('data-tipo', 'PIX_MERCADOPAGO');
                     selectAtual.options[selectAtual.options.length] = optMp;
                     pixJaAdicionadoMp = true;
                 }
+            } else if (isCartaoManual && temMpConfigurado) {
+                // 2. Se a loja tem MP integrado, os pagamentos por cartão vão via Mercado Pago
+                if (!cartaoJaAdicionadoMp) {
+                    const optCartao = new Option('💳 Cartão / Mercado Pago (Point / Online)', forma.id);
+                    optCartao.setAttribute('data-tipo', 'MERCADOPAGO');
+                    selectAtual.options[selectAtual.options.length] = optCartao;
+                    cartaoJaAdicionadoMp = true;
+                }
             } else {
                 let nomeExibicao = forma.nome;
                 if (tipo === 'MERCADOPAGO') {
-                    nomeExibicao = '💳 Mercado Pago (Point / Cartão)';
+                    nomeExibicao = '💳 Cartão / Mercado Pago (Point / Online)';
+                    cartaoJaAdicionadoMp = true;
                 } else if (tipo === 'MP_POINT') {
                     nomeExibicao = '📟 Mercado Pago Point (Maquininha)';
                 }
@@ -3498,9 +3499,25 @@ window.adicionarLinhaPagamentoMultiplo = function() {
     
     // Constrói options de formas de pagamento
     let optionsHtml = '<option value="">Selecione o pagamento...</option>';
+    const temMpConfigurado = Boolean(window.GATEWAY_CONFIG?.tem_mercado_pago || (window.GATEWAY_CONFIG?.habilitado && window.GATEWAY_CONFIG?.gateway === 'mercadopago'));
     if (window.formasPagamento && window.formasPagamento.length > 0) {
         window.formasPagamento.forEach(forma => {
-            optionsHtml += `<option value="${forma.id}">${forma.nome}</option>`;
+            const nomeLower = (forma.nome || '').toLowerCase();
+            const tipo = forma.tipo || '';
+            const isCartao = (tipo === 'CARTAO' || tipo === 'CARTAO_CREDITO' || tipo === 'CARTAO_DEBITO' || nomeLower.includes('cartão') || nomeLower.includes('cartao'));
+            const isPix = (tipo === 'PIX' || tipo === 'PIX_ESTATICO' || nomeLower.includes('pix'));
+
+            if (temMpConfigurado && isCartao) return;
+            if (temMpConfigurado && tipo === 'PIX_ESTATICO') return;
+
+            let nomeExibicao = forma.nome;
+            if (temMpConfigurado && isPix) {
+                nomeExibicao = '⚡ PIX Mercado Pago';
+            }
+            if (temMpConfigurado && (tipo === 'MERCADOPAGO' || nomeLower.includes('mercado'))) {
+                nomeExibicao = '💳 Cartão / Mercado Pago';
+            }
+            optionsHtml += `<option value="${forma.id}">${nomeExibicao}</option>`;
         });
     }
     

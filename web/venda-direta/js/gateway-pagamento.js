@@ -4,6 +4,23 @@ import { fetchWithAuth } from './api.js';
 import { getToken } from './storage.js';
 
 /**
+ * Obtém o tenant_id da loja de forma resiliente com múltiplos fallbacks
+ */
+function obterTenantIdLoja() {
+    if (CONFIG.ID_USUARIO_LOJA) return CONFIG.ID_USUARIO_LOJA;
+    if (window.CONFIG?.ID_USUARIO_LOJA) return window.CONFIG.ID_USUARIO_LOJA;
+    if (window.usuarioData?.colaborador?.usuario_id) return window.usuarioData.colaborador.usuario_id;
+    if (window.usuarioData?.usuario?.id) return window.usuarioData.usuario.id;
+    if (window.usuarioData?.id) return window.usuarioData.id;
+    try {
+        const u = JSON.parse(localStorage.getItem('venda_direta_user_data') || '{}');
+        return u.colaborador?.usuario_id || u.usuario?.id || u.id || null;
+    } catch (e) {
+        return null;
+    }
+}
+
+/**
  * Processa pagamento via gateway externo ou fluxo interno
  */
 export async function processarPagamento(dadosPedido, carrinho, cliente) {
@@ -80,12 +97,18 @@ async function processarMercadoPagoPixDinamico(dadosPedido, carrinho, cliente) {
         const pedidoId = respPedido.dados?.id || respPedido.dados?.venda?.id || respPedido.dados?.venda_id;
         const valorTotal = carrinho.reduce((t, i) => t + ((i.preco_final || i.preco_venda_sugerido) * i.quantidade), 0);
 
+        const tenantId = obterTenantIdLoja();
+        if (!tenantId) {
+            throw new Error('Identificador da loja (tenant_id) não encontrado. Por favor, recarregue a página.');
+        }
+
         // 2. Chamar endpoint de criação de Pix com Split
-        console.log('[MP Pix] ⚡ Chamando criar-pagamento-pix-split para pedido:', pedidoId);
+        console.log('[MP Pix] ⚡ Chamando criar-pagamento-pix-split para pedido:', pedidoId, 'tenant:', tenantId);
         const respPix = await fetchWithAuth(API_ENDPOINTS.MERCADOPAGO_CRIAR_PIX_SPLIT, {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                tenant_id: CONFIG.ID_USUARIO_LOJA,
+                tenant_id: tenantId,
                 order_id: pedidoId,
                 amount: valorTotal,
                 description: `Venda Direta #${(pedidoId || '').substring(0, 8)}`
@@ -220,7 +243,8 @@ function iniciarPollingPixMercadoPago(paymentId, pedidoId, dadosPedido, carrinho
         }
 
         try {
-            const resp = await fetchWithAuth(`${API_ENDPOINTS.MERCADOPAGO_CONSULTAR_STATUS_PIX}?payment_id=${paymentId}&tenant_id=${CONFIG.ID_USUARIO_LOJA}`);
+            const tenantId = obterTenantIdLoja();
+            const resp = await fetchWithAuth(`${API_ENDPOINTS.MERCADOPAGO_CONSULTAR_STATUS_PIX}?payment_id=${paymentId}&tenant_id=${tenantId}`);
             const data = await resp.json();
 
             if (data.sucesso && data.status) {
@@ -285,12 +309,18 @@ async function processarMercadoPagoCarteiraDigital(dadosPedido, carrinho, client
         const pedidoId = respPedido.dados?.id || respPedido.dados?.venda?.id || respPedido.dados?.venda_id;
         const valorTotal = carrinho.reduce((t, i) => t + ((i.preco_final || i.preco_venda_sugerido) * i.quantidade), 0);
 
+        const tenantId = obterTenantIdLoja();
+        if (!tenantId) {
+            throw new Error('Identificador da loja (tenant_id) não encontrado. Por favor, recarregue a página.');
+        }
+
         // 2. Criar Preferência com Split de Carteira Digital
-        console.log('[MP Wallet] ⚡ Criando preferência de Carteira Digital para pedido:', pedidoId);
+        console.log('[MP Wallet] ⚡ Criando preferência de Carteira Digital para pedido:', pedidoId, 'tenant:', tenantId);
         const respPref = await fetchWithAuth(API_ENDPOINTS.MERCADOPAGO_CRIAR_PREFERENCIA_CARTEIRA, {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                tenant_id: CONFIG.ID_USUARIO_LOJA,
+                tenant_id: tenantId,
                 venda_id: pedidoId,
                 valor_total: valorTotal,
                 cliente: {
@@ -460,7 +490,8 @@ function iniciarPollingCarteiraDigitalMercadoPago(externalReference, preferenceI
         }
 
         try {
-            const url = `${API_ENDPOINTS.MERCADOPAGO_CONSULTAR_STATUS_PREFERENCIA}?external_reference=${encodeURIComponent(externalReference || pedidoId)}&preference_id=${encodeURIComponent(preferenceId || '')}&tenant_id=${encodeURIComponent(CONFIG.ID_USUARIO_LOJA)}`;
+            const tenantId = obterTenantIdLoja();
+            const url = `${API_ENDPOINTS.MERCADOPAGO_CONSULTAR_STATUS_PREFERENCIA}?external_reference=${encodeURIComponent(externalReference || pedidoId)}&preference_id=${encodeURIComponent(preferenceId || '')}&tenant_id=${encodeURIComponent(tenantId)}`;
             const resp = await fetchWithAuth(url);
             const data = await resp.json();
 
@@ -676,10 +707,15 @@ function mostrarModalCartaoMercadoPago(pedidoId, valorTotal, dadosPedido, carrin
             feedback.classList.remove('hidden');
 
             try {
+                const tenantId = obterTenantIdLoja();
+                if (!tenantId) {
+                    throw new Error('Identificador da loja (tenant_id) não encontrado. Por favor, recarregue a página.');
+                }
                 const resp = await fetchWithAuth(API_ENDPOINTS.MERCADOPAGO_PAGAR_CARTAO, {
                     method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        tenant_id: CONFIG.ID_USUARIO_LOJA,
+                        tenant_id: tenantId,
                         order_id: pedidoId,
                         amount: valorTotal,
                         installments: parcelas,
@@ -810,7 +846,8 @@ function exibirDesafio3DsVendaDireta(modal, threeDsUrl, paymentId, pedidoId, dad
         }
 
         try {
-            const resp = await fetchWithAuth(`${API_ENDPOINTS.MERCADOPAGO_CONSULTAR_STATUS_PIX}?payment_id=${paymentId}&tenant_id=${CONFIG.ID_USUARIO_LOJA}`);
+            const tenantId = obterTenantIdLoja();
+            const resp = await fetchWithAuth(`${API_ENDPOINTS.MERCADOPAGO_CONSULTAR_STATUS_PIX}?payment_id=${paymentId}&tenant_id=${tenantId}`);
             const data = await resp.json();
 
             if (data.sucesso && data.status === 'approved') {
@@ -1091,7 +1128,12 @@ async function processarMercadoPagoPoint(dadosPedido, carrinho, cliente) {
         
         // 1. Buscar dispositivos disponíveis
         console.log('[Gateway] 📦 Buscando maquinetas Point disponíveis...');
-        const respDisp = await fetchWithAuth(`${API_ENDPOINTS.MERCADOPAGO_LISTAR_DISPOSITIVOS}?tenant_id=${CONFIG.ID_USUARIO_LOJA}`, {
+        const tenantId = obterTenantIdLoja();
+        if (!tenantId) {
+            throw new Error('Identificador da loja (tenant_id) não encontrado. Por favor, recarregue a página.');
+        }
+
+        const respDisp = await fetchWithAuth(`${API_ENDPOINTS.MERCADOPAGO_LISTAR_DISPOSITIVOS}?tenant_id=${tenantId}`, {
             method: 'GET'
         });
         
@@ -1132,8 +1174,9 @@ async function processarMercadoPagoPoint(dadosPedido, carrinho, cliente) {
         // 4. Enviar para a Maquineta
         const respPoint = await fetchWithAuth(API_ENDPOINTS.MERCADOPAGO_CRIAR_PAGAMENTO_POINT, {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                tenant_id: CONFIG.ID_USUARIO_LOJA,
+                tenant_id: tenantId,
                 device_id: dispositivoSelecionado.device_id,
                 amount: valorTotal,
                 order_id: pedidoId
