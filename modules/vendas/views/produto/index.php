@@ -1015,13 +1015,6 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
             window.location.href = '<?= Url::to(['/vendas/produto-video/studio']) ?>';
         }
     };
-</script>
-
-<?= $this->render('_modal_disparo_massa') ?>
-<?= $this->render('_modal_gerar_encarte') ?>
-<?= $this->render('_modal_gerar_referencias') ?>
-<?= $this->render('_modal_cadastro_rapido', ['lojaId' => Yii::$app->user->id]) ?>
-<?= $this->render('_modal_enriquecimento_web', ['lojaId' => Yii::$app->user->id]) ?>
 
     // ==========================================================
     // Toggle Ativo/Inativo do produto no catálogo público
@@ -1113,8 +1106,7 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
 
         const toast = document.createElement('div');
         toast.id = 'toast-produto-toggle';
-        toast.className = `fixed bottom-6 right-6 z-[9999] flex items-center gap-3 px-5 py-3 rounded-xl shadow-xl text-white text-sm font-semibold
-                           ${cores[tipo] || cores.success} transition-all duration-300 opacity-0 translate-y-4`;
+        toast.className = `fixed bottom-6 right-6 z-[9999] flex items-center gap-3 px-5 py-3 rounded-xl shadow-xl text-white text-sm font-semibold ${cores[tipo] || cores.success} transition-all duration-300 opacity-0 translate-y-4`;
         toast.innerHTML = `<span class="text-base">${icones[tipo] || '✅'}</span><span>${msg}</span>`;
         document.body.appendChild(toast);
 
@@ -1127,4 +1119,10 @@ echo '<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></scri
         }, 3500);
     }
 </script>
+
+<?= $this->render('_modal_disparo_massa') ?>
+<?= $this->render('_modal_gerar_encarte') ?>
+<?= $this->render('_modal_gerar_referencias') ?>
+<?= $this->render('_modal_cadastro_rapido', ['lojaId' => Yii::$app->user->id]) ?>
+<?= $this->render('_modal_enriquecimento_web', ['lojaId' => Yii::$app->user->id]) ?>
 
