@@ -400,11 +400,17 @@ async function processarCartaoMercadoPago(dadosPedido, carrinho, cliente, pedido
                          (dadosPedido?.forma_pagamento_nome?.toLowerCase()?.includes('debito'));
         const tipoCartao = isDebito ? 'debit_card' : 'credit_card';
 
+        const deviceId = window.mpDeviceId || 
+                         document.querySelector('input[name="mpDeviceId"]')?.value || 
+                         document.getElementById('mpDeviceId')?.value || 
+                         null;
+
         const payload = {
             tenant_id:         CONFIG.ID_USUARIO_LOJA,
             order_id:          pedidoId,
             amount:            valorTotal,
             token:             window.mpCardToken,
+            device_id:         deviceId,
             installments:      isDebito ? 1 : (window.mpInstallments || 1),
             payment_method_id: window.mpPaymentMethodId || null,  // bandeira: 'visa', 'master', etc.
             issuer_id:         window.mpIssuerId        || null,  // banco emissor
@@ -425,7 +431,8 @@ async function processarCartaoMercadoPago(dadosPedido, carrinho, cliente, pedido
 
         console.log('[MP Cartão] 🚀 Enviando pagamento ao backend (' + tipoCartao + '):', {
             ...payload,
-            token: payload.token ? `${payload.token.substring(0, 8)}...` : null
+            token: payload.token ? `${payload.token.substring(0, 8)}...` : null,
+            device_id: deviceId ? 'presente' : 'ausente'
         });
 
         const response = await fetch(API_ENDPOINTS.MERCADOPAGO_PAGAR_CARTAO, {
@@ -568,8 +575,12 @@ function exibirModalDesafio3DSCatalogo(threeDsUrl, paymentId, pedidoId, dadosPed
                     <iframe src="${threeDsUrl}" id="iframe-3ds-cat" class="w-full h-80 border-0 rounded-xl" allow="payment"></iframe>
                 </div>
 
+                <div class="bg-blue-50 border border-blue-200 p-2.5 rounded-xl text-left text-[11px] text-blue-800 leading-snug">
+                    💡 <strong>Aviso de Segurança Bancária:</strong> Alguns bancos (ex: Next, Bradesco, Itaú e Nubank) bloqueiam a visualização embutida por proteção. Se o quadro acima permanecer em branco, clique no botão azul abaixo para abrir no app/site do seu banco.
+                </div>
+
                 <div class="flex flex-col gap-2">
-                    <a href="${threeDsUrl}" target="_blank" rel="noopener noreferrer" class="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white text-xs font-black rounded-xl text-center shadow transition flex items-center justify-center gap-2">
+                    <a href="${threeDsUrl}" target="_blank" rel="noopener noreferrer" id="btn-abrir-banco-cat" class="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white text-xs font-black rounded-xl text-center shadow-lg transition flex items-center justify-center gap-2 animate-pulse">
                         <span>📲 Abrir tela do Banco em nova aba</span>
                         <span>↗</span>
                     </a>

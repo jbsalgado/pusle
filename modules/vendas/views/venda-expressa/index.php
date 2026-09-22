@@ -541,6 +541,20 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
 
         <!-- Conteúdo Aba 3: Cartão Online Digitado -->
         <div id="mpConteudoCartao" class="hidden space-y-3">
+            <!-- Alternância Modalidade: Crédito vs Débito -->
+            <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 gap-1 text-[11px] font-bold">
+                <button type="button" id="btnExpTipoCredito" onclick="alternarTipoCartaoExpressa('credit_card')" class="flex-1 py-1.5 rounded-lg bg-cyan-500 text-slate-950 shadow transition flex items-center justify-center gap-1">
+                    <span>💳</span> <span>Crédito</span>
+                </button>
+                <button type="button" id="btnExpTipoDebito" onclick="alternarTipoCartaoExpressa('debit_card')" class="flex-1 py-1.5 rounded-lg text-slate-400 hover:text-white transition flex items-center justify-center gap-1">
+                    <span>💳</span> <span>Débito</span>
+                </button>
+            </div>
+
+            <div id="mpExpAvisoDebito" class="hidden p-2.5 rounded-xl text-[11px] bg-blue-950/60 border border-blue-500/40 text-blue-200 leading-snug">
+                ℹ️ <strong>Cartão de Débito (1x à vista):</strong> Cobrança processada à vista diretamente na conta do titular.
+            </div>
+
             <div class="space-y-1">
                 <label class="block text-[10px] font-bold text-slate-400 uppercase">Número do Cartão</label>
                 <input type="text" id="mpCartaoNumero" maxlength="19" placeholder="0000 0000 0000 0000" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono font-bold text-white focus:outline-none focus:border-cyan-400">
@@ -564,7 +578,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                     <label class="block text-[10px] font-bold text-slate-400 uppercase">CPF do Titular</label>
                     <input type="text" id="mpCartaoCpf" maxlength="14" placeholder="000.000.000-00" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono font-bold text-white focus:outline-none focus:border-cyan-400">
                 </div>
-                <div class="space-y-1">
+                <div class="space-y-1" id="mpContainerParcelas">
                     <label class="block text-[10px] font-bold text-slate-400 uppercase">Parcelas</label>
                     <select id="mpCartaoParcelas" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-cyan-400">
                         <option value="1">1x à vista</option>
@@ -796,6 +810,8 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
     const temMercadoPagoConfig = <?= json_encode((bool)($temMercadoPago ?? false)) ?>;
     let statusPixEstaticoConfig = <?= json_encode($statusPixEstatico ?? null) ?>;
     const lojaIdAtual = <?= json_encode((string)($lojaId ?? '')) ?>;
+    const mpPublicKeyConfig = <?= json_encode($usuarioLoja ? ($usuarioLoja->mp_public_key ?: $usuarioLoja->mercadopago_public_key) : null) ?>;
+    let tipoCartaoExpressaAtual = 'credit_card'; // 'credit_card' | 'debit_card'
     const dispositivosPointDisponiveis = <?= json_encode($dispositivosPoint ?? []) ?>;
     const baseUrlApp = '<?= Yii::$app->request->baseUrl ?>';
     let mpPollingInterval = null;
@@ -803,6 +819,36 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
     let mpPaymentIdAtual = null;
     let indexItemFocado = -1;
     let dadosUltimaVendaFinalizada = null;
+
+    function alternarTipoCartaoExpressa(tipo) {
+        tipoCartaoExpressaAtual = tipo;
+        const btnCred = document.getElementById('btnExpTipoCredito');
+        const btnDeb = document.getElementById('btnExpTipoDebito');
+        const avisoDeb = document.getElementById('mpExpAvisoDebito');
+        const containerParcelas = document.getElementById('mpContainerParcelas');
+        const selectParcelas = document.getElementById('mpCartaoParcelas');
+
+        if (tipo === 'debit_card') {
+            if (btnDeb) {
+                btnDeb.className = 'flex-1 py-1.5 rounded-lg bg-cyan-500 text-slate-950 shadow transition flex items-center justify-center gap-1';
+            }
+            if (btnCred) {
+                btnCred.className = 'flex-1 py-1.5 rounded-lg text-slate-400 hover:text-white transition flex items-center justify-center gap-1';
+            }
+            if (avisoDeb) avisoDeb.classList.remove('hidden');
+            if (containerParcelas) containerParcelas.style.display = 'none';
+            if (selectParcelas) selectParcelas.value = '1';
+        } else {
+            if (btnCred) {
+                btnCred.className = 'flex-1 py-1.5 rounded-lg bg-cyan-500 text-slate-950 shadow transition flex items-center justify-center gap-1';
+            }
+            if (btnDeb) {
+                btnDeb.className = 'flex-1 py-1.5 rounded-lg text-slate-400 hover:text-white transition flex items-center justify-center gap-1';
+            }
+            if (avisoDeb) avisoDeb.classList.add('hidden');
+            if (containerParcelas) containerParcelas.style.display = '';
+        }
+    }
 
     function aplicarMascaraMoedaInput(input, tipoSelectId) {
         const tipo = tipoSelectId ? document.getElementById(tipoSelectId).value : 'VALOR';
@@ -2521,7 +2567,8 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         const cvv = (document.getElementById('mpCartaoCvv')?.value || '').trim();
         const nome = (document.getElementById('mpCartaoNome')?.value || '').trim();
         const cpf = (document.getElementById('mpCartaoCpf')?.value || '').replace(/\D/g, '');
-        const parcelas = parseInt(document.getElementById('mpCartaoParcelas')?.value || '1', 10);
+        const isDebito = (tipoCartaoExpressaAtual === 'debit_card');
+        const parcelas = isDebito ? 1 : parseInt(document.getElementById('mpCartaoParcelas')?.value || '1', 10);
         const feedback = document.getElementById('mpCartaoFeedback');
 
         if (numCartao.length < 13 || numCartao.length > 19) {
@@ -2556,8 +2603,8 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             return;
         }
 
-        if (cpf.length !== 11) {
-            alert('Informe um CPF válido do titular do cartão (11 dígitos).');
+        if (cpf.length !== 11 && cpf.length !== 14) {
+            alert('Informe um CPF/CNPJ válido do titular do cartão.');
             document.getElementById('mpCartaoCpf')?.focus();
             return;
         }
@@ -2570,10 +2617,10 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
 
         const btn = document.getElementById('btnProcessarCartaoMp');
         btn.disabled = true;
-        btn.innerHTML = '<span>⏳ Processando cobrança no Mercado Pago...</span>';
+        btn.innerHTML = '<span>⏳ Processando autorização no Mercado Pago...</span>';
         if (feedback) {
             feedback.className = 'p-2.5 rounded-xl text-xs font-bold text-center bg-cyan-500/10 text-cyan-300 border border-cyan-500/30';
-            feedback.textContent = 'Enviando dados do cartão e solicitando autorização...';
+            feedback.textContent = 'Tokenizando cartão com criptografia bancária...';
             feedback.classList.remove('hidden');
         }
 
@@ -2584,33 +2631,140 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
 
             const emailCliente = document.getElementById('clienteWhatsapp')?.value ? `${document.getElementById('clienteWhatsapp').value.replace(/\D/g, '')}@pdv.com` : 'cliente@loja.com';
 
+            // Garante SDK v2 carregado
+            if (typeof window.MercadoPago === 'undefined') {
+                await new Promise((res, rej) => {
+                    const s = document.createElement('script');
+                    s.src = 'https://sdk.mercadopago.com/js/v2';
+                    s.onload = res;
+                    s.onerror = rej;
+                    document.head.appendChild(s);
+                });
+            }
+
+            let cardToken = null;
+            let pubKey = mpPublicKeyConfig;
+
+            // Se a chave não estava embutida, tenta obter da configuração da loja
+            if (!pubKey) {
+                try {
+                    const cfgResp = await fetch(`${baseUrlApp}/index.php/api/usuario/config?usuario_id=${encodeURIComponent(lojaIdAtual)}`);
+                    if (cfgResp.ok) {
+                        const cfgData = await cfgResp.json();
+                        pubKey = cfgData.mercadopago_public_key || null;
+                    }
+                } catch (_) {}
+            }
+
+            // Tokenização client-side no navegador (3DS 2.0 / EMV compliant)
+            if (pubKey && typeof window.MercadoPago !== 'undefined') {
+                try {
+                    const mp = new window.MercadoPago(pubKey, { locale: 'pt-BR' });
+                    const tokenResult = await mp.createCardToken({
+                        cardNumber: numCartao,
+                        cardholderName: nome,
+                        cardExpirationMonth: String(mes).padStart(2, '0'),
+                        cardExpirationYear: String(ano),
+                        securityCode: cvv,
+                        identificationType: cpf.length === 14 ? 'CNPJ' : 'CPF',
+                        identificationNumber: cpf,
+                    });
+                    if (tokenResult && tokenResult.id) {
+                        cardToken = tokenResult.id;
+                        console.log('[Venda Expressa MP] ✅ Token gerado client-side com sucesso:', cardToken.substring(0, 8) + '...');
+                    }
+                } catch (tokErr) {
+                    console.warn('[Venda Expressa MP] Aviso na tokenização client-side, utilizando fallback seguro:', tokErr);
+                }
+            }
+
+            const deviceId = window.mpDeviceId || 
+                             document.querySelector('input[name="mpDeviceId"]')?.value || 
+                             document.getElementById('mpDeviceId')?.value || 
+                             null;
+
+            const payloadEnvio = {
+                tenant_id: lojaIdAtual,
+                order_id: mpVendaIdAtual,
+                amount: totalNum,
+                installments: parcelas,
+                tipo_cartao: tipoCartaoExpressaAtual,
+                payment_type_id: tipoCartaoExpressaAtual,
+                device_id: deviceId,
+                card_holder: nome,
+                cardholder_name: nome,
+                doc_number: cpf,
+                payer_cpf: cpf,
+                email: emailCliente
+            };
+
+            if (cardToken) {
+                payloadEnvio.token = cardToken;
+            } else {
+                // Fallback para tokenização via backend
+                payloadEnvio.card_number = numCartao;
+                payloadEnvio.expiration_month = mes;
+                payloadEnvio.expiration_year = ano;
+                payloadEnvio.security_code = cvv;
+            }
+
+            if (feedback) {
+                feedback.textContent = 'Enviando transação com telemetria de segurança...';
+            }
+
             const resp = await fetch(`${baseUrlApp}/index.php/api/mercado-pago/pagar-cartao`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    tenant_id: lojaIdAtual,
-                    order_id: mpVendaIdAtual,
-                    amount: totalNum,
-                    installments: parcelas,
-                    card_number: numCartao,
-                    card_holder: nome,
-                    expiration_month: mes,
-                    expiration_year: ano,
-                    security_code: cvv,
-                    doc_number: cpf,
-                    email: emailCliente
-                })
+                body: JSON.stringify(payloadEnvio)
             });
 
             const data = await resp.json();
+
+            // 🔐 Tratamento de Desafio 3DS
             if (data.status === 'requires_action' && data.three_ds_url) {
                 console.log('[Venda Expressa 3DS] 🔐 Autenticação bancária necessária:', data.three_ds_url);
                 exibirDesafio3DsVendaExpressa(data.three_ds_url, data.payment_id, mpVendaIdAtual);
                 return;
             }
 
-            if (!resp.ok || !data.sucesso) {
-                throw new Error(data.message || data.mensagem || 'Cartão recusado pelo Mercado Pago.');
+            // Tratamento de transação em análise (polling rápido de 10-15s)
+            if (data.status === 'in_process' || data.status === 'pending') {
+                if (feedback) {
+                    feedback.className = 'p-2.5 rounded-xl text-xs font-bold text-center bg-amber-500/20 text-amber-300 border border-amber-500/40';
+                    feedback.innerHTML = '<span class="inline-block animate-spin mr-1">⏳</span> Pagamento em análise pela instituição bancária...';
+                }
+
+                let pollingTentativas = 0;
+                const maxPolling = 6;
+                let pollingAprovado = false;
+
+                while (pollingTentativas < maxPolling && !pollingAprovado) {
+                    await new Promise(r => setTimeout(r, 2500));
+                    pollingTentativas++;
+
+                    try {
+                        const checkResp = await fetch(`${baseUrlApp}/index.php/api/mercado-pago/consultar-status-pagamento?payment_id=${encodeURIComponent(data.payment_id)}&tenant_id=${encodeURIComponent(lojaIdAtual)}`);
+                        if (checkResp.ok) {
+                            const checkData = await checkResp.json();
+                            if (checkData.sucesso && checkData.status === 'approved') {
+                                pollingAprovado = true;
+                                data.status = 'approved';
+                                data.sucesso = true;
+                                break;
+                            } else if (checkData.status === 'rejected') {
+                                throw new Error(checkData.mensagem || 'Cartão não autorizado pela instituição bancária.');
+                            }
+                        }
+                    } catch (pollErr) {
+                        if (pollErr.message && pollErr.message.includes('não autorizado')) {
+                            throw pollErr;
+                        }
+                    }
+                }
+            }
+
+            if (!data.sucesso || data.status !== 'approved') {
+                throw new Error(data.mensagem || data.message || 'Cartão não autorizado pelo banco emissor.');
             }
 
             if (feedback) {
@@ -2644,8 +2798,18 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         if (conteudo3DS) conteudo3DS.classList.remove('hidden');
 
         if (iframe) iframe.src = threeDsUrl;
-        if (btnLink) btnLink.href = threeDsUrl;
-        if (statusTexto) statusTexto.innerHTML = '<span class="inline-block animate-spin">⏳</span><span>Aguardando autorização no banco...</span>';
+        if (btnLink) {
+            btnLink.href = threeDsUrl;
+            btnLink.classList.add('animate-pulse');
+        }
+        if (statusTexto) {
+            statusTexto.innerHTML = '<span class="inline-block animate-spin">⏳</span><span>Aguardando autorização no banco...</span>';
+        }
+
+        // Tenta abrir janela popup automática para contornar bloqueio X-Frame-Options de bancos
+        try {
+            window.open(threeDsUrl, '_blank', 'width=500,height=700,scrollbars=yes,resizable=yes');
+        } catch (_) {}
 
         if (mpPollingIntervalId) clearInterval(mpPollingIntervalId);
 
@@ -2657,12 +2821,12 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
             if (attempts > maxAttempts) {
                 clearInterval(mpPollingIntervalId);
                 mpPollingIntervalId = null;
-                if (statusTexto) statusTexto.innerHTML = '<span class="text-rose-400 font-bold">Tempo limite de autenticação excedido.</span>';
+                if (statusTexto) statusTexto.innerHTML = '<span class="text-rose-400 font-bold">Tempo limite de autenticação esgotado. Verifique no app do banco.</span>';
                 return;
             }
 
             try {
-                const r = await fetch(`${baseUrlApp}/index.php/api/mercado-pago/consultar-status-pix?payment_id=${paymentId}&tenant_id=${lojaIdAtual}`);
+                const r = await fetch(`${baseUrlApp}/index.php/api/mercado-pago/consultar-status-pagamento?payment_id=${paymentId}&tenant_id=${lojaIdAtual}`);
                 const res = await r.json();
 
                 if (res.sucesso && res.status === 'approved') {
@@ -2677,7 +2841,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
                 } else if (res.sucesso && (res.status === 'rejected' || res.status === 'cancelled')) {
                     clearInterval(mpPollingIntervalId);
                     mpPollingIntervalId = null;
-                    if (statusTexto) statusTexto.innerHTML = '❌ <span class="text-rose-400 font-bold">Autenticação não autorizada pelo banco.</span>';
+                    if (statusTexto) statusTexto.innerHTML = '❌ <span class="text-rose-400 font-bold">' + (res.mensagem || 'Autenticação recusada pelo banco.') + '</span>';
                 }
             } catch (err) {
                 console.warn('[3DS Polling] Erro ao consultar status:', err);
@@ -3167,3 +3331,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
         }
     });
 </script>
+
+<!-- SDK Mercado Pago v2 e Profiling Antifraude (3DS 2.0 / EMV) -->
+<script src="https://sdk.mercadopago.com/js/v2"></script>
+<script src="https://www.mercadopago.com/v2/security.js" view="checkout" output="mpDeviceId"></script>

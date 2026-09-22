@@ -20,6 +20,7 @@ use app\modules\caixa\helpers\CaixaHelper;
 use MercadoPago\MercadoPagoConfig;
 use MercadoPago\Client\Preference\PreferenceClient;
 use MercadoPago\Client\Payment\PaymentClient;
+use MercadoPago\Client\Common\RequestOptions;
 use MercadoPago\Exceptions\MPApiException;
 
 class MercadoPagoController extends Controller
@@ -407,10 +408,12 @@ class MercadoPagoController extends Controller
 
             if (empty($payer['email'])) {
                 $reqEmail = trim($request['email'] ?? '');
-                if (!empty($reqEmail) && filter_var($reqEmail, FILTER_VALIDATE_EMAIL) && strpos($reqEmail, 'cliente@pdv.com') === false) {
+                $vendedorEmail = trim($usuario['email'] ?? '');
+                if (!empty($reqEmail) && filter_var($reqEmail, FILTER_VALIDATE_EMAIL) && strpos($reqEmail, 'cliente@pdv.com') === false && strcasecmp($reqEmail, $vendedorEmail) !== 0) {
                     $payer['email'] = $reqEmail;
                 } else {
-                    $payer['email'] = !empty($usuario['email']) ? $usuario['email'] : 'comprador@oncode.app.br';
+                    // Evita vincular o e-mail da loja para não disparar autofinanciamento no antifraude
+                    $payer['email'] = 'comprador.' . substr(preg_replace('/[^a-zA-Z0-9]/', '', (string)$orderId), 0, 8) . '@oncode.app.br';
                 }
             }
 
@@ -428,8 +431,15 @@ class MercadoPagoController extends Controller
 
             // --- Payload do pagamento ---
             $paymentMethodId = $request['payment_method_id'] ?? null;
-            if ($isDebito && strtolower((string)$paymentMethodId) === 'elo') {
-                $paymentMethodId = 'debelo';
+            if ($isDebito) {
+                $pmLower = strtolower((string)$paymentMethodId);
+                if ($pmLower === 'elo') {
+                    $paymentMethodId = 'debelo';
+                } elseif ($pmLower === 'master' || $pmLower === 'mastercard') {
+                    $paymentMethodId = 'debmaster';
+                } elseif ($pmLower === 'visa') {
+                    $paymentMethodId = 'debvisa';
+                }
             }
 
             $paymentData = [
@@ -469,6 +479,28 @@ class MercadoPagoController extends Controller
                 $paymentData['notification_url'] = $notificationUrl;
             }
 
+            // --- Configuração de Headers Antifraude (Device ID e IP real do comprador) ---
+            $clientIp = Yii::$app->request->userIP;
+            if (empty($clientIp) && !empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+                $ips = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+                $clientIp = trim($ips[0]);
+            }
+            $deviceId = $request['device_id'] ?? ($request['device_session_id'] ?? null);
+
+            $customHeaders = [];
+            if (!empty($deviceId)) {
+                $customHeaders['X-Meli-Session-Id'] = (string)$deviceId;
+            }
+            if (!empty($clientIp)) {
+                $customHeaders['X-Forwarded-For'] = (string)$clientIp;
+            }
+
+            $requestOptions = null;
+            if (!empty($customHeaders)) {
+                $requestOptions = new RequestOptions();
+                $requestOptions->setCustomHeaders($customHeaders);
+            }
+
             Yii::info([
                 'action'       => 'cartao_pagamento_iniciando',
                 'tenant_id'    => $tenantId,
@@ -477,13 +509,15 @@ class MercadoPagoController extends Controller
                 'installments' => $installments,
                 'tipo_cartao'  => $tipoCartao,
                 'method_id'    => $paymentData['payment_method_id'] ?? null,
+                'has_device_id'=> !empty($deviceId),
+                'client_ip'    => $clientIp,
             ], 'mercadopago');
 
             $client  = new PaymentClient();
 
             // --- Execução com retry sem application_fee (erro 2059) ---
             try {
-                $payment = $client->create($paymentData);
+                $payment = $client->create($paymentData, $requestOptions);
             } catch (MPApiException $e) {
                 $apiResp     = $e->getApiResponse();
                 $respContent = is_object($apiResp) && method_exists($apiResp, 'getContent') ? $apiResp->getContent() : [];
@@ -495,7 +529,7 @@ class MercadoPagoController extends Controller
                     Yii::warning('Cartão: retentativa sem application_fee (código 2059).', 'mercadopago');
                     unset($paymentData['application_fee']);
                     $applicationFee = 0.0;
-                    $payment = $client->create($paymentData);
+                    $payment = $client->create($paymentData, $requestOptions);
                 } else {
                     throw $e;
                 }
@@ -583,9 +617,16 @@ class MercadoPagoController extends Controller
                 ];
             }
 
-            // --- Verificação de desafio 3DS (Three-D Secure) ---
+            // --- Verificação de desafio 3DS (Three-D Secure 2.0 / EMV 3DS) ---
             $threeDsUrl = null;
-            if (!empty($payment->transaction_details) && !empty($payment->transaction_details->external_resource_url)) {
+            // 1. Padrão oficial 3DS 2.0 do Mercado Pago
+            if (!empty($payment->three_ds_info) && !empty($payment->three_ds_info->external_resource_url)) {
+                $threeDsUrl = $payment->three_ds_info->external_resource_url;
+            } elseif (is_array($payment) && !empty($payment['three_ds_info']['external_resource_url'])) {
+                $threeDsUrl = $payment['three_ds_info']['external_resource_url'];
+            }
+            // 2. Fallbacks: transaction_details / point_of_interaction
+            elseif (!empty($payment->transaction_details) && !empty($payment->transaction_details->external_resource_url)) {
                 $threeDsUrl = $payment->transaction_details->external_resource_url;
             } elseif (!empty($payment->point_of_interaction) 
                 && !empty($payment->point_of_interaction->transaction_data) 
@@ -596,11 +637,16 @@ class MercadoPagoController extends Controller
                 $threeDsUrl = $payment['transaction_details']['external_resource_url'];
             }
 
-            if ($threeDsUrl && ($status === 'in_process' || $status === 'pending' || $status === 'requires_action' || $statusDetail === 'pending_challenge')) {
+            $isDesafio3Ds = ($statusDetail === 'pending_challenge' || 
+                             $status === 'requires_action' || 
+                             (!empty($threeDsUrl) && in_array($status, ['pending', 'in_process'])));
+
+            if ($threeDsUrl && $isDesafio3Ds) {
                 Yii::info([
                     'action'       => 'cartao_desafio_3ds_detectado',
                     'payment_id'   => $paymentId,
                     'three_ds_url' => $threeDsUrl,
+                    'status_detail'=> $statusDetail,
                 ], 'mercadopago');
 
                 return [

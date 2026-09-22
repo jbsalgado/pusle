@@ -765,26 +765,65 @@ function mostrarModalCartaoMercadoPago(pedidoId, valorTotal, dadosPedido, carrin
                 if (!tenantId) {
                     throw new Error('Identificador da loja (tenant_id) não encontrado. Por favor, recarregue a página.');
                 }
+
+                // 🔐 Tokenização client-side no navegador via MercadoPago.js v2 (3DS 2.0 / EMV)
+                let cardToken = null;
+                const pubKey = window.GATEWAY_CONFIG?.mercadopago_public_key;
+                if (pubKey && typeof window.MercadoPago !== 'undefined') {
+                    try {
+                        const mp = new window.MercadoPago(pubKey, { locale: 'pt-BR' });
+                        const tokenResult = await mp.createCardToken({
+                            cardNumber: numCartao,
+                            cardholderName: nome,
+                            cardExpirationMonth: String(mes).padStart(2, '0'),
+                            cardExpirationYear: String(ano),
+                            securityCode: cvv,
+                            identificationType: cpf.length === 14 ? 'CNPJ' : 'CPF',
+                            identificationNumber: cpf,
+                        });
+                        if (tokenResult && tokenResult.id) {
+                            cardToken = tokenResult.id;
+                            console.log('[Venda Direta MP] ✅ Token gerado client-side com sucesso:', cardToken.substring(0, 8) + '...');
+                        }
+                    } catch (tokErr) {
+                        console.warn('[Venda Direta MP] Aviso na tokenização client-side, utilizando fallback seguro:', tokErr);
+                    }
+                }
+
+                const deviceId = window.mpDeviceId || 
+                                 document.querySelector('input[name="mpDeviceId"]')?.value || 
+                                 document.getElementById('mpDeviceId')?.value || 
+                                 null;
+
+                const payloadCartao = {
+                    tenant_id: tenantId,
+                    order_id: pedidoId,
+                    amount: valorTotal,
+                    installments: parcelas,
+                    tipo_cartao: modalTipoCartao,
+                    payment_type_id: modalTipoCartao,
+                    device_id: deviceId,
+                    card_holder: nome,
+                    cardholder_name: nome,
+                    doc_number: cpf,
+                    payer_cpf: cpf,
+                    email: cliente?.email || 'cliente@pdv.com'
+                };
+
+                if (cardToken) {
+                    payloadCartao.token = cardToken;
+                } else {
+                    // Fallback para tokenização via backend
+                    payloadCartao.card_number = numCartao;
+                    payloadCartao.expiration_month = mes;
+                    payloadCartao.expiration_year = ano;
+                    payloadCartao.security_code = cvv;
+                }
+
                 const resp = await fetchWithAuth(API_ENDPOINTS.MERCADOPAGO_PAGAR_CARTAO, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        tenant_id: tenantId,
-                        order_id: pedidoId,
-                        amount: valorTotal,
-                        installments: parcelas,
-                        tipo_cartao: modalTipoCartao,
-                        payment_type_id: modalTipoCartao,
-                        card_number: numCartao,
-                        card_holder: nome,
-                        cardholder_name: nome,
-                        expiration_month: mes,
-                        expiration_year: ano,
-                        security_code: cvv,
-                        doc_number: cpf,
-                        payer_cpf: cpf,
-                        email: cliente?.email || 'cliente@pdv.com'
-                    })
+                    body: JSON.stringify(payloadCartao)
                 });
 
                 const data = await resp.json();
@@ -902,8 +941,12 @@ function exibirDesafio3DsVendaDireta(modal, threeDsUrl, paymentId, pedidoId, dad
             <iframe src="${threeDsUrl}" id="iframe-3ds-direta" class="w-full h-80 border-0 rounded-xl" allow="payment"></iframe>
         </div>
 
+        <div class="bg-blue-50 border border-blue-200 p-2.5 rounded-xl text-left text-[11px] text-blue-800 leading-snug">
+            💡 <strong>Aviso de Proteção Bancária:</strong> Alguns bancos (como Next, Bradesco, Itaú e Nubank) não exibem a tela embutida. Se o quadro acima permanecer em branco, utilize o botão abaixo para abrir a autenticação.
+        </div>
+
         <div class="flex flex-col gap-2">
-            <a href="${threeDsUrl}" target="_blank" rel="noopener noreferrer" class="w-full py-2.5 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl text-center shadow transition flex items-center justify-center gap-2">
+            <a href="${threeDsUrl}" target="_blank" rel="noopener noreferrer" class="w-full py-2.5 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl text-center shadow transition flex items-center justify-center gap-2 animate-pulse">
                 <span>📲 Abrir tela do Banco em nova janela</span>
                 <span>↗</span>
             </a>
@@ -916,6 +959,11 @@ function exibirDesafio3DsVendaDireta(modal, threeDsUrl, paymentId, pedidoId, dad
             </button>
         </div>
     `;
+
+    // Tenta abrir janela popup automática para conveniência
+    try {
+        window.open(threeDsUrl, '_blank', 'width=500,height=700,scrollbars=yes,resizable=yes');
+    } catch (_) {}
 
     // Polling de verificação de aprovação
     let pollInterval = null;
