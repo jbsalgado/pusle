@@ -949,8 +949,11 @@ class MobileController extends BaseController
     private function serializarProduto(Produto $produto): array
     {
         $fotoUrl = null;
+        $fotoNome = null;
         if (!empty($produto->fotos)) {
-            $fotoUrl = $produto->fotos[0]->url ?? null;
+            $fotoObj = $produto->fotos[0];
+            $fotoUrl = method_exists($fotoObj, 'getUrlCompleta') ? $fotoObj->getUrlCompleta() : ($fotoObj->url ?? null);
+            $fotoNome = $fotoObj->arquivo_nome ?? basename($fotoObj->arquivo_path ?? '');
         }
 
         $variantes = [];
@@ -990,6 +993,7 @@ class MobileController extends BaseController
             'marca'                 => $produto->marca,
             'ativo'                 => (bool)$produto->ativo,
             'foto_url'              => $fotoUrl,
+            'foto_nome'             => $fotoNome,
             'variantes'             => $variantes,
             'data_atualizacao'      => $produto->data_atualizacao,
         ];
