@@ -206,6 +206,25 @@ $config = [
                 'POST api/cliente' => 'api/cliente/create',
                 'GET api/cliente/<id:[0-9a-fA-F-]{36}>' => 'api/cliente/view',
                 'GET api/cliente' => 'api/cliente/index',
+
+                // ============================================================
+                // 📱 MOBILE API – App Flutter Pulse (vendas offline + sync)
+                // ============================================================
+                // Info do tenant
+                'GET api/mobile/info'                      => 'api/mobile/info',
+                // Sync delta por entidade
+                'GET api/mobile/sync/produtos'             => 'api/mobile/sync-produtos',
+                'GET api/mobile/sync/categorias'           => 'api/mobile/sync-categorias',
+                'GET api/mobile/sync/clientes'             => 'api/mobile/sync-clientes',
+                'GET api/mobile/sync/formas-pagamento'     => 'api/mobile/sync-formas-pagamento',
+                'GET api/mobile/sync/status'               => 'api/mobile/sync-status',
+                // Vendas
+                'POST api/mobile/venda/registrar'          => 'api/mobile/venda-registrar',
+                'POST api/mobile/venda/batch'              => 'api/mobile/venda-batch',
+                'GET api/mobile/venda/historico'           => 'api/mobile/venda-historico',
+                // Busca de produto (scanner)
+                'GET api/mobile/produto/buscar'            => 'api/mobile/produto-buscar',
+
                 // Regras genéricas para módulo API - suporta hífens em actions
                 'api/<controller:\w+>/<action:[\w-]+>' => 'api/<controller>/<action>',
                 'api/<controller:\w+>' => 'api/<controller>/index',

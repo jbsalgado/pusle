@@ -50,12 +50,9 @@ class AuthController extends BaseController
         // Gera o Token JWT
         $token = $usuario->generateJwt();
 
-        // Dados complementares do colaborador (se houver)
-        $colaborador = Colaborador::find()
-            ->where(['usuario_id' => $usuario->id])
-            ->andWhere(['eh_vendedor' => true])
-            ->andWhere(['ativo' => true])
-            ->one();
+        // Obtém todas as lojas às quais o usuário tem acesso
+        $lojas = $usuario->getLojasDisponiveis();
+        $primeiraLoja = $lojas[0] ?? null;
 
         return $this->success([
             'token' => $token,
@@ -64,12 +61,17 @@ class AuthController extends BaseController
                 'nome' => $usuario->nome,
                 'username' => $usuario->username,
                 'email' => $usuario->email,
+                'eh_dono_loja' => (bool)$usuario->eh_dono_loja,
             ],
-            'colaborador' => $colaborador ? [
-                'id' => $colaborador->id,
-                'nome_completo' => $colaborador->nome_completo,
-                'eh_vendedor' => (bool)$colaborador->eh_vendedor,
-            ] : null
+            'lojas' => $lojas,
+            'loja_padrao' => $primeiraLoja,
+            // Mantém objeto colaborador para retrocompatibilidade
+            'colaborador' => ($primeiraLoja && !$primeiraLoja['eh_dono']) ? [
+                'id' => $primeiraLoja['colaborador_id'],
+                'usuario_id' => $primeiraLoja['loja_id'],
+                'nome_completo' => $usuario->nome,
+                'eh_vendedor' => (bool)$primeiraLoja['eh_vendedor'],
+            ] : null,
         ], 'Login realizado com sucesso.');
     }
 }

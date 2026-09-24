@@ -370,13 +370,31 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
      * 
      * @return string
      */
-    public function getTenantId()
+    public function getTenantId($forcarLojaId = null)
     {
+        // 1. Se passou um ID de loja específico, valida se o usuário tem permissão para ele
+        if (!empty($forcarLojaId)) {
+            if (($this->eh_dono_loja === true || $this->eh_dono_loja === 't' || $this->eh_dono_loja === 1) && $this->id === $forcarLojaId) {
+                return $forcarLojaId;
+            }
+            $vinculo = \app\modules\vendas\models\Colaborador::find()
+                ->where([
+                    'prest_usuario_login_id' => $this->id,
+                    'usuario_id'             => $forcarLojaId,
+                    'ativo'                  => true,
+                ])
+                ->one();
+            if ($vinculo) {
+                return $forcarLojaId;
+            }
+        }
+
+        // 2. Se for dono de loja e não estiver forçando outra loja
         if ($this->eh_dono_loja === true || $this->eh_dono_loja === 't' || $this->eh_dono_loja === 1) {
             return $this->id;
         }
 
-        // Se houver loja ativa na sessão (para colaboradores vinculados a mais de uma loja)
+        // 3. Se houver loja ativa na sessão (para colaboradores vinculados a mais de uma loja no painel web)
         if (Yii::$app->has('session') && Yii::$app->session->has('loja_ativa_id')) {
             $lojaAtivaId = Yii::$app->session->get('loja_ativa_id');
             if (!empty($lojaAtivaId)) {
@@ -393,7 +411,7 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
             }
         }
 
-        // Tenta buscar o colaborador ativo usando o ID deste usuário
+        // 4. Tenta buscar o primeiro colaborador ativo usando o ID deste usuário
         $colaborador = \app\modules\vendas\models\Colaborador::find()
             ->where(['prest_usuario_login_id' => $this->id])
             ->andWhere(['ativo' => true])
@@ -404,6 +422,81 @@ class Usuario extends \yii\db\ActiveRecord implements IdentityInterface
         }
 
         return $this->id;
+    }
+
+    /**
+     * Retorna a lista de todas as lojas às quais este usuário tem permissão de acesso.
+     * Inclui a própria loja (se for dono) e as lojas onde ele é colaborador ativo.
+     *
+     * @return array
+     */
+    public function getLojasDisponiveis(): array
+    {
+        $lojas = [];
+        $lojasIdsAdicionadas = [];
+
+        // 1. Se for dono de loja, adiciona sua própria loja
+        if ($this->eh_dono_loja === true || $this->eh_dono_loja === 't' || $this->eh_dono_loja === 1) {
+            $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $this->id]);
+            $nomeLoja = $lojaConfig ? ($lojaConfig->nome_fantasia ?: ($lojaConfig->nome_loja ?: $this->nome)) : $this->nome;
+
+            $lojas[] = [
+                'loja_id'        => (string)$this->id,
+                'nome'           => $nomeLoja ?: 'Minha Loja',
+                'nome_fantasia'  => ($lojaConfig && $lojaConfig->nome_fantasia) ? $lojaConfig->nome_fantasia : $nomeLoja,
+                'logo_url'       => $lojaConfig ? $lojaConfig->getLogoUrl() : null,
+                'papel'          => 'dono',
+                'colaborador_id' => null,
+                'eh_vendedor'    => true,
+                'eh_cobrador'    => true,
+                'eh_dono'        => true,
+            ];
+            $lojasIdsAdicionadas[(string)$this->id] = true;
+        }
+
+        // 2. Lojas onde o usuário está cadastrado como colaborador ativo
+        $colaboradores = \app\modules\vendas\models\Colaborador::find()
+            ->where(['prest_usuario_login_id' => $this->id, 'ativo' => true])
+            ->all();
+
+        foreach ($colaboradores as $colab) {
+            $lojaIdStr = (string)$colab->usuario_id;
+            if (isset($lojasIdsAdicionadas[$lojaIdStr])) {
+                continue;
+            }
+
+            $donoLoja = static::findOne($colab->usuario_id);
+            if (!$donoLoja) {
+                continue;
+            }
+
+            $lojaConfig = \app\modules\vendas\models\LojaConfiguracao::findOne(['usuario_id' => $colab->usuario_id]);
+            $nomeLoja = $lojaConfig ? ($lojaConfig->nome_fantasia ?: ($lojaConfig->nome_loja ?: $donoLoja->nome)) : $donoLoja->nome;
+
+            $papel = 'colaborador';
+            if ($colab->eh_administrador) {
+                $papel = 'administrador';
+            } elseif ($colab->eh_vendedor) {
+                $papel = 'vendedor';
+            } elseif ($colab->eh_cobrador) {
+                $papel = 'cobrador';
+            }
+
+            $lojas[] = [
+                'loja_id'        => $lojaIdStr,
+                'nome'           => $nomeLoja ?: 'Loja',
+                'nome_fantasia'  => ($lojaConfig && $lojaConfig->nome_fantasia) ? $lojaConfig->nome_fantasia : $nomeLoja,
+                'logo_url'       => $lojaConfig ? $lojaConfig->getLogoUrl() : null,
+                'papel'          => $papel,
+                'colaborador_id' => (string)$colab->id,
+                'eh_vendedor'    => (bool)$colab->eh_vendedor,
+                'eh_cobrador'    => (bool)$colab->eh_cobrador,
+                'eh_dono'        => false,
+            ];
+            $lojasIdsAdicionadas[$lojaIdStr] = true;
+        }
+
+        return $lojas;
     }
 
     // ===================================================================
