@@ -134,6 +134,11 @@ $config = [
                 [
                     'class' => 'yii\log\FileTarget',
                     'levels' => ['error', 'warning', 'info'],
+                    // FIX (segurança): o dump automático de $_SERVER/$_ENV gravava
+                    // DB_PASSWORD, MP_ACCESS_TOKEN etc. dentro do app.log.
+                    // O contexto útil agora é registrado de forma curada pelo
+                    // app\components\ErrorAction.
+                    'logVars' => [],
                 ],
             ],
         ],

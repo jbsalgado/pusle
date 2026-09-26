@@ -17,7 +17,8 @@ class SiteController extends Controller
     {
         return [
             'error' => [
-                'class' => 'yii\web\ErrorAction',
+                // Componente próprio: acrescenta ID de incidente + log curado (Fase D).
+                'class' => \app\components\ErrorAction::class,
             ],
         ];
     }
