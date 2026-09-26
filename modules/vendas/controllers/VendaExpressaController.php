@@ -138,6 +138,9 @@ class VendaExpressaController extends Controller
             'statusWhatsapp' => $statusWhatsapp,
             'dispositivosPoint' => $dispositivosPoint,
             'lojaId' => $lojaId,
+            // FIX 'Error (#2)': a view usa $usuarioLoja (linha 813) e ele não era
+            // repassado, gerando "Undefined variable $usuarioLoja" (E_WARNING).
+            'usuarioLoja' => $usuarioLoja,
         ]);
     }
 

@@ -294,8 +294,12 @@ class FormaPagamentoHelper
             $fp->aceita_parcelamento = true;
             $fp->save(false);
         } else if (!$fp->ativo) {
+            // FIX (PHP 8.5 + Yii 2.0.53): `$fp->save(false, ['ativo'])` executa
+            // BaseActiveRecord::updateInternal(), que dispara
+            // "Using null as an array offset is deprecated" (E_DEPRECATED 8192)
+            // quando não há optimistic lock. UPDATE direto evita o caminho.
+            FormaPagamento::updateAll(['ativo' => true], ['id' => $fp->id]);
             $fp->ativo = true;
-            $fp->save(false, ['ativo']);
         }
 
         return $fp;
@@ -330,8 +334,9 @@ class FormaPagamentoHelper
             $fp->aceita_parcelamento = true;
             $fp->save(false);
         } else if (!in_array($temMp->tipo, [FormaPagamento::TIPO_MERCADOPAGO, FormaPagamento::TIPO_MP_POINT])) {
+            // FIX (PHP 8.5 + Yii 2.0.53): mesma deprecação do ensureBoletoFiado().
+            FormaPagamento::updateAll(['tipo' => FormaPagamento::TIPO_MERCADOPAGO], ['id' => $temMp->id]);
             $temMp->tipo = FormaPagamento::TIPO_MERCADOPAGO;
-            $temMp->save(false, ['tipo']);
         }
     }
 

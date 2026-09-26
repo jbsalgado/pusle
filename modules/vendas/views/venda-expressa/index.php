@@ -810,7 +810,7 @@ $pixCidadeConfig = $lojaConfig ? $lojaConfig->pix_cidade : '';
     const temMercadoPagoConfig = <?= json_encode((bool)($temMercadoPago ?? false)) ?>;
     let statusPixEstaticoConfig = <?= json_encode($statusPixEstatico ?? null) ?>;
     const lojaIdAtual = <?= json_encode((string)($lojaId ?? '')) ?>;
-    const mpPublicKeyConfig = <?= json_encode($usuarioLoja ? ($usuarioLoja->mp_public_key ?: $usuarioLoja->mercadopago_public_key) : null) ?>;
+    const mpPublicKeyConfig = <?= json_encode(($usuarioLoja ?? null) ? ($usuarioLoja->mp_public_key ?: $usuarioLoja->mercadopago_public_key) : null) ?>;
     let tipoCartaoExpressaAtual = 'credit_card'; // 'credit_card' | 'debit_card'
     const dispositivosPointDisponiveis = <?= json_encode($dispositivosPoint ?? []) ?>;
     const baseUrlApp = '<?= Yii::$app->request->baseUrl ?>';
