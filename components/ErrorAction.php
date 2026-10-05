@@ -112,6 +112,8 @@ class ErrorAction extends BaseErrorAction
                 ),
                 __METHOD__
             );
+
+            Yii::getLogger()->flush(true);
         } catch (\Throwable $e) {
             // Silencioso por design: logging nunca deve ofuscar o erro original.
         }
