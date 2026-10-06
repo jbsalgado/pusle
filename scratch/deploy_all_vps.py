@@ -46,35 +46,45 @@ for d in {dirs_str}; do
         git pull origin main
         
         if [ -f yii ]; then
-            echo "[2/3] Verificando migrations..."
+            echo "[2/4] Verificando migrations..."
             php yii migrate --interactive=0 2>&1 || true
             
-            echo "[3/3] Limpando cache do Yii..."
+            echo "[3/4] Limpando cache do Yii..."
             php yii cache/flush-schema --interactive=0 2>&1 || true
             php yii cache/flush-all --interactive=0 2>&1 || true
             rm -rf runtime/cache/* 2>/dev/null || true
+            chown -R http:http runtime 2>/dev/null || true
+            chmod -R 775 runtime 2>/dev/null || true
         fi
 
-        if [ -d "$d/server-ws" ] && [ "$d" = "/srv/http/alex-birds/pulse-plus" ]; then
+        if [ -d "$d/server-ws" ] && ( [ "$d" = "/srv/http/alex-birds/pulse-plus" ] || [ "$d" = "/srv/http/pulse-v1" ] ); then
             echo "[WebSocket] Configurando daemon WebSocket server-ws..."
             cd "$d/server-ws" || true
             npm install --production 2>&1 || true
             if [ -f "pulse-ws.service" ]; then
-                cp -f pulse-ws.service /etc/systemd/system/pulse-ws.service
+                sed "s|/srv/http/alex-birds/pulse-plus/server-ws|$d/server-ws|g" pulse-ws.service > /etc/systemd/system/pulse-ws.service
                 systemctl daemon-reload
                 systemctl enable pulse-ws 2>/dev/null || true
                 systemctl restart pulse-ws
                 echo "[WebSocket] Status do servico: $(systemctl is-active pulse-ws)"
+            else
+                systemctl restart pulse-ws 2>/dev/null || true
             fi
             cd "$d" || true
         fi
         
-        echo "✓ Versão atual do repositório:"
+        echo "[4/4] Versão atualizada do repositório:"
         git log -1 --format="%h - %an: %s (%ci)"
     else
         echo "Aviso: Diretório $d não encontrado ou não é git."
     fi
 done
+
+echo ""
+echo ">>> Recarregando PHP-FPM para limpar OPcache..."
+systemctl reload php-fpm 2>/dev/null || true
+echo "✓ PHP-FPM status: $(systemctl is-active php-fpm)"
+
 """
     
     cmd = [

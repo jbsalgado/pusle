@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PULSE SaaS — Relatório Executivo de Monetização, Precificação & Go-To-Market (Edição Regional / Interior PE)</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        display: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            400: '#818cf8',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#1e1b4b',
+                        },
+                        accent: {
+                            cyan: '#06b6d4',
+                            emerald: '#10b981',
+                            amber: '#f59e0b',
+                            rose: '#f43f5e',
+                            purple: '#a855f7'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #090d16;
+            color: #f1f5f9;
+        }
+
+        .font-display {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* Glassmorphism Classes */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(99, 102, 241, 0.4);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .gradient-emerald {
+            background: linear-gradient(135deg, #34d399 0%, #059669 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+
+        /* Print Optimization */
+        @media print {
+            body {
+                background-color: #ffffff !important;
+                color: #0f172a !important;
+            }
+            .glass-panel, .glass-card {
+                background: #ffffff !important;
+                border: 1px solid #cbd5e1 !important;
+                box-shadow: none !important;
+                color: #0f172a !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .gradient-text, .gradient-emerald {
+                -webkit-text-fill-color: #0f172a !important;
+            }
+        }
+    </style>
+</head>
+<body class="selection:bg-indigo-500 selection:text-white antialiased min-h-screen">
+
+    <!-- TOP ANNOUNCEMENT BAR -->
+    <div class="bg-gradient-to-r from-indigo-900 via-slate-900 to-emerald-950 border-b border-white/10 px-4 py-2 text-center text-xs font-semibold text-slate-300 flex items-center justify-center gap-3">
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            🌵 EDIÇÃO REGIONAL — INTERIOR DE PERNAMBUCO
+        </span>
+        <span>🚀 Planos Acessíveis a partir de <strong>R$ 49,90/mês</strong> + Split Mercado Pago e Food Service</span>
+        <button onclick="window.print()" class="hidden md:inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 hover:bg-white/20 text-white text-[11px] rounded-lg transition border border-white/10">
+            <i class="fa-solid fa-print"></i> Exportar / Imprimir PDF
+        </button>
+    </div>
+
+    <!-- STICKY NAVBAR -->
+    <header class="sticky top-0 z-50 glass-panel border-b border-white/10 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-bolt text-white text-lg"></i>
+                </div>
+                <div>
+                    <span class="font-display font-black text-xl tracking-tight text-white flex items-center gap-1.5">
+                        PULSE <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold">SAAS INTERIOR</span>
+                    </span>
+                    <p class="text-[10px] text-slate-400 leading-none">Estratégia Comercial & Precificação Regional</p>
+                </div>
+            </div>
+
+            <!-- Desktop Nav Links -->
+            <nav class="hidden lg:flex items-center gap-6 text-xs font-semibold text-slate-300">
+                <a href="#estrategia-regional" class="hover:text-emerald-400 transition flex items-center gap-1">
+                    <span>🌵</span> Visão Interior PE
+                </a>
+                <a href="#fontes-receita" class="hover:text-indigo-400 transition">Além da Mensalidade</a>
+                <a href="#planos-combos" class="text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1">
+                    <i class="fa-solid fa-tag"></i> Planos R$ 50/mês
+                </a>
+                <a href="#tabela-modulos" class="hover:text-indigo-400 transition">Módulos À La Carte</a>
+                <a href="#food-service" class="text-amber-400 hover:text-amber-300 flex items-center gap-1">
+                    <i class="fa-solid fa-utensils text-xs"></i> Food Service
+                </a>
+                <a href="#calculadora" class="hover:text-emerald-400 transition">Simulador MRR</a>
+            </nav>
+
+            <div class="flex items-center gap-2">
+                <a href="#calculadora" class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition flex items-center gap-2">
+                    <i class="fa-solid fa-calculator"></i>
+                    <span>Simular Faturamento</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-16">
+
+        <!-- HERO SECTION -->
+        <section class="text-center space-y-6 pt-4 pb-8 relative overflow-hidden">
+            <div class="absolute inset-0 -z-10 flex items-center justify-center opacity-30 pointer-events-none">
+                <div class="w-[600px] h-[600px] rounded-full bg-gradient-to-br from-emerald-600/30 via-indigo-600/20 to-transparent blur-3xl"></div>
+            </div>
+
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-panel border border-emerald-500/30 text-xs font-semibold text-emerald-300">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                <span>Estratégia Validada para Cidades do Agreste e Sertão de Pernambuco</span>
+            </div>
+
+            <h1 class="font-display text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white max-w-4xl mx-auto leading-tight">
+                Como Vender o <span class="gradient-text">Pulse SaaS</span> no Interior de Pernambuco a partir de <span class="text-emerald-400">R$ 50/mês</span>
+            </h1>
+
+            <p class="text-base sm:text-lg text-slate-400 max-w-3xl mx-auto font-normal leading-relaxed">
+                Estratégia comercial pé no chão para quebrar a desconfiança do comerciante local, ganhar tração rápida com um plano de entrada popular e 
+                <strong class="text-emerald-300">alavancar o lucro real com o split do Mercado Pago (Pix/Cartão)</strong> e serviços de implantação.
+            </p>
+
+            <!-- Quick Metrics Grid (Regional Edition) -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto pt-6">
+                <div class="glass-card rounded-2xl p-4 text-center border-emerald-500/20">
+                    <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider block">Plano de Entrada</span>
+                    <span class="text-2xl font-black text-emerald-400 font-display">R$ 49,90</span>
+                    <span class="text-[11px] text-slate-400 block mt-1">R$ 1,66/dia (menos que um café)</span>
+                </div>
+                <div class="glass-card rounded-2xl p-4 text-center border-amber-500/20">
+                    <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider block">Food Service Popular</span>
+                    <span class="text-2xl font-black text-amber-400 font-display">R$ 79,90</span>
+                    <span class="text-[11px] text-slate-400 block mt-1">KDS + Mesas + QR Code na mesa</span>
+                </div>
+                <div class="glass-card rounded-2xl p-4 text-center border-indigo-500/20">
+                    <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider block">Ativação Regional</span>
+                    <span class="text-2xl font-black text-indigo-400 font-display">R$ 100 - R$ 250</span>
+                    <span class="text-[11px] text-slate-400 block mt-1">ou Grátis no Plano Trimestral</span>
+                </div>
+                <div class="glass-card rounded-2xl p-4 text-center border-cyan-500/20">
+                    <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider block">Receita FinTech (Split)</span>
+                    <span class="text-2xl font-black text-cyan-400 font-display">0.99%</span>
+                    <span class="text-[11px] text-slate-400 block mt-1">Multiplica o lucro por 3x a 5x</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- SEÇÃO: VISÃO & REALIDADE DO INTERIOR DE PERNAMBUCO -->
+        <section id="estrategia-regional" class="space-y-6">
+            <div class="flex flex-col md:flex-row md:items-end justify-between border-b border-white/10 pb-4 gap-2">
+                <div>
+                    <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider">Contexto de Mercado</span>
+                    <h2 class="font-display text-2xl sm:text-3xl font-black text-white">Por que o Plano de R$ 50/mês é a Chave de Ouro no Interior?</h2>
+                </div>
+                <p class="text-xs text-slate-400 max-w-md">
+                    Entendendo o perfil psicológico do comerciante das cidades do interior (Agreste, Sertão e Zona da Mata) para vender sem fricção.
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-6">
+                <!-- Card 1: A barreira do preço -->
+                <div class="glass-card rounded-3xl p-6 space-y-4 border-slate-700">
+                    <div class="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-xl border border-rose-500/30">
+                        <i class="fa-solid fa-hand-holding-dollar"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white font-display">A Objeção do Custo Fixo Alto</h3>
+                    <p class="text-xs text-slate-400 leading-relaxed">
+                        No interior, sistemas de fora cobram R$ 150 a R$ 350/mês. O dono do mercadinho, da padaria ou do depósito de bebidas acha caro e continua usando caderneta, ficha de papel ou planilha desorganizada.
+                    </p>
+                    <div class="bg-slate-900/80 p-3 rounded-2xl text-xs text-rose-300 font-medium border border-rose-900/30">
+                        ⚠️ Cobrar R$ 200 de início trava o fechamento nas primeiras 20 lojas da cidade.
+                    </div>
+                </div>
+
+                <!-- Card 2: A estratégia do R$ 50/mês -->
+                <div class="glass-card rounded-3xl p-6 space-y-4 border-emerald-500/30">
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl border border-emerald-500/30">
+                        <i class="fa-solid fa-bullseye"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white font-display">Abertura de Portas Irresistível</h3>
+                    <p class="text-xs text-slate-400 leading-relaxed">
+                        Ao apresentar um plano de <strong>R$ 49,90 ou R$ 50,00</strong>, o argumento de venda é demolidor: <em>"Custa R$ 1,60 por dia — se o sistema evitar a perda de 2 refrigerantes ou 1 pacote de arroz no mês, ele já se pagou sozinho!"</em>
+                    </p>
+                    <div class="bg-slate-900/80 p-3 rounded-2xl text-xs text-emerald-300 font-medium border border-emerald-900/30">
+                        ✅ Taxa de conversão salta de 10% para mais de 60% na visita presencial.
+                    </div>
+                </div>
+
+                <!-- Card 3: Como lucrar muito no volume + FinTech -->
+                <div class="glass-card rounded-3xl p-6 space-y-4 border-cyan-500/30">
+                    <div class="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xl border border-cyan-500/30">
+                        <i class="fa-solid fa-coins"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white font-display">Onde Está o Lucro Real? (FinTech)</h3>
+                    <p class="text-xs text-slate-400 leading-relaxed">
+                        A mensalidade de R$ 50 paga os custos de servidor e fideliza o cliente. O grande lucro vem do <strong>split de 0.99% no Mercado Pago</strong> em cada venda de Pix, Cartão ou Link gerado pelo sistema.
+                    </p>
+                    <div class="bg-slate-900/80 p-3 rounded-2xl text-xs text-cyan-300 font-medium border border-cyan-900/30">
+                        💰 50 lojistas faturando R$ 20k geram <strong>+ R$ 9.900/mês de split</strong> além das mensalidades!
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SEÇÃO: PLANOS COMERCIAIS ADAPTADOS (A PARTIR DE R$ 50/MÊS) -->
+        <section id="planos-combos" class="space-y-6">
+            <div class="flex flex-col md:flex-row md:items-end justify-between border-b border-white/10 pb-4 gap-2">
+                <div>
+                    <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider">Nova Grade de Planos 2026</span>
+                    <h2 class="font-display text-2xl sm:text-3xl font-black text-white">Planos Comerciais Acessíveis & Rentáveis</h2>
+                </div>
+                <p class="text-xs text-slate-400 max-w-md">
+                    Estrutura calibrada para a realidade de cidades do interior de Pernambuco, com opções escalonadas para cada porte de comércio.
+                </p>
+            </div>
+
+            <div class="grid lg:grid-cols-4 gap-6 items-stretch">
+                <!-- Plano 1: BÁSICO INTERIOR (R$ 50) -->
+                <div class="glass-card rounded-3xl p-6 flex flex-col justify-between space-y-6 relative border-emerald-500/30 bg-gradient-to-b from-emerald-500/5 to-transparent">
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                PORTA DE ENTRADA
+                            </span>
+                            <span class="text-[11px] text-slate-400">Pequenos Negócios</span>
+                        </div>
+                        <h3 class="text-xl font-black text-white font-display">Plano Começo Certo</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Ideal para mercadinhos de bairro, quitandas, depósitos de bebidas, pequenas confecções e lojas de balcão.
+                        </p>
+                        <div class="pt-1">
+                            <span class="text-3xl sm:text-4xl font-black text-emerald-400 font-mono">R$ 49,90</span>
+                            <span class="text-xs text-slate-400"> / mês</span>
+                            <span class="block text-[11px] text-slate-500 mt-0.5">ou R$ 50,00 redondo</span>
+                        </div>
+                        <ul class="text-xs text-slate-300 space-y-2.5 pt-4 border-t border-white/5">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> <strong>Frente de Caixa Venda Expressa</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> <strong>Cadastro de Produtos & Estoque</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> <strong>Abertura e Fechamento de Caixa</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> <strong>Pix com QR Code na tela</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> Impressão de cupom 58mm/80mm</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> Suporte humanizado via WhatsApp local</li>
+                            <li class="flex items-center gap-2 text-slate-500"><i class="fa-solid fa-xmark text-slate-600 text-xs"></i> Sem KDS nem mesas de restaurante</li>
+                        </ul>
+                    </div>
+                    <div class="space-y-2 pt-2">
+                        <a href="#calculadora" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs text-center transition block shadow-lg shadow-emerald-600/20">
+                            Oferecer por R$ 50/mês
+                        </a>
+                        <span class="block text-center text-[10px] text-slate-500">Gatilho de quebra de objeção</span>
+                    </div>
+                </div>
+
+                <!-- Plano 2: FOOD SERVICE POPULAR (R$ 79,90) -->
+                <div class="glass-card rounded-3xl p-6 flex flex-col justify-between space-y-6 relative border-amber-500/50 bg-gradient-to-b from-amber-500/10 via-slate-900/60 to-slate-900/90 shadow-xl shadow-amber-500/10">
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                BARES & LANCHES
+                            </span>
+                            <span class="text-[11px] text-amber-400 font-bold">Mais Vendido</span>
+                        </div>
+                        <h3 class="text-xl font-black text-white font-display">Plano Food Popular</h3>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            Para lanchonetes, hamburguerias, espetinhos, pastelarias, pizzarias e bares da cidade.
+                        </p>
+                        <div class="pt-1">
+                            <span class="text-3xl sm:text-4xl font-black text-amber-400 font-mono">R$ 79,90</span>
+                            <span class="text-xs text-slate-400"> / mês</span>
+                            <span class="block text-[11px] text-amber-300/80 mt-0.5">Preço imbatível no setor</span>
+                        </div>
+                        <ul class="text-xs text-slate-200 space-y-2.5 pt-4 border-t border-white/10">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-400 text-xs"></i> <strong>Tudo do Plano Começo Certo</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-400 text-xs"></i> <strong>Mapa de Mesas & Comandas Móveis</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-400 text-xs"></i> <strong>KDS Monitor de Cozinha/Bar com Som</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-400 text-xs"></i> <strong>Cardápio na Mesa via QR Code</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-400 text-xs"></i> <strong>Chamar Garçom e Pedir Conta no Celular</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-400 text-xs"></i> Até 3 celulares/telas conectados</li>
+                        </ul>
+                    </div>
+                    <div class="space-y-2 pt-2">
+                        <a href="#food-service" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs text-center transition block shadow-lg shadow-amber-500/20">
+                            Oferecer Food Popular
+                        </a>
+                        <span class="block text-center text-[10px] text-slate-400">Substitui papel e elimina erros</span>
+                    </div>
+                </div>
+
+                <!-- Plano 3: COMÉRCIO PRO & DELIVERY (R$ 119,90) -->
+                <div class="glass-card rounded-3xl p-6 flex flex-col justify-between space-y-6 relative border-white/10">
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                CRESCIMENTO
+                            </span>
+                            <span class="text-[11px] text-slate-400">Delivery & Varejo</span>
+                        </div>
+                        <h3 class="text-xl font-black text-white font-display">Plano Comércio Pro</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Para lojas maiores, depósitos de material de construção, farmácias e delivery próprio no WhatsApp.
+                        </p>
+                        <div class="pt-1">
+                            <span class="text-3xl sm:text-4xl font-black text-white font-mono">R$ 119,90</span>
+                            <span class="text-xs text-slate-400"> / mês</span>
+                            <span class="block text-[11px] text-slate-500 mt-0.5">Com Catálogo Online PWA</span>
+                        </div>
+                        <ul class="text-xs text-slate-300 space-y-2.5 pt-4 border-t border-white/5">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-indigo-400 text-xs"></i> Tudo do Plano Food Popular</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-indigo-400 text-xs"></i> <strong>Catálogo Online PWA (Loja Própria)</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-indigo-400 text-xs"></i> <strong>Gestão de Taxas de Frete por Bairro</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-indigo-400 text-xs"></i> <strong>Emissor de Orçamentos com Leitor</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-indigo-400 text-xs"></i> <strong>Gerador de Encartes de Ofertas</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-indigo-400 text-xs"></i> Até 5 operadores simultâneos</li>
+                        </ul>
+                    </div>
+                    <div class="space-y-2 pt-2">
+                        <a href="#calculadora" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs text-center transition block border border-white/10">
+                            Selecionar Comércio Pro
+                        </a>
+                        <span class="block text-center text-[10px] text-slate-500">Para quem faz entregas</span>
+                    </div>
+                </div>
+
+                <!-- Plano 4: REGIONAL PRESTANISTA & COMPLETO (R$ 169,90) -->
+                <div class="glass-card rounded-3xl p-6 flex flex-col justify-between space-y-6 relative border-purple-500/30">
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                FORÇA TOTAL
+                            </span>
+                            <span class="text-[11px] text-purple-300">Crediário & Rua</span>
+                        </div>
+                        <h3 class="text-xl font-black text-white font-display">Plano Regional Total</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Inclui o módulo Prestanista (carnês, rotas de cobradores e crediário de rua) + Central WhatsApp multi-atendente.
+                        </p>
+                        <div class="pt-1">
+                            <span class="text-3xl sm:text-4xl font-black text-purple-400 font-mono">R$ 169,90</span>
+                            <span class="text-xs text-slate-400"> / mês</span>
+                            <span class="block text-[11px] text-slate-500 mt-0.5">Tudo liberado no sistema</span>
+                        </div>
+                        <ul class="text-xs text-slate-300 space-y-2.5 pt-4 border-t border-white/5">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-purple-400 text-xs"></i> <strong>Todos os recursos anteriores inclusos</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-purple-400 text-xs"></i> <strong>Módulo Prestanista (Crediário Ambulante)</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-purple-400 text-xs"></i> <strong>Rotas de Cobrança de Rua com GPS</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-purple-400 text-xs"></i> <strong>Central WhatsApp Multi-Setores</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-purple-400 text-xs"></i> <strong>BI Executivo com DRE de Lucro</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-purple-400 text-xs"></i> Usuários e impressoras ilimitados</li>
+                        </ul>
+                    </div>
+                    <div class="space-y-2 pt-2">
+                        <a href="#calculadora" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-purple-900/50 text-white font-bold text-xs text-center transition block border border-purple-500/30">
+                            Selecionar Regional Total
+                        </a>
+                        <span class="block text-center text-[10px] text-slate-500">Móveis, confecções e crediário</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dica de Ouro de Fechamento: O Combo Trimestral -->
+            <div class="bg-gradient-to-r from-emerald-950/60 via-slate-900 to-indigo-950/60 p-5 rounded-2xl border border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl shrink-0">
+                        🎁
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-bold text-white">Estratégia de Caixa Rápido: O Combo Trimestral com Instalação Grátis</h4>
+                        <p class="text-xs text-slate-400">
+                            Ofereça ao comerciante: <em>"Pague 3 meses adiantados (R$ 150,00 à vista) e ganhe a instalação presencial e o cadastro dos seus primeiros 50 produtos de graça!"</em>
+                        </p>
+                    </div>
+                </div>
+                <div class="bg-emerald-500/20 px-4 py-2 rounded-xl text-center shrink-0 border border-emerald-500/40">
+                    <span class="text-xs text-emerald-300 font-bold block">R$ 150 no Bolso</span>
+                    <span class="text-[10px] text-emerald-200">Retenção de 90 dias garantida</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- SEÇÃO: TABELA DE VENDAS POR MÓDULOS (ADD-ONS REGIONAIS) -->
+        <section id="tabela-modulos" class="space-y-6">
+            <div class="flex flex-col md:flex-row md:items-end justify-between border-b border-white/10 pb-4 gap-2">
+                <div>
+                    <span class="text-xs font-bold text-cyan-400 uppercase tracking-wider">Modularização À La Carte</span>
+                    <h2 class="font-display text-2xl sm:text-3xl font-black text-white">Monte seu Pacote (Valores Ajustados para o Interior)</h2>
+                </div>
+                <p class="text-xs text-slate-400 max-w-md">
+                    Base fixa de apenas <strong>R$ 49,90/mês</strong>. O cliente ativa apenas os módulos específicos que o negócio dele realmente precisa.
+                </p>
+            </div>
+
+            <!-- Interactive Module Selector & Pricing Table -->
+            <div class="glass-panel rounded-3xl p-6 overflow-hidden border border-white/10">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="border-b border-white/10 text-slate-400 uppercase tracking-wider text-[10px]">
+                                <th class="py-3.5 px-4">Selecionar</th>
+                                <th class="py-3.5 px-4">Módulo do Sistema</th>
+                                <th class="py-3.5 px-4">Chave Técnica</th>
+                                <th class="py-3.5 px-4">Benefício Prático no Dia a Dia</th>
+                                <th class="py-3.5 px-4 text-right">Valor Mensal</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5 text-slate-300 font-medium">
+                            <tr class="hover:bg-white/[0.02] transition">
+                                <td class="py-3.5 px-4">
+                                    <input type="checkbox" checked disabled class="rounded border-slate-700 text-indigo-600 focus:ring-0 cursor-not-allowed">
+                                </td>
+                                <td class="py-3.5 px-4 font-bold text-white flex items-center gap-2">
+                                    <span>🏢</span> Núcleo Base (Core ERP)
+                                </td>
+                                <td class="py-3.5 px-4 font-mono text-[11px] text-slate-400">produtos, clientes, caixa</td>
+                                <td class="py-3.5 px-4 text-slate-300">Cadastro de produtos, controle de estoque, clientes, fornecedores e caixa diário</td>
+                                <td class="py-3.5 px-4 text-right font-bold text-emerald-400 font-mono">R$ 49,90/mês</td>
+                            </tr>
+                            <tr class="hover:bg-white/[0.02] transition">
+                                <td class="py-3.5 px-4">
+                                    <input type="checkbox" class="modulo-item rounded border-slate-700 text-indigo-600 focus:ring-0 cursor-pointer" data-preco="19" onchange="calcularPrecoCustomizado()">
+                                </td>
+                                <td class="py-3.5 px-4 font-bold text-white flex items-center gap-2">
+                                    <span>⚡</span> Venda Expressa & Teclado de Balcão
+                                </td>
+                                <td class="py-3.5 px-4 font-mono text-[11px] text-slate-400">venda-expressa, nova-venda</td>
+                                <td class="py-3.5 px-4 text-slate-300">Frente de caixa ultra rápida com atalhos de teclado (F1 a F12) e leitor de código de barras</td>
+                                <td class="py-3.5 px-4 text-right font-bold text-white font-mono">+ R$ 19,00/mês</td>
+                            </tr>
+                            <tr class="hover:bg-white/[0.02] transition bg-amber-500/[0.03]">
+                                <td class="py-3.5 px-4">
+                                    <input type="checkbox" class="modulo-item rounded border-slate-700 text-indigo-600 focus:ring-0 cursor-pointer" data-preco="39" onchange="calcularPrecoCustomizado()">
+                                </td>
+                                <td class="py-3.5 px-4 font-bold text-amber-300 flex items-center gap-2">
+                                    <span>🍳</span> Food Service: Mesas, Comandas & KDS
+                                </td>
+                                <td class="py-3.5 px-4 font-mono text-[11px] text-slate-400">gestao-mesas-comandas, display-cozinha</td>
+                                <td class="py-3.5 px-4 text-slate-300">Mapa de mesas, pedidos móveis, tela KDS na cozinha/bar com som e comanda QR na mesa</td>
+                                <td class="py-3.5 px-4 text-right font-bold text-amber-400 font-mono">+ R$ 39,00/mês</td>
+                            </tr>
+                            <tr class="hover:bg-white/[0.02] transition">
+                                <td class="py-3.5 px-4">
+                                    <input type="checkbox" class="modulo-item rounded border-slate-700 text-indigo-600 focus:ring-0 cursor-pointer" data-preco="25" onchange="calcularPrecoCustomizado()">
+                                </td>
+                                <td class="py-3.5 px-4 font-bold text-white flex items-center gap-2">
+                                    <span>📱</span> Catálogo Online PWA (Delivery Próprio)
+                                </td>
+                                <td class="py-3.5 px-4 font-mono text-[11px] text-slate-400">catalogo-online, taxa-entrega</td>
+                                <td class="py-3.5 px-4 text-slate-300">Loja virtual própria no WhatsApp sem pagar comissão para aplicativos de entrega externos</td>
+                                <td class="py-3.5 px-4 text-right font-bold text-white font-mono">+ R$ 25,00/mês</td>
+                            </tr>
+                            <tr class="hover:bg-white/[0.02] transition">
+                                <td class="py-3.5 px-4">
+                                    <input type="checkbox" class="modulo-item rounded border-slate-700 text-indigo-600 focus:ring-0 cursor-pointer" data-preco="35" onchange="calcularPrecoCustomizado()">
+                                </td>
+                                <td class="py-3.5 px-4 font-bold text-white flex items-center gap-2">
+                                    <span>💬</span> Central WhatsApp Multi-Setores
+                                </td>
+                                <td class="py-3.5 px-4 font-mono text-[11px] text-slate-400">canal-comunicacao-interno</td>
+                                <td class="py-3.5 px-4 text-slate-300">Vários atendentes usando um único número com divisão por setores (Vendas, Caixa, Balcão)</td>
+                                <td class="py-3.5 px-4 text-right font-bold text-white font-mono">+ R$ 35,00/mês</td>
+                            </tr>
+                            <tr class="hover:bg-white/[0.02] transition">
+                                <td class="py-3.5 px-4">
+                                    <input type="checkbox" class="modulo-item rounded border-slate-700 text-indigo-600 focus:ring-0 cursor-pointer" data-preco="45" onchange="calcularPrecoCustomizado()">
+                                </td>
+                                <td class="py-3.5 px-4 font-bold text-white flex items-center gap-2">
+                                    <span>📇</span> Prestanista & Crediário de Rua
+                                </td>
+                                <td class="py-3.5 px-4 font-mono text-[11px] text-slate-400">modulo-prestanista, rotas-cobranca</td>
+                                <td class="py-3.5 px-4 text-slate-300">Gestão de carnês, cartões de cobrança, rotas de cobradores e promissórias com GPS</td>
+                                <td class="py-3.5 px-4 text-right font-bold text-white font-mono">+ R$ 45,00/mês</td>
+                            </tr>
+                            <tr class="hover:bg-white/[0.02] transition">
+                                <td class="py-3.5 px-4">
+                                    <input type="checkbox" class="modulo-item rounded border-slate-700 text-indigo-600 focus:ring-0 cursor-pointer" data-preco="25" onchange="calcularPrecoCustomizado()">
+                                </td>
+                                <td class="py-3.5 px-4 font-bold text-white flex items-center gap-2">
+                                    <span>📈</span> BI Executivo & Fluxo DRE de Lucro
+                                </td>
+                                <td class="py-3.5 px-4 font-mono text-[11px] text-slate-400">dashboard-executivo, fluxo-caixa</td>
+                                <td class="py-3.5 px-4 text-slate-300">Saiba exatamente quanto sobrou no bolso no fim do mês descontando custos e despesas</td>
+                                <td class="py-3.5 px-4 text-right font-bold text-white font-mono">+ R$ 25,00/mês</td>
+                            </tr>
+                            <tr class="hover:bg-white/[0.02] transition">
+                                <td class="py-3.5 px-4">
+                                    <input type="checkbox" class="modulo-item rounded border-slate-700 text-indigo-600 focus:ring-0 cursor-pointer" data-preco="19" onchange="calcularPrecoCustomizado()">
+                                </td>
+                                <td class="py-3.5 px-4 font-bold text-white flex items-center gap-2">
+                                    <span>🎨</span> Gerador de Encartes & Rádio da Loja
+                                </td>
+                                <td class="py-3.5 px-4 font-mono text-[11px] text-slate-400">encarte, trilha-sonora</td>
+                                <td class="py-3.5 px-4 text-slate-300">Crie artes de ofertas para postar no Instagram/Status do WhatsApp e rádio ambiente da loja</td>
+                                <td class="py-3.5 px-4 text-right font-bold text-white font-mono">+ R$ 19,00/mês</td>
+                            </tr>
+                            <tr class="hover:bg-white/[0.02] transition">
+                                <td class="py-3.5 px-4">
+                                    <input type="checkbox" class="modulo-item rounded border-slate-700 text-indigo-600 focus:ring-0 cursor-pointer" data-preco="49" onchange="calcularPrecoCustomizado()">
+                                </td>
+                                <td class="py-3.5 px-4 font-bold text-white flex items-center gap-2">
+                                    <span>🖥️</span> Totem de Autoatendimento
+                                </td>
+                                <td class="py-3.5 px-4 font-mono text-[11px] text-slate-400">totem</td>
+                                <td class="py-3.5 px-4 text-slate-300">Tela touch no balcão para o próprio cliente fazer e pagar o pedido sem fila</td>
+                                <td class="py-3.5 px-4 text-right font-bold text-white font-mono">+ R$ 49,00/mês</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Simulation Result Bar -->
+                <div class="mt-6 pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-2xl">
+                    <div class="text-center sm:text-left">
+                        <span class="text-xs text-slate-400 block font-semibold">Valor do Pacote Personalizado Selecionado:</span>
+                        <p class="text-xs text-slate-500">Núcleo Base (R$ 49,90) + Módulos marcados acima</p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="text-right">
+                            <span class="text-2xl sm:text-3xl font-black text-emerald-400 font-mono" id="valorTotalCustomizado">R$ 49,90</span>
+                            <span class="text-[11px] text-slate-400 font-semibold"> / mês</span>
+                        </div>
+                        <button onclick="copiarOrcamentoModulos()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-md shadow-emerald-600/30">
+                            <i class="fa-solid fa-copy"></i> Copiar Proposta
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SEÇÃO: MARKETING DEDICADO FOOD SERVICE -->
+        <section id="food-service" class="space-y-8 bg-gradient-to-b from-amber-500/5 via-slate-900/40 to-transparent p-6 sm:p-10 rounded-3xl border border-amber-500/20">
+            <div class="flex flex-col md:flex-row md:items-end justify-between border-b border-amber-500/20 pb-4 gap-4">
+                <div>
+                    <span class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-fire"></i> MERCADO REGIONAL FOOD
+                    </span>
+                    <h2 class="font-display text-3xl sm:text-4xl font-black text-white mt-1">
+                        Campanha Food Service: <span class="text-amber-400">Pulse Food por R$ 79,90</span>
+                    </h2>
+                </div>
+                <div class="text-xs text-slate-300 bg-amber-500/10 border border-amber-500/30 px-3 py-2 rounded-xl">
+                    🎯 <strong>Foco:</strong> Lanchonetes, Hamburguerias, Espetinhos, Pizzarias e Bares Locais.
+                </div>
+            </div>
+
+            <!-- The Big Problem vs The Pulse Solution -->
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- A Dor -->
+                <div class="bg-rose-950/20 border border-rose-800/30 rounded-2xl p-6 space-y-4">
+                    <h4 class="text-base font-bold text-rose-300 font-display flex items-center gap-2">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Como Funciona o Restaurante Local Hoje?
+                    </h4>
+                    <ul class="text-xs text-rose-200/80 space-y-2.5">
+                        <li class="flex items-start gap-2">
+                            <span class="text-rose-400">❌</span>
+                            <span><strong>Bloco de Papel & Caneta:</strong> Garçom anota com letra feia, o papel molha na cozinha e o prato sai com ingrediente errado.</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-rose-400">❌</span>
+                            <span><strong>Fila no Caixa no Fim da Noite:</strong> Todo mundo quer pagar a conta ao mesmo tempo; o cliente espera 20 minutos irritado.</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-rose-400">❌</span>
+                            <span><strong>Cardápio Impresso Caro:</strong> Toda vez que a carne ou o queijo sobem de preço, gastam R$ 300 para reimprimir cardápio na gráfica.</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-rose-400">❌</span>
+                            <span><strong>Sistemas Grandes Cobram R$ 250+:</strong> O dono não consegue arcar com sistemas pesados que exigem servidores caros.</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- A Solução Pulse Food -->
+                <div class="bg-emerald-950/20 border border-emerald-800/30 rounded-2xl p-6 space-y-4">
+                    <h4 class="text-base font-bold text-emerald-300 font-display flex items-center gap-2">
+                        <i class="fa-solid fa-circle-check"></i> A Solução Pulse Food por R$ 79,90/mês
+                    </h4>
+                    <ul class="text-xs text-emerald-200/80 space-y-2.5">
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400">✅</span>
+                            <span><strong>KDS em Qualquer Celular ou Tablet:</strong> O pedido cai na hora na tela da cozinha com aviso sonoro (dim-dom) e contador de tempo.</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400">✅</span>
+                            <span><strong>QR Code na Mesa:</strong> O cliente senta, aponta a câmera, vê fotos dos pratos, chama o garçom e pede a conta pelo celular.</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400">✅</span>
+                            <span><strong>Conta Fechada no Pix em 5 Segundos:</strong> Cliente paga na própria mesa, o caixa confirma na hora e emite recibo digital.</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400">✅</span>
+                            <span><strong>Preço Justo para a Cidade:</strong> Por menos de R$ 2,70/dia o restaurante tem tecnologia de rede grande.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Pitch Script WhatsApp Local -->
+            <div class="glass-card rounded-2xl p-6 space-y-4 border border-white/10">
+                <div class="flex items-center justify-between border-b border-white/5 pb-3">
+                    <span class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-brands fa-whatsapp text-emerald-400 text-base"></i> Script de Prospecção WhatsApp para Donos de Restaurantes da Cidade
+                    </span>
+                    <button onclick="copiarScriptWhatsapp()" class="text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-lg transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-copy"></i> Copiar Mensagem
+                    </button>
+                </div>
+                <div class="bg-slate-950/90 rounded-xl p-4 font-mono text-xs text-slate-300 leading-relaxed border border-slate-800" id="scriptWhatsappTexto">
+Opa, [Nome do Dono]! Tudo na paz? Sou daqui de [Nome da Cidade] e trabalho ajudando lanchonetes e bares da nossa região a modernizarem o atendimento.
+
+Sei como na sexta e no sábado o salão aperta: garçom correndo de mesa em mesa com papel na mão, comanda que se perde e cliente reclamando de demora pra fechar a conta.
+
+Nós criamos o Pulse Food pra resolver isso por um valor que cabe no bolso de quem trabalha no interior:
+1. Seu cliente aponta a câmera pro QR Code da mesa e já vê o cardápio e pede a conta direto no celular.
+2. O pedido toca na hora na tela da sua Cozinha (KDS), sem bloco de papel e sem erro de garçom.
+3. Custa só R$ 79,90 por mês (menos de R$ 3 por dia) e nós mesmos fazemos a instalação aqui com você.
+
+Consigo passar aí hoje de tarde pra te mostrar em 3 minutos no seu próprio celular como funciona? Posso te mandar um vídeo de 30 segundos agora?
+                </div>
+            </div>
+
+            <!-- Roteiro de Demonstração de 3 Minutos ("A Prova do Chopp / Espetinho") -->
+            <div class="glass-card rounded-2xl p-6 space-y-4 border border-amber-500/20">
+                <h4 class="text-base font-bold text-white font-display flex items-center gap-2">
+                    <span>⏱️</span> O Roteiro de Demonstração Presencial de 3 Minutos ("A Prova do Espetinho")
+                </h4>
+                <div class="grid sm:grid-cols-4 gap-4 text-xs">
+                    <div class="bg-slate-900/80 p-4 rounded-xl border border-white/5 space-y-2">
+                        <span class="text-amber-400 font-bold text-[11px] block">MINUTO 01</span>
+                        <p class="text-slate-300 font-semibold">O QR Code na Mesa</p>
+                        <p class="text-slate-400 text-[11px]">Você coloca um displayzinho acrílico na mesa dele e pede para ele apontar o celular. O cardápio abre na hora sem baixar app.</p>
+                    </div>
+                    <div class="bg-slate-900/80 p-4 rounded-xl border border-white/5 space-y-2">
+                        <span class="text-amber-400 font-bold text-[11px] block">MINUTO 02</span>
+                        <p class="text-slate-300 font-semibold">O Som na Cozinha</p>
+                        <p class="text-slate-400 text-[11px]">Você pede um lanche ou refrigerante pelo celular dele. No mesmo instante, seu celular/tablet apita o KDS mostrando o pedido.</p>
+                    </div>
+                    <div class="bg-slate-900/80 p-4 rounded-xl border border-white/5 space-y-2">
+                        <span class="text-amber-400 font-bold text-[11px] block">MINUTO 03</span>
+                        <p class="text-slate-300 font-semibold">A Conta Instantânea</p>
+                        <p class="text-slate-400 text-[11px]">Você clica em "Pedir Conta / PIX". Abre o QR Code Pix com split e emite o comprovante digital na tela do cliente.</p>
+                    </div>
+                    <div class="bg-slate-900/80 p-4 rounded-xl border border-emerald-500/30 space-y-2 text-emerald-300">
+                        <span class="text-emerald-400 font-bold text-[11px] block">FECHAMENTO</span>
+                        <p class="font-bold">Garantia Local</p>
+                        <p class="text-[11px]">"Instalo hoje pra você testar até domingo. Se não gostar e não achar mais rápido, não te cobro nada!"</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SEÇÃO: CALCULADORA INTERATIVA DE PROJEÇÃO FINANCEIRA (MRR + FINTECH) -->
+        <section id="calculadora" class="space-y-6">
+            <div class="flex flex-col md:flex-row md:items-end justify-between border-b border-white/10 pb-4 gap-2">
+                <div>
+                    <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider">Simulador Regional de Faturamento</span>
+                    <h2 class="font-display text-2xl sm:text-3xl font-black text-white">Quanto o seu SaaS Lucra em uma Cidade do Interior?</h2>
+                </div>
+                <p class="text-xs text-slate-400 max-w-md">
+                    Faça a simulação combinando mensalidades acessíveis (R$ 50 a R$ 120) com o split automático do Mercado Pago.
+                </p>
+            </div>
+
+            <div class="grid lg:grid-cols-12 gap-8 items-center glass-panel rounded-3xl p-6 sm:p-8 border border-white/10">
+                <!-- Sliders -->
+                <div class="lg:col-span-7 space-y-6">
+                    <!-- Clientes -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs font-bold">
+                            <label for="rangeClientes" class="text-slate-300">Número de Comércios Conectados na Cidade:</label>
+                            <span class="text-emerald-400 font-mono text-sm" id="labelClientes">40 lojas</span>
+                        </div>
+                        <input type="range" id="rangeClientes" min="5" max="150" step="5" value="40" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500" oninput="atualizarSimulador()">
+                        <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                            <span>5 comércios (Início)</span>
+                            <span>40 comércios (Centro)</span>
+                            <span>150 comércios (Polo Regional)</span>
+                        </div>
+                    </div>
+
+                    <!-- Mensalidade Média -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs font-bold">
+                            <label for="rangeMensalidade" class="text-slate-300">Mensalidade Média Cobrada por Loja:</label>
+                            <span class="text-emerald-400 font-mono text-sm" id="labelMensalidade">R$ 59,90/mês</span>
+                        </div>
+                        <input type="range" id="rangeMensalidade" min="49" max="169" step="10" value="59" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500" oninput="atualizarSimulador()">
+                        <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                            <span>R$ 49,90 (Começo Certo)</span>
+                            <span>R$ 79,90 (Food Service)</span>
+                            <span>R$ 169,90 (Prestanista)</span>
+                        </div>
+                    </div>
+
+                    <!-- Faturamento Médio por Loja (GMV) -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs font-bold">
+                            <label for="rangeGmv" class="text-slate-300">Faturamento Médio no Cartão/Pix por Loja (GMV):</label>
+                            <span class="text-cyan-400 font-mono text-sm" id="labelGmv">R$ 18.000/mês</span>
+                        </div>
+                        <input type="range" id="rangeGmv" min="5000" max="60000" step="1000" value="18000" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500" oninput="atualizarSimulador()">
+                        <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                            <span>R$ 5.000 (Pequena lanchonete)</span>
+                            <span>R$ 18.000 (Média de bairro)</span>
+                            <span>R$ 60.000 (Mercadinho forte)</span>
+                        </div>
+                    </div>
+
+                    <!-- Taxa de Split -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs font-bold">
+                            <label for="rangeSplit" class="text-slate-300">Taxa de Split FinTech da Plataforma (Take Rate):</label>
+                            <span class="text-cyan-400 font-mono text-sm" id="labelSplit">0.99%</span>
+                        </div>
+                        <input type="range" id="rangeSplit" min="0.5" max="2.0" step="0.1" value="0.99" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500" oninput="atualizarSimulador()">
+                        <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                            <span>0.50%</span>
+                            <span>0.99% (Padrão Pulse)</span>
+                            <span>1.50%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Display de Resultados -->
+                <div class="lg:col-span-5 bg-gradient-to-br from-slate-900 to-emerald-950/60 p-6 rounded-3xl border border-emerald-500/30 space-y-6 shadow-2xl">
+                    <div class="border-b border-white/10 pb-4">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Seu Faturamento Líquido Mensal (MRR)</span>
+                        <div class="text-3xl sm:text-4xl font-black text-white font-mono mt-1" id="resFaturamentoTotal">R$ 9.488,00</div>
+                        <p class="text-xs text-emerald-400 font-semibold mt-0.5" id="resFaturamentoAnual">Equivalente a R$ 113.856,00 / ano (ARR)</p>
+                    </div>
+
+                    <div class="space-y-3 text-xs">
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-900/80 border border-white/5">
+                            <div class="flex items-center gap-2 text-slate-300">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                                <span>Mensalidades de Software:</span>
+                            </div>
+                            <span class="font-mono font-bold text-white text-sm" id="resMrrSoftware">R$ 2.360,00</span>
+                        </div>
+
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-900/80 border border-cyan-500/20">
+                            <div class="flex items-center gap-2 text-slate-300">
+                                <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+                                <span>Split FinTech (Mercado Pago):</span>
+                            </div>
+                            <span class="font-mono font-bold text-cyan-400 text-sm" id="resMrrSplit">R$ 7.128,00</span>
+                        </div>
+
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-900/80 border border-white/5">
+                            <div class="flex items-center gap-2 text-slate-300">
+                                <span class="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
+                                <span>GMV Processado na Cidade:</span>
+                            </div>
+                            <span class="font-mono font-bold text-indigo-300 text-sm" id="resGmvTotal">R$ 720.000,00</span>
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[11px] text-emerald-200">
+                        🌵 <strong>O Segredo do Interior:</strong> Mesmo cobrando uma mensalidade barata de R$ 50 ou R$ 60 para quebrar barreiras, o <strong>Split de Pagamentos (Pix e Cartão)</strong> multiplica seu faturamento por 4x e garante quase R$ 10.000 limpos por mês em uma cidade pequena!
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FOOTER & CHECKLIST DE IMPLEMENTAÇÃO -->
+        <footer class="pt-10 border-t border-white/10 text-center space-y-4 text-xs text-slate-500 pb-12">
+            <p class="text-slate-400 font-semibold">
+                Pulse SaaS & FinTech • Estratégia Regional Interior de Pernambuco • 2026
+            </p>
+            <p class="max-w-2xl mx-auto text-[11px]">
+                Todos os módulos descritos neste documento estão 100% integrados no código-fonte em 
+                <code class="text-emerald-400 bg-slate-900 px-1 py-0.5 rounded">/srv/http/pulse</code>. 
+                Configure suas taxas no painel de administração e comece cadastrando os primeiros comerciantes da sua cidade.
+            </p>
+            <div class="flex items-center justify-center gap-4 text-slate-400 text-xs pt-2">
+                <a href="#estrategia-regional" class="hover:text-white transition">Visão Regional</a> • 
+                <a href="#planos-combos" class="hover:text-white transition">Planos R$ 50</a> • 
+                <a href="#tabela-modulos" class="hover:text-white transition">Tabela À La Carte</a> • 
+                <a href="#food-service" class="hover:text-white transition">Food Service</a> • 
+                <button onclick="window.print()" class="hover:text-white transition">Imprimir Relatório</button>
+            </div>
+        </footer>
+
+    </main>
+
+    <!-- INTERACTIVE JAVASCRIPT LOGIC -->
+    <script>
+        // 1. Calculadora de Módulos À La Carte (Base R$ 49,90)
+        function calcularPrecoCustomizado() {
+            const precoBase = 49.90;
+            let total = precoBase;
+            const checkboxes = document.querySelectorAll('.modulo-item:checked');
+            
+            checkboxes.forEach(cb => {
+                total += parseFloat(cb.getAttribute('data-preco') || 0);
+            });
+
+            document.getElementById('valorTotalCustomizado').innerText = 'R$ ' + total.toFixed(2).replace('.', ',');
+        }
+
+        function copiarOrcamentoModulos() {
+            const total = document.getElementById('valorTotalCustomizado').innerText;
+            const selecionados = [];
+            document.querySelectorAll('.modulo-item:checked').forEach(cb => {
+                const tr = cb.closest('tr');
+                const nome = tr.querySelector('td:nth-child(2)').innerText.trim();
+                selecionados.push(nome);
+            });
+
+            let texto = `📋 PROPOSTA COMERCIAL PULSE SAAS (PLANO REGIONAL)\n`;
+            texto += `Pacote Base: Núcleo Core ERP (R$ 49,90/mês)\n`;
+            if (selecionados.length > 0) {
+                texto += `Módulos Selecionados:\n - ${selecionados.join('\n - ')}\n`;
+            }
+            texto += `Total Mensalidade: ${total}\nSuporte e atualizações inclusos sem fidelidade.`;
+
+            navigator.clipboard.writeText(texto).then(() => {
+                alert('✅ Proposta personalizada copiada para a área de transferência!');
+            });
+        }
+
+        // 2. Calculadora de Simulação de Faturamento Regional (MRR + FinTech Split)
+        function atualizarSimulador() {
+            const clientes = parseInt(document.getElementById('rangeClientes').value);
+            const mensalidade = parseFloat(document.getElementById('rangeMensalidade').value);
+            const gmvPorLoja = parseFloat(document.getElementById('rangeGmv').value);
+            const splitTaxa = parseFloat(document.getElementById('rangeSplit').value) / 100.0;
+
+            // Labels
+            document.getElementById('labelClientes').innerText = `${clientes} comércios`;
+            document.getElementById('labelMensalidade').innerText = `R$ ${mensalidade.toFixed(2).replace('.', ',')}/mês`;
+            document.getElementById('labelGmv').innerText = `R$ ${gmvPorLoja.toLocaleString('pt-BR')}/mês`;
+            document.getElementById('labelSplit').innerText = `${(splitTaxa * 100).toFixed(2)}%`;
+
+            // Cálculos
+            const mrrSoftware = clientes * mensalidade;
+            const gmvTotal = clientes * gmvPorLoja;
+            const mrrSplit = gmvTotal * splitTaxa;
+            const totalMensal = mrrSoftware + mrrSplit;
+            const totalAnual = totalMensal * 12;
+
+            // Render
+            document.getElementById('resFaturamentoTotal').innerText = `R$ ${totalMensal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('resFaturamentoAnual').innerText = `Equivalente a R$ ${totalAnual.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} / ano (ARR)`;
+            document.getElementById('resMrrSoftware').innerText = `R$ ${mrrSoftware.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('resMrrSplit').innerText = `R$ ${mrrSplit.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('resGmvTotal').innerText = `R$ ${gmvTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        }
+
+        // 3. Copiar Script de WhatsApp Food Service Local
+        function copiarScriptWhatsapp() {
+            const texto = document.getElementById('scriptWhatsappTexto').innerText;
+            navigator.clipboard.writeText(texto).then(() => {
+                alert('✅ Script de WhatsApp copiado com sucesso! Pode colar no seu contato.');
+            });
+        }
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', () => {
+            atualizarSimulador();
+            calcularPrecoCustomizado();
+        });
+    </script>
+</body>
+</html>
