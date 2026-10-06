@@ -8,10 +8,11 @@ use yii\web\NotFoundHttpException;
 use yii\web\ForbiddenHttpException;
 
 /**
- * LojaExclusaoService — Serviço de Exclusão Completa e Expugo Multitenant.
+ * LojaExclusaoService — Serviço de Exclusão Completa e Expurgo Multitenant.
  *
  * Remove atomicamente todos os registros, dependências relacionais e mídias
- * associadas a uma loja (tenant), garantindo integridade referencial.
+ * associadas a uma loja (tenant), garantindo integridade referencial e
+ * isolamento transacional via SAVEPOINTs do PostgreSQL.
  */
 class LojaExclusaoService
 {
@@ -44,10 +45,11 @@ class LojaExclusaoService
             $vendaIds = static::queryColumnIfExists('prest_vendas', 'id', 'usuario_id', $lojaId);
             $orcamentoIds = static::queryColumnIfExists('prest_orcamentos', 'id', 'usuario_id', $lojaId);
             $produtoIds = static::queryColumnIfExists('prest_produtos', 'id', 'usuario_id', $lojaId);
+            $compraIds = static::queryColumnIfExists('prest_compras', 'id', 'usuario_id', $lojaId);
             
-            // Sub-usuários criados como colaboradores desta loja (prest_colaboradores -> prest_usuario_login_id)
+            // Sub-usuários criados como colaboradores desta loja
             $colabUserIds = static::queryColumnIfExists('prest_colaboradores', 'prest_usuario_login_id', 'usuario_id', $lojaId);
-            $colabUserIds = array_filter($colabUserIds); // remove nulls
+            $colabUserIds = array_values(array_filter($colabUserIds)); // remove nulls
 
             // ─────────────────────────────────────────────────────────────────
             // 2. FILHOS DE ITENS, VENDAS, ESTOQUE E MOVIMENTAÇÕES
@@ -67,6 +69,10 @@ class LojaExclusaoService
                 $totalRemovidos += static::deleteWhereIn('prest_orcamento_itens', 'orcamento_id', $orcamentoIds);
             }
 
+            if (!empty($compraIds)) {
+                $totalRemovidos += static::deleteWhereIn('prest_itens_compra', 'compra_id', $compraIds);
+            }
+
             if (!empty($produtoIds)) {
                 $totalRemovidos += static::deleteWhereIn('prest_venda_itens', 'produto_id', $produtoIds);
                 $totalRemovidos += static::deleteWhereIn('prest_orcamento_itens', 'produto_id', $produtoIds);
@@ -79,6 +85,8 @@ class LojaExclusaoService
                 $totalRemovidos += static::deleteWhereIn('prest_marketplace_produto', 'produto_id', $produtoIds);
                 $totalRemovidos += static::deleteWhereIn('prest_dados_financeiros', 'produto_id', $produtoIds);
                 $totalRemovidos += static::deleteWhereIn('prest_estoque_movimentacoes', 'produto_id', $produtoIds);
+                $totalRemovidos += static::deleteWhereIn('prest_produto_cards', 'produto_id', $produtoIds);
+                $totalRemovidos += static::deleteWhereIn('prest_produto_videos', 'produto_id', $produtoIds);
             }
 
             $totalRemovidos += static::deleteByTenant('prest_estoque_movimentacoes', 'usuario_id', $lojaId);
@@ -161,6 +169,8 @@ class LojaExclusaoService
             $totalRemovidos += static::deleteByTenant('prest_marketplace_sync_log', 'usuario_id', $lojaId);
             $totalRemovidos += static::deleteByTenant('prest_social_posts', 'tenant_id', $lojaId);
             $totalRemovidos += static::deleteByTenant('prest_social_accounts', 'tenant_id', $lojaId);
+            $totalRemovidos += static::deleteByTenant('prest_gateway_transacoes', 'tenant_id', $lojaId);
+            $totalRemovidos += static::deleteByTenant('saas_financial_logs', 'tenant_id', $lojaId);
             $totalRemovidos += static::deleteByTenant('asaas_cobrancas', 'usuario_id', $lojaId);
             $totalRemovidos += static::deleteByTenant('asaas_clientes', 'usuario_id', $lojaId);
             $totalRemovidos += static::deleteByTenant('mercadopago_preferencias', 'usuario_id', $lojaId);
@@ -169,27 +179,13 @@ class LojaExclusaoService
             $totalRemovidos += static::deleteByTenant('prest_trilhas_sonoras', 'usuario_id', $lojaId);
             $totalRemovidos += static::deleteByTenant('prest_mesas', 'usuario_id', $lojaId);
 
-            // Módulo de serviços (se as tabelas existirem)
-            $servicoTables = [
-                'servico_qualidade_defeitos', 'servico_pedido_venda_itens', 'servico_pedidos_venda',
-                'servico_movimentacoes_estoque', 'servico_ordens_producao', 'servico_ficha_tecnica',
-                'servico_etapas_producao', 'servico_lotes', 'servico_materiais', 'servico_produtos',
-                'servico_contas_receber', 'servico_contas_pagar', 'servico_clientes',
-                'servico_catalogo_categorias', 'servico_terceiros', 'indica_qualidade_defeitos'
-            ];
-            foreach ($servicoTables as $st) {
-                $totalRemovidos += static::deleteByTenant($st, 'empresa_id', $lojaId);
-            }
-
             // ─────────────────────────────────────────────────────────────────
             // 9. CONFIGURAÇÕES E METADADOS DA LOJA
             // ─────────────────────────────────────────────────────────────────
             $totalRemovidos += static::deleteByTenant('loja_configuracao', 'usuario_id', $lojaId);
-            $totalRemovidos += static::deleteByTenant('prest_loja_configuracao', 'usuario_id', $lojaId);
             $totalRemovidos += static::deleteByTenant('prest_loja_permissoes', 'usuario_id', $lojaId);
             $totalRemovidos += static::deleteByTenant('prest_saas_loja_config', 'usuario_id', $lojaId);
             $totalRemovidos += static::deleteByTenant('prest_configuracoes', 'usuario_id', $lojaId);
-            $totalRemovidos += static::deleteByTenant('tab_form_login', 'usuario_id', $lojaId);
 
             // ─────────────────────────────────────────────────────────────────
             // 10. ASSINATURAS, PAGAMENTOS E FATURAS SAAS
@@ -228,38 +224,62 @@ class LojaExclusaoService
 
     /**
      * Remove registros por tenant_id/usuario_id verificando se a tabela existe
+     * e protegendo o bloco com SAVEPOINT do PostgreSQL para isolamento de erros.
      */
     private static function deleteByTenant(string $tableName, string $column, string $tenantId): int
     {
-        if (!static::tableExists($tableName)) {
+        if (!static::tableExists($tableName) || !static::columnTypeCompatible($tableName, $column)) {
             return 0;
         }
 
+        $db = Yii::$app->db;
+        $sp = 'sp_' . md5($tableName . $column . microtime(true) . rand(1, 1000));
+        
         try {
-            return (int)Yii::$app->db->createCommand()
+            $db->createCommand("SAVEPOINT {$sp}")->execute();
+            $deleted = (int)$db->createCommand()
                 ->delete($tableName, [$column => $tenantId])
                 ->execute();
+            $db->createCommand("RELEASE SAVEPOINT {$sp}")->execute();
+            return $deleted;
         } catch (\Throwable $t) {
-            Yii::warning("LojaExclusaoService: Erro ao limpar {$tableName}: " . $t->getMessage(), __METHOD__);
+            try {
+                $db->createCommand("ROLLBACK TO SAVEPOINT {$sp}")->execute();
+            } catch (\Throwable $eRoll) {
+                // ignora erro de rollback de savepoint
+            }
+            Yii::warning("LojaExclusaoService: Ignorando erro ao limpar {$tableName}.{$column}: " . $t->getMessage(), __METHOD__);
             return 0;
         }
     }
 
     /**
      * Remove registros por WHERE column IN (...) verificando se a tabela existe
+     * e protegendo o bloco com SAVEPOINT do PostgreSQL.
      */
     private static function deleteWhereIn(string $tableName, string $column, array $values): int
     {
-        if (empty($values) || !static::tableExists($tableName)) {
+        if (empty($values) || !static::tableExists($tableName) || !static::columnTypeCompatible($tableName, $column)) {
             return 0;
         }
 
+        $db = Yii::$app->db;
+        $sp = 'sp_' . md5($tableName . $column . microtime(true) . rand(1001, 2000));
+
         try {
-            return (int)Yii::$app->db->createCommand()
+            $db->createCommand("SAVEPOINT {$sp}")->execute();
+            $deleted = (int)$db->createCommand()
                 ->delete($tableName, ['in', $column, $values])
                 ->execute();
+            $db->createCommand("RELEASE SAVEPOINT {$sp}")->execute();
+            return $deleted;
         } catch (\Throwable $t) {
-            Yii::warning("LojaExclusaoService: Erro ao limpar {$tableName} por in: " . $t->getMessage(), __METHOD__);
+            try {
+                $db->createCommand("ROLLBACK TO SAVEPOINT {$sp}")->execute();
+            } catch (\Throwable $eRoll) {
+                // ignora
+            }
+            Yii::warning("LojaExclusaoService: Ignorando erro ao limpar {$tableName} por IN: " . $t->getMessage(), __METHOD__);
             return 0;
         }
     }
@@ -269,7 +289,7 @@ class LojaExclusaoService
      */
     private static function queryColumnIfExists(string $tableName, string $selectCol, string $filterCol, string $filterVal): array
     {
-        if (!static::tableExists($tableName)) {
+        if (!static::tableExists($tableName) || !static::columnTypeCompatible($tableName, $filterCol)) {
             return [];
         }
 
@@ -301,6 +321,38 @@ class LojaExclusaoService
     }
 
     /**
+     * Garante que a coluna aceita strings/UUIDs e não tipos incompatíveis como integer ou bigint
+     */
+    private static function columnTypeCompatible(string $tableName, string $column): bool
+    {
+        static $cachedColumns = null;
+        if ($cachedColumns === null) {
+            $rows = Yii::$app->db->createCommand("
+                SELECT table_name, column_name, data_type, udt_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+            ")->queryAll();
+            $cachedColumns = [];
+            foreach ($rows as $r) {
+                $cachedColumns[$r['table_name'] . '.' . $r['column_name']] = strtolower($r['data_type'] . ' ' . $r['udt_name']);
+            }
+        }
+
+        $key = $tableName . '.' . $column;
+        if (!isset($cachedColumns[$key])) {
+            return false;
+        }
+
+        $typeInfo = $cachedColumns[$key];
+        // Bloqueia tipos inteiros, booleanos ou datas para evitar "invalid input syntax for type integer: UUID"
+        if (preg_match('/(int|bigint|smallint|numeric|decimal|boolean|timestamp|date|time)/', $typeInfo)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Remove arquivos físicos de mídias e logos vinculados à loja
      */
     private static function removerArquivosFisicos(Usuario $loja): void
@@ -319,24 +371,39 @@ class LojaExclusaoService
             // Diretório exclusivo de uploads da loja se houver
             $lojaDir = $baseWeb . '/uploads/lojas/' . $loja->id;
             if (is_dir($lojaDir)) {
-                static::deleteDirectoryRecursive($lojaDir);
+                static::deleteDirectoryRecursively($lojaDir);
             }
         } catch (\Throwable $t) {
-            Yii::warning("LojaExclusaoService: Erro ao remover arquivos físicos: " . $t->getMessage(), __METHOD__);
+            Yii::warning("LojaExclusaoService: Erro ao remover arquivos da loja {$loja->id}: " . $t->getMessage(), __METHOD__);
         }
     }
 
     /**
-     * Remove diretório recursivamente
+     * Deleta um diretório e seu conteúdo recursivamente
      */
-    private static function deleteDirectoryRecursive(string $dir): void
+    private static function deleteDirectoryRecursively(string $dir): bool
     {
-        if (!is_dir($dir)) return;
-        $files = array_diff(scandir($dir), ['.', '..']);
-        foreach ($files as $file) {
-            $path = "$dir/$file";
-            is_dir($path) ? static::deleteDirectoryRecursive($path) : @unlink($path);
+        if (!is_dir($dir)) {
+            return false;
         }
-        @rmdir($dir);
+
+        $items = scandir($dir);
+        if ($items === false) {
+            return false;
+        }
+
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+            $path = $dir . DIRECTORY_SEPARATOR . $item;
+            if (is_dir($path)) {
+                static::deleteDirectoryRecursively($path);
+            } else {
+                @unlink($path);
+            }
+        }
+
+        return @rmdir($dir);
     }
 }
