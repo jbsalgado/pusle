@@ -506,6 +506,12 @@ class EvolutionService
                     ?? null;
 
                 if ($name === $instanceName) {
+                    // Auto-sync de token: se o token no motor Go mudou, atualiza no banco local
+                    if (!empty($instance['token']) && $config !== null && $config->token !== $instance['token']) {
+                        $config->token = $instance['token'];
+                        $config->save(false);
+                    }
+
                     $isConn = !empty($instance['connected']) || !empty($instance['Connected']) || !empty($instance['instance']['connected']);
                     // Se o motor retornar o campo LoggedIn / loggedIn, exigir que esteja true
                     $hasLoggedInField = isset($instance['loggedIn']) || isset($instance['LoggedIn']) || isset($instance['instance']['loggedIn']);

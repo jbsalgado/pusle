@@ -244,6 +244,18 @@
 
         .date-info { font-size: 12px; color: var(--text-muted); }
 
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .spinner-sm {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            vertical-align: middle;
+        }
+
         /* Empty state */
         .empty-state { text-align: center; padding: 60px 24px; color: var(--text-muted); }
         .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
@@ -327,19 +339,19 @@ $admin = Yii::$app->user->identity;
             <!-- Stats Cards -->
             <div class="stats-grid">
                 <a href="?status=pendente" class="stat-card pendente <?= $status === 'pendente' ? 'active-filter' : '' ?>">
-                    <div class="stat-value"><?= $contadores['pendente'] ?></div>
+                    <div class="stat-value" id="val-pendente"><?= $contadores['pendente'] ?></div>
                     <div class="stat-label">⏳ Aguardando Aprovação</div>
                 </a>
                 <a href="?status=ativa" class="stat-card ativa <?= $status === 'ativa' ? 'active-filter' : '' ?>">
-                    <div class="stat-value"><?= $contadores['ativa'] ?></div>
+                    <div class="stat-value" id="val-ativa"><?= $contadores['ativa'] ?></div>
                     <div class="stat-label">✅ Lojas Ativas</div>
                 </a>
                 <a href="?status=suspensa" class="stat-card suspensa <?= $status === 'suspensa' ? 'active-filter' : '' ?>">
-                    <div class="stat-value"><?= $contadores['suspensa'] ?></div>
+                    <div class="stat-value" id="val-suspensa"><?= $contadores['suspensa'] ?></div>
                     <div class="stat-label">⚠️ Suspensas</div>
                 </a>
                 <a href="?status=todos" class="stat-card rejeitada <?= $status === 'todos' ? 'active-filter' : '' ?>">
-                    <div class="stat-value"><?= array_sum($contadores) ?></div>
+                    <div class="stat-value" id="val-total"><?= array_sum($contadores) ?></div>
                     <div class="stat-label">🏪 Total de Lojas</div>
                 </a>
             </div>
@@ -433,18 +445,18 @@ $admin = Yii::$app->user->identity;
                                 <?php endif; ?>
 
                                 <?php if ($loja->status_loja === 'pendente'): ?>
-                                    <button class="btn-action btn-approve" onclick="acao('aprovar', '<?= Html::encode($loja->id) ?>', '<?= Html::encode($loja->nome) ?>')">
+                                    <button class="btn-action btn-approve" onclick="acao('aprovar', '<?= Html::encode($loja->id) ?>', '<?= Html::encode($loja->nome) ?>', this)">
                                         ✅ Aprovar
                                     </button>
-                                    <button class="btn-action btn-reject" onclick="acao('rejeitar', '<?= Html::encode($loja->id) ?>', '<?= Html::encode($loja->nome) ?>')">
+                                    <button class="btn-action btn-reject" onclick="acao('rejeitar', '<?= Html::encode($loja->id) ?>', '<?= Html::encode($loja->nome) ?>', this)">
                                         ✕ Rejeitar
                                     </button>
                                 <?php elseif ($loja->status_loja === 'ativa'): ?>
-                                    <button class="btn-action btn-suspend" onclick="acao('suspender', '<?= Html::encode($loja->id) ?>', '<?= Html::encode($loja->nome) ?>')">
+                                    <button class="btn-action btn-suspend" onclick="acao('suspender', '<?= Html::encode($loja->id) ?>', '<?= Html::encode($loja->nome) ?>', this)">
                                         ⏸ Suspender
                                     </button>
                                 <?php else: ?>
-                                    <button class="btn-action btn-reactivate" onclick="acao('reativar', '<?= Html::encode($loja->id) ?>', '<?= Html::encode($loja->nome) ?>')">
+                                    <button class="btn-action btn-reactivate" onclick="acao('reativar', '<?= Html::encode($loja->id) ?>', '<?= Html::encode($loja->nome) ?>', this)">
                                         ▶ Reativar
                                     </button>
                                 <?php endif; ?>
@@ -560,7 +572,7 @@ async function executarToggleAdmin() {
     }
 }
 
-async function acao(tipo, id, nome) {
+async function acao(tipo, id, nome, btn) {
     const labels = {
         aprovar: `Aprovar a loja "${nome}"?`,
         suspender: `Suspender a loja "${nome}"?`,
@@ -569,6 +581,22 @@ async function acao(tipo, id, nome) {
     };
 
     if (!confirm(labels[tipo])) return;
+
+    const row = document.getElementById('row-' + id);
+    const actionCell = btn ? btn.parentElement : (row ? row.cells[5] : null);
+    const allButtons = actionCell ? actionCell.querySelectorAll('button') : [];
+
+    // Desabilita botões da linha e mostra indicador de loading instantâneo
+    allButtons.forEach(b => {
+        b.disabled = true;
+        b.style.pointerEvents = 'none';
+        b.style.opacity = '0.5';
+    });
+
+    const originalBtnHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.innerHTML = '<span class="spinner-sm"></span> Aguarde...';
+    }
 
     try {
         const res = await fetch(urls[tipo] + '?id=' + encodeURIComponent(id), {
@@ -582,10 +610,109 @@ async function acao(tipo, id, nome) {
         showToast(data.success, data.message);
 
         if (data.success) {
-            setTimeout(() => location.reload(), 1800);
+            // Atualização dinâmica do DOM (sem congelamento nem delay de reload)
+            atualizarLinhaLoja(id, nome, tipo);
+        } else {
+            // Reverte estado do botão em caso de erro retornado pela API
+            restaurarBotoes(allButtons, btn, originalBtnHtml);
         }
     } catch (e) {
-        showToast(false, 'Erro de conexão. Tente novamente.');
+        showToast(false, 'Erro de conexão com o servidor. Tente novamente.');
+        restaurarBotoes(allButtons, btn, originalBtnHtml);
+    }
+}
+
+function restaurarBotoes(buttons, btn, originalHtml) {
+    buttons.forEach(b => {
+        b.disabled = false;
+        b.style.pointerEvents = '';
+        b.style.opacity = '';
+    });
+    if (btn && originalHtml) {
+        btn.innerHTML = originalHtml;
+    }
+}
+
+function atualizarLinhaLoja(id, nome, tipo) {
+    const row = document.getElementById('row-' + id);
+    if (!row) return;
+
+    const badgeCell = row.cells[4];
+    const actionCell = row.cells[5];
+    const badge = badgeCell ? badgeCell.querySelector('.badge-status') : null;
+
+    // Atualiza contadores numéricos dos cards
+    const valPendente = document.getElementById('val-pendente');
+    const valAtiva = document.getElementById('val-ativa');
+    const valSuspensa = document.getElementById('val-suspensa');
+
+    const modulosUrl = '<?= Url::to(['/admin/loja/modulos']) ?>?id=' + encodeURIComponent(id);
+
+    if (tipo === 'aprovar' || tipo === 'reativar') {
+        if (badge) {
+            badge.className = 'badge-status ativa';
+            badge.textContent = 'Ativa';
+        }
+        if (tipo === 'aprovar' && valPendente && valAtiva) {
+            valPendente.textContent = Math.max(0, parseInt(valPendente.textContent || 0) - 1);
+            valAtiva.textContent = parseInt(valAtiva.textContent || 0) + 1;
+        }
+
+        const btnAdmin = actionCell.querySelector('button[title*="Super Admin"]');
+        const adminHtml = btnAdmin ? btnAdmin.outerHTML : '';
+
+        actionCell.innerHTML = `
+            <a href="${modulosUrl}" class="btn-action" style="background: var(--primary-light); color: var(--primary);" title="Gerenciar Módulos e Acessos">⚙️ Permissões</a>
+            <a href="${modulosUrl}" class="btn-action" style="background: rgba(6,182,212,0.15); color: #06b6d4;" title="Configurar Cota de PIX Estático">⚡ Cota PIX</a>
+            ${adminHtml}
+            <button class="btn-action btn-suspend" onclick="acao('suspender', '${id}', '${nome}', this)">⏸ Suspender</button>
+        `;
+    } else if (tipo === 'suspender') {
+        if (badge) {
+            badge.className = 'badge-status suspensa';
+            badge.textContent = 'Suspensa';
+        }
+        if (valAtiva && valSuspensa) {
+            valAtiva.textContent = Math.max(0, parseInt(valAtiva.textContent || 0) - 1);
+            valSuspensa.textContent = parseInt(valSuspensa.textContent || 0) + 1;
+        }
+
+        const btnAdmin = actionCell.querySelector('button[title*="Super Admin"]');
+        const adminHtml = btnAdmin ? btnAdmin.outerHTML : '';
+
+        actionCell.innerHTML = `
+            <a href="${modulosUrl}" class="btn-action" style="background: var(--primary-light); color: var(--primary);" title="Gerenciar Módulos e Acessos">⚙️ Permissões</a>
+            <a href="${modulosUrl}" class="btn-action" style="background: rgba(6,182,212,0.15); color: #06b6d4;" title="Configurar Cota de PIX Estático">⚡ Cota PIX</a>
+            ${adminHtml}
+            <button class="btn-action btn-reactivate" onclick="acao('reativar', '${id}', '${nome}', this)">▶ Reativar</button>
+        `;
+    } else if (tipo === 'rejeitar') {
+        if (badge) {
+            badge.className = 'badge-status rejeitada';
+            badge.textContent = 'Rejeitada';
+        }
+        if (valPendente) {
+            valPendente.textContent = Math.max(0, parseInt(valPendente.textContent || 0) - 1);
+        }
+
+        const btnAdmin = actionCell.querySelector('button[title*="Super Admin"]');
+        const adminHtml = btnAdmin ? btnAdmin.outerHTML : '';
+
+        actionCell.innerHTML = `
+            <a href="${modulosUrl}" class="btn-action" style="background: var(--primary-light); color: var(--primary);" title="Gerenciar Módulos e Acessos">⚙️ Permissões</a>
+            <a href="${modulosUrl}" class="btn-action" style="background: rgba(6,182,212,0.15); color: #06b6d4;" title="Configurar Cota de PIX Estático">⚡ Cota PIX</a>
+            ${adminHtml}
+            <button class="btn-action btn-reactivate" onclick="acao('reativar', '${id}', '${nome}', this)">▶ Reativar</button>
+        `;
+    }
+
+    // Se estiver na aba 'pendente', esvazia a linha suavemente
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('status') === 'pendente' && (tipo === 'aprovar' || tipo === 'rejeitar')) {
+        row.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+        row.style.opacity = '0';
+        row.style.transform = 'translateX(20px)';
+        setTimeout(() => row.remove(), 400);
     }
 }
 

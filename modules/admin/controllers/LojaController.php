@@ -179,8 +179,8 @@ class LojaController extends Controller
 
             $transaction->commit();
 
-            // Notifica o lojista via WhatsApp
-            $this->notificarLojista($loja, 'aprovado');
+            // Notifica o lojista de forma assíncrona via fila
+            $this->despacharNotificacaoLojista($loja, 'aprovado');
 
             return ['success' => true, 'message' => "Loja \"{$loja->nome}\" ativada com sucesso!"];
         } catch (\Exception $e) {
@@ -203,7 +203,7 @@ class LojaController extends Controller
         $loja->blocked_at  = date('Y-m-d H:i:s');
 
         if ($loja->save(false, ['status_loja', 'blocked_at'])) {
-            $this->notificarLojista($loja, 'suspensa');
+            $this->despacharNotificacaoLojista($loja, 'suspensa');
             return ['success' => true, 'message' => "Loja \"{$loja->nome}\" suspensa."];
         }
 
@@ -223,7 +223,7 @@ class LojaController extends Controller
         $loja->blocked_at  = date('Y-m-d H:i:s');
 
         if ($loja->save(false, ['status_loja', 'blocked_at'])) {
-            $this->notificarLojista($loja, 'rejeitada');
+            $this->despacharNotificacaoLojista($loja, 'rejeitada');
             return ['success' => true, 'message' => "Cadastro de \"{$loja->nome}\" rejeitado."];
         }
 
@@ -244,7 +244,7 @@ class LojaController extends Controller
         $loja->confirmed_at = $loja->confirmed_at ?? date('Y-m-d H:i:s');
 
         if ($loja->save(false, ['status_loja', 'blocked_at', 'confirmed_at'])) {
-            $this->notificarLojista($loja, 'aprovado');
+            $this->despacharNotificacaoLojista($loja, 'aprovado');
             return ['success' => true, 'message' => "Loja \"{$loja->nome}\" reativada."];
         }
 
@@ -395,6 +395,28 @@ class LojaController extends Controller
         } catch (\Exception $e) {
             Yii::warning('Admin\LojaController: Erro ao criar assinatura: ' . $e->getMessage(), __METHOD__);
         }
+    }
+
+    /**
+     * Despacha a notificação da loja de forma assíncrona pela fila.
+     * Retorna instantaneamente sem travar a requisição HTTP.
+     */
+    private function despacharNotificacaoLojista(Usuario $loja, string $tipo): void
+    {
+        try {
+            if (Yii::$app->has('queue')) {
+                Yii::$app->queue->push(new \app\jobs\NotificarStatusLojaJob([
+                    'lojaId' => $loja->id,
+                    'tipo'   => $tipo,
+                ]));
+                return;
+            }
+        } catch (\Throwable $t) {
+            Yii::error('Admin\LojaController: Falha ao enfileirar notificação: ' . $t->getMessage(), __METHOD__);
+        }
+
+        // Fallback síncrono caso a fila não esteja disponível
+        $this->notificarLojista($loja, $tipo);
     }
 
     /** Envia notificação WhatsApp para o lojista sobre mudança de status. */

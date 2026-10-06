@@ -65,8 +65,19 @@ class LojaCadastroController extends Controller
 
         if ($model->load(Yii::$app->request->post())) {
             if ($usuario = $model->signupPendente()) {
-                // Notifica o administrador via WhatsApp
-                $this->notificarAdminWhatsApp($usuario);
+                // Enfileira notificação assíncrona para os administradores (WhatsApp + E-mail) sem travar a requisição
+                try {
+                    if (Yii::$app->has('queue')) {
+                        Yii::$app->queue->push(new \app\jobs\NotificarAdminNovaLojaJob([
+                            'lojaId' => $usuario->id,
+                        ]));
+                    } else {
+                        $this->notificarAdminWhatsApp($usuario);
+                    }
+                } catch (\Throwable $t) {
+                    Yii::error('LojaCadastroController: Falha ao enfileirar notificação admin: ' . $t->getMessage(), __METHOD__);
+                    $this->notificarAdminWhatsApp($usuario);
+                }
 
                 return $this->redirect(['sucesso', 'nome' => $usuario->nome]);
             }
