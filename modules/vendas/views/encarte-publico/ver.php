@@ -277,9 +277,23 @@ $canvasHeight3D = 842;
         /* Modos de Enquadramento das Fotos nos Cards (Centralizado sem Cortes vs Zoom Total) */
         .card-img-box {
             transition: padding 0.3s ease, background-color 0.3s ease;
+            cursor: zoom-in;
+            position: relative;
         }
         .card-prod-img {
             transition: transform 0.3s ease, opacity 0.2s ease;
+        }
+
+        /* Lightbox Zoom Estilos */
+        .zoom-modal-backdrop {
+            background-color: rgba(2, 6, 23, 0.96);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .zoom-img-container {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
         }
 
         /* 1. Modo Centralizado Sem Cortes (contain) */
@@ -652,9 +666,12 @@ $canvasHeight3D = 842;
                                 </div>
 
                                 <!-- Imagem Centralizada com Aspect Ratio Perfeito (Foto da Cor se Matriz) -->
-                                <div class="card-img-box w-full <?= $imgHeightClass ?> flex items-center justify-center p-1 relative overflow-hidden flex-shrink-0 rounded-lg">
+                                <div class="card-img-box w-full <?= $imgHeightClass ?> flex items-center justify-center p-1 relative overflow-hidden flex-shrink-0 rounded-lg cursor-zoom-in group/img" onclick="event.stopPropagation(); abrirZoomFoto(<?= $jsonProdData ?>)" title="Toque para ampliar a foto em alta definição">
                                     <?php if ($fotoUrl): ?>
-                                        <img src="<?= $fotoUrl ?>" alt="<?= Html::encode($produto->nome) ?>" loading="lazy" class="card-prod-img max-h-full max-w-full object-contain group-hover:scale-105 transition-all duration-300">
+                                        <img src="<?= $fotoUrl ?>" alt="<?= Html::encode($produto->nome) ?>" loading="lazy" class="card-prod-img max-h-full max-w-full object-contain group-hover/img:scale-105 transition-all duration-300">
+                                        <div class="absolute bottom-1 right-1 bg-slate-950/75 hover:bg-slate-950 text-white rounded-md p-1 opacity-75 group-hover/img:opacity-100 transition-all pointer-events-none shadow-xs border border-white/10 flex items-center gap-0.5">
+                                            <svg class="w-2.5 h-2.5 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"/></svg>
+                                        </div>
                                     <?php else: ?>
                                         <div class="w-full h-full bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 text-[8px] font-bold">FOTO</div>
                                     <?php endif; ?>
@@ -761,6 +778,71 @@ $canvasHeight3D = 842;
         <?= $nomeLoja ?> © <?= date('Y') ?> • <?= $fraseCreditoOnlyCode ?>
     </footer>
 
+    <!-- Modal Lightbox Zoom de Alta Definição da Foto do Produto -->
+    <div id="modalZoomFoto" class="fixed inset-0 z-[200] hidden zoom-modal-backdrop flex flex-col justify-between select-none">
+        <!-- Top Bar do Zoom: Informações do Produto & Botão Fechar -->
+        <div class="p-3 sm:p-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent relative z-30">
+            <div class="flex items-center gap-2.5 min-w-0 pr-2">
+                <span class="text-xl sm:text-2xl flex-shrink-0">🔍</span>
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                        <span id="zoomProdCategoria" class="px-2 py-0.5 bg-red-600/80 text-white text-[9px] sm:text-[10px] font-extrabold rounded-md uppercase tracking-wider"></span>
+                        <span id="zoomProdBadgeCor" class="hidden px-2 py-0.5 bg-amber-500/80 text-white text-[9px] sm:text-[10px] font-extrabold rounded-md uppercase"></span>
+                    </div>
+                    <h3 id="zoomProdNome" class="text-white font-black text-sm sm:text-lg truncate drop-shadow-md mt-0.5"></h3>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <button type="button" onclick="fecharZoomFoto()" class="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 text-white flex items-center justify-center transition border border-white/20 cursor-pointer shadow-lg" title="Fechar Zoom (ESC)">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Área Central de Visualização & Interação (Pan/Zoom) -->
+        <div id="zoomViewport" class="flex-1 flex items-center justify-center overflow-hidden relative zoom-img-container cursor-grab active:cursor-grabbing">
+            <img id="zoomProdImg" src="" alt="Produto" draggable="false" class="max-h-[80vh] max-w-[92vw] object-contain transition-transform duration-100 ease-out drop-shadow-2xl will-change-transform">
+            
+            <!-- Dica flutuante inicial que desaparece -->
+            <div id="zoomDicaFlutuante" class="absolute top-4 bg-slate-900/80 backdrop-blur-md text-slate-200 border border-white/10 text-[11px] font-semibold px-3 py-1.5 rounded-full shadow-lg pointer-events-none transition-opacity duration-500">
+                👆 Dê duplo toque ou role o mouse para ampliar • Arraste para mover
+            </div>
+        </div>
+
+        <!-- Barra Inferior: Controles de Zoom + Botão de Pedido Direto -->
+        <div class="p-3 sm:p-4 bg-gradient-to-t from-black/90 via-black/70 to-transparent flex flex-wrap items-center justify-between gap-3 relative z-30">
+            <!-- Controles Interativos de Escala -->
+            <div class="flex items-center gap-1.5 sm:gap-2 bg-slate-900/90 border border-slate-700/80 backdrop-blur-md p-1.5 rounded-2xl shadow-xl">
+                <button type="button" onclick="alterarZoomEscala(-0.5)" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-white font-black text-lg flex items-center justify-center transition cursor-pointer" title="Diminuir Zoom (-)">
+                    −
+                </button>
+                <span id="zoomNivelIndicador" class="px-2 text-xs sm:text-sm font-montserrat font-bold text-amber-400 min-w-[50px] text-center">
+                    100%
+                </span>
+                <button type="button" onclick="alterarZoomEscala(0.5)" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-white font-black text-lg flex items-center justify-center transition cursor-pointer" title="Aumentar Zoom (+)">
+                    +
+                </button>
+                <button type="button" onclick="resetarZoomFoto()" class="px-2.5 h-9 sm:h-10 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1 transition cursor-pointer" title="Redefinir Posição e Zoom (0)">
+                    <span>⟲</span> <span class="hidden sm:inline">100%</span>
+                </button>
+            </div>
+
+            <!-- Preço e Botão de Ação Direta para Sacola/Pedido -->
+            <div class="flex items-center gap-3 ml-auto">
+                <div class="text-right">
+                    <div class="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase">Preço Especial</div>
+                    <div class="text-base sm:text-xl font-montserrat font-black text-emerald-400 leading-tight">
+                        R$ <span id="zoomProdPreco">0,00</span>
+                    </div>
+                </div>
+                <button type="button" onclick="comprarDiretoDoZoom()" class="px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 active:scale-95 text-white font-black text-xs sm:text-sm shadow-xl transition flex items-center gap-2 cursor-pointer border border-emerald-400/30">
+                    <span>🛍️</span>
+                    <span>Adicionar ao Pedido</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Interativo de Detalhes e Pedido do Produto Clicado -->
     <div id="modalDetalheProduto" class="fixed inset-0 z-[100] hidden glass-modal flex items-center justify-center p-3 sm:p-4">
         <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden text-slate-900 border border-slate-100 transform transition-all flex flex-col max-h-[92vh] relative">
@@ -782,8 +864,12 @@ $canvasHeight3D = 842;
             </div>
 
             <!-- Foto do Produto -->
-            <div class="relative bg-slate-100 p-4 sm:p-6 flex items-center justify-center h-48 sm:h-56 border-b border-slate-200 flex-shrink-0">
-                <img id="modalProdFoto" src="" class="max-h-full max-w-full object-contain drop-shadow-md">
+            <div class="relative bg-slate-100 p-4 sm:p-6 flex items-center justify-center h-48 sm:h-56 border-b border-slate-200 flex-shrink-0 cursor-zoom-in group/modalfoto" onclick="abrirZoomFotoModal()" title="Toque para ampliar em tela cheia">
+                <img id="modalProdFoto" src="" class="max-h-full max-w-full object-contain drop-shadow-md group-hover/modalfoto:scale-105 transition-transform duration-300">
+                <div class="absolute bottom-3 right-3 bg-slate-900/80 hover:bg-slate-900 text-white text-[11px] font-bold px-2.5 py-1 rounded-xl flex items-center gap-1.5 backdrop-blur-xs shadow-md border border-white/15 transition-all pointer-events-none">
+                    <svg class="w-3.5 h-3.5 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"/></svg>
+                    <span>Toque para ampliar</span>
+                </div>
             </div>
 
             <!-- Detalhes, Quantidade e Formulário do Pedido Individual -->
@@ -1710,6 +1796,264 @@ $canvasHeight3D = 842;
         window.fecharModalDetalheProduto = function() {
             document.getElementById('modalDetalheProduto').classList.add('hidden');
         };
+
+        // =========================================================
+        // MOTOR DE ZOOM E LIGHTBOX INTERATIVO DE ALTA DEFINIÇÃO
+        // =========================================================
+        let zoomProdutoAtual = null;
+        let zoomScale = 1;
+        let zoomTranslateX = 0;
+        let zoomTranslateY = 0;
+        let zoomIsDragging = false;
+        let zoomStartX = 0;
+        let zoomStartY = 0;
+        let zoomStartTransX = 0;
+        let zoomStartTransY = 0;
+        let zoomInitialPinchDist = null;
+        let zoomInitialScale = 1;
+
+        window.abrirZoomFoto = function(prod) {
+            if (!prod || !prod.foto) return;
+            zoomProdutoAtual = prod;
+            
+            const modal = document.getElementById('modalZoomFoto');
+            const img = document.getElementById('zoomProdImg');
+            const nomeEl = document.getElementById('zoomProdNome');
+            const catEl = document.getElementById('zoomProdCategoria');
+            const corEl = document.getElementById('zoomProdBadgeCor');
+            const precoEl = document.getElementById('zoomProdPreco');
+            const dica = document.getElementById('zoomDicaFlutuante');
+
+            if (nomeEl) nomeEl.textContent = prod.nome || 'Produto';
+            if (catEl) catEl.textContent = prod.categoria || 'Oferta';
+            
+            if (corEl) {
+                if (prod.cor) {
+                    corEl.textContent = 'COR: ' + prod.cor;
+                    corEl.classList.remove('hidden');
+                } else {
+                    corEl.classList.add('hidden');
+                }
+            }
+
+            if (precoEl) {
+                precoEl.textContent = prod.preco_formatado || (prod.preco_promocional || prod.preco || '0,00');
+            }
+
+            img.src = prod.foto;
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+
+            resetarZoomFoto();
+
+            if (dica) {
+                dica.style.opacity = '1';
+                setTimeout(() => {
+                    if (dica) dica.style.opacity = '0';
+                }, 3200);
+            }
+        };
+
+        window.abrirZoomFotoModal = function() {
+            if (produtoAtualModal && produtoAtualModal.foto) {
+                abrirZoomFoto(produtoAtualModal);
+            }
+        };
+
+        window.fecharZoomFoto = function() {
+            const modal = document.getElementById('modalZoomFoto');
+            if (modal) modal.classList.add('hidden');
+            document.body.style.overflow = '';
+            zoomProdutoAtual = null;
+        };
+
+        window.resetarZoomFoto = function() {
+            zoomScale = 1;
+            zoomTranslateX = 0;
+            zoomTranslateY = 0;
+            atualizarTransformacaoZoom();
+        };
+
+        window.alterarZoomEscala = function(delta) {
+            const novaEscala = Math.min(4, Math.max(1, +(zoomScale + delta).toFixed(2)));
+            if (novaEscala === 1) {
+                zoomTranslateX = 0;
+                zoomTranslateY = 0;
+            }
+            zoomScale = novaEscala;
+            atualizarTransformacaoZoom();
+        };
+
+        function atualizarTransformacaoZoom() {
+            const img = document.getElementById('zoomProdImg');
+            const ind = document.getElementById('zoomNivelIndicador');
+            const viewport = document.getElementById('zoomViewport');
+
+            if (ind) {
+                ind.textContent = Math.round(zoomScale * 100) + '%';
+            }
+
+            if (img) {
+                img.style.transform = `translate(${zoomTranslateX}px, ${zoomTranslateY}px) scale(${zoomScale})`;
+            }
+
+            if (viewport) {
+                viewport.style.cursor = zoomScale > 1 ? 'grab' : 'zoom-in';
+            }
+        }
+
+        window.comprarDiretoDoZoom = function() {
+            const prod = zoomProdutoAtual;
+            fecharZoomFoto();
+            if (prod) {
+                abrirModalDetalheProduto(prod);
+            }
+        };
+
+        // Eventos e Gestos de Interação no Viewport de Zoom
+        (function inicializarEventosZoom() {
+            window.addEventListener('DOMContentLoaded', function() {
+                const viewport = document.getElementById('zoomViewport');
+                const img = document.getElementById('zoomProdImg');
+                if (!viewport || !img) return;
+
+                // Fechar ao clicar no backdrop (se escala for 1x e não clicou na imagem)
+                viewport.addEventListener('click', function(e) {
+                    if (e.target === viewport && zoomScale === 1) {
+                        fecharZoomFoto();
+                    }
+                });
+
+                // Duplo clique alterna entre 1x e 2.5x
+                viewport.addEventListener('dblclick', function(e) {
+                    if (zoomScale > 1) {
+                        resetarZoomFoto();
+                    } else {
+                        zoomScale = 2.5;
+                        const rect = viewport.getBoundingClientRect();
+                        const offsetX = e.clientX - (rect.left + rect.width / 2);
+                        const offsetY = e.clientY - (rect.top + rect.height / 2);
+                        zoomTranslateX = -offsetX * 1.2;
+                        zoomTranslateY = -offsetY * 1.2;
+                        atualizarTransformacaoZoom();
+                    }
+                });
+
+                // Scroll da roda do mouse para zoom fluido
+                viewport.addEventListener('wheel', function(e) {
+                    e.preventDefault();
+                    const delta = e.deltaY < 0 ? 0.3 : -0.3;
+                    alterarZoomEscala(delta);
+                }, { passive: false });
+
+                // Mouse Drag (Pan)
+                viewport.addEventListener('mousedown', function(e) {
+                    if (zoomScale <= 1) return;
+                    zoomIsDragging = true;
+                    zoomStartX = e.clientX;
+                    zoomStartY = e.clientY;
+                    zoomStartTransX = zoomTranslateX;
+                    zoomStartTransY = zoomTranslateY;
+                    viewport.style.cursor = 'grabbing';
+                });
+
+                window.addEventListener('mousemove', function(e) {
+                    if (!zoomIsDragging) return;
+                    const dx = e.clientX - zoomStartX;
+                    const dy = e.clientY - zoomStartY;
+                    zoomTranslateX = zoomStartTransX + dx;
+                    zoomTranslateY = zoomStartTransY + dy;
+                    atualizarTransformacaoZoom();
+                });
+
+                window.addEventListener('mouseup', function() {
+                    if (zoomIsDragging) {
+                        zoomIsDragging = false;
+                        if (viewport) {
+                            viewport.style.cursor = zoomScale > 1 ? 'grab' : 'zoom-in';
+                        }
+                    }
+                });
+
+                // Touch Gestures (Pinch to Zoom e Arrastar no Mobile)
+                let lastTouchTap = 0;
+                viewport.addEventListener('touchstart', function(e) {
+                    if (e.touches.length === 2) {
+                        zoomIsDragging = false;
+                        const t1 = e.touches[0];
+                        const t2 = e.touches[1];
+                        zoomInitialPinchDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+                        zoomInitialScale = zoomScale;
+                    } else if (e.touches.length === 1) {
+                        const now = Date.now();
+                        const diff = now - lastTouchTap;
+                        if (diff < 300 && diff > 0) {
+                            if (zoomScale > 1) {
+                                resetarZoomFoto();
+                            } else {
+                                zoomScale = 2.5;
+                                atualizarTransformacaoZoom();
+                            }
+                            lastTouchTap = 0;
+                            return;
+                        }
+                        lastTouchTap = now;
+
+                        if (zoomScale > 1) {
+                            zoomIsDragging = true;
+                            zoomStartX = e.touches[0].clientX;
+                            zoomStartY = e.touches[0].clientY;
+                            zoomStartTransX = zoomTranslateX;
+                            zoomStartTransY = zoomTranslateY;
+                        }
+                    }
+                }, { passive: true });
+
+                viewport.addEventListener('touchmove', function(e) {
+                    if (e.touches.length === 2 && zoomInitialPinchDist) {
+                        e.preventDefault();
+                        const t1 = e.touches[0];
+                        const t2 = e.touches[1];
+                        const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+                        const factor = dist / zoomInitialPinchDist;
+                        zoomScale = Math.min(4, Math.max(1, +(zoomInitialScale * factor).toFixed(2)));
+                        atualizarTransformacaoZoom();
+                    } else if (e.touches.length === 1 && zoomIsDragging) {
+                        e.preventDefault();
+                        const dx = e.touches[0].clientX - zoomStartX;
+                        const dy = e.touches[0].clientY - zoomStartY;
+                        zoomTranslateX = zoomStartTransX + dx;
+                        zoomTranslateY = zoomStartTransY + dy;
+                        atualizarTransformacaoZoom();
+                    }
+                }, { passive: false });
+
+                viewport.addEventListener('touchend', function(e) {
+                    if (e.touches.length < 2) {
+                        zoomInitialPinchDist = null;
+                    }
+                    if (e.touches.length === 0) {
+                        zoomIsDragging = false;
+                    }
+                }, { passive: true });
+
+                // Teclas de atalho (ESC fecha, +, - e 0)
+                window.addEventListener('keydown', function(e) {
+                    const modal = document.getElementById('modalZoomFoto');
+                    if (!modal || modal.classList.contains('hidden')) return;
+
+                    if (e.key === 'Escape') {
+                        fecharZoomFoto();
+                    } else if (e.key === '+' || e.key === '=') {
+                        alterarZoomEscala(0.5);
+                    } else if (e.key === '-' || e.key === '_') {
+                        alterarZoomEscala(-0.5);
+                    } else if (e.key === '0') {
+                        resetarZoomFoto();
+                    }
+                });
+            });
+        })();
 
         async function enviarPedidoProdutoIndividual() {
             if (!produtoAtualModal) return;
