@@ -633,6 +633,8 @@ $canvasHeight3D = 842;
                             $jsonProdData = Html::encode(json_encode([
                                 'id' => $produto->id,
                                 'encarte_item_id' => (string)$encarteProd->id,
+                                'pagina_num' => ($indexPagina + 2),
+                                'lamina_id' => 'lamina-' . ($indexPagina + 2),
                                 'nome' => $produto->nome,
                                 'nome_completo' => $encarteProd->getNomeExibicao(),
                                 'marca' => $produto->marca ?: '',
@@ -653,7 +655,7 @@ $canvasHeight3D = 842;
 
                         ?>
                             <!-- Card Individual de Produto -->
-                            <div data-prod-nome="<?= Html::encode(mb_strtolower($produto->nome)) ?>" data-prod-cat="<?= Html::encode($produto->categoria ? $produto->categoria->nome : 'Geral') ?>" onclick="abrirModalDetalheProduto(<?= $jsonProdData ?>)" class="hotspot-card bg-white rounded-xl <?= $cardPaddingClass ?> flex flex-col justify-between shadow-xs group h-full select-none">
+                            <div data-prod-nome="<?= Html::encode(mb_strtolower($produto->nome)) ?>" data-prod-cat="<?= Html::encode($produto->categoria ? $produto->categoria->nome : 'Geral') ?>" onclick="abrirModalDetalheProduto(<?= $jsonProdData ?>)" onmousedown="event.stopPropagation()" onpointerdown="event.stopPropagation()" ontouchstart="event.stopPropagation()" class="hotspot-card bg-white rounded-xl <?= $cardPaddingClass ?> flex flex-col justify-between shadow-xs group h-full select-none relative z-10">
                                 
                                 <!-- Categoria & Badge -->
                                 <div class="flex items-center justify-between mb-0.5 flex-shrink-0">
@@ -666,9 +668,9 @@ $canvasHeight3D = 842;
                                 </div>
 
                                 <!-- Imagem Centralizada com Aspect Ratio Perfeito (Foto da Cor se Matriz) -->
-                                <div class="card-img-box w-full <?= $imgHeightClass ?> flex items-center justify-center p-1 relative overflow-hidden flex-shrink-0 rounded-lg cursor-zoom-in group/img" onclick="event.stopPropagation(); abrirZoomFoto(<?= $jsonProdData ?>)" title="Toque para ampliar a foto em alta definição">
+                                <div class="card-img-box w-full <?= $imgHeightClass ?> flex items-center justify-center p-1 relative overflow-hidden flex-shrink-0 rounded-lg cursor-zoom-in group/img" onclick="event.stopPropagation(); abrirZoomFoto(<?= $jsonProdData ?>)" onmousedown="event.stopPropagation()" onpointerdown="event.stopPropagation()" ontouchstart="event.stopPropagation()" title="Toque para ampliar a foto em alta definição">
                                     <?php if ($fotoUrl): ?>
-                                        <img src="<?= $fotoUrl ?>" alt="<?= Html::encode($produto->nome) ?>" loading="lazy" class="card-prod-img max-h-full max-w-full object-contain group-hover/img:scale-105 transition-all duration-300">
+                                        <img src="<?= $fotoUrl ?>" alt="<?= Html::encode($produto->nome) ?>" loading="lazy" class="card-prod-img max-h-full max-w-full object-contain group-hover/img:scale-105 transition-all duration-300 pointer-events-none">
                                         <div class="absolute bottom-1 right-1 bg-slate-950/75 hover:bg-slate-950 text-white rounded-md p-1 opacity-75 group-hover/img:opacity-100 transition-all pointer-events-none shadow-xs border border-white/10 flex items-center gap-0.5">
                                             <svg class="w-2.5 h-2.5 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"/></svg>
                                         </div>
@@ -723,7 +725,7 @@ $canvasHeight3D = 842;
                                         <span class="text-[7px] sm:text-[8px] font-semibold opacity-90 ml-0.5">/<?= Html::encode($produto->unidade_medida ?: 'un') ?></span>
                                     </div>
 
-                                    <button onclick="event.stopPropagation(); adicionarDirectoSacola(<?= $jsonProdData ?>)" class="w-full py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[8px] sm:text-[9px] rounded-lg shadow transition flex items-center justify-center gap-1 cursor-pointer">
+                                    <button onclick="event.stopPropagation(); adicionarDirectoSacola(<?= $jsonProdData ?>)" onmousedown="event.stopPropagation()" onpointerdown="event.stopPropagation()" ontouchstart="event.stopPropagation()" class="w-full py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[8px] sm:text-[9px] rounded-lg shadow transition flex items-center justify-center gap-1 cursor-pointer">
                                         <span>+ Sacola</span>
                                     </button>
                                 </div>
@@ -1185,7 +1187,9 @@ $canvasHeight3D = 842;
                         showCover: true,
                         mobileScrollSupport: false,
                         useMouseEvents: true,
-                        flippingTime: 700
+                        flippingTime: 700,
+                        disableFlipByClick: true,
+                        clickEventForward: true
                     });
 
                     pageFlipInstance.loadFromHTML(document.querySelectorAll('.page-sheet'));
@@ -1196,6 +1200,13 @@ $canvasHeight3D = 842;
 
                     pageFlipInstance.on('changeOrientation', () => {
                         atualizarIndicadoresEBotoes();
+                    });
+
+                    // Blindagem defensiva: garantir que cliques em cards e fotos nunca acionem virada indesejada
+                    container.querySelectorAll('.hotspot-card, .card-img-box, .badge-promo, .header-tabloide, button, a').forEach(el => {
+                        ['mousedown', 'touchstart', 'pointerdown'].forEach(evt => {
+                            el.addEventListener(evt, e => e.stopPropagation(), { passive: true });
+                        });
                     });
 
                     if (paginaAtualNum > 1) {
@@ -1304,6 +1315,15 @@ $canvasHeight3D = 842;
 
             observarLaminasScroll();
             configurarGestosSwipeMobile();
+
+            // Blindagem ampla: previne que toques ou cliques em qualquer card/foto virem a página do encarte
+            document.querySelectorAll('.hotspot-card, .card-img-box, .badge-promo, .header-tabloide').forEach(function(el) {
+                ['mousedown', 'touchstart', 'pointerdown'].forEach(function(evt) {
+                    el.addEventListener(evt, function(e) {
+                        e.stopPropagation();
+                    }, { passive: true });
+                });
+            });
 
             document.getElementById('btnPrevPage').addEventListener('click', paginaAnterior);
             document.getElementById('btnNextPage').addEventListener('click', proximaPagina);
@@ -1801,6 +1821,8 @@ $canvasHeight3D = 842;
         // MOTOR DE ZOOM E LIGHTBOX INTERATIVO DE ALTA DEFINIÇÃO
         // =========================================================
         let zoomProdutoAtual = null;
+        let zoomPaginaOrigem = null;
+        let zoomScrollYOrigem = null;
         let zoomScale = 1;
         let zoomTranslateX = 0;
         let zoomTranslateY = 0;
@@ -1815,6 +1837,16 @@ $canvasHeight3D = 842;
         window.abrirZoomFoto = function(prod) {
             if (!prod || !prod.foto) return;
             zoomProdutoAtual = prod;
+
+            // Salvar rigorosamente a página/lâmina onde o produto foi clicado e a rolagem atual
+            if (prod.pagina_num) {
+                zoomPaginaOrigem = parseInt(prod.pagina_num, 10);
+            } else if (pageFlipInstance) {
+                zoomPaginaOrigem = pageFlipInstance.getCurrentPageIndex() + 1;
+            } else {
+                zoomPaginaOrigem = paginaAtualNum;
+            }
+            zoomScrollYOrigem = window.pageYOffset || document.documentElement.scrollTop;
             
             const modal = document.getElementById('modalZoomFoto');
             const img = document.getElementById('zoomProdImg');
@@ -1864,7 +1896,65 @@ $canvasHeight3D = 842;
             const modal = document.getElementById('modalZoomFoto');
             if (modal) modal.classList.add('hidden');
             document.body.style.overflow = '';
+            
+            const paginaAlvo = zoomPaginaOrigem;
+            const scrollAlvo = zoomScrollYOrigem;
             zoomProdutoAtual = null;
+
+            // Retornar rigorosamente para a lâmina/folha onde o produto clicado está
+            if (paginaAlvo) {
+                if (pageFlipInstance) {
+                    // Modo Desktop Flipbook 3D
+                    try {
+                        const curIndex = pageFlipInstance.getCurrentPageIndex(); // 0-indexed
+                        const targetIndex = Math.max(0, paginaAlvo - 1);
+                        const orientation = pageFlipInstance.getOrientation();
+
+                        let precisaVirar = false;
+                        if (orientation === 'landscape') {
+                            if (targetIndex === 0) {
+                                precisaVirar = (curIndex !== 0);
+                            } else {
+                                const spreadPagina1 = curIndex;
+                                const spreadPagina2 = curIndex + 1;
+                                if (targetIndex !== spreadPagina1 && targetIndex !== spreadPagina2) {
+                                    precisaVirar = true;
+                                }
+                            }
+                        } else {
+                            if (curIndex !== targetIndex) {
+                                precisaVirar = true;
+                            }
+                        }
+
+                        if (precisaVirar) {
+                            try {
+                                pageFlipInstance.turnToPage(targetIndex);
+                            } catch(e) {
+                                pageFlipInstance.flip(targetIndex);
+                            }
+                        }
+                    } catch(e) {
+                        console.warn("Aviso ao sincronizar folha no Flipbook:", e);
+                    }
+                    atualizarIndicadoresEBotoes();
+                } else {
+                    // Modo Mobile (Tabloide vertical com rolagem suave)
+                    if (scrollAlvo !== null && scrollAlvo !== undefined) {
+                        window.scrollTo({
+                            top: scrollAlvo,
+                            behavior: 'instant'
+                        });
+                    }
+                    const elLamina = document.getElementById('lamina-' + paginaAlvo);
+                    if (elLamina) {
+                        const rect = elLamina.getBoundingClientRect();
+                        if (rect.top < -300 || rect.bottom > window.innerHeight + 300) {
+                            irParaLamina(paginaAlvo);
+                        }
+                    }
+                }
+            }
         };
 
         window.resetarZoomFoto = function() {
