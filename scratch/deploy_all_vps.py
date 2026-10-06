@@ -41,9 +41,11 @@ for d in {dirs_str}; do
         echo "------------------------------------------------------------"
         cd "$d" || continue
         
-        echo "[1/3] git fetch & pull..."
+        echo "[1/4] git fetch & sync origin/main..."
+        git checkout -f main 2>/dev/null || true
+        git clean -fd web/downloads/ 2>/dev/null || true
         git fetch origin main
-        git pull origin main
+        git reset --hard origin/main
         
         if [ -f yii ]; then
             echo "[2/4] Verificando migrations..."
@@ -81,9 +83,11 @@ for d in {dirs_str}; do
 done
 
 echo ""
-echo ">>> Recarregando PHP-FPM para limpar OPcache..."
+echo ">>> Recarregando PHP-FPM e fila pulse-queue..."
 systemctl reload php-fpm 2>/dev/null || true
+systemctl restart pulse-queue 2>/dev/null || true
 echo "✓ PHP-FPM status: $(systemctl is-active php-fpm)"
+echo "✓ pulse-queue status: $(systemctl is-active pulse-queue 2>/dev/null || echo 'não instalado')"
 
 """
     

@@ -56,6 +56,7 @@ class LojaController extends Controller
                     'toggle-admin'  => ['POST'],
                     'atualizar-pix-estatico' => ['POST'],
                     'atualizar-taxa-split' => ['POST'],
+                    'excluir' => ['POST'],
                 ],
             ],
         ];
@@ -514,5 +515,32 @@ class LojaController extends Controller
         }
 
         return ['success' => false, 'message' => 'Erro ao salvar privilégios no banco de dados.'];
+    }
+
+    /**
+     * Exclui uma loja por completo (todos os dados multitenant e arquivos).
+     * Requer privilégios de Super Admin.
+     *
+     * @param string $id ID ou UUID da loja
+     * @return array
+     */
+    public function actionExcluir($id)
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        if (!\app\components\TenantHelper::isAdmin()) {
+            throw new ForbiddenHttpException('Apenas Super Administradores podem excluir lojas.');
+        }
+
+        try {
+            $res = \app\modules\admin\services\LojaExclusaoService::excluirLojaCompleta((string)$id);
+            return $res;
+        } catch (\Exception $e) {
+            Yii::error("Erro na exclusão completa da loja {$id}: " . $e->getMessage(), __METHOD__);
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+            ];
+        }
     }
 }

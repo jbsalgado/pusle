@@ -241,6 +241,8 @@
         .btn-reject:hover { background: rgba(255,101,132,0.25); }
         .btn-reactivate { background: var(--primary-light); color: var(--primary); }
         .btn-reactivate:hover { background: rgba(108,99,255,0.25); }
+        .btn-delete { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
+        .btn-delete:hover { background: rgba(239,68,68,0.28); color: #fff; }
 
         .date-info { font-size: 12px; color: var(--text-muted); }
 
@@ -460,6 +462,12 @@ $admin = Yii::$app->user->identity;
                                         ▶ Reativar
                                     </button>
                                 <?php endif; ?>
+
+                                <?php if (!$loja->is_admin): ?>
+                                    <button class="btn-action btn-delete" onclick="abrirModalExcluirLoja('<?= Html::encode($loja->id) ?>', '<?= Html::encode($loja->nome) ?>')" title="Excluir loja por completo">
+                                        🗑️ Excluir
+                                    </button>
+                                <?php endif; ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -493,12 +501,41 @@ $admin = Yii::$app->user->identity;
     </div>
 </div>
 
+<!-- Modal de Confirmação para Exclusão Completa de Loja -->
+<div id="modalExcluirLoja" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(6px); z-index:99999; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:#141627; border:1px solid rgba(239,68,68,0.4); border-radius:18px; padding:28px; width:100%; max-width:480px; color:#fff; text-align:center; box-shadow:0 20px 50px rgba(0,0,0,0.7);">
+        <div style="font-size:46px; margin-bottom:12px;">⚠️</div>
+        <h3 style="font-size:18px; font-weight:700; margin-bottom:8px; color:#f87171;">Excluir Loja por Completo</h3>
+        <p style="font-size:13px; color:#c7d2fe; margin-bottom:12px; line-height:1.5;">
+            Você está prestes a excluir definitivamente a loja: <br>
+            <strong id="nomeExcluirLoja" style="font-size:15px; color:#fff; background:rgba(239,68,68,0.2); padding:2px 8px; border-radius:6px; display:inline-block; margin-top:4px;"></strong>
+        </p>
+        <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); border-radius:10px; padding:12px; font-size:12px; color:#fca5a5; text-align:left; line-height:1.4; margin-bottom:18px;">
+            🚨 <strong>ATENÇÃO: AÇÃO IRREVERSÍVEL!</strong><br>
+            Todos os produtos, vendas, clientes, notas fiscais, cobranças, movimentações e mídias vinculadas a esta loja serão <strong>eliminados permanentemente do banco de dados e do servidor</strong>.
+        </div>
+        
+        <div style="text-align:left; margin-bottom:20px;">
+            <label style="font-size:12px; font-weight:600; color:#f87171; display:block; margin-bottom:6px;">
+                Digite a palavra <span style="text-decoration:underline; font-weight:800;">EXCLUIR</span> em maiúsculas para confirmar:
+            </label>
+            <input type="text" id="inputConfirmarExcluirTexto" placeholder="EXCLUIR" oninput="validarTextoExclusao()" style="width:100%; padding:12px 16px; background:#1C1E35; border:1px solid rgba(239,68,68,0.3); border-radius:12px; color:#fff; font-size:14px; outline:none; text-transform:uppercase; letter-spacing:1px; text-align:center;">
+        </div>
+
+        <div style="display:flex; gap:12px; justify-content:flex-end;">
+            <button type="button" onclick="fecharModalExcluirLoja()" style="padding:10px 18px; background:#1C1E35; color:#aaa; border:none; border-radius:10px; font-weight:600; cursor:pointer;">Cancelar</button>
+            <button type="button" id="btnConfirmarExcluirLoja" disabled onclick="executarExcluirLoja()" style="padding:10px 20px; background:#ef4444; color:#fff; border:none; border-radius:10px; font-weight:700; cursor:not-allowed; opacity:0.5; transition:all 0.2s;">Excluir Definitivamente</button>
+        </div>
+    </div>
+</div>
+
 <script>
 const urls = {
     aprovar:   '<?= Url::to(['/admin/loja/aprovar']) ?>',
     suspender: '<?= Url::to(['/admin/loja/suspender']) ?>',
     rejeitar:  '<?= Url::to(['/admin/loja/rejeitar']) ?>',
     reativar:  '<?= Url::to(['/admin/loja/reativar']) ?>',
+    excluir:   '<?= Url::to(['/admin/loja/excluir']) ?>',
 };
 
 let targetAdminUserId = null;
@@ -647,6 +684,9 @@ function atualizarLinhaLoja(id, nome, tipo) {
     const valSuspensa = document.getElementById('val-suspensa');
 
     const modulosUrl = '<?= Url::to(['/admin/loja/modulos']) ?>?id=' + encodeURIComponent(id);
+    const btnAdmin = actionCell ? actionCell.querySelector('button[title*="Super Admin"]') : null;
+    const isSuperAdmin = (row.querySelector('.badge-status[style*="Super Admin"]') !== null) || (btnAdmin && btnAdmin.innerText.includes('Revogar'));
+    const deleteHtml = isSuperAdmin ? '' : `<button class="btn-action btn-delete" onclick="abrirModalExcluirLoja('${id}', '${nome}')" title="Excluir loja por completo">🗑️ Excluir</button>`;
 
     if (tipo === 'aprovar' || tipo === 'reativar') {
         if (badge) {
@@ -658,7 +698,6 @@ function atualizarLinhaLoja(id, nome, tipo) {
             valAtiva.textContent = parseInt(valAtiva.textContent || 0) + 1;
         }
 
-        const btnAdmin = actionCell.querySelector('button[title*="Super Admin"]');
         const adminHtml = btnAdmin ? btnAdmin.outerHTML : '';
 
         actionCell.innerHTML = `
@@ -666,6 +705,7 @@ function atualizarLinhaLoja(id, nome, tipo) {
             <a href="${modulosUrl}" class="btn-action" style="background: rgba(6,182,212,0.15); color: #06b6d4;" title="Configurar Cota de PIX Estático">⚡ Cota PIX</a>
             ${adminHtml}
             <button class="btn-action btn-suspend" onclick="acao('suspender', '${id}', '${nome}', this)">⏸ Suspender</button>
+            ${deleteHtml}
         `;
     } else if (tipo === 'suspender') {
         if (badge) {
@@ -677,7 +717,6 @@ function atualizarLinhaLoja(id, nome, tipo) {
             valSuspensa.textContent = parseInt(valSuspensa.textContent || 0) + 1;
         }
 
-        const btnAdmin = actionCell.querySelector('button[title*="Super Admin"]');
         const adminHtml = btnAdmin ? btnAdmin.outerHTML : '';
 
         actionCell.innerHTML = `
@@ -685,6 +724,7 @@ function atualizarLinhaLoja(id, nome, tipo) {
             <a href="${modulosUrl}" class="btn-action" style="background: rgba(6,182,212,0.15); color: #06b6d4;" title="Configurar Cota de PIX Estático">⚡ Cota PIX</a>
             ${adminHtml}
             <button class="btn-action btn-reactivate" onclick="acao('reativar', '${id}', '${nome}', this)">▶ Reativar</button>
+            ${deleteHtml}
         `;
     } else if (tipo === 'rejeitar') {
         if (badge) {
@@ -695,7 +735,6 @@ function atualizarLinhaLoja(id, nome, tipo) {
             valPendente.textContent = Math.max(0, parseInt(valPendente.textContent || 0) - 1);
         }
 
-        const btnAdmin = actionCell.querySelector('button[title*="Super Admin"]');
         const adminHtml = btnAdmin ? btnAdmin.outerHTML : '';
 
         actionCell.innerHTML = `
@@ -703,6 +742,7 @@ function atualizarLinhaLoja(id, nome, tipo) {
             <a href="${modulosUrl}" class="btn-action" style="background: rgba(6,182,212,0.15); color: #06b6d4;" title="Configurar Cota de PIX Estático">⚡ Cota PIX</a>
             ${adminHtml}
             <button class="btn-action btn-reactivate" onclick="acao('reativar', '${id}', '${nome}', this)">▶ Reativar</button>
+            ${deleteHtml}
         `;
     }
 
@@ -713,6 +753,96 @@ function atualizarLinhaLoja(id, nome, tipo) {
         row.style.opacity = '0';
         row.style.transform = 'translateX(20px)';
         setTimeout(() => row.remove(), 400);
+    }
+}
+
+let targetExcluirLojaId = null;
+let targetExcluirLojaNome = '';
+
+function abrirModalExcluirLoja(id, nome) {
+    targetExcluirLojaId = id;
+    targetExcluirLojaNome = nome;
+    document.getElementById('nomeExcluirLoja').textContent = nome;
+    const input = document.getElementById('inputConfirmarExcluirTexto');
+    input.value = '';
+    const btn = document.getElementById('btnConfirmarExcluirLoja');
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'not-allowed';
+    btn.innerHTML = 'Excluir Definitivamente';
+    
+    const modal = document.getElementById('modalExcluirLoja');
+    modal.style.display = 'flex';
+    input.focus();
+}
+
+function fecharModalExcluirLoja() {
+    document.getElementById('modalExcluirLoja').style.display = 'none';
+    targetExcluirLojaId = null;
+}
+
+function validarTextoExclusao() {
+    const val = document.getElementById('inputConfirmarExcluirTexto').value.trim();
+    const btn = document.getElementById('btnConfirmarExcluirLoja');
+    if (val === 'EXCLUIR') {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+    } else {
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+    }
+}
+
+async function executarExcluirLoja() {
+    if (!targetExcluirLojaId) return;
+    const val = document.getElementById('inputConfirmarExcluirTexto').value.trim();
+    if (val !== 'EXCLUIR') return;
+
+    const btn = document.getElementById('btnConfirmarExcluirLoja');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-sm"></span> Excluindo registros...';
+
+    try {
+        const res = await fetch(urls.excluir + '?id=' + encodeURIComponent(targetExcluirLojaId), {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>',
+            },
+        });
+        const data = await res.json();
+        showToast(data.success, data.message);
+
+        if (data.success) {
+            fecharModalExcluirLoja();
+            const row = document.getElementById('row-' + targetExcluirLojaId);
+            if (row) {
+                // Diminui contadores
+                const badge = row.querySelector('.badge-status');
+                const match = badge ? badge.className.match(/(pendente|ativa|suspensa|rejeitada)/) : null;
+                const status = match ? match[0] : null;
+                if (status) {
+                    const el = document.getElementById('val-' + status);
+                    if (el) el.textContent = Math.max(0, parseInt(el.textContent || 0) - 1);
+                }
+                const elTotal = document.getElementById('val-total');
+                if (elTotal) elTotal.textContent = Math.max(0, parseInt(elTotal.textContent || 0) - 1);
+
+                row.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+                row.style.opacity = '0';
+                row.style.transform = 'scale(0.95)';
+                setTimeout(() => row.remove(), 400);
+            }
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = 'Excluir Definitivamente';
+        }
+    } catch (e) {
+        showToast(false, 'Erro ao comunicar com o servidor.');
+        btn.disabled = false;
+        btn.innerHTML = 'Excluir Definitivamente';
     }
 }
 
