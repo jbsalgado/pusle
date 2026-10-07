@@ -114,17 +114,41 @@ class CardGeneratorService
         }
 
         // 5. Preço e Promoção
-        $emPromocao = $produto->getEmPromocao();
-        $precoOriginal = $produto->preco_venda_sugerido > 0 ? $this->formatarMoeda($produto->preco_venda_sugerido) : null;
+        $emPromocao = (bool)$produto->getEmPromocao();
+        $precoOriginalValor = ($variante && method_exists($variante, 'getPrecoNormal'))
+            ? $variante->getPrecoNormal()
+            : (float)$produto->preco_venda_sugerido;
+        $precoOriginal = $precoOriginalValor > 0 ? $this->formatarMoeda($precoOriginalValor) : null;
         
         $priceLabel = $emPromocao ? 'Por apenas' : 'Preço de venda';
         if (!empty($gradeTamanhos) && !$mesmoPreco && $precoMin !== null && $precoMin > 0) {
             $precoFinalValor = $precoMin;
-            $precoPromocionalStr = $this->formatarMoeda($precoMin);
-            $priceLabel = 'A partir de';
+            if ($emPromocao && (float)$produto->preco_promocional > 0 && $precoFinalValor >= (float)$produto->preco_venda_sugerido) {
+                $precoFinalValor = (float)$produto->getPrecoFinal();
+            }
+            $precoPromocionalStr = $this->formatarMoeda($precoFinalValor);
+            $priceLabel = $emPromocao ? 'Oferta a partir de' : 'A partir de';
         } else {
             $precoFinalValor = $variante ? $variante->getPrecoVendaEfetivo() : ($precoMin !== null ? $precoMin : $produto->getPrecoFinal());
+            
+            // Garantia absoluta: se o produto estiver em promoção ativa, o valor impresso no card DEVE ser o promocional
+            if ($emPromocao && (float)$produto->preco_promocional > 0) {
+                if ($precoFinalValor >= (float)$produto->preco_venda_sugerido) {
+                    $precoFinalValor = (float)$produto->getPrecoFinal();
+                }
+            }
             $precoPromocionalStr = $this->formatarMoeda($precoFinalValor);
+        }
+
+        // Se o produto está em promoção, atualiza a grade de tamanhos para refletir os preços promocionais
+        if ($emPromocao && !empty($gradeTamanhos)) {
+            foreach ($gradeTamanhos as &$gItem) {
+                if (isset($gItem['preco']) && (float)$gItem['preco'] >= (float)$produto->preco_venda_sugerido && (float)$produto->preco_promocional > 0) {
+                    $gItem['preco'] = (float)$produto->getPrecoFinal();
+                    $gItem['preco_formatado'] = $this->formatarMoeda($gItem['preco']);
+                }
+            }
+            unset($gItem);
         }
 
         $descontoPercentual = 0;

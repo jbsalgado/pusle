@@ -115,10 +115,37 @@ class ProdutoVariante extends ActiveRecord
     }
 
     /**
-     * Retorna o preço efetivo de venda (herda do pai se não houver preço específico na variante)
+     * Retorna o preço efetivo de venda (aplica preço promocional do produto mestre se estiver em promoção ativa)
      * @return float
      */
     public function getPrecoVendaEfetivo()
+    {
+        $precoBase = ($this->preco_venda_sugerido !== null && (float)$this->preco_venda_sugerido > 0)
+            ? (float)$this->preco_venda_sugerido
+            : ($this->produto ? (float)$this->produto->preco_venda_sugerido : 0.0);
+
+        // Se o produto pai estiver em promoção ativa, o preço efetivo deve refletir a promoção:
+        if ($this->produto && $this->produto->emPromocao && (float)$this->produto->preco_promocional > 0) {
+            // Se a variante tem preço individual definido, aplica o percentual de desconto da promoção do pai
+            if ($this->preco_venda_sugerido !== null && (float)$this->preco_venda_sugerido > 0) {
+                $descontoPercentual = $this->produto->getDescontoPromocional();
+                if ($descontoPercentual > 0) {
+                    return round($precoBase * (1 - ($descontoPercentual / 100)), 2);
+                }
+                return min($precoBase, (float)$this->produto->preco_promocional);
+            }
+            // Variante padrão (sem sobreposição de preço) herda diretamente o preço promocional do pai
+            return (float)$this->produto->preco_promocional;
+        }
+
+        return $precoBase;
+    }
+
+    /**
+     * Retorna o preço de tabela / original da variante (sem desconto promocional)
+     * @return float
+     */
+    public function getPrecoNormal()
     {
         if ($this->preco_venda_sugerido !== null && (float)$this->preco_venda_sugerido > 0) {
             return (float)$this->preco_venda_sugerido;

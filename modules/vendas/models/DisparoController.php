@@ -14,6 +14,7 @@ use app\modules\vendas\models\DisparoMassa;
 use app\modules\vendas\models\DisparoItem;
 use app\modules\vendas\services\DisparoMassaService;
 use app\modules\vendas\services\CardGeneratorService;
+use app\modules\vendas\services\AiImageGeneratorService;
 use app\modules\vendas\services\MediaStorageService;
 use app\modules\vendas\models\ProdutoVariante;
 use app\modules\vendas\models\ProdutoCard;
@@ -362,6 +363,7 @@ class DisparoController extends Controller
             'enquadramentoFoto' => $rawBody['enquadramento_foto'] ?? ($rawBody['enquadramentoFoto'] ?? $request->post('enquadramento_foto', 'auto')),
             'rotacaoFoto' => $rawBody['rotacao_foto'] ?? ($rawBody['rotacaoFoto'] ?? $request->post('rotacao_foto', 'auto')),
             'mensagemCard' => trim($rawBody['mensagem_card'] ?? ($rawBody['mensagemCard'] ?? $request->post('mensagem_card', ''))),
+            'imagemFundo' => $rawBody['imagem_fundo'] ?? ($rawBody['imagemFundo'] ?? $request->post('imagem_fundo', null)),
         ];
 
         $modoMatriz = $rawBody['modo_matriz'] ?? $request->post('modo_matriz', 'por_cor');
@@ -519,14 +521,42 @@ class DisparoController extends Controller
                         if ($card && !empty($card->card_path)) {
                             $caminhoFisico = Yii::getAlias('@app/web/') . ltrim($card->card_path, '/');
                             if (file_exists($caminhoFisico)) {
+                                $emPromocao = (bool)$produto->getEmPromocao();
+                                $precoOriginalValor = (!empty($alvo['variante']) && method_exists($alvo['variante'], 'getPrecoNormal'))
+                                    ? $alvo['variante']->getPrecoNormal()
+                                    : (float)$produto->preco_venda_sugerido;
+
                                 if (!empty($alvo['grade_tamanhos']) && !$alvo['mesmo_preco']) {
-                                    $precoFinal = 'A partir de R$ ' . number_format($alvo['preco_min'], 2, ',', '.');
+                                    $prefixo = $emPromocao ? 'Oferta a partir de ' : 'A partir de ';
+                                    $valorFinalNumerico = $alvo['preco_min'];
+                                    if ($emPromocao && (float)$produto->preco_promocional > 0 && $valorFinalNumerico >= (float)$produto->preco_venda_sugerido) {
+                                        $valorFinalNumerico = (float)$produto->getPrecoFinal();
+                                    }
+                                    $precoFinal = $prefixo . 'R$ ' . number_format($valorFinalNumerico, 2, ',', '.');
                                 } else {
-                                    $precoFinal = 'R$ ' . number_format($alvo['preco'], 2, ',', '.');
+                                    $valorFinalNumerico = $alvo['preco'];
+                                    if ($emPromocao && (float)$produto->preco_promocional > 0 && $valorFinalNumerico >= (float)$produto->preco_venda_sugerido) {
+                                        $valorFinalNumerico = (float)$produto->getPrecoFinal();
+                                    }
+                                    $precoFinal = 'R$ ' . number_format($valorFinalNumerico, 2, ',', '.');
                                 }
+
+                                $descontoPerc = $emPromocao ? round($produto->getDescontoPromocional()) : 0;
+                                $economia = max(0, $precoOriginalValor - $valorFinalNumerico);
+
                                 $msgFormatada = str_replace(
-                                    ['{PRODUTO}', '{PRECO}', '{NOME}', '{MENSAGEM_PROMOCIONAL}'],
-                                    [$alvo['nome'], $precoFinal, 'Cliente', $visualOptions['mensagemCard'] ?? ''],
+                                    [
+                                        '{PRODUTO}', '{PRECO}', '{NOME}', '{MENSAGEM_PROMOCIONAL}',
+                                        '{PRECO_ORIGINAL}', '{PRECO_DE}', '{DESCONTO}', '{DESCONTO_PERCENTUAL}', '{ECONOMIA}'
+                                    ],
+                                    [
+                                        $alvo['nome'], $precoFinal, 'Cliente', $visualOptions['mensagemCard'] ?? '',
+                                        'R$ ' . number_format($precoOriginalValor, 2, ',', '.'),
+                                        'R$ ' . number_format($precoOriginalValor, 2, ',', '.'),
+                                        $descontoPerc . '%',
+                                        $descontoPerc . '%',
+                                        'R$ ' . number_format($economia, 2, ',', '.')
+                                    ],
                                     $mensagemBase
                                 );
                                 if (!empty($alvo['tamanhos_resumo'])) {
@@ -665,6 +695,7 @@ class DisparoController extends Controller
             'enquadramentoFoto' => $rawBody['enquadramento_foto'] ?? ($rawBody['enquadramentoFoto'] ?? $request->post('enquadramento_foto', 'auto')),
             'rotacaoFoto' => $rawBody['rotacao_foto'] ?? ($rawBody['rotacaoFoto'] ?? $request->post('rotacao_foto', 'auto')),
             'mensagemCard' => trim($rawBody['mensagem_card'] ?? ($rawBody['mensagemCard'] ?? $request->post('mensagem_card', ''))),
+            'imagemFundo' => $rawBody['imagem_fundo'] ?? ($rawBody['imagemFundo'] ?? $request->post('imagem_fundo', null)),
         ];
 
         if (empty($produtosIds)) {
@@ -828,6 +859,9 @@ class DisparoController extends Controller
                         'tamanhos_resumo' => $alvo['tamanhos_resumo'],
                         'formato' => $fmt,
                         'formato_label' => ($fmt === 'stories' ? 'Stories (9:16)' : 'Feed (1:1)'),
+                        'em_promocao' => (bool)$produto->getEmPromocao(),
+                        'preco_original' => (float)$produto->preco_venda_sugerido,
+                        'desconto_percentual' => $produto->getEmPromocao() ? round($produto->getDescontoPromocional()) : 0,
                         'visual_options' => $visualOptions,
                         'mensagem_texto' => $mensagemBase,
                     ];
@@ -917,6 +951,11 @@ class DisparoController extends Controller
         } elseif (isset($rawBody['mensagemCard']) && !isset($opts['mensagemCard'])) {
             $opts['mensagemCard'] = trim($rawBody['mensagemCard']);
         }
+        if (isset($rawBody['imagem_fundo']) && !isset($opts['imagemFundo'])) {
+            $opts['imagemFundo'] = $rawBody['imagem_fundo'];
+        } elseif (isset($rawBody['imagemFundo']) && !isset($opts['imagemFundo'])) {
+            $opts['imagemFundo'] = $rawBody['imagemFundo'];
+        }
         if (!empty($cor)) {
             $opts['corMatriz'] = $cor;
         }
@@ -949,16 +988,39 @@ class DisparoController extends Controller
             }
 
             $alvoNome = !empty($cor) ? "{$produto->nome} ({$cor})" : ($variante ? $variante->getNomeFormatado() : $produto->nome);
+            $emPromocao = (bool)$produto->getEmPromocao();
+            $precoOriginalValor = ($variante && method_exists($variante, 'getPrecoNormal'))
+                ? $variante->getPrecoNormal()
+                : (float)$produto->preco_venda_sugerido;
+
             if (!empty($gradeTamanhos) && !$mesmoPreco && $precoMin !== null && $precoMin > 0) {
-                $precoFormatado = 'A partir de R$ ' . number_format($precoMin, 2, ',', '.');
+                $prefixo = $emPromocao ? 'Oferta a partir de ' : 'A partir de ';
+                $precoFormatado = $prefixo . 'R$ ' . number_format($precoMin, 2, ',', '.');
+                $alvoPreco = $precoMin;
             } else {
                 $alvoPreco = $variante ? $variante->getPrecoVendaEfetivo() : ($precoMin !== null ? $precoMin : $produto->getPrecoFinal());
+                if ($emPromocao && (float)$produto->preco_promocional > 0 && $alvoPreco >= (float)$produto->preco_venda_sugerido) {
+                    $alvoPreco = (float)$produto->getPrecoFinal();
+                }
                 $precoFormatado = 'R$ ' . number_format($alvoPreco, 2, ',', '.');
             }
 
+            $descontoPerc = $emPromocao ? round($produto->getDescontoPromocional()) : 0;
+            $economia = max(0, $precoOriginalValor - $alvoPreco);
+
             $msgFormatada = str_replace(
-                ['{PRODUTO}', '{PRECO}', '{NOME}', '{MENSAGEM_PROMOCIONAL}'],
-                [$alvoNome, $precoFormatado, 'Cliente', $opts['mensagemCard'] ?? ''],
+                [
+                    '{PRODUTO}', '{PRECO}', '{NOME}', '{MENSAGEM_PROMOCIONAL}',
+                    '{PRECO_ORIGINAL}', '{PRECO_DE}', '{DESCONTO}', '{DESCONTO_PERCENTUAL}', '{ECONOMIA}'
+                ],
+                [
+                    $alvoNome, $precoFormatado, 'Cliente', $opts['mensagemCard'] ?? '',
+                    'R$ ' . number_format($precoOriginalValor, 2, ',', '.'),
+                    'R$ ' . number_format($precoOriginalValor, 2, ',', '.'),
+                    $descontoPerc . '%',
+                    $descontoPerc . '%',
+                    'R$ ' . number_format($economia, 2, ',', '.')
+                ],
                 $mensagemBase
             );
 
@@ -986,6 +1048,10 @@ class DisparoController extends Controller
                 'mensagem_texto' => $msgFormatada,
                 'whatsapp_link' => $whatsappLink,
                 'nome_arquivo' => basename($card->card_path),
+                'em_promocao' => $emPromocao,
+                'preco_original' => $precoOriginalValor > 0 ? 'R$ ' . number_format($precoOriginalValor, 2, ',', '.') : null,
+                'preco_promocional' => $precoFormatado,
+                'desconto_percentual' => $descontoPerc > 0 ? $descontoPerc : null,
             ];
 
             return [
@@ -1234,6 +1300,78 @@ class DisparoController extends Controller
                 : "{$excluidos} card(s) excluído(s) com sucesso!",
             'excluidos' => $excluidos,
             'stats' => $stats
+        ];
+    }
+
+    /**
+     * Endpoint AJAX para gerar uma imagem de fundo ou modelo humano via Inteligência Artificial.
+     */
+    public function actionGerarFundoIa()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        if (Yii::$app->user->isGuest) {
+            return ['success' => false, 'message' => 'Sessão expirada. Faça login novamente.'];
+        }
+
+        $request = Yii::$app->request;
+        $rawBody = json_decode($request->getRawBody(), true) ?: [];
+
+        $preset = $rawBody['preset'] ?? $request->post('preset', 'estudio_minimalista');
+        $promptLivre = $rawBody['prompt'] ?? $request->post('prompt', '');
+        $formato = $rawBody['formato'] ?? $request->post('formato', 'feed');
+        $produtoId = $rawBody['produto_id'] ?? $request->post('produto_id');
+        $seed = $rawBody['seed'] ?? $request->post('seed');
+        $lojaId = $this->getLojaId();
+
+        $produto = null;
+        $imagemReferenciaUrl = null;
+
+        if ($produtoId) {
+            $produto = Produto::findOne($produtoId);
+            if ($produto && $produto->fotoPrincipal && !empty($produto->fotoPrincipal->arquivo_path)) {
+                $caminhoFoto = ltrim($produto->fotoPrincipal->arquivo_path, '/');
+                $imagemReferenciaUrl = Url::to('@web/' . $caminhoFoto, true);
+            }
+        }
+
+        // Libera lock de sessão imediatamente para não travar navegação do usuário durante chamada de IA
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
+        try {
+            $aiService = new AiImageGeneratorService();
+            $promptFinal = $aiService->construirPrompt($preset, $promptLivre, $produto);
+
+            $opcoes = [
+                'lojaId' => $lojaId,
+                'preset' => $preset,
+                'seed' => $seed,
+                'imagemReferenciaUrl' => $imagemReferenciaUrl,
+            ];
+
+            $resultado = $aiService->gerarImagem($promptFinal, $formato, $opcoes);
+
+            return $resultado;
+        } catch (\Throwable $t) {
+            Yii::error("Erro na actionGerarFundoIa: " . $t->getMessage(), __METHOD__);
+            return [
+                'success' => false,
+                'message' => 'Ocorreu um erro ao processar a geração com IA: ' . $t->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Retorna a lista de presets comerciais de IA disponíveis.
+     */
+    public function actionPresetsIa()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        return [
+            'success' => true,
+            'presets' => AiImageGeneratorService::getPresetsDisponiveis(),
         ];
     }
 }

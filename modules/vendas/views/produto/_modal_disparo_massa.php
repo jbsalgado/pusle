@@ -592,7 +592,7 @@ Olá {NOME}! Confira este produto incrível:
 * {PRODUTO} por apenas {PRECO}!
 
 Garanta o seu antes que acabe o estoque!</textarea>
-                    <p class="text-[11px] text-gray-400 mt-1">Variáveis que serão substituídas automaticamente: <code class="bg-gray-100 text-purple-800 px-1 rounded">{NOME}</code>, <code class="bg-gray-100 text-purple-800 px-1 rounded">{PRODUTO}</code>, <code class="bg-gray-100 text-purple-800 px-1 rounded">{PRECO}</code></p>
+                    <p class="text-[11px] text-gray-400 mt-1">Variáveis disponíveis: <code class="bg-gray-100 text-purple-800 px-1 rounded">{NOME}</code>, <code class="bg-gray-100 text-purple-800 px-1 rounded">{PRODUTO}</code>, <code class="bg-gray-100 text-purple-800 px-1 rounded">{PRECO}</code> (imprime o valor promocional se em oferta), <code class="bg-gray-100 text-purple-800 px-1 rounded">{PRECO_ORIGINAL}</code>, <code class="bg-gray-100 text-purple-800 px-1 rounded">{DESCONTO}</code>, <code class="bg-gray-100 text-purple-800 px-1 rounded">{ECONOMIA}</code></p>
                 </div>
 
                 <!-- Botão de Ação: Disparo Automático -->
@@ -1528,6 +1528,14 @@ Garanta o seu antes que acabe o estoque!</textarea>
                 </span>
             ` : '';
 
+            const badgePromocaoPreco = c.em_promocao ? `
+                <span class="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300 inline-flex items-center gap-1 shadow-2xs" title="Produto em Promoção Ativa">
+                    <span>🔥</span>
+                    <span>${c.desconto_percentual ? '-' + c.desconto_percentual + '% OFF' : 'OFERTA'}</span>
+                    ${c.preco_promocional ? `<span class="font-bold underline ml-0.5">${escapeHtml(c.preco_promocional)}</span>` : ''}
+                </span>
+            ` : '';
+
             const gradeContagem = c.grade_tamanhos && c.grade_tamanhos.length ? c.grade_tamanhos.length : 0;
             const badgeMatriz = c.eh_matriz ? `
                 <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-200 inline-flex items-center gap-1" title="Variação da Matriz">
@@ -1559,6 +1567,7 @@ Garanta o seu antes que acabe o estoque!</textarea>
                                 <span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded ${formatoClass}">${c.formato_label}</span>
                                 ${c.peso_arquivo ? `<span class="text-[10px] text-gray-400 font-medium">${escapeHtml(c.peso_arquivo)}</span>` : ''}
                                 ${badgePromo}
+                                ${badgePromocaoPreco}
                                 ${badgeMatriz}
                             </div>
                             <h5 class="text-xs font-bold text-gray-900 truncate" title="${escapeHtml(c.produto_nome)}">${escapeHtml(c.produto_nome)}</h5>

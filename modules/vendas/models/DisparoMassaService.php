@@ -863,15 +863,30 @@ class DisparoMassaService
         }
         $linkProduto = rtrim($baseUrl, '/') . '/vendas/produto/view?id=' . $produto->id;
 
-        if (empty($texto)) {
-            $preco = 'R$ ' . number_format((float)$produto->getPrecoFinal(), 2, ',', '.');
-            $texto = "🔥 *OFERTA ESPECIAL* 🔥\n\n*{$produto->nome}*\nPreço: *{$preco}*\n\n🛒 *Compre aqui:* {$linkProduto}\n\nPeça já pelo nosso atendimento!";
-        } else {
-            $preco = 'R$ ' . number_format((float)$produto->getPrecoFinal(), 2, ',', '.');
+        $emPromocao = (bool)$produto->getEmPromocao();
+        $precoFinalNum = (float)$produto->getPrecoFinal();
+        $precoOriginalNum = (float)$produto->preco_venda_sugerido;
+        $preco = 'R$ ' . number_format($precoFinalNum, 2, ',', '.');
+        $precoOriginalStr = $precoOriginalNum > 0 ? ('R$ ' . number_format($precoOriginalNum, 2, ',', '.')) : $preco;
+        $descontoPerc = $emPromocao ? round($produto->getDescontoPromocional()) : 0;
+        $economia = max(0, $precoOriginalNum - $precoFinalNum);
+        $economiaStr = 'R$ ' . number_format($economia, 2, ',', '.');
 
+        if (empty($texto)) {
+            if ($emPromocao) {
+                $texto = "🔥 *OFERTA ESPECIAL (-{$descontoPerc}% OFF)* 🔥\n\n*{$produto->nome}*\nDe: ~{$precoOriginalStr}~\nPor apenas: *{$preco}*\n\n🛒 *Compre aqui:* {$linkProduto}\n\nPeça já pelo nosso atendimento!";
+            } else {
+                $texto = "🔥 *OFERTA ESPECIAL* 🔥\n\n*{$produto->nome}*\nPreço: *{$preco}*\n\n🛒 *Compre aqui:* {$linkProduto}\n\nPeça já pelo nosso atendimento!";
+            }
+        } else {
             $replacements = [
                 '{PRODUTO}' => $produto->nome,
                 '{PRECO}' => $preco,
+                '{PRECO_ORIGINAL}' => $precoOriginalStr,
+                '{PRECO_DE}' => $precoOriginalStr,
+                '{DESCONTO}' => $descontoPerc . '%',
+                '{DESCONTO_PERCENTUAL}' => $descontoPerc . '%',
+                '{ECONOMIA}' => $economiaStr,
                 '{MARCA}' => $produto->marca ?: '',
                 '{NOME}' => $cliente ? (!empty($cliente->nome_completo) ? $cliente->nome_completo : $cliente->nome) : 'Cliente',
                 '{LINK}' => $linkProduto,

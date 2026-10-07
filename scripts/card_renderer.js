@@ -1138,6 +1138,7 @@ function renderFullBleedBannerTemplate(ctx) {
         <div class="bottom-info">
             <div class="store-brand-name">${nomeLoja}</div>
             ${tamanhosGradeHtml}
+            ${emPromocao && precoOriginal ? `<div style="font-size:${isStories ? '24px' : '18px'}; color:#64748B; text-decoration:line-through; font-weight:700; margin-bottom:2px;">De: ${precoOriginal}</div>` : ''}
             <div class="main-headline">${priceLabel}</div>
             <div class="price-badge-text">${precoPromocional}</div>
         </div>

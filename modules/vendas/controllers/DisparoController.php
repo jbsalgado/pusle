@@ -521,14 +521,42 @@ class DisparoController extends Controller
                         if ($card && !empty($card->card_path)) {
                             $caminhoFisico = Yii::getAlias('@app/web/') . ltrim($card->card_path, '/');
                             if (file_exists($caminhoFisico)) {
+                                $emPromocao = (bool)$produto->getEmPromocao();
+                                $precoOriginalValor = (!empty($alvo['variante']) && method_exists($alvo['variante'], 'getPrecoNormal'))
+                                    ? $alvo['variante']->getPrecoNormal()
+                                    : (float)$produto->preco_venda_sugerido;
+
                                 if (!empty($alvo['grade_tamanhos']) && !$alvo['mesmo_preco']) {
-                                    $precoFinal = 'A partir de R$ ' . number_format($alvo['preco_min'], 2, ',', '.');
+                                    $prefixo = $emPromocao ? 'Oferta a partir de ' : 'A partir de ';
+                                    $valorFinalNumerico = $alvo['preco_min'];
+                                    if ($emPromocao && (float)$produto->preco_promocional > 0 && $valorFinalNumerico >= (float)$produto->preco_venda_sugerido) {
+                                        $valorFinalNumerico = (float)$produto->getPrecoFinal();
+                                    }
+                                    $precoFinal = $prefixo . 'R$ ' . number_format($valorFinalNumerico, 2, ',', '.');
                                 } else {
-                                    $precoFinal = 'R$ ' . number_format($alvo['preco'], 2, ',', '.');
+                                    $valorFinalNumerico = $alvo['preco'];
+                                    if ($emPromocao && (float)$produto->preco_promocional > 0 && $valorFinalNumerico >= (float)$produto->preco_venda_sugerido) {
+                                        $valorFinalNumerico = (float)$produto->getPrecoFinal();
+                                    }
+                                    $precoFinal = 'R$ ' . number_format($valorFinalNumerico, 2, ',', '.');
                                 }
+
+                                $descontoPerc = $emPromocao ? round($produto->getDescontoPromocional()) : 0;
+                                $economia = max(0, $precoOriginalValor - $valorFinalNumerico);
+
                                 $msgFormatada = str_replace(
-                                    ['{PRODUTO}', '{PRECO}', '{NOME}', '{MENSAGEM_PROMOCIONAL}'],
-                                    [$alvo['nome'], $precoFinal, 'Cliente', $visualOptions['mensagemCard'] ?? ''],
+                                    [
+                                        '{PRODUTO}', '{PRECO}', '{NOME}', '{MENSAGEM_PROMOCIONAL}',
+                                        '{PRECO_ORIGINAL}', '{PRECO_DE}', '{DESCONTO}', '{DESCONTO_PERCENTUAL}', '{ECONOMIA}'
+                                    ],
+                                    [
+                                        $alvo['nome'], $precoFinal, 'Cliente', $visualOptions['mensagemCard'] ?? '',
+                                        'R$ ' . number_format($precoOriginalValor, 2, ',', '.'),
+                                        'R$ ' . number_format($precoOriginalValor, 2, ',', '.'),
+                                        $descontoPerc . '%',
+                                        $descontoPerc . '%',
+                                        'R$ ' . number_format($economia, 2, ',', '.')
+                                    ],
                                     $mensagemBase
                                 );
                                 if (!empty($alvo['tamanhos_resumo'])) {
@@ -831,6 +859,9 @@ class DisparoController extends Controller
                         'tamanhos_resumo' => $alvo['tamanhos_resumo'],
                         'formato' => $fmt,
                         'formato_label' => ($fmt === 'stories' ? 'Stories (9:16)' : 'Feed (1:1)'),
+                        'em_promocao' => (bool)$produto->getEmPromocao(),
+                        'preco_original' => (float)$produto->preco_venda_sugerido,
+                        'desconto_percentual' => $produto->getEmPromocao() ? round($produto->getDescontoPromocional()) : 0,
                         'visual_options' => $visualOptions,
                         'mensagem_texto' => $mensagemBase,
                     ];
@@ -957,16 +988,39 @@ class DisparoController extends Controller
             }
 
             $alvoNome = !empty($cor) ? "{$produto->nome} ({$cor})" : ($variante ? $variante->getNomeFormatado() : $produto->nome);
+            $emPromocao = (bool)$produto->getEmPromocao();
+            $precoOriginalValor = ($variante && method_exists($variante, 'getPrecoNormal'))
+                ? $variante->getPrecoNormal()
+                : (float)$produto->preco_venda_sugerido;
+
             if (!empty($gradeTamanhos) && !$mesmoPreco && $precoMin !== null && $precoMin > 0) {
-                $precoFormatado = 'A partir de R$ ' . number_format($precoMin, 2, ',', '.');
+                $prefixo = $emPromocao ? 'Oferta a partir de ' : 'A partir de ';
+                $precoFormatado = $prefixo . 'R$ ' . number_format($precoMin, 2, ',', '.');
+                $alvoPreco = $precoMin;
             } else {
                 $alvoPreco = $variante ? $variante->getPrecoVendaEfetivo() : ($precoMin !== null ? $precoMin : $produto->getPrecoFinal());
+                if ($emPromocao && (float)$produto->preco_promocional > 0 && $alvoPreco >= (float)$produto->preco_venda_sugerido) {
+                    $alvoPreco = (float)$produto->getPrecoFinal();
+                }
                 $precoFormatado = 'R$ ' . number_format($alvoPreco, 2, ',', '.');
             }
 
+            $descontoPerc = $emPromocao ? round($produto->getDescontoPromocional()) : 0;
+            $economia = max(0, $precoOriginalValor - $alvoPreco);
+
             $msgFormatada = str_replace(
-                ['{PRODUTO}', '{PRECO}', '{NOME}', '{MENSAGEM_PROMOCIONAL}'],
-                [$alvoNome, $precoFormatado, 'Cliente', $opts['mensagemCard'] ?? ''],
+                [
+                    '{PRODUTO}', '{PRECO}', '{NOME}', '{MENSAGEM_PROMOCIONAL}',
+                    '{PRECO_ORIGINAL}', '{PRECO_DE}', '{DESCONTO}', '{DESCONTO_PERCENTUAL}', '{ECONOMIA}'
+                ],
+                [
+                    $alvoNome, $precoFormatado, 'Cliente', $opts['mensagemCard'] ?? '',
+                    'R$ ' . number_format($precoOriginalValor, 2, ',', '.'),
+                    'R$ ' . number_format($precoOriginalValor, 2, ',', '.'),
+                    $descontoPerc . '%',
+                    $descontoPerc . '%',
+                    'R$ ' . number_format($economia, 2, ',', '.')
+                ],
                 $mensagemBase
             );
 
@@ -994,6 +1048,10 @@ class DisparoController extends Controller
                 'mensagem_texto' => $msgFormatada,
                 'whatsapp_link' => $whatsappLink,
                 'nome_arquivo' => basename($card->card_path),
+                'em_promocao' => $emPromocao,
+                'preco_original' => $precoOriginalValor > 0 ? 'R$ ' . number_format($precoOriginalValor, 2, ',', '.') : null,
+                'preco_promocional' => $precoFormatado,
+                'desconto_percentual' => $descontoPerc > 0 ? $descontoPerc : null,
             ];
 
             return [

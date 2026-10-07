@@ -807,9 +807,32 @@ class Produto extends ActiveRecord
             return false;
         }
 
-        $agora = new \DateTime();
-        $inicio = $this->data_inicio_promocao ? new \DateTime($this->data_inicio_promocao) : null;
-        $fim = $this->data_fim_promocao ? new \DateTime($this->data_fim_promocao) : null;
+        $tzName = (Yii::$app && Yii::$app->timeZone) ? Yii::$app->timeZone : 'America/Recife';
+        $tz = new \DateTimeZone($tzName);
+        $agora = new \DateTime('now', $tz);
+
+        $inicio = null;
+        if (!empty($this->data_inicio_promocao)) {
+            try {
+                $inicio = new \DateTime($this->data_inicio_promocao, $tz);
+            } catch (\Exception $e) {
+                $inicio = null;
+            }
+        }
+
+        $fim = null;
+        if (!empty($this->data_fim_promocao)) {
+            try {
+                $fim = new \DateTime($this->data_fim_promocao, $tz);
+                // Se a data final foi informada sem horário específico (ou com 00:00:00), considera válida até as 23:59:59 do dia
+                $fimStr = trim((string)$this->data_fim_promocao);
+                if (strlen($fimStr) <= 10 || $fim->format('H:i:s') === '00:00:00') {
+                    $fim->setTime(23, 59, 59);
+                }
+            } catch (\Exception $e) {
+                $fim = null;
+            }
+        }
 
         if ($inicio && $fim) {
             return $agora >= $inicio && $agora <= $fim;
