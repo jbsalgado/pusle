@@ -1088,7 +1088,8 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false, anexar = f
         }
 
         if (termoBusca) {
-            url += `&q=${encodeURIComponent(termoBusca)}`;
+            const termoNormalizado = termoBusca.replace(/\s+/g, ' ').trim();
+            url += `&q=${encodeURIComponent(termoNormalizado)}`;
         }
         const response = await fetch(url);
         

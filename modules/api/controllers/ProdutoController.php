@@ -93,35 +93,66 @@ class ProdutoController extends BaseController
             $query->andWhere(['ilike', new \yii\db\Expression('unaccent(marca)'), new \yii\db\Expression('unaccent(:m)', [':m' => $termoMarca])]);
         }
 
-        // Suporte a busca inteligente por palavras (Busca no Mestre OU nos Filhos)
+        // Suporte a busca inteligente por palavras e início de nome (Busca no Mestre OU nos Filhos)
         $busca = \Yii::$app->request->get('q') ?: \Yii::$app->request->get('busca');
+        $rankParams = [];
         if ($busca && trim($busca) !== '') {
-            $palavras = explode(' ', trim($busca));
-            foreach ($palavras as $palavra) {
-                if (trim($palavra) === '') continue;
-                
-                $termo = '%' . trim($palavra) . '%';
+            $buscaTrim = trim(preg_replace('/\s+/', ' ', $busca));
+            $palavras = array_values(array_filter(explode(' ', $buscaTrim), function ($p) {
+                return trim($p) !== '';
+            }));
 
-                // Busca no Mestre OU em qualquer um de seus Filhos
-                $query->andWhere([
-                    'OR',
-                    ['ilike', new \yii\db\Expression('unaccent(nome)'), new \yii\db\Expression('unaccent(:p)', [':p' => $termo])],
-                    ['ilike', new \yii\db\Expression('unaccent(codigo_referencia)'), $termo],
-                    ['ilike', 'codigo_barras', $termo],
-                    ['exists', (new \yii\db\Query())
-                        ->select(new \yii\db\Expression('1'))
-                        ->from('prest_produtos child')
-                        ->where('child.parent_id = prest_produtos.id')
-                        ->andWhere([
-                            'OR',
-                            ['ilike', new \yii\db\Expression('unaccent(child.nome)'), new \yii\db\Expression('unaccent(:p)', [':p' => $termo])],
-                            ['ilike', new \yii\db\Expression('unaccent(child.cor)'), new \yii\db\Expression('unaccent(:p)', [':p' => $termo])],
-                            ['ilike', new \yii\db\Expression('unaccent(child.tamanho)'), new \yii\db\Expression('unaccent(:p)', [':p' => $termo])],
-                            ['ilike', new \yii\db\Expression('unaccent(child.codigo_referencia)'), $termo],
-                            ['ilike', 'child.codigo_barras', $termo]
-                        ])
-                    ]
-                ]);
+            if (!empty($palavras)) {
+                $rankParams = [
+                    ':rank_prefix_full' => $buscaTrim . '%',
+                    ':rank_word_first' => $palavras[0] . ' %',
+                    ':rank_prefix_first' => $palavras[0] . '%',
+                    ':rank_contains_full' => '%' . $buscaTrim . '%',
+                ];
+
+                foreach ($palavras as $i => $palavra) {
+                    $pRaw = trim($palavra);
+                    $pSafe = str_replace(['%', '_'], ['\%', '\_'], $pRaw);
+                    
+                    $pStart = $pSafe . '%';
+                    $pWord = '% ' . $pSafe . '%';
+                    $pDash = '%-' . $pSafe . '%';
+                    $pSlash = '%/' . $pSafe . '%';
+                    $pExact = '%' . $pSafe . '%';
+
+                    $pStartParam = ':p_start_' . $i;
+                    $pWordParam = ':p_word_' . $i;
+                    $pDashParam = ':p_dash_' . $i;
+                    $pSlashParam = ':p_slash_' . $i;
+                    $pRefParam = ':p_ref_' . $i;
+                    $pExactParam = ':p_exact_' . $i;
+
+                    // Busca no Mestre OU em qualquer um de seus Filhos (com parâmetros PDO únicos)
+                    $query->andWhere([
+                        'OR',
+                        ['ilike', new \yii\db\Expression('unaccent(prest_produtos.nome)'), new \yii\db\Expression("unaccent({$pStartParam})", [$pStartParam => $pStart])],
+                        ['ilike', new \yii\db\Expression('unaccent(prest_produtos.nome)'), new \yii\db\Expression("unaccent({$pWordParam})", [$pWordParam => $pWord])],
+                        ['ilike', new \yii\db\Expression('unaccent(prest_produtos.nome)'), new \yii\db\Expression("unaccent({$pDashParam})", [$pDashParam => $pDash])],
+                        ['ilike', new \yii\db\Expression('unaccent(prest_produtos.nome)'), new \yii\db\Expression("unaccent({$pSlashParam})", [$pSlashParam => $pSlash])],
+                        ['ilike', new \yii\db\Expression('unaccent(prest_produtos.codigo_referencia)'), new \yii\db\Expression("unaccent({$pRefParam})", [$pRefParam => $pExact])],
+                        ['ilike', 'prest_produtos.codigo_barras', $pRaw],
+                        ['exists', (new \yii\db\Query())
+                            ->select(new \yii\db\Expression('1'))
+                            ->from('prest_produtos child')
+                            ->where('child.parent_id = prest_produtos.id')
+                            ->andWhere([
+                                'OR',
+                                ['ilike', new \yii\db\Expression('unaccent(child.nome)'), new \yii\db\Expression("unaccent({$pStartParam})", [$pStartParam => $pStart])],
+                                ['ilike', new \yii\db\Expression('unaccent(child.nome)'), new \yii\db\Expression("unaccent({$pWordParam})", [$pWordParam => $pWord])],
+                                ['ilike', new \yii\db\Expression('unaccent(child.nome)'), new \yii\db\Expression("unaccent({$pDashParam})", [$pDashParam => $pDash])],
+                                ['ilike', new \yii\db\Expression('unaccent(child.cor)'), new \yii\db\Expression("unaccent({$pExactParam})", [$pExactParam => $pExact])],
+                                ['ilike', new \yii\db\Expression('unaccent(child.tamanho)'), new \yii\db\Expression("unaccent({$pExactParam})", [$pExactParam => $pExact])],
+                                ['ilike', new \yii\db\Expression('unaccent(child.codigo_referencia)'), new \yii\db\Expression("unaccent({$pRefParam})", [$pRefParam => $pExact])],
+                                ['ilike', 'child.codigo_barras', $pRaw]
+                            ])
+                        ]
+                    ]);
+                }
             }
         }
 
@@ -149,6 +180,25 @@ class ProdutoController extends BaseController
             $sortConfig = false;
         } elseif ($ordem === 'recentes') {
             $query->orderBy(['prest_produtos.data_criacao' => SORT_DESC]);
+            $sortConfig = false;
+        } elseif (!empty($rankParams)) {
+            // ✅ Prioridade de Relevância quando há busca por texto:
+            // 1. Nome começa exatamente com o termo completo (ex: "PÁ QUADRADA...")
+            // 2. Nome começa com a palavra inteira (ex: "PÁ ...")
+            // 3. Nome começa com o prefixo da 1ª palavra (ex: "PÁ...")
+            // 4. Nome contém a expressão inteira em qualquer posição
+            // 5. Demais itens correspondentes
+            // Desempate: ordem alfabética (nome ASC)
+            $query->orderBy(new \yii\db\Expression("
+                CASE 
+                    WHEN unaccent(prest_produtos.nome) ILIKE unaccent(:rank_prefix_full) THEN 1
+                    WHEN unaccent(prest_produtos.nome) ILIKE unaccent(:rank_word_first) THEN 2
+                    WHEN unaccent(prest_produtos.nome) ILIKE unaccent(:rank_prefix_first) THEN 3
+                    WHEN unaccent(prest_produtos.nome) ILIKE unaccent(:rank_contains_full) THEN 4
+                    ELSE 5
+                END ASC,
+                prest_produtos.nome ASC
+            ", $rankParams));
             $sortConfig = false;
         }
 

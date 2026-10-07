@@ -147,16 +147,47 @@ class ProdutoController extends Controller
             $query->andWhere(['categoria_id' => $categoriaId]);
         }
 
+        $rankParams = [];
         if ($busca && trim($busca) !== '') {
-            $palavras = explode(' ', trim($busca));
-            foreach ($palavras as $palavra) {
-                if (trim($palavra) === '') continue;
-                $termo = '%' . $palavra . '%';
-                // Busca insensível a ACENTOS e CASE (usando unaccent + ILIKE)
-                $query->andWhere(new \yii\db\Expression(
-                    "unaccent(nome) ILIKE unaccent(:p) OR unaccent(codigo_referencia) ILIKE unaccent(:p) OR codigo_barras ILIKE :p",
-                    [':p' => $termo]
-                ));
+            $buscaTrim = trim(preg_replace('/\s+/', ' ', $busca));
+            $palavras = array_values(array_filter(explode(' ', $buscaTrim), function ($p) {
+                return trim($p) !== '';
+            }));
+
+            if (!empty($palavras)) {
+                $rankParams = [
+                    ':rank_prefix_full' => $buscaTrim . '%',
+                    ':rank_word_first' => $palavras[0] . ' %',
+                    ':rank_prefix_first' => $palavras[0] . '%',
+                    ':rank_contains_full' => '%' . $buscaTrim . '%',
+                ];
+
+                foreach ($palavras as $i => $palavra) {
+                    $pRaw = trim($palavra);
+                    $pSafe = str_replace(['%', '_'], ['\%', '\_'], $pRaw);
+
+                    $pStart = $pSafe . '%';
+                    $pWord = '% ' . $pSafe . '%';
+                    $pDash = '%-' . $pSafe . '%';
+                    $pSlash = '%/' . $pSafe . '%';
+                    $pExact = '%' . $pSafe . '%';
+
+                    $pStartParam = ':p_start_' . $i;
+                    $pWordParam = ':p_word_' . $i;
+                    $pDashParam = ':p_dash_' . $i;
+                    $pSlashParam = ':p_slash_' . $i;
+                    $pRefParam = ':p_ref_' . $i;
+
+                    $query->andWhere([
+                        'OR',
+                        ['ilike', new \yii\db\Expression('unaccent(nome)'), new \yii\db\Expression("unaccent({$pStartParam})", [$pStartParam => $pStart])],
+                        ['ilike', new \yii\db\Expression('unaccent(nome)'), new \yii\db\Expression("unaccent({$pWordParam})", [$pWordParam => $pWord])],
+                        ['ilike', new \yii\db\Expression('unaccent(nome)'), new \yii\db\Expression("unaccent({$pDashParam})", [$pDashParam => $pDash])],
+                        ['ilike', new \yii\db\Expression('unaccent(nome)'), new \yii\db\Expression("unaccent({$pSlashParam})", [$pSlashParam => $pSlash])],
+                        ['ilike', new \yii\db\Expression('unaccent(codigo_referencia)'), new \yii\db\Expression("unaccent({$pRefParam})", [$pRefParam => $pExact])],
+                        ['ilike', 'codigo_barras', $pRaw],
+                    ]);
+                }
             }
         }
 
@@ -203,16 +234,32 @@ class ProdutoController extends Controller
             ]);
         }
 
+        $sortConfig = [
+            'defaultOrder' => [
+                'nome' => SORT_ASC,
+            ]
+        ];
+
+        if (!empty($rankParams)) {
+            $query->orderBy(new \yii\db\Expression("
+                CASE 
+                    WHEN unaccent(nome) ILIKE unaccent(:rank_prefix_full) THEN 1
+                    WHEN unaccent(nome) ILIKE unaccent(:rank_word_first) THEN 2
+                    WHEN unaccent(nome) ILIKE unaccent(:rank_prefix_first) THEN 3
+                    WHEN unaccent(nome) ILIKE unaccent(:rank_contains_full) THEN 4
+                    ELSE 5
+                END ASC,
+                nome ASC
+            ", $rankParams));
+            $sortConfig = false;
+        }
+
         $dataProvider = new ActiveDataProvider([
             'query' => $query,
             'pagination' => [
                 'pageSize' => 100,
             ],
-            'sort' => [
-                'defaultOrder' => [
-                    'nome' => SORT_ASC,
-                ]
-            ],
+            'sort' => $sortConfig,
         ]);
 
         $categorias = Categoria::find()
@@ -267,15 +314,47 @@ class ProdutoController extends Controller
             $query->andWhere(['categoria_id' => $categoriaId]);
         }
 
+        $rankParams = [];
         if ($busca && trim($busca) !== '') {
-            $palavras = explode(' ', trim($busca));
-            foreach ($palavras as $palavra) {
-                if (trim($palavra) === '') continue;
-                $termo = '%' . $palavra . '%';
-                $query->andWhere(new \yii\db\Expression(
-                    "unaccent(nome) ILIKE unaccent(:p) OR unaccent(codigo_referencia) ILIKE unaccent(:p) OR codigo_barras ILIKE :p",
-                    [':p' => $termo]
-                ));
+            $buscaTrim = trim(preg_replace('/\s+/', ' ', $busca));
+            $palavras = array_values(array_filter(explode(' ', $buscaTrim), function ($p) {
+                return trim($p) !== '';
+            }));
+
+            if (!empty($palavras)) {
+                $rankParams = [
+                    ':rank_prefix_full' => $buscaTrim . '%',
+                    ':rank_word_first' => $palavras[0] . ' %',
+                    ':rank_prefix_first' => $palavras[0] . '%',
+                    ':rank_contains_full' => '%' . $buscaTrim . '%',
+                ];
+
+                foreach ($palavras as $i => $palavra) {
+                    $pRaw = trim($palavra);
+                    $pSafe = str_replace(['%', '_'], ['\%', '\_'], $pRaw);
+
+                    $pStart = $pSafe . '%';
+                    $pWord = '% ' . $pSafe . '%';
+                    $pDash = '%-' . $pSafe . '%';
+                    $pSlash = '%/' . $pSafe . '%';
+                    $pExact = '%' . $pSafe . '%';
+
+                    $pStartParam = ':p_start_' . $i;
+                    $pWordParam = ':p_word_' . $i;
+                    $pDashParam = ':p_dash_' . $i;
+                    $pSlashParam = ':p_slash_' . $i;
+                    $pRefParam = ':p_ref_' . $i;
+
+                    $query->andWhere([
+                        'OR',
+                        ['ilike', new \yii\db\Expression('unaccent(nome)'), new \yii\db\Expression("unaccent({$pStartParam})", [$pStartParam => $pStart])],
+                        ['ilike', new \yii\db\Expression('unaccent(nome)'), new \yii\db\Expression("unaccent({$pWordParam})", [$pWordParam => $pWord])],
+                        ['ilike', new \yii\db\Expression('unaccent(nome)'), new \yii\db\Expression("unaccent({$pDashParam})", [$pDashParam => $pDash])],
+                        ['ilike', new \yii\db\Expression('unaccent(nome)'), new \yii\db\Expression("unaccent({$pSlashParam})", [$pSlashParam => $pSlash])],
+                        ['ilike', new \yii\db\Expression('unaccent(codigo_referencia)'), new \yii\db\Expression("unaccent({$pRefParam})", [$pRefParam => $pExact])],
+                        ['ilike', 'codigo_barras', $pRaw],
+                    ]);
+                }
             }
         }
 
@@ -291,8 +370,20 @@ class ProdutoController extends Controller
             $query->andWhere(['ativo' => $ativo]);
         }
 
-        // Ordenação alfabética solicitada
-        $query->orderBy(['nome' => SORT_ASC]);
+        if (!empty($rankParams)) {
+            $query->orderBy(new \yii\db\Expression("
+                CASE 
+                    WHEN unaccent(nome) ILIKE unaccent(:rank_prefix_full) THEN 1
+                    WHEN unaccent(nome) ILIKE unaccent(:rank_word_first) THEN 2
+                    WHEN unaccent(nome) ILIKE unaccent(:rank_prefix_first) THEN 3
+                    WHEN unaccent(nome) ILIKE unaccent(:rank_contains_full) THEN 4
+                    ELSE 5
+                END ASC,
+                nome ASC
+            ", $rankParams));
+        } else {
+            $query->orderBy(['nome' => SORT_ASC]);
+        }
 
         $produtos = $query->all();
 

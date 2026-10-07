@@ -883,7 +883,8 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false, termoBusca
         
         // Adiciona busca
         if (termoBusca && termoBusca.trim() !== '') {
-            url += `&q=${encodeURIComponent(termoBusca.trim())}`;
+            const termoNormalizado = termoBusca.replace(/\s+/g, ' ').trim();
+            url += `&q=${encodeURIComponent(termoNormalizado)}`;
         }
         
         // Adiciona categoria

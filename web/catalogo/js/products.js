@@ -42,7 +42,8 @@ export async function carregarProdutos(catalogoContainer, pagina = 1, forcarReca
         // Filtrar produtos por usuario_id com paginação (100 por página - alterado a pedido do cliente)
         let url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${idUsuarioLoja}&page=${pagina}&per-page=100`;
         if (termoBusca) {
-            url += `&q=${encodeURIComponent(termoBusca)}`;
+            const termoNormalizado = termoBusca.replace(/\s+/g, ' ').trim();
+            url += `&q=${encodeURIComponent(termoNormalizado)}`;
         }
         
         const response = await fetch(url, { cache: 'no-cache' });
