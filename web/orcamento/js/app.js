@@ -646,8 +646,10 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false, termoBusca
         // Constrói URL com parâmetros de busca se houver (expande variações e suas fotos, fotos do pai e categoria)
         let url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${CONFIG.ID_USUARIO_LOJA}&page=${pagina}&per-page=100&expand=variacoes.fotos,fotos,categoria`;
         if (termoBusca && termoBusca.trim() !== '') {
-            const termoNormalizado = termoBusca.replace(/\s+/g, ' ').trim();
-            url += `&q=${encodeURIComponent(termoNormalizado)}`;
+            const temEspacoFinal = /\s$/.test(termoBusca);
+            const termoLimpo = termoBusca.replace(/\s+/g, ' ').trimStart();
+            const termoFinal = temEspacoFinal ? termoLimpo.trimEnd() + ' ' : termoLimpo.trimEnd();
+            url += `&q=${encodeURIComponent(termoFinal)}`;
         }
         const response = await fetch(url);
         

@@ -1088,8 +1088,10 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false, anexar = f
         }
 
         if (termoBusca) {
-            const termoNormalizado = termoBusca.replace(/\s+/g, ' ').trim();
-            url += `&q=${encodeURIComponent(termoNormalizado)}`;
+            const temEspacoFinal = /\s$/.test(termoBusca);
+            const termoLimpo = termoBusca.replace(/\s+/g, ' ').trimStart();
+            const termoFinal = temEspacoFinal ? termoLimpo.trimEnd() + ' ' : termoLimpo.trimEnd();
+            url += `&q=${encodeURIComponent(termoFinal)}`;
         }
         const response = await fetch(url);
         

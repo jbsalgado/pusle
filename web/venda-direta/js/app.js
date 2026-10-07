@@ -883,8 +883,10 @@ async function carregarProdutos(pagina = 1, forcarRecarregar = false, termoBusca
         
         // Adiciona busca
         if (termoBusca && termoBusca.trim() !== '') {
-            const termoNormalizado = termoBusca.replace(/\s+/g, ' ').trim();
-            url += `&q=${encodeURIComponent(termoNormalizado)}`;
+            const temEspacoFinal = /\s$/.test(termoBusca);
+            const termoLimpo = termoBusca.replace(/\s+/g, ' ').trimStart();
+            const termoFinal = temEspacoFinal ? termoLimpo.trimEnd() + ' ' : termoLimpo.trimEnd();
+            url += `&q=${encodeURIComponent(termoFinal)}`;
         }
         
         // Adiciona categoria

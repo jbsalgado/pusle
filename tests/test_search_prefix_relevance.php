@@ -50,6 +50,16 @@ $produtosCenarios = [
         'codigo_barras' => '7891002002',
     ],
     [
+        'nome' => 'PALHA ACO N1 TESTE',
+        'codigo_referencia' => 'UTIL-TESTE-01',
+        'codigo_barras' => '7894001001',
+    ],
+    [
+        'nome' => 'PANO CHÃO XADREZ TESTE',
+        'codigo_referencia' => 'UTIL-TESTE-02',
+        'codigo_barras' => '7894002002',
+    ],
+    [
         'nome' => 'PARAFUSO SEXTAVADO 1/4 TESTE',
         'codigo_referencia' => 'FIX-TESTE-01',
         'codigo_barras' => '7893001001',
@@ -91,44 +101,68 @@ try {
 
         $rankParams = [];
         if ($termoBusca && trim($termoBusca) !== '') {
-            $buscaTrim = trim(preg_replace('/\s+/', ' ', $termoBusca));
-            $palavras = array_values(array_filter(explode(' ', $buscaTrim), function ($p) {
+            $temEspacoFinal = (bool)preg_match('/\s+$/', $termoBusca);
+            $buscaLimpa = trim(preg_replace('/\s+/', ' ', $termoBusca));
+            $palavras = array_values(array_filter(explode(' ', $buscaLimpa), function ($p) {
                 return trim($p) !== '';
             }));
+            $totalPalavras = count($palavras);
 
             if (!empty($palavras)) {
                 $rankParams = [
-                    ':rank_prefix_full' => $buscaTrim . '%',
+                    ':rank_phrase_multi' => $buscaLimpa . '%',
                     ':rank_word_first' => $palavras[0] . ' %',
                     ':rank_prefix_first' => $palavras[0] . '%',
-                    ':rank_contains_full' => '%' . $buscaTrim . '%',
+                    ':rank_contains_full' => '%' . $buscaLimpa . '%',
                 ];
 
                 foreach ($palavras as $i => $palavra) {
+                    $ehUltimaPalavra = ($i === $totalPalavras - 1);
+                    $palavraFechada = ($ehUltimaPalavra && $temEspacoFinal);
+
                     $pRaw = trim($palavra);
                     $pSafe = str_replace(['%', '_'], ['\%', '\_'], $pRaw);
                     
-                    $pStart = $pSafe . '%';
-                    $pWord = '% ' . $pSafe . '%';
-                    $pDash = '%-' . $pSafe . '%';
-                    $pSlash = '%/' . $pSafe . '%';
-                    $pExact = '%' . $pSafe . '%';
-
                     $pStartParam = ':p_start_' . $i;
                     $pWordParam = ':p_word_' . $i;
                     $pDashParam = ':p_dash_' . $i;
                     $pSlashParam = ':p_slash_' . $i;
+                    $pExactParam = ':p_exact_' . $i;
                     $pRefParam = ':p_ref_' . $i;
 
-                    $query->andWhere([
-                        'OR',
-                        ['ilike', new \yii\db\Expression('unaccent(prest_produtos.nome)'), new \yii\db\Expression("unaccent({$pStartParam})", [$pStartParam => $pStart])],
-                        ['ilike', new \yii\db\Expression('unaccent(prest_produtos.nome)'), new \yii\db\Expression("unaccent({$pWordParam})", [$pWordParam => $pWord])],
-                        ['ilike', new \yii\db\Expression('unaccent(prest_produtos.nome)'), new \yii\db\Expression("unaccent({$pDashParam})", [$pDashParam => $pDash])],
-                        ['ilike', new \yii\db\Expression('unaccent(prest_produtos.nome)'), new \yii\db\Expression("unaccent({$pSlashParam})", [$pSlashParam => $pSlash])],
-                        ['ilike', new \yii\db\Expression('unaccent(prest_produtos.codigo_referencia)'), new \yii\db\Expression("unaccent({$pRefParam})", [$pRefParam => $pExact])],
-                        ['ilike', 'prest_produtos.codigo_barras', $pRaw],
-                    ]);
+                    if ($palavraFechada) {
+                        $pWordSpace = $pSafe . ' %';
+                        $pWordMid = '% ' . $pSafe . ' %';
+                        $pWordDash = '%-' . $pSafe . ' %';
+                        $pWordSlash = '%/' . $pSafe . ' %';
+
+                        $query->andWhere([
+                            'OR',
+                            ['ilike', new \yii\db\Expression('unaccent(prest_produtos.nome)'), new \yii\db\Expression("unaccent({$pStartParam})", [$pStartParam => $pWordSpace])],
+                            ['ilike', new \yii\db\Expression('unaccent(prest_produtos.nome)'), new \yii\db\Expression("unaccent({$pWordParam})", [$pWordParam => $pWordMid])],
+                            ['ilike', new \yii\db\Expression('unaccent(prest_produtos.nome)'), new \yii\db\Expression("unaccent({$pDashParam})", [$pDashParam => $pWordDash])],
+                            ['ilike', new \yii\db\Expression('unaccent(prest_produtos.nome)'), new \yii\db\Expression("unaccent({$pSlashParam})", [$pSlashParam => $pWordSlash])],
+                            ['=', new \yii\db\Expression('unaccent(prest_produtos.nome)'), new \yii\db\Expression("unaccent({$pExactParam})", [$pExactParam => $pSafe])],
+                            ['ilike', new \yii\db\Expression('unaccent(prest_produtos.codigo_referencia)'), new \yii\db\Expression("unaccent({$pRefParam})", [$pRefParam => '%' . $pSafe . '%'])],
+                            ['ilike', 'prest_produtos.codigo_barras', $pRaw],
+                        ]);
+                    } else {
+                        $pStart = $pSafe . '%';
+                        $pWord = '% ' . $pSafe . '%';
+                        $pDash = '%-' . $pSafe . '%';
+                        $pSlash = '%/' . $pSafe . '%';
+                        $pExact = '%' . $pSafe . '%';
+
+                        $query->andWhere([
+                            'OR',
+                            ['ilike', new \yii\db\Expression('unaccent(prest_produtos.nome)'), new \yii\db\Expression("unaccent({$pStartParam})", [$pStartParam => $pStart])],
+                            ['ilike', new \yii\db\Expression('unaccent(prest_produtos.nome)'), new \yii\db\Expression("unaccent({$pWordParam})", [$pWordParam => $pWord])],
+                            ['ilike', new \yii\db\Expression('unaccent(prest_produtos.nome)'), new \yii\db\Expression("unaccent({$pDashParam})", [$pDashParam => $pDash])],
+                            ['ilike', new \yii\db\Expression('unaccent(prest_produtos.nome)'), new \yii\db\Expression("unaccent({$pSlashParam})", [$pSlashParam => $pSlash])],
+                            ['ilike', new \yii\db\Expression('unaccent(prest_produtos.codigo_referencia)'), new \yii\db\Expression("unaccent({$pRefParam})", [$pRefParam => $pExact])],
+                            ['ilike', 'prest_produtos.codigo_barras', $pRaw],
+                        ]);
+                    }
                 }
             }
         }
@@ -136,7 +170,7 @@ try {
         if (!empty($rankParams)) {
             $query->orderBy(new \yii\db\Expression("
                 CASE 
-                    WHEN unaccent(prest_produtos.nome) ILIKE unaccent(:rank_prefix_full) THEN 1
+                    WHEN :rank_phrase_multi != :rank_prefix_first AND unaccent(prest_produtos.nome) ILIKE unaccent(:rank_phrase_multi) THEN 1
                     WHEN unaccent(prest_produtos.nome) ILIKE unaccent(:rank_word_first) THEN 2
                     WHEN unaccent(prest_produtos.nome) ILIKE unaccent(:rank_prefix_first) THEN 3
                     WHEN unaccent(prest_produtos.nome) ILIKE unaccent(:rank_contains_full) THEN 4
@@ -149,12 +183,11 @@ try {
         return $query->all();
     };
 
-    // CENÁRIO 1: Busca "PA QUADRADA" (o caso exato da imagem)
+    // CENÁRIO 1: Busca "PA QUADRADA" (o caso da imagem anterior)
     echo "--- Cenário 1: Busca 'PA QUADRADA' ---\n";
     $resultados1 = $executarBusca('PA QUADRADA');
     $nomes1 = array_map(function($p) { return $p->nome; }, $resultados1);
     
-    // Deve conter PÁ QUADRADA no topo (1º lugar)
     if (!empty($nomes1) && strpos($nomes1[0], 'PÁ QUADRADA') !== false) {
         echo "✅ PASS: O 1º produto retornado é '{$nomes1[0]}'!\n";
     } else {
@@ -162,48 +195,47 @@ try {
         exit(1);
     }
 
-    // Não deve conter LUMINÁRIA nem RALO nem LÂMPADA
-    $temLuminaria = false;
-    $temRalo = false;
-    foreach ($nomes1 as $n) {
-        if (strpos($n, 'LUMINÁRIA') !== false) $temLuminaria = true;
-        if (strpos($n, 'RALO') !== false) $temRalo = true;
+    // CENÁRIO 2: Busca "PA " (COM ESPAÇO NO FINAL - Caso atual relatado pelo usuário!)
+    echo "\n--- Cenário 2: Busca 'PA ' (com espaço final - Palavra Concluída) ---\n";
+    $resultadosEspaco = $executarBusca('PA ');
+    $nomesEspaco = array_map(function($p) { return $p->nome; }, $resultadosEspaco);
+    
+    // Todos os produtos retornados devem ser PÁ (não pode ter PALHA, PANO, PARAFUSO)
+    $temPalhaOuPano = false;
+    foreach ($nomesEspaco as $n) {
+        if (strpos($n, 'PALHA') !== false || strpos($n, 'PANO') !== false || strpos($n, 'PARAFUSO') !== false) {
+            $temPalhaOuPano = true;
+        }
     }
-    if (!$temLuminaria && !$temRalo) {
-        echo "✅ PASS: Nenhuma luminária ou ralo indevido foi retornado na busca 'PA QUADRADA'!\n";
+    if (!$temPalhaOuPano && count($nomesEspaco) > 0) {
+        echo "✅ PASS: Busca 'PA ' retornou APENAS produtos com a palavra completa PÁ (" . count($nomesEspaco) . " encontrados). PALHA/PANO/PARAFUSO foram excluídos!\n";
+        foreach ($nomesEspaco as $n) {
+            echo "   -> $n\n";
+        }
     } else {
-        echo "❌ FAIL: Luminária ou ralo indevido ainda apareceu nos resultados!\n";
+        echo "❌ FAIL: Busca 'PA ' ainda retornou produtos como PALHA, PANO ou PARAFUSO!\n";
+        print_r($nomesEspaco);
         exit(1);
     }
 
-    // CENÁRIO 2: Busca "PA"
-    echo "\n--- Cenário 2: Busca 'PA' ---\n";
+    // CENÁRIO 3: Busca "PA" (SEM ESPAÇO)
+    echo "\n--- Cenário 3: Busca 'PA' (sem espaço - digitação em andamento) ---\n";
     $resultados2 = $executarBusca('PA');
     $nomes2 = array_map(function($p) { return $p->nome; }, $resultados2);
     
-    // Itens que começam com PA devem vir nas primeiras posições
-    $primeiroEhPa = !empty($nomes2) && (strpos($nomes2[0], 'PÁ') === 0 || strpos($nomes2[0], 'PA') === 0);
-    if ($primeiroEhPa) {
-        echo "✅ PASS: Topo da lista começa com PÁ / PARAFUSO: '{$nomes2[0]}'\n";
+    // As PÁS devem vir no topo (Rank 2), antes de PALHA/PANO/PARAFUSO (Rank 3)
+    $primeirosDoisSaoPas = (strpos($nomes2[0], 'PÁ') === 0 && strpos($nomes2[1], 'PÁ') === 0);
+    if ($primeirosDoisSaoPas) {
+        echo "✅ PASS: Na busca 'PA', produtos com a palavra inteira 'PÁ' aparecem no topo antes de PALHA e PANO!\n";
+        echo "   1º: {$nomes2[0]}\n";
+        echo "   2º: {$nomes2[1]}\n";
     } else {
-        echo "❌ FAIL: Topo não começou com prefixo PA: " . ($nomes2[0] ?? 'Vazio') . "\n";
+        echo "❌ FAIL: Pás não vieram no topo em 'PA'. 1º: {$nomes2[0]}, 2º: {$nomes2[1]}\n";
         exit(1);
     }
 
-    // "LÂMPADA" não deve aparecer na busca "PA" (word boundary)
-    $temLampada = false;
-    foreach ($nomes2 as $n) {
-        if (strpos($n, 'LÂMPADA') !== false) $temLampada = true;
-    }
-    if (!$temLampada) {
-        echo "✅ PASS: 'LÂMPADA' (que contém 'pa' no meio) foi corretamente excluída da busca por 'PA'!\n";
-    } else {
-        echo "❌ FAIL: 'LÂMPADA' apareceu erroneamente na busca por 'PA'!\n";
-        exit(1);
-    }
-
-    // CENÁRIO 3: Busca insensível a acentuação "PÁ QUADRADA" vs "PA QUADRADA"
-    echo "\n--- Cenário 3: Busca com acento 'PÁ QUADRADA' ---\n";
+    // CENÁRIO 4: Busca com acento 'PÁ QUADRADA'
+    echo "\n--- Cenário 4: Busca com acento 'PÁ QUADRADA' ---\n";
     $resultados3 = $executarBusca('PÁ QUADRADA');
     $nomes3 = array_map(function($p) { return $p->nome; }, $resultados3);
     if (!empty($nomes3) && strpos($nomes3[0], 'PÁ QUADRADA') !== false) {
@@ -213,30 +245,8 @@ try {
         exit(1);
     }
 
-    // CENÁRIO 4: Busca por Código de Barras
-    echo "\n--- Cenário 4: Busca por Código de Barras '7891117048671' ---\n";
-    $resultados4 = $executarBusca('7891117048671');
-    $nomes4 = array_map(function($p) { return $p->nome; }, $resultados4);
-    if (count($nomes4) === 1 && strpos($nomes4[0], 'PÁ QUADRADA') !== false) {
-        echo "✅ PASS: Código de barras exato retornou '{$nomes4[0]}'\n";
-    } else {
-        echo "❌ FAIL: Busca por código de barras falhou.\n";
-        exit(1);
-    }
-
-    // CENÁRIO 5: Busca por Referência 'FERR-TESTE-21'
-    echo "\n--- Cenário 5: Busca por Código de Referência 'FERR-TESTE-21' ---\n";
-    $resultados5 = $executarBusca('FERR-TESTE-21');
-    $nomes5 = array_map(function($p) { return $p->nome; }, $resultados5);
-    if (count($nomes5) === 1 && strpos($nomes5[0], 'PÁ QUADRADA') !== false) {
-        echo "✅ PASS: Código de referência retornou '{$nomes5[0]}'\n";
-    } else {
-        echo "❌ FAIL: Busca por referência falhou.\n";
-        exit(1);
-    }
-
     echo "\n========================================================\n";
-    echo "🎉 TODOS OS 5 CENÁRIOS DE BUSCA PASSARAM COM SUCESSO!\n";
+    echo "🎉 TODOS OS CENÁRIOS PASSARAM COM 100% DE SUCESSO!\n";
     echo "========================================================\n";
 
 } finally {

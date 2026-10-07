@@ -42,8 +42,10 @@ export async function carregarProdutos(catalogoContainer, pagina = 1, forcarReca
         // Filtrar produtos por usuario_id com paginação (100 por página - alterado a pedido do cliente)
         let url = `${API_ENDPOINTS.PRODUTO}?usuario_id=${idUsuarioLoja}&page=${pagina}&per-page=100`;
         if (termoBusca) {
-            const termoNormalizado = termoBusca.replace(/\s+/g, ' ').trim();
-            url += `&q=${encodeURIComponent(termoNormalizado)}`;
+            const temEspacoFinal = /\s$/.test(termoBusca);
+            const termoLimpo = termoBusca.replace(/\s+/g, ' ').trimStart();
+            const termoFinal = temEspacoFinal ? termoLimpo.trimEnd() + ' ' : termoLimpo.trimEnd();
+            url += `&q=${encodeURIComponent(termoFinal)}`;
         }
         
         const response = await fetch(url, { cache: 'no-cache' });
