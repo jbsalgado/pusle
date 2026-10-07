@@ -69,14 +69,6 @@ use app\modules\vendas\models\ItemCompra;
             </div>
 
             <div>
-                <?= $form->field($model, 'valor_frete')->textInput(['class' => 'currency-input w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent', 'placeholder' => '0,00', 'inputmode' => 'numeric', 'id' => 'input-frete']) ?>
-            </div>
-
-            <div>
-                <?= $form->field($model, 'valor_desconto')->textInput(['class' => 'currency-input w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent', 'placeholder' => '0,00', 'inputmode' => 'numeric', 'id' => 'input-desconto']) ?>
-            </div>
-
-            <div>
                 <?= $form->field($model, 'status_compra')->dropDownList(
                     \app\modules\vendas\models\Compra::getStatusList(),
                     ['class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent']
@@ -94,6 +86,135 @@ use app\modules\vendas\models\ItemCompra;
         <div class="mt-4">
             <?= $form->field($model, 'observacoes')->textarea(['rows' => 3, 'placeholder' => 'Observações sobre a compra...']) ?>
         </div>
+    </div>
+
+    <!-- Valores da Nota Fiscal, Impostos e Despesas -->
+    <div class="border-b border-gray-200 pb-6 mt-6">
+        <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+            Valores, Impostos e Despesas da Nota Fiscal
+        </h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div>
+                <?= $form->field($model, 'valor_frete')->textInput([
+                    'class' => 'currency-input w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                    'placeholder' => '0,00',
+                    'inputmode' => 'numeric',
+                    'id' => 'input-frete'
+                ]) ?>
+            </div>
+
+            <div>
+                <?= $form->field($model, 'valor_seguro')->textInput([
+                    'class' => 'currency-input w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                    'placeholder' => '0,00',
+                    'inputmode' => 'numeric',
+                    'id' => 'input-seguro'
+                ]) ?>
+            </div>
+
+            <div>
+                <?= $form->field($model, 'valor_outras_despesas')->textInput([
+                    'class' => 'currency-input w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                    'placeholder' => '0,00',
+                    'inputmode' => 'numeric',
+                    'id' => 'input-outras-despesas'
+                ]) ?>
+            </div>
+
+            <div>
+                <?= $form->field($model, 'valor_desconto')->textInput([
+                    'class' => 'currency-input w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                    'placeholder' => '0,00',
+                    'inputmode' => 'numeric',
+                    'id' => 'input-desconto'
+                ]) ?>
+            </div>
+
+            <div>
+                <?= $form->field($model, 'valor_ipi')->textInput([
+                    'class' => 'currency-input w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                    'placeholder' => '0,00',
+                    'inputmode' => 'numeric',
+                    'id' => 'input-ipi'
+                ]) ?>
+            </div>
+
+            <div>
+                <?= $form->field($model, 'valor_icms_st')->textInput([
+                    'class' => 'currency-input w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                    'placeholder' => '0,00',
+                    'inputmode' => 'numeric',
+                    'id' => 'input-icms-st'
+                ]) ?>
+            </div>
+
+            <div>
+                <?= $form->field($model, 'valor_fcp_st')->textInput([
+                    'class' => 'currency-input w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                    'placeholder' => '0,00',
+                    'inputmode' => 'numeric',
+                    'id' => 'input-fcp-st'
+                ]) ?>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Chave de Acesso (44 dígitos)</label>
+                <?= $form->field($model, 'chave_acesso', ['template' => '{input}{error}'])->textInput([
+                    'class' => 'w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-xs',
+                    'placeholder' => 'Chave de 44 dígitos da NFe',
+                    'maxlength' => 44,
+                    'id' => 'input-chave-acesso'
+                ]) ?>
+            </div>
+        </div>
+
+        <!-- Tributos Informativos Adicionais (Colapsável) -->
+        <details class="mt-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <summary class="cursor-pointer text-sm font-semibold text-gray-700 hover:text-blue-600 flex items-center">
+                <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Tributos Complementares e Informativos (ICMS Próprio, Base de Cálculo, PIS, COFINS)
+            </summary>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                <div>
+                    <?= $form->field($model, 'valor_base_icms')->textInput([
+                        'class' => 'currency-input w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm',
+                        'placeholder' => '0,00',
+                        'inputmode' => 'numeric',
+                        'id' => 'input-base-icms'
+                    ]) ?>
+                </div>
+                <div>
+                    <?= $form->field($model, 'valor_icms')->textInput([
+                        'class' => 'currency-input w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm',
+                        'placeholder' => '0,00',
+                        'inputmode' => 'numeric',
+                        'id' => 'input-icms'
+                    ]) ?>
+                </div>
+                <div>
+                    <?= $form->field($model, 'valor_pis')->textInput([
+                        'class' => 'currency-input w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm',
+                        'placeholder' => '0,00',
+                        'inputmode' => 'numeric',
+                        'id' => 'input-pis'
+                    ]) ?>
+                </div>
+                <div>
+                    <?= $form->field($model, 'valor_cofins')->textInput([
+                        'class' => 'currency-input w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm',
+                        'placeholder' => '0,00',
+                        'inputmode' => 'numeric',
+                        'id' => 'input-cofins'
+                    ]) ?>
+                </div>
+            </div>
+        </details>
     </div>
 
     <!-- Financeiro / Parcelamento -->
@@ -206,10 +327,46 @@ use app\modules\vendas\models\ItemCompra;
             <?php endif; ?>
         </div>
 
-        <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-            <div class="flex justify-between items-center">
-                <span class="text-lg font-semibold text-gray-900">Total:</span>
-                <span id="total-compra" class="text-2xl font-bold text-gray-900">R$ 0,00</span>
+        <div class="mt-4 p-5 bg-gradient-to-r from-gray-50 to-slate-100 rounded-xl border border-gray-200 shadow-sm">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1.5 text-sm text-gray-600">
+                    <div class="flex justify-between items-center py-1 border-b border-gray-200">
+                        <span class="font-medium text-gray-700">Subtotal dos Produtos:</span>
+                        <strong id="resumo-subtotal-produtos" class="text-gray-900 font-semibold">R$ 0,00</strong>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span>(+) Frete:</span>
+                        <span id="resumo-frete" class="font-medium text-gray-700">R$ 0,00</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span>(+) Seguro:</span>
+                        <span id="resumo-seguro" class="font-medium text-gray-700">R$ 0,00</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span>(+) Outras Despesas:</span>
+                        <span id="resumo-outras" class="font-medium text-gray-700">R$ 0,00</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span>(+) IPI:</span>
+                        <span id="resumo-ipi" class="font-medium text-gray-700">R$ 0,00</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span>(+) ICMS ST / FCP ST:</span>
+                        <span id="resumo-st" class="font-medium text-gray-700">R$ 0,00</span>
+                    </div>
+                    <div class="flex justify-between text-xs text-red-600">
+                        <span>(-) Desconto:</span>
+                        <span id="resumo-desconto" class="font-medium text-red-600">R$ 0,00</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col justify-center items-end border-t md:border-t-0 md:border-l md:pl-6 border-gray-200 pt-3 md:pt-0">
+                    <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Total da Nota Fiscal (vNF)</span>
+                    <span id="total-compra" class="text-3xl font-extrabold text-blue-700 my-1">R$ 0,00</span>
+                    <span class="text-[11px] text-gray-500 text-right">
+                        Calculado automaticamente: Itens + Frete + Seguro + Outras + IPI + ST - Desconto
+                    </span>
+                </div>
             </div>
         </div>
     </div>
@@ -264,10 +421,15 @@ use app\modules\vendas\models\ItemCompra;
                 const text = el.textContent.replace('R$ ', '').replace('R$', '').trim();
                 total += unmaskCurrency(text);
             });
-            const frete = unmaskCurrency(document.getElementById('input-frete').value);
-            total += frete;
-            const desconto = unmaskCurrency(document.getElementById('input-desconto').value);
-            total -= desconto;
+            const frete = unmaskCurrency(document.getElementById('input-frete')?.value || 0);
+            const seguro = unmaskCurrency(document.getElementById('input-seguro')?.value || 0);
+            const outras = unmaskCurrency(document.getElementById('input-outras-despesas')?.value || 0);
+            const ipi = unmaskCurrency(document.getElementById('input-ipi')?.value || 0);
+            const icmsSt = unmaskCurrency(document.getElementById('input-icms-st')?.value || 0);
+            const fcpSt = unmaskCurrency(document.getElementById('input-fcp-st')?.value || 0);
+            const desconto = unmaskCurrency(document.getElementById('input-desconto')?.value || 0);
+
+            total = total + frete + seguro + outras + ipi + icmsSt + fcpSt - desconto;
             return total < 0 ? 0 : total;
         }
 
@@ -420,11 +582,12 @@ use app\modules\vendas\models\ItemCompra;
             });
         }
 
-        // Função de Máscara de Moeda Global (Frete e Desconto - 2 casas)
+        // Função de Máscara de Moeda Global
         function maskCurrency(event) {
             let value = event.target.value.replace(/\D/g, "");
             if (value === "") {
                 event.target.value = "";
+                calcularTotal();
                 return;
             }
 
@@ -435,7 +598,11 @@ use app\modules\vendas\models\ItemCompra;
                 maximumFractionDigits: 2
             }).format(numberValue);
 
-            if (event.target.id === 'input-frete' || event.target.id === 'input-desconto') {
+            const taxInputIds = [
+                'input-frete', 'input-seguro', 'input-outras-despesas',
+                'input-ipi', 'input-icms-st', 'input-fcp-st', 'input-desconto'
+            ];
+            if (taxInputIds.includes(event.target.id)) {
                 calcularTotal();
             }
         }
@@ -554,6 +721,16 @@ use app\modules\vendas\models\ItemCompra;
                     <input type="hidden" name="ItemCompra[${itemIndex}][ponto_corte_temp]" class="input-ponto-corte-temp">
                     <input type="hidden" name="ItemCompra[${itemIndex}][venda_fracionada_temp]" class="input-venda-fracionada-temp">
                     <input type="hidden" name="ItemCompra[${itemIndex}][unidade_medida_temp]" class="input-unidade-medida-temp">
+
+                    <input type="hidden" name="ItemCompra[${itemIndex}][ncm]" class="input-ncm">
+                    <input type="hidden" name="ItemCompra[${itemIndex}][cfop]" class="input-cfop">
+                    <input type="hidden" name="ItemCompra[${itemIndex}][valor_desconto]" class="input-item-desconto">
+                    <input type="hidden" name="ItemCompra[${itemIndex}][valor_frete]" class="input-item-frete">
+                    <input type="hidden" name="ItemCompra[${itemIndex}][valor_seguro]" class="input-item-seguro">
+                    <input type="hidden" name="ItemCompra[${itemIndex}][valor_outras_despesas]" class="input-item-outras-despesas">
+                    <input type="hidden" name="ItemCompra[${itemIndex}][valor_ipi]" class="input-item-ipi">
+                    <input type="hidden" name="ItemCompra[${itemIndex}][valor_icms_st]" class="input-item-icms-st">
+                    <input type="hidden" name="ItemCompra[${itemIndex}][custo_unitario_real]" class="input-custo-unitario-real">
                     
                     <div class="autocomplete-results hidden absolute z-50 w-full bg-white border border-gray-300 rounded-b-lg shadow-lg max-h-60 overflow-y-auto top-[70px]"></div>
                 </div>
@@ -582,17 +759,21 @@ use app\modules\vendas\models\ItemCompra;
                     </div>
                 </div>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-                <div class="sm:col-span-1 lg:col-span-2">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Cód. Barras</label>
                     <input type="text" name="ItemCompra[${itemIndex}][codigo_barras]" class="input-codigo-barras w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="EAN/GTIN">
                 </div>
-                <div class="sm:col-span-1 lg:col-span-2">
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Marca</label>
                     <input type="text" name="ItemCompra[${itemIndex}][marca]" class="input-marca w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Marca do produto">
                 </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">NCM</label>
+                    <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700 text-sm" placeholder="Ex: 8481.80.19" onchange="this.closest('.item-compra').querySelector('.input-ncm').value = this.value;">
+                </div>
             </div>
-            <div class="mt-2 flex justify-between items-center">
+            <div class="mt-2 flex justify-between items-center pt-2 border-t border-gray-100">
                 <div class="preco-sugerido-container hidden">
                     <span class="text-xs font-medium text-blue-600 uppercase tracking-wider">Sugestão de Venda: </span>
                     <span class="text-sm font-bold text-blue-700 span-preco-sugerido">R$ 0,00</span>
@@ -809,28 +990,49 @@ use app\modules\vendas\models\ItemCompra;
             }
         }
 
-        // Calcula total geral
+        // Calcula total geral e desdobramento da nota fiscal
         function calcularTotal() {
-            let total = 0;
+            let totalProdutos = 0;
             document.querySelectorAll('.item-subtotal').forEach(function(el) {
                 const text = el.textContent.replace('R$ ', '').replace('R$', '').trim();
-                total += unmaskCurrency(text);
+                totalProdutos += unmaskCurrency(text);
             });
 
-            // Add Frete
-            const frete = unmaskCurrency(document.getElementById('input-frete').value);
-            total += frete;
+            const frete = unmaskCurrency(document.getElementById('input-frete')?.value || 0);
+            const seguro = unmaskCurrency(document.getElementById('input-seguro')?.value || 0);
+            const outras = unmaskCurrency(document.getElementById('input-outras-despesas')?.value || 0);
+            const ipi = unmaskCurrency(document.getElementById('input-ipi')?.value || 0);
+            const icmsSt = unmaskCurrency(document.getElementById('input-icms-st')?.value || 0);
+            const fcpSt = unmaskCurrency(document.getElementById('input-fcp-st')?.value || 0);
+            const desconto = unmaskCurrency(document.getElementById('input-desconto')?.value || 0);
 
-            // Subtract Discount
-            const desconto = unmaskCurrency(document.getElementById('input-desconto').value);
-            total -= desconto;
+            const totalNota = Math.max(0, totalProdutos + frete + seguro + outras + ipi + icmsSt + fcpSt - desconto);
 
-            // Prevent negative total
-            if (total < 0) total = 0;
+            const formatBRL = (val) => 'R$ ' + new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
 
-            document.getElementById('total-compra').textContent = 'R$ ' + new Intl.NumberFormat('pt-BR', {
-                minimumFractionDigits: 2
-            }).format(total);
+            const elResumoProdutos = document.getElementById('resumo-subtotal-produtos');
+            if (elResumoProdutos) elResumoProdutos.textContent = formatBRL(totalProdutos);
+
+            const elResumoFrete = document.getElementById('resumo-frete');
+            if (elResumoFrete) elResumoFrete.textContent = formatBRL(frete);
+
+            const elResumoSeguro = document.getElementById('resumo-seguro');
+            if (elResumoSeguro) elResumoSeguro.textContent = formatBRL(seguro);
+
+            const elResumoOutras = document.getElementById('resumo-outras');
+            if (elResumoOutras) elResumoOutras.textContent = formatBRL(outras);
+
+            const elResumoIpi = document.getElementById('resumo-ipi');
+            if (elResumoIpi) elResumoIpi.textContent = formatBRL(ipi);
+
+            const elResumoSt = document.getElementById('resumo-st');
+            if (elResumoSt) elResumoSt.textContent = formatBRL(icmsSt + fcpSt);
+
+            const elResumoDesconto = document.getElementById('resumo-desconto');
+            if (elResumoDesconto) elResumoDesconto.textContent = formatBRL(desconto);
+
+            const elTotalCompra = document.getElementById('total-compra');
+            if (elTotalCompra) elTotalCompra.textContent = formatBRL(totalNota);
 
             // Atualiza resumo do parcelamento manual se estiver visível
             recalcularResumoManual();

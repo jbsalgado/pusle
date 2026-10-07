@@ -39,6 +39,16 @@
             <?= $form->field($item, "[$index]venda_fracionada_temp", ['template' => '{input}'])->hiddenInput(['class' => 'input-venda-fracionada-temp']) ?>
             <?= $form->field($item, "[$index]unidade_medida_temp", ['template' => '{input}'])->hiddenInput(['class' => 'input-unidade-medida-temp']) ?>
 
+            <?= $form->field($item, "[$index]ncm", ['template' => '{input}'])->hiddenInput(['class' => 'input-ncm']) ?>
+            <?= $form->field($item, "[$index]cfop", ['template' => '{input}'])->hiddenInput(['class' => 'input-cfop']) ?>
+            <?= $form->field($item, "[$index]valor_desconto", ['template' => '{input}'])->hiddenInput(['class' => 'input-item-desconto']) ?>
+            <?= $form->field($item, "[$index]valor_frete", ['template' => '{input}'])->hiddenInput(['class' => 'input-item-frete']) ?>
+            <?= $form->field($item, "[$index]valor_seguro", ['template' => '{input}'])->hiddenInput(['class' => 'input-item-seguro']) ?>
+            <?= $form->field($item, "[$index]valor_outras_despesas", ['template' => '{input}'])->hiddenInput(['class' => 'input-item-outras-despesas']) ?>
+            <?= $form->field($item, "[$index]valor_ipi", ['template' => '{input}'])->hiddenInput(['class' => 'input-item-ipi']) ?>
+            <?= $form->field($item, "[$index]valor_icms_st", ['template' => '{input}'])->hiddenInput(['class' => 'input-item-icms-st']) ?>
+            <?= $form->field($item, "[$index]custo_unitario_real", ['template' => '{input}'])->hiddenInput(['class' => 'input-custo-unitario-real']) ?>
+
             <div class="autocomplete-results hidden absolute z-50 w-full bg-white border border-gray-300 rounded-b-lg shadow-lg max-h-60 overflow-y-auto top-[70px]"></div>
         </div>
         <div class="relative autocomplete-container-categoria">
@@ -90,38 +100,52 @@
             </div>
         </div>
     </div>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-        <div class="sm:col-span-1 lg:col-span-2">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+        <div>
             <?= $form->field($item, "[$index]codigo_barras", ['enableClientValidation' => false])->textInput([
                 'class' => 'input-codigo-barras w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'value' => $item->codigo_barras ?? '',
                 'placeholder' => 'EAN/GTIN'
             ])->label('Cód. Barras') ?>
         </div>
-        <div class="sm:col-span-1 lg:col-span-2">
+        <div>
             <?= $form->field($item, "[$index]marca", ['enableClientValidation' => false])->textInput([
                 'class' => 'input-marca w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'value' => $item->marca ?? '',
                 'placeholder' => 'Marca do produto'
             ])->label('Marca') ?>
         </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">NCM</label>
+            <input type="text"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700 text-sm"
+                value="<?= \yii\helpers\Html::encode($item->ncm ?? '') ?>"
+                placeholder="Ex: 8481.80.19"
+                onchange="this.closest('.item-compra').querySelector('.input-ncm').value = this.value;">
+        </div>
     </div>
-    <div class="mt-2 flex justify-between items-center">
-        <div class="preco-sugerido-container <?= empty($item->preco_venda_sugerido_temp) ? 'hidden' : '' ?> flex flex-col gap-1">
-            <div>
-                <span class="text-xs font-medium text-blue-600 uppercase tracking-wider">Sugestão de Venda: </span>
+    <div class="mt-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-2 border-t border-gray-100">
+        <div class="flex flex-wrap items-center gap-3">
+            <div class="preco-sugerido-container <?= empty($item->preco_venda_sugerido_temp) ? 'hidden' : '' ?> flex items-center gap-1.5">
+                <span class="text-xs font-medium text-blue-600 uppercase tracking-wider">Sugestão de Venda:</span>
                 <span class="text-sm font-bold text-blue-700 span-preco-sugerido">
                     R$ <?= number_format($item->preco_venda_sugerido_temp ?? 0, 2, ',', '.') ?>
                 </span>
             </div>
-            <div class="flex items-center gap-3">
-                <span class="text-[10px] text-gray-501 font-semibold uppercase">Unidade: <span class="text-blue-600"><?= \yii\helpers\Html::encode($item->unidade_medida_temp ?? 'UN') ?></span></span>
+            <?php if (!empty($item->custo_unitario_real) && abs((float)$item->custo_unitario_real - (float)$item->preco_unitario) > 0.001): ?>
+                <div class="flex items-center gap-1 bg-amber-50 text-amber-800 px-2 py-0.5 rounded text-xs border border-amber-200" title="Custo real incluindo rateio de impostos e fretes da nota">
+                    <span class="font-medium">Custo Real:</span>
+                    <span class="font-bold">R$ <?= number_format($item->custo_unitario_real, 2, ',', '.') ?></span>
+                </div>
+            <?php endif; ?>
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] text-gray-500 font-semibold uppercase">Und: <span class="text-blue-600"><?= \yii\helpers\Html::encode($item->unidade_medida_temp ?? 'UN') ?></span></span>
                 <?php if ($item->venda_fracionada_temp): ?>
                     <span class="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded">FRACIONADO</span>
                 <?php endif; ?>
             </div>
         </div>
-        <div class="text-right">
+        <div class="text-right w-full sm:w-auto">
             <span class="text-sm text-gray-600">Subtotal: </span>
             <span class="text-base font-semibold text-gray-900 item-subtotal">R$ 0,00</span>
         </div>

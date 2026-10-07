@@ -16,9 +16,19 @@ use yii\behaviors\TimestampBehavior;
  * @property string $id
  * @property string $compra_id
  * @property string $produto_id
+ * @property string|null $marca
+ * @property string|null $ncm
+ * @property string|null $cfop
  * @property float $quantidade
  * @property float $preco_unitario
  * @property float $valor_total_item
+ * @property float $valor_desconto
+ * @property float $valor_frete
+ * @property float $valor_seguro
+ * @property float $valor_outras_despesas
+ * @property float $valor_ipi
+ * @property float $valor_icms_st
+ * @property float $custo_unitario_real
  * @property string $data_criacao
  *
  * @property Compra $compra
@@ -50,12 +60,11 @@ class ItemCompra extends ActiveRecord
     }
 
     /**
-     * {@inheritdoc}
+     * Propriedades virtuais/temporárias usadas na interface e auto-cadastro
      */
     public $nome_produto_temp;
     public $categoria_id;
     public $codigo_barras;
-    public $marca;
     public $codigo_referencia_temp;
     public $preco_venda_sugerido_temp;
     public $estoque_minimo_temp;
@@ -71,17 +80,24 @@ class ItemCompra extends ActiveRecord
     {
         return [
             [['compra_id', 'produto_id', 'quantidade', 'preco_unitario'], 'required'],
-            [['compra_id', 'produto_id', 'nome_produto_temp', 'categoria_id', 'codigo_barras', 'marca'], 'string'],
+            [['compra_id', 'produto_id', 'nome_produto_temp', 'categoria_id', 'codigo_barras', 'marca', 'ncm', 'cfop'], 'string'],
             [['quantidade'], 'number', 'min' => 0.001],
-            [['preco_unitario'], 'number', 'min' => 0],
-            [['valor_total_item'], 'number', 'min' => 0],
+            [['preco_unitario', 'custo_unitario_real'], 'number', 'min' => 0],
+            [[
+                'valor_total_item', 'valor_desconto', 'valor_frete', 'valor_seguro',
+                'valor_outras_despesas', 'valor_ipi', 'valor_icms_st'
+            ], 'safe'],
+            [[
+                'valor_total_item', 'valor_desconto', 'valor_frete', 'valor_seguro',
+                'valor_outras_despesas', 'valor_ipi', 'valor_icms_st', 'custo_unitario_real'
+            ], 'default', 'value' => 0],
             [['compra_id'], 'exist', 'skipOnError' => true, 'targetClass' => Compra::class, 'targetAttribute' => ['compra_id' => 'id']],
-            [['nome_produto_temp', 'categoria_id', 'codigo_barras', 'marca', 'codigo_referencia_temp', 'preco_venda_sugerido_temp', 'estoque_minimo_temp', 'estoque_maximo_temp', 'ponto_corte_temp', 'venda_fracionada_temp', 'unidade_medida_temp'], 'safe'],
+            [['nome_produto_temp', 'categoria_id', 'codigo_barras', 'codigo_referencia_temp', 'preco_venda_sugerido_temp', 'estoque_minimo_temp', 'estoque_maximo_temp', 'ponto_corte_temp', 'venda_fracionada_temp', 'unidade_medida_temp'], 'safe'],
         ];
     }
 
     /**
-     * Converte preco_unitario e quantidade do formato BRL ou XML para float antes da validação
+     * Converte preco_unitario, quantidade e valores do formato BRL ou XML para float antes da validação
      */
     public function beforeValidate()
     {
@@ -91,6 +107,17 @@ class ItemCompra extends ActiveRecord
         if (is_string($this->quantidade) && $this->quantidade !== '') {
             $this->quantidade = self::parseDecimal($this->quantidade);
         }
+
+        $camposDecimais = [
+            'valor_total_item', 'valor_desconto', 'valor_frete', 'valor_seguro',
+            'valor_outras_despesas', 'valor_ipi', 'valor_icms_st', 'custo_unitario_real'
+        ];
+        foreach ($camposDecimais as $campo) {
+            if (is_string($this->$campo) && $this->$campo !== '') {
+                $this->$campo = self::parseDecimal($this->$campo);
+            }
+        }
+
         return parent::beforeValidate();
     }
 
@@ -141,9 +168,19 @@ class ItemCompra extends ActiveRecord
             'id' => 'ID',
             'compra_id' => 'Compra',
             'produto_id' => 'Produto',
+            'marca' => 'Marca',
+            'ncm' => 'NCM',
+            'cfop' => 'CFOP',
             'quantidade' => 'Quantidade',
             'preco_unitario' => 'Preço Unitário',
             'valor_total_item' => 'Valor Total',
+            'valor_desconto' => 'Desconto',
+            'valor_frete' => 'Frete',
+            'valor_seguro' => 'Seguro',
+            'valor_outras_despesas' => 'Outras Despesas',
+            'valor_ipi' => 'IPI',
+            'valor_icms_st' => 'ICMS ST',
+            'custo_unitario_real' => 'Custo Real Unit.',
             'data_criacao' => 'Data de Criação',
         ];
     }
@@ -165,7 +202,7 @@ class ItemCompra extends ActiveRecord
     }
 
     /**
-     * Calcula o valor total do item (arredondado para 2 casas decimais)
+     * Calcula o valor total bruto do item (arredondado para 2 casas decimais)
      */
     public function calcularValorTotal()
     {
@@ -174,7 +211,30 @@ class ItemCompra extends ActiveRecord
     }
 
     /**
-     * Antes de salvar, gera UUID e calcula o valor total
+     * Calcula o custo unitário real de aquisição do item (incluindo rateios de impostos e fretes)
+     */
+    public function calcularCustoUnitarioReal(): float
+    {
+        $qtd = (float)($this->quantidade ?: 1);
+        if ($qtd <= 0) $qtd = 1;
+
+        $subtotal = (float)$this->valor_total_item ?: ((float)$this->preco_unitario * $qtd);
+        $frete = (float)($this->valor_frete ?? 0);
+        $seguro = (float)($this->valor_seguro ?? 0);
+        $outras = (float)($this->valor_outras_despesas ?? 0);
+        $ipi = (float)($this->valor_ipi ?? 0);
+        $icmsSt = (float)($this->valor_icms_st ?? 0);
+        $desc = (float)($this->valor_desconto ?? 0);
+
+        $custoTotal = $subtotal + $frete + $seguro + $outras + $ipi + $icmsSt - $desc;
+        $custoRealUnit = round($custoTotal / $qtd, 5);
+
+        $this->custo_unitario_real = $custoRealUnit > 0 ? $custoRealUnit : (float)$this->preco_unitario;
+        return $this->custo_unitario_real;
+    }
+
+    /**
+     * Antes de salvar, gera UUID, calcula valor total e custo real
      */
     public function beforeSave($insert)
     {
@@ -185,8 +245,9 @@ class ItemCompra extends ActiveRecord
                 $this->id = $uuid;
             }
 
-            // Calcula o valor total do item
+            // Calcula o valor total e o custo real do item
             $this->calcularValorTotal();
+            $this->calcularCustoUnitarioReal();
 
             return true;
         }
@@ -209,13 +270,24 @@ class ItemCompra extends ActiveRecord
             $quantidadeAnterior = $this->produto->estoque_atual;
             $this->produto->estoque_atual += $this->quantidade;
 
-            // Atualiza o preço de custo com o preço unitário da compra
-            $this->produto->preco_custo = $this->preco_unitario;
+            // Atualiza o preço de custo com o custo real (se calculado) ou preço unitário
+            $this->produto->preco_custo = $this->custo_unitario_real > 0 ? $this->custo_unitario_real : $this->preco_unitario;
+
+            // Sincroniza marca e NCM se o produto ainda não tiver
+            $atributosUpdate = ['estoque_atual', 'preco_custo', 'com_nota'];
+            if (!empty($this->marca) && empty($this->produto->marca)) {
+                $this->produto->marca = $this->marca;
+                $atributosUpdate[] = 'marca';
+            }
+            if (!empty($this->ncm) && empty($this->produto->ncm)) {
+                $this->produto->ncm = $this->ncm;
+                $atributosUpdate[] = 'ncm';
+            }
 
             // Sincroniza o status de nota fiscal da compra (NF-e)
             $this->produto->com_nota = (bool)$this->compra->com_nota;
 
-            if (!$this->produto->save(false, ['estoque_atual', 'preco_custo', 'com_nota'])) {
+            if (!$this->produto->save(false, $atributosUpdate)) {
                 Yii::error("ItemCompra {$this->id}: Erro ao salvar produto após atualizar estoque", __METHOD__);
                 return false;
             }

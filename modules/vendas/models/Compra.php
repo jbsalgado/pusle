@@ -19,14 +19,28 @@ use app\models\Usuario;
  * @property string $fornecedor_id
  * @property string $numero_nota_fiscal
  * @property string $serie_nota_fiscal
+ * @property string $chave_acesso
  * @property string $data_compra
  * @property string $data_vencimento
- * @property float $valor_total
+ * @property float $valor_produtos
  * @property float $valor_frete
+ * @property float $valor_seguro
+ * @property float $valor_outras_despesas
  * @property float $valor_desconto
+ * @property float $valor_ipi
+ * @property float $valor_icms_st
+ * @property float $valor_fcp_st
+ * @property float $valor_icms
+ * @property float $valor_base_icms
+ * @property float $valor_pis
+ * @property float $valor_cofins
+ * @property float $valor_total
  * @property string $forma_pagamento
  * @property string $status_compra
  * @property string $observacoes
+ * @property boolean $com_nota
+ * @property integer $num_parcelas
+ * @property integer $intervalo_parcelas
  * @property string $data_criacao
  * @property string $data_atualizacao
  *
@@ -66,9 +80,6 @@ class Compra extends ActiveRecord
     /**
      * {@inheritdoc}
      */
-    /**
-     * {@inheritdoc}
-     */
     public function rules()
     {
         return [
@@ -76,16 +87,22 @@ class Compra extends ActiveRecord
             [['usuario_id', 'fornecedor_id'], 'string'],
             [['numero_nota_fiscal'], 'string', 'max' => 50],
             [['serie_nota_fiscal'], 'string', 'max' => 10],
+            [['chave_acesso'], 'string', 'max' => 44],
             [['data_compra', 'data_vencimento', 'com_nota'], 'safe'],
             [['data_compra'], 'date', 'format' => 'php:Y-m-d'],
             [['data_vencimento'], 'date', 'format' => 'php:Y-m-d'],
             [['com_nota'], 'boolean'],
             [['com_nota'], 'default', 'value' => false],
-            [['valor_total'], 'number', 'min' => 0],
-            [['valor_frete', 'valor_desconto'], 'safe'],
-            [['valor_total'], 'default', 'value' => 0],
-            [['valor_frete'], 'default', 'value' => 0],
-            [['valor_desconto'], 'default', 'value' => 0],
+            [[
+                'valor_total', 'valor_produtos', 'valor_frete', 'valor_seguro',
+                'valor_outras_despesas', 'valor_desconto', 'valor_ipi', 'valor_icms_st',
+                'valor_fcp_st', 'valor_icms', 'valor_base_icms', 'valor_pis', 'valor_cofins'
+            ], 'safe'],
+            [[
+                'valor_total', 'valor_produtos', 'valor_frete', 'valor_seguro',
+                'valor_outras_despesas', 'valor_desconto', 'valor_ipi', 'valor_icms_st',
+                'valor_fcp_st', 'valor_icms', 'valor_base_icms', 'valor_pis', 'valor_cofins'
+            ], 'default', 'value' => 0],
             [['num_parcelas'], 'integer', 'min' => 1, 'max' => 120],
             [['num_parcelas'], 'default', 'value' => 1],
             [['intervalo_parcelas'], 'integer', 'min' => 1, 'max' => 365],
@@ -106,15 +123,16 @@ class Compra extends ActiveRecord
     public function beforeValidate()
     {
         if (parent::beforeValidate()) {
-            // Converte formato BRL (1.234,56) para float (1234.56)
-            foreach (['valor_frete', 'valor_desconto'] as $attribute) {
-                if (!empty($this->$attribute) && is_string($this->$attribute)) {
-                    // Se tiver vírgula, tratamos como formato BRL
-                    if (strpos($this->$attribute, ',') !== false) {
-                        $this->$attribute = str_replace(',', '.', str_replace('.', '', $this->$attribute));
-                    }
-                    // Se não tiver vírgula mas tiver ponto, mantemos como está (já é float)
-                    // Se não tiver nenhum dos dois, é inteiro, mantemos como está.
+            $currencyAttributes = [
+                'valor_total', 'valor_produtos', 'valor_frete', 'valor_seguro',
+                'valor_outras_despesas', 'valor_desconto', 'valor_ipi', 'valor_icms_st',
+                'valor_fcp_st', 'valor_icms', 'valor_base_icms', 'valor_pis', 'valor_cofins'
+            ];
+            foreach ($currencyAttributes as $attribute) {
+                if ($this->$attribute !== null && $this->$attribute !== '') {
+                    $this->$attribute = ItemCompra::parseDecimal($this->$attribute);
+                } else {
+                    $this->$attribute = 0;
                 }
             }
             return true;
@@ -133,11 +151,22 @@ class Compra extends ActiveRecord
             'fornecedor_id' => 'Fornecedor',
             'numero_nota_fiscal' => 'Número da Nota Fiscal',
             'serie_nota_fiscal' => 'Série da Nota Fiscal',
+            'chave_acesso' => 'Chave de Acesso da NF-e',
             'data_compra' => 'Data da Compra',
             'data_vencimento' => 'Data de Vencimento (1ª Parcela)',
-            'valor_total' => 'Valor Total',
+            'valor_produtos' => 'Subtotal dos Produtos',
             'valor_frete' => 'Valor do Frete',
+            'valor_seguro' => 'Valor do Seguro',
+            'valor_outras_despesas' => 'Outras Despesas Acessórias',
             'valor_desconto' => 'Valor do Desconto',
+            'valor_ipi' => 'Valor do IPI',
+            'valor_icms_st' => 'Valor do ICMS ST',
+            'valor_fcp_st' => 'Valor do FCP ST',
+            'valor_icms' => 'Valor do ICMS',
+            'valor_base_icms' => 'Base de Cálculo ICMS',
+            'valor_pis' => 'Valor do PIS',
+            'valor_cofins' => 'Valor do COFINS',
+            'valor_total' => 'Total da Nota Fiscal',
             'num_parcelas' => 'Número de Parcelas',
             'intervalo_parcelas' => 'Intervalo entre Parcelas (dias)',
             'forma_pagamento' => 'Forma de Pagamento',
@@ -174,11 +203,25 @@ class Compra extends ActiveRecord
     }
 
     /**
-     * Retorna o valor líquido (total - desconto + frete)
+     * Retorna o valor líquido total da nota fiscal (vNF)
      */
     public function getValorLiquido()
     {
-        return $this->valor_total - $this->valor_desconto + $this->valor_frete;
+        if ($this->valor_total !== null && (float)$this->valor_total > 0) {
+            return (float)$this->valor_total;
+        }
+
+        // Fallback: calcula pela fórmula completa
+        $produtos = (float)($this->valor_produtos ?? 0);
+        $frete = (float)($this->valor_frete ?? 0);
+        $seguro = (float)($this->valor_seguro ?? 0);
+        $outras = (float)($this->valor_outras_despesas ?? 0);
+        $ipi = (float)($this->valor_ipi ?? 0);
+        $icmsSt = (float)($this->valor_icms_st ?? 0);
+        $fcpSt = (float)($this->valor_fcp_st ?? 0);
+        $desconto = (float)($this->valor_desconto ?? 0);
+
+        return round(max(0, $produtos + $frete + $seguro + $outras + $ipi + $icmsSt + $fcpSt - $desconto), 2);
     }
 
     /**
@@ -203,15 +246,33 @@ class Compra extends ActiveRecord
     }
 
     /**
-     * Recalcula o valor total baseado nos itens
+     * Recalcula o valor total da nota fiscal baseado nos itens e nos valores adicionais/impostos:
+     * Total da Nota = (Soma dos Itens) + Frete + Seguro + Outras Despesas + IPI + ICMS ST + FCP ST - Desconto
      */
     public function recalcularValorTotal()
     {
-        $total = 0;
-        foreach ($this->itens as $item) {
-            $total += $item->valor_total_item;
+        $totalProdutos = 0;
+        if ($this->itens) {
+            foreach ($this->itens as $item) {
+                $totalProdutos += (float)$item->valor_total_item;
+            }
         }
-        $this->valor_total = round($total, 2);
+        $this->valor_produtos = round($totalProdutos, 2);
+
+        $frete = (float)($this->valor_frete ?? 0);
+        $seguro = (float)($this->valor_seguro ?? 0);
+        $outras = (float)($this->valor_outras_despesas ?? 0);
+        $ipi = (float)($this->valor_ipi ?? 0);
+        $icmsSt = (float)($this->valor_icms_st ?? 0);
+        $fcpSt = (float)($this->valor_fcp_st ?? 0);
+        $desconto = (float)($this->valor_desconto ?? 0);
+
+        $totalNota = $this->valor_produtos + $frete + $seguro + $outras + $ipi + $icmsSt + $fcpSt - $desconto;
+        if ($totalNota < 0) {
+            $totalNota = 0;
+        }
+
+        $this->valor_total = round($totalNota, 2);
         return $this->valor_total;
     }
 
@@ -423,14 +484,15 @@ class Compra extends ActiveRecord
             }
 
             // Garante valores padrão se não foram definidos
-            if ($this->valor_total === null || $this->valor_total === '') {
-                $this->valor_total = 0;
-            }
-            if ($this->valor_frete === null || $this->valor_frete === '') {
-                $this->valor_frete = 0;
-            }
-            if ($this->valor_desconto === null || $this->valor_desconto === '') {
-                $this->valor_desconto = 0;
+            $numericDefaults = [
+                'valor_total', 'valor_produtos', 'valor_frete', 'valor_seguro',
+                'valor_outras_despesas', 'valor_desconto', 'valor_ipi', 'valor_icms_st',
+                'valor_fcp_st', 'valor_icms', 'valor_base_icms', 'valor_pis', 'valor_cofins'
+            ];
+            foreach ($numericDefaults as $field) {
+                if ($this->$field === null || $this->$field === '') {
+                    $this->$field = 0;
+                }
             }
 
             // Recalcula valor total apenas na atualização se houver itens já salvos

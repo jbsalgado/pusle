@@ -83,6 +83,12 @@ use yii\helpers\Html;
                             <td><?= Html::encode($model->numero_nota_fiscal) ?> <?= $model->serie_nota_fiscal ? '/ ' . Html::encode($model->serie_nota_fiscal) : '' ?></td>
                         </tr>
                     <?php endif; ?>
+                    <?php if ($model->chave_acesso): ?>
+                        <tr>
+                            <td class="label">Chave NFe:</td>
+                            <td style="font-size: 8px; font-family: monospace;"><?= Html::encode($model->chave_acesso) ?></td>
+                        </tr>
+                    <?php endif; ?>
                     <?php if ($model->forma_pagamento): ?>
                         <tr>
                             <td class="label">Forma de Pag.:</td>
@@ -118,8 +124,12 @@ use yii\helpers\Html;
                     <td><?= Html::encode($item->produto->codigo_referencia ?: $item->produto->codigo_barras ?: '-') ?></td>
                     <td>
                         <div style="font-weight: bold;"><?= Html::encode($item->produto->nome) ?></div>
-                        <?php if ($item->marca): ?>
-                            <span style="font-size: 9px; color: #666;">Marca: <?= Html::encode($item->marca) ?></span>
+                        <?php if ($item->marca || $item->ncm): ?>
+                            <span style="font-size: 9px; color: #666;">
+                                <?= $item->marca ? 'Marca: ' . Html::encode($item->marca) : '' ?>
+                                <?= ($item->marca && $item->ncm) ? ' | ' : '' ?>
+                                <?= $item->ncm ? 'NCM: ' . Html::encode($item->ncm) : '' ?>
+                            </span>
                         <?php endif; ?>
                     </td>
                     <td style="text-align: center;"><?= Html::encode($item->produto->unidade_medida ?: 'UN') ?></td>
@@ -144,25 +154,57 @@ use yii\helpers\Html;
             </td>
             <td style="width: 40%; vertical-align: top;">
                 <table class="resumo-financeiro" style="width: 100%;">
+                    <?php
+                    $subtotalProd = $model->valor_produtos > 0 ? (float)$model->valor_produtos : 0;
+                    if ($subtotalProd <= 0 && $model->itens) {
+                        foreach ($model->itens as $it) {
+                            $subtotalProd += (float)$it->valor_total_item;
+                        }
+                    }
+                    ?>
                     <tr>
-                        <td class="label">Subtotal:</td>
-                        <td class="valor">R$ <?= number_format($model->valor_total, 2, ',', '.') ?></td>
+                        <td class="label">Subtotal Produtos:</td>
+                        <td class="valor">R$ <?= number_format($subtotalProd, 2, ',', '.') ?></td>
                     </tr>
-                    <?php if ($model->valor_desconto > 0): ?>
-                        <tr>
-                            <td class="label">Desconto:</td>
-                            <td class="valor" style="color: #d9534f;">- R$ <?= number_format($model->valor_desconto, 2, ',', '.') ?></td>
-                        </tr>
-                    <?php endif; ?>
                     <?php if ($model->valor_frete > 0): ?>
                         <tr>
                             <td class="label">Frete:</td>
                             <td class="valor">+ R$ <?= number_format($model->valor_frete, 2, ',', '.') ?></td>
                         </tr>
                     <?php endif; ?>
+                    <?php if ($model->valor_seguro > 0): ?>
+                        <tr>
+                            <td class="label">Seguro:</td>
+                            <td class="valor">+ R$ <?= number_format($model->valor_seguro, 2, ',', '.') ?></td>
+                        </tr>
+                    <?php endif; ?>
+                    <?php if ($model->valor_outras_despesas > 0): ?>
+                        <tr>
+                            <td class="label">Outras Despesas:</td>
+                            <td class="valor">+ R$ <?= number_format($model->valor_outras_despesas, 2, ',', '.') ?></td>
+                        </tr>
+                    <?php endif; ?>
+                    <?php if ($model->valor_ipi > 0): ?>
+                        <tr>
+                            <td class="label">IPI:</td>
+                            <td class="valor">+ R$ <?= number_format($model->valor_ipi, 2, ',', '.') ?></td>
+                        </tr>
+                    <?php endif; ?>
+                    <?php if (($model->valor_icms_st + $model->valor_fcp_st) > 0): ?>
+                        <tr>
+                            <td class="label">ICMS ST:</td>
+                            <td class="valor">+ R$ <?= number_format($model->valor_icms_st + $model->valor_fcp_st, 2, ',', '.') ?></td>
+                        </tr>
+                    <?php endif; ?>
+                    <?php if ($model->valor_desconto > 0): ?>
+                        <tr>
+                            <td class="label">Desconto:</td>
+                            <td class="valor" style="color: #d9534f;">- R$ <?= number_format($model->valor_desconto, 2, ',', '.') ?></td>
+                        </tr>
+                    <?php endif; ?>
                     <tr>
-                        <td class="label total-destaque" style="border-top: 2px solid #1e3a8a; padding-top: 8px;">TOTAL GERAL:</td>
-                        <td class="valor total-destaque" style="border-top: 2px solid #1e3a8a; padding-top: 8px;">R$ <?= number_format($model->getValorLiquido(), 2, ',', '.') ?></td>
+                        <td class="label total-destaque" style="border-top: 2px solid #1e3a8a; padding-top: 8px;">TOTAL DA NOTA:</td>
+                        <td class="valor total-destaque" style="border-top: 2px solid #1e3a8a; padding-top: 8px;">R$ <?= number_format($model->valor_total, 2, ',', '.') ?></td>
                     </tr>
                 </table>
             </td>

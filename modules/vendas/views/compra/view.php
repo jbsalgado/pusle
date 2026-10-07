@@ -80,7 +80,7 @@ $this->params['breadcrumbs'][] = $this->title;
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-500 mb-1">Fornecedor</label>
-                            <p class="text-base text-gray-900 font-semibold"><?= Html::encode($model->fornecedor->nome_fantasia) ?></p>
+                            <p class="text-base text-gray-900 font-semibold"><?= Html::encode($model->fornecedor->nome_fantasia ?: $model->fornecedor->razao_social) ?></p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-500 mb-1">Data da Compra</label>
@@ -125,47 +125,163 @@ $this->params['breadcrumbs'][] = $this->title;
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produto</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produto / Detalhes</th>
                                     <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Quantidade</th>
                                     <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Preço Unit.</th>
                                     <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
-                                <?php foreach ($model->itens as $item): ?>
+                                <?php 
+                                $totalItensCalculado = 0;
+                                foreach ($model->itens as $item): 
+                                    $totalItensCalculado += (float)$item->valor_total_item;
+                                ?>
                                     <tr>
-                                        <td class="px-4 py-3 text-sm text-gray-900"><?= Html::encode($item->produto->nome) ?></td>
-                                        <td class="px-4 py-3 text-sm text-right text-gray-900"><?= number_format($item->quantidade, $item->produto->venda_fracionada ? 3 : 0, ',', '.') ?></td>
-                                        <td class="px-4 py-3 text-sm text-right text-gray-900">R$ <?= $item->getPrecoUnitarioFormatado() ?></td>
+                                        <td class="px-4 py-3 text-sm text-gray-900">
+                                            <div class="font-medium text-gray-900"><?= Html::encode($item->produto->nome) ?></div>
+                                            <div class="flex flex-wrap items-center gap-2 mt-1">
+                                                <?php if (!empty($item->marca)): ?>
+                                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-700">
+                                                        Marca: <?= Html::encode($item->marca) ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                                <?php if (!empty($item->ncm)): ?>
+                                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono bg-blue-50 text-blue-700">
+                                                        NCM: <?= Html::encode($item->ncm) ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                                <?php if (!empty($item->cfop)): ?>
+                                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono bg-gray-50 text-gray-600">
+                                                        CFOP: <?= Html::encode($item->cfop) ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 text-sm text-right text-gray-900">
+                                            <?= number_format($item->quantidade, $item->produto->venda_fracionada ? 3 : 0, ',', '.') ?>
+                                            <span class="text-xs text-gray-500"><?= Html::encode($item->produto->unidade_medida ?: 'UN') ?></span>
+                                        </td>
+                                        <td class="px-4 py-3 text-sm text-right text-gray-900">
+                                            <div>R$ <?= $item->getPrecoUnitarioFormatado() ?></div>
+                                            <?php if (!empty($item->custo_unitario_real) && abs((float)$item->custo_unitario_real - (float)$item->preco_unitario) > 0.001): ?>
+                                                <div class="text-[11px] text-amber-700 font-semibold" title="Custo unitário real incluindo frete e impostos rateados da nota">
+                                                    Real: R$ <?= number_format($item->custo_unitario_real, 2, ',', '.') ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </td>
                                         <td class="px-4 py-3 text-sm text-right font-semibold text-gray-900">R$ <?= number_format($item->valor_total_item, 2, ',', '.') ?></td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
                             <tfoot class="bg-gray-50">
                                 <tr>
-                                    <td colspan="3" class="px-4 py-3 text-right text-sm font-semibold text-gray-900">Subtotal:</td>
-                                    <td class="px-4 py-3 text-right text-sm font-semibold text-gray-900">R$ <?= number_format($model->valor_total, 2, ',', '.') ?></td>
+                                    <td colspan="3" class="px-4 py-3 text-right text-sm font-semibold text-gray-900">Subtotal Produtos:</td>
+                                    <td class="px-4 py-3 text-right text-sm font-semibold text-gray-900">
+                                        R$ <?= number_format($model->valor_produtos > 0 ? $model->valor_produtos : $totalItensCalculado, 2, ',', '.') ?>
+                                    </td>
                                 </tr>
-                                <?php if ($model->valor_desconto > 0): ?>
-                                    <tr>
-                                        <td colspan="3" class="px-4 py-3 text-right text-sm text-gray-600">Desconto:</td>
-                                        <td class="px-4 py-3 text-right text-sm text-gray-600">- R$ <?= number_format($model->valor_desconto, 2, ',', '.') ?></td>
-                                    </tr>
-                                <?php endif; ?>
                                 <?php if ($model->valor_frete > 0): ?>
                                     <tr>
-                                        <td colspan="3" class="px-4 py-3 text-right text-sm text-gray-600">Frete:</td>
+                                        <td colspan="3" class="px-4 py-3 text-right text-sm text-gray-600">(+) Frete:</td>
                                         <td class="px-4 py-3 text-right text-sm text-gray-600">+ R$ <?= number_format($model->valor_frete, 2, ',', '.') ?></td>
                                     </tr>
                                 <?php endif; ?>
-                                <tr>
-                                    <td colspan="3" class="px-4 py-3 text-right text-base font-bold text-gray-900">Total:</td>
-                                    <td class="px-4 py-3 text-right text-base font-bold text-gray-900">R$ <?= number_format($model->getValorLiquido(), 2, ',', '.') ?></td>
+                                <?php if ($model->valor_seguro > 0): ?>
+                                    <tr>
+                                        <td colspan="3" class="px-4 py-3 text-right text-sm text-gray-600">(+) Seguro:</td>
+                                        <td class="px-4 py-3 text-right text-sm text-gray-600">+ R$ <?= number_format($model->valor_seguro, 2, ',', '.') ?></td>
+                                    </tr>
+                                <?php endif; ?>
+                                <?php if ($model->valor_outras_despesas > 0): ?>
+                                    <tr>
+                                        <td colspan="3" class="px-4 py-3 text-right text-sm text-gray-600">(+) Outras Despesas:</td>
+                                        <td class="px-4 py-3 text-right text-sm text-gray-600">+ R$ <?= number_format($model->valor_outras_despesas, 2, ',', '.') ?></td>
+                                    </tr>
+                                <?php endif; ?>
+                                <?php if ($model->valor_ipi > 0): ?>
+                                    <tr>
+                                        <td colspan="3" class="px-4 py-3 text-right text-sm text-gray-600">(+) IPI:</td>
+                                        <td class="px-4 py-3 text-right text-sm text-gray-600">+ R$ <?= number_format($model->valor_ipi, 2, ',', '.') ?></td>
+                                    </tr>
+                                <?php endif; ?>
+                                <?php if (($model->valor_icms_st + $model->valor_fcp_st) > 0): ?>
+                                    <tr>
+                                        <td colspan="3" class="px-4 py-3 text-right text-sm text-gray-600">(+) ICMS ST / FCP ST:</td>
+                                        <td class="px-4 py-3 text-right text-sm text-gray-600">+ R$ <?= number_format($model->valor_icms_st + $model->valor_fcp_st, 2, ',', '.') ?></td>
+                                    </tr>
+                                <?php endif; ?>
+                                <?php if ($model->valor_desconto > 0): ?>
+                                    <tr>
+                                        <td colspan="3" class="px-4 py-3 text-right text-sm text-red-600">(-) Desconto:</td>
+                                        <td class="px-4 py-3 text-right text-sm text-red-600">- R$ <?= number_format($model->valor_desconto, 2, ',', '.') ?></td>
+                                    </tr>
+                                <?php endif; ?>
+                                <tr class="border-t-2 border-gray-300">
+                                    <td colspan="3" class="px-4 py-3 text-right text-base font-bold text-gray-900">Total da Nota Fiscal (vNF):</td>
+                                    <td class="px-4 py-3 text-right text-base font-extrabold text-blue-700">R$ <?= number_format($model->valor_total, 2, ',', '.') ?></td>
                                 </tr>
                             </tfoot>
                         </table>
                     </div>
                 </div>
+
+                <!-- Tributos e Dados Fiscais da Nota -->
+                <?php if ($model->com_nota || $model->chave_acesso || $model->valor_ipi > 0 || $model->valor_icms_st > 0 || $model->valor_icms > 0): ?>
+                    <div class="border-t border-gray-200 pt-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Tributos e Dados Fiscais da Nota
+                        </h3>
+                        <?php if ($model->chave_acesso): ?>
+                            <div class="mb-4 bg-gray-50 p-3 rounded-lg border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div>
+                                    <span class="block text-xs font-medium text-gray-500 uppercase">Chave de Acesso NFe</span>
+                                    <span class="font-mono text-sm text-gray-900 select-all font-semibold tracking-wide break-all"><?= Html::encode($model->chave_acesso) ?></span>
+                                </div>
+                                <button type="button" onclick="navigator.clipboard.writeText('<?= Html::encode($model->chave_acesso) ?>'); alert('Chave de acesso copiada!');" class="text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-1 bg-white border border-gray-300 rounded shadow-sm self-start sm:self-auto">
+                                    Copiar Chave
+                                </button>
+                            </div>
+                        <?php endif; ?>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <div class="bg-gray-50 p-3 rounded-lg border">
+                                <span class="block text-xs text-gray-500">Base ICMS</span>
+                                <span class="text-sm font-semibold text-gray-900">R$ <?= number_format($model->valor_base_icms ?? 0, 2, ',', '.') ?></span>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg border">
+                                <span class="block text-xs text-gray-500">Valor ICMS</span>
+                                <span class="text-sm font-semibold text-gray-900">R$ <?= number_format($model->valor_icms ?? 0, 2, ',', '.') ?></span>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg border">
+                                <span class="block text-xs text-gray-500">Valor IPI</span>
+                                <span class="text-sm font-semibold text-gray-900">R$ <?= number_format($model->valor_ipi ?? 0, 2, ',', '.') ?></span>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg border">
+                                <span class="block text-xs text-gray-500">ICMS ST / FCP ST</span>
+                                <span class="text-sm font-semibold text-gray-900">R$ <?= number_format(($model->valor_icms_st ?? 0) + ($model->valor_fcp_st ?? 0), 2, ',', '.') ?></span>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg border">
+                                <span class="block text-xs text-gray-500">Valor PIS</span>
+                                <span class="text-sm font-semibold text-gray-900">R$ <?= number_format($model->valor_pis ?? 0, 2, ',', '.') ?></span>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg border">
+                                <span class="block text-xs text-gray-500">Valor COFINS</span>
+                                <span class="text-sm font-semibold text-gray-900">R$ <?= number_format($model->valor_cofins ?? 0, 2, ',', '.') ?></span>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg border">
+                                <span class="block text-xs text-gray-500">Frete Total</span>
+                                <span class="text-sm font-semibold text-gray-900">R$ <?= number_format($model->valor_frete ?? 0, 2, ',', '.') ?></span>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg border">
+                                <span class="block text-xs text-gray-500">Despesas / Seguro</span>
+                                <span class="text-sm font-semibold text-gray-900">R$ <?= number_format(($model->valor_seguro ?? 0) + ($model->valor_outras_despesas ?? 0), 2, ',', '.') ?></span>
+                            </div>
+                        </div>
+                    </div>
+                <?php endif; ?>
 
                 <!-- Observações -->
                 <?php if ($model->observacoes): ?>

@@ -148,6 +148,15 @@ class CompraController extends Controller
                 $item->codigo_referencia_temp = $itemData['codigo_referencia_temp'] ?? '';
                 $item->codigo_barras = $itemData['codigo_barras'] ?? '';
                 $item->marca = $itemData['marca'] ?? '';
+                $item->ncm = $itemData['ncm'] ?? '';
+                $item->cfop = $itemData['cfop'] ?? '';
+                $item->valor_desconto = isset($itemData['valor_desconto']) ? ItemCompra::parseDecimal($itemData['valor_desconto']) : 0;
+                $item->valor_frete = isset($itemData['valor_frete']) ? ItemCompra::parseDecimal($itemData['valor_frete']) : 0;
+                $item->valor_seguro = isset($itemData['valor_seguro']) ? ItemCompra::parseDecimal($itemData['valor_seguro']) : 0;
+                $item->valor_outras_despesas = isset($itemData['valor_outras_despesas']) ? ItemCompra::parseDecimal($itemData['valor_outras_despesas']) : 0;
+                $item->valor_ipi = isset($itemData['valor_ipi']) ? ItemCompra::parseDecimal($itemData['valor_ipi']) : 0;
+                $item->valor_icms_st = isset($itemData['valor_icms_st']) ? ItemCompra::parseDecimal($itemData['valor_icms_st']) : 0;
+                $item->custo_unitario_real = isset($itemData['custo_unitario_real']) ? ItemCompra::parseDecimal($itemData['custo_unitario_real']) : 0;
                 $item->preco_venda_sugerido_temp = isset($itemData['preco_venda_sugerido_temp']) && $itemData['preco_venda_sugerido_temp'] !== '' ? (float)$itemData['preco_venda_sugerido_temp'] : null;
                 $item->estoque_minimo_temp = isset($itemData['estoque_minimo_temp']) && $itemData['estoque_minimo_temp'] !== '' ? (float)$itemData['estoque_minimo_temp'] : null;
                 $item->ponto_corte_temp = isset($itemData['ponto_corte_temp']) && $itemData['ponto_corte_temp'] !== '' ? (float)$itemData['ponto_corte_temp'] : null;
@@ -173,6 +182,17 @@ class CompraController extends Controller
 
                             $precoUnitario = ItemCompra::parseDecimal($item->preco_unitario ?? 0);
                             $item->preco_unitario = $precoUnitario;
+                            $item->marca = !empty($itemData['marca']) ? trim($itemData['marca']) : null;
+                            $item->ncm = !empty($itemData['ncm']) ? trim($itemData['ncm']) : null;
+                            $item->cfop = !empty($itemData['cfop']) ? trim($itemData['cfop']) : null;
+                            $item->valor_desconto = isset($itemData['valor_desconto']) ? ItemCompra::parseDecimal($itemData['valor_desconto']) : 0;
+                            $item->valor_frete = isset($itemData['valor_frete']) ? ItemCompra::parseDecimal($itemData['valor_frete']) : 0;
+                            $item->valor_seguro = isset($itemData['valor_seguro']) ? ItemCompra::parseDecimal($itemData['valor_seguro']) : 0;
+                            $item->valor_outras_despesas = isset($itemData['valor_outras_despesas']) ? ItemCompra::parseDecimal($itemData['valor_outras_despesas']) : 0;
+                            $item->valor_ipi = isset($itemData['valor_ipi']) ? ItemCompra::parseDecimal($itemData['valor_ipi']) : 0;
+                            $item->valor_icms_st = isset($itemData['valor_icms_st']) ? ItemCompra::parseDecimal($itemData['valor_icms_st']) : 0;
+                            $item->custo_unitario_real = isset($itemData['custo_unitario_real']) ? ItemCompra::parseDecimal($itemData['custo_unitario_real']) : 0;
+                            $item->calcularCustoUnitarioReal();
 
                             // Se produto_id vier vazio (não selecionado no preview), tenta identificar novamente antes de criar Novo
                             if (empty($item->produto_id)) {
@@ -187,6 +207,18 @@ class CompraController extends Controller
 
                                     if ($produtoDb) {
                                         $item->produto_id = $produtoDb->id;
+                                        $atualizarCamposProd = [];
+                                        if (empty($produtoDb->marca) && !empty($item->marca)) {
+                                            $produtoDb->marca = $item->marca;
+                                            $atualizarCamposProd[] = 'marca';
+                                        }
+                                        if (empty($produtoDb->ncm) && !empty($item->ncm)) {
+                                            $produtoDb->ncm = $item->ncm;
+                                            $atualizarCamposProd[] = 'ncm';
+                                        }
+                                        if (!empty($atualizarCamposProd)) {
+                                            $produtoDb->save(false, $atualizarCamposProd);
+                                        }
                                     }
                                 }
                             }
@@ -198,12 +230,14 @@ class CompraController extends Controller
                                 $novoProduto->nome = $itemData['nome_produto_temp'];
                                 $novoProduto->categoria_id = !empty($itemData['categoria_id']) ? $itemData['categoria_id'] : null;
                                 $novoProduto->codigo_barras = !empty($itemData['codigo_barras']) ? $itemData['codigo_barras'] : null;
-                                $novoProduto->marca = !empty($itemData['marca']) ? $itemData['marca'] : null;
+                                $novoProduto->marca = !empty($itemData['marca']) ? trim($itemData['marca']) : null;
+                                $novoProduto->ncm = !empty($itemData['ncm']) ? trim($itemData['ncm']) : null;
                                 $novoProduto->codigo_referencia = !empty($itemData['codigo_referencia_temp']) ? trim($itemData['codigo_referencia_temp']) : null;
-                                $novoProduto->preco_custo = $precoUnitario;
+                                $custoFinal = $item->custo_unitario_real > 0 ? $item->custo_unitario_real : $precoUnitario;
+                                $novoProduto->preco_custo = $custoFinal;
                                 $novoProduto->preco_venda_sugerido = !empty($itemData['preco_venda_sugerido_temp']) 
                                     ? ItemCompra::parseDecimal($itemData['preco_venda_sugerido_temp']) 
-                                    : round($precoUnitario * 1.5, 2);
+                                    : round($custoFinal * 1.5, 2);
                                 $novoProduto->estoque_minimo = !empty($itemData['estoque_minimo_temp']) ? ItemCompra::parseDecimal($itemData['estoque_minimo_temp']) : 0;
                                 $novoProduto->estoque_maximo = !empty($itemData['estoque_maximo_temp']) ? ItemCompra::parseDecimal($itemData['estoque_maximo_temp']) : null;
                                 $novoProduto->ponto_corte = !empty($itemData['ponto_corte_temp']) ? ItemCompra::parseDecimal($itemData['ponto_corte_temp']) : 0;
@@ -339,6 +373,15 @@ class CompraController extends Controller
                 $item->codigo_referencia_temp = $itemData['codigo_referencia_temp'] ?? '';
                 $item->codigo_barras = $itemData['codigo_barras'] ?? '';
                 $item->marca = $itemData['marca'] ?? '';
+                $item->ncm = $itemData['ncm'] ?? '';
+                $item->cfop = $itemData['cfop'] ?? '';
+                $item->valor_desconto = isset($itemData['valor_desconto']) ? ItemCompra::parseDecimal($itemData['valor_desconto']) : 0;
+                $item->valor_frete = isset($itemData['valor_frete']) ? ItemCompra::parseDecimal($itemData['valor_frete']) : 0;
+                $item->valor_seguro = isset($itemData['valor_seguro']) ? ItemCompra::parseDecimal($itemData['valor_seguro']) : 0;
+                $item->valor_outras_despesas = isset($itemData['valor_outras_despesas']) ? ItemCompra::parseDecimal($itemData['valor_outras_despesas']) : 0;
+                $item->valor_ipi = isset($itemData['valor_ipi']) ? ItemCompra::parseDecimal($itemData['valor_ipi']) : 0;
+                $item->valor_icms_st = isset($itemData['valor_icms_st']) ? ItemCompra::parseDecimal($itemData['valor_icms_st']) : 0;
+                $item->custo_unitario_real = isset($itemData['custo_unitario_real']) ? ItemCompra::parseDecimal($itemData['custo_unitario_real']) : 0;
                 $item->preco_venda_sugerido_temp = isset($itemData['preco_venda_sugerido_temp']) && $itemData['preco_venda_sugerido_temp'] !== '' ? (float)$itemData['preco_venda_sugerido_temp'] : null;
                 $item->estoque_minimo_temp = isset($itemData['estoque_minimo_temp']) && $itemData['estoque_minimo_temp'] !== '' ? (float)$itemData['estoque_minimo_temp'] : null;
                 $item->ponto_corte_temp = isset($itemData['ponto_corte_temp']) && $itemData['ponto_corte_temp'] !== '' ? (float)$itemData['ponto_corte_temp'] : null;
@@ -367,6 +410,46 @@ class CompraController extends Controller
 
                             $precoUnitario = ItemCompra::parseDecimal($item->preco_unitario ?? 0);
                             $item->preco_unitario = $precoUnitario;
+                            $item->marca = !empty($itemData['marca']) ? trim($itemData['marca']) : null;
+                            $item->ncm = !empty($itemData['ncm']) ? trim($itemData['ncm']) : null;
+                            $item->cfop = !empty($itemData['cfop']) ? trim($itemData['cfop']) : null;
+                            $item->valor_desconto = isset($itemData['valor_desconto']) ? ItemCompra::parseDecimal($itemData['valor_desconto']) : 0;
+                            $item->valor_frete = isset($itemData['valor_frete']) ? ItemCompra::parseDecimal($itemData['valor_frete']) : 0;
+                            $item->valor_seguro = isset($itemData['valor_seguro']) ? ItemCompra::parseDecimal($itemData['valor_seguro']) : 0;
+                            $item->valor_outras_despesas = isset($itemData['valor_outras_despesas']) ? ItemCompra::parseDecimal($itemData['valor_outras_despesas']) : 0;
+                            $item->valor_ipi = isset($itemData['valor_ipi']) ? ItemCompra::parseDecimal($itemData['valor_ipi']) : 0;
+                            $item->valor_icms_st = isset($itemData['valor_icms_st']) ? ItemCompra::parseDecimal($itemData['valor_icms_st']) : 0;
+                            $item->custo_unitario_real = isset($itemData['custo_unitario_real']) ? ItemCompra::parseDecimal($itemData['custo_unitario_real']) : 0;
+                            $item->calcularCustoUnitarioReal();
+
+                            // Se produto_id vier vazio (não selecionado no preview), tenta identificar novamente antes de criar Novo
+                            if (empty($item->produto_id)) {
+                                $codigoRef = !empty($itemData['codigo_referencia_temp']) ? trim($itemData['codigo_referencia_temp']) : null;
+                                $nomeProd = !empty($itemData['nome_produto_temp']) ? trim($itemData['nome_produto_temp']) : null;
+
+                                if ($codigoRef || $nomeProd) {
+                                    $produtoDb = Produto::find()
+                                        ->where(['usuario_id' => \app\components\TenantHelper::getId()])
+                                        ->andFilterWhere(['OR', ['codigo_referencia' => $codigoRef], ['nome' => $nomeProd]])
+                                        ->one();
+
+                                    if ($produtoDb) {
+                                        $item->produto_id = $produtoDb->id;
+                                        $atualizarCamposProd = [];
+                                        if (empty($produtoDb->marca) && !empty($item->marca)) {
+                                            $produtoDb->marca = $item->marca;
+                                            $atualizarCamposProd[] = 'marca';
+                                        }
+                                        if (empty($produtoDb->ncm) && !empty($item->ncm)) {
+                                            $produtoDb->ncm = $item->ncm;
+                                            $atualizarCamposProd[] = 'ncm';
+                                        }
+                                        if (!empty($atualizarCamposProd)) {
+                                            $produtoDb->save(false, $atualizarCamposProd);
+                                        }
+                                    }
+                                }
+                            }
 
                             // NOVO: Auto-cadastro de produto se não existir
                             if (empty($item->produto_id) && !empty($itemData['nome_produto_temp'])) {
@@ -375,12 +458,14 @@ class CompraController extends Controller
                                 $novoProduto->nome = $itemData['nome_produto_temp'];
                                 $novoProduto->categoria_id = !empty($itemData['categoria_id']) ? $itemData['categoria_id'] : null;
                                 $novoProduto->codigo_barras = !empty($itemData['codigo_barras']) ? $itemData['codigo_barras'] : null;
-                                $novoProduto->marca = !empty($itemData['marca']) ? $itemData['marca'] : null;
+                                $novoProduto->marca = !empty($itemData['marca']) ? trim($itemData['marca']) : null;
+                                $novoProduto->ncm = !empty($itemData['ncm']) ? trim($itemData['ncm']) : null;
                                 $novoProduto->codigo_referencia = !empty($itemData['codigo_referencia_temp']) ? trim($itemData['codigo_referencia_temp']) : null;
-                                $novoProduto->preco_custo = $precoUnitario;
+                                $custoFinal = $item->custo_unitario_real > 0 ? $item->custo_unitario_real : $precoUnitario;
+                                $novoProduto->preco_custo = $custoFinal;
                                 $novoProduto->preco_venda_sugerido = !empty($itemData['preco_venda_sugerido_temp']) 
                                     ? ItemCompra::parseDecimal($itemData['preco_venda_sugerido_temp']) 
-                                    : round($precoUnitario * 1.5, 2);
+                                    : round($custoFinal * 1.5, 2);
                                 $novoProduto->estoque_minimo = !empty($itemData['estoque_minimo_temp']) ? ItemCompra::parseDecimal($itemData['estoque_minimo_temp']) : 0;
                                 $novoProduto->estoque_maximo = !empty($itemData['estoque_maximo_temp']) ? ItemCompra::parseDecimal($itemData['estoque_maximo_temp']) : null;
                                 $novoProduto->ponto_corte = !empty($itemData['ponto_corte_temp']) ? ItemCompra::parseDecimal($itemData['ponto_corte_temp']) : 0;
@@ -788,11 +873,31 @@ class CompraController extends Controller
                     $model->status_compra = Compra::STATUS_PENDENTE;
                     $model->com_nota = true; // Importação de XML de NFe sempre tem nota
 
-                    // Totals
+                    // Chave de acesso da NFe
+                    $chaveAcesso = '';
+                    if (isset($infNFe['Id'])) {
+                        $chaveAcesso = preg_replace('/[^0-9]/', '', (string)$infNFe['Id']);
+                    } elseif (isset($xml->protNFe->infProt->chNFe)) {
+                        $chaveAcesso = (string)$xml->protNFe->infProt->chNFe;
+                    }
+                    $model->chave_acesso = $chaveAcesso ?: null;
+
+                    // Totals e Impostos da NFe
                     if (isset($infNFe->total->ICMSTot)) {
-                        $model->valor_frete = (float)$infNFe->total->ICMSTot->vFrete;
-                        $model->valor_desconto = (float)$infNFe->total->ICMSTot->vDesc;
-                        $model->valor_total = (float)$infNFe->total->ICMSTot->vNF;
+                        $tot = $infNFe->total->ICMSTot;
+                        $model->valor_produtos = (float)($tot->vProd ?? 0);
+                        $model->valor_frete = (float)($tot->vFrete ?? 0);
+                        $model->valor_seguro = (float)($tot->vSeg ?? 0);
+                        $model->valor_desconto = (float)($tot->vDesc ?? 0);
+                        $model->valor_outras_despesas = (float)($tot->vOutro ?? 0);
+                        $model->valor_ipi = (float)($tot->vIPI ?? 0);
+                        $model->valor_icms_st = (float)($tot->vST ?? 0);
+                        $model->valor_fcp_st = (float)($tot->vFCPST ?? 0);
+                        $model->valor_icms = (float)($tot->vICMS ?? 0);
+                        $model->valor_base_icms = (float)($tot->vBC ?? 0);
+                        $model->valor_pis = (float)($tot->vPIS ?? 0);
+                        $model->valor_cofins = (float)($tot->vCOFINS ?? 0);
+                        $model->valor_total = (float)($tot->vNF ?? 0);
                     }
 
                     // =========================================================
@@ -866,6 +971,31 @@ class CompraController extends Controller
                         $codigo = (string)$prod->cProd;
                         $nome = (string)$prod->xProd;
                         $ean = (string)$prod->cEAN;
+                        $ncm = (string)($prod->NCM ?? '');
+                        $cfop = (string)($prod->CFOP ?? '');
+
+                        // Rateios e valores do item
+                        $vFreteItem = (float)($prod->vFrete ?? 0);
+                        $vSegItem = (float)($prod->vSeg ?? 0);
+                        $vDescItem = (float)($prod->vDesc ?? 0);
+                        $vOutroItem = (float)($prod->vOutro ?? 0);
+
+                        // IPI do item
+                        $vIPIItem = 0;
+                        if (isset($itemXml->imposto->IPI->IPITrib->vIPI)) {
+                            $vIPIItem = (float)$itemXml->imposto->IPI->IPITrib->vIPI;
+                        }
+
+                        // ICMS ST do item
+                        $vSTItem = 0;
+                        if (isset($itemXml->imposto->ICMS)) {
+                            foreach ($itemXml->imposto->ICMS->children() as $icmsTag) {
+                                if (isset($icmsTag->vICMSST)) {
+                                    $vSTItem = (float)$icmsTag->vICMSST;
+                                    break;
+                                }
+                            }
+                        }
 
                         // 1. Tenta encontrar produto existente por EAN (se válido)
                         $produtoDb = null;
@@ -875,7 +1005,7 @@ class CompraController extends Controller
                                 ->one();
                         }
 
-                        // NOVO: Sugere venda fracionada baseado na unidade do XML ou no produto existente
+                        // 2. Tenta encontrar produto existente por código ou nome
                         if (!$produtoDb) {
                             $produtoDb = Produto::find()
                                 ->where(['usuario_id' => \app\components\TenantHelper::getId()])
@@ -886,6 +1016,23 @@ class CompraController extends Controller
                                 ])
                                 ->one();
                         }
+
+                        // Determinação inteligente da Marca
+                        $marcaItem = '';
+                        if ($produtoDb && !empty($produtoDb->marca)) {
+                            $marcaItem = $produtoDb->marca;
+                        } else {
+                            $infAdProd = (string)($itemXml->infAdProd ?? '');
+                            if (!empty($infAdProd) && preg_match('/(?:MARCA|FABRICANTE)[:\s]+([^;,.\n\r]+)/i', $infAdProd, $mMarca)) {
+                                $marcaItem = trim($mMarca[1]);
+                            } else {
+                                $marcaItem = $fantasiaEmit;
+                            }
+                        }
+
+                        // Custo Unitário Real de Aquisição (Item com impostos e fretes rateados)
+                        $custoItemTotal = ($preco * $qtd) + $vFreteItem + $vSegItem + $vOutroItem + $vIPIItem + $vSTItem - $vDescItem;
+                        $custoRealUnit = $qtd > 0 ? round($custoItemTotal / $qtd, 5) : $preco;
 
                         $unidadesFracionaveis = ['KG', 'M', 'M3', 'L', 'TON', 'METRO', 'LITRO', 'CM', 'RL'];
                         $vendaFracionadaSugerida = $produtoDb ? (bool)$produtoDb->venda_fracionada : in_array(strtoupper($unidadeXml), $unidadesFracionaveis);
@@ -900,16 +1047,15 @@ class CompraController extends Controller
                             $eanFinal = Produto::gerarCodigoBarrasAuto($cnpjEmit, Yii::$app->user->id);
                         }
 
-                        // 4. Calcula Preço de Venda Sugerido (Markup Divisor Global)
+                        // 4. Calcula Preço de Venda Sugerido baseado no Custo Real Unitário
                         $precoSugerido = 0;
                         try {
-                            $precoSugerido = $configFinanceira->calcularPrecoVendaSugerido($preco);
+                            $precoSugerido = $configFinanceira->calcularPrecoVendaSugerido($custoRealUnit);
                         } catch (\Exception $e) {
-                            $precoSugerido = $preco * 1.5; // Fallback se houver erro no cálculo
+                            $precoSugerido = round($custoRealUnit * 1.5, 2);
                         }
 
                         // 5. Calcula Níveis de Estoque (Baseados na Qtd comprada)
-                        // Sugestão de estoque mínimo/máximo (não usa mais ceil para decimais)
                         if ($vendaFracionadaSugerida) {
                             $estoqueMin = $qtd * 0.20;
                             $pontoCorte = $qtd * 0.50;
@@ -923,10 +1069,20 @@ class CompraController extends Controller
                         $item = new ItemCompra();
                         $item->quantidade = $qtd;
                         $item->preco_unitario = $preco;
+                        $item->valor_total_item = round($preco * $qtd, 2);
+                        $item->valor_frete = $vFreteItem;
+                        $item->valor_seguro = $vSegItem;
+                        $item->valor_desconto = $vDescItem;
+                        $item->valor_outras_despesas = $vOutroItem;
+                        $item->valor_ipi = $vIPIItem;
+                        $item->valor_icms_st = $vSTItem;
+                        $item->custo_unitario_real = $custoRealUnit;
+                        $item->ncm = $ncm;
+                        $item->cfop = $cfop;
+                        $item->marca = $marcaItem;
                         $item->nome_produto_temp = $nome;
                         $item->codigo_barras = $eanFinal;
                         $item->codigo_referencia_temp = $codigo;
-                        $item->marca = $fantasiaEmit;
 
                         // Transporta sugestões para a View e para o auto-cadastro
                         $item->preco_venda_sugerido_temp = $precoSugerido;
