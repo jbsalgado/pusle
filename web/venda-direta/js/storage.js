@@ -44,12 +44,15 @@ export async function removerToken() {
 }
 
 /**
- * Salva carrinho no IndexedDB
+ * Salva carrinho no IndexedDB isolado por tenant
+ * @param {Array} carrinho 
+ * @param {string|null} tenantId 
  */
-export async function salvarCarrinho(carrinho) {
+export async function salvarCarrinho(carrinho, tenantId = null) {
     try {
-        await idbKeyval.set(STORAGE_KEYS.CARRINHO, carrinho);
-        console.log('[Storage] Carrinho salvo');
+        const key = STORAGE_KEYS.getCarrinhoKey(tenantId);
+        await idbKeyval.set(key, carrinho);
+        console.log(`[Storage] Carrinho salvo para chave: ${key}`);
         return true;
     } catch (err) {
         console.error('[Storage] Erro ao salvar carrinho:', err);
@@ -58,13 +61,33 @@ export async function salvarCarrinho(carrinho) {
 }
 
 /**
- * Carrega carrinho do IndexedDB
+ * Carrega carrinho do IndexedDB isolado por tenant
+ * @param {string|null} tenantId 
  */
-export async function carregarCarrinho() {
+export async function carregarCarrinho(tenantId = null) {
     try {
-        const carrinho = await idbKeyval.get(STORAGE_KEYS.CARRINHO);
-        // Garante que retorne um array vazio se a chave não existir
-        return Array.isArray(carrinho) ? carrinho : []; 
+        const activeTenant = tenantId || CONFIG.ID_USUARIO_LOJA;
+        const key = STORAGE_KEYS.getCarrinhoKey(activeTenant);
+        const carrinho = await idbKeyval.get(key);
+
+        // Limpeza de segurança: se existir chave legada não-isolada, purga para evitar vazamento
+        try {
+            const legacyCarrinho = await idbKeyval.get(STORAGE_KEYS.CARRINHO);
+            if (legacyCarrinho) {
+                console.warn('[Storage] 🧹 Purgando carrinho legado sem isolamento multi-tenant...');
+                await idbKeyval.del(STORAGE_KEYS.CARRINHO);
+            }
+        } catch (_) {}
+
+        if (Array.isArray(carrinho)) {
+            // Filtro estrito: garante que nenhum produto de outro tenant seja aceito
+            const itensValidos = carrinho.filter(item => {
+                if (!item.tenant_id) return true; // Itens legados da própria loja
+                return !activeTenant || item.tenant_id === activeTenant;
+            });
+            return itensValidos;
+        }
+        return [];
     } catch (err) {
         console.error('[Storage] Erro ao carregar carrinho:', err);
         return [];
@@ -72,12 +95,16 @@ export async function carregarCarrinho() {
 }
 
 /**
- * Remove carrinho do IndexedDB (usando del)
+ * Remove carrinho do IndexedDB isolado por tenant
+ * @param {string|null} tenantId 
  */
-export async function limparCarrinho() {
+export async function limparCarrinho(tenantId = null) {
     try {
-        await idbKeyval.del(STORAGE_KEYS.CARRINHO);
-        console.log('[Storage] Carrinho removido');
+        const key = STORAGE_KEYS.getCarrinhoKey(tenantId);
+        await idbKeyval.del(key);
+        // Também remove o legado se existir
+        try { await idbKeyval.del(STORAGE_KEYS.CARRINHO); } catch (_) {}
+        console.log(`[Storage] Carrinho removido da chave: ${key}`);
         return true;
     } catch (err) {
         console.error('[Storage] Erro ao limpar carrinho:', err);
@@ -86,27 +113,33 @@ export async function limparCarrinho() {
 }
 
 /**
- * Salva pedido pendente no IndexedDB
- * Se 'pedido' for null, remove a chave.
+ * Salva pedido pendente no IndexedDB isolado por tenant
+ * Se 'pedido' for null, remove a chave do tenant.
+ * @param {Object|null} pedido 
+ * @param {string|null} tenantId 
  */
-export async function salvarPedidoPendente(pedido) {
+export async function salvarPedidoPendente(pedido, tenantId = null) {
     try {
+        const key = STORAGE_KEYS.getPedidoPendenteKey(tenantId);
         if (pedido === null) {
-            await idbKeyval.del(STORAGE_KEYS.PEDIDO_PENDENTE); 
-            console.log('[Storage] Todos os pedidos pendentes removidos');
+            await idbKeyval.del(key); 
+            console.log(`[Storage] Todos os pedidos pendentes removidos para chave: ${key}`);
             return true;
         }
         
         // Carrega pedidos existentes ou cria novo array
-        const pedidosExistentes = await idbKeyval.get(STORAGE_KEYS.PEDIDO_PENDENTE) || [];
+        const pedidosExistentes = await idbKeyval.get(key) || [];
         const listaPedidos = Array.isArray(pedidosExistentes) ? pedidosExistentes : [pedidosExistentes];
         
         // Adiciona o novo pedido com um ID temporário local
         pedido.id_local = Date.now() + Math.random().toString(36).substr(2, 9);
+        if (!pedido.usuario_id && CONFIG.ID_USUARIO_LOJA) {
+            pedido.usuario_id = CONFIG.ID_USUARIO_LOJA;
+        }
         listaPedidos.push(pedido);
         
-        await idbKeyval.set(STORAGE_KEYS.PEDIDO_PENDENTE, listaPedidos);
-        console.log(`[Storage] Pedido pendente salvo (${listaPedidos.length} no total)`);
+        await idbKeyval.set(key, listaPedidos);
+        console.log(`[Storage] Pedido pendente salvo (${listaPedidos.length} no total) para chave: ${key}`);
         return true;
     } catch (err) {
         console.error('[Storage] Erro ao salvar pedido:', err);
@@ -134,12 +167,15 @@ export async function limparCacheProdutos() {
 }
 
 /**
- * Salva formas de pagamento no IndexedDB para uso offline
+ * Salva formas de pagamento no IndexedDB para uso offline isolado por tenant
+ * @param {Array} formas 
+ * @param {string|null} tenantId 
  */
-export async function salvarFormasPagamento(formas) {
+export async function salvarFormasPagamento(formas, tenantId = null) {
     try {
-        await idbKeyval.set(STORAGE_KEYS.FORMAS_PAGAMENTO, formas);
-        console.log('[Storage] Formas de pagamento salvas no cache');
+        const key = STORAGE_KEYS.getFormasPagamentoKey(tenantId);
+        await idbKeyval.set(key, formas);
+        console.log(`[Storage] Formas de pagamento salvas no cache para chave: ${key}`);
         return true;
     } catch (err) {
         console.error('[Storage] Erro ao salvar formas de pagamento:', err);
@@ -148,11 +184,13 @@ export async function salvarFormasPagamento(formas) {
 }
 
 /**
- * Carrega formas de pagamento do IndexedDB (cache offline)
+ * Carrega formas de pagamento do IndexedDB (cache offline) isolado por tenant
+ * @param {string|null} tenantId 
  */
-export async function carregarFormasPagamentoCache() {
+export async function carregarFormasPagamentoCache(tenantId = null) {
     try {
-        const formas = await idbKeyval.get(STORAGE_KEYS.FORMAS_PAGAMENTO);
+        const key = STORAGE_KEYS.getFormasPagamentoKey(tenantId);
+        const formas = await idbKeyval.get(key);
         return Array.isArray(formas) ? formas : [];
     } catch (err) {
         console.error('[Storage] Erro ao carregar formas de pagamento do cache:', err);
@@ -162,18 +200,19 @@ export async function carregarFormasPagamentoCache() {
 
 /**
  * Limpa todos os dados locais após sincronização
+ * @param {string|null} tenantId 
  */
-export async function limparDadosLocaisPosSinc() {
+export async function limparDadosLocaisPosSinc(tenantId = null) {
     console.log('[Storage] Limpando dados locais pós-sincronização...');
     
-    // 1. Limpa o pedido pendente
-    await salvarPedidoPendente(null);
+    // 1. Limpa o pedido pendente do tenant
+    await salvarPedidoPendente(null, tenantId);
     
     // 2. Limpa o cache de produtos
     await limparCacheProdutos();
     
-    // 3. Remove o carrinho do IndexedDB
-    await limparCarrinho(); 
+    // 3. Remove o carrinho do IndexedDB do tenant
+    await limparCarrinho(tenantId); 
     
     console.log('[Storage] Limpeza de dados locais concluída.');
 }

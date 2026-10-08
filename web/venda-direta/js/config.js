@@ -146,10 +146,24 @@ export const API_ENDPOINTS = {
     WHATSAPP_SEND: `${CONFIG.URL_API}/api/whatsapp/send`,
 };
 
+/**
+ * Gera chave de storage isolada por tenant (multi-tenancy)
+ * @param {string} baseKey 
+ * @param {string|null} tenantId 
+ * @returns {string}
+ */
+export function getTenantStorageKey(baseKey, tenantId = null) {
+    const id = tenantId || CONFIG.ID_USUARIO_LOJA;
+    return id ? `${baseKey}_${id}` : baseKey;
+}
+
 export const STORAGE_KEYS = {
     CARRINHO: 'carrinho_venda_direta',
     PEDIDO_PENDENTE: 'pedido_pendente_venda_direta',
-    FORMAS_PAGAMENTO: 'formas_pagamento_venda_direta' // Cache offline de formas de pagamento
+    FORMAS_PAGAMENTO: 'formas_pagamento_venda_direta', // Cache offline de formas de pagamento
+    getCarrinhoKey: (tenantId = null) => getTenantStorageKey('carrinho_venda_direta', tenantId),
+    getPedidoPendenteKey: (tenantId = null) => getTenantStorageKey('pedido_pendente_venda_direta', tenantId),
+    getFormasPagamentoKey: (tenantId = null) => getTenantStorageKey('formas_pagamento_venda_direta', tenantId),
 };
 
 // ✅ NOVA: Configuração de gateway (carregada dinamicamente)

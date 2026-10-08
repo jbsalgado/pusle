@@ -1,4 +1,4 @@
-import { carregarConfigLoja, GATEWAY_CONFIG, CONFIG, API_ENDPOINTS, ELEMENTOS_CRITICOS } from './config.js';
+import { carregarConfigLoja, GATEWAY_CONFIG, CONFIG, API_ENDPOINTS, ELEMENTOS_CRITICOS } from './config.js?v=20261008_v2';
 import { fetchWithAuth } from './api.js';
 import { 
     getCarrinho, setCarrinho, adicionarAoCarrinho, removerDoCarrinho,
@@ -8,13 +8,13 @@ import {
     getDescontoGlobal, setDescontoGlobal, calcularSubtotalBruto, calcularTotalDescontosItens,
     calcularSubtotalAposDescontoItens, calcularValorDescontoGlobal,
     getPrecoVigente
-} from './cart.js';
-import { carregarCarrinho, limparDadosLocaisPosSinc, carregarFormasPagamentoCache } from './storage.js';
+} from './cart.js?v=20261008_v2';
+import { carregarCarrinho, limparDadosLocaisPosSinc, carregarFormasPagamentoCache } from './storage.js?v=20261008_v2';
 import { finalizarPedido } from './order.js';
 import { carregarFormasPagamento } from './payment.js';
 import { validarCPF, maskCPF, maskPhone, maskCEP, formatarMoeda, formatarQuantidade, formatarCPF, verificarElementosCriticos } from './utils.js';
 import { mostrarModalPixEstatico, gerarComprovanteVenda } from './pix.js?v=20260918_v1'; // Importação do módulo de comprovante e pix
-import { verificarAutenticacao, getColaboradorData } from './auth.js'; // Importação do módulo de autenticação
+import { verificarAutenticacao, getColaboradorData } from './auth.js?v=20261008_v2'; // Importação do módulo de autenticação
 import { buscarClientePorCpf, cadastrarCliente, getClienteAtual, setClienteAtual } from './customer.js'; // Importação do módulo de cliente
 import { inicializarGerenciamentoMaquinetas } from './devices.js'; // Importação do gerenciamento de maquinetas
 
@@ -58,13 +58,24 @@ async function init() {
         window.CONFIG = CONFIG; // Mantém referência global sincronizada
         console.log('[App] 🏪 Tenant resolvido (venda-direta):', tenantId);
 
+        // 🔒 DETECÇÃO DE TROCA DE LOJA (MULTI-TENANT ISOLATION)
+        const previousTenantId = sessionStorage.getItem('venda_direta_tenant_ativo') 
+                              || localStorage.getItem('venda_direta_last_tenant');
+        if (previousTenantId && previousTenantId !== tenantId) {
+            console.warn(`[App] ⚠️ Troca de loja detectada: anterior=${previousTenantId}, atual=${tenantId}. Isolando ambiente da nova loja.`);
+            setCarrinho([], tenantId);
+            cacheProdutos.clear();
+        }
+        sessionStorage.setItem('venda_direta_tenant_ativo', tenantId);
+        localStorage.setItem('venda_direta_last_tenant', tenantId);
+
         verificarElementosCriticos(ELEMENTOS_CRITICOS);
         popularOpcoesParcelas();
         await carregarConfigLoja();
         aplicarConfiguracaoVendaAvulsa(CONFIG.VENDA_AVULSA_ATIVA);
         await carregarLogoEmpresa(); // Carrega logo da empresa
         await registrarServiceWorker();
-        await carregarCarrinhoInicial();
+        await carregarCarrinhoInicial(tenantId);
         // ✅ Carrega categorias e marcas antes dos produtos
         await carregarCategorias();
         await carregarMarcas();
@@ -124,6 +135,7 @@ async function carregarLogoEmpresa() {
         
         if (response.ok) {
             const dadosLoja = await response.json();
+            window.dadosLojaAtual = dadosLoja;
             console.log('[App] 📋 Dados da loja recebidos:', { 
                 tem_logo_path: !!dadosLoja.logo_path, 
                 logo_path: dadosLoja.logo_path 
@@ -251,8 +263,8 @@ function configurarListenerServiceWorker() {
                 // Se for o último (ou único), limpa tudo
                 const pedidosPendentes = await idbKeyval.get(CONFIG.STORAGE_KEYS?.PEDIDO_PENDENTE || 'pedido_pendente_venda_direta');
                 if (!pedidosPendentes || pedidosPendentes.length === 0) {
-                    await limparDadosLocaisPosSinc();
-                    await carregarCarrinhoInicial();
+                    await limparDadosLocaisPosSinc(CONFIG.ID_USUARIO_LOJA);
+                    await carregarCarrinhoInicial(CONFIG.ID_USUARIO_LOJA);
                     atualizarBadgeCarrinho();
                     renderizarCarrinho();
                     fecharModal('modal-cliente-pedido');
@@ -292,12 +304,13 @@ async function atualizarBadgeSincronizacao() {
 }
 
 // Carrinho
-async function carregarCarrinhoInicial() {
+async function carregarCarrinhoInicial(tenantId = null) {
     try {
-        const carrinhoSalvo = await carregarCarrinho();
-        setCarrinho(carrinhoSalvo);
+        const idLoja = tenantId || CONFIG.ID_USUARIO_LOJA;
+        const carrinhoSalvo = await carregarCarrinho(idLoja);
+        setCarrinho(carrinhoSalvo, idLoja);
     } catch (error) {
-        setCarrinho([]);
+        setCarrinho([], tenantId);
     }
 }
 
@@ -319,10 +332,17 @@ function renderizarCarrinho() {
     const btnFinalizar = document.getElementById('btn-finalizar-pedido');
     const btnLimpar = document.getElementById('btn-limpar-carrinho');
     
+    // Atualiza identificação visual da loja no modal Meu Carrinho
+    const subtituloCarrinho = document.getElementById('subtitulo-carrinho');
+    if (subtituloCarrinho) {
+        const nomeLoja = window.dadosLojaAtual?.razao_social || window.dadosLojaAtual?.nome_fantasia || '';
+        subtituloCarrinho.textContent = nomeLoja ? `Revise seus itens • ${nomeLoja}` : 'Revise seus itens';
+    }
+
     const carrinho = getCarrinho();
     
     if (carrinho.length === 0) {
-        if (container) container.innerHTML = '<p id="carrinho-vazio-msg" class="text-center text-gray-500 py-8">Seu carrinho está vazio</p>';
+        if (container) container.innerHTML = '<p id="carrinho-vazio-msg" class="text-center text-gray-500 py-8">Seu carrinho nesta loja está vazio</p>';
         if (btnFinalizar) btnFinalizar.disabled = true;
         if (btnLimpar) btnLimpar.classList.add('hidden');
         if (totalElement) totalElement.textContent = 'R$ 0,00';
@@ -1600,9 +1620,9 @@ window.abrirModalQuantidade = function(produtoId) {
  * Limpa todos os itens do carrinho com confirmação
  */
 window.limparTodoOCarrinho = async function() {
-    if (confirm('Tem certeza que deseja remover todos os itens do carrinho? Esta ação não pode ser desfeita.')) {
+    if (confirm('Tem certeza que deseja remover todos os itens do carrinho desta loja? Esta ação não pode ser desfeita.')) {
         try {
-            await limparCarrinho();
+            await limparCarrinho(CONFIG.ID_USUARIO_LOJA);
             renderizarCarrinho();
             atualizarBadgeCarrinho();
             
@@ -3342,8 +3362,8 @@ async function carregarOrcamentoNoCarrinho(id) {
         const orcamento = await response.json();
         console.log('[App] 📋 Dados do orçamento recebidos:', orcamento);
         
-        // 1. Limpa o carrinho atual
-        await limparCarrinho();
+        // 1. Limpa o carrinho atual da loja
+        await limparCarrinho(CONFIG.ID_USUARIO_LOJA);
         
         // 2. Adiciona itens ao carrinho
         if (orcamento.itens && Array.isArray(orcamento.itens)) {

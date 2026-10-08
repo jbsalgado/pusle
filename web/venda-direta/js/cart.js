@@ -1,6 +1,7 @@
 // cart.js - Gerenciamento do carrinho de compras
 
 import { salvarCarrinho } from "./storage.js";
+import { CONFIG } from "./config.js";
 
 let carrinho = [];
 
@@ -12,10 +13,21 @@ export function getCarrinho() {
 }
 
 /**
- * Define o carrinho
+ * Define o carrinho com validação estrita de tenant
+ * @param {Array} novoCarrinho 
+ * @param {string|null} tenantId 
  */
-export function setCarrinho(novoCarrinho) {
-  carrinho = novoCarrinho;
+export function setCarrinho(novoCarrinho, tenantId = null) {
+  const idLoja = tenantId || CONFIG.ID_USUARIO_LOJA;
+  if (Array.isArray(novoCarrinho)) {
+    // 🔒 Isola estritamente para o tenant atual se o item possuir tenant_id
+    carrinho = novoCarrinho.filter(item => {
+      if (!item.tenant_id) return true;
+      return !idLoja || item.tenant_id === idLoja;
+    });
+  } else {
+    carrinho = [];
+  }
 }
 
 /**
@@ -76,6 +88,7 @@ export function adicionarAoCarrinho(produto, quantidade) {
 
   const itemParaAdicionar = {
     ...produto,
+    tenant_id: CONFIG.ID_USUARIO_LOJA || produto.usuario_id || null, // 🔒 Multi-Tenant: isola por loja
     produto_id: produto.id, // Garante que o backend receba o que espera
     quantidade: quantidade,
     preco_final: precoFinalInicial,
@@ -88,7 +101,7 @@ export function adicionarAoCarrinho(produto, quantidade) {
 
   carrinho.push(itemParaAdicionar);
 
-  salvarCarrinho(carrinho);
+  salvarCarrinho(carrinho, CONFIG.ID_USUARIO_LOJA);
 
   return true;
 }
@@ -328,11 +341,13 @@ export function calcularTotalPecas() {
 }
 
 /**
- * Limpa o carrinho
+ * Limpa o carrinho para a loja/tenant ativa
+ * @param {string|null} tenantId 
  */
-export async function limparCarrinho() {
+export async function limparCarrinho(tenantId = null) {
   carrinho = [];
-  await salvarCarrinho(carrinho); // ✅ CORREÇÃO: Aguarda salvar o array vazio no IndexedDB
+  const idLoja = tenantId || CONFIG.ID_USUARIO_LOJA;
+  await salvarCarrinho(carrinho, idLoja); // ✅ Salva o array vazio no IndexedDB do tenant
 
   // NOVO: Atualiza visualmente todos os cards para remover o indicador 'no carrinho'
   const todosCards = document.querySelectorAll(`[data-produto-card]`);

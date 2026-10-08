@@ -1,6 +1,6 @@
 // auth.js - Módulo de autenticação e gerenciamento de usuário
 import { CONFIG, API_ENDPOINTS } from './config.js';
-import { getToken, salvarToken, removerToken } from './storage.js';
+import { getToken, salvarToken, removerToken, limparCarrinho } from './storage.js';
 
 const STORAGE_KEY_USER = 'venda_direta_user_data';
 const STORAGE_KEY_COLABORADOR = 'venda_direta_colaborador_data';
@@ -16,6 +16,10 @@ export async function verificarAutenticacao() {
 
         if (tokenUrl) {
             console.log('[Auth] 🔗 Token encontrado na URL. Realizando login via Bridge...');
+            // 🔒 Limpa cache de usuário anterior para evitar contaminação cross-tenant
+            localStorage.removeItem(STORAGE_KEY_USER);
+            localStorage.removeItem(STORAGE_KEY_COLABORADOR);
+            sessionStorage.removeItem('venda_direta_tenant_ativo');
             await salvarToken(tokenUrl);
             
             // Limpa a URL para não expor o token
@@ -146,11 +150,21 @@ export function getUserData() {
 }
 
 /**
- * Limpa dados do usuário (logout)
+ * Limpa dados do usuário (logout) e dados locais da loja
  */
 export async function limparDadosUsuario() {
+    try {
+        const tenantId = CONFIG.ID_USUARIO_LOJA;
+        if (tenantId) {
+            await limparCarrinho(tenantId);
+        }
+    } catch (e) {
+        console.warn('[Auth] Erro ao limpar carrinho no logout:', e);
+    }
     localStorage.removeItem(STORAGE_KEY_USER);
     localStorage.removeItem(STORAGE_KEY_COLABORADOR);
+    localStorage.removeItem('venda_direta_last_tenant');
+    sessionStorage.removeItem('venda_direta_tenant_ativo');
     await removerToken();
     window.location.reload();
 }
