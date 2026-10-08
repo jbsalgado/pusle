@@ -392,16 +392,17 @@ class CaixaHelper
             $dataHora = $dataPagamento ? date('Y-m-d H:i:s', strtotime($dataPagamento . ' ' . date('H:i:s'))) : date('Y-m-d H:i:s');
             $descBase = $conta ? substr($conta->descricao, 0, 50) : "Conta #{$contaPagarId}";
 
-            // 1. REGISTRO DE ENTRADA (Aporte para cobertura do pagamento)
+            // 1. REGISTRO DE ENTRADA (Aporte para cobertura do pagamento - Não Operacional)
             $movEntrada = new CaixaMovimentacao();
             $movEntrada->caixa_id = $caixa->id;
             $movEntrada->tipo = CaixaMovimentacao::TIPO_ENTRADA;
-            $movEntrada->categoria = CaixaMovimentacao::CATEGORIA_SUPRIMENTO;
+            $movEntrada->categoria = CaixaMovimentacao::CATEGORIA_APORTE_CONTA;
             $movEntrada->valor = $valor;
-            $movEntrada->descricao = "Aporte p/ Pagamento: {$descBase} ({$formaNome})";
+            $movEntrada->descricao = "Aporte Não Operacional p/ Pagamento: {$descBase} ({$formaNome})";
             $movEntrada->conta_pagar_id = $contaPagarId;
             $movEntrada->forma_pagamento_id = $formaPagamentoId ?: ($conta->forma_pagamento_id ?? null);
             $movEntrada->data_movimento = $dataHora;
+            $movEntrada->observacoes = "Lançamento contábil de contrapartida (cobertura externa). Não compõe faturamento ou receita de vendas do dia.";
 
             if (!$movEntrada->save()) {
                 $erros = $movEntrada->getFirstErrors();
@@ -419,6 +420,7 @@ class CaixaHelper
             $movSaida->conta_pagar_id = $contaPagarId;
             $movSaida->forma_pagamento_id = $formaPagamentoId ?: ($conta->forma_pagamento_id ?? null);
             $movSaida->data_movimento = $dataHora;
+            $movSaida->observacoes = "Pagamento com cobertura externa ({$formaNome}). Impacto líquido no caixa: R$ 0,00.";
 
             if (!$movSaida->save()) {
                 $erros = $movSaida->getFirstErrors();

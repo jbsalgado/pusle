@@ -44,6 +44,7 @@ class CaixaMovimentacao extends ActiveRecord
     const CATEGORIA_SUPRIMENTO = 'SUPRIMENTO';
     const CATEGORIA_SANGRIA = 'SANGRIA';
     const CATEGORIA_CONTA_PAGAR = 'CONTA_PAGAR';
+    const CATEGORIA_APORTE_CONTA = 'APORTE_CONTA';
     const CATEGORIA_OUTRO = 'OUTRO';
 
     /**
@@ -163,6 +164,66 @@ class CaixaMovimentacao extends ActiveRecord
     public function isSaida()
     {
         return $this->tipo === self::TIPO_SAIDA;
+    }
+
+    /**
+     * Verifica se é receita real de venda/recebimento de cliente (Operacional)
+     * @return bool
+     */
+    public function isReceitaVenda()
+    {
+        return $this->tipo === self::TIPO_ENTRADA 
+            && in_array($this->categoria, [self::CATEGORIA_VENDA, self::CATEGORIA_PAGAMENTO]) 
+            && empty($this->conta_pagar_id);
+    }
+
+    /**
+     * Verifica se é um aporte/cobertura contábil para pagar conta (Não Operacional / Sem impacto em faturamento)
+     * @return bool
+     */
+    public function isAporteConta()
+    {
+        return $this->tipo === self::TIPO_ENTRADA 
+            && ($this->categoria === self::CATEGORIA_APORTE_CONTA || !empty($this->conta_pagar_id));
+    }
+
+    /**
+     * Verifica se a movimentação é operacional comercial
+     * @return bool
+     */
+    public function isOperacional()
+    {
+        return !$this->isAporteConta();
+    }
+
+    /**
+     * Lista de categorias com rótulos amigáveis
+     * @return array
+     */
+    public static function getCategoriasList()
+    {
+        return [
+            self::CATEGORIA_VENDA => 'Venda',
+            self::CATEGORIA_PAGAMENTO => 'Recebimento de Parcela',
+            self::CATEGORIA_SUPRIMENTO => 'Suprimento / Troco',
+            self::CATEGORIA_SANGRIA => 'Sangria / Retirada',
+            self::CATEGORIA_CONTA_PAGAR => 'Pagamento de Conta',
+            self::CATEGORIA_APORTE_CONTA => 'Aporte p/ Conta (Não Operacional)',
+            self::CATEGORIA_OUTRO => 'Outro',
+        ];
+    }
+
+    /**
+     * Retorna o nome amigável da categoria
+     * @return string
+     */
+    public function getCategoriaNome()
+    {
+        if ($this->isAporteConta()) {
+            return 'Aporte p/ Conta (Não Operacional)';
+        }
+        $lista = self::getCategoriasList();
+        return $lista[$this->categoria] ?? ($this->categoria ?: 'Não Especificado');
     }
 }
 

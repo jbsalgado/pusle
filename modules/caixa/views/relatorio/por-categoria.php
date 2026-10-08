@@ -72,7 +72,10 @@ $totalSaidas = array_sum(array_column($saidas, 'total_valor'));
                             <?php foreach ($entradas as $entrada): ?>
                                 <div class="border-b pb-4">
                                     <div class="flex justify-between items-center mb-2">
-                                        <span class="font-semibold text-gray-700"><?= Html::encode($entrada['categoria'] ?? 'Sem Categoria') ?></span>
+                                        <?php 
+                                        $catLabel = \app\modules\caixa\models\CaixaMovimentacao::getCategoriasList()[$entrada['categoria']] ?? ($entrada['categoria'] ?: 'Sem Categoria');
+                                        ?>
+                                        <span class="font-semibold text-gray-700"><?= Html::encode($catLabel) ?></span>
                                         <span class="text-green-600 font-bold"><?= Yii::$app->formatter->asCurrency($entrada['total_valor']) ?></span>
                                     </div>
                                     <div class="flex justify-between text-sm text-gray-500">
@@ -103,7 +106,10 @@ $totalSaidas = array_sum(array_column($saidas, 'total_valor'));
                             <?php foreach ($saidas as $saida): ?>
                                 <div class="border-b pb-4">
                                     <div class="flex justify-between items-center mb-2">
-                                        <span class="font-semibold text-gray-700"><?= Html::encode($saida['categoria'] ?? 'Sem Categoria') ?></span>
+                                        <?php 
+                                        $catSaidaLabel = \app\modules\caixa\models\CaixaMovimentacao::getCategoriasList()[$saida['categoria']] ?? ($saida['categoria'] ?: 'Sem Categoria');
+                                        ?>
+                                        <span class="font-semibold text-gray-700"><?= Html::encode($catSaidaLabel) ?></span>
                                         <span class="text-red-600 font-bold"><?= Yii::$app->formatter->asCurrency($saida['total_valor']) ?></span>
                                     </div>
                                     <div class="flex justify-between text-sm text-gray-500">

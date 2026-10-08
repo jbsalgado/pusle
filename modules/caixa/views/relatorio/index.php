@@ -52,48 +52,67 @@ $this->params['breadcrumbs'][] = $this->title;
             </div>
         <?php endif; ?>
 
-        <!-- Estatísticas Gerais -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <!-- Estatísticas Gerais Segregadas (Operacional vs Aportes) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
 
-            <!-- Entradas Hoje -->
-            <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+            <!-- Vendas Hoje (Operacional) -->
+            <div class="bg-white rounded-2xl shadow-sm hover:shadow p-5 border-l-4 border-emerald-500">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-600 mb-1">Entradas Hoje</p>
-                        <p class="text-2xl font-bold text-green-600"><?= Yii::$app->formatter->asCurrency($stats['entradas_hoje']) ?></p>
+                        <span class="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">Vendas Hoje</span>
+                        <p class="text-2xl font-black text-gray-900 mt-2"><?= Yii::$app->formatter->asCurrency($stats['vendas_hoje']) ?></p>
+                        <p class="text-[11px] text-gray-400 mt-1">Faturamento operacional real</p>
                     </div>
-                    <div class="bg-green-100 p-3 rounded-full">
-                        <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    <div class="bg-emerald-100 p-3 rounded-2xl text-emerald-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Aportes / Recursos Externos (Não Operacional) -->
+            <div class="bg-white rounded-2xl shadow-sm hover:shadow p-5 border-l-4 border-sky-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md">Aportes Contábeis</span>
+                        <p class="text-2xl font-black text-gray-900 mt-2"><?= Yii::$app->formatter->asCurrency($stats['aportes_hoje']) ?></p>
+                        <p class="text-[11px] text-gray-400 mt-1">Coberturas p/ contas (sem faturamento)</p>
+                    </div>
+                    <div class="bg-sky-100 p-3 rounded-2xl text-sky-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                         </svg>
                     </div>
                 </div>
             </div>
 
             <!-- Saídas Hoje -->
-            <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
+            <div class="bg-white rounded-2xl shadow-sm hover:shadow p-5 border-l-4 border-rose-500">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-600 mb-1">Saídas Hoje</p>
-                        <p class="text-2xl font-bold text-red-600"><?= Yii::$app->formatter->asCurrency($stats['saidas_hoje']) ?></p>
+                        <span class="text-xs font-bold uppercase tracking-wider text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md">Saídas Hoje</span>
+                        <p class="text-2xl font-black text-rose-600 mt-2"><?= Yii::$app->formatter->asCurrency($stats['saidas_hoje']) ?></p>
+                        <p class="text-[11px] text-gray-400 mt-1">Despesas e contas pagas</p>
                     </div>
-                    <div class="bg-red-100 p-3 rounded-full">
-                        <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="bg-rose-100 p-3 rounded-2xl text-rose-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
                         </svg>
                     </div>
                 </div>
             </div>
 
-            <!-- Total Mês -->
-            <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+            <!-- Vendas no Mês (Operacional) -->
+            <div class="bg-white rounded-2xl shadow-sm hover:shadow p-5 border-l-4 border-indigo-500">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-600 mb-1">Total Este Mês</p>
-                        <p class="text-2xl font-bold text-blue-600"><?= Yii::$app->formatter->asCurrency($stats['total_mes']) ?></p>
+                        <span class="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">Vendas no Mês</span>
+                        <p class="text-2xl font-black text-indigo-600 mt-2"><?= Yii::$app->formatter->asCurrency($stats['total_mes']) ?></p>
+                        <p class="text-[11px] text-gray-400 mt-1">Receita operacional acumulada</p>
                     </div>
-                    <div class="bg-blue-100 p-3 rounded-full">
-                        <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="bg-indigo-100 p-3 rounded-2xl text-indigo-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                     </div>

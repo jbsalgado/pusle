@@ -47,19 +47,27 @@ $this->params['breadcrumbs'][] = $this->title;
             </form>
         </div>
 
-        <!-- Resumo -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
-                <p class="text-sm text-gray-600 mb-1">Total Entradas</p>
-                <p class="text-2xl font-bold text-green-600"><?= Yii::$app->formatter->asCurrency($totalEntradas) ?></p>
+        <!-- Resumo Segregado -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
+            <div class="bg-white rounded-2xl shadow-sm p-5 border-l-4 border-emerald-500">
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">Vendas (Operacional)</span>
+                <p class="text-2xl font-black text-gray-900 mt-2"><?= Yii::$app->formatter->asCurrency($totalVendas ?? $totalEntradas) ?></p>
+                <p class="text-[11px] text-gray-400 mt-1">Faturamento de vendas no período</p>
             </div>
-            <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
-                <p class="text-sm text-gray-600 mb-1">Total Saídas</p>
-                <p class="text-2xl font-bold text-red-600"><?= Yii::$app->formatter->asCurrency($totalSaidas) ?></p>
+            <div class="bg-white rounded-2xl shadow-sm p-5 border-l-4 border-sky-500">
+                <span class="text-xs font-bold uppercase tracking-wider text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md">Aportes Contábeis</span>
+                <p class="text-2xl font-black text-gray-900 mt-2"><?= Yii::$app->formatter->asCurrency($totalAportes ?? 0) ?></p>
+                <p class="text-[11px] text-gray-400 mt-1">Coberturas p/ contas (sem faturamento)</p>
             </div>
-            <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
-                <p class="text-sm text-gray-600 mb-1">Saldo</p>
-                <p class="text-2xl font-bold text-blue-600"><?= Yii::$app->formatter->asCurrency($totalEntradas - $totalSaidas) ?></p>
+            <div class="bg-white rounded-2xl shadow-sm p-5 border-l-4 border-rose-500">
+                <span class="text-xs font-bold uppercase tracking-wider text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md">Total Saídas</span>
+                <p class="text-2xl font-black text-rose-600 mt-2"><?= Yii::$app->formatter->asCurrency($totalSaidas) ?></p>
+                <p class="text-[11px] text-gray-400 mt-1">Despesas e pagamentos efetuados</p>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm p-5 border-l-4 border-indigo-500">
+                <span class="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">Saldo do Período</span>
+                <p class="text-2xl font-black text-indigo-700 mt-2"><?= Yii::$app->formatter->asCurrency($totalEntradas - $totalSaidas) ?></p>
+                <p class="text-[11px] text-gray-400 mt-1">Impacto líquido nas gavetas</p>
             </div>
         </div>
 
@@ -78,47 +86,58 @@ $this->params['breadcrumbs'][] = $this->title;
         </div>
 
         <!-- Tabela de Movimentações -->
-        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                    <thead class="bg-gray-50/60">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data/Hora</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Forma Pagamento</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Data/Hora</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Tipo</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Categoria</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Descrição</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Forma Pagamento</th>
+                            <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Valor</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody class="bg-white divide-y divide-gray-100 text-sm">
                         <?php foreach ($dataProvider->models as $mov): ?>
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    <?= Yii::$app->formatter->asDatetime($mov->data_movimentacao) ?>
+                            <tr class="hover:bg-gray-50/80 transition-colors">
+                                <td class="px-6 py-3.5 whitespace-nowrap text-gray-600 text-xs font-mono">
+                                    <?= Yii::$app->formatter->asDatetime($mov->data_movimento) ?>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <?php if ($mov->tipo_movimentacao === 'ENTRADA'): ?>
-                                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                                            ENTRADA
+                                <td class="px-6 py-3.5 whitespace-nowrap">
+                                    <?php if ($mov->tipo === 'ENTRADA'): ?>
+                                        <span class="px-2.5 py-1 text-xs font-extrabold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                            + ENTRADA
                                         </span>
                                     <?php else: ?>
-                                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
-                                            SAÍDA
+                                        <span class="px-2.5 py-1 text-xs font-extrabold rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                                            - SAÍDA
                                         </span>
                                     <?php endif; ?>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    <?= Html::encode($mov->categoria ?? 'N/A') ?>
+                                <td class="px-6 py-3.5 whitespace-nowrap">
+                                    <?php if ($mov->isAporteConta()): ?>
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-800">
+                                            Aporte Não Operacional
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="text-xs font-semibold text-gray-700">
+                                            <?= Html::encode($mov->getCategoriaNome()) ?>
+                                        </span>
+                                    <?php endif; ?>
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-900">
-                                    <?= Html::encode($mov->descricao) ?>
+                                <td class="px-6 py-3.5 text-gray-700">
+                                    <div class="font-medium"><?= Html::encode($mov->descricao) ?></div>
+                                    <?php if ($mov->isAporteConta()): ?>
+                                        <div class="text-[11px] text-sky-600 font-medium">⚠️ Lançamento contábil de contrapartida (não afeta faturamento)</div>
+                                    <?php endif; ?>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    <?= Html::encode($mov->formaPagamento->nome ?? 'N/A') ?>
+                                <td class="px-6 py-3.5 whitespace-nowrap text-gray-600 text-xs">
+                                    <?= Html::encode($mov->formaPagamento ? $mov->formaPagamento->nome : 'N/A') ?>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold <?= $mov->tipo_movimentacao === 'ENTRADA' ? 'text-green-600' : 'text-red-600' ?>">
-                                    <?= Yii::$app->formatter->asCurrency($mov->valor) ?>
+                                <td class="px-6 py-3.5 whitespace-nowrap text-right font-black font-mono <?= $mov->tipo === 'ENTRADA' ? 'text-emerald-600' : 'text-rose-600' ?>">
+                                    <?= $mov->tipo === 'ENTRADA' ? '+' : '-' ?> <?= Yii::$app->formatter->asCurrency($mov->valor) ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

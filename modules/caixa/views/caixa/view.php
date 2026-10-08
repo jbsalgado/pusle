@@ -100,50 +100,67 @@ $valorEsperado = $model->calcularValorEsperado();
                     </div>
                 </div>
 
+<?php
+$vendasCaixa = (float)$model->getMovimentacoes()
+    ->where(['tipo' => \app\modules\caixa\models\CaixaMovimentacao::TIPO_ENTRADA])
+    ->andWhere(['in', 'categoria', [\app\modules\caixa\models\CaixaMovimentacao::CATEGORIA_VENDA, \app\modules\caixa\models\CaixaMovimentacao::CATEGORIA_PAGAMENTO]])
+    ->andWhere(['is', 'conta_pagar_id', null])
+    ->sum('valor') ?: 0;
+
+$aportesCaixa = (float)$model->getMovimentacoes()
+    ->where(['tipo' => \app\modules\caixa\models\CaixaMovimentacao::TIPO_ENTRADA])
+    ->andWhere(['or',
+        ['categoria' => \app\modules\caixa\models\CaixaMovimentacao::CATEGORIA_APORTE_CONTA],
+        ['is not', 'conta_pagar_id', null]
+    ])
+    ->sum('valor') ?: 0;
+?>
                 <!-- Valores Financeiros -->
                 <div class="border-t border-gray-200 pt-6">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
-                        Valores Financeiros
+                        Valores Financeiros e Contábeis
                     </h3>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <label class="block text-sm font-medium text-gray-500 mb-1">Valor Inicial</label>
-                            <p class="text-2xl font-bold text-gray-900">R$ <?= number_format($model->valor_inicial, 2, ',', '.') ?></p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                        <div class="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Saldo Inicial</label>
+                            <p class="text-xl font-bold text-gray-800">R$ <?= number_format($model->valor_inicial, 2, ',', '.') ?></p>
+                        </div>
+                        <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-emerald-700 mb-1">Vendas (Operacional)</label>
+                            <p class="text-xl font-black text-emerald-600">R$ <?= number_format($vendasCaixa, 2, ',', '.') ?></p>
+                            <span class="text-[10px] text-emerald-600/80">Receita real de clientes</span>
+                        </div>
+                        <div class="bg-sky-50 p-4 rounded-xl border border-sky-100">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-sky-700 mb-1">Aportes (Contas)</label>
+                            <p class="text-xl font-bold text-sky-700">R$ <?= number_format($aportesCaixa, 2, ',', '.') ?></p>
+                            <span class="text-[10px] text-sky-600/80">Sem impacto em vendas</span>
                         </div>
                         <?php if ($model->isAberto()): ?>
-                            <div class="bg-green-50 p-4 rounded-lg">
-                                <label class="block text-sm font-medium text-green-700 mb-1">Valor Esperado</label>
-                                <p class="text-2xl font-bold text-green-700">R$ <?= number_format($valorEsperado, 2, ',', '.') ?></p>
+                            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-blue-700 mb-1">Saldo Esperado</label>
+                                <p class="text-xl font-black text-blue-700">R$ <?= number_format($valorEsperado, 2, ',', '.') ?></p>
+                                <span class="text-[10px] text-blue-600/80">Saldo físico da gaveta</span>
                             </div>
                         <?php else: ?>
-                            <div class="bg-blue-50 p-4 rounded-lg">
-                                <label class="block text-sm font-medium text-blue-700 mb-1">Valor Esperado</label>
-                                <p class="text-2xl font-bold text-blue-700">R$ <?= number_format($model->valor_esperado ?? 0, 2, ',', '.') ?></p>
+                            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-blue-700 mb-1">Saldo Esperado</label>
+                                <p class="text-xl font-black text-blue-700">R$ <?= number_format($model->valor_esperado ?? 0, 2, ',', '.') ?></p>
                             </div>
-                            <div class="bg-gray-50 p-4 rounded-lg">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Valor Final</label>
-                                <p class="text-2xl font-bold text-gray-900">R$ <?= number_format($model->valor_final ?? 0, 2, ',', '.') ?></p>
+                            <div class="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">Saldo Final</label>
+                                <p class="text-xl font-bold text-gray-900">R$ <?= number_format($model->valor_final ?? 0, 2, ',', '.') ?></p>
                             </div>
-                            <?php if ($model->diferenca !== null): ?>
-                                <?php
-                                if ($model->diferenca >= 0) {
-                                    $diferencaBgClass = 'bg-green-50';
-                                    $diferencaTextClass = 'text-green-700';
-                                } else {
-                                    $diferencaBgClass = 'bg-red-50';
-                                    $diferencaTextClass = 'text-red-700';
-                                }
-                                ?>
-                                <div class="<?= $diferencaBgClass ?> p-4 rounded-lg">
-                                    <label class="block text-sm font-medium <?= $diferencaTextClass ?> mb-1">Diferença</label>
-                                    <p class="text-2xl font-bold <?= $diferencaTextClass ?>">
-                                        <?= $model->diferenca >= 0 ? '+' : '' ?>R$ <?= number_format($model->diferenca, 2, ',', '.') ?>
-                                    </p>
-                                </div>
-                            <?php endif; ?>
+                        <?php endif; ?>
+                        <?php if (!$model->isAberto() && $model->diferenca !== null): ?>
+                            <div class="<?= $model->diferenca >= 0 ? 'bg-green-50 border-green-100 text-green-700' : 'bg-red-50 border-red-100 text-red-700' ?> p-4 rounded-xl border">
+                                <label class="block text-xs font-bold uppercase tracking-wider mb-1">Diferença</label>
+                                <p class="text-xl font-bold">
+                                    <?= $model->diferenca >= 0 ? '+' : '' ?>R$ <?= number_format($model->diferenca, 2, ',', '.') ?>
+                                </p>
+                            </div>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -198,28 +215,36 @@ $valorEsperado = $model->calcularValorEsperado();
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <?php foreach ($movimentacoesDataProvider->getModels() as $mov): ?>
                                     <tr class="hover:bg-gray-50">
-                                        <td class="px-4 py-3 text-sm text-gray-900">
+                                        <td class="px-4 py-3 text-sm text-gray-900 font-mono text-xs">
                                             <?= Yii::$app->formatter->asDatetime($mov->data_movimento) ?>
                                         </td>
                                         <td class="px-4 py-3">
-                                            <?php
-                                            $tipoColors = [
-                                                'ENTRADA' => 'bg-green-100 text-green-800',
-                                                'SAIDA' => 'bg-red-100 text-red-800',
-                                            ];
-                                            $tipoColor = $tipoColors[$mov->tipo] ?? 'bg-gray-100 text-gray-800';
-                                            ?>
-                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold <?= $tipoColor ?>">
-                                                <?= Html::encode($mov->tipo) ?>
-                                            </span>
+                                            <?php if ($mov->tipo === 'ENTRADA'): ?>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800">
+                                                    + ENTRADA
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800">
+                                                    - SAÍDA
+                                                </span>
+                                            <?php endif; ?>
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-700">
-                                            <?= Html::encode($mov->categoria ?? '-') ?>
+                                            <?php if ($mov->isAporteConta()): ?>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-800">
+                                                    Aporte Não Operacional
+                                                </span>
+                                            <?php else: ?>
+                                                <?= Html::encode($mov->getCategoriaNome()) ?>
+                                            <?php endif; ?>
                                         </td>
                                         <td class="px-4 py-3 text-sm text-gray-900">
-                                            <?= Html::encode($mov->descricao) ?>
+                                            <div class="font-medium"><?= Html::encode($mov->descricao) ?></div>
+                                            <?php if ($mov->isAporteConta()): ?>
+                                                <span class="text-[11px] text-sky-600 block leading-tight font-medium">⚠️ Cobertura para pagamento de conta (não compõe faturamento)</span>
+                                            <?php endif; ?>
                                         </td>
-                                        <td class="px-4 py-3 text-sm text-right font-semibold <?= $mov->tipo === 'ENTRADA' ? 'text-green-600' : 'text-red-600' ?>">
+                                        <td class="px-4 py-3 text-sm text-right font-bold font-mono <?= $mov->tipo === 'ENTRADA' ? 'text-green-600' : 'text-red-600' ?>">
                                             <?= $mov->tipo === 'ENTRADA' ? '+' : '-' ?> R$ <?= number_format($mov->valor, 2, ',', '.') ?>
                                         </td>
                                         <?php if ($model->isAberto()): ?>

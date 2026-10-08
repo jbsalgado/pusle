@@ -45,30 +45,68 @@ class RelatorioController extends Controller
             ->where(['usuario_id' => $usuarioId, 'status' => Caixa::STATUS_ABERTO])
             ->one();
 
+        // 1. Faturamento / Vendas Reais Hoje (Operacional: Vendas e Recebimentos de Clientes)
+        $vendasHoje = (float)(CaixaMovimentacao::find()
+            ->joinWith('caixa')
+            ->where(['prest_caixa.usuario_id' => $usuarioId])
+            ->andWhere(['prest_caixa_movimentacoes.tipo' => CaixaMovimentacao::TIPO_ENTRADA])
+            ->andWhere(['in', 'prest_caixa_movimentacoes.categoria', [CaixaMovimentacao::CATEGORIA_VENDA, CaixaMovimentacao::CATEGORIA_PAGAMENTO]])
+            ->andWhere(['is', 'prest_caixa_movimentacoes.conta_pagar_id', null])
+            ->andWhere(['>=', 'prest_caixa_movimentacoes.data_movimento', date('Y-m-d 00:00:00')])
+            ->sum('prest_caixa_movimentacoes.valor') ?: 0);
+
+        // 2. Aportes de Cobertura para Contas a Pagar Hoje (Não Operacional - Não é venda)
+        $aportesHoje = (float)(CaixaMovimentacao::find()
+            ->joinWith('caixa')
+            ->where(['prest_caixa.usuario_id' => $usuarioId])
+            ->andWhere(['prest_caixa_movimentacoes.tipo' => CaixaMovimentacao::TIPO_ENTRADA])
+            ->andWhere(['or',
+                ['prest_caixa_movimentacoes.categoria' => CaixaMovimentacao::CATEGORIA_APORTE_CONTA],
+                ['is not', 'prest_caixa_movimentacoes.conta_pagar_id', null]
+            ])
+            ->andWhere(['>=', 'prest_caixa_movimentacoes.data_movimento', date('Y-m-d 00:00:00')])
+            ->sum('prest_caixa_movimentacoes.valor') ?: 0);
+
+        // 3. Total Geral de Entradas Hoje
+        $entradasHoje = (float)(CaixaMovimentacao::find()
+            ->joinWith('caixa')
+            ->where(['prest_caixa.usuario_id' => $usuarioId])
+            ->andWhere(['prest_caixa_movimentacoes.tipo' => CaixaMovimentacao::TIPO_ENTRADA])
+            ->andWhere(['>=', 'prest_caixa_movimentacoes.data_movimento', date('Y-m-d 00:00:00')])
+            ->sum('prest_caixa_movimentacoes.valor') ?: 0);
+
+        // 4. Saídas Hoje
+        $saidasHoje = (float)(CaixaMovimentacao::find()
+            ->joinWith('caixa')
+            ->where(['prest_caixa.usuario_id' => $usuarioId])
+            ->andWhere(['prest_caixa_movimentacoes.tipo' => CaixaMovimentacao::TIPO_SAIDA])
+            ->andWhere(['>=', 'prest_caixa_movimentacoes.data_movimento', date('Y-m-d 00:00:00')])
+            ->sum('prest_caixa_movimentacoes.valor') ?: 0);
+
+        // 5. Total de Vendas no Mês (Operacional)
+        $totalVendasMes = (float)(CaixaMovimentacao::find()
+            ->joinWith('caixa')
+            ->where(['prest_caixa.usuario_id' => $usuarioId])
+            ->andWhere(['prest_caixa_movimentacoes.tipo' => CaixaMovimentacao::TIPO_ENTRADA])
+            ->andWhere(['in', 'prest_caixa_movimentacoes.categoria', [CaixaMovimentacao::CATEGORIA_VENDA, CaixaMovimentacao::CATEGORIA_PAGAMENTO]])
+            ->andWhere(['is', 'prest_caixa_movimentacoes.conta_pagar_id', null])
+            ->andWhere(['>=', 'prest_caixa_movimentacoes.data_movimento', date('Y-m-01 00:00:00')])
+            ->sum('prest_caixa_movimentacoes.valor') ?: 0);
+
         $stats = [
             'caixa_aberto' => $caixaAberto ? true : false,
-            'saldo_atual' => $caixaAberto ? $caixaAberto->saldo_atual : 0,
-
-            'entradas_hoje' => CaixaMovimentacao::find()
+            'saldo_atual' => $caixaAberto ? $caixaAberto->calcularValorEsperado() : 0,
+            'vendas_hoje' => $vendasHoje,
+            'aportes_hoje' => $aportesHoje,
+            'entradas_hoje' => $entradasHoje,
+            'saidas_hoje' => $saidasHoje,
+            'total_mes' => $totalVendasMes,
+            'total_entradas_mes_geral' => (float)(CaixaMovimentacao::find()
                 ->joinWith('caixa')
                 ->where(['prest_caixa.usuario_id' => $usuarioId])
-                ->andWhere(['tipo_movimentacao' => CaixaMovimentacao::TIPO_ENTRADA])
-                ->andWhere(['>=', 'prest_caixa_movimentacao.data_movimentacao', date('Y-m-d 00:00:00')])
-                ->sum('valor') ?: 0,
-
-            'saidas_hoje' => CaixaMovimentacao::find()
-                ->joinWith('caixa')
-                ->where(['prest_caixa.usuario_id' => $usuarioId])
-                ->andWhere(['tipo_movimentacao' => CaixaMovimentacao::TIPO_SAIDA])
-                ->andWhere(['>=', 'prest_caixa_movimentacao.data_movimentacao', date('Y-m-d 00:00:00')])
-                ->sum('valor') ?: 0,
-
-            'total_mes' => CaixaMovimentacao::find()
-                ->joinWith('caixa')
-                ->where(['prest_caixa.usuario_id' => $usuarioId])
-                ->andWhere(['tipo_movimentacao' => CaixaMovimentacao::TIPO_ENTRADA])
-                ->andWhere(['>=', 'prest_caixa_movimentacao.data_movimentacao', date('Y-m-01')])
-                ->sum('valor') ?: 0,
+                ->andWhere(['prest_caixa_movimentacoes.tipo' => CaixaMovimentacao::TIPO_ENTRADA])
+                ->andWhere(['>=', 'prest_caixa_movimentacoes.data_movimento', date('Y-m-01 00:00:00')])
+                ->sum('prest_caixa_movimentacoes.valor') ?: 0),
         ];
 
         return $this->render('index', [
@@ -104,25 +142,49 @@ class RelatorioController extends Controller
         // Movimentações do caixa
         $movimentacoes = CaixaMovimentacao::find()
             ->where(['caixa_id' => $caixa->id])
-            ->orderBy(['data_movimentacao' => SORT_ASC])
+            ->orderBy(['data_movimento' => SORT_ASC])
             ->all();
 
-        // Totais por tipo
+        // Totais segregados
+        $totalVendas = 0;
+        $totalAportes = 0;
+        $totalSuprimentos = 0;
         $totalEntradas = 0;
         $totalSaidas = 0;
+        $totalContasPagas = 0;
+        $totalSangrias = 0;
+
         foreach ($movimentacoes as $mov) {
-            if ($mov->tipo_movimentacao === CaixaMovimentacao::TIPO_ENTRADA) {
-                $totalEntradas += $mov->valor;
+            $val = (float)$mov->valor;
+            if ($mov->tipo === CaixaMovimentacao::TIPO_ENTRADA) {
+                $totalEntradas += $val;
+                if ($mov->isAporteConta()) {
+                    $totalAportes += $val;
+                } elseif ($mov->categoria === CaixaMovimentacao::CATEGORIA_SUPRIMENTO) {
+                    $totalSuprimentos += $val;
+                } else {
+                    $totalVendas += $val;
+                }
             } else {
-                $totalSaidas += $mov->valor;
+                $totalSaidas += $val;
+                if ($mov->categoria === CaixaMovimentacao::CATEGORIA_CONTA_PAGAR || !empty($mov->conta_pagar_id)) {
+                    $totalContasPagas += $val;
+                } elseif ($mov->categoria === CaixaMovimentacao::CATEGORIA_SANGRIA) {
+                    $totalSangrias += $val;
+                }
             }
         }
 
         return $this->render('fechamento', [
             'caixa' => $caixa,
             'movimentacoes' => $movimentacoes,
+            'totalVendas' => $totalVendas,
+            'totalAportes' => $totalAportes,
+            'totalSuprimentos' => $totalSuprimentos,
             'totalEntradas' => $totalEntradas,
             'totalSaidas' => $totalSaidas,
+            'totalContasPagas' => $totalContasPagas,
+            'totalSangrias' => $totalSangrias,
         ]);
     }
 
@@ -139,9 +201,9 @@ class RelatorioController extends Controller
         $query = CaixaMovimentacao::find()
             ->joinWith('caixa')
             ->where(['prest_caixa.usuario_id' => $usuarioId])
-            ->andWhere(['>=', 'prest_caixa_movimentacao.data_movimentacao', $dataInicio . ' 00:00:00'])
-            ->andWhere(['<=', 'prest_caixa_movimentacao.data_movimentacao', $dataFim . ' 23:59:59'])
-            ->orderBy(['prest_caixa_movimentacao.data_movimentacao' => SORT_DESC]);
+            ->andWhere(['>=', 'prest_caixa_movimentacoes.data_movimento', $dataInicio . ' 00:00:00'])
+            ->andWhere(['<=', 'prest_caixa_movimentacoes.data_movimento', $dataFim . ' 23:59:59'])
+            ->orderBy(['prest_caixa_movimentacoes.data_movimento' => SORT_DESC]);
 
         $dataProvider = new ActiveDataProvider([
             'query' => $query,
@@ -150,27 +212,51 @@ class RelatorioController extends Controller
             ],
         ]);
 
-        // Totais
-        $totalEntradas = CaixaMovimentacao::find()
+        // Totais segregados
+        $vendasReal = (float)(CaixaMovimentacao::find()
             ->joinWith('caixa')
             ->where(['prest_caixa.usuario_id' => $usuarioId])
-            ->andWhere(['tipo_movimentacao' => CaixaMovimentacao::TIPO_ENTRADA])
-            ->andWhere(['>=', 'prest_caixa_movimentacao.data_movimentacao', $dataInicio . ' 00:00:00'])
-            ->andWhere(['<=', 'prest_caixa_movimentacao.data_movimentacao', $dataFim . ' 23:59:59'])
-            ->sum('valor') ?: 0;
+            ->andWhere(['prest_caixa_movimentacoes.tipo' => CaixaMovimentacao::TIPO_ENTRADA])
+            ->andWhere(['in', 'prest_caixa_movimentacoes.categoria', [CaixaMovimentacao::CATEGORIA_VENDA, CaixaMovimentacao::CATEGORIA_PAGAMENTO]])
+            ->andWhere(['is', 'prest_caixa_movimentacoes.conta_pagar_id', null])
+            ->andWhere(['>=', 'prest_caixa_movimentacoes.data_movimento', $dataInicio . ' 00:00:00'])
+            ->andWhere(['<=', 'prest_caixa_movimentacoes.data_movimento', $dataFim . ' 23:59:59'])
+            ->sum('prest_caixa_movimentacoes.valor') ?: 0);
 
-        $totalSaidas = CaixaMovimentacao::find()
+        $aportesNaoOperacional = (float)(CaixaMovimentacao::find()
             ->joinWith('caixa')
             ->where(['prest_caixa.usuario_id' => $usuarioId])
-            ->andWhere(['tipo_movimentacao' => CaixaMovimentacao::TIPO_SAIDA])
-            ->andWhere(['>=', 'prest_caixa_movimentacao.data_movimentacao', $dataInicio . ' 00:00:00'])
-            ->andWhere(['<=', 'prest_caixa_movimentacao.data_movimentacao', $dataFim . ' 23:59:59'])
-            ->sum('valor') ?: 0;
+            ->andWhere(['prest_caixa_movimentacoes.tipo' => CaixaMovimentacao::TIPO_ENTRADA])
+            ->andWhere(['or',
+                ['prest_caixa_movimentacoes.categoria' => CaixaMovimentacao::CATEGORIA_APORTE_CONTA],
+                ['is not', 'prest_caixa_movimentacoes.conta_pagar_id', null]
+            ])
+            ->andWhere(['>=', 'prest_caixa_movimentacoes.data_movimento', $dataInicio . ' 00:00:00'])
+            ->andWhere(['<=', 'prest_caixa_movimentacoes.data_movimento', $dataFim . ' 23:59:59'])
+            ->sum('prest_caixa_movimentacoes.valor') ?: 0);
+
+        $totalEntradas = (float)(CaixaMovimentacao::find()
+            ->joinWith('caixa')
+            ->where(['prest_caixa.usuario_id' => $usuarioId])
+            ->andWhere(['prest_caixa_movimentacoes.tipo' => CaixaMovimentacao::TIPO_ENTRADA])
+            ->andWhere(['>=', 'prest_caixa_movimentacoes.data_movimento', $dataInicio . ' 00:00:00'])
+            ->andWhere(['<=', 'prest_caixa_movimentacoes.data_movimento', $dataFim . ' 23:59:59'])
+            ->sum('prest_caixa_movimentacoes.valor') ?: 0);
+
+        $totalSaidas = (float)(CaixaMovimentacao::find()
+            ->joinWith('caixa')
+            ->where(['prest_caixa.usuario_id' => $usuarioId])
+            ->andWhere(['prest_caixa_movimentacoes.tipo' => CaixaMovimentacao::TIPO_SAIDA])
+            ->andWhere(['>=', 'prest_caixa_movimentacoes.data_movimento', $dataInicio . ' 00:00:00'])
+            ->andWhere(['<=', 'prest_caixa_movimentacoes.data_movimento', $dataFim . ' 23:59:59'])
+            ->sum('prest_caixa_movimentacoes.valor') ?: 0);
 
         return $this->render('movimentacoes', [
             'dataProvider' => $dataProvider,
             'dataInicio' => $dataInicio,
             'dataFim' => $dataFim,
+            'totalVendas' => $vendasReal,
+            'totalAportes' => $aportesNaoOperacional,
             'totalEntradas' => $totalEntradas,
             'totalSaidas' => $totalSaidas,
         ]);
@@ -185,8 +271,8 @@ class RelatorioController extends Controller
         $usuarioId = \app\components\TenantHelper::getId();
         $mes = Yii::$app->request->get('mes', date('Y-m'));
 
-        $dataInicio = $mes . '-01';
-        $dataFim = date('Y-m-t', strtotime($dataInicio));
+        $dataInicio = $mes . '-01 00:00:00';
+        $dataFim = date('Y-m-t 23:59:59', strtotime($mes . '-01'));
 
         // Agrupamento por categoria
         $entradas = CaixaMovimentacao::find()
@@ -197,9 +283,9 @@ class RelatorioController extends Controller
             ])
             ->joinWith('caixa')
             ->where(['prest_caixa.usuario_id' => $usuarioId])
-            ->andWhere(['tipo_movimentacao' => CaixaMovimentacao::TIPO_ENTRADA])
-            ->andWhere(['>=', 'prest_caixa_movimentacao.data_movimentacao', $dataInicio])
-            ->andWhere(['<=', 'prest_caixa_movimentacao.data_movimentacao', $dataFim])
+            ->andWhere(['prest_caixa_movimentacoes.tipo' => CaixaMovimentacao::TIPO_ENTRADA])
+            ->andWhere(['>=', 'prest_caixa_movimentacoes.data_movimento', $dataInicio])
+            ->andWhere(['<=', 'prest_caixa_movimentacoes.data_movimento', $dataFim])
             ->groupBy('categoria')
             ->asArray()
             ->all();
@@ -212,9 +298,9 @@ class RelatorioController extends Controller
             ])
             ->joinWith('caixa')
             ->where(['prest_caixa.usuario_id' => $usuarioId])
-            ->andWhere(['tipo_movimentacao' => CaixaMovimentacao::TIPO_SAIDA])
-            ->andWhere(['>=', 'prest_caixa_movimentacao.data_movimentacao', $dataInicio])
-            ->andWhere(['<=', 'prest_caixa_movimentacao.data_movimentacao', $dataFim])
+            ->andWhere(['prest_caixa_movimentacoes.tipo' => CaixaMovimentacao::TIPO_SAIDA])
+            ->andWhere(['>=', 'prest_caixa_movimentacoes.data_movimento', $dataInicio])
+            ->andWhere(['<=', 'prest_caixa_movimentacoes.data_movimento', $dataFim])
             ->groupBy('categoria')
             ->asArray()
             ->all();
@@ -258,7 +344,7 @@ class RelatorioController extends Controller
 
                 $movimentacoes = CaixaMovimentacao::find()
                     ->where(['caixa_id' => $caixa->id])
-                    ->orderBy(['data_movimentacao' => SORT_ASC])
+                    ->orderBy(['data_movimento' => SORT_ASC])
                     ->all();
 
                 $html = $this->renderPartial('pdf/fechamento', [
@@ -275,9 +361,9 @@ class RelatorioController extends Controller
                 $movimentacoes = CaixaMovimentacao::find()
                     ->joinWith('caixa')
                     ->where(['prest_caixa.usuario_id' => $usuarioId])
-                    ->andWhere(['>=', 'prest_caixa_movimentacao.data_movimentacao', $dataInicio])
-                    ->andWhere(['<=', 'prest_caixa_movimentacao.data_movimentacao', $dataFim])
-                    ->orderBy(['prest_caixa_movimentacao.data_movimentacao' => SORT_DESC])
+                    ->andWhere(['>=', 'prest_caixa_movimentacoes.data_movimento', $dataInicio . ' 00:00:00'])
+                    ->andWhere(['<=', 'prest_caixa_movimentacoes.data_movimento', $dataFim . ' 23:59:59'])
+                    ->orderBy(['prest_caixa_movimentacoes.data_movimento' => SORT_DESC])
                     ->all();
 
                 $html = $this->renderPartial('pdf/movimentacoes', [
@@ -321,9 +407,9 @@ class RelatorioController extends Controller
                 $movimentacoes = CaixaMovimentacao::find()
                     ->joinWith('caixa')
                     ->where(['prest_caixa.usuario_id' => $usuarioId])
-                    ->andWhere(['>=', 'prest_caixa_movimentacao.data_movimentacao', $dataInicio])
-                    ->andWhere(['<=', 'prest_caixa_movimentacao.data_movimentacao', $dataFim])
-                    ->orderBy(['prest_caixa_movimentacao.data_movimentacao' => SORT_DESC])
+                    ->andWhere(['>=', 'prest_caixa_movimentacoes.data_movimento', $dataInicio . ' 00:00:00'])
+                    ->andWhere(['<=', 'prest_caixa_movimentacoes.data_movimento', $dataFim . ' 23:59:59'])
+                    ->orderBy(['prest_caixa_movimentacoes.data_movimento' => SORT_DESC])
                     ->all();
 
                 // Título
@@ -345,17 +431,17 @@ class RelatorioController extends Controller
                 $totalEntradas = 0;
                 $totalSaidas = 0;
                 foreach ($movimentacoes as $mov) {
-                    $sheet->setCellValue('A' . $row, Yii::$app->formatter->asDatetime($mov->data_movimentacao));
-                    $sheet->setCellValue('B' . $row, $mov->tipo_movimentacao === CaixaMovimentacao::TIPO_ENTRADA ? 'ENTRADA' : 'SAÍDA');
-                    $sheet->setCellValue('C' . $row, $mov->categoria ?? 'N/A');
+                    $sheet->setCellValue('A' . $row, Yii::$app->formatter->asDatetime($mov->data_movimento));
+                    $sheet->setCellValue('B' . $row, $mov->tipo === CaixaMovimentacao::TIPO_ENTRADA ? 'ENTRADA' : 'SAÍDA');
+                    $sheet->setCellValue('C' . $row, $mov->getCategoriaNome());
                     $sheet->setCellValue('D' . $row, $mov->descricao);
                     $sheet->setCellValue('E' . $row, $mov->valor);
-                    $sheet->setCellValue('F' . $row, $mov->formaPagamento->nome ?? 'N/A');
+                    $sheet->setCellValue('F' . $row, $mov->formaPagamento ? $mov->formaPagamento->nome : 'N/A');
 
                     $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode('R$ #,##0.00');
 
                     // Colorir linha
-                    if ($mov->tipo_movimentacao === CaixaMovimentacao::TIPO_ENTRADA) {
+                    if ($mov->tipo === CaixaMovimentacao::TIPO_ENTRADA) {
                         $sheet->getStyle('B' . $row)->getFont()->getColor()->setRGB('008000');
                         $totalEntradas += $mov->valor;
                     } else {

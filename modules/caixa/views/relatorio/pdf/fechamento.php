@@ -145,21 +145,29 @@
         </thead>
         <tbody>
             <?php
+            $totalVendas = 0;
+            $totalAportes = 0;
             $totalEntradas = 0;
             $totalSaidas = 0;
             foreach ($movimentacoes as $mov):
-                if ($mov->tipo_movimentacao === 'ENTRADA') {
-                    $totalEntradas += $mov->valor;
+                $val = (float)$mov->valor;
+                if ($mov->tipo === 'ENTRADA') {
+                    $totalEntradas += $val;
+                    if ($mov->isAporteConta()) {
+                        $totalAportes += $val;
+                    } else {
+                        $totalVendas += $val;
+                    }
                 } else {
-                    $totalSaidas += $mov->valor;
+                    $totalSaidas += $val;
                 }
             ?>
                 <tr>
-                    <td><?= Yii::$app->formatter->asDatetime($mov->data_movimentacao) ?></td>
-                    <td><?= $mov->tipo_movimentacao ?></td>
-                    <td><?= $mov->categoria ?? 'N/A' ?></td>
-                    <td><?= $mov->descricao ?></td>
-                    <td style="text-align: right;" class="<?= $mov->tipo_movimentacao === 'ENTRADA' ? 'entrada' : 'saida' ?>">
+                    <td><?= Yii::$app->formatter->asDatetime($mov->data_movimento) ?></td>
+                    <td><?= $mov->tipo ?></td>
+                    <td><?= $mov->getCategoriaNome() ?></td>
+                    <td><?= Html::encode($mov->descricao) ?></td>
+                    <td style="text-align: right;" class="<?= $mov->tipo === 'ENTRADA' ? 'entrada' : 'saida' ?>">
                         <?= Yii::$app->formatter->asCurrency($mov->valor) ?>
                     </td>
                 </tr>
@@ -169,7 +177,17 @@
 
     <div class="summary">
         <div class="summary-item">
-            <span>Total Entradas:</span>
+            <span>Vendas / Recebimentos (Operacional):</span>
+            <span class="entrada"><?= Yii::$app->formatter->asCurrency($totalVendas) ?></span>
+        </div>
+        <?php if ($totalAportes > 0): ?>
+            <div class="summary-item">
+                <span>Aportes p/ Contas (Não Operacional):</span>
+                <span><?= Yii::$app->formatter->asCurrency($totalAportes) ?></span>
+            </div>
+        <?php endif; ?>
+        <div class="summary-item">
+            <span>Total Geral Entradas:</span>
             <span class="entrada"><?= Yii::$app->formatter->asCurrency($totalEntradas) ?></span>
         </div>
         <div class="summary-item">
