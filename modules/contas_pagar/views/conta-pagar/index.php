@@ -15,6 +15,8 @@ $gruposMap      = $gruposMap      ?? [];
 $tiposAgrupados = $tiposAgrupados ?? [];
 $grupoFiltro    = $grupoFiltro    ?? '';
 $tipoDespesaId  = $tipoDespesaId  ?? '';
+$ordem          = $ordem          ?? Yii::$app->request->get('ordem', 'recentes');
+$busca          = $busca          ?? Yii::$app->request->get('busca', '');
 $tiposAgrupadosJson = Json::htmlEncode($tiposAgrupados);
 ?>
 
@@ -59,8 +61,15 @@ $tiposAgrupadosJson = Json::htmlEncode($tiposAgrupados);
         <!-- Filtros e Busca -->
         <div class="bg-white rounded-lg shadow-md mb-4 sm:mb-6 p-4 sm:p-6">
             <form method="get" class="space-y-4">
+                <input type="hidden" name="view" value="<?= Html::encode($viewMode) ?>">
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+
+                    <!-- Busca -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Busca</label>
+                        <input type="text" name="busca" value="<?= Html::encode($busca) ?>" placeholder="Descrição, fornecedor, doc..." class="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base">
+                    </div>
 
                     <!-- Status -->
                     <div>
@@ -104,6 +113,19 @@ $tiposAgrupadosJson = Json::htmlEncode($tiposAgrupados);
                         </select>
                     </div>
 
+                    <!-- Ordenação -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Ordenação</label>
+                        <select name="ordem" class="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base">
+                            <option value="recentes" <?= $ordem === 'recentes' ? 'selected' : '' ?>>Mais Recentes (Padrão)</option>
+                            <option value="vencimento_asc" <?= $ordem === 'vencimento_asc' ? 'selected' : '' ?>>Vencimento (Próximos)</option>
+                            <option value="vencimento_desc" <?= $ordem === 'vencimento_desc' ? 'selected' : '' ?>>Vencimento (Distantes)</option>
+                            <option value="valor_desc" <?= $ordem === 'valor_desc' ? 'selected' : '' ?>>Maior Valor</option>
+                            <option value="valor_asc" <?= $ordem === 'valor_asc' ? 'selected' : '' ?>>Menor Valor</option>
+                            <option value="antigos" <?= $ordem === 'antigos' ? 'selected' : '' ?>>Mais Antigos</option>
+                        </select>
+                    </div>
+
                 </div>
 
                 <div class="flex flex-col sm:flex-row gap-2">
@@ -114,7 +136,7 @@ $tiposAgrupadosJson = Json::htmlEncode($tiposAgrupados);
                         Filtrar
                     </button>
                     <?php if (Yii::$app->request->queryParams): ?>
-                        <?= Html::a('Limpar Filtros', ['index'], ['class' => 'w-full sm:w-auto px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition duration-300 text-center text-sm sm:text-base']) ?>
+                        <?= Html::a('Limpar Filtros', ['index', 'view' => $viewMode], ['class' => 'w-full sm:w-auto px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition duration-300 text-center text-sm sm:text-base']) ?>
                     <?php endif; ?>
                 </div>
 
@@ -157,57 +179,75 @@ $tiposAgrupadosJson = Json::htmlEncode($tiposAgrupados);
                         $statusBg = 'bg-yellow-500';
                     }
                     ?>
-                    <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100">
+                    <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 flex flex-col justify-between">
 
-                        <!-- Header do Card -->
-                        <div class="p-4 border-b border-gray-100 flex justify-between items-start">
-                            <div class="flex-1">
-                                <h3 class="text-base font-bold text-gray-900 truncate" title="<?= Html::encode($model->descricao) ?>">
-                                    <?= Html::encode($model->descricao) ?>
-                                </h3>
-                                <?= $model->fornecedor ? Html::encode($model->fornecedor->getNomeCompleto()) : 'Sem Fornecedor' ?>
-                                <?php if ($model->tipoDespesa): ?>
-                                    <div class="mt-1">
-                                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium <?= TipoDespesa::getGrupoBadgeClass($model->tipoDespesa->grupo) ?>">
-                                            <?= TipoDespesa::getGrupoIcon($model->tipoDespesa->grupo) ?>
-                                            <?= Html::encode($model->tipoDespesa->nome) ?>
-                                        </span>
+                        <div>
+                            <!-- Header do Card -->
+                            <div class="p-4 border-b border-gray-100 flex justify-between items-start">
+                                <div class="flex-1">
+                                    <h3 class="text-base font-bold text-gray-900 truncate" title="<?= Html::encode($model->descricao) ?>">
+                                        <?= Html::encode($model->descricao) ?>
+                                    </h3>
+                                    <div class="text-sm text-gray-600 truncate" title="<?= $model->fornecedor ? Html::encode($model->fornecedor->getNomeCompleto()) : 'Sem Fornecedor' ?>">
+                                        <?= $model->fornecedor ? Html::encode($model->fornecedor->getNomeCompleto()) : 'Sem Fornecedor' ?>
+                                    </div>
+                                    <?php if ($model->tipoDespesa): ?>
+                                        <div class="mt-1">
+                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium <?= TipoDespesa::getGrupoBadgeClass($model->tipoDespesa->grupo) ?>">
+                                                <?= TipoDespesa::getGrupoIcon($model->tipoDespesa->grupo) ?>
+                                                <?= Html::encode($model->tipoDespesa->nome) ?>
+                                            </span>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                <span class="px-2 py-1 <?= $statusBg ?> <?= $statusText ?> text-xs font-semibold rounded-full ml-2 whitespace-nowrap">
+                                    <?= Html::encode($model->status) ?>
+                                </span>
+                            </div>
+
+                            <!-- Conteúdo -->
+                            <div class="p-4 space-y-2">
+                                <div class="flex justify-between items-center">
+                                    <div class="text-sm text-gray-500">Valor</div>
+                                    <div class="text-lg font-bold text-gray-900">
+                                        <?= Yii::$app->formatter->asCurrency($model->valor) ?>
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-between items-center">
+                                    <div class="text-sm text-gray-500">Vencimento</div>
+                                    <div class="text-sm font-medium <?= $model->isVencida() ? 'text-red-600' : 'text-gray-700' ?>">
+                                        <?= Yii::$app->formatter->asDate($model->data_vencimento) ?>
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-between items-center text-xs text-gray-500 pt-2 border-t border-gray-100">
+                                    <span>Cadastrado em</span>
+                                    <span class="font-medium text-gray-700">
+                                        <?= $model->data_criacao ? Yii::$app->formatter->asDatetime($model->data_criacao, 'php:d/m/Y H:i') : '-' ?>
+                                    </span>
+                                </div>
+
+                                <?php if ($model->compra_id): ?>
+                                    <div class="flex justify-between items-center text-xs text-blue-600">
+                                        <span>Compra</span>
+                                        <span class="font-medium">#<?= substr($model->compra_id, 0, 8) ?></span>
+                                    </div>
+                                <?php endif; ?>
+
+                                <?php if ($model->data_pagamento): ?>
+                                    <div class="flex justify-between items-center bg-green-50 p-2 rounded">
+                                        <div class="text-xs text-green-700">Pago em</div>
+                                        <div class="text-sm font-bold text-green-700">
+                                            <?= Yii::$app->formatter->asDate($model->data_pagamento) ?>
+                                        </div>
                                     </div>
                                 <?php endif; ?>
                             </div>
-                            <span class="px-2 py-1 <?= $statusBg ?> <?= $statusText ?> text-xs font-semibold rounded-full ml-2">
-                                <?= Html::encode($model->status) ?>
-                            </span>
-                        </div>
-
-                        <!-- Conteúdo -->
-                        <div class="p-4 space-y-3">
-                            <div class="flex justify-between items-center">
-                                <div class="text-sm text-gray-500">Valor</div>
-                                <div class="text-lg font-bold text-gray-900">
-                                    <?= Yii::$app->formatter->asCurrency($model->valor) ?>
-                                </div>
-                            </div>
-
-                            <div class="flex justify-between items-center">
-                                <div class="text-sm text-gray-500">Vencimento</div>
-                                <div class="text-sm font-medium <?= $model->isVencida() ? 'text-red-600' : 'text-gray-700' ?>">
-                                    <?= Yii::$app->formatter->asDate($model->data_vencimento) ?>
-                                </div>
-                            </div>
-
-                            <?php if ($model->data_pagamento): ?>
-                                <div class="flex justify-between items-center bg-green-50 p-2 rounded">
-                                    <div class="text-xs text-green-700">Pago em</div>
-                                    <div class="text-sm font-bold text-green-700">
-                                        <?= Yii::$app->formatter->asDate($model->data_pagamento) ?>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
                         </div>
 
                         <!-- Ações -->
-                        <div class="p-4 bg-gray-50 flex gap-2">
+                        <div class="p-4 bg-gray-50 flex gap-2 border-t border-gray-100">
                             <?= Html::a(
                                 'Ver',
                                 ['view', 'id' => $model->id],
@@ -245,6 +285,7 @@ $tiposAgrupadosJson = Json::htmlEncode($tiposAgrupados);
                                 <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Fornecedor</th>
                                 <th class="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
                                 <th class="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Vencimento</th>
+                                <th class="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Cadastrado Em</th>
                                 <th class="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                 <th class="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                             </tr>
@@ -279,6 +320,11 @@ $tiposAgrupadosJson = Json::htmlEncode($tiposAgrupados);
                                             <?= Yii::$app->formatter->asDate($model->data_vencimento) ?>
                                         </span>
                                     </td>
+                                    <td class="px-3 sm:px-6 py-4 text-center hidden xl:table-cell">
+                                        <span class="text-xs text-gray-600">
+                                            <?= $model->data_criacao ? Yii::$app->formatter->asDatetime($model->data_criacao, 'php:d/m/Y H:i') : '-' ?>
+                                        </span>
+                                    </td>
                                     <td class="px-3 sm:px-6 py-4 text-center">
                                         <?php
                                         // Status Badge
@@ -295,7 +341,7 @@ $tiposAgrupadosJson = Json::htmlEncode($tiposAgrupados);
                                         <div class="flex justify-end gap-2">
                                             <?= Html::a('Ver', ['view', 'id' => $model->id], ['class' => 'text-blue-600 hover:text-blue-900']) ?>
 
-                                            <?php if (!$model->isPaga() && $model->status !== ContaPagar::STATUS_CANCELADA): ?>
+                                             <?php if (!$model->isPaga() && $model->status !== ContaPagar::STATUS_CANCELADA): ?>
                                                 <button type="button"
                                                     onclick="abrirModalPagamento('<?= $model->id ?>')"
                                                     class="text-green-600 hover:text-green-900">

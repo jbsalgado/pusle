@@ -42,7 +42,8 @@ class ContaPagarController extends Controller
     }
 
     /**
-     * Lista todas as contas a pagar, com filtros por status, grupo e tipo de despesa.
+     * Lista todas as contas a pagar, com filtros por status, grupo, tipo de despesa e ordenação.
+     * Padrão de ordenação: Últimos registros salvos primeiro (data_criacao DESC).
      * @return string
      */
     public function actionIndex()
@@ -52,8 +53,31 @@ class ContaPagarController extends Controller
         $query = ContaPagar::find()
             ->alias('cp')
             ->where(['cp.usuario_id' => $usuarioId])
-            ->with('tipoDespesa')
-            ->orderBy(['cp.data_vencimento' => SORT_ASC]);
+            ->with(['tipoDespesa', 'fornecedor']);
+
+        // Ordenação (Padrão: últimos registros salvos primeiro)
+        $ordem = Yii::$app->request->get('ordem', 'recentes');
+        switch ($ordem) {
+            case 'vencimento_asc':
+                $query->orderBy(['cp.data_vencimento' => SORT_ASC, 'cp.data_criacao' => SORT_DESC]);
+                break;
+            case 'vencimento_desc':
+                $query->orderBy(['cp.data_vencimento' => SORT_DESC, 'cp.data_criacao' => SORT_DESC]);
+                break;
+            case 'valor_desc':
+                $query->orderBy(['cp.valor' => SORT_DESC, 'cp.data_criacao' => SORT_DESC]);
+                break;
+            case 'valor_asc':
+                $query->orderBy(['cp.valor' => SORT_ASC, 'cp.data_criacao' => SORT_DESC]);
+                break;
+            case 'antigos':
+                $query->orderBy(['cp.data_criacao' => SORT_ASC, 'cp.id' => SORT_ASC]);
+                break;
+            case 'recentes':
+            default:
+                $query->orderBy(['cp.data_criacao' => SORT_DESC, 'cp.id' => SORT_DESC]);
+                break;
+        }
 
         // Filtro por status
         $status = Yii::$app->request->get('status');
@@ -74,11 +98,24 @@ class ContaPagarController extends Controller
             $query->andWhere(['cp.tipo_despesa_id' => $tipoDespesaId]);
         }
 
+        // Filtro por busca textual (descrição ou fornecedor)
+        $busca = trim((string)Yii::$app->request->get('busca', ''));
+        if ($busca !== '') {
+            $query->joinWith(['fornecedor f'], false)
+                  ->andWhere([
+                      'OR',
+                      ['ilike', 'cp.descricao', $busca],
+                      ['ilike', 'f.nome_fantasia', $busca],
+                      ['ilike', 'f.razao_social', $busca],
+                  ]);
+        }
+
         $dataProvider = new ActiveDataProvider([
             'query'      => $query,
             'pagination' => [
                 'pageSize' => 20,
             ],
+            'sort'       => false,
         ]);
 
         // Dados para os filtros da view
@@ -91,6 +128,8 @@ class ContaPagarController extends Controller
             'tiposAgrupados' => $tiposAgrupados,
             'grupoFiltro'    => $grupo,
             'tipoDespesaId'  => $tipoDespesaId,
+            'ordem'          => $ordem,
+            'busca'          => $busca,
         ]);
     }
 
@@ -103,13 +142,60 @@ class ContaPagarController extends Controller
         $usuarioId = \app\components\TenantHelper::getId();
 
         $query = ContaPagar::find()
-            ->where(['usuario_id' => $usuarioId])
-            ->orderBy(['data_vencimento' => SORT_ASC]);
+            ->alias('cp')
+            ->where(['cp.usuario_id' => $usuarioId])
+            ->with(['tipoDespesa', 'fornecedor']);
+
+        // Ordenação (Padrão: últimos registros salvos primeiro)
+        $ordem = Yii::$app->request->get('ordem', 'recentes');
+        switch ($ordem) {
+            case 'vencimento_asc':
+                $query->orderBy(['cp.data_vencimento' => SORT_ASC, 'cp.data_criacao' => SORT_DESC]);
+                break;
+            case 'vencimento_desc':
+                $query->orderBy(['cp.data_vencimento' => SORT_DESC, 'cp.data_criacao' => SORT_DESC]);
+                break;
+            case 'valor_desc':
+                $query->orderBy(['cp.valor' => SORT_DESC, 'cp.data_criacao' => SORT_DESC]);
+                break;
+            case 'valor_asc':
+                $query->orderBy(['cp.valor' => SORT_ASC, 'cp.data_criacao' => SORT_DESC]);
+                break;
+            case 'antigos':
+                $query->orderBy(['cp.data_criacao' => SORT_ASC, 'cp.id' => SORT_ASC]);
+                break;
+            case 'recentes':
+            default:
+                $query->orderBy(['cp.data_criacao' => SORT_DESC, 'cp.id' => SORT_DESC]);
+                break;
+        }
 
         // Filtros (mesma lógica do index)
         $status = Yii::$app->request->get('status');
         if ($status) {
-            $query->andWhere(['status' => $status]);
+            $query->andWhere(['cp.status' => $status]);
+        }
+
+        $grupo = Yii::$app->request->get('grupo');
+        if ($grupo && in_array($grupo, [TipoDespesa::GRUPO_FIXA, TipoDespesa::GRUPO_VARIAVEL, TipoDespesa::GRUPO_MERCADORIA])) {
+            $query->joinWith(['tipoDespesa td'], false)
+                  ->andWhere(['td.grupo' => $grupo]);
+        }
+
+        $tipoDespesaId = Yii::$app->request->get('tipo_despesa_id');
+        if ($tipoDespesaId) {
+            $query->andWhere(['cp.tipo_despesa_id' => $tipoDespesaId]);
+        }
+
+        $busca = trim((string)Yii::$app->request->get('busca', ''));
+        if ($busca !== '') {
+            $query->joinWith(['fornecedor f'], false)
+                  ->andWhere([
+                      'OR',
+                      ['ilike', 'cp.descricao', $busca],
+                      ['ilike', 'f.nome_fantasia', $busca],
+                      ['ilike', 'f.razao_social', $busca],
+                  ]);
         }
 
         $models = $query->all();
@@ -125,7 +211,7 @@ class ContaPagarController extends Controller
         fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
         // Cabeçalhos
-        fputcsv($output, ['ID', 'Descrição', 'Valor', 'Vencimento', 'Status', 'Fornecedor', 'Pagamento', 'Observações']);
+        fputcsv($output, ['ID', 'Descrição', 'Valor', 'Vencimento', 'Cadastrado em', 'Status', 'Fornecedor', 'Pagamento', 'Observações']);
 
         foreach ($models as $model) {
             fputcsv($output, [
@@ -133,6 +219,7 @@ class ContaPagarController extends Controller
                 $model->descricao,
                 number_format($model->valor, 2, ',', '.'),
                 date('d/m/Y', strtotime($model->data_vencimento)),
+                $model->data_criacao ? date('d/m/Y H:i', strtotime($model->data_criacao)) : '-',
                 $model->status,
                 $model->fornecedor ? $model->fornecedor->getNomeCompleto() : '-',
                 $model->data_pagamento ? date('d/m/Y', strtotime($model->data_pagamento)) : '-',
