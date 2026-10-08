@@ -159,7 +159,7 @@ $isAjax = Yii::$app->request->isAjax;
 
         <?php if ($isAjax): ?>
             <button type="button"
-                onclick="$('#modal-pagar').modal('hide');"
+                onclick="if (typeof fecharModalPagamento === 'function') { fecharModalPagamento(); } else { var m = document.getElementById('modal-pagar'); if (m) m.classList.add('hidden'); }"
                 class="flex-1 order-2 sm:order-1 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-2xl transition-all duration-200">
                 Cancelar
             </button>
@@ -182,6 +182,7 @@ $isAjax = Yii::$app->request->isAjax;
 </style>
 
 <?php
+$urlIndex = \yii\helpers\Url::to(['index']);
 $this->registerJs(
     <<<JS
 // Submissão do formulário via AJAX
@@ -206,7 +207,7 @@ $(document).off('submit', '#form-pagar-conta').on('submit', '#form-pagar-conta',
             if (window.location.pathname.indexOf('index') !== -1) {
                 location.reload();
             } else {
-                window.location.href = '<?= \yii\helpers\Url::to(['index']) ?>';
+                window.location.href = '{$urlIndex}';
             }
         },
         error: function(xhr) {

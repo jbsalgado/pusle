@@ -380,51 +380,70 @@ $tiposAgrupadosJson = Json::htmlEncode($tiposAgrupados);
 </div>
 
 <!-- Modal de Pagamento -->
-<div class="modal fade" id="modal-pagar" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-green-50 border-b border-green-200">
-                <h5 class="modal-title text-green-900 font-bold">
-                    <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    Registrar Pagamento
-                </h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body" id="modal-pagar-content">
-                <!-- Conteúdo carregado via AJAX -->
-                <div class="text-center py-4">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="sr-only">Carregando...</span>
-                    </div>
-                </div>
+<div id="modal-pagar" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-100 my-8 transition-all">
+        <div class="flex justify-between items-center border-b border-gray-100 p-4 sm:p-5 bg-gradient-to-r from-green-50 to-emerald-50">
+            <h3 class="text-lg font-bold text-green-900 flex items-center gap-2">
+                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                Registrar Pagamento
+            </h3>
+            <button type="button" onclick="fecharModalPagamento()" class="text-gray-400 hover:text-gray-700 hover:bg-gray-100 p-2 rounded-xl transition-all" title="Fechar">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div class="p-4 sm:p-6 max-h-[80vh] overflow-y-auto" id="modal-pagar-content">
+            <!-- Conteúdo carregado via AJAX -->
+            <div class="text-center py-8">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                <p class="text-sm text-gray-500 mt-2 font-medium">Carregando formulário...</p>
             </div>
         </div>
     </div>
 </div>
 
 <?php
+$urlPagarBase = Url::to(['pagar', 'id' => 'PLACEHOLDER']);
 $this->registerJs(
     <<<JS
-function abrirModalPagamento(id) {
-    $('#modal-pagar').modal('show');
-    $('#modal-pagar-content').html('<div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="sr-only">Carregando...</span></div></div>');
+window.abrirModalPagamento = function(id) {
+    var modal = document.getElementById('modal-pagar');
+    var content = document.getElementById('modal-pagar-content');
+    if (!modal || !content) return;
+
+    modal.classList.remove('hidden');
+    content.innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div><p class="text-sm text-gray-500 mt-2 font-medium">Carregando formulário...</p></div>';
+
+    var targetUrl = '{$urlPagarBase}'.replace('PLACEHOLDER', id);
     
-    // Carrega o formulário via AJAX
-    $.ajax({
-        url: '<?= \yii\helpers\Url::to(['pagar', 'id' => 'PLACEHOLDER']) ?>'.replace('PLACEHOLDER', id),
-        type: 'GET',
-        success: function(data) {
-            $('#modal-pagar-content').html(data);
-        },
-        error: function() {
-            $('#modal-pagar-content').html('<div class="alert alert-danger">Erro ao carregar formulário.</div>');
-        }
-    });
-}
+    if (window.jQuery) {
+        $.ajax({
+            url: targetUrl,
+            type: 'GET',
+            success: function(data) {
+                $('#modal-pagar-content').html(data);
+            },
+            error: function() {
+                $('#modal-pagar-content').html('<div class="p-4 bg-red-50 text-red-700 rounded-xl border border-red-200 text-sm font-medium">Erro ao carregar formulário. Tente novamente.</div>');
+            }
+        });
+    } else {
+        fetch(targetUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(res) { return res.text(); })
+            .then(function(html) { content.innerHTML = html; })
+            .catch(function() {
+                content.innerHTML = '<div class="p-4 bg-red-50 text-red-700 rounded-xl border border-red-200 text-sm font-medium">Erro ao carregar formulário. Tente novamente.</div>';
+            });
+    }
+};
+
+window.fecharModalPagamento = function() {
+    var modal = document.getElementById('modal-pagar');
+    if (modal) modal.classList.add('hidden');
+};
 JS
 );
 ?>
