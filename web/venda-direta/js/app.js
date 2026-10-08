@@ -3435,15 +3435,15 @@ window.abrirModalVariacoes = async function(produtoId) {
     modal.classList.remove('hidden');
     container.innerHTML = `
         <div class="text-center py-12">
-            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
-            <p class="text-sm text-gray-500 mt-4 font-medium">Buscando variações exclusivas...</p>
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600 mx-auto"></div>
+            <p class="text-sm text-gray-500 mt-4 font-medium">Buscando opções...</p>
         </div>
     `;
 
     try {
         const produtoMestre = produtos.find(p => p.id === produtoId);
-        titulo.textContent = produtoMestre ? produtoMestre.nome : 'Escolha uma Opção';
-        subtitulo.textContent = 'Este produto possui diferentes tamanhos e cores.';
+        if (titulo) titulo.textContent = produtoMestre ? produtoMestre.nome : 'Opções Disponíveis';
+        if (subtitulo) subtitulo.textContent = 'Este item possui diferentes tamanhos e cores.';
 
         // Busca variações reais da API com expand=variacoes
         const response = await fetchWithAuth(`${API_ENDPOINTS.PRODUTO}/${produtoId}?expand=variacoes`);
@@ -3455,29 +3455,57 @@ window.abrirModalVariacoes = async function(produtoId) {
         const variacoes = produtoFull.variacoes || [];
 
         if (variacoes.length === 0) {
-            container.innerHTML = `<div class="p-6 text-center text-gray-500">Nenhuma variação disponível no momento.</div>`;
+            container.innerHTML = `<div class="p-6 text-center text-gray-500 font-medium">Nenhuma variação disponível no momento.</div>`;
             return;
         }
+
+        // Armazena no mapa de cache global para adição instantânea sem novo fetch
+        window._variacoesMap = window._variacoesMap || {};
+        const baseUrl = (CONFIG.URL_BASE_WEB || '').replace(/\/$/, '');
+
+        variacoes.forEach(v => {
+            let imgPath = null;
+            if (v.fotos && v.fotos.length > 0 && v.fotos[0].arquivo_path) {
+                imgPath = v.fotos[0].arquivo_path.replace(/^\//, '');
+            } else if (produtoMestre && produtoMestre.fotos && produtoMestre.fotos.length > 0 && produtoMestre.fotos[0].arquivo_path) {
+                imgPath = produtoMestre.fotos[0].arquivo_path.replace(/^\//, '');
+            }
+
+            v.imagem = imgPath 
+                ? `${baseUrl}/${imgPath}` 
+                : (produtoMestre && produtoMestre.imagem ? produtoMestre.imagem : 'https://dummyimage.com/150x150/f3f4f6/9ca3af.png?text=Sem+Foto');
+            v.produto_id = produtoId;
+            window._variacoesMap[v.id] = v;
+        });
 
         container.innerHTML = variacoes.map(v => {
             const temEstoque = parseFloat(v.estoque_atual || 0) > 0;
             return `
             <div 
                 ${temEstoque ? `onclick="adicionarVariacaoDireto('${v.id}', '${produtoId}')"` : ''} 
-                class="flex justify-between items-center p-4 border rounded-xl transition-all shadow-sm bg-white
+                class="flex justify-between items-center p-3 sm:p-4 border rounded-xl transition-all shadow-sm bg-white
                        ${temEstoque ? 'border-gray-100 hover:border-brand-300 hover:bg-brand-50 cursor-pointer active:scale-[0.98]' : 'border-gray-200 opacity-60 cursor-not-allowed'}"
                 title="${temEstoque ? 'Adicionar esta opção' : 'Opção sem estoque disponível'}"
             >
-                <div class="flex flex-col">
-                    <div class="flex items-center gap-2">
-                        <span class="px-2 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-bold rounded uppercase">${v.tamanho || 'U'}</span>
-                        <span class="font-bold ${temEstoque ? 'text-gray-800' : 'text-gray-400 line-through'}">${v.cor || 'Única'}</span>
+                <div class="flex items-center gap-3 min-w-0">
+                    <img 
+                        src="${v.imagem}" 
+                        alt="${v.cor || 'Modelo'}" 
+                        class="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-xl border border-gray-100 shadow-sm shrink-0 bg-gray-50"
+                        onerror="this.onerror=null; this.src='https://dummyimage.com/150x150/f3f4f6/9ca3af.png?text=Sem+Foto';"
+                        loading="lazy"
+                    >
+                    <div class="flex flex-col min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="px-2 py-0.5 bg-gray-100 text-gray-700 text-[11px] font-semibold rounded uppercase tracking-wider">${v.tamanho || 'U'}</span>
+                            <span class="font-bold ${temEstoque ? 'text-gray-900' : 'text-gray-400 line-through'} text-sm sm:text-base truncate">${v.cor || 'Única'}</span>
+                        </div>
+                        <span class="text-[11px] text-gray-400 mt-1 truncate">Ref: ${v.codigo_referencia || 'N/A'}</span>
                     </div>
-                    <span class="text-[10px] text-gray-400 mt-1">Ref: ${v.codigo_referencia}</span>
                 </div>
-                <div class="flex flex-col items-end">
-                    <span class="text-lg font-bold ${temEstoque ? 'text-brand-600' : 'text-gray-400'}">${formatarMoeda(v.preco_venda_sugerido)}</span>
-                    <span class="text-[9px] ${temEstoque ? 'text-green-500 font-semibold' : 'text-red-500 font-bold'}">
+                <div class="flex flex-col items-end shrink-0 pl-2">
+                    <span class="text-base sm:text-lg font-bold ${temEstoque ? 'text-red-600' : 'text-gray-400'}">${formatarMoeda(v.preco_venda_sugerido)}</span>
+                    <span class="text-[11px] ${temEstoque ? 'text-emerald-600 font-semibold' : 'text-red-500 font-bold'}">
                         ${temEstoque ? `Estoque: ${formatarQuantidade(v.estoque_atual, false)}` : 'Sem estoque'}
                     </span>
                 </div>
@@ -3493,12 +3521,17 @@ window.abrirModalVariacoes = async function(produtoId) {
 window.adicionarVariacaoDireto = async function(idVariacao, idMestre) {
     try {
         mostrarCarregando();
-        // Busca os dados completos da variação
-        const response = await fetchWithAuth(`${API_ENDPOINTS.PRODUTO}/${idVariacao}`);
-        if (!response.ok) throw new Error('Não foi possível carregar dados da variação');
         
-        const resJson = await response.json();
-        const variacao = resJson.data || resJson;
+        let variacao = (window._variacoesMap && window._variacoesMap[idVariacao]) ? window._variacoesMap[idVariacao] : null;
+
+        // Se não estiver em memória, busca os dados da API
+        if (!variacao) {
+            const response = await fetchWithAuth(`${API_ENDPOINTS.PRODUTO}/${idVariacao}`);
+            if (!response.ok) throw new Error('Não foi possível carregar dados da variação');
+            
+            const resJson = await response.json();
+            variacao = resJson.data || resJson;
+        }
         
         // Adiciona ao carrinho (quantidade 1 por padrão no seletor rápido)
         if (adicionarAoCarrinho(variacao, 1)) {

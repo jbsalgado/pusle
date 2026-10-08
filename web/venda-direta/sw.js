@@ -84,8 +84,8 @@ const ID_USUARIO_LOJA = getLojaId();
 const API_PRODUTO_URL = `${URL_API}/api/produto?usuario_id=${ID_USUARIO_LOJA}`;
 const API_PEDIDO_URL = `${URL_API}/api/pedido`;
 
-// 🔥 ATUALIZAÇÃO: Versão v22 - Isolamento multi-tenant rigoroso do carrinho por loja
-const CACHE_NAME = 'venda-direta-cache-v22'; 
+// 🔥 ATUALIZAÇÃO: Versão v23 - Miniatura de fotos nas variações do modal
+const CACHE_NAME = 'venda-direta-cache-v23'; 
 
 const APP_SHELL_FILES = [
     `${URL_BASE_WEB}/venda-direta/index.html`,
