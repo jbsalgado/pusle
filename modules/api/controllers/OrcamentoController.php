@@ -48,6 +48,47 @@ class OrcamentoController extends Controller
                 throw new BadRequestHttpException('O pedido deve conter pelo menos um item.');
             }
 
+            // 🔒 VALIDAÇÃO PRÉVIA DE ESTOQUE: Não permite produtos sem estoque ou quantidade excedente
+            foreach ($data['itens'] as $itemData) {
+                $produtoId = $itemData['produto_id'] ?? null;
+                if (!$produtoId) {
+                    throw new BadRequestHttpException('Item sem identificador de produto.');
+                }
+
+                $produto = Produto::findOne($produtoId);
+                $variante = null;
+                if (!$produto) {
+                    $variante = \app\modules\vendas\models\ProdutoVariante::findOne($produtoId);
+                }
+
+                if (!$produto && !$variante) {
+                    throw new BadRequestHttpException("Produto ID '{$produtoId}' não encontrado no catálogo.");
+                }
+
+                $nomeProduto = $variante ? $variante->getNomeFormatado() : $produto->nome;
+                $estoqueDisponivel = $variante ? (float)$variante->estoque_atual : (float)$produto->estoque_atual;
+                $permiteEstoqueNegativo = $variante 
+                    ? ($variante->produto ? (bool)$variante->produto->permite_estoque_negativo : false) 
+                    : (bool)$produto->permite_estoque_negativo;
+                $quantidadeSolicitada = (float)($itemData['quantidade'] ?? 0);
+
+                if ($quantidadeSolicitada <= 0) {
+                    throw new BadRequestHttpException("Quantidade inválida para o produto '{$nomeProduto}'.");
+                }
+
+                if (!$permiteEstoqueNegativo) {
+                    if ($estoqueDisponivel <= 0) {
+                        throw new BadRequestHttpException("O produto '{$nomeProduto}' está sem estoque disponível e não pode ser incluído no orçamento.");
+                    }
+                    if ($quantidadeSolicitada > $estoqueDisponivel) {
+                        $unidade = $variante 
+                            ? ($variante->produto ? $variante->produto->unidade_medida : 'un') 
+                            : ($produto->unidade_medida ?: 'un');
+                        throw new BadRequestHttpException("Estoque insuficiente para o produto '{$nomeProduto}'. Disponível: {$estoqueDisponivel} {$unidade}, Solicitado: {$quantidadeSolicitada} {$unidade}.");
+                    }
+                }
+            }
+
             $orcamento = new Orcamento();
             $orcamento->load($data, '');
 
@@ -72,24 +113,37 @@ class OrcamentoController extends Controller
             $valorTotalItens = 0;
 
             foreach ($data['itens'] as $itemData) {
-                $produto = Produto::findOne($itemData['produto_id']);
+                $produtoId = $itemData['produto_id'];
+                $produto = Produto::findOne($produtoId);
+                $variante = null;
                 if (!$produto) {
+                    $variante = \app\modules\vendas\models\ProdutoVariante::findOne($produtoId);
+                }
+
+                if (!$produto && !$variante) {
                     continue; // Pula produto inexistente
                 }
 
                 $item = new OrcamentoItem();
                 $item->orcamento_id = $orcamento->id;
-                $item->produto_id = $produto->id;
-                $item->quantidade = $itemData['quantidade'];
+                $item->produto_id = (string)$produtoId;
+                $item->quantidade = (float)$itemData['quantidade'];
+
                 $precoUnitario = isset($itemData['preco_unitario']) ? (float)$itemData['preco_unitario'] : 0;
-                if ($precoUnitario <= 0) {
-                    $precoUnitario = (float)($produto->precoFinal ?: $produto->preco_venda_sugerido);
-                } elseif ($produto->emPromocao && (float)$produto->preco_promocional > 0) {
-                    // Se o produto está em promoção ativa e o preço enviado foi o preço cheio normal, ajusta para o promocional
-                    if (abs($precoUnitario - (float)$produto->preco_venda_sugerido) < 0.01) {
-                        $precoUnitario = (float)$produto->preco_promocional;
+                if ($produto) {
+                    if ($precoUnitario <= 0) {
+                        $precoUnitario = (float)($produto->precoFinal ?: $produto->preco_venda_sugerido);
+                    } elseif ($produto->emPromocao && (float)$produto->preco_promocional > 0) {
+                        if (abs($precoUnitario - (float)$produto->preco_venda_sugerido) < 0.01) {
+                            $precoUnitario = (float)$produto->preco_promocional;
+                        }
+                    }
+                } elseif ($variante) {
+                    if ($precoUnitario <= 0) {
+                        $precoUnitario = (float)$variante->getPrecoVendaEfetivo();
                     }
                 }
+
                 $item->preco_unitario = $precoUnitario;
                 $item->desconto_valor = $itemData['desconto_valor'] ?? 0;
 
@@ -122,6 +176,9 @@ class OrcamentoController extends Controller
                 'success' => true,
                 'message' => 'Orçamento criado com sucesso!'
             ]);
+        } catch (BadRequestHttpException $e) {
+            $transaction->rollBack();
+            throw $e;
         } catch (Exception $e) {
             $transaction->rollBack();
             Yii::error("Erro ao criar orçamento: " . $e->getMessage(), 'api');

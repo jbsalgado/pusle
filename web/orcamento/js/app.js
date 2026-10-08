@@ -6,9 +6,9 @@ import {
     calcularTotalItens, calcularTotalPecas, limparCarrinho, atualizarIndicadoresCarrinho,
     atualizarBadgeProduto, aplicarDescontoItem, getAcrescimo, setAcrescimo,
     getPrecoVigente
-} from './cart.js?v=20260902_v2';
+} from './cart.js?v=20261008_v1';
 import { carregarCarrinho, limparDadosLocaisPosSinc, carregarFormasPagamentoCache, obterFilaPedidos } from './storage.js';
-import { finalizarPedido } from './order.js';
+import { finalizarPedido } from './order.js?v=20261008_v1';
 import { carregarFormasPagamento } from './payment.js';
 import { validarCPF, maskCPF, maskPhone, maskCEP, formatarMoeda, formatarQuantidade, formatarCPF, verificarElementosCriticos } from './utils.js';
 import { ELEMENTOS_CRITICOS } from './config.js';
@@ -1156,10 +1156,25 @@ function renderizarProdutos(listaProdutos) {
         const emPromocao = produto.em_promocao || false;
         const precoOriginal = emPromocao ? produto.preco_venda_sugerido : null;
         
+        const estoqueNum = parseFloat(produto.estoque_atual !== undefined && produto.estoque_atual !== null ? produto.estoque_atual : 0);
+        const temEstoque = estoqueNum > 0;
+
+        // Para produtos com grade: calcula se existe pelo menos uma variação com estoque > 0
+        let temEstoqueGrade = false;
+        let totalEstoqueGrade = 0;
+        if (produto.possui_grade && produto.variacoes && Array.isArray(produto.variacoes) && produto.variacoes.length > 0) {
+            totalEstoqueGrade = produto.variacoes.reduce((acc, v) => acc + parseFloat(v.estoque_atual || 0), 0);
+            temEstoqueGrade = totalEstoqueGrade > 0;
+        } else if (produto.possui_grade) {
+            temEstoqueGrade = temEstoque;
+        }
+        
         return `
-        <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl relative" data-produto-card="${produto.id}">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl relative ${(!temEstoque && !produto.possui_grade) || (produto.possui_grade && !temEstoqueGrade) ? 'border border-red-200' : ''}" data-produto-card="${produto.id}">
             <div class="badge-no-carrinho hidden absolute top-2 right-2 bg-brand-500 text-white text-xs font-bold px-2 py-1 rounded-full z-10">✓ No Carrinho</div>
             ${emPromocao ? '<div class="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded z-10">PROMOÇÃO</div>' : ''}
+            ${!temEstoque && !produto.possui_grade ? '<div class="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md z-10 uppercase tracking-wider">SEM ESTOQUE</div>' : ''}
+            ${produto.possui_grade && !temEstoqueGrade ? '<div class="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md z-10 uppercase tracking-wider">GRADE ESGOTADA</div>' : ''}
             
             ${renderizarEspacoFoto(produto)}
 
@@ -1177,18 +1192,22 @@ function renderizarProdutos(listaProdutos) {
                             <span class="text-2xl font-bold text-brand-600">${formatarMoeda(precoExibido)}</span>
                         `}
                     </div>
-                    <span class="text-xs ${produto.estoque_atual > 0 || produto.possui_grade ? 'text-brand-600' : 'text-red-600'} font-semibold">
-                        ${produto.possui_grade ? 'Várias opções' : (produto.estoque_atual > 0 ? `${produto.estoque_atual} em estoque` : 'Sem estoque')}
+                    <span class="text-xs ${produto.possui_grade ? (temEstoqueGrade ? 'text-brand-600' : 'text-red-600') : (temEstoque ? 'text-brand-600' : 'text-red-600')} font-semibold">
+                        ${produto.possui_grade ? (temEstoqueGrade ? 'Várias opções' : '🚫 Grade Esgotada') : (temEstoque ? `${estoqueNum} em estoque` : '🚫 Sem estoque')}
                     </span>
                 </div>
                 
                 ${produto.possui_grade ? `
-                    <button onclick="abrirModalVariacoes('${produto.id}')" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
-                        🏷️ Escolher Opções
+                    <button onclick="${temEstoqueGrade ? `abrirModalVariacoes('${produto.id}')` : ''}" 
+                            class="w-full ${temEstoqueGrade ? 'bg-brand-500 hover:bg-brand-600 cursor-pointer' : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'} text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                            ${!temEstoqueGrade ? 'disabled' : ''}>
+                        ${temEstoqueGrade ? '🏷️ Escolher Opções' : '🚫 Grade Esgotada'}
                     </button>
                 ` : `
-                    <button onclick="abrirModalQuantidade('${produto.id}')" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold py-2 px-4 rounded-lg" ${produto.estoque_atual <= 0 ? 'disabled opacity-50' : ''}>
-                        🛒 Adicionar
+                    <button onclick="${temEstoque ? `abrirModalQuantidade('${produto.id}')` : ''}" 
+                            class="w-full ${temEstoque ? 'bg-brand-500 hover:bg-brand-600 cursor-pointer' : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'} text-white font-semibold py-2 px-4 rounded-lg transition-colors" 
+                            ${!temEstoque ? 'disabled' : ''}>
+                        ${temEstoque ? '🛒 Adicionar' : '🚫 Sem Estoque'}
                     </button>
                 `}
             </div>
@@ -1218,11 +1237,21 @@ window.incrementarModal = function() {
     const inputQtd = document.getElementById('input-quantidade');
     if (!inputQtd || !window.produtoAtualModal) return;
     
+    const estoque = parseFloat(window.produtoAtualModal.estoque_atual || 0);
     const passo = window.produtoAtualModal.venda_fracionada ? 0.1 : 1;
     let qtd = parseFloat(inputQtd.value.replace(',', '.')) || 0;
+    let novaQtd = Math.round((qtd + passo) * 1000) / 1000;
+
+    // Trava de incremento no teto de estoque
+    if (estoque > 0 && novaQtd > estoque) {
+        const permiteFracionado = !!window.produtoAtualModal.venda_fracionada;
+        const unidade = window.produtoAtualModal.unidade_medida || 'un';
+        const estoqueFmt = permiteFracionado ? estoque.toFixed(3).replace(/\.?0+$/, '') : Math.floor(estoque);
+        alert(`❌ Limite de estoque atingido! Disponível: ${estoqueFmt} ${unidade}`);
+        return;
+    }
     
-    qtd = Math.round((qtd + passo) * 1000) / 1000;
-    inputQtd.value = qtd;
+    inputQtd.value = novaQtd;
     window.atualizarPrecoModal();
 };
 
@@ -1244,6 +1273,17 @@ window.abrirModalQuantidade = function(produtoId) {
     const produto = produtos.find(p => p.id === produtoId);
     if (!produto) return;
     
+    // Configura input para fracionados
+    const permiteFracionado = !!produto.venda_fracionada;
+    const estoque = permiteFracionado ? parseFloat(produto.estoque_atual || 0) : parseInt(produto.estoque_atual || 0);
+    const unidadeMedida = produto.unidade_medida || 'un';
+
+    // 🔒 Bloqueio imediato: Não abre modal se o produto estiver sem estoque
+    if (estoque <= 0) {
+        alert(`🚫 O produto "${produto.nome}" está sem estoque disponível e não pode ser incluído no orçamento.`);
+        return;
+    }
+
     window.produtoAtualModal = produto;
 
     const inputQtd = document.getElementById('input-quantidade');
@@ -1251,11 +1291,6 @@ window.abrirModalQuantidade = function(produtoId) {
     // ✅ CORREÇÃO: Usar preço promocional se disponível
     const precoExibido = produto.preco_final || produto.preco_venda_sugerido;
     document.getElementById('preco-produto-modal').textContent = formatarMoeda(precoExibido);
-    
-    // Configura input para fracionados
-    const permiteFracionado = !!produto.venda_fracionada;
-    const estoque = permiteFracionado ? parseFloat(produto.estoque_atual || 0) : parseInt(produto.estoque_atual || 0);
-    const unidadeMedida = produto.unidade_medida || 'un';
     
     // 🆕 Exibe estoque disponível no modal
     const estoqueEl = document.getElementById('estoque-modal');
@@ -1269,10 +1304,10 @@ window.abrirModalQuantidade = function(produtoId) {
         }
     }
     
-    // ✅ NOVO: Inicia com a primeira faixa da escala se existir
+    // Inicia com quantidade padrão 1 ou primeira faixa de escala
     let qtdInicial = 1;
     const qtdEscala1 = parseFloat(produto.qtd_escala_1 || 0);
-    if (qtdEscala1 > 0) {
+    if (qtdEscala1 > 0 && qtdEscala1 <= estoque) {
         qtdInicial = qtdEscala1;
     }
     
@@ -1285,25 +1320,31 @@ window.abrirModalQuantidade = function(produtoId) {
         const valorRaw = inputQtd.value.replace(',', '.');
         const quantidade = parseFloat(valorRaw);
         
-        if (quantidade > 0) {
-            // 🆕 Validação de estoque: impede adicionar quantidade maior que o disponível
-            if (estoque > 0 && quantidade > estoque) {
-                const qtdFmt = permiteFracionado ? quantidade.toFixed(3).replace(/\.?0+$/, '') : Math.floor(quantidade);
-                const estoqueFmt = permiteFracionado ? estoque.toFixed(3).replace(/\.?0+$/, '') : Math.floor(estoque);
-                alert(`❌ Estoque insuficiente!\n\nDisponível: ${estoqueFmt} ${unidadeMedida}\nSolicitado: ${qtdFmt} ${unidadeMedida}\n\nPor favor, ajuste a quantidade.`);
-                return;
-            }
-            
-            const arquivoPath = produto.fotos?.[0]?.arquivo_path?.replace(/^\//, '') || '';
-            const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
-            const produtoComImagem = { ...produto, imagem: arquivoPath ? `${baseUrl}/${arquivoPath}` : null };
-            if (adicionarAoCarrinho(produtoComImagem, quantidade)) {
-                atualizarBadgeProduto(produtoId, true);
-                atualizarBadgeCarrinho();
-                fecharModal('modal-quantidade');
-            }
-        } else {
+        if (quantidade <= 0) {
             alert(`Quantidade inválida.`);
+            return;
+        }
+
+        // 🔒 Trava de estoque no clique de confirmação
+        if (estoque <= 0) {
+            alert(`🚫 O produto "${produto.nome}" está sem estoque disponível.`);
+            return;
+        }
+
+        if (quantidade > estoque) {
+            const qtdFmt = permiteFracionado ? quantidade.toFixed(3).replace(/\.?0+$/, '') : Math.floor(quantidade);
+            const estoqueFmt = permiteFracionado ? estoque.toFixed(3).replace(/\.?0+$/, '') : Math.floor(estoque);
+            alert(`❌ Estoque insuficiente!\n\nDisponível: ${estoqueFmt} ${unidadeMedida}\nSolicitado: ${qtdFmt} ${unidadeMedida}\n\nPor favor, ajuste a quantidade.`);
+            return;
+        }
+        
+        const arquivoPath = produto.fotos?.[0]?.arquivo_path?.replace(/^\//, '') || '';
+        const baseUrl = CONFIG.URL_BASE_WEB.replace(/\/$/, '');
+        const produtoComImagem = { ...produto, imagem: arquivoPath ? `${baseUrl}/${arquivoPath}` : null };
+        if (adicionarAoCarrinho(produtoComImagem, quantidade)) {
+            atualizarBadgeProduto(produtoId, true);
+            atualizarBadgeCarrinho();
+            fecharModal('modal-quantidade');
         }
     };
     abrirModal('modal-quantidade');
@@ -2513,23 +2554,29 @@ window.abrirModalVariacoes = async function(produtoId) {
             return;
         }
 
-        container.innerHTML = variacoes.map(v => `
-            <div onclick="adicionarVariacaoDireto('${v.id}', '${produtoId}')" class="flex justify-between items-center p-4 border border-gray-200 rounded-xl hover:border-brand-300 hover:bg-brand-50 cursor-pointer transition-all active:scale-[0.98] group bg-white shadow-sm">
+        container.innerHTML = variacoes.map(v => {
+            const estoqueVar = parseFloat(v.estoque_atual || 0);
+            const semEstoque = estoqueVar <= 0;
+            return `
+            <div ${semEstoque ? '' : `onclick="adicionarVariacaoDireto('${v.id}', '${produtoId}')"`} 
+                 class="flex justify-between items-center p-4 border rounded-xl transition-all ${semEstoque ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed' : 'border-gray-200 hover:border-brand-300 hover:bg-brand-50 cursor-pointer active:scale-[0.98] group bg-white shadow-sm'}">
                 <div class="flex flex-col">
                     <div class="flex items-center gap-2">
                         <span class="px-2 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-bold rounded uppercase">${v.tamanho || 'U'}</span>
                         <span class="font-bold text-gray-800">${v.cor || 'Única'}</span>
+                        ${semEstoque ? '<span class="px-2 py-0.5 bg-red-100 text-red-700 text-[9px] font-bold rounded">SEM ESTOQUE</span>' : ''}
                     </div>
                     <span class="text-[10px] text-gray-400 mt-1">Código: ${v.codigo_referencia || 'N/A'}</span>
                 </div>
                 <div class="flex flex-col items-end">
-                    <span class="text-lg font-bold text-brand-600">${formatarMoeda(v.preco_venda_sugerido)}</span>
-                    <span class="text-[9px] ${v.estoque_atual > 0 ? 'text-brand-500' : 'text-red-400'}">
-                        Estoque: ${v.estoque_atual || 0}
+                    <span class="text-lg font-bold ${semEstoque ? 'text-gray-400' : 'text-brand-600'}">${formatarMoeda(v.preco_venda_sugerido)}</span>
+                    <span class="text-[9px] font-semibold ${semEstoque ? 'text-red-500' : 'text-emerald-600'}">
+                        ${semEstoque ? '🚫 Esgotado' : `Estoque: ${v.estoque_atual || 0}`}
                     </span>
                 </div>
             </div>
-        `).join('');
+            `;
+        }).join('');
 
     } catch (error) {
         console.error('[App] Erro ao carregar variações:', error);
@@ -2546,6 +2593,13 @@ window.adicionarVariacaoDireto = async function(idVariacao, idMestre) {
         
         const resJson = await response.json();
         const variacao = resJson.data || resJson;
+
+        // 🔒 Trava de estoque na variação
+        const estoqueVar = parseFloat(variacao.estoque_atual || 0);
+        if (estoqueVar <= 0) {
+            alert(`🚫 A opção selecionada está sem estoque disponível.`);
+            return;
+        }
         
         // Adiciona ao carrinho (quantidade 1 por padrão no seletor rápido)
         if (adicionarAoCarrinho(variacao, 1)) {

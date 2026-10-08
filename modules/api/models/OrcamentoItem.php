@@ -38,7 +38,36 @@ class OrcamentoItem extends ActiveRecord
             [['produto_id'], 'string'],
             [['quantidade', 'preco_unitario', 'desconto_valor', 'subtotal'], 'number'],
             [['observacoes'], 'string'],
+            [['produto_id'], 'validarEstoque'],
         ];
+    }
+
+    /**
+     * Valida se o produto ou variante possui estoque suficiente para o orçamento
+     */
+    public function validarEstoque($attribute, $params)
+    {
+        $produto = \app\modules\vendas\models\Produto::findOne($this->produto_id);
+        $variante = null;
+        if (!$produto) {
+            $variante = \app\modules\vendas\models\ProdutoVariante::findOne($this->produto_id);
+        }
+
+        if ($produto || $variante) {
+            $estoque = $variante ? (float)$variante->estoque_atual : (float)$produto->estoque_atual;
+            $permiteNegativo = $variante 
+                ? ($variante->produto ? (bool)$variante->produto->permite_estoque_negativo : false) 
+                : (bool)$produto->permite_estoque_negativo;
+            $nome = $variante ? $variante->getNomeFormatado() : $produto->nome;
+
+            if (!$permiteNegativo) {
+                if ($estoque <= 0) {
+                    $this->addError($attribute, "O produto '{$nome}' está sem estoque disponível e não pode ser incluído no orçamento.");
+                } elseif ((float)$this->quantidade > $estoque) {
+                    $this->addError('quantidade', "Estoque insuficiente para o produto '{$nome}'. Disponível: {$estoque}, solicitado: {$this->quantidade}.");
+                }
+            }
+        }
     }
 
     /**

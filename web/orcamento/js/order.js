@@ -16,6 +16,24 @@ function validarDadosPedido(dadosPedido, carrinho) {
         throw new Error('Carrinho está vazio');
     }
 
+    // 🔒 VALIDAÇÃO RIGOROSA DE ESTOQUE: Impede finalizar orçamento se houver item sem estoque
+    for (const item of carrinho) {
+        if (!item.is_avulso) {
+            const estoque = parseFloat(item.estoque_atual !== undefined && item.estoque_atual !== null ? item.estoque_atual : 0);
+            const qtd = parseFloat(item.quantidade || 0);
+            const nome = item.nome || 'Item';
+            const unidade = item.unidade_medida || 'un';
+
+            if (estoque <= 0) {
+                throw new Error(`O produto "${nome}" está sem estoque disponível e deve ser removido do carrinho antes de finalizar.`);
+            }
+
+            if (qtd > estoque) {
+                throw new Error(`A quantidade do produto "${nome}" (${qtd} ${unidade}) ultrapassa o estoque disponível (${estoque} ${unidade}). Por favor, ajuste o carrinho.`);
+            }
+        }
+    }
+
     // VENDA DIRETA: cliente_id pode ser null
     // Não valida cliente_id aqui
 

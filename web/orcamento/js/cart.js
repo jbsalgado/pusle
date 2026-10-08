@@ -35,14 +35,14 @@ export function adicionarAoCarrinho(produto, quantidade) {
   }
 
   // Bloquear inclusão se o produto não for avulso e estiver sem estoque
-  const estoqueAtual = parseFloat(produto.estoque_atual || 0);
+  const estoqueAtual = parseFloat(produto.estoque_atual !== undefined && produto.estoque_atual !== null ? produto.estoque_atual : 0);
   if (!produto.is_avulso && estoqueAtual <= 0) {
-    alert(`O produto "${produto.nome || 'Item'}" está sem estoque disponível.`);
+    alert(`🚫 O produto "${produto.nome || 'Item'}" está sem estoque disponível e não pode ser incluído no orçamento.`);
     return false;
   }
 
   // 🆕 Validação de segurança: impede adicionar quantidade maior que o estoque
-  if (!produto.is_avulso && estoqueAtual > 0 && quantidade > estoqueAtual) {
+  if (!produto.is_avulso && quantidade > estoqueAtual) {
     const permiteFracionado = !!produto.venda_fracionada;
     const unidadeMedida = produto.unidade_medida || 'un';
     const qtdFormatada = permiteFracionado 
@@ -114,12 +114,29 @@ export function aumentarQuantidadeItem(produtoId) {
   // ✅ CORREÇÃO: Buscar por 'id'
   const item = carrinho.find((i) => i.id === produtoId);
   if (item) {
-    // Define o passo (0.1 para fracionados, 1 para normais)
+    const estoqueAtual = parseFloat(item.estoque_atual !== undefined && item.estoque_atual !== null ? item.estoque_atual : 0);
     const passo = item.venda_fracionada ? 0.1 : 1;
-    
-    // ✅ CORREÇÃO: Usar parseFloat e arredondamento para evitar erros de ponto flutuante
     let novaQtd = (parseFloat(item.quantidade) || 0) + passo;
-    item.quantidade = Math.round(novaQtd * 1000) / 1000;
+    novaQtd = Math.round(novaQtd * 1000) / 1000;
+
+    // 🔒 Trava rigorosa: Não permite ultrapassar o estoque disponível
+    if (!item.is_avulso) {
+      if (estoqueAtual <= 0) {
+        alert(`🚫 O produto "${item.nome || 'Item'}" está sem estoque disponível.`);
+        return false;
+      }
+      if (novaQtd > estoqueAtual) {
+        const permiteFracionado = !!item.venda_fracionada;
+        const unidadeMedida = item.unidade_medida || 'un';
+        const estoqueFormatado = permiteFracionado 
+          ? estoqueAtual.toFixed(3).replace(/\.?0+$/, '')
+          : Math.floor(estoqueAtual);
+        alert(`❌ Limite de estoque atingido!\n\nProduto: ${item.nome || 'Item'}\nEstoque disponível: ${estoqueFormatado} ${unidadeMedida}`);
+        return false;
+      }
+    }
+
+    item.quantidade = novaQtd;
     
     // ✅ Aplica motor dinâmico de precificação/desconto
     aplicarRegrasEscala(item);
