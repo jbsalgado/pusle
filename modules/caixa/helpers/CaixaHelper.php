@@ -362,7 +362,85 @@ class CaixaHelper
     }
 
     /**
-     * Estorna uma movimentação de conta a pagar no caixa
+     * Registra duplo lançamento no caixa para pagamento de conta sem saldo prévio (Aporte + Quitação)
+     * Isso impede saldo negativo no caixa físico ao utilizar Cartão, Débito em Conta ou PIX.
+     * 
+     * @param string $contaPagarId ID da conta a pagar
+     * @param float $valor Valor pago
+     * @param string|null $formaPagamentoId ID da forma de pagamento
+     * @param string|null $usuarioId ID do usuário (se null, usa o usuário logado)
+     * @param string|null $dataPagamento Data do pagamento
+     * @return array|false Retorna array com ['entrada' => $movEntrada, 'saida' => $movSaida] ou false
+     */
+    public static function registrarPagamentoContaPagarComAporte($contaPagarId, $valor, $formaPagamentoId = null, $usuarioId = null, $dataPagamento = null)
+    {
+        try {
+            $usuarioId = $usuarioId ?: Yii::$app->user->id;
+
+            // Busca caixa aberto do dia atual
+            $caixa = self::getCaixaAberto($usuarioId);
+
+            if (!$caixa) {
+                Yii::warning("⚠️ CONTA PAGA COM APORTE COM CAIXA FECHADO. Conta ID: {$contaPagarId}. Valor: R$ {$valor}.", 'caixa');
+                return false;
+            }
+
+            $conta = \app\modules\contas_pagar\models\ContaPagar::findOne($contaPagarId);
+            $forma = $formaPagamentoId ? \app\modules\vendas\models\FormaPagamento::findOne($formaPagamentoId) : null;
+            $formaNome = $forma ? $forma->nome : 'Cartão / Débito em Conta';
+
+            $dataHora = $dataPagamento ? date('Y-m-d H:i:s', strtotime($dataPagamento . ' ' . date('H:i:s'))) : date('Y-m-d H:i:s');
+            $descBase = $conta ? substr($conta->descricao, 0, 50) : "Conta #{$contaPagarId}";
+
+            // 1. REGISTRO DE ENTRADA (Aporte para cobertura do pagamento)
+            $movEntrada = new CaixaMovimentacao();
+            $movEntrada->caixa_id = $caixa->id;
+            $movEntrada->tipo = CaixaMovimentacao::TIPO_ENTRADA;
+            $movEntrada->categoria = CaixaMovimentacao::CATEGORIA_SUPRIMENTO;
+            $movEntrada->valor = $valor;
+            $movEntrada->descricao = "Aporte p/ Pagamento: {$descBase} ({$formaNome})";
+            $movEntrada->conta_pagar_id = $contaPagarId;
+            $movEntrada->forma_pagamento_id = $formaPagamentoId ?: ($conta->forma_pagamento_id ?? null);
+            $movEntrada->data_movimento = $dataHora;
+
+            if (!$movEntrada->save()) {
+                $erros = $movEntrada->getFirstErrors();
+                Yii::error("Erro ao registrar entrada de aporte no caixa: " . implode(', ', $erros), 'caixa');
+                return false;
+            }
+
+            // 2. REGISTRO DE SAÍDA (Quitação da conta a pagar)
+            $movSaida = new CaixaMovimentacao();
+            $movSaida->caixa_id = $caixa->id;
+            $movSaida->tipo = CaixaMovimentacao::TIPO_SAIDA;
+            $movSaida->categoria = CaixaMovimentacao::CATEGORIA_CONTA_PAGAR;
+            $movSaida->valor = $valor;
+            $movSaida->descricao = "Pagamento: {$descBase} ({$formaNome})";
+            $movSaida->conta_pagar_id = $contaPagarId;
+            $movSaida->forma_pagamento_id = $formaPagamentoId ?: ($conta->forma_pagamento_id ?? null);
+            $movSaida->data_movimento = $dataHora;
+
+            if (!$movSaida->save()) {
+                $erros = $movSaida->getFirstErrors();
+                Yii::error("Erro ao registrar saída de conta com aporte no caixa: " . implode(', ', $erros), 'caixa');
+                $movEntrada->delete(); // Rollback da entrada para não ficar desbalanceado
+                return false;
+            }
+
+            Yii::info("✅ Duplo registro efetuado no caixa: Entrada R$ {$valor} + Saída R$ {$valor} para Conta #{$contaPagarId} ({$formaNome})", 'caixa');
+
+            return [
+                'entrada' => $movEntrada,
+                'saida' => $movSaida,
+            ];
+        } catch (\Exception $e) {
+            Yii::error("Exceção ao registrar duplo pagamento no caixa: " . $e->getMessage(), 'caixa');
+            return false;
+        }
+    }
+
+    /**
+     * Estorna movimentações de conta a pagar no caixa (tanto saídas simples quanto duplo registro)
      * 
      * @param string $contaPagarId ID da conta a pagar
      * @return bool Retorna true se o estorno foi bem-sucedido
@@ -370,39 +448,31 @@ class CaixaHelper
     public static function estornarSaidaContaPagar($contaPagarId)
     {
         try {
-            // Busca a movimentação relacionada à conta
-            $movimentacao = CaixaMovimentacao::find()
+            // Busca todas as movimentações relacionadas à conta (incluindo possíveis entradas de aporte)
+            $movimentacoes = CaixaMovimentacao::find()
                 ->where(['conta_pagar_id' => $contaPagarId])
-                ->orderBy(['data_movimento' => SORT_DESC])
-                ->one();
+                ->all();
 
-            if (!$movimentacao) {
+            if (empty($movimentacoes)) {
                 Yii::warning("Tentativa de estornar conta sem movimentação no caixa. Conta ID: {$contaPagarId}", 'caixa');
                 return true; // Não há movimentação para estornar
             }
 
-            // Verifica se o caixa ainda está aberto
-            $caixa = Caixa::findOne($movimentacao->caixa_id);
-            if (!$caixa) {
-                Yii::error("Caixa não encontrado para estorno. Movimentação ID: {$movimentacao->id}", 'caixa');
-                return false;
+            $sucesso = true;
+            foreach ($movimentacoes as $movimentacao) {
+                if (!$movimentacao->delete()) {
+                    Yii::error("Erro ao deletar movimentação #{$movimentacao->id} para estorno.", 'caixa');
+                    $sucesso = false;
+                }
             }
 
-            if ($caixa->isFechado()) {
-                Yii::warning("⚠️ Tentativa de estornar movimentação em caixa fechado. Caixa ID: {$caixa->id}, Conta ID: {$contaPagarId}", 'caixa');
-                // Permite o estorno mesmo com caixa fechado, mas registra no log
+            if ($sucesso) {
+                Yii::info("✅ Estorno de movimentações realizado com sucesso para Conta #{$contaPagarId}", 'caixa');
             }
 
-            // Remove a movimentação
-            if ($movimentacao->delete()) {
-                Yii::info("✅ Estorno realizado: Conta #{$contaPagarId}, Valor: R$ {$movimentacao->valor}", 'caixa');
-                return true;
-            } else {
-                Yii::error("Erro ao deletar movimentação para estorno. Movimentação ID: {$movimentacao->id}", 'caixa');
-                return false;
-            }
+            return $sucesso;
         } catch (\Exception $e) {
-            Yii::error("Exceção ao estornar saída de conta no caixa: " . $e->getMessage(), 'caixa');
+            Yii::error("Exceção ao estornar movimentações de conta no caixa: " . $e->getMessage(), 'caixa');
             return false;
         }
     }

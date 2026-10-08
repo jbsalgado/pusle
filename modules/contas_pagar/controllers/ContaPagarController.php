@@ -415,46 +415,82 @@ class ContaPagarController extends Controller
         if (Yii::$app->request->isPost) {
             $dataPagamento = Yii::$app->request->post('data_pagamento', date('Y-m-d'));
             $formaPagamentoId = Yii::$app->request->post('forma_pagamento_id');
-            $validarSaldo = Yii::$app->request->post('validar_saldo', 1); // Padrão: validar
+            $duploRegistro = (int) Yii::$app->request->post('duplo_registro', 0) === 1;
+            $validarSaldo = (int) Yii::$app->request->post('validar_saldo', 0) === 1;
 
-            // Verifica saldo se solicitado
-            if ($validarSaldo) {
-                $caixa = \app\modules\caixa\helpers\CaixaHelper::getCaixaAberto();
-                if ($caixa) {
-                    $saldoAtual = $caixa->calcularValorEsperado();
-                    if ($saldoAtual < $model->valor) {
-                        Yii::$app->session->setFlash(
-                            'error',
-                            "Saldo insuficiente no caixa! Saldo atual: " . Yii::$app->formatter->asCurrency($saldoAtual) .
-                                ", Valor da conta: " . Yii::$app->formatter->asCurrency($model->valor)
-                        );
-                        return $this->redirect(['view', 'id' => $model->id]);
+            $caixa = \app\modules\caixa\helpers\CaixaHelper::getCaixaAberto();
+            $saldoAtual = $caixa ? $caixa->calcularValorEsperado() : 0;
+            $saldoInsuficiente = $saldoAtual < $model->valor;
+
+            // Se o saldo for insuficiente e não for pagamento em dinheiro, ativa duplo registro automaticamente
+            if ($saldoInsuficiente && !$duploRegistro && $formaPagamentoId) {
+                $forma = \app\modules\vendas\models\FormaPagamento::findOne($formaPagamentoId);
+                if ($forma && $forma->tipo !== \app\modules\vendas\models\FormaPagamento::TIPO_DINHEIRO) {
+                    $duploRegistro = true;
+                }
+            }
+
+            // Verifica saldo apenas se explicitamente exigido pelo operador e não for duplo registro
+            if ($validarSaldo && !$duploRegistro) {
+                if ($caixa && $saldoInsuficiente) {
+                    $erroMsg = "Saldo insuficiente no caixa! Saldo atual: " . Yii::$app->formatter->asCurrency($saldoAtual) .
+                        ", Valor da conta: " . Yii::$app->formatter->asCurrency($model->valor);
+                    if (Yii::$app->request->isAjax) {
+                        return $this->asJson(['success' => false, 'message' => $erroMsg]);
                     }
+                    Yii::$app->session->setFlash('error', $erroMsg);
+                    return $this->redirect(['view', 'id' => $model->id]);
                 }
             }
 
             // Marca como paga
             if ($model->marcarComoPaga($dataPagamento)) {
-                // INTEGRAÇÃO CAIXA: Registra saída com forma de pagamento
-                $movimentacao = \app\modules\caixa\helpers\CaixaHelper::registrarSaidaContaPagar(
-                    $model->id,
-                    $model->valor,
-                    $formaPagamentoId,
-                    null,
-                    false // Não valida novamente, já validamos acima
-                );
-
                 $msg = 'Conta marcada como paga com sucesso!';
-                if ($movimentacao) {
-                    $msg .= ' Débito de ' . Yii::$app->formatter->asCurrency($model->valor) . ' registrado no caixa.';
+
+                if ($duploRegistro) {
+                    // DUPLO REGISTRO: Entrada de Aporte + Saída da Conta (saldo neutro)
+                    $res = \app\modules\caixa\helpers\CaixaHelper::registrarPagamentoContaPagarComAporte(
+                        $model->id,
+                        $model->valor,
+                        $formaPagamentoId,
+                        null,
+                        $dataPagamento
+                    );
+
+                    if ($res) {
+                        $msg .= ' Duplo registro efetuado no caixa (Aporte R$ ' . number_format($model->valor, 2, ',', '.') . ' + Quitação R$ ' . number_format($model->valor, 2, ',', '.') . ') preservando o saldo do caixa.';
+                    } else {
+                        $msg .= ' <br><small>⚠️ O duplo registro não foi lançado no caixa (verifique se há caixa aberto).</small>';
+                    }
                 } else {
-                    $msg .= ' <br><small>⚠️ O débito não foi registrado no caixa (verifique se o caixa está aberto).</small>';
+                    // SAÍDA CONVENCIONAL
+                    $movimentacao = \app\modules\caixa\helpers\CaixaHelper::registrarSaidaContaPagar(
+                        $model->id,
+                        $model->valor,
+                        $formaPagamentoId,
+                        null,
+                        false // Não valida novamente
+                    );
+
+                    if ($movimentacao) {
+                        $msg .= ' Débito de ' . Yii::$app->formatter->asCurrency($model->valor) . ' registrado no caixa.';
+                    } else {
+                        $msg .= ' <br><small>⚠️ O débito não foi registrado no caixa (verifique se o caixa está aberto).</small>';
+                    }
+                }
+
+                if (Yii::$app->request->isAjax) {
+                    return $this->asJson(['success' => true, 'message' => $msg]);
                 }
 
                 Yii::$app->session->setFlash('success', $msg);
                 return $this->redirect(['view', 'id' => $model->id]);
             } else {
-                Yii::$app->session->setFlash('error', 'Erro ao marcar conta como paga: ' . implode(', ', $model->getFirstErrors()));
+                $erroMsg = 'Erro ao marcar conta como paga: ' . implode(', ', $model->getFirstErrors());
+                if (Yii::$app->request->isAjax) {
+                    return $this->asJson(['success' => false, 'message' => $erroMsg]);
+                }
+                Yii::$app->session->setFlash('error', $erroMsg);
                 return $this->redirect(['view', 'id' => $model->id]);
             }
         }
