@@ -301,7 +301,7 @@ use app\modules\vendas\models\ItemCompra;
                 </svg>
                 Itens da Compra
             </h2>
-            <button type="button" id="btn-adicionar-item" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-300 text-sm">
+            <button type="button" id="btn-adicionar-item" class="btn-adicionar-item-trigger px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-300 text-sm">
                 <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
@@ -325,6 +325,17 @@ use app\modules\vendas\models\ItemCompra;
                     ]) ?>
                 <?php endforeach; ?>
             <?php endif; ?>
+        </div>
+
+        <!-- Botão Adicionar Item no final da lista de itens -->
+        <div class="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-2">
+            <button type="button" class="btn-adicionar-item-trigger inline-flex items-center px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-sm hover:shadow transition duration-200 text-sm">
+                <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                + Adicionar Mais um Item
+            </button>
+            <span class="text-xs text-gray-500">Adicione novos itens conforme os produtos da nota fiscal.</span>
         </div>
 
         <div class="mt-4 p-5 bg-gradient-to-r from-gray-50 to-slate-100 rounded-xl border border-gray-200 shadow-sm">
@@ -373,6 +384,12 @@ use app\modules\vendas\models\ItemCompra;
 
     <!-- Botões de Ação -->
     <div class="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-200">
+        <button type="button" id="btn-adicionar-item-rodape" class="btn-adicionar-item-trigger w-full sm:w-auto inline-flex items-center justify-center px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition duration-300">
+            <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Novo Item
+        </button>
         <?= Html::submitButton(
             '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>' . ($model->isNewRecord ? 'Cadastrar' : 'Atualizar'),
             [
@@ -383,7 +400,7 @@ use app\modules\vendas\models\ItemCompra;
         <?= Html::a(
             '<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>Cancelar',
             $model->isNewRecord ? ['index'] : ['view', 'id' => $model->id],
-            ['class' => 'w-full sm:flex-1 inline-flex items-center justify-center px-6 py-3 bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold rounded-lg transition duration-300']
+            ['class' => 'w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold rounded-lg transition duration-300']
         ) ?>
     </div>
 
@@ -696,8 +713,9 @@ use app\modules\vendas\models\ItemCompra;
             }
         });
 
-        document.getElementById('btn-adicionar-item').addEventListener('click', function() {
+        function adicionarNovoItemCompra(scrollIntoView = false) {
             const container = document.getElementById('itens-container');
+            if (!container) return;
 
             const itemHtml = `
         <div class="item-compra bg-gray-50 p-4 rounded-lg border border-gray-200" data-index="${itemIndex}">
@@ -802,6 +820,21 @@ use app\modules\vendas\models\ItemCompra;
 
             attachItemListeners(newItem);
             itemIndex++;
+
+            if (scrollIntoView) {
+                newItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const inputSearch = newItem.querySelector('.input-search');
+                if (inputSearch) {
+                    setTimeout(() => inputSearch.focus(), 250);
+                }
+            }
+        }
+
+        // Vincula evento de clique a todos os botões de adicionar item (topo, após a lista e rodapé)
+        document.querySelectorAll('.btn-adicionar-item-trigger, #btn-adicionar-item, #btn-adicionar-item-rodape').forEach(btn => {
+            btn.addEventListener('click', function() {
+                adicionarNovoItemCompra(true);
+            });
         });
 
         // Remove item
