@@ -416,6 +416,7 @@ class ContaPagarController extends Controller
             $dataPagamento = Yii::$app->request->post('data_pagamento', date('Y-m-d'));
             $formaPagamentoId = Yii::$app->request->post('forma_pagamento_id');
             $duploRegistro = (int) Yii::$app->request->post('duplo_registro', 0) === 1;
+            $movimentarCaixa = (int) Yii::$app->request->post('movimentar_caixa', 1) === 1;
             $validarSaldo = (int) Yii::$app->request->post('validar_saldo', 0) === 1;
 
             $caixa = \app\modules\caixa\helpers\CaixaHelper::getCaixaAberto();
@@ -430,8 +431,8 @@ class ContaPagarController extends Controller
                 }
             }
 
-            // Verifica saldo apenas se explicitamente exigido pelo operador e não for duplo registro
-            if ($validarSaldo && !$duploRegistro) {
+            // Verifica saldo apenas se explicitamente exigido pelo operador, não for duplo registro e for movimentar caixa
+            if ($validarSaldo && !$duploRegistro && $movimentarCaixa) {
                 if ($caixa && $saldoInsuficiente) {
                     $erroMsg = "Saldo insuficiente no caixa! Saldo atual: " . Yii::$app->formatter->asCurrency($saldoAtual) .
                         ", Valor da conta: " . Yii::$app->formatter->asCurrency($model->valor);
@@ -447,7 +448,9 @@ class ContaPagarController extends Controller
             if ($model->marcarComoPaga($dataPagamento)) {
                 $msg = 'Conta marcada como paga com sucesso!';
 
-                if ($duploRegistro) {
+                if (!$movimentarCaixa) {
+                    $msg .= ' Registrado no contas a pagar (sem movimentação no caixa diário).';
+                } elseif ($duploRegistro) {
                     // DUPLO REGISTRO: Entrada de Aporte + Saída da Conta (saldo neutro)
                     $res = \app\modules\caixa\helpers\CaixaHelper::registrarPagamentoContaPagarComAporte(
                         $model->id,
@@ -469,7 +472,8 @@ class ContaPagarController extends Controller
                         $model->valor,
                         $formaPagamentoId,
                         null,
-                        false // Não valida novamente
+                        false, // Não valida novamente
+                        $dataPagamento
                     );
 
                     if ($movimentacao) {

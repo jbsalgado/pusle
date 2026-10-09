@@ -310,7 +310,7 @@ class CaixaHelper
      * @param bool $validarSaldo Se true, valida se há saldo suficiente antes de registrar
      * @return bool|CaixaMovimentacao Retorna a movimentação criada ou false em caso de erro
      */
-    public static function registrarSaidaContaPagar($contaPagarId, $valor, $formaPagamentoId = null, $usuarioId = null, $validarSaldo = false)
+    public static function registrarSaidaContaPagar($contaPagarId, $valor, $formaPagamentoId = null, $usuarioId = null, $validarSaldo = false, $dataPagamento = null)
     {
         try {
             $usuarioId = $usuarioId ?: Yii::$app->user->id;
@@ -333,7 +333,11 @@ class CaixaHelper
             }
 
             $conta = \app\modules\contas_pagar\models\ContaPagar::findOne($contaPagarId);
-            $desc = $conta ? "Pagamento: " . substr($conta->descricao, 0, 50) : "Pagamento Conta #{$contaPagarId}";
+            $refDataInfo = '';
+            if ($dataPagamento && date('Y-m-d', strtotime($dataPagamento)) !== date('Y-m-d')) {
+                $refDataInfo = ' [Ref. ' . date('d/m/Y', strtotime($dataPagamento)) . ']';
+            }
+            $desc = ($conta ? "Pagamento: " . substr($conta->descricao, 0, 50) : "Pagamento Conta #{$contaPagarId}") . $refDataInfo;
 
             // Cria a movimentação
             $movimentacao = new CaixaMovimentacao();
@@ -345,6 +349,9 @@ class CaixaHelper
             $movimentacao->conta_pagar_id = $contaPagarId;
             $movimentacao->forma_pagamento_id = $formaPagamentoId ?: ($conta->forma_pagamento_id ?? null);
             $movimentacao->data_movimento = date('Y-m-d H:i:s');
+            if ($refDataInfo) {
+                $movimentacao->observacoes = "Quitação contábil retroativa ref. a " . date('d/m/Y', strtotime($dataPagamento)) . ".";
+            }
 
             if (!$movimentacao->save()) {
                 $erros = $movimentacao->getFirstErrors();
@@ -389,8 +396,13 @@ class CaixaHelper
             $forma = $formaPagamentoId ? \app\modules\vendas\models\FormaPagamento::findOne($formaPagamentoId) : null;
             $formaNome = $forma ? $forma->nome : 'Cartão / Débito em Conta';
 
-            $dataHora = $dataPagamento ? date('Y-m-d H:i:s', strtotime($dataPagamento . ' ' . date('H:i:s'))) : date('Y-m-d H:i:s');
-            $descBase = $conta ? substr($conta->descricao, 0, 50) : "Conta #{$contaPagarId}";
+            // O movimento no caixa DEVE sempre refletir a linha do tempo real da sessão do caixa aberto
+            $dataHoraAtual = date('Y-m-d H:i:s');
+            $refDataInfo = '';
+            if ($dataPagamento && date('Y-m-d', strtotime($dataPagamento)) !== date('Y-m-d')) {
+                $refDataInfo = ' [Ref. ' . date('d/m/Y', strtotime($dataPagamento)) . ']';
+            }
+            $descBase = ($conta ? substr($conta->descricao, 0, 50) : "Conta #{$contaPagarId}") . $refDataInfo;
 
             // 1. REGISTRO DE ENTRADA (Aporte para cobertura do pagamento - Não Operacional)
             $movEntrada = new CaixaMovimentacao();
@@ -401,8 +413,8 @@ class CaixaHelper
             $movEntrada->descricao = "Aporte Não Operacional p/ Pagamento: {$descBase} ({$formaNome})";
             $movEntrada->conta_pagar_id = $contaPagarId;
             $movEntrada->forma_pagamento_id = $formaPagamentoId ?: ($conta->forma_pagamento_id ?? null);
-            $movEntrada->data_movimento = $dataHora;
-            $movEntrada->observacoes = "Lançamento contábil de contrapartida (cobertura externa). Não compõe faturamento ou receita de vendas do dia.";
+            $movEntrada->data_movimento = $dataHoraAtual;
+            $movEntrada->observacoes = "Lançamento contábil de contrapartida (cobertura externa). Não compõe faturamento ou receita de vendas do dia." . ($refDataInfo ? " Quitação contábil retroativa ref. a " . date('d/m/Y', strtotime($dataPagamento)) . "." : "");
 
             if (!$movEntrada->save()) {
                 $erros = $movEntrada->getFirstErrors();
@@ -419,8 +431,8 @@ class CaixaHelper
             $movSaida->descricao = "Pagamento: {$descBase} ({$formaNome})";
             $movSaida->conta_pagar_id = $contaPagarId;
             $movSaida->forma_pagamento_id = $formaPagamentoId ?: ($conta->forma_pagamento_id ?? null);
-            $movSaida->data_movimento = $dataHora;
-            $movSaida->observacoes = "Pagamento com cobertura externa ({$formaNome}). Impacto líquido no caixa: R$ 0,00.";
+            $movSaida->data_movimento = $dataHoraAtual;
+            $movSaida->observacoes = "Pagamento com cobertura externa ({$formaNome}). Impacto líquido no caixa: R$ 0,00." . ($refDataInfo ? " Quitação contábil retroativa ref. a " . date('d/m/Y', strtotime($dataPagamento)) . "." : "");
 
             if (!$movSaida->save()) {
                 $erros = $movSaida->getFirstErrors();

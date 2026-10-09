@@ -128,9 +128,13 @@ $isAjax = Yii::$app->request->isAjax;
                 </div>
                 <input type="date"
                     name="data_pagamento"
+                    id="campo_data_pagamento"
                     value="<?= date('Y-m-d') ?>"
                     class="block w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-2xl text-gray-900 font-semibold focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 outline-none sm:text-sm"
                     required>
+            </div>
+            <div id="alerta_data_retroativa" class="hidden mt-2 p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800 leading-relaxed">
+                ⚠️ <b>Data retroativa detectada:</b> No contas a pagar, a data contábil de quitação será gravada como selecionada. No caixa diário, o lançamento ficará vinculado ao expediente de hoje com tag de referência <code>[Ref. Data]</code>, mantendo a integridade cronológica do caixa. Caso esse pagamento tenha ocorrido por conta bancária fora do expediente deste caixa, você pode desmarcar a opção <b>"Lançar no Caixa Diário Aberto"</b> abaixo.
             </div>
         </div>
 
@@ -180,6 +184,24 @@ $isAjax = Yii::$app->request->isAjax;
                     </div>
                 </label>
             </div>
+
+            <!-- Movimentar Caixa Diário -->
+            <div class="pt-1">
+                <input type="hidden" name="movimentar_caixa" value="0">
+                <label class="relative flex items-center cursor-pointer select-none group p-3 bg-gray-50 hover:bg-emerald-50 rounded-2xl border border-gray-200 transition-all">
+                    <input type="checkbox"
+                        name="movimentar_caixa"
+                        value="1"
+                        id="movimentar_caixa"
+                        checked
+                        class="sr-only peer">
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[14px] after:left-[14px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 transition-colors"></div>
+                    <div class="ml-14">
+                        <span class="text-xs sm:text-sm font-bold text-gray-800 block group-hover:text-gray-900 transition-colors">Lançar no Caixa Diário Aberto</span>
+                        <span class="text-[11px] text-gray-500 block leading-tight">Mantenha marcado para registrar no caixa atual. Desmarque caso seja quitação de títulos antigos pagos fora do expediente deste caixa.</span>
+                    </div>
+                </label>
+            </div>
             
             <input type="hidden" name="validar_saldo" value="0">
         <?php endif; ?>
@@ -223,6 +245,22 @@ $isAjax = Yii::$app->request->isAjax;
 $urlIndex = \yii\helpers\Url::to(['index']);
 $this->registerJs(
     <<<JS
+// Monitora data retroativa
+function verificarDataRetroativa() {
+    var input = document.getElementById('campo_data_pagamento');
+    var alerta = document.getElementById('alerta_data_retroativa');
+    if (!input || !alerta) return;
+    
+    var hoje = new Date().toISOString().split('T')[0];
+    if (input.value && input.value < hoje) {
+        alerta.classList.remove('hidden');
+    } else {
+        alerta.classList.add('hidden');
+    }
+}
+$(document).off('change input', '#campo_data_pagamento').on('change input', '#campo_data_pagamento', verificarDataRetroativa);
+verificarDataRetroativa();
+
 // Submissão do formulário via AJAX
 $(document).off('submit', '#form-pagar-conta').on('submit', '#form-pagar-conta', function(e) {
     e.preventDefault();
