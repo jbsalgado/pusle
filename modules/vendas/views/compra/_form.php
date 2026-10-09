@@ -407,6 +407,200 @@ use app\modules\vendas\models\ItemCompra;
     <?php ActiveForm::end(); ?>
 </div>
 
+<!-- Modal Cadastro Rápido de Produto -->
+<div id="modal-cadastro-rapido-produto" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <!-- Backdrop com blur suave -->
+    <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" id="backdrop-cadastro-rapido"></div>
+
+    <div class="flex min-h-screen items-center justify-center p-3 sm:p-4 text-center">
+        <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all w-full max-w-2xl border border-gray-100 animate-in fade-in zoom-in-95 duration-200">
+            <!-- Header do Modal -->
+            <div class="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 px-5 py-4 text-white flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center text-white border border-white/20">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold leading-tight" id="modal-title">Cadastro Rápido de Produto</h3>
+                        <p class="text-xs text-blue-100">Inclua dados essenciais de estoque e venda sem sair da tela de compras</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-fechar-modal-rapido text-white/80 hover:text-white hover:bg-white/10 p-1.5 rounded-lg transition" title="Fechar">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Formulário do Modal -->
+            <form id="form-cadastro-rapido-produto" class="p-5 sm:p-6 space-y-4">
+                <!-- Alerta de Erro -->
+                <div id="alerta-erro-cadastro-rapido" class="hidden p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2">
+                    <svg class="w-5 h-5 flex-shrink-0 text-red-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span id="texto-erro-cadastro-rapido" class="flex-1"></span>
+                </div>
+
+                <!-- Linha 1: Nome e Categoria -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                            Nome do Produto <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" id="rapido-nome" name="nome" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-medium"
+                            placeholder="Ex: Cimento CP II 50kg Votoran">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                            Categoria <span class="text-red-500">*</span>
+                        </label>
+                        <select id="rapido-categoria-id" name="categoria_id" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <option value="">Selecione...</option>
+                            <?php foreach ($categorias as $catId => $catNome): ?>
+                                <option value="<?= Html::encode($catId) ?>"><?= Html::encode($catNome) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Linha 2: Preço de Custo e Preço de Venda Sugerido -->
+                <div class="bg-blue-50/50 p-3.5 rounded-xl border border-blue-100 space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                                Preço de Custo (R$) <span class="text-red-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 text-sm font-semibold">R$</span>
+                                <input type="text" id="rapido-preco-custo" name="preco_custo" required
+                                    class="currency-input w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-bold text-gray-900"
+                                    placeholder="0,00" value="0,00" inputmode="numeric">
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                    Preço de Venda (R$) <span class="text-red-500">*</span>
+                                </label>
+                                <span id="rapido-indicador-margem" class="text-[11px] font-semibold text-blue-700">Margem: 50%</span>
+                            </div>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 text-sm font-semibold">R$</span>
+                                <input type="text" id="rapido-preco-venda" name="preco_venda_sugerido" required
+                                    class="currency-input w-full pl-9 pr-3 py-2 border border-blue-400 bg-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-bold text-blue-900"
+                                    placeholder="0,00" value="0,00" inputmode="numeric">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botões de Atalho de Margem -->
+                    <div class="flex items-center gap-1.5 pt-1 border-t border-blue-100 flex-wrap">
+                        <span class="text-[11px] font-medium text-gray-500">Atalhos de margem rápida:</span>
+                        <button type="button" class="btn-margem-rapida px-2 py-0.5 bg-white hover:bg-blue-100 border border-blue-200 text-blue-700 rounded text-xs font-semibold transition" data-percent="30">+30%</button>
+                        <button type="button" class="btn-margem-rapida px-2 py-0.5 bg-white hover:bg-blue-100 border border-blue-200 text-blue-700 rounded text-xs font-semibold transition" data-percent="40">+40%</button>
+                        <button type="button" class="btn-margem-rapida px-2 py-0.5 bg-white hover:bg-blue-100 border border-blue-200 text-blue-700 rounded text-xs font-semibold transition" data-percent="50">+50%</button>
+                        <button type="button" class="btn-margem-rapida px-2 py-0.5 bg-white hover:bg-blue-100 border border-blue-200 text-blue-700 rounded text-xs font-semibold transition" data-percent="70">+70%</button>
+                        <button type="button" class="btn-margem-rapida px-2 py-0.5 bg-white hover:bg-blue-100 border border-blue-200 text-blue-700 rounded text-xs font-semibold transition" data-percent="100">+100%</button>
+                    </div>
+                </div>
+
+                <!-- Linha 3: Estoques (Atual, Mínimo, Ponto de Corte) -->
+                <div class="bg-gray-50 p-3.5 rounded-xl border border-gray-200 space-y-2">
+                    <div class="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                        Parâmetros de Estoque
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1" title="Saldo físico existente na loja antes de dar entrada nesta nota">
+                                Estoque Atual (Inicial)
+                            </label>
+                            <input type="number" step="0.01" min="0" id="rapido-estoque-atual" name="estoque_atual" value="0"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-gray-900"
+                                placeholder="0">
+                            <span class="text-[10px] text-gray-500">Saldo já existente na loja</span>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1" title="Gera alerta no dashboard quando estoque atingir este valor">
+                                Estoque Mínimo
+                            </label>
+                            <input type="number" step="0.01" min="0" id="rapido-estoque-minimo" name="estoque_minimo" value="1"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-gray-900"
+                                placeholder="1">
+                            <span class="text-[10px] text-gray-500">Alerta de ressuprimento</span>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1" title="Limite de segurança crítico (deve ser >= Estoque Mínimo)">
+                                Ponto de Corte
+                            </label>
+                            <input type="number" step="0.01" min="0" id="rapido-ponto-corte" name="ponto_corte" value="1"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-gray-900"
+                                placeholder="1">
+                            <span class="text-[10px] text-gray-500">Segurança (&ge; Est. Mínimo)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detalhes Fiscais / Opcionais -->
+                <details class="group border border-gray-200 rounded-xl overflow-hidden bg-white text-xs">
+                    <summary class="cursor-pointer px-4 py-2.5 font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition select-none">
+                        <span class="flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                            Dados Complementares (Código de Barras, Unidade, Marca, NCM)
+                        </span>
+                        <svg class="w-4 h-4 text-gray-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </summary>
+                    <div class="p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white">
+                        <div>
+                            <label class="block font-medium text-gray-700 mb-1">Unidade</label>
+                            <select id="rapido-unidade-medida" name="unidade_medida" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs">
+                                <option value="UN" selected>UN (Unidade)</option>
+                                <option value="KG">KG (Quilo)</option>
+                                <option value="MT">MT (Metro)</option>
+                                <option value="M2">M² (Metro Quadrado)</option>
+                                <option value="CX">CX (Caixa)</option>
+                                <option value="LT">LT (Litro)</option>
+                                <option value="PCT">PCT (Pacote)</option>
+                                <option value="PAR">PAR (Par)</option>
+                                <option value="SC">SC (Saco)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-medium text-gray-700 mb-1">Cód. Barras (EAN)</label>
+                            <input type="text" id="rapido-codigo-barras" name="codigo_barras" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs" placeholder="789...">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-gray-700 mb-1">Marca</label>
+                            <input type="text" id="rapido-marca" name="marca" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs" placeholder="Marca...">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-gray-700 mb-1">NCM</label>
+                            <input type="text" id="rapido-ncm" name="ncm" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs" placeholder="Ex: 8481.80.19">
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Ações do Modal -->
+                <div class="flex flex-col-reverse sm:flex-row justify-end items-center gap-2 pt-3 border-t border-gray-200">
+                    <button type="button" class="btn-fechar-modal-rapido w-full sm:w-auto px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg text-sm transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" id="btn-salvar-cadastro-rapido" class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-sm shadow-md hover:shadow-lg transition gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <span>Salvar e Vincular à Compra</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let itemIndex = <?= count($itens) ?>;
@@ -420,16 +614,21 @@ use app\modules\vendas\models\ItemCompra;
         let parcelaIndex = 0;
 
         const categorias = <?= json_encode($categorias) ?>;
-        const produtos = <?= json_encode(array_map(function ($p) {
-                                return [
-                                    'id' => $p->id,
-                                    'nome' => $p->nome,
-                                    'preco_custo' => $p->preco_custo,
-                                    'categoria_id' => $p->categoria_id,
-                                    'codigo_barras' => $p->codigo_barras,
-                                    'marca' => $p->marca
-                                ];
-                            }, $produtos)) ?>;
+        let produtos = <?= json_encode(array_map(function ($p) {
+                            return [
+                                'id' => $p->id,
+                                'nome' => $p->nome,
+                                'preco_custo' => (float)$p->preco_custo,
+                                'preco_venda_sugerido' => (float)$p->preco_venda_sugerido,
+                                'categoria_id' => $p->categoria_id,
+                                'codigo_barras' => $p->codigo_barras ?: '',
+                                'marca' => $p->marca ?: '',
+                                'unidade_medida' => $p->unidade_medida ?: 'UN',
+                                'estoque_atual' => (float)$p->estoque_atual,
+                                'estoque_minimo' => (float)$p->estoque_minimo,
+                                'ponto_corte' => (float)$p->ponto_corte,
+                            ];
+                        }, $produtos)) ?>;
 
         // Funções para Parcelas Manuais
         function obterTotalLiquido() {
@@ -729,7 +928,13 @@ use app\modules\vendas\models\ItemCompra;
                 <div class="sm:col-span-1 lg:col-span-2 relative autocomplete-container">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Produto *</label>
                     
-                    <input type="text" class="input-search w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Digite para buscar..." autocomplete="off">
+                    <div class="flex gap-1.5">
+                        <input type="text" class="input-search w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" placeholder="Digite para buscar..." autocomplete="off">
+                        <button type="button" class="btn-abrir-cadastro-rapido px-2.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold flex items-center gap-1 transition flex-shrink-0" title="Cadastrar Novo Produto">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                            <span class="hidden sm:inline">Novo</span>
+                        </button>
+                    </div>
                     <input type="hidden" name="ItemCompra[${itemIndex}][produto_id]" class="input-produto-id">
                     <input type="hidden" name="ItemCompra[${itemIndex}][nome_produto_temp]" class="input-nome-produto-temp">
                     <input type="hidden" name="ItemCompra[${itemIndex}][codigo_referencia_temp]" class="input-codigo-referencia-temp">
@@ -855,6 +1060,20 @@ use app\modules\vendas\models\ItemCompra;
             }
         });
 
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function formatarBrlMoeda(valor) {
+            return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(valor || 0);
+        }
+
         // Listeners para cálculo e autocomplete
         function attachItemListeners(itemElement) {
             const inputSearch = itemElement.querySelector('.input-search');
@@ -914,27 +1133,57 @@ use app\modules\vendas\models\ItemCompra;
                 }
             }
 
+            // Botão Novo Produto (Cadastro Rápido)
+            const btnCadastroRapido = itemElement.querySelector('.btn-abrir-cadastro-rapido');
+            if (btnCadastroRapido) {
+                btnCadastroRapido.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    abrirModalCadastroRapido(itemElement, inputSearch.value.trim());
+                });
+            }
+
             // Product Autocomplete Logic
             inputSearch.addEventListener('input', function() {
-                const term = this.value.toLowerCase();
+                const term = this.value.toLowerCase().trim();
                 resultsContainer.innerHTML = '';
 
                 // Limpa ID ao digitar para forçar novo cadastro se não selecionar do autocomplete
                 inputId.value = '';
                 // Sincroniza nome temporário para o auto-cadastro no backend
-                if (inputNomeTemp) inputNomeTemp.value = term;
+                if (inputNomeTemp) inputNomeTemp.value = this.value;
 
                 atualizarEstadoCategoria();
 
-                const filtered = produtos.filter(p => p.nome.toLowerCase().includes(term));
+                const filtered = !term ? produtos.slice(0, 15) : produtos.filter(p => p.nome.toLowerCase().includes(term));
 
                 if (filtered.length === 0) {
-                    resultsContainer.innerHTML = '<div class="p-2 text-gray-500 text-sm">Nenhum produto encontrado</div>';
+                    const nomeBuscado = inputSearch.value.trim();
+                    resultsContainer.innerHTML = `
+                        <div class="p-2.5 bg-amber-50 border-b border-amber-100 text-amber-800 text-xs">
+                            <span class="font-medium">Nenhum produto cadastrado encontrado</span>
+                        </div>
+                        <div class="p-2.5 bg-blue-50/80 hover:bg-blue-100 cursor-pointer text-blue-700 text-xs font-bold flex items-center gap-2 transition btn-cadastrar-rapido-opt">
+                            <svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                            <span>+ Cadastrar Produto Rápido</span>
+                        </div>
+                    `;
+                    const btnCad = resultsContainer.querySelector('.btn-cadastrar-rapido-opt');
+                    if (btnCad) {
+                        btnCad.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            resultsContainer.classList.add('hidden');
+                            abrirModalCadastroRapido(itemElement, nomeBuscado);
+                        });
+                    }
                 } else {
                     filtered.forEach(p => {
                         const div = document.createElement('div');
-                        div.className = 'p-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0 text-sm';
-                        div.textContent = p.nome;
+                        div.className = 'p-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0 text-sm flex items-center justify-between';
+                        div.innerHTML = `
+                            <span class="font-medium text-gray-800">${escapeHtml(p.nome)}</span>
+                            <span class="text-xs text-gray-500">Custo: R$ ${formatarBrlMoeda(parseFloat(p.preco_custo || 0))}</span>
+                        `;
                         div.dataset.id = p.id;
                         div.dataset.preco = p.preco_custo;
 
@@ -955,9 +1204,28 @@ use app\modules\vendas\models\ItemCompra;
 
                         resultsContainer.appendChild(div);
                     });
+
+                    // Atalho no rodapé para cadastrar novo
+                    const divNovo = document.createElement('div');
+                    divNovo.className = 'p-2 bg-gray-50 hover:bg-blue-50 cursor-pointer border-t border-gray-200 text-blue-600 text-xs font-semibold flex items-center gap-1.5 transition';
+                    const textoCadastrar = inputSearch.value.trim() ? `+ Cadastrar "${escapeHtml(inputSearch.value.trim())}" como novo produto` : '+ Cadastrar Novo Produto';
+                    divNovo.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> ${textoCadastrar}`;
+                    divNovo.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        resultsContainer.classList.add('hidden');
+                        abrirModalCadastroRapido(itemElement, inputSearch.value.trim());
+                    });
+                    resultsContainer.appendChild(divNovo);
                 }
 
                 resultsContainer.classList.remove('hidden');
+            });
+
+            inputSearch.addEventListener('focus', function() {
+                if (!this.value.trim()) {
+                    this.dispatchEvent(new Event('input'));
+                }
             });
 
             // Category Autocomplete Logic
@@ -1150,6 +1418,331 @@ use app\modules\vendas\models\ItemCompra;
                 selectTipoParcelamento.value = 'vista';
                 selectTipoParcelamento.dispatchEvent(new Event('change'));
             }
+        }
+
+        // ==========================================
+        // CADASTRO RÁPIDO DE PRODUTO VIA MODAL
+        // ==========================================
+        let activeItemElementParaCadastro = null;
+        const modalCadastroRapido = document.getElementById('modal-cadastro-rapido-produto');
+        const formCadastroRapido = document.getElementById('form-cadastro-rapido-produto');
+        const alertaErroRapido = document.getElementById('alerta-erro-cadastro-rapido');
+        const textoErroRapido = document.getElementById('texto-erro-cadastro-rapido');
+        const btnSalvarRapido = document.getElementById('btn-salvar-cadastro-rapido');
+        const rapidoNome = document.getElementById('rapido-nome');
+        const rapidoCategoriaId = document.getElementById('rapido-categoria-id');
+        const rapidoPrecoCusto = document.getElementById('rapido-preco-custo');
+        const rapidoPrecoVenda = document.getElementById('rapido-preco-venda');
+        const rapidoEstoqueAtual = document.getElementById('rapido-estoque-atual');
+        const rapidoEstoqueMinimo = document.getElementById('rapido-estoque-minimo');
+        const rapidoPontoCorte = document.getElementById('rapido-ponto-corte');
+        const rapidoIndicadorMargem = document.getElementById('rapido-indicador-margem');
+
+        function atualizarIndicadorMargem() {
+            if (!rapidoPrecoCusto || !rapidoPrecoVenda || !rapidoIndicadorMargem) return;
+            const custo = unmaskCurrency(rapidoPrecoCusto.value);
+            const venda = unmaskCurrency(rapidoPrecoVenda.value);
+            if (custo > 0 && venda > 0) {
+                const lucro = venda - custo;
+                const margem = (lucro / venda) * 100;
+                if (lucro >= 0) {
+                    rapidoIndicadorMargem.textContent = `Margem: ${margem.toFixed(1)}% (Lucro R$ ${formatarBrlMoeda(lucro)})`;
+                    rapidoIndicadorMargem.className = 'text-[11px] font-semibold text-emerald-700';
+                } else {
+                    rapidoIndicadorMargem.textContent = `Prejuízo: R$ ${formatarBrlMoeda(Math.abs(lucro))}`;
+                    rapidoIndicadorMargem.className = 'text-[11px] font-semibold text-red-600';
+                }
+            } else {
+                rapidoIndicadorMargem.textContent = 'Margem: -';
+                rapidoIndicadorMargem.className = 'text-[11px] font-semibold text-gray-500';
+            }
+        }
+
+        if (rapidoPrecoCusto) {
+            rapidoPrecoCusto.addEventListener('input', function() {
+                atualizarIndicadorMargem();
+            });
+        }
+
+        if (rapidoPrecoVenda) {
+            rapidoPrecoVenda.addEventListener('input', function() {
+                atualizarIndicadorMargem();
+            });
+        }
+
+        // Atalhos de margem rápida
+        document.querySelectorAll('.btn-margem-rapida').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const pct = parseFloat(this.dataset.percent) || 0;
+                const custo = unmaskCurrency(rapidoPrecoCusto.value);
+                if (custo > 0) {
+                    const venda = Math.round(custo * (1 + (pct / 100)) * 100) / 100;
+                    rapidoPrecoVenda.value = formatarBrlMoeda(venda);
+                    atualizarIndicadorMargem();
+                } else {
+                    alert('Informe primeiro o preço de custo para calcular a margem.');
+                    rapidoPrecoCusto.focus();
+                }
+            });
+        });
+
+        // Sincronizar Ponto de Corte >= Estoque Mínimo
+        if (rapidoEstoqueMinimo && rapidoPontoCorte) {
+            rapidoEstoqueMinimo.addEventListener('input', function() {
+                const min = parseFloat(this.value) || 0;
+                const corte = parseFloat(rapidoPontoCorte.value) || 0;
+                if (corte < min) {
+                    rapidoPontoCorte.value = min;
+                }
+            });
+        }
+
+        function abrirModalCadastroRapido(itemElement, nomeInicial = '') {
+            activeItemElementParaCadastro = itemElement;
+            if (formCadastroRapido) formCadastroRapido.reset();
+            if (alertaErroRapido) alertaErroRapido.classList.add('hidden');
+
+            if (rapidoNome) rapidoNome.value = (nomeInicial || '').trim();
+
+            // Se o item já tiver preço ou código de barras preenchido, aproveita
+            if (itemElement) {
+                const inputPrecoItem = itemElement.querySelector('.input-preco');
+                if (inputPrecoItem && unmaskCurrency(inputPrecoItem.value) > 0) {
+                    const preco = unmaskCurrency(inputPrecoItem.value);
+                    if (rapidoPrecoCusto) rapidoPrecoCusto.value = formatarBrlMoeda(preco);
+                    if (rapidoPrecoVenda) rapidoPrecoVenda.value = formatarBrlMoeda(Math.round(preco * 1.5 * 100) / 100);
+                } else {
+                    if (rapidoPrecoCusto) rapidoPrecoCusto.value = '0,00';
+                    if (rapidoPrecoVenda) rapidoPrecoVenda.value = '0,00';
+                }
+
+                const codBarrasItem = itemElement.querySelector('.input-codigo-barras');
+                const modalCodBarras = document.getElementById('rapido-codigo-barras');
+                if (codBarrasItem && codBarrasItem.value && modalCodBarras) {
+                    modalCodBarras.value = codBarrasItem.value;
+                }
+
+                const marcaItem = itemElement.querySelector('.input-marca');
+                const modalMarca = document.getElementById('rapido-marca');
+                if (marcaItem && marcaItem.value && modalMarca) {
+                    modalMarca.value = marcaItem.value;
+                }
+
+                const catItem = itemElement.querySelector('.input-categoria-id');
+                if (catItem && catItem.value && rapidoCategoriaId) {
+                    rapidoCategoriaId.value = catItem.value;
+                }
+            } else {
+                if (rapidoPrecoCusto) rapidoPrecoCusto.value = '0,00';
+                if (rapidoPrecoVenda) rapidoPrecoVenda.value = '0,00';
+            }
+
+            if (rapidoEstoqueAtual) rapidoEstoqueAtual.value = '0';
+            if (rapidoEstoqueMinimo) rapidoEstoqueMinimo.value = '1';
+            if (rapidoPontoCorte) rapidoPontoCorte.value = '1';
+
+            atualizarIndicadorMargem();
+
+            if (modalCadastroRapido) {
+                modalCadastroRapido.classList.remove('hidden');
+                setTimeout(() => {
+                    if (!rapidoNome.value) {
+                        rapidoNome.focus();
+                    } else if (!rapidoCategoriaId.value) {
+                        rapidoCategoriaId.focus();
+                    } else {
+                        rapidoPrecoCusto.focus();
+                    }
+                }, 100);
+            }
+        }
+
+        function fecharModalCadastroRapido() {
+            if (modalCadastroRapido) modalCadastroRapido.classList.add('hidden');
+            activeItemElementParaCadastro = null;
+        }
+
+        document.querySelectorAll('.btn-fechar-modal-rapido, #backdrop-cadastro-rapido').forEach(el => {
+            el.addEventListener('click', fecharModalCadastroRapido);
+        });
+
+        // Submit do formulário rápido
+        if (formCadastroRapido) {
+            formCadastroRapido.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                if (alertaErroRapido) alertaErroRapido.classList.add('hidden');
+                if (textoErroRapido) textoErroRapido.textContent = '';
+
+                const nome = rapidoNome.value.trim();
+                const categoriaId = rapidoCategoriaId.value;
+                const estMin = parseFloat(rapidoEstoqueMinimo.value) || 0;
+                const pontoCorte = parseFloat(rapidoPontoCorte.value) || 0;
+
+                if (!nome) {
+                    if (alertaErroRapido) alertaErroRapido.classList.remove('hidden');
+                    if (textoErroRapido) textoErroRapido.textContent = 'Informe o nome do produto.';
+                    rapidoNome.focus();
+                    return;
+                }
+                if (!categoriaId) {
+                    if (alertaErroRapido) alertaErroRapido.classList.remove('hidden');
+                    if (textoErroRapido) textoErroRapido.textContent = 'Selecione uma categoria para o produto.';
+                    rapidoCategoriaId.focus();
+                    return;
+                }
+                if (pontoCorte < estMin) {
+                    rapidoPontoCorte.value = estMin;
+                }
+
+                if (btnSalvarRapido) {
+                    btnSalvarRapido.disabled = true;
+                    btnSalvarRapido.innerHTML = `
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Salvando...
+                    `;
+                }
+
+                const formData = new FormData(formCadastroRapido);
+                formData.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->getCsrfToken() ?>');
+
+                fetch('<?= \yii\helpers\Url::to(['cadastro-rapido-produto']) ?>', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-Token': '<?= Yii::$app->request->getCsrfToken() ?>'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (btnSalvarRapido) {
+                        btnSalvarRapido.disabled = false;
+                        btnSalvarRapido.innerHTML = `
+                            <svg class="w-4 h-4 mr-1.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            Salvar e Vincular à Compra
+                        `;
+                    }
+
+                    if (!data.success) {
+                        if (alertaErroRapido) alertaErroRapido.classList.remove('hidden');
+                        if (textoErroRapido) textoErroRapido.textContent = data.message || 'Erro ao salvar produto.';
+                        return;
+                    }
+
+                    const p = data.produto;
+
+                    // Adiciona ou atualiza no array local de produtos para autocompletes futuros
+                    const idxExistente = produtos.findIndex(item => item.id == p.id);
+                    if (idxExistente >= 0) {
+                        produtos[idxExistente] = p;
+                    } else {
+                        produtos.push(p);
+                    }
+
+                    // Vincula imediatamente ao item ativo na tela
+                    if (activeItemElementParaCadastro) {
+                        const inputSearch = activeItemElementParaCadastro.querySelector('.input-search');
+                        const inputId = activeItemElementParaCadastro.querySelector('.input-produto-id');
+                        const inputNomeTemp = activeItemElementParaCadastro.querySelector('.input-nome-produto-temp');
+                        const inputPreco = activeItemElementParaCadastro.querySelector('.input-preco');
+                        const inputMarca = activeItemElementParaCadastro.querySelector('.input-marca');
+                        const inputCodigoBarras = activeItemElementParaCadastro.querySelector('.input-codigo-barras');
+                        const inputPrecoSugeridoTemp = activeItemElementParaCadastro.querySelector('.input-preco-venda-sugerido-temp');
+                        const inputEstoqueMinTemp = activeItemElementParaCadastro.querySelector('.input-estoque-minimo-temp');
+                        const inputPontoCorteTemp = activeItemElementParaCadastro.querySelector('.input-ponto-corte-temp');
+                        const inputUnidadeMedidaTemp = activeItemElementParaCadastro.querySelector('.input-unidade-medida-temp');
+                        const containerPrecoSugerido = activeItemElementParaCadastro.querySelector('.preco-sugerido-container');
+                        const spanPrecoSugerido = activeItemElementParaCadastro.querySelector('.span-preco-sugerido');
+
+                        if (inputSearch) inputSearch.value = p.nome;
+                        if (inputId) inputId.value = p.id;
+                        if (inputNomeTemp) inputNomeTemp.value = p.nome;
+                        if (inputMarca && p.marca) inputMarca.value = p.marca;
+                        if (inputCodigoBarras && p.codigo_barras) inputCodigoBarras.value = p.codigo_barras;
+
+                        if (inputPrecoSugeridoTemp) inputPrecoSugeridoTemp.value = p.preco_venda_sugerido;
+                        if (inputEstoqueMinTemp) inputEstoqueMinTemp.value = p.estoque_minimo;
+                        if (inputPontoCorteTemp) inputPontoCorteTemp.value = p.ponto_corte;
+                        if (inputUnidadeMedidaTemp) inputUnidadeMedidaTemp.value = p.unidade_medida;
+
+                        if (spanPrecoSugerido && p.preco_venda_sugerido > 0) {
+                            spanPrecoSugerido.textContent = 'R$ ' + formatarBrlMoeda(p.preco_venda_sugerido);
+                            if (containerPrecoSugerido) containerPrecoSugerido.classList.remove('hidden');
+                        }
+
+                        // Se o preço de custo foi informado, preenche o preço unitário do item
+                        if (inputPreco && p.preco_custo > 0) {
+                            inputPreco.value = formatUnitPrice(p.preco_custo);
+                            const inputQtd = activeItemElementParaCadastro.querySelector('.input-quantidade');
+                            if (inputQtd && (!inputQtd.value || parseFloat(inputQtd.value) <= 0)) {
+                                inputQtd.value = 1;
+                            }
+                        }
+
+                        // Sincroniza categoria
+                        const inputIdCat = activeItemElementParaCadastro.querySelector('.input-categoria-id');
+                        const inputSearchCat = activeItemElementParaCadastro.querySelector('.input-search-categoria');
+                        if (inputIdCat) inputIdCat.value = p.categoria_id;
+                        if (inputSearchCat) {
+                            inputSearchCat.value = p.categoria_nome || categorias[p.categoria_id] || '';
+                            inputSearchCat.readOnly = true;
+                            inputSearchCat.classList.add('bg-gray-100', 'cursor-not-allowed');
+                        }
+
+                        // Atualiza subtotal do item
+                        const inputQtd = activeItemElementParaCadastro.querySelector('.input-quantidade');
+                        const subtotalEl = activeItemElementParaCadastro.querySelector('.item-subtotal');
+                        if (inputQtd && subtotalEl && inputPreco) {
+                            const qtd = parseFloat(inputQtd.value) || 0;
+                            const prc = unmaskCurrency(inputPreco.value);
+                            subtotalEl.textContent = 'R$ ' + formatarBrlMoeda(Math.round(qtd * prc * 100) / 100);
+                        }
+
+                        calcularTotal();
+                    }
+
+                    fecharModalCadastroRapido();
+
+                    // Notificação Toast
+                    mostrarToastSucesso(`Produto "${p.nome}" cadastrado e vinculado com sucesso!`);
+                })
+                .catch(err => {
+                    if (btnSalvarRapido) {
+                        btnSalvarRapido.disabled = false;
+                        btnSalvarRapido.innerHTML = `
+                            <svg class="w-4 h-4 mr-1.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            Salvar e Vincular à Compra
+                        `;
+                    }
+                    if (alertaErroRapido) alertaErroRapido.classList.remove('hidden');
+                    if (textoErroRapido) textoErroRapido.textContent = 'Erro ao se comunicar com o servidor: ' + err.message;
+                });
+            });
+        }
+
+        // Toast de Notificação
+        function mostrarToastSucesso(mensagem) {
+            let toast = document.getElementById('toast-feedback-compra');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'toast-feedback-compra';
+                toast.className = 'fixed bottom-5 right-5 z-50 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 transition-all transform duration-300 translate-y-10 opacity-0';
+                document.body.appendChild(toast);
+            }
+            toast.innerHTML = `
+                <svg class="w-5 h-5 flex-shrink-0 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                <span class="text-sm font-semibold">${mensagem}</span>
+            `;
+            toast.classList.remove('translate-y-10', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-10', 'opacity-0');
+            }, 4000);
         }
 
         // Anexa listeners aos itens existentes e força cálculo inicial

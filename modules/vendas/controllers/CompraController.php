@@ -1222,6 +1222,127 @@ class CompraController extends Controller
     }
 
     /**
+     * Cadastro rápido de produto via AJAX a partir da tela de compras
+     * @return array
+     */
+    public function actionCadastroRapidoProduto()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        if (!Yii::$app->request->isPost) {
+            return ['success' => false, 'message' => 'Método inválido.'];
+        }
+
+        $tenantId = \app\components\TenantHelper::getId();
+        $post = Yii::$app->request->post();
+
+        $nome = trim($post['nome'] ?? '');
+        $categoriaId = trim($post['categoria_id'] ?? '');
+
+        if (empty($nome)) {
+            return ['success' => false, 'message' => 'O nome do produto é obrigatório.'];
+        }
+        if (empty($categoriaId)) {
+            return ['success' => false, 'message' => 'A categoria é obrigatória.'];
+        }
+
+        // Valida se categoria pertence à loja
+        $categoria = Categoria::find()
+            ->where(['id' => $categoriaId, 'usuario_id' => $tenantId])
+            ->one();
+        if (!$categoria) {
+            return ['success' => false, 'message' => 'Categoria não encontrada ou não pertence à sua loja.'];
+        }
+
+        // Função de conversão monetária
+        $parseMoney = function ($val) {
+            if (is_numeric($val)) return (float)$val;
+            if (empty($val)) return 0.0;
+            $val = str_replace(['R$', ' '], '', (string)$val);
+            if (strpos($val, ',') !== false) {
+                $val = str_replace('.', '', $val);
+                $val = str_replace(',', '.', $val);
+            }
+            return (float)$val;
+        };
+
+        $precoCusto = $parseMoney($post['preco_custo'] ?? 0);
+        $precoVenda = $parseMoney($post['preco_venda_sugerido'] ?? 0);
+        $estoqueMinimo = (float)($post['estoque_minimo'] ?? 0);
+        $pontoCorte = (float)($post['ponto_corte'] ?? 0);
+        $estoqueAtual = (float)($post['estoque_atual'] ?? 0);
+
+        if ($precoCusto < 0) $precoCusto = 0;
+        if ($precoVenda < 0) $precoVenda = 0;
+        if ($estoqueMinimo < 0) $estoqueMinimo = 0;
+        if ($pontoCorte < 0) $pontoCorte = 0;
+        if ($estoqueAtual < 0) $estoqueAtual = 0;
+
+        // Se o ponto de corte for menor que estoque mínimo, iguala para evitar erro de validação
+        if ($pontoCorte < $estoqueMinimo) {
+            $pontoCorte = $estoqueMinimo;
+        }
+
+        // Se preço de venda não foi informado ou é zero, calcula sugestão básica de margem de 50%
+        if ($precoVenda <= 0) {
+            $precoVenda = round($precoCusto * 1.5, 2);
+        }
+
+        $produto = new Produto();
+        $produto->usuario_id = $tenantId;
+        $produto->nome = $nome;
+        $produto->categoria_id = $categoriaId;
+        $produto->preco_custo = $precoCusto;
+        $produto->preco_venda_sugerido = $precoVenda;
+        $produto->estoque_minimo = $estoqueMinimo;
+        $produto->ponto_corte = $pontoCorte;
+        $produto->estoque_atual = $estoqueAtual;
+        $produto->unidade_medida = !empty($post['unidade_medida']) ? trim($post['unidade_medida']) : 'UN';
+        $produto->codigo_barras = !empty($post['codigo_barras']) ? trim($post['codigo_barras']) : null;
+        $produto->marca = !empty($post['marca']) ? trim($post['marca']) : null;
+        $produto->codigo_referencia = !empty($post['codigo_referencia']) ? trim($post['codigo_referencia']) : null;
+        $produto->ncm = !empty($post['ncm']) ? trim($post['ncm']) : null;
+        $produto->ativo = true;
+
+        if ($precoVenda > $precoCusto && $precoVenda > 0) {
+            $produto->margem_lucro_percentual = round((($precoVenda - $precoCusto) / $precoVenda) * 100, 2);
+            if ($precoCusto > 0) {
+                $produto->markup_percentual = round((($precoVenda - $precoCusto) / $precoCusto) * 100, 2);
+            }
+        }
+
+        if (!$produto->save()) {
+            $erros = [];
+            foreach ($produto->errors as $msgs) {
+                $erros = array_merge($erros, $msgs);
+            }
+            return [
+                'success' => false,
+                'message' => 'Erro ao cadastrar produto: ' . implode(' | ', $erros)
+            ];
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Produto "' . $produto->nome . '" cadastrado com sucesso!',
+            'produto' => [
+                'id' => $produto->id,
+                'nome' => $produto->nome,
+                'preco_custo' => (float)$produto->preco_custo,
+                'preco_venda_sugerido' => (float)$produto->preco_venda_sugerido,
+                'categoria_id' => $produto->categoria_id,
+                'categoria_nome' => $categoria->nome,
+                'codigo_barras' => $produto->codigo_barras ?: '',
+                'marca' => $produto->marca ?: '',
+                'unidade_medida' => $produto->unidade_medida ?: 'UN',
+                'estoque_atual' => (float)$produto->estoque_atual,
+                'estoque_minimo' => (float)$produto->estoque_minimo,
+                'ponto_corte' => (float)$produto->ponto_corte,
+            ]
+        ];
+    }
+
+    /**
      * Encontra o modelo Compra baseado no valor da chave primária.
      * @param string $id
      * @return Compra o modelo carregado

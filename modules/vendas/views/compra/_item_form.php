@@ -22,11 +22,17 @@
             }
             ?>
 
-            <input type="text"
-                class="input-search w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Digite para buscar..."
-                value="<?= \yii\helpers\Html::encode($nomeProduto) ?>"
-                autocomplete="off">
+            <div class="flex gap-1.5">
+                <input type="text"
+                    class="input-search w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    placeholder="Digite para buscar..."
+                    value="<?= \yii\helpers\Html::encode($nomeProduto) ?>"
+                    autocomplete="off">
+                <button type="button" class="btn-abrir-cadastro-rapido px-2.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold flex items-center gap-1 transition flex-shrink-0" title="Cadastrar Novo Produto">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    <span class="hidden sm:inline">Novo</span>
+                </button>
+            </div>
 
             <?= $form->field($item, "[$index]produto_id", ['template' => '{input}', 'enableClientValidation' => false])->hiddenInput(['class' => 'input-produto-id', 'required' => false]) ?>
             <?= $form->field($item, "[$index]nome_produto_temp", ['template' => '{input}', 'enableClientValidation' => false])->hiddenInput(['class' => 'input-nome-produto-temp']) ?>
