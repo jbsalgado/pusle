@@ -22,7 +22,9 @@ class m261116_100500_add_pdv_balanca_support extends Migration
             }
         }
 
-        $this->execute("CREATE INDEX IF NOT EXISTS idx_prest_produtos_usuario_ean ON prest_produtos (usuario_id, codigo_barras) WHERE codigo_barras IS NOT NULL");
+        if ($tableSchema && isset($tableSchema->columns['codigo_barras'])) {
+            $this->execute("CREATE INDEX IF NOT EXISTS idx_prest_produtos_usuario_ean ON prest_produtos (usuario_id, codigo_barras) WHERE codigo_barras IS NOT NULL");
+        }
         $this->execute("CREATE INDEX IF NOT EXISTS idx_prest_produtos_usuario_balanca ON prest_produtos (usuario_id, codigo_balanca) WHERE codigo_balanca IS NOT NULL");
 
         if ($this->db->schema->getTableSchema('prest_pdv_configuracoes', true) === null) {
