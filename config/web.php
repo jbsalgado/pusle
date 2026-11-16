@@ -271,6 +271,9 @@ $config = [
         'prestanista' => [
             'class' => 'app\modules\prestanista\Module',
         ],
+        'pdv' => [
+            'class' => 'app\modules\pdv\Module',
+        ],
     ],
     'params' => $params,
 ];

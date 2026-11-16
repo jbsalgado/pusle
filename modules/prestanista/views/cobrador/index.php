@@ -536,6 +536,7 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
             pixPollingTimer: null,
             pixPaymentId: null,
             pixCopiaECola: '',
+            syncEmAndamento: false,
         };
 
         const CACHE_VERSION = 'v2_prestanista_clean';
@@ -557,18 +558,22 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
             }
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             verificarVersaoCache();
             configurarRede();
             carregarRotaLocalStorage();
-            // Se estiver online, sempre busca a rota oficial atualizada no servidor
+            atualizarResumoDoDia();
+            atualizarBadgesSync();
+
+            // Se estiver online, sincroniza baixas pendentes ANTES de baixar a rota do servidor
             if (navigator.onLine) {
-                baixarRotaServidor(false);
+                if (obterPagamentosOffline().length > 0) {
+                    await sincronizarBaixas({ silencioso: true });
+                }
+                await baixarRotaServidor(false);
             } else {
                 renderizarRota();
             }
-            atualizarResumoDoDia();
-            atualizarBadgesSync();
         });
 
         function configurarRede() {
@@ -583,7 +588,12 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
                     lbl.textContent = 'Offline';
                 }
             }
-            window.addEventListener('online', atualizarStatusRede);
+            window.addEventListener('online', () => {
+                atualizarStatusRede();
+                if (obterPagamentosOffline().length > 0) {
+                    sincronizarBaixas({ silencioso: true });
+                }
+            });
             window.addEventListener('offline', atualizarStatusRede);
             atualizarStatusRede();
         }
@@ -642,6 +652,7 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
                         cobradorState.mpPublicKey = data.mp_public_key || '';
                         atualizarBadgeMpConectado();
                     }
+                    reaplicarBaixasPendentesNaRota();
                     salvarRotaLocalStorage();
                     renderizarRota();
                     if (comFeedback) {
@@ -1364,6 +1375,11 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
 
             // Abre o cartão atualizado
             abrirCartaoAtualizado(cartao.venda_id);
+
+            // Se estiver online, envia automaticamente para a central sem depender de clique manual
+            if (navigator.onLine) {
+                sincronizarBaixas({ silencioso: true });
+            }
         }
 
         function obterPagamentosOffline() {
@@ -1372,6 +1388,37 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
             } catch (e) {
                 return [];
             }
+        }
+
+        function reaplicarBaixasPendentesNaRota() {
+            const pendentes = obterPagamentosOffline();
+            if (!pendentes.length || !cobradorState.cartoesRota.length) return;
+
+            pendentes.forEach(pag => {
+                const cartao = cobradorState.cartoesRota.find(c => c.venda_id === pag.venda_id);
+                if (!cartao) return;
+
+                const parcela = cartao.parcelas.find(p => p.id === pag.parcela_id);
+                if (parcela && parcela.status !== 'PAGA') {
+                    parcela.status = 'PAGA';
+                    parcela.valor_pago = pag.valor_pago;
+                    parcela.data_pagamento = pag.data_pagamento
+                        ? new Date(pag.data_pagamento + 'T00:00:00').toLocaleDateString('pt-BR')
+                        : new Date().toLocaleDateString('pt-BR');
+                    parcela.tipo_pagamento = pag.tipo_pagamento;
+
+                    cartao.total_pago = (cartao.total_pago || 0) + (pag.valor_pago || 0);
+                    cartao.saldo_devedor = Math.max(0, cartao.valor_total - cartao.total_pago);
+
+                    const novaProx = cartao.parcelas.find(p => p.status !== 'PAGA');
+                    cartao.proxima_parcela = novaProx ? {
+                        id: novaProx.id,
+                        numero: novaProx.numero,
+                        data_vencimento: novaProx.data_vencimento,
+                        valor: novaProx.valor_parcela
+                    } : null;
+                }
+            });
         }
 
         // =========================================================================
@@ -1429,12 +1476,16 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
                 `;
             }).join('');
 
-            // Link On-line Oficial
+            // Link On-line Oficial + aviso caso haja baixa pendente de sincronização
             const boxLink = document.getElementById('cob-card-public-link-box');
+            const temPendenteSync = obterPagamentosOffline().some(p => p.venda_id === cartao.venda_id);
+            const avisoSync = temPendenteSync
+                ? `<div class="text-[10px] font-bold text-amber-700 bg-amber-100 border border-amber-300 rounded px-2 py-0.5 mb-1 inline-block">⏳ Aguardando sincronização com a central</div><br>`
+                : '';
             if (cartao.public_url) {
-                boxLink.innerHTML = `Link On-line: <a href="${cartao.public_url}" target="_blank" class="underline">${cartao.public_url}</a>`;
+                boxLink.innerHTML = `${avisoSync}Link On-line: <a href="${cartao.public_url}" target="_blank" class="underline">${cartao.public_url}</a>`;
             } else {
-                boxLink.innerHTML = `Cartão atualizado em campo`;
+                boxLink.innerHTML = `${avisoSync}Cartão atualizado em campo`;
             }
 
             modal.classList.remove('hidden');
@@ -1603,20 +1654,31 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
         // =========================================================================
         // SINCRONIZAÇÃO DAS BAIXAS COM O SERVIDOR
         // =========================================================================
-        async function sincronizarBaixas() {
+        async function sincronizarBaixas(opcoes = {}) {
+            const silencioso = !!opcoes.silencioso;
+
             if (!navigator.onLine) {
-                alert('Aparelho sem conexão à internet. As baixas continuam gravadas e seguras no celular.');
+                if (!silencioso) {
+                    alert('Aparelho sem conexão à internet. As baixas continuam gravadas e seguras no celular.');
+                }
+                return;
+            }
+
+            if (cobradorState.syncEmAndamento) {
                 return;
             }
 
             const pagamentos = obterPagamentosOffline();
             if (pagamentos.length === 0) {
-                alert('Tudo em dia! Não há baixas pendentes de envio.');
+                if (!silencioso) {
+                    alert('Tudo em dia! Não há baixas pendentes de envio.');
+                }
                 return;
             }
 
+            cobradorState.syncEmAndamento = true;
             const btn = document.getElementById('btn-sync-topo');
-            btn.classList.add('animate-spin');
+            if (btn) btn.classList.add('animate-spin');
 
             try {
                 const response = await fetch('<?= Url::to(['/prestanista/cobrador/sincronizar']) ?>', {
@@ -1628,20 +1690,53 @@ $this->title = 'App do Cobrador de Rua | Pulse Prestanista';
                     })
                 });
 
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
                 const data = await response.json();
-                if (data.success) {
-                    // Limpa fila de pendentes
-                    localStorage.removeItem('pulse_pagamentos_offline');
-                    atualizarResumoDoDia();
-                    atualizarBadgesSync();
-                    alert(`✓ Sucesso! ${data.total_sincronizados} baixa(s) enviadas e registradas na central.`);
+                const idsSincronizados = new Set((data.sincronizados || []).map(s => s.offline_id));
+
+                // Atualiza public_url nos cartões locais se retornados pelo servidor
+                (data.sincronizados || []).forEach(s => {
+                    const cartao = cobradorState.cartoesRota.find(c => c.venda_id === s.venda_id);
+                    if (cartao && s.public_url) {
+                        cartao.public_url = s.public_url;
+                    }
+                });
+                salvarRotaLocalStorage();
+
+                // Remove apenas os itens confirmados pelo servidor; preserva qualquer item com erro
+                const restantes = pagamentos.filter(p => !idsSincronizados.has(p.offline_id));
+                if (restantes.length > 0) {
+                    localStorage.setItem('pulse_pagamentos_offline', JSON.stringify(restantes));
                 } else {
-                    alert('Erro ao sincronizar: ' + (data.mensagem || 'Falha no servidor'));
+                    localStorage.removeItem('pulse_pagamentos_offline');
+                }
+
+                atualizarResumoDoDia();
+                atualizarBadgesSync();
+
+                // Se o modal de visualização do cartão estiver aberto, atualiza o aviso de sincronização
+                if (cobradorState.cartaoAtivoParaVisualizar) {
+                    abrirCartaoAtualizado(cobradorState.cartaoAtivoParaVisualizar.venda_id);
+                }
+
+                const erros = data.erros || [];
+                if (erros.length > 0) {
+                    const resumoErros = erros.map(e => `• ${e.erro}`).join('\n');
+                    alert(`Atenção: ${data.total_sincronizados || 0} baixa(s) sincronizada(s), mas ${erros.length} falhou(aram) e continuam na fila:\n${resumoErros}`);
+                } else if (!silencioso && data.success) {
+                    alert(`✓ Sucesso! ${data.total_sincronizados} baixa(s) enviadas e registradas na central.`);
                 }
             } catch (e) {
-                alert('Falha na comunicação com o servidor. Tente novamente mais tarde.');
+                if (!silencioso) {
+                    alert('Falha na comunicação com o servidor. As baixas continuam salvas no aparelho.');
+                }
+                console.warn('Erro ao sincronizar baixas:', e);
             } finally {
-                btn.classList.remove('animate-spin');
+                cobradorState.syncEmAndamento = false;
+                if (btn) btn.classList.remove('animate-spin');
             }
         }
 

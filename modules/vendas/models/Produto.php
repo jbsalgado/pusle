@@ -46,6 +46,9 @@ use app\modules\marketplace\components\MarketplaceSyncManager;
  * @property string $data_inicio_promocao
  * @property string $data_fim_promocao
  * @property string $codigo_barras
+ * @property string $codigo_balanca
+ * @property boolean $balanca_pesavel
+ * @property float $tara_padrao
  * @property string $marca
  * @property string $parent_id
  * @property string $cor
@@ -158,10 +161,17 @@ class Produto extends ActiveRecord
             [['porte'], 'default', 'value' => 'P'],
             [['parent_id'], 'exist', 'skipOnError' => true, 'skipOnEmpty' => true, 'targetClass' => Produto::class, 'targetAttribute' => ['parent_id' => 'id']],
 
-            // NOVOS CAMPOS: Código de Barras e Marca
+            // NOVOS CAMPOS: Código de Barras, Balança (PLU) e Marca
             [['codigo_barras', 'marca'], 'string', 'max' => 255],
             [['codigo_barras', 'marca'], 'trim'],
             [['codigo_barras', 'marca'], 'default', 'value' => null],
+            [['codigo_balanca'], 'string', 'max' => 20],
+            [['codigo_balanca'], 'trim'],
+            [['codigo_balanca'], 'default', 'value' => null],
+            [['balanca_pesavel'], 'boolean'],
+            [['balanca_pesavel'], 'default', 'value' => false],
+            [['tara_padrao'], 'number', 'min' => 0],
+            [['tara_padrao'], 'default', 'value' => 0],
 
             // Código de Referência
             [['codigo_referencia'], 'string', 'max' => 50],
@@ -637,6 +647,9 @@ class Produto extends ActiveRecord
             'data_inicio_promocao' => 'Início da Promoção',
             'data_fim_promocao' => 'Fim da Promoção',
             'codigo_barras' => 'Código de Barras (EAN)',
+            'codigo_balanca' => 'Código na Balança (PLU)',
+            'balanca_pesavel' => 'Pesável na Balança',
+            'tara_padrao' => 'Tara Padrão (kg)',
             'marca' => 'Marca',
             'com_nota' => 'Vendido com Nota (Última Compra)',
             'localizacao' => 'Localização no Estoque',

@@ -683,9 +683,12 @@ class CobradorController extends Controller
     /**
      * Efetiva a baixa de uma parcela (paga via PIX, Cartão MP ou Dinheiro) de forma unificada e transacional
      */
-    public static function efetivarBaixaParcela($parcela, $cartao, $valorPago, $cobradorId, $tipoNome, $transacaoId = null, $gateway = null)
+    public static function efetivarBaixaParcela($parcela, $cartao, $valorPago, $cobradorId, $tipoNome, $transacaoId = null, $gateway = null, $dataPagamento = null)
     {
         $tenantId = $cartao->usuario_id;
+        $dataPgtoValida = ($dataPagamento && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataPagamento) && strtotime($dataPagamento) !== false)
+            ? $dataPagamento
+            : date('Y-m-d');
         
         $transaction = Yii::$app->db->beginTransaction();
         try {
@@ -709,7 +712,7 @@ class CobradorController extends Controller
 
             // Atualiza Parcela
             $parcela->status_parcela_codigo = StatusParcela::PAGA;
-            $parcela->data_pagamento = date('Y-m-d');
+            $parcela->data_pagamento = $dataPgtoValida;
             $parcela->valor_pago = $valorPago;
             $parcela->forma_pagamento_id = $formaPagamento->id;
             if ($cobradorId) {
@@ -723,11 +726,11 @@ class CobradorController extends Controller
             $hist->usuario_id = $tenantId;
             $hist->parcela_id = $parcela->id;
             $hist->cliente_id = $cartao->cliente_id;
-            $hist->cobrador_id = $cobradorId ?: $cartao->colaborador_vendedor_id;
+            $hist->cobrador_id = $cobradorId ?: ($parcela->cobrador_id ?: $cartao->colaborador_vendedor_id);
             $hist->tipo_acao = HistoricoCobranca::TIPO_PAGAMENTO;
             $hist->valor_recebido = $valorPago;
             $hist->observacao = "Recebimento da {$parcela->numero_parcela}ª prestação via {$formaPagamento->nome} ({$origemDesc})";
-            $hist->data_acao = date('Y-m-d H:i:s');
+            $hist->data_acao = $dataPgtoValida . ' ' . date('H:i:s');
             $hist->save(false);
 
             // Atualiza status da venda
@@ -803,6 +806,7 @@ class CobradorController extends Controller
             $vendaId = $item['venda_id'] ?? null;
             $valorPago = (float)($item['valor_pago'] ?? 0);
             $tipoPagamento = trim($item['tipo_pagamento'] ?? 'DINHEIRO');
+            $dataPagamento = trim((string)($item['data_pagamento'] ?? ''));
             $cobradorId = $item['cobrador_id'] ?? null;
 
             // Se for colaborador autenticado de rua e não supervisor, trava o ID do cobrador nele mesmo
@@ -831,11 +835,18 @@ class CobradorController extends Controller
                     throw new \Exception("Venda não encontrada para a parcela {$parcela->id}");
                 }
 
+                if ($tenantId && (string)$cartao->usuario_id !== (string)$tenantId) {
+                    throw new \Exception("Cartão não pertence à loja autenticada ({$offlineId})");
+                }
+
                 if ($valorPago <= 0) {
                     $valorPago = (float)$parcela->valor_parcela;
                 }
 
-                self::efetivarBaixaParcela($parcela, $cartao, $valorPago, $cobradorId, $tipoPagamento);
+                $jaPaga = ($parcela->status_parcela_codigo === StatusParcela::PAGA);
+                if (!$jaPaga) {
+                    self::efetivarBaixaParcela($parcela, $cartao, $valorPago, $cobradorId, $tipoPagamento, null, null, $dataPagamento ?: null);
+                }
 
                 $publicUrl = CartaoController::getPublicUrl($cartao->id);
 
@@ -845,6 +856,7 @@ class CobradorController extends Controller
                     'venda_id' => (string)$cartao->id,
                     'numero_parcela' => $parcela->numero_parcela,
                     'valor_pago' => $valorPago,
+                    'ja_paga' => $jaPaga,
                     'public_url' => $publicUrl,
                 ];
 
@@ -857,7 +869,7 @@ class CobradorController extends Controller
         }
 
         return [
-            'success' => true,
+            'success' => (count($sincronizados) > 0 || empty($erros)),
             'total_processados' => count($pagamentosOffline),
             'total_sincronizados' => count($sincronizados),
             'sincronizados' => $sincronizados,

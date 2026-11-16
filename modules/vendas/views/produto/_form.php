@@ -238,6 +238,41 @@ if ($model->hasErrors()): ?>
             </div>
         </div>
 
+        <!-- Configurações de Balança / PDV -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-amber-50/60 p-4 rounded-lg border border-amber-200">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Código na Balança (PLU)</label>
+                <?= $form->field($model, 'codigo_balanca', [
+                    'options' => ['class' => 'mb-0'],
+                ])->textInput([
+                    'class' => 'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 font-mono',
+                    'placeholder' => 'Ex: 00125',
+                    'id' => 'produto-codigo-balanca'
+                ])->label(false) ?>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Tara Padrão (kg)</label>
+                <?= $form->field($model, 'tara_padrao', [
+                    'options' => ['class' => 'mb-0'],
+                ])->textInput([
+                    'type' => 'number',
+                    'step' => '0.001',
+                    'min' => '0',
+                    'class' => 'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 font-mono',
+                    'placeholder' => '0.000',
+                    'id' => 'produto-tara-padrao'
+                ])->label(false) ?>
+            </div>
+            <div class="flex items-center pt-5">
+                <?= $form->field($model, 'balanca_pesavel', [
+                    'options' => ['class' => 'mb-0'],
+                ])->checkbox([
+                    'class' => 'w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500',
+                    'id' => 'produto-balanca-pesavel'
+                ]) ?>
+            </div>
+        </div>
+
         <!-- Configurações de Venda (Unidade, Porte e Fracionamento) -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
             <div>
