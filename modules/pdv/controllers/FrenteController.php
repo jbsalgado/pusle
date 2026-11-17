@@ -5,6 +5,7 @@ namespace app\modules\pdv\controllers;
 use Yii;
 use yii\web\Controller;
 use yii\web\Response;
+use yii\helpers\Url;
 use app\modules\pdv\models\PdvConfiguracao;
 use app\modules\vendas\models\Produto;
 use app\modules\vendas\models\ProdutoVariante;
@@ -13,6 +14,7 @@ use app\modules\vendas\models\VendaItem;
 use app\modules\vendas\models\FormaPagamento;
 use app\modules\vendas\models\StatusVenda;
 use app\modules\vendas\models\Colaborador;
+use app\modules\vendas\models\CupomFiscal;
 use app\modules\caixa\models\Caixa;
 use app\modules\caixa\models\CaixaMovimentacao;
 
@@ -42,10 +44,17 @@ class FrenteController extends Controller
         $colaborador = Colaborador::getColaboradorLogado();
         $operadorNome = $colaborador ? $colaborador->nome_completo : ($usuario->nome ?? $usuario->username ?? 'Operador');
         $lojaNome = $usuario->nome_loja ?? $usuario->nome ?? 'Pulse PDV';
+        $lojaDados = [
+            'nome' => $lojaNome,
+            'documento' => $usuario->cnpj ?? $usuario->cpf ?? '',
+            'endereco' => $usuario->endereco ?? '',
+            'telefone' => $usuario->telefone ?? '',
+        ];
 
         return $this->render('index', [
             'tenantId' => $tenantId,
             'lojaNome' => $lojaNome,
+            'lojaDados' => $lojaDados,
             'operadorNome' => $operadorNome,
             'caixaAberto' => $caixaAberto,
             'formasPagamento' => $formasPagamento,
@@ -637,6 +646,72 @@ class FrenteController extends Controller
         } catch (\Throwable $e) {
             $transaction->rollBack();
             throw $e;
+        }
+    }
+
+    /**
+     * Emite ou recupera Cupom Fiscal (NFC-e) para uma venda finalizada no PDV
+     */
+    public function actionEmitirNfce()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        $usuario = Yii::$app->user->identity;
+        $tenantId = $usuario ? $usuario->getTenantId() : null;
+        $payload = json_decode(Yii::$app->request->getRawBody(), true) ?: Yii::$app->request->post();
+        $vendaId = $payload['venda_id'] ?? Yii::$app->request->get('venda_id');
+
+        if (!$vendaId) {
+            return ['success' => false, 'message' => 'Venda não informada para emissão fiscal.'];
+        }
+
+        $venda = Venda::findOne(['id' => $vendaId, 'usuario_id' => $tenantId]);
+        if (!$venda) {
+            return ['success' => false, 'message' => 'Venda não encontrada para esta loja.'];
+        }
+
+        $cupomExistente = CupomFiscal::findOne(['venda_id' => $venda->id, 'status' => CupomFiscal::STATUS_AUTORIZADA]);
+        if ($cupomExistente) {
+            return [
+                'success' => true,
+                'cupom_id' => (string)$cupomExistente->id,
+                'chave_acesso' => $cupomExistente->chave_acesso,
+                'pdf_url' => Url::to(['/vendas/cupom-fiscal/pdf', 'id' => $cupomExistente->id]),
+                'message' => 'NFC-e já autorizada!',
+            ];
+        }
+
+        if (!Yii::$app->has('nfwService')) {
+            return ['success' => false, 'message' => 'Serviço fiscal (nfwService) não configurado neste ambiente.'];
+        }
+
+        try {
+            $resultado = Yii::$app->nfwService->emitirCupom($venda->id);
+            if (!empty($resultado['success'])) {
+                $cupom = CupomFiscal::find()
+                    ->where(['venda_id' => $venda->id])
+                    ->orderBy(['id' => SORT_DESC])
+                    ->one();
+
+                return [
+                    'success' => true,
+                    'cupom_id' => $cupom ? (string)$cupom->id : null,
+                    'chave_acesso' => $cupom ? $cupom->chave_acesso : ($resultado['chave'] ?? null),
+                    'pdf_url' => $cupom ? Url::to(['/vendas/cupom-fiscal/pdf', 'id' => $cupom->id]) : null,
+                    'message' => 'Cupom Fiscal (NFC-e) emitido com sucesso!',
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => $resultado['message'] ?? 'Não foi possível autorizar a NFC-e.',
+            ];
+        } catch (\Throwable $e) {
+            Yii::error('Erro ao emitir NFC-e no PDV: ' . $e->getMessage(), __METHOD__);
+            return [
+                'success' => false,
+                'message' => 'Erro na emissão fiscal: ' . $e->getMessage(),
+            ];
         }
     }
 

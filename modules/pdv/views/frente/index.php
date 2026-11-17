@@ -27,17 +27,34 @@ foreach ($formasPagamento as $fp) {
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @media print {
-            body * { visibility: hidden !important; }
-            #area-cupom-impressao, #area-cupom-impressao * { visibility: visible !important; }
+            @page {
+                size: 80mm auto;
+                margin: 0mm;
+            }
+            html, body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+            body > * {
+                display: none !important;
+            }
             #area-cupom-impressao {
-                position: fixed !important;
-                left: 0; top: 0;
-                width: 80mm !important;
-                background: #fff !important;
-                color: #000 !important;
+                display: block !important;
+                visibility: visible !important;
+                position: relative !important;
+                width: 76mm !important;
+                margin: 0 auto !important;
                 padding: 4mm !important;
+                background: #ffffff !important;
+                color: #000000 !important;
                 font-family: 'Courier New', monospace !important;
                 font-size: 11px !important;
+                line-height: 1.35 !important;
             }
         }
         .cupom-scroll::-webkit-scrollbar { width: 6px; }
@@ -146,14 +163,17 @@ foreach ($formasPagamento as $fp) {
                 <button type="button" onclick="removerItemSelecionado()" class="bg-white/10 hover:bg-white/20 px-2.5 py-2 rounded-lg text-left font-bold transition">
                     <span class="text-amber-300 font-mono">F4</span> Cancelar Item
                 </button>
+                <button type="button" onclick="reimprimirUltimoCupom()" class="bg-white/10 hover:bg-white/20 px-2.5 py-2 rounded-lg text-left font-bold transition">
+                    <span class="text-amber-300 font-mono">F6</span> Reimprimir
+                </button>
                 <button type="button" onclick="abrirModalDesconto()" class="bg-white/10 hover:bg-white/20 px-2.5 py-2 rounded-lg text-left font-bold transition">
                     <span class="text-amber-300 font-mono">F7</span> Desconto
                 </button>
                 <button type="button" onclick="usarPesoBalancaNoUltimoItem()" class="bg-white/10 hover:bg-white/20 px-2.5 py-2 rounded-lg text-left font-bold transition">
                     <span class="text-amber-300 font-mono">F8</span> Ler Balança
                 </button>
-                <button type="button" onclick="abrirModalMovimentacao()" class="bg-white/10 hover:bg-white/20 px-2.5 py-2 rounded-lg text-left font-bold transition">
-                    <span class="text-amber-300 font-mono">F9</span> Sangria/Supri.
+                <button type="button" onclick="abrirModalMovimentacao()" class="col-span-2 bg-white/10 hover:bg-white/20 px-2.5 py-2 rounded-lg text-left font-bold transition">
+                    <span class="text-amber-300 font-mono">F9</span> Sangria / Suprimento de Caixa
                 </button>
                 <button type="button" onclick="abrirModalFinalizar()" class="col-span-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-3 py-2.5 rounded-xl font-black text-xs text-center shadow transition">
                     <span class="font-mono">F10</span> FINALIZAR VENDA
@@ -445,17 +465,51 @@ foreach ($formasPagamento as $fp) {
         </div>
     </div>
 
+    <!-- MODAL PÓS-VENDA: COMPROVANTE / NFC-E / NOVA VENDA -->
+    <div id="modal-pos-venda" class="fixed inset-0 z-50 bg-black/75 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div class="bg-emerald-700 text-white px-5 py-3.5 flex items-center justify-between">
+                <h3 class="font-black text-base">✓ Venda Concluída</h3>
+                <button type="button" onclick="fecharModais()" class="text-emerald-100 hover:text-white font-bold">✕</button>
+            </div>
+            <div class="p-5 space-y-4 text-center">
+                <div>
+                    <div class="text-xs font-bold uppercase text-slate-500">Cupom</div>
+                    <div id="pos-numero-cupom" class="text-2xl font-mono font-black text-slate-900">#000000</div>
+                    <div id="pos-valor-total" class="text-lg font-mono font-black text-emerald-700 mt-0.5">R$ 0,00</div>
+                </div>
+                <div id="pos-nfce-status" class="hidden text-xs font-bold rounded-xl p-2.5"></div>
+                <div class="space-y-2">
+                    <button type="button" onclick="reimprimirUltimoCupom()" class="w-full py-3 bg-blue-900 hover:bg-blue-800 text-white font-black text-xs rounded-xl shadow">
+                        🖨️ Imprimir Comprovante 80mm
+                    </button>
+                    <button type="button" id="btn-pos-comprovante-oficial" onclick="abrirComprovanteOficialPdv()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl border border-slate-300">
+                        📄 Abrir Comprovante Oficial (Nova Aba)
+                    </button>
+                    <button type="button" id="btn-pos-emitir-nfce" onclick="emitirNfcePdv()" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow">
+                        🧾 Emitir / Imprimir Cupom Fiscal (NFC-e)
+                    </button>
+                    <button type="button" onclick="fecharModais()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl">
+                        ✓ Nova Venda (ESC)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ÁREA OCULTA PARA IMPRESSÃO TÉRMICA 80MM -->
     <div id="area-cupom-impressao" class="hidden"></div>
 
     <script>
         const pdvState = {
             lojaNome: <?= json_encode($lojaNome) ?>,
+            lojaDados: <?= json_encode($lojaDados ?? ['nome' => $lojaNome, 'documento' => '', 'endereco' => '', 'telefone' => '']) ?>,
             operadorNome: <?= json_encode($operadorNome) ?>,
             caixaAberto: <?= $caixaAberto ? 'true' : 'false' ?>,
             itens: [],
             indiceSelecionado: -1,
             desconto: 0,
+            ultimaVenda: null,
             pesoAtualBalanca: 0,
             balancaConectada: false,
             config: {
@@ -502,6 +556,7 @@ foreach ($formasPagamento as $fp) {
             if (e.key === 'F2') { e.preventDefault(); abrirModalBusca(); }
             else if (e.key === 'F3') { e.preventDefault(); abrirModalAlterarQtd(); }
             else if (e.key === 'F4') { e.preventDefault(); removerItemSelecionado(); }
+            else if (e.key === 'F6') { e.preventDefault(); reimprimirUltimoCupom(); }
             else if (e.key === 'F7') { e.preventDefault(); abrirModalDesconto(); }
             else if (e.key === 'F8') { e.preventDefault(); usarPesoBalancaNoUltimoItem(); }
             else if (e.key === 'F9') { e.preventDefault(); abrirModalMovimentacao(); }
@@ -1026,16 +1081,36 @@ foreach ($formasPagamento as $fp) {
 
             const itensCopia = [...pdvState.itens];
             const descCopia = pdvState.desconto;
+            const pagamentosCopia = [...pagamentosValidos];
+            const cpfCopia = document.getElementById('fin-cpf').value.trim();
+            const trocoCopia = Math.max(0, Number((recebido - total).toFixed(2)));
 
             const concluirLocal = (vendaInfo, msgFeedback, clsFeedback) => {
+                pdvState.ultimaVenda = {
+                    venda: vendaInfo,
+                    itens: itensCopia,
+                    desconto: descCopia,
+                    pagamentos: pagamentosCopia,
+                    cpf: cpfCopia,
+                    troco: trocoCopia,
+                };
+                try {
+                    localStorage.setItem('pulse_pdv_ultima_venda', JSON.stringify(pdvState.ultimaVenda));
+                } catch (_) {}
+
                 pdvState.itens = [];
                 pdvState.indiceSelecionado = -1;
                 pdvState.desconto = 0;
+                document.getElementById('fin-cpf').value = '';
                 renderizarCupom();
                 fecharModais();
                 setFeedback(msgFeedback, clsFeedback);
+
+                // Exibe modal pós-venda com opções de comprovante e NFC-e
+                abrirModalPosVenda(vendaInfo);
+
                 if (imprimir || pdvState.config.imprimir_cupom_auto) {
-                    imprimirCupomTermico(vendaInfo, itensCopia, descCopia);
+                    imprimirCupomTermico(pdvState.ultimaVenda);
                 }
             };
 
@@ -1131,31 +1206,141 @@ foreach ($formasPagamento as $fp) {
             }
         }
 
-        function imprimirCupomTermico(venda, itens, desconto) {
+        function abrirModalPosVenda(vendaInfo) {
+            document.getElementById('pos-numero-cupom').textContent = `#${vendaInfo.numero_cupom}`;
+            document.getElementById('pos-valor-total').textContent = `R$ ${Number(vendaInfo.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+
+            const temVendaId = !!vendaInfo.venda_id;
+            document.getElementById('btn-pos-comprovante-oficial').classList.toggle('hidden', !temVendaId);
+            document.getElementById('btn-pos-emitir-nfce').classList.toggle('hidden', !temVendaId);
+
+            const st = document.getElementById('pos-nfce-status');
+            st.classList.add('hidden');
+            st.textContent = '';
+
+            document.getElementById('modal-pos-venda').classList.remove('hidden');
+        }
+
+        function reimprimirUltimoCupom() {
+            let dados = pdvState.ultimaVenda;
+            if (!dados) {
+                try {
+                    dados = JSON.parse(localStorage.getItem('pulse_pdv_ultima_venda') || 'null');
+                } catch (_) {}
+            }
+            if (!dados || !dados.itens || !dados.itens.length) {
+                alert('Nenhum cupom recente disponível para reimpressão.');
+                return;
+            }
+            imprimirCupomTermico(dados);
+        }
+
+        function abrirComprovanteOficialPdv() {
+            const vendaId = pdvState.ultimaVenda && pdvState.ultimaVenda.venda && pdvState.ultimaVenda.venda.venda_id;
+            if (!vendaId) {
+                alert('Esta venda foi salva offline e ainda não possui ID no servidor.');
+                return;
+            }
+            window.open(`<?= Url::to(['/vendas/venda/imprimir']) ?>?id=${encodeURIComponent(vendaId)}`, '_blank');
+        }
+
+        async function emitirNfcePdv() {
+            const vendaId = pdvState.ultimaVenda && pdvState.ultimaVenda.venda && pdvState.ultimaVenda.venda.venda_id;
+            if (!vendaId) {
+                alert('Sincronize a venda offline antes de emitir NFC-e.');
+                return;
+            }
+            const btn = document.getElementById('btn-pos-emitir-nfce');
+            const st = document.getElementById('pos-nfce-status');
+            btn.disabled = true;
+            btn.textContent = 'Emitindo NFC-e...';
+
+            try {
+                const res = await fetch('<?= Url::to(['/pdv/frente/emitir-nfce']) ?>', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ venda_id: vendaId })
+                });
+                const data = await res.json();
+                st.classList.remove('hidden');
+                if (data.success) {
+                    st.className = 'text-xs font-bold rounded-xl p-2.5 bg-emerald-50 text-emerald-800 border border-emerald-200';
+                    st.textContent = `✓ ${data.message}${data.chave_acesso ? ' Chave: ' + data.chave_acesso : ''}`;
+                    if (data.pdf_url) {
+                        window.open(data.pdf_url, '_blank');
+                    }
+                } else {
+                    st.className = 'text-xs font-bold rounded-xl p-2.5 bg-rose-50 text-rose-800 border border-rose-200';
+                    st.textContent = data.message || 'Falha ao emitir NFC-e.';
+                }
+            } catch (_) {
+                st.classList.remove('hidden');
+                st.className = 'text-xs font-bold rounded-xl p-2.5 bg-rose-50 text-rose-800 border border-rose-200';
+                st.textContent = 'Erro de comunicação ao emitir NFC-e.';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🧾 Emitir / Imprimir Cupom Fiscal (NFC-e)';
+            }
+        }
+
+        function imprimirCupomTermico(registro) {
+            const venda = registro.venda || {};
+            const itens = registro.itens || [];
+            const desconto = Number(registro.desconto || 0);
+            const pagamentos = registro.pagamentos || [];
+            const cpf = registro.cpf || '';
+            const troco = Number(registro.troco || 0);
+            const loja = pdvState.lojaDados || { nome: pdvState.lojaNome };
+
             const area = document.getElementById('area-cupom-impressao');
             area.innerHTML = `
-                <div style="text-align:center;font-weight:bold;margin-bottom:6px;">${pdvState.lojaNome}</div>
-                <div style="text-align:center;font-size:10px;margin-bottom:6px;">CUPOM NAO FISCAL #${venda.numero_cupom}<br>${venda.data_hora}</div>
+                <div style="text-align:center;font-weight:bold;font-size:13px;margin-bottom:2px;">${loja.nome || pdvState.lojaNome}</div>
+                ${loja.documento ? `<div style="text-align:center;font-size:10px;">CNPJ/CPF: ${loja.documento}</div>` : ''}
+                ${loja.endereco ? `<div style="text-align:center;font-size:10px;">${loja.endereco}</div>` : ''}
+                ${loja.telefone ? `<div style="text-align:center;font-size:10px;">Tel: ${loja.telefone}</div>` : ''}
+                <div style="text-align:center;font-size:10px;margin:6px 0;">
+                    <strong>CUPOM NAO FISCAL #${venda.numero_cupom || ''}</strong><br>
+                    ${venda.data_hora || ''}
+                </div>
+                ${cpf ? `<div style="font-size:10px;margin-bottom:4px;">CONSUMIDOR CPF/CNPJ: ${cpf}</div>` : ''}
                 <hr style="border-top:1px dashed #000;margin:4px 0;">
                 ${itens.map((i, idx) => `
-                    <div style="margin-bottom:3px;">
-                        <div>${idx + 1}. ${i.nome}</div>
+                    <div style="margin-bottom:4px;">
+                        <div style="font-weight:bold;">${String(idx + 1).padStart(2, '0')}. ${i.nome}</div>
                         <div style="display:flex;justify-content:space-between;">
-                            <span>${i.quantidade.toFixed(3)} x R$ ${i.preco_unitario.toFixed(2)}</span>
-                            <span>R$ ${i.subtotal.toFixed(2)}</span>
+                            <span>${Number(i.quantidade).toFixed(3)} ${i.unidade || 'UN'} x R$ ${Number(i.preco_unitario).toFixed(2)}</span>
+                            <span>R$ ${Number(i.subtotal).toFixed(2)}</span>
                         </div>
                     </div>
                 `).join('')}
                 <hr style="border-top:1px dashed #000;margin:4px 0;">
                 ${desconto > 0 ? `<div style="display:flex;justify-content:space-between;"><span>Desconto:</span><span>-R$ ${desconto.toFixed(2)}</span></div>` : ''}
-                <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:13px;">
-                    <span>TOTAL:</span><span>R$ ${Number(venda.valor_total).toFixed(2)}</span>
+                <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:13px;margin-bottom:4px;">
+                    <span>TOTAL:</span><span>R$ ${Number(venda.valor_total || 0).toFixed(2)}</span>
                 </div>
-                <div style="text-align:center;margin-top:8px;font-size:10px;">Atendido por: ${pdvState.operadorNome}<br>Obrigado pela preferencia!</div>
+                ${pagamentos.map(p => `
+                    <div style="display:flex;justify-content:space-between;font-size:10px;">
+                        <span>${p.nome || 'Pagamento'}:</span>
+                        <span>R$ ${Number(p.valor || 0).toFixed(2)}</span>
+                    </div>
+                `).join('')}
+                ${troco > 0 ? `<div style="display:flex;justify-content:space-between;font-weight:bold;font-size:11px;margin-top:2px;"><span>TROCO:</span><span>R$ ${troco.toFixed(2)}</span></div>` : ''}
+                <hr style="border-top:1px dashed #000;margin:6px 0;">
+                <div style="text-align:center;font-size:10px;">
+                    Atendido por: ${pdvState.operadorNome}<br>
+                    Obrigado pela preferencia!
+                </div>
             `;
+
             area.classList.remove('hidden');
-            window.print();
-            area.classList.add('hidden');
+            const limparPosImpressao = () => {
+                area.classList.add('hidden');
+                window.removeEventListener('afterprint', limparPosImpressao);
+            };
+            window.addEventListener('afterprint', limparPosImpressao);
+            setTimeout(() => {
+                window.print();
+            }, 150);
         }
 
         // =========================================================================
