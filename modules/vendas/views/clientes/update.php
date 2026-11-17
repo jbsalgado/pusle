@@ -276,6 +276,32 @@ $this->params['breadcrumbs'][] = $this->title;
                             </div>
                         </div>
                     </div>
+
+                    <!-- Crédito / Fiado no PDV -->
+                    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                <?= Html::activeCheckbox($model, 'permite_fiado', [
+                                    'class' => 'w-4 h-4 text-amber-600 bg-white border-gray-300 rounded focus:ring-amber-500 focus:ring-2',
+                                    'label' => false,
+                                    'id' => 'permite_fiado_checkbox',
+                                ]) ?>
+                            </div>
+                            <div class="ml-3">
+                                <label for="permite_fiado_checkbox" class="font-semibold text-amber-950 text-sm cursor-pointer">Autorizar Compras no Fiado / A Prazo (PDV)</label>
+                                <p class="text-xs text-amber-800">Apenas clientes marcados aqui podem comprar fiado com data de pagamento no caixa.</p>
+                            </div>
+                        </div>
+                        <div>
+                            <?= $form->field($model, 'limite_fiado')->textInput([
+                                'type' => 'number',
+                                'step' => '0.01',
+                                'min' => '0',
+                                'placeholder' => 'Opcional (ex: 500.00). Vazio = sem limite fixo',
+                                'class' => 'w-full px-3 py-2 border border-amber-300 rounded-lg bg-white text-sm font-mono focus:ring-2 focus:ring-amber-500'
+                            ]) ?>
+                        </div>
+                    </div>
                 </div>
             </div>
 

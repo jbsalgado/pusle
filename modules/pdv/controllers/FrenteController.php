@@ -14,6 +14,7 @@ use app\modules\vendas\models\VendaItem;
 use app\modules\vendas\models\FormaPagamento;
 use app\modules\vendas\models\StatusVenda;
 use app\modules\vendas\models\Colaborador;
+use app\modules\vendas\models\Cliente;
 use app\modules\vendas\models\CupomFiscal;
 use app\modules\caixa\models\Caixa;
 use app\modules\caixa\models\CaixaMovimentacao;
@@ -39,6 +40,25 @@ class FrenteController extends Controller
             ->where(['usuario_id' => $tenantId, 'ativo' => true])
             ->orderBy(['nome' => SORT_ASC])
             ->all();
+
+        // Garante que exista uma forma de pagamento "FIADO" disponível para clientes autorizados
+        $temFiado = false;
+        foreach ($formasPagamento as $fp) {
+            if (mb_stripos($fp->nome, 'fiado') !== false) {
+                $temFiado = true;
+                break;
+            }
+        }
+        if (!$temFiado && $tenantId) {
+            $fpFiado = new FormaPagamento();
+            $fpFiado->usuario_id = $tenantId;
+            $fpFiado->nome = 'FIADO';
+            $fpFiado->tipo = FormaPagamento::TIPO_BOLETO;
+            $fpFiado->ativo = true;
+            if ($fpFiado->save(false)) {
+                $formasPagamento[] = $fpFiado;
+            }
+        }
 
         $pdvConfig = PdvConfiguracao::obterOuPadrao($tenantId);
         $colaborador = Colaborador::getColaboradorLogado();
@@ -480,10 +500,62 @@ class FrenteController extends Controller
         $pagamentosReq = $payload['pagamentos'] ?? [];
         $descontoGeral = max(0, (float)($payload['desconto'] ?? 0));
         $cpfConsumidor = preg_replace('/\D/', '', (string)($payload['cpf_consumidor'] ?? ''));
+        $clienteId = !empty($payload['cliente_id']) ? trim((string)$payload['cliente_id']) : null;
         $dataVenda = !empty($payload['data_venda']) ? $payload['data_venda'] : date('Y-m-d H:i:s');
 
         if (empty($itensReq)) {
             throw new \Exception('O cupom está vazio. Bipe ao menos um produto.');
+        }
+
+        $cliente = null;
+        if ($clienteId) {
+            $cliente = Cliente::findOne(['id' => $clienteId, 'usuario_id' => $tenantId, 'ativo' => true]);
+            if (!$cliente) {
+                throw new \Exception('Cliente selecionado não encontrado.');
+            }
+        }
+
+        // Identifica pagamentos no Fiado / A Prazo e valida permissão do cliente + data de vencimento
+        $valorFiado = 0.0;
+        $primeiraDataVencimentoFiado = null;
+        foreach ($pagamentosReq as &$pgItem) {
+            $fpItem = !empty($pgItem['forma_pagamento_id']) ? FormaPagamento::findOne($pgItem['forma_pagamento_id']) : null;
+            $nomePg = mb_strtolower((string)($pgItem['nome'] ?? ($fpItem ? $fpItem->nome : '')), 'UTF-8');
+            $ehFiado = !empty($pgItem['eh_fiado'])
+                || strpos($nomePg, 'fiado') !== false
+                || strpos($nomePg, 'prazo') !== false
+                || ($fpItem && $fpItem->tipo === FormaPagamento::TIPO_BOLETO);
+
+            if ($ehFiado) {
+                $pgVal = (float)($pgItem['valor'] ?? 0);
+                $valorFiado += $pgVal;
+                $dtVenc = trim((string)($pgItem['data_vencimento'] ?? ''));
+                if (!$dtVenc || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dtVenc)) {
+                    throw new \Exception('Informe uma data de pagamento/vencimento válida para o Fiado.');
+                }
+                if (!$primeiraDataVencimentoFiado || $dtVenc < $primeiraDataVencimentoFiado) {
+                    $primeiraDataVencimentoFiado = $dtVenc;
+                }
+            }
+        }
+        unset($pgItem);
+
+        if ($valorFiado > 0) {
+            if (!$cliente) {
+                throw new \Exception('Selecione um cliente autorizado para registrar venda no Fiado.');
+            }
+            if (empty($cliente->permite_fiado)) {
+                throw new \Exception("O cliente {$cliente->nome_completo} não está autorizado a comprar no Fiado.");
+            }
+            if ($cliente->limite_fiado !== null && (float)$cliente->limite_fiado > 0) {
+                $saldoAtual = $cliente->getSaldoFiadoEmAberto();
+                if (($saldoAtual + $valorFiado) > (float)$cliente->limite_fiado + 0.01) {
+                    $disp = max(0, (float)$cliente->limite_fiado - $saldoAtual);
+                    throw new \Exception(
+                        "Limite de Fiado excedido para {$cliente->nome_completo}. Disponível: R$ " . number_format($disp, 2, ',', '.')
+                    );
+                }
+            }
         }
 
         $transaction = Yii::$app->db->beginTransaction();
@@ -519,6 +591,7 @@ class FrenteController extends Controller
             }
 
             $valorTotalFinal = max(0.01, round($subtotalBruto - $descontoGeral, 2));
+            $valorRecebidoAgora = max(0, round($valorTotalFinal - $valorFiado, 2));
 
             $formaPrincipalId = !empty($pagamentosReq[0]['forma_pagamento_id']) ? $pagamentosReq[0]['forma_pagamento_id'] : null;
             if (!$formaPrincipalId) {
@@ -530,18 +603,25 @@ class FrenteController extends Controller
 
             $venda = new Venda();
             $venda->usuario_id = $tenantId;
+            $venda->cliente_id = $cliente ? $cliente->id : null;
             $venda->colaborador_vendedor_id = $colaborador ? $colaborador->id : null;
-            $venda->cpf_consumidor = (strlen($cpfConsumidor) === 11) ? $cpfConsumidor : null;
+            $venda->cpf_consumidor = (strlen($cpfConsumidor) === 11) ? $cpfConsumidor : ($cliente && $cliente->cpf ? $cliente->cpf : null);
             $venda->data_venda = $dataVenda;
             $venda->valor_total = $valorTotalFinal;
             $venda->numero_parcelas = 1;
             $venda->tipo_venda = Venda::TIPO_BALCAO;
-            $venda->status_venda_codigo = StatusVenda::QUITADA;
+            if ($valorFiado > 0) {
+                $venda->status_venda_codigo = ($valorRecebidoAgora > 0) ? StatusVenda::PARCIALMENTE_PAGA : StatusVenda::EM_ABERTO;
+                $venda->data_primeiro_vencimento = $primeiraDataVencimentoFiado;
+            } else {
+                $venda->status_venda_codigo = StatusVenda::QUITADA;
+            }
             $venda->forma_pagamento_id = $formaPrincipalId;
 
             $obsPag = [];
             foreach ($pagamentosReq as $pg) {
-                $obsPag[] = ($pg['nome'] ?? 'Pagamento') . ' R$ ' . number_format((float)($pg['valor'] ?? 0), 2, ',', '.');
+                $dtStr = !empty($pg['data_vencimento']) ? ' (Venc: ' . date('d/m/Y', strtotime($pg['data_vencimento'])) . ')' : '';
+                $obsPag[] = ($pg['nome'] ?? 'Pagamento') . ' R$ ' . number_format((float)($pg['valor'] ?? 0), 2, ',', '.') . $dtStr;
             }
             $tagOffline = $offlineId ? " [OFFLINE:{$offlineId}]" : '';
             $venda->observacoes = 'PDV Frente de Caixa' . $tagOffline . (!empty($obsPag) ? ' | ' . implode(' + ', $obsPag) : '');
@@ -612,22 +692,28 @@ class FrenteController extends Controller
                 }
             }
 
-            $venda->gerarParcelas($formaPrincipalId, date('Y-m-d', strtotime($dataVenda)), 30, true, $pagamentosReq);
+            $venda->gerarParcelas(
+                $formaPrincipalId,
+                $primeiraDataVencimentoFiado ?: date('Y-m-d', strtotime($dataVenda)),
+                30,
+                ($valorFiado <= 0),
+                $pagamentosReq
+            );
 
             $caixaAberto = Caixa::find()
                 ->where(['usuario_id' => $tenantId, 'status' => Caixa::STATUS_ABERTO])
                 ->orderBy(['data_abertura' => SORT_DESC])
                 ->one();
 
-            if ($caixaAberto) {
+            if ($caixaAberto && $valorRecebidoAgora > 0) {
                 $mov = new CaixaMovimentacao();
                 $mov->caixa_id = $caixaAberto->id;
                 $mov->venda_id = $venda->id;
                 $mov->forma_pagamento_id = $formaPrincipalId;
                 $mov->tipo = CaixaMovimentacao::TIPO_ENTRADA;
                 $mov->categoria = CaixaMovimentacao::CATEGORIA_VENDA;
-                $mov->valor = $valorTotalFinal;
-                $mov->descricao = 'Venda PDV #' . strtoupper(substr($venda->id, 0, 8));
+                $mov->valor = $valorRecebidoAgora;
+                $mov->descricao = 'Venda PDV #' . strtoupper(substr($venda->id, 0, 8)) . ($valorFiado > 0 ? ' (Entrada)' : '');
                 $mov->data_movimento = $dataVenda;
                 $mov->save(false);
             }
@@ -647,6 +733,54 @@ class FrenteController extends Controller
             $transaction->rollBack();
             throw $e;
         }
+    }
+
+    /**
+     * Busca rápida de clientes ativos para identificação e verificação de autorização de Fiado
+     */
+    public function actionBuscarClientes($q = '')
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        $usuario = Yii::$app->user->identity;
+        $tenantId = $usuario ? $usuario->getTenantId() : null;
+        $termo = trim((string)$q);
+
+        $query = Cliente::find()
+            ->where(['usuario_id' => $tenantId, 'ativo' => true]);
+
+        if ($termo !== '') {
+            $termoNum = preg_replace('/\D/', '', $termo);
+            $or = [
+                'or',
+                ['ilike', 'nome_completo', $termo],
+                ['ilike', 'telefone', $termo],
+            ];
+            if ($termoNum !== '') {
+                $or[] = ['ilike', 'cpf', $termoNum];
+            }
+            $query->andWhere($or);
+        }
+
+        $clientes = $query->orderBy(['nome_completo' => SORT_ASC])->limit(20)->all();
+        $lista = [];
+        foreach ($clientes as $c) {
+            $permiteFiado = !empty($c->permite_fiado);
+            $limiteFiado = $c->limite_fiado !== null ? (float)$c->limite_fiado : null;
+            $saldoAberto = $permiteFiado ? $c->getSaldoFiadoEmAberto() : 0.0;
+            $lista[] = [
+                'id' => (string)$c->id,
+                'nome' => $c->nome_completo,
+                'cpf' => $c->cpf ?: '',
+                'telefone' => $c->telefone ?: '',
+                'permite_fiado' => $permiteFiado,
+                'limite_fiado' => $limiteFiado,
+                'saldo_em_aberto' => $saldoAberto,
+                'disponivel_fiado' => ($limiteFiado !== null) ? max(0, $limiteFiado - $saldoAberto) : null,
+            ];
+        }
+
+        return ['success' => true, 'clientes' => $lista];
     }
 
     /**

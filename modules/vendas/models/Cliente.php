@@ -33,6 +33,8 @@ use app\modules\vendas\models\CarteiraCobranca;
  * @property string $ponto_referencia
  * @property string $observacoes
  * @property boolean $ativo
+ * @property boolean $permite_fiado
+ * @property float|null $limite_fiado
  * @property string $data_criacao
  * @property string $data_atualizacao
  */
@@ -69,8 +71,11 @@ class Cliente extends ActiveRecord
             // Textos longos
             [['observacoes', 'ponto_referencia'], 'string'],
             
-            // Booleano
-            [['ativo'], 'boolean'],
+            // Booleano e Crédito / Fiado
+            [['ativo', 'permite_fiado'], 'boolean'],
+            [['permite_fiado'], 'default', 'value' => false],
+            [['limite_fiado'], 'number', 'min' => 0],
+            [['limite_fiado'], 'default', 'value' => null],
             
             // Nome
             [['nome_completo'], 'string', 'max' => 150],
@@ -118,6 +123,8 @@ class Cliente extends ActiveRecord
             'telefone' => 'Telefone *',
             'email' => 'E-mail',
             'senha' => 'Senha *',
+            'permite_fiado' => 'Permitir Compras no Fiado / A Prazo',
+            'limite_fiado' => 'Limite de Crédito no Fiado (R$)',
             'endereco_logradouro' => 'Logradouro *',
             'endereco_numero' => 'Número *',
             'endereco_complemento' => 'Complemento',
@@ -312,5 +319,23 @@ class Cliente extends ActiveRecord
             ->indexBy('id')
             ->orderBy(['nome_completo' => SORT_ASC])
             ->column();
+    }
+
+    /**
+     * Retorna o saldo total em aberto (parcelas pendentes/atrasadas) deste cliente na loja.
+     */
+    public function getSaldoFiadoEmAberto(): float
+    {
+        $total = (new \yii\db\Query())
+            ->from('prest_parcelas p')
+            ->innerJoin('prest_vendas v', 'v.id = p.venda_id')
+            ->where([
+                'v.cliente_id' => $this->id,
+                'v.usuario_id' => $this->usuario_id,
+            ])
+            ->andWhere(['in', 'p.status_parcela_codigo', [StatusParcela::PENDENTE, StatusParcela::ATRASADA]])
+            ->sum('p.valor_parcela');
+
+        return (float)($total ?? 0);
     }
 }

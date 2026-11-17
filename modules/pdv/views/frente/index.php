@@ -11,10 +11,14 @@ use yii\helpers\Url;
 
 $formasJson = [];
 foreach ($formasPagamento as $fp) {
+    $ehFiado = ($fp->tipo === \app\modules\vendas\models\FormaPagamento::TIPO_BOLETO
+        || mb_stripos($fp->nome, 'fiado') !== false
+        || mb_stripos($fp->nome, 'prazo') !== false);
     $formasJson[] = [
         'id' => (string)$fp->id,
         'nome' => $fp->nome,
         'tipo' => $fp->tipo,
+        'eh_fiado' => $ehFiado,
     ];
 }
 ?>
@@ -371,6 +375,21 @@ foreach ($formasPagamento as $fp) {
                     <span id="fin-total-pagar" class="text-3xl font-mono font-black text-slate-950">R$ 0,00</span>
                 </div>
 
+                <!-- Identificação do Cliente (obrigatório para Fiado / A Prazo) -->
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2 relative">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[11px] font-black uppercase text-slate-600">Cliente (Obrigatório p/ Fiado)</label>
+                        <button type="button" id="btn-limpar-cliente-fin" onclick="limparClienteSelecionado()" class="hidden text-[11px] font-bold text-rose-600 hover:underline">
+                            Remover cliente
+                        </button>
+                    </div>
+                    <input type="text" id="fin-cliente-busca" placeholder="Buscar cliente por nome, CPF ou telefone..." autocomplete="off" class="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-bold bg-white outline-none focus:border-blue-600">
+                    <div id="fin-cliente-resultados" class="hidden absolute left-3 right-3 top-20 z-20 bg-white border border-slate-300 rounded-xl shadow-xl max-h-40 overflow-y-auto divide-y divide-slate-100"></div>
+                    <div id="fin-cliente-badge" class="text-[11px] font-bold text-slate-500">
+                        Consumidor não identificado (Fiado bloqueado)
+                    </div>
+                </div>
+
                 <!-- Lista de Formas de Pagamento (suporta pagamento misto) -->
                 <div class="space-y-2">
                     <div class="flex items-center justify-between">
@@ -510,6 +529,7 @@ foreach ($formasPagamento as $fp) {
             indiceSelecionado: -1,
             desconto: 0,
             ultimaVenda: null,
+            clienteSelecionado: null,
             pesoAtualBalanca: 0,
             balancaConectada: false,
             config: {
@@ -975,12 +995,15 @@ foreach ($formasPagamento as $fp) {
             const total = getTotalCupomAtual();
             document.getElementById('fin-total-pagar').textContent = `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
-            const fpPadrao = pdvState.formasPagamento[0] || { id: '', nome: 'DINHEIRO' };
+            const fpPadrao = pdvState.formasPagamento.find(f => !f.eh_fiado) || pdvState.formasPagamento[0] || { id: '', nome: 'DINHEIRO', eh_fiado: false };
             pagamentosMisto = [{
                 forma_pagamento_id: fpPadrao.id,
                 nome: fpPadrao.nome,
+                eh_fiado: !!fpPadrao.eh_fiado,
+                data_vencimento: dataPadraoFiado(),
                 valor: total,
             }];
+            atualizarUiClienteSelecionado();
             renderizarLinhasPagamento();
             document.getElementById('modal-finalizar').classList.remove('hidden');
             setTimeout(() => {
@@ -989,15 +1012,111 @@ foreach ($formasPagamento as $fp) {
             }, 40);
         }
 
+        function dataPadraoFiado() {
+            const d = new Date();
+            d.setDate(d.getDate() + 30);
+            return d.toISOString().split('T')[0];
+        }
+
+        let timerClienteFin = null;
+        document.getElementById('fin-cliente-busca').addEventListener('input', (e) => {
+            clearTimeout(timerClienteFin);
+            const q = e.target.value.trim();
+            if (q.length < 2) {
+                document.getElementById('fin-cliente-resultados').classList.add('hidden');
+                return;
+            }
+            timerClienteFin = setTimeout(() => buscarClientesFin(q), 220);
+        });
+
+        async function buscarClientesFin(q) {
+            const box = document.getElementById('fin-cliente-resultados');
+            try {
+                const res = await fetch(`<?= Url::to(['/pdv/frente/buscar-clientes']) ?>?q=${encodeURIComponent(q)}`);
+                const data = await res.json();
+                const lista = data.clientes || [];
+                if (!lista.length) {
+                    box.innerHTML = '<div class="p-3 text-xs text-slate-400 text-center">Nenhum cliente encontrado.</div>';
+                } else {
+                    box.innerHTML = lista.map(c => `
+                        <button type="button" onclick='selecionarClienteFin(${JSON.stringify(c)})' class="w-full text-left px-3 py-2 hover:bg-blue-50 flex items-center justify-between text-xs">
+                            <div>
+                                <div class="font-bold text-slate-900">${c.nome}</div>
+                                <div class="text-[10px] text-slate-500">${c.cpf || ''} ${c.telefone ? '• ' + c.telefone : ''}</div>
+                            </div>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black ${c.permite_fiado ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}">
+                                ${c.permite_fiado ? 'Fiado OK' : 'Sem Fiado'}
+                            </span>
+                        </button>
+                    `).join('');
+                }
+                box.classList.remove('hidden');
+            } catch (_) {
+                box.classList.add('hidden');
+            }
+        }
+
+        function selecionarClienteFin(c) {
+            pdvState.clienteSelecionado = c;
+            document.getElementById('fin-cliente-busca').value = c.nome;
+            document.getElementById('fin-cliente-resultados').classList.add('hidden');
+            atualizarUiClienteSelecionado();
+            renderizarLinhasPagamento();
+        }
+
+        function limparClienteSelecionado() {
+            pdvState.clienteSelecionado = null;
+            document.getElementById('fin-cliente-busca').value = '';
+            document.getElementById('fin-cliente-resultados').classList.add('hidden');
+            // Reverte eventuais linhas marcadas como Fiado para a primeira forma à vista
+            const fpVista = pdvState.formasPagamento.find(f => !f.eh_fiado) || pdvState.formasPagamento[0];
+            if (fpVista) {
+                pagamentosMisto.forEach(p => {
+                    if (p.eh_fiado) {
+                        p.forma_pagamento_id = fpVista.id;
+                        p.nome = fpVista.nome;
+                        p.eh_fiado = false;
+                    }
+                });
+            }
+            atualizarUiClienteSelecionado();
+            renderizarLinhasPagamento();
+        }
+
+        function atualizarUiClienteSelecionado() {
+            const badge = document.getElementById('fin-cliente-badge');
+            const btnLimpar = document.getElementById('btn-limpar-cliente-fin');
+            const c = pdvState.clienteSelecionado;
+            if (!c) {
+                badge.className = 'text-[11px] font-bold text-slate-500';
+                badge.textContent = 'Consumidor não identificado (Fiado bloqueado)';
+                btnLimpar.classList.add('hidden');
+                return;
+            }
+            btnLimpar.classList.remove('hidden');
+            if (c.permite_fiado) {
+                const dispStr = c.disponivel_fiado !== null
+                    ? ` • Disponível: R$ ${Number(c.disponivel_fiado).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                    : '';
+                badge.className = 'text-[11px] font-black text-emerald-700';
+                badge.textContent = `✓ ${c.nome} — Fiado Liberado${dispStr}`;
+            } else {
+                badge.className = 'text-[11px] font-black text-rose-700';
+                badge.textContent = `🔒 ${c.nome} — Fiado NÃO autorizado no cadastro`;
+            }
+        }
+
         function adicionarLinhaPagamento() {
             const total = getTotalCupomAtual();
             const somaAtual = pagamentosMisto.reduce((acc, p) => acc + (parseFloat(p.valor) || 0), 0);
             const restante = Math.max(0, Number((total - somaAtual).toFixed(2)));
-            const fp = pdvState.formasPagamento[Math.min(pagamentosMisto.length, pdvState.formasPagamento.length - 1)] || { id: '', nome: 'PIX' };
+            const fp = pdvState.formasPagamento.find(f => !f.eh_fiado) || pdvState.formasPagamento[0] || { id: '', nome: 'PIX', eh_fiado: false };
 
             pagamentosMisto.push({
                 forma_pagamento_id: fp.id,
                 nome: fp.nome,
+                eh_fiado: !!fp.eh_fiado,
+                data_vencimento: dataPadraoFiado(),
                 valor: restante,
             });
             renderizarLinhasPagamento();
@@ -1011,15 +1130,27 @@ foreach ($formasPagamento as $fp) {
 
         function renderizarLinhasPagamento() {
             const container = document.getElementById('fin-lista-pagamentos');
+            const podeFiado = !!(pdvState.clienteSelecionado && pdvState.clienteSelecionado.permite_fiado);
+
             container.innerHTML = pagamentosMisto.map((pg, idx) => `
-                <div class="flex items-center gap-2">
-                    <select onchange="atualizarFormaLinhaPagamento(${idx}, this)" class="flex-1 border-2 border-slate-300 rounded-xl px-3 py-2 text-sm font-bold">
-                        ${pdvState.formasPagamento.map(fp => `
-                            <option value="${fp.id}" data-nome="${fp.nome}" ${String(fp.id) === String(pg.forma_pagamento_id) ? 'selected' : ''}>${fp.nome}</option>
-                        `).join('')}
-                    </select>
-                    <input type="number" step="0.01" min="0" value="${Number(pg.valor || 0).toFixed(2)}" oninput="atualizarValorLinhaPagamento(${idx}, this.value)" class="w-36 border-2 border-slate-300 rounded-xl px-3 py-2 font-mono font-black text-base text-right">
-                    ${pagamentosMisto.length > 1 ? `<button type="button" onclick="removerLinhaPagamento(${idx})" class="px-2.5 py-2 bg-rose-100 hover:bg-rose-200 text-rose-700 font-black rounded-xl text-xs">✕</button>` : ''}
+                <div class="space-y-1.5 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                    <div class="flex items-center gap-2">
+                        <select onchange="atualizarFormaLinhaPagamento(${idx}, this)" class="flex-1 border-2 border-slate-300 rounded-xl px-3 py-2 text-sm font-bold bg-white">
+                            ${pdvState.formasPagamento.map(fp => `
+                                <option value="${fp.id}" data-nome="${fp.nome}" data-fiado="${fp.eh_fiado ? '1' : '0'}" ${fp.eh_fiado && !podeFiado ? 'disabled' : ''} ${String(fp.id) === String(pg.forma_pagamento_id) ? 'selected' : ''}>
+                                    ${fp.nome}${fp.eh_fiado && !podeFiado ? ' (Requer cliente autorizado)' : ''}
+                                </option>
+                            `).join('')}
+                        </select>
+                        <input type="number" step="0.01" min="0" value="${Number(pg.valor || 0).toFixed(2)}" oninput="atualizarValorLinhaPagamento(${idx}, this.value)" class="w-36 border-2 border-slate-300 rounded-xl px-3 py-2 font-mono font-black text-base text-right bg-white">
+                        ${pagamentosMisto.length > 1 ? `<button type="button" onclick="removerLinhaPagamento(${idx})" class="px-2.5 py-2 bg-rose-100 hover:bg-rose-200 text-rose-700 font-black rounded-xl text-xs">✕</button>` : ''}
+                    </div>
+                    ${pg.eh_fiado ? `
+                        <div class="flex items-center justify-between gap-2 pl-1">
+                            <span class="text-[11px] font-black text-amber-800">📅 Data de Pagamento (Vencimento):</span>
+                            <input type="date" value="${pg.data_vencimento || dataPadraoFiado()}" onchange="atualizarDataFiadoLinha(${idx}, this.value)" class="border border-amber-400 bg-amber-50 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-900">
+                        </div>
+                    ` : ''}
                 </div>
             `).join('');
             recalcularTroco();
@@ -1027,8 +1158,23 @@ foreach ($formasPagamento as $fp) {
 
         function atualizarFormaLinhaPagamento(idx, sel) {
             const opt = sel.options[sel.selectedIndex];
+            const ehFiado = opt && opt.dataset.fiado === '1';
+            if (ehFiado && !(pdvState.clienteSelecionado && pdvState.clienteSelecionado.permite_fiado)) {
+                alert('Selecione um cliente autorizado para utilizar o Fiado.');
+                renderizarLinhasPagamento();
+                return;
+            }
             pagamentosMisto[idx].forma_pagamento_id = sel.value || null;
             pagamentosMisto[idx].nome = opt ? opt.dataset.nome : 'DINHEIRO';
+            pagamentosMisto[idx].eh_fiado = ehFiado;
+            if (ehFiado && !pagamentosMisto[idx].data_vencimento) {
+                pagamentosMisto[idx].data_vencimento = dataPadraoFiado();
+            }
+            renderizarLinhasPagamento();
+        }
+
+        function atualizarDataFiadoLinha(idx, dt) {
+            pagamentosMisto[idx].data_vencimento = dt;
         }
 
         function atualizarValorLinhaPagamento(idx, val) {
@@ -1065,14 +1211,34 @@ foreach ($formasPagamento as $fp) {
                 .map(p => ({
                     forma_pagamento_id: p.forma_pagamento_id || null,
                     nome: p.nome || 'DINHEIRO',
+                    eh_fiado: !!p.eh_fiado,
+                    data_vencimento: p.eh_fiado ? (p.data_vencimento || dataPadraoFiado()) : null,
                     valor: Number(parseFloat(p.valor).toFixed(2)),
                 }));
+
+            const temFiado = pagamentosValidos.some(p => p.eh_fiado);
+            if (temFiado) {
+                if (!navigator.onLine) {
+                    alert('Vendas no Fiado exigem conexão com a internet para validar o limite do cliente.');
+                    return;
+                }
+                if (!pdvState.clienteSelecionado || !pdvState.clienteSelecionado.permite_fiado) {
+                    alert('Selecione um cliente autorizado para registrar venda no Fiado.');
+                    return;
+                }
+                const faltaData = pagamentosValidos.some(p => p.eh_fiado && !p.data_vencimento);
+                if (faltaData) {
+                    alert('Informe a data de pagamento (vencimento) para o Fiado.');
+                    return;
+                }
+            }
 
             const agoraIso = new Date().toISOString().slice(0, 19).replace('T', ' ');
             const offlineId = 'pdv_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
             const payload = {
                 offline_id: offlineId,
                 data_venda: agoraIso,
+                cliente_id: pdvState.clienteSelecionado ? pdvState.clienteSelecionado.id : null,
                 itens: pdvState.itens,
                 desconto: pdvState.desconto,
                 cpf_consumidor: document.getElementById('fin-cpf').value,
@@ -1083,6 +1249,7 @@ foreach ($formasPagamento as $fp) {
             const descCopia = pdvState.desconto;
             const pagamentosCopia = [...pagamentosValidos];
             const cpfCopia = document.getElementById('fin-cpf').value.trim();
+            const clienteCopia = pdvState.clienteSelecionado ? { ...pdvState.clienteSelecionado } : null;
             const trocoCopia = Math.max(0, Number((recebido - total).toFixed(2)));
 
             const concluirLocal = (vendaInfo, msgFeedback, clsFeedback) => {
@@ -1092,6 +1259,7 @@ foreach ($formasPagamento as $fp) {
                     desconto: descCopia,
                     pagamentos: pagamentosCopia,
                     cpf: cpfCopia,
+                    cliente: clienteCopia,
                     troco: trocoCopia,
                 };
                 try {
@@ -1101,7 +1269,9 @@ foreach ($formasPagamento as $fp) {
                 pdvState.itens = [];
                 pdvState.indiceSelecionado = -1;
                 pdvState.desconto = 0;
+                pdvState.clienteSelecionado = null;
                 document.getElementById('fin-cpf').value = '';
+                document.getElementById('fin-cliente-busca').value = '';
                 renderizarCupom();
                 fecharModais();
                 setFeedback(msgFeedback, clsFeedback);
@@ -1289,8 +1459,10 @@ foreach ($formasPagamento as $fp) {
             const desconto = Number(registro.desconto || 0);
             const pagamentos = registro.pagamentos || [];
             const cpf = registro.cpf || '';
+            const cliente = registro.cliente || null;
             const troco = Number(registro.troco || 0);
             const loja = pdvState.lojaDados || { nome: pdvState.lojaNome };
+            const pagamentosFiado = pagamentos.filter(p => p.eh_fiado);
 
             const area = document.getElementById('area-cupom-impressao');
             area.innerHTML = `
@@ -1299,10 +1471,11 @@ foreach ($formasPagamento as $fp) {
                 ${loja.endereco ? `<div style="text-align:center;font-size:10px;">${loja.endereco}</div>` : ''}
                 ${loja.telefone ? `<div style="text-align:center;font-size:10px;">Tel: ${loja.telefone}</div>` : ''}
                 <div style="text-align:center;font-size:10px;margin:6px 0;">
-                    <strong>CUPOM NAO FISCAL #${venda.numero_cupom || ''}</strong><br>
+                    <strong>${pagamentosFiado.length ? 'COMPROVANTE VENDA A PRAZO / FIADO' : 'CUPOM NAO FISCAL'} #${venda.numero_cupom || ''}</strong><br>
                     ${venda.data_hora || ''}
                 </div>
-                ${cpf ? `<div style="font-size:10px;margin-bottom:4px;">CONSUMIDOR CPF/CNPJ: ${cpf}</div>` : ''}
+                ${cliente ? `<div style="font-size:10px;margin-bottom:2px;"><strong>CLIENTE:</strong> ${cliente.nome}</div>` : ''}
+                ${(cpf || (cliente && cliente.cpf)) ? `<div style="font-size:10px;margin-bottom:4px;">CONSUMIDOR CPF/CNPJ: ${cpf || cliente.cpf}</div>` : ''}
                 <hr style="border-top:1px dashed #000;margin:4px 0;">
                 ${itens.map((i, idx) => `
                     <div style="margin-bottom:4px;">
@@ -1320,11 +1493,16 @@ foreach ($formasPagamento as $fp) {
                 </div>
                 ${pagamentos.map(p => `
                     <div style="display:flex;justify-content:space-between;font-size:10px;">
-                        <span>${p.nome || 'Pagamento'}:</span>
+                        <span>${p.nome || 'Pagamento'}${p.eh_fiado && p.data_vencimento ? ` (Venc: ${p.data_vencimento.split('-').reverse().join('/')})` : ''}:</span>
                         <span>R$ ${Number(p.valor || 0).toFixed(2)}</span>
                     </div>
                 `).join('')}
                 ${troco > 0 ? `<div style="display:flex;justify-content:space-between;font-weight:bold;font-size:11px;margin-top:2px;"><span>TROCO:</span><span>R$ ${troco.toFixed(2)}</span></div>` : ''}
+                ${pagamentosFiado.length ? `
+                    <div style="margin-top:14px;padding-top:10px;border-top:1px solid #000;text-align:center;font-size:10px;">
+                        Assinatura do Cliente (${cliente ? cliente.nome : ''})
+                    </div>
+                ` : ''}
                 <hr style="border-top:1px dashed #000;margin:6px 0;">
                 <div style="text-align:center;font-size:10px;">
                     Atendido por: ${pdvState.operadorNome}<br>
